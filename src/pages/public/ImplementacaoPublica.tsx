@@ -8,11 +8,9 @@ import { Card } from "../../components/ui/card";
 import { ImplementationSectionForm } from "../../components/implementacao/ImplementationFormFields";
 import { IMPLEMENTATION_SECTIONS, computeProgress, type ImplData } from "../../lib/implementationForm";
 import { cn } from "../../lib/utils";
+import { SECTION_ICON } from "../../components/implementacao/sectionIcons";
 import { contrastWithWhite, MIN_BRAND_CONTRAST } from "../../lib/theme";
 
-const SECTION_ICON: Record<string, LucideIcon> = {
-  empresa: Building2, responsaveis: Users, comercial: Target, integracoes: Plug, financeiro: Wallet, aurora: Sparkles, golive: Rocket,
-};
 
 const PAGE_BG = "min-h-screen bg-[var(--color-surface)] bg-[radial-gradient(60%_40%_at_50%_0%,color-mix(in_srgb,var(--color-primary-blue)_10%,transparent),transparent)]";
 
