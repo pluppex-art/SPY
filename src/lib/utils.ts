@@ -127,3 +127,18 @@ export function formatPercentage(value: number | null | undefined): string {
   return `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
+/** "há 12 min" / "há 3 h" / "há 5 dias" — feeds de atividade recente (Dashboard, etc.). */
+export function timeAgo(iso: string | number | Date): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "agora";
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h} h`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `há ${d} ${d === 1 ? "dia" : "dias"}`;
+  const mo = Math.floor(d / 30);
+  return `há ${mo} ${mo === 1 ? "mês" : "meses"}`;
+}
+

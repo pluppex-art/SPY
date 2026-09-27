@@ -70,6 +70,31 @@ const isOpen = (l: LeadLike) => l.status !== "Fechado" && l.status !== "Perdido"
 // leads continuam sem contar Fechado, só essa contagem de leads muda.
 const isNotLost = (l: LeadLike) => l.status !== "Perdido";
 
+/** Valor real de um lead (para agrupamentos por vendedor/produto/etc.):
+ * `value` gravado é a fonte de verdade (soma de todas as propostas aceitas,
+ * mantida sincronizada em DataContext.tsx); só cai pra proposta vinculada
+ * mais recente quando o lead genuinamente não tem valor nenhum ainda.
+ *
+ * NUNCA usa o preço de CATÁLOGO dos produtos vinculados (`productIds`) como
+ * fallback — esse campo também é usado por "produto de interesse" (tag que
+ * nunca virou venda) e por vendas reais com desconto/quantidade diferente do
+ * preço de tabela. Tratar o preço de catálogo como se fosse o valor fechado
+ * inflava totais que deveriam bater com o Pipeline (bugs reais corrigidos em
+ * 2026-09: Kanban "Total de Ganhos", Ranking de Vendas do Dashboard). Qualquer
+ * agrupamento novo por valor de lead fechado deve usar esta função, não
+ * reimplementar o fallback. */
+export function getLeadRealValue(
+  l: { value?: any; valor?: any; id?: string },
+  proposals: { lead_id?: string; valor?: any; created_at?: string }[]
+): number {
+  const parsed = parseCurrencyBR(l.value ?? l.valor);
+  if (parsed > 0) return parsed;
+  const linkedProposal = (proposals || [])
+    .filter((p) => p.lead_id === l.id)
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0];
+  return linkedProposal?.valor ? Number(linkedProposal.valor) || 0 : 0;
+}
+
 export function getWonDeals(leads: LeadLike[]): { count: number; value: number } {
   const won = leads.filter(isWon);
   return { count: won.length, value: won.reduce((s, l) => s + parseCurrencyBR(l.value), 0) };

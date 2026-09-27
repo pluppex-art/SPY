@@ -9,8 +9,11 @@ import { useData } from '../../../contexts/DataContext';
 import { useLocalization } from '../../../contexts/LocalizationContext';
 import { parseCurrencyBR, formatPercentage } from '../../../lib/utils';
 import { parseEntryDate } from '../../finance/lib/financeDates';
-import { getMRR } from '../../../lib/revenueMetrics';
+import { getMRR, getLeadRealValue } from '../../../lib/revenueMetrics';
 import type { DashboardSummary } from '../useDashboard';
+import { RecentActivityFeed, type FeedActivity } from './StrategicalWidgets/RecentActivityFeed';
+import { SalesFunnelWidget, type FunnelStepData } from './StrategicalWidgets/SalesFunnelWidget';
+import { RevenueByProductDonut, type RevenueSlice } from './StrategicalWidgets/RevenueByProductDonut';
 
 interface Squad {
   nome: string;
@@ -44,7 +47,7 @@ export function StrategicalView({
   dateFrom,
   dateTo,
 }: StrategicalViewProps) {
-  const { leads, financeEntries, clienteBase } = useData();
+  const { leads, financeEntries, clienteBase, proposals, reunioes, tasks, products } = useData();
   const { formatCurrency } = useLocalization();
   const leadsAbertos = leads.filter(l => l.status !== 'Fechado' && l.status !== 'Perdido');
   // Cada métrica abaixo prefere o valor cacheado de GET /api/dashboard/summary
@@ -106,6 +109,93 @@ export function StrategicalView({
       hasAnyEntry: entries.length > 0, hasAnyCliente: clientes.length > 0,
     };
   }, [financeEntries, clienteBase, dateFrom, dateTo]);
+
+  // Últimas Atividades: mistura eventos reais de 4 tabelas diferentes, cada um com o timestamp
+  // real do próprio registro — sem depender de um log manual (leadActivities), que só é
+  // preenchido por 2 telas do sistema e ficaria quase sempre vazio aqui.
+  const recentActivities = useMemo<FeedActivity[]>(() => {
+    const items: FeedActivity[] = [];
+    for (const l of leads as any[]) {
+      const createdTs = l.created_at ? new Date(l.created_at).getTime() : NaN;
+      if (Number.isFinite(createdTs)) {
+        items.push({ id: `lead-${l.id}`, kind: 'lead', title: 'Novo lead recebido', description: l.company || l.name || 'Lead sem nome', ts: createdTs });
+      }
+      if (l.status === 'Fechado') {
+        const wonTs = new Date(l.updated_at || l.created_at || 0).getTime();
+        if (Number.isFinite(wonTs) && wonTs > 0) {
+          items.push({ id: `won-${l.id}`, kind: 'cliente', title: 'Cliente convertido', description: l.company || l.name || 'Lead', ts: wonTs });
+        }
+      }
+    }
+    for (const p of proposals as any[]) {
+      const ts = p.created_at ? new Date(p.created_at).getTime() : NaN;
+      if (Number.isFinite(ts)) items.push({ id: `prop-${p.id}`, kind: 'proposta', title: 'Proposta enviada', description: p.cliente || p.titulo || 'Proposta comercial', ts });
+    }
+    for (const r of reunioes as any[]) {
+      if (r.status !== 'Concluída' || !r.scheduledAt) continue;
+      const ts = new Date(r.scheduledAt).getTime();
+      if (Number.isFinite(ts)) {
+        items.push({ id: `reun-${r.id}`, kind: 'reuniao', title: 'Reunião realizada', description: [r.companyName || r.leadName, r.pauta].filter(Boolean).join(' — ') || 'Reunião', ts });
+      }
+    }
+    for (const t of tasks as any[]) {
+      if (t.status !== 'Concluída') continue;
+      const ts = new Date(t.completed_at || t.updated_at || 0).getTime();
+      if (Number.isFinite(ts) && ts > 0) items.push({ id: `task-${t.id}`, kind: 'tarefa', title: 'Tarefa concluída', description: t.title || 'Tarefa', ts });
+    }
+    return items.sort((a, b) => b.ts - a.ts).slice(0, 6);
+  }, [leads, proposals, reunioes, tasks]);
+
+  // Funil de Vendas: 5 etapas genéricas ACUMULATIVAS — cada uma é um SUBCONJUNTO real da
+  // anterior (nunca "todo lead com proposta", por exemplo, que poderia ser maior que
+  // "qualificados" e faria o funil crescer no meio por acaso dos dados).
+  const salesFunnelSteps = useMemo<FunnelStepData[]>(() => {
+    const all = leads as any[];
+    const qualificados = new Set(all.filter((l) => l.status !== 'Novo').map((l) => l.id));
+    const leadsComProposta = new Set((proposals as any[]).map((p) => p.lead_id).filter(Boolean));
+    const propostas = new Set(all.filter((l) => qualificados.has(l.id) && leadsComProposta.has(l.id)).map((l) => l.id));
+    const negociacoes = new Set(all.filter((l) => propostas.has(l.id) && (l.status === 'Em Negociação' || l.status === 'Fechado')).map((l) => l.id));
+    const clientes = new Set(all.filter((l) => negociacoes.has(l.id) && l.status === 'Fechado').map((l) => l.id));
+
+    const base = [
+      { label: 'Leads', value: all.length, color: 'bg-purple-500' },
+      { label: 'Qualificados', value: qualificados.size, color: 'bg-[var(--color-primary-blue)]' },
+      { label: 'Propostas', value: propostas.size, color: 'bg-cyan-500' },
+      { label: 'Negociações', value: negociacoes.size, color: 'bg-teal-500' },
+      { label: 'Clientes', value: clientes.size, color: 'bg-emerald-500' },
+    ];
+    const top = base[0].value || 1;
+    return base.map((s) => ({ ...s, pct: Math.round((s.value / top) * 1000) / 10 }));
+  }, [leads, proposals]);
+
+  // Receita por Produto: valor real (getLeadRealValue — mesma fonte do Ranking de Vendas, sem
+  // fallback pro preço de catálogo) dos leads Fechado, somado por categoria do(s) produto(s)
+  // vinculado(s). Mais de um produto na mesma venda divide o valor igualmente entre eles; sem
+  // produto vinculado nenhum, cai em "Outros" (nunca fica de fora do total).
+  const revenueByProduct = useMemo<RevenueSlice[]>(() => {
+    const byCategory: Record<string, number> = {};
+    for (const l of (leads as any[]).filter((l) => l.status === 'Fechado')) {
+      const value = getLeadRealValue(l, proposals as any[]);
+      if (value <= 0) continue;
+      const ids: string[] = Array.isArray(l.productIds) ? l.productIds : [];
+      const cats = [...new Set(ids.map((id) => (products as any[]).find((p) => p.id === id)?.category).filter(Boolean))] as string[];
+      if (cats.length === 0) {
+        byCategory['Outros'] = (byCategory['Outros'] || 0) + value;
+      } else {
+        const share = value / cats.length;
+        for (const c of cats) byCategory[c] = (byCategory[c] || 0) + share;
+      }
+    }
+    const total = Object.values(byCategory).reduce((s, v) => s + v, 0);
+    const PALETTE = ['#2563EB', '#8B5CF6', '#F59E0B', '#10B981', '#EC4899', '#06B6D4', '#F43F5E'];
+    return Object.entries(byCategory)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value], i) => ({
+        name, value: Math.round(value * 100) / 100,
+        pct: total > 0 ? Math.round((value / total) * 1000) / 10 : 0,
+        color: PALETTE[i % PALETTE.length],
+      }));
+  }, [leads, proposals, products]);
 
   return (
     <motion.div
@@ -279,6 +369,12 @@ export function StrategicalView({
             </div>
           </Card>
         </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6 items-stretch">
+        <RecentActivityFeed activities={recentActivities} />
+        <SalesFunnelWidget steps={salesFunnelSteps} />
+        <RevenueByProductDonut slices={revenueByProduct} />
       </div>
 
       <div className="space-y-4">
