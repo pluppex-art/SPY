@@ -66,7 +66,9 @@ export function ClienteDetalhesModal({ isOpen, onClose, cliente, onManageContato
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      maxWidth="max-w-2xl"
+      maxWidth="max-w-[480px]"
+      position="right"
+      overlay="light"
       title={
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-[var(--color-primary-blue)]/15 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
