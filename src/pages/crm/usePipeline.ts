@@ -177,13 +177,20 @@ export function usePipeline() {
         (!dateTo || (item.date && item.date <= dateTo));
       return matchesPipeline && matchesSeller && matchesCompany && matchesClient && matchesSearch && matchesDate;
     })
-    // Newest leads first — uses Supabase's auto-set created_at
+    // Card sempre no topo de quem teve a atividade mais recente — tanto um lead recém-criado
+    // quanto um já existente que só mudou de etapa/status/campo (updated_at é atualizado a cada
+    // UPDATE por um trigger no banco, ver migration de leads). Prioriza updated_at sobre
+    // created_at porque updated_at nunca é mais antigo (parte igual a created_at na criação e só
+    // sobe a partir daí) — assim uma edição recente sobe o card mesmo sem mudar de coluna.
+    // Lead recém-adicionado otimisticamente (ainda sem timestamp do banco) vai para o topo — é
+    // mais provável ser o mais novo do que o mais antigo.
     .sort((a: any, b: any) => {
-      const da: string = a.created_at ?? a.createdAt ?? "";
-      const db: string = b.created_at ?? b.createdAt ?? "";
+      const key = (l: any): string => l.updated_at ?? l.updatedAt ?? l.created_at ?? l.createdAt ?? "";
+      const da = key(a);
+      const db = key(b);
       if (!da && !db) return 0;
-      if (!da) return 1;
-      if (!db) return -1;
+      if (!da) return -1;
+      if (!db) return 1;
       return db > da ? 1 : db < da ? -1 : 0;
     }),
   [leads, currentPipeline, sellerFilter, searchQuery, companyFilter, clientFilter, clientNameToId, products, dateFrom, dateTo]);
