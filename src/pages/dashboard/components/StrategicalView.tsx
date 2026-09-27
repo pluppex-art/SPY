@@ -203,7 +203,7 @@ export function StrategicalView({
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className="space-y-6 text-left"
+      className="space-y-5 text-left"
     >
       <div className="grid lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative shadow-sm">
@@ -254,8 +254,8 @@ export function StrategicalView({
               esmague visualmente a outra (achado real: um mês com centenas
               de leads sincronizados de uma vez fazia a linha de MRR, em
               milhares de reais, parecer achatada perto do zero). */}
-          <div className="h-[300px] w-full min-w-0 -mx-2">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
+          <div className="h-[240px] w-full min-w-0 -mx-2">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
               <AreaChart data={performanceData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
@@ -322,7 +322,7 @@ export function StrategicalView({
                 </div>
               ) : (
                 <>
-                  <div className="relative w-36 h-36 mb-5">
+                  <div className="relative w-32 h-32 mb-4">
                     <svg className="w-full h-full" viewBox="0 0 100 100">
                       <circle cx="50" cy="50" r="45" fill="none" stroke="var(--color-border-default)" strokeWidth="8" />
                       <motion.circle
