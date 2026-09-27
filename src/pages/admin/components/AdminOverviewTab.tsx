@@ -33,7 +33,19 @@ export function AdminOverviewTab({
   const tenantNames = Object.keys(tenantIdMap);
   const totalTenants = tenantNames.length;
 
-  const annualRunRate = globalMrr * 12;
+  // Achado real 2026-09-27: este número (globalMrr) é a soma de TODOS os
+  // lançamentos financeiros (tipo Receber, status Pago) de TODOS os tenants —
+  // ou seja, o faturamento combinado dos clientes finais de cada empresa que
+  // roda no SPY, não a mensalidade que essas empresas pagam pro SPY (essa
+  // segunda coisa não existe como dado real hoje: não há tabela de assinatura/
+  // plano com valor monetário, só `tenants.plan` como rótulo textual — ver
+  // AdminBillingTab.tsx). "MRR"/"ARR Projetado" (globalMrr * 12) tratavam esse
+  // agregado como se fosse a mensalidade recorrente do próprio SPY, o que não
+  // é: é a soma do HISTÓRICO INTEIRO de faturamento de todos os tenants, não
+  // "a receita deste mês" — multiplicar isso por 12 não é uma projeção anual
+  // de nada. "Média Mensal" abaixo é um fato real (não uma projeção).
+  const mesesComFaturamento = revenueData.filter(m => m.mrr > 0).length;
+  const faturamentoMedioMensal = mesesComFaturamento > 0 ? globalMrr / mesesComFaturamento : 0;
   const activeUsersCount = "—";
 
   return (
@@ -83,12 +95,12 @@ export function AdminOverviewTab({
             {formatCurrency(globalMrr)}
           </div>
           <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest mt-1">
-            MRR Global (Receita Recorrente)
+            Faturamento da Base (Todos os Tenants)
           </div>
           <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)] flex items-center justify-between text-xs">
-            <span className="text-[var(--color-text-muted)]">ARR Projetado</span>
+            <span className="text-[var(--color-text-muted)]">Média Mensal</span>
             <span className="font-mono font-bold text-emerald-500">
-              {annualRunRate > 0 ? formatCurrency(annualRunRate) : "—"}
+              {faturamentoMedioMensal > 0 ? formatCurrency(faturamentoMedioMensal) : "—"}
             </span>
           </div>
         </Card>
@@ -150,15 +162,15 @@ export function AdminOverviewTab({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
             <div>
               <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> Evolução de MRR Global
+                <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> Evolução do Faturamento da Base
               </h3>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Histórico consolidado de faturamento a partir dos lançamentos financeiros liquidados.
+                Histórico consolidado de faturamento de todos os tenants, a partir dos lançamentos financeiros liquidados — não é a mensalidade paga ao SPY (ver aba Faturamento).
               </p>
             </div>
             {globalMrr > 0 && (
               <span className="text-[11px] font-black text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 px-2.5 py-1 rounded-lg border border-[var(--color-primary-blue)]/20">
-                MRR: {formatCurrency(globalMrr)}
+                Total: {formatCurrency(globalMrr)}
               </span>
             )}
           </div>
@@ -199,7 +211,7 @@ export function AdminOverviewTab({
                   <Area
                     type="monotone"
                     dataKey="mrr"
-                    name="MRR"
+                    name="Faturamento"
                     stroke="#3b82f6"
                     strokeWidth={2.5}
                     fillOpacity={1}

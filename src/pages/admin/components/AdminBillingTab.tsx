@@ -26,11 +26,16 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
 
   const tenantNames = Object.keys(tenantIdMap || {});
 
-  // Real revenue calculation
-  const mesesComReceita = revenueData.filter(m => m.mrr > 0);
+  // totalMrr = soma de TODOS os lançamentos (Receber/Pago) de TODOS os
+  // tenants — faturamento consolidado da base de clientes, não a mensalidade
+  // que essas empresas pagam ao SPY (ver comentário em AdminOverviewTab.tsx
+  // sobre esse mesmo número). Nome da variável mantido (só uso interno) pra
+  // não precisar renomear em cascata; o que mudou foram os RÓTULOS visíveis
+  // abaixo, que antes chamavam isso de "MRR"/"ARPU"/"LTV" — jargão de
+  // assinatura que não se aplica aqui (não existe coluna de mensalidade por
+  // tenant no banco, só `tenants.plan`, um rótulo de texto — ver subscriptions
+  // abaixo).
   const totalMrr = revenueData.reduce((sum, m) => sum + m.mrr, 0);
-  const arpu = mesesComReceita.length > 0 ? totalMrr / mesesComReceita.length : 0;
-  const ltvEstimado = arpu > 0 ? arpu * 12 : 0;
 
   // `useData().financeEntries` só enxerga o tenant ativo — usar isso aqui
   // fazia todo tenant da lista mostrar o MESMO valor (o do tenant atual),
@@ -59,29 +64,61 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
       });
   }, []);
 
-  // Real subscriptions derived from active tenants in the database
+  // Empresas com faturamento real registrado no período — base honesta pro
+  // "Faturamento Médio por Empresa" abaixo (achado real 2026-09-27: a versão
+  // anterior dividia o total por número de MESES com dado, não por empresa —
+  // "ARPU" não fazia sentido nenhum com esse denominador).
+  const tenantsComFaturamento = Object.keys(entriesByTenant).length;
+  const faturamentoMedioPorEmpresa = tenantsComFaturamento > 0 ? totalMrr / tenantsComFaturamento : 0;
+
+  // `tenants.plan`/`tenants.status` — únicos campos reais de plano/situação
+  // no banco (não existe tabela de assinatura com valor monetário). Busca
+  // direta (master-only, mesmo padrão do fetch de finance_entries acima).
+  const [tenantMeta, setTenantMeta] = useState<Record<string, { plan: string | null; status: string | null; niche: string | null }>>({});
+  useEffect(() => {
+    if (!supabase) return;
+    supabase
+      .from("tenants")
+      .select("id, plan, status, niche")
+      .then(({ data, error }) => {
+        if (error || !data) return;
+        const grouped: Record<string, { plan: string | null; status: string | null; niche: string | null }> = {};
+        data.forEach((row: any) => { if (row.id) grouped[row.id] = { plan: row.plan, status: row.status, niche: row.niche }; });
+        setTenantMeta(grouped);
+      });
+  }, []);
+
+  const formatPlanLabel = (plan: string | null | undefined) =>
+    plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "Sem plano definido";
+
+  // Real subscriptions derived from active tenants in the database — achado
+  // real 2026-09-27: esta tabela mostrava plano ("Enterprise"/"Professional"),
+  // valor (média de faturamento do tenant, ou R$997 fixo quando não havia
+  // dado) e forma de pagamento ("Faturamento Direto") TODOS fabricados —
+  // nenhum desses 3 campos existe de verdade no banco pra "quanto/como esta
+  // empresa paga o SPY". Agora mostra só o que é real: `tenants.plan` (rótulo
+  // textual), `tenants.status` (Active/Inactive) e o faturamento que ESSE
+  // tenant registrou nos próprios lançamentos (não é o que ele paga ao SPY,
+  // é o que os CLIENTES DELE pagaram — deixado explícito no cabeçalho da
+  // coluna). Sem inventar plano/valor/forma de pagamento onde não há dado.
   const subscriptions = useMemo(() => {
     return tenantNames.map((name, index) => {
       const tenantId = tenantIdMap[name];
       const isMaster = tenantId === PLUPPEX_TENANT_ID;
       const agg = tenantId ? entriesByTenant[tenantId] : undefined;
-      const tenantValue = agg && agg.count > 0
-        ? Math.round(agg.value / agg.count)
-        : (isMaster ? 0 : 997);
+      const meta = tenantId ? tenantMeta[tenantId] : undefined;
 
       return {
         id: `tenant-sub-${index + 1}`,
         tenantName: name,
-        niche: isMaster ? "Tecnologia" : "Parceira",
-        plan: isMaster ? "Enterprise" : "Professional",
-        cycle: "Mensal",
-        value: tenantValue,
-        status: "Pago",
-        nextBilling: "Próximo ciclo",
-        paymentMethod: "Faturamento Direto",
+        niche: meta?.niche || "—",
+        plan: formatPlanLabel(meta?.plan),
+        faturamentoPeriodo: agg?.value ?? null,
+        status: meta?.status ?? null,
+        isMaster,
       };
     });
-  }, [tenantNames, tenantIdMap, entriesByTenant]);
+  }, [tenantNames, tenantIdMap, entriesByTenant, tenantMeta]);
 
   // Export to CSV Functionality
   const handleExportCSV = () => {
@@ -91,17 +128,14 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
     }
 
     try {
-      const headers = ["ID", "Empresa", "Nicho", "Plano", "Ciclo", "Valor Mensal", "Status", "Forma de Pagamento", "Proxima Cobranca"];
+      const headers = ["ID", "Empresa", "Nicho", "Plano", "Status", "Faturamento no Período (dos clientes do tenant)"];
       const rows = subscriptions.map(s => [
         s.id,
         `"${s.tenantName}"`,
         `"${s.niche}"`,
-        s.plan,
-        s.cycle,
-        s.value,
-        s.status,
-        `"${s.paymentMethod}"`,
-        `"${s.nextBilling}"`
+        `"${s.plan}"`,
+        `"${s.status ?? "—"}"`,
+        s.faturamentoPeriodo ?? 0,
       ]);
 
       const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
@@ -130,7 +164,7 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
             </div>
             {totalMrr > 0 && (
               <span className="text-[10px] font-black uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                MRR Ativo
+                Base Ativa
               </span>
             )}
           </div>
@@ -138,7 +172,7 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
             {formatCurrency(totalMrr)}
           </div>
           <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest mt-1">
-            Receita Recorrente Mensal (MRR)
+            Faturamento da Base (Todos os Tenants)
           </div>
         </Card>
 
@@ -147,17 +181,17 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
             <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500">
               <Wallet className="w-5 h-5" />
             </div>
-            {arpu > 0 && (
+            {faturamentoMedioPorEmpresa > 0 && (
               <span className="text-[10px] font-black uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
                 Ticket Médio
               </span>
             )}
           </div>
           <div className="text-3xl font-display font-black text-[var(--color-text-primary)]">
-            {arpu > 0 ? formatCurrency(arpu) : "—"}
+            {faturamentoMedioPorEmpresa > 0 ? formatCurrency(faturamentoMedioPorEmpresa) : "—"}
           </div>
           <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest mt-1">
-            ARPU (Receita Média por Empresa)
+            Faturamento Médio por Empresa
           </div>
         </Card>
 
@@ -166,17 +200,17 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
             <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500">
               <Sparkles className="w-5 h-5" />
             </div>
-            {ltvEstimado > 0 && (
+            {tenantsComFaturamento > 0 && (
               <span className="text-[10px] font-black uppercase tracking-wider text-purple-500 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-                12 Meses
+                No Período
               </span>
             )}
           </div>
           <div className="text-3xl font-display font-black text-[var(--color-text-primary)]">
-            {ltvEstimado > 0 ? formatCurrency(ltvEstimado) : "—"}
+            {tenantsComFaturamento}
           </div>
           <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest mt-1">
-            LTV Estimado por Cliente
+            Empresas com Faturamento Registrado
           </div>
         </Card>
 
@@ -202,10 +236,10 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
-                Faturamento Recorrente Mensal (MRR)
+                Faturamento Consolidado por Mês
               </h3>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Receita consolidada de lançamentos financeiros dos tenants.
+                Soma de todos os lançamentos financeiros pagos de todos os tenants — não é a mensalidade paga ao SPY.
               </p>
             </div>
             {totalMrr > 0 && (
@@ -314,9 +348,7 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
                   <th className="py-3 px-4">Empresa / Tenant</th>
                   <th className="py-3 px-4">Nicho</th>
                   <th className="py-3 px-4">Plano</th>
-                  <th className="py-3 px-4">Ciclo</th>
-                  <th className="py-3 px-4">Valor</th>
-                  <th className="py-3 px-4">Forma de Pgto</th>
+                  <th className="py-3 px-4">Faturamento no Período</th>
                   <th className="py-3 px-4">Status</th>
                 </tr>
               </thead>
@@ -337,19 +369,19 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
                     <td className="py-3.5 px-4 font-bold text-[var(--color-text-primary)]">
                       {sub.plan}
                     </td>
-                    <td className="py-3.5 px-4 text-[var(--color-text-muted)]">
-                      {sub.cycle}
-                    </td>
                     <td className="py-3.5 px-4 font-mono font-bold text-emerald-500">
-                      {sub.value > 0 ? formatCurrency(sub.value) : "Cortesia / Master"}
-                    </td>
-                    <td className="py-3.5 px-4 text-[var(--color-text-muted)]">
-                      {sub.paymentMethod}
+                      {sub.faturamentoPeriodo !== null ? formatCurrency(sub.faturamentoPeriodo) : "Sem faturamento no período"}
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                        <CheckCircle2 className="w-2.5 h-2.5" /> Ativo
-                      </span>
+                      {sub.status === "Active" ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                          <CheckCircle2 className="w-2.5 h-2.5" /> Ativo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)]">
+                          {sub.status || "—"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
