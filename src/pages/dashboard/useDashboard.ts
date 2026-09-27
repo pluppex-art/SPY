@@ -193,9 +193,31 @@ export function useDashboard() {
     const now = new Date();
     const toDateOnly = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const rangeEndDate = dateTo ? toDateOnly(new Date(dateTo + "T12:00:00")) : toDateOnly(now);
-    const rangeStartDate = dateFrom
+    const sixMonthsBack = new Date(rangeEndDate.getFullYear(), rangeEndDate.getMonth() - 6, 1);
+    // Sem filtro de período explícito: em vez de sempre voltar 6 meses fixos, começa no mês da
+    // atividade real mais antiga do tenant (1º lead ou 1º contrato) — nunca antes disso, nunca
+    // depois de 6 meses atrás. Achado real: um tenant jovem com toda a atividade concentrada no
+    // mês mais recente mostrava 6 meses vazios seguidos de uma subida quase vertical no fim —
+    // tecnicamente certo (não tem dado antes disso), mas ilegível. Com a janela ajustada ao que
+    // realmente existe, o mesmo tenant mostra só os meses com dado de verdade.
+    let earliestActivity: Date | null = null;
+    for (const l of allLeads as any[]) {
+      const t = l.created_at ? new Date(l.created_at).getTime() : NaN;
+      if (Number.isFinite(t) && (!earliestActivity || t < earliestActivity.getTime())) earliestActivity = new Date(t);
+    }
+    for (const c of contracts as any[]) {
+      const iso = contractDateToIso(c.date);
+      const t = iso ? new Date(iso + "T12:00:00").getTime() : NaN;
+      if (Number.isFinite(t) && (!earliestActivity || t < earliestActivity.getTime())) earliestActivity = new Date(t);
+    }
+    const earliestMonth = earliestActivity ? new Date(earliestActivity.getFullYear(), earliestActivity.getMonth(), 1) : null;
+    let rangeStartDate = dateFrom
       ? toDateOnly(new Date(dateFrom + "T12:00:00"))
-      : new Date(rangeEndDate.getFullYear(), rangeEndDate.getMonth() - 6, 1);
+      : (earliestMonth && earliestMonth.getTime() > sixMonthsBack.getTime() ? earliestMonth : sixMonthsBack);
+    // Piso de 30 dias — pra um tenant com toda a atividade num único dia não virar um gráfico de
+    // 1 ponto só.
+    const minStart = new Date(rangeEndDate); minStart.setDate(minStart.getDate() - 30);
+    if (!dateFrom && rangeStartDate.getTime() > minStart.getTime()) rangeStartDate = minStart;
     const spanDays = Math.max(0, Math.round((rangeEndDate.getTime() - rangeStartDate.getTime()) / 86400000));
 
     // Período curto (<=31 dias): granularidade diária — um "Fluxo de
@@ -246,7 +268,7 @@ export function useDashboard() {
         retention: closedThisMonth,
       };
     });
-  }, [leads, filteredContracts, dateFrom, dateTo]);
+  }, [leads, allLeads, contracts, filteredContracts, dateFrom, dateTo]);
 
   // Sales ranking: group closed leads by seller
   // Mesma fonte de valor usada no Kanban/"Total de Ganhos" do Pipeline (ver
