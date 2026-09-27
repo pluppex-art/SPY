@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from '../../../components/ui/card';
 import { motion } from 'motion/react';
 import { ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
+import { Sparkline } from '../../../components/ui/sparkline';
 
 interface QuickStatsGridProps {
   stats: any[];
@@ -37,9 +38,15 @@ export function QuickStatsGrid({ stats, periodoLabel }: QuickStatsGridProps) {
                   Agora mostra explicitamente "Sem dados p/ comparação" em vez
                   de inventar uma variação ou esconder o campo. */}
               {stat.trend && stat.trend !== '--' ? (
-                <span className={`text-xs font-bold flex items-center gap-0.5 ${stat.trend.startsWith('+') ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                  {stat.trend} {stat.trend.startsWith('+') ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                </span>
+                stat.trend.startsWith('+') || stat.trend.startsWith('-') ? (
+                  <span className={`text-xs font-bold flex items-center gap-0.5 ${stat.trend.startsWith('+') ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    {stat.trend} {stat.trend.startsWith('+') ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                  </span>
+                ) : (
+                  // "0%" — trend real, mas sem variação (nem alta nem queda): nenhuma seta faz
+                  // sentido aqui, então mostra só o número, neutro.
+                  <span className="text-xs font-bold text-[var(--color-text-faint)]">{stat.trend}</span>
+                )
               ) : (
                 <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right">Sem dados<br />p/ comparação</span>
               )}
@@ -55,8 +62,18 @@ export function QuickStatsGrid({ stats, periodoLabel }: QuickStatsGridProps) {
                 </Info>
               )}
             </div>
-            <div className="text-[10px] text-[var(--color-text-faint)] mt-1 font-medium">
-              {periodoLabel || "—"}
+            <div className="flex items-center justify-between mt-1 gap-2">
+              <span className="text-[10px] text-[var(--color-text-faint)] font-medium">
+                {periodoLabel || "—"}
+              </span>
+              {stat.sparkline && stat.sparkline.length >= 2 && (
+                <Sparkline
+                  data={stat.sparkline}
+                  className={`w-16 h-5 shrink-0 ${
+                    stat.trend?.startsWith('+') ? 'text-emerald-500' : stat.trend?.startsWith('-') ? 'text-rose-500' : 'text-[var(--color-text-faint)]'
+                  }`}
+                />
+              )}
             </div>
           </Card>
         </motion.div>

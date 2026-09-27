@@ -72,6 +72,7 @@ export default function Dashboard() {
           hasContractsData={hasContractsData}
           dateFrom={dateFrom}
           dateTo={dateTo}
+          performanceData={performanceData}
         />
 
 

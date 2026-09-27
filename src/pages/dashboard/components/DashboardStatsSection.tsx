@@ -10,6 +10,7 @@ export function DashboardStatsSection({
   hasContractsData,
   dateFrom,
   dateTo,
+  performanceData,
 }: {
   tenantNiche: string | undefined;
   totalRevenue: number;
@@ -19,6 +20,10 @@ export function DashboardStatsSection({
   hasContractsData: boolean;
   dateFrom: string | null;
   dateTo: string | null;
+  /** Mesma série do Fluxo de Performance — dá a tendência real e o
+   * mini-gráfico de cada KPI (ver DashboardStatsByNiche.tsx). Opcional pra
+   * não quebrar outro chamador que ainda não passe essa prop. */
+  performanceData?: { name: string; vendas: number; leads: number; retention: number }[];
 }) {
   const stats = DashboardStatsByNiche({
     tenantNiche,
@@ -27,6 +32,7 @@ export function DashboardStatsSection({
     conversionRate: typeof conversionRate === "string" ? parseFloat(conversionRate) : conversionRate,
     churnRate,
     hasContractsData,
+    performanceData,
   });
 
   const periodoLabel = !dateFrom && !dateTo
