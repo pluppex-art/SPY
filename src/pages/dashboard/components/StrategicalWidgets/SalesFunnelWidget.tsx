@@ -12,7 +12,7 @@ export interface FunnelStepData {
 }
 
 const MIN_FRACTION = 0.22; // faixa nunca fica fina demais visualmente
-const CONE_H = 110; // px
+const CONE_H = 160; // px
 
 /** Funil de Vendas deitado: cone horizontal (largo à esquerda, afinando pra direita), com o
  * número/rótulo/% de cada etapa numa linha abaixo, cada coluna alinhada com a faixa
@@ -35,9 +35,9 @@ export function SalesFunnelWidget({ steps }: { steps: FunnelStepData[] }) {
       {!hasData ? (
         <EmptyState icon={Filter} title="Sem leads ainda" description="O funil aparece assim que os primeiros leads entrarem no pipeline." className="py-8" />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Cone — decorativo, largo à esquerda afinando pra direita */}
-          <div className="relative w-full" style={{ height: CONE_H }}>
+          <div className="relative w-full px-1" style={{ height: CONE_H }}>
             {steps.map((s, i) => {
               const leftFrac = fractionOf(s.value);
               const rightFrac = i === steps.length - 1 ? Math.max(MIN_FRACTION * 0.7, leftFrac - 0.12) : fractionOf(steps[i + 1].value);
@@ -56,11 +56,11 @@ export function SalesFunnelWidget({ steps }: { steps: FunnelStepData[] }) {
           </div>
 
           {/* Números — uma coluna por etapa, alinhada com a faixa correspondente do cone */}
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+          <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
             {steps.map((s) => (
-              <div key={s.label} className="text-center px-1">
-                <p className={`text-2xl font-black tabular-nums leading-none ${s.textColor}`}>{s.value}</p>
-                <p className="text-xs font-semibold text-[var(--color-text-muted)] truncate mt-1">{s.label}</p>
+              <div key={s.label} className="text-center px-2">
+                <p className={`text-3xl font-black tabular-nums leading-none ${s.textColor}`}>{s.value}</p>
+                <p className="text-xs font-semibold text-[var(--color-text-muted)] truncate mt-2">{s.label}</p>
                 <p className="text-[11px] font-bold text-[var(--color-text-faint)] tabular-nums mt-0.5">{s.pct}%</p>
               </div>
             ))}

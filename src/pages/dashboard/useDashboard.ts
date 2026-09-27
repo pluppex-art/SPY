@@ -214,10 +214,11 @@ export function useDashboard() {
     let rangeStartDate = dateFrom
       ? toDateOnly(new Date(dateFrom + "T12:00:00"))
       : (earliestMonth && earliestMonth.getTime() > sixMonthsBack.getTime() ? earliestMonth : sixMonthsBack);
-    // Piso de 30 dias — pra um tenant com toda a atividade num único dia não virar um gráfico de
-    // 1 ponto só.
-    const minStart = new Date(rangeEndDate); minStart.setDate(minStart.getDate() - 30);
-    if (!dateFrom && rangeStartDate.getTime() > minStart.getTime()) rangeStartDate = minStart;
+    // Piso de 3 meses de calendário — pra um tenant jovem (toda a atividade num único mês, ou
+    // até num único dia) não virar uma linha de 1-2 pontos só; os meses extras aparecem
+    // corretamente zerados (não tinha atividade mesmo), só dão mais contexto visual à tendência.
+    const threeMonthsBack = new Date(rangeEndDate.getFullYear(), rangeEndDate.getMonth() - 2, 1);
+    if (!dateFrom && rangeStartDate.getTime() > threeMonthsBack.getTime()) rangeStartDate = threeMonthsBack;
     const spanDays = Math.max(0, Math.round((rangeEndDate.getTime() - rangeStartDate.getTime()) / 86400000));
 
     // Período curto (<=31 dias): granularidade diária — um "Fluxo de

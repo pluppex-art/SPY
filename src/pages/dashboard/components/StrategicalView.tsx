@@ -256,7 +256,7 @@ export function StrategicalView({
               milhares de reais, parecer achatada perto do zero). */}
           <div className="h-[230px] w-full min-w-0 -mx-2">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
-              <AreaChart data={performanceData}>
+              <AreaChart data={performanceData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#2563EB" stopOpacity={0.25} />
@@ -264,7 +264,7 @@ export function StrategicalView({
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.15)" vertical={false} />
-                <XAxis dataKey="name" stroke="var(--color-text-faint)" fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis dataKey="name" stroke="var(--color-text-faint)" fontSize={11} tickLine={false} axisLine={false} padding={{ left: 24, right: 24 }} />
                 <YAxis
                   yAxisId="revenue"
                   stroke="var(--color-text-faint)"
