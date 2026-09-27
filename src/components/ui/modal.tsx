@@ -14,6 +14,12 @@ interface ModalProps {
   className?: string;
   position?: "center" | "right";
   noPadding?: boolean;
+  /** "dark" (padrão, inalterado) = fundo escuro tradicional de modal central.
+   * "light" = painel lateral que deixa a tela de fundo (ex.: Pipeline) visível
+   * e reconhecível atrás — pra telas onde o conteúdo por trás continua sendo
+   * o contexto principal (ver LeadDetailsModal.tsx). Puramente visual, não
+   * muda nenhum comportamento (ESC/clique-fora ainda fecham do mesmo jeito). */
+  overlay?: "dark" | "light";
 }
 
 export function Modal({
@@ -27,6 +33,7 @@ export function Modal({
   className,
   position = "center",
   noPadding = false,
+  overlay = "dark",
 }: ModalProps) {
   useEffect(() => {
     if (!isOpen) return;
@@ -69,7 +76,10 @@ export function Modal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+        className={cn(
+          "absolute inset-0 animate-in fade-in duration-200",
+          overlay === "light" ? "bg-black/20" : "bg-black/60 backdrop-blur-sm"
+        )}
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
@@ -78,7 +88,8 @@ export function Modal({
       {/* Dialog */}
       <div
         className={cn(
-          "relative w-[95vw] sm:w-full bg-[var(--color-surface-elevated)] shadow-2xl shadow-black/30 ring-1 ring-black/5 overflow-hidden flex flex-col animate-in fade-in duration-200",
+          "relative w-[95vw] sm:w-full bg-[var(--color-surface-elevated)] overflow-hidden flex flex-col animate-in fade-in duration-200",
+          overlay === "light" ? "shadow-2xl shadow-black/20 ring-1 ring-black/5" : "shadow-2xl shadow-black/30 ring-1 ring-black/5",
           maxWidth,
           position === "right"
             ? "h-full border-l border-[var(--color-border-default)] rounded-l-[var(--radius-panel-lg)] max-h-screen slide-in-from-right-10"

@@ -177,6 +177,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
         onClose={onClose}
         maxWidth="max-w-[546px]"
         position="right"
+        overlay="light"
         noPadding
         footer={
           <LeadDetailsModalFooter
@@ -192,7 +193,11 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
           />
         }
       >
-        <div className="flex flex-col h-full overflow-hidden bg-[var(--color-surface)]">
+        {/* `key={lead.id}` força um remount leve deste bloco ao trocar de lead
+            direto pelo Pipeline (painel já é uma instância única, só o `lead`
+            muda) — dá o "atualiza visualmente" pedido em vez de um corte seco,
+            sem fechar/reabrir o painel nem empilhar nada por cima. */}
+        <div key={lead.id} className="flex flex-col h-full overflow-hidden bg-[var(--color-surface)] animate-in fade-in duration-150">
           <LeadDetailsModalHero
             tc={tc}
             initials={initials}

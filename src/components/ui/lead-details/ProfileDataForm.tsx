@@ -213,38 +213,48 @@ export function ProfileDataForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 divide-x divide-[var(--color-border-subtle)]">
-          <div className="p-3">
-            <div className="text-[10px] font-bold text-[var(--color-text-faint)] mb-1 uppercase tracking-wider flex items-center gap-1">
-              <Briefcase className="w-3 h-3 text-[var(--color-text-muted)]" /> Iniciativa / Título
-            </div>
-            <input
-              type="text"
-              value={title}
-              placeholder="Ex: Aquisição de Licenças"
-              onFocus={() => setIsEditingInline(true)}
-              onChange={(e) => setTitle(e.target.value)}
-              className={isEditingInline ? inputActiveClass : viewCls(title ? "text-[var(--color-text-primary)] font-semibold" : "text-[var(--color-text-faint)]")}
-            />
+        <div className="p-3">
+          <div className="text-[10px] font-bold text-[var(--color-text-faint)] mb-1 uppercase tracking-wider flex items-center gap-1">
+            <Briefcase className="w-3 h-3 text-[var(--color-text-muted)]" /> Iniciativa / Título
           </div>
-          <div className="p-3">
-            <div
-              className="text-[10px] font-bold text-[var(--color-text-faint)] mb-1 uppercase tracking-wider flex items-center gap-1"
-              title="Editável só pela proposta vinculada — evita que o valor real do negócio (usado no financeiro) divirja do que foi de fato proposto ao cliente."
-            >
-              <DollarSign className="w-3 h-3 text-[var(--color-text-muted)]" /> Valor da Proposta
-              <Lock className="w-2.5 h-2.5 text-[var(--color-text-faint)]" />
-            </div>
-            <span className="block text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400">
+          <input
+            type="text"
+            value={title}
+            placeholder="Ex: Aquisição de Licenças"
+            onFocus={() => setIsEditingInline(true)}
+            onChange={(e) => setTitle(e.target.value)}
+            className={isEditingInline ? inputActiveClass : viewCls(title ? "text-[var(--color-text-primary)] font-semibold" : "text-[var(--color-text-faint)]")}
+          />
+        </div>
+
+        {/* Resumo Comercial — antes eram 3 fatos financeiros (valor da proposta,
+            referência de catálogo, MRR) espremidos em texto mono empilhado
+            dentro de meia coluna da grade acima; agora um bloco próprio,
+            destacado, com o valor principal em destaque e os outros dois como
+            badges — mesmos 3 valores já calculados em ProfileSection.tsx, só
+            reorganizados visualmente. */}
+        <div className="p-3.5 bg-[var(--color-surface-sunken)]/60">
+          <div
+            className="text-[10px] font-bold text-[var(--color-text-faint)] mb-1.5 uppercase tracking-wider flex items-center gap-1"
+            title="Editável só pela proposta vinculada — evita que o valor real do negócio (usado no financeiro) divirja do que foi de fato proposto ao cliente."
+          >
+            <DollarSign className="w-3 h-3 text-[var(--color-text-muted)]" /> Valor da Proposta
+            <Lock className="w-2.5 h-2.5 text-[var(--color-text-faint)]" />
+          </div>
+          <div className="flex items-center flex-wrap gap-2">
+            <span className="text-xl font-display font-black font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">
               {displayValue}
             </span>
             {productValue && (
-              <span className="flex items-center gap-1 text-[10px] font-mono text-[var(--color-text-faint)] mt-0.5">
-                <Package className="w-2.5 h-2.5" /> Produto (catálogo): {productValue}
+              <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-[var(--color-text-muted)] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-full pl-2 pr-2.5 py-1">
+                <Package className="w-2.5 h-2.5 text-[var(--color-text-faint)]" /> Catálogo: {productValue}
               </span>
             )}
             {leadMRR && (
-              <span className="flex items-center gap-1 text-[10px] font-mono text-[var(--color-primary-blue)] mt-0.5" title="Mesma métrica do Financeiro/Dashboard (MRR de contratos ativos) — calculada a partir das propostas deste lead que já viraram contrato.">
+              <span
+                className="flex items-center gap-1 text-[10px] font-mono font-bold text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 rounded-full pl-2 pr-2.5 py-1"
+                title="Mesma métrica do Financeiro/Dashboard (MRR de contratos ativos) — calculada a partir das propostas deste lead que já viraram contrato."
+              >
                 <Repeat className="w-2.5 h-2.5" /> MRR: {leadMRR}/mês
               </span>
             )}
