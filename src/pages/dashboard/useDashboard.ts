@@ -33,7 +33,7 @@ function getStageId(funilId: string, idx: number): string {
 }
 
 export function useDashboard() {
-  const { leads: allLeads, contracts, squads, leadActivities, appointments, funis, products, proposals } = useData();
+  const { leads: allLeads, contracts, squads, leadActivities, appointments, funis, proposals } = useData();
   const { isModuleEnabled, user, activeTenantId } = useAuth();
   const [activeTab, setActiveTab] = useState<'executivo' | 'comercial' | 'sucesso' | 'marketing' | 'bi'>('executivo');
   const [comparisonPeriod, setComparisonPeriod] = useState<'month' | 'year'>('month');
@@ -234,24 +234,24 @@ export function useDashboard() {
   }, [leads, filteredContracts, dateFrom, dateTo]);
 
   // Sales ranking: group closed leads by seller
-  // Mesma regra de fallback do LeadCard/PipelineKanbanBoard: quando o lead
-  // tem produto(s) vinculado(s) o valor real vem da soma dos preços, não do
-  // campo value/valor; e quando nem isso existe, cai pra proposta vinculada.
-  // Sem isso, leads fechados via produto/proposta apareciam com R$ 0 no
-  // pódio. `parseCurrencyBR` também evita o crash silencioso de chamar
-  // .replace() num l.value que já vem como number (comum após a sincronização
-  // lead↔proposta) — o try/catch anterior engolia esse erro e zerava o total.
+  // Mesma fonte de valor usada no Kanban/"Total de Ganhos" do Pipeline (ver
+  // PipelineKanbanBoard.tsx getLeadValue, corrigido em 14b886b) — sem isso o
+  // pódio e o Pipeline mostravam totais DIFERENTES pro mesmo conjunto de
+  // leads fechados.
+  //
+  // BUG real (achado em produção 2026-09-27): esta função ainda tinha o
+  // fallback antigo pro preço de CATÁLOGO dos produtos vinculados quando
+  // l.value = 0 — igual ao bug já corrigido no Kanban, só que essa cópia
+  // ficou pra trás. Um lead fechado por R$0 (ex.: cortesia) com um produto
+  // vinculado de R$997 fazia o vendedor dele somar +R$997 fantasma no pódio,
+  // sem esse mesmo valor aparecer em lugar nenhum do Pipeline — dois números
+  // diferentes pro "mesmo" total fechado. `l.value` já é a fonte de verdade
+  // (sincronizada com a proposta aceita); só cai pra proposta vinculada
+  // quando o lead genuinamente não tem valor nenhum gravado ainda.
   const salesRanking = useMemo(() => {
-    // `l.value` é a fonte de verdade (soma corretamente múltiplas propostas já
-    // realizadas/aceitas pro mesmo lead) — só cai pra soma de preço de
-    // catálogo dos produtos vinculados quando o lead não tem valor nenhum.
     const getLeadValue = (l: any) => {
       const parsed = parseCurrencyBR(l.value ?? l.valor);
       if (parsed > 0) return parsed;
-      const linkedProducts = (products as any[] || []).filter((p: any) => (l.productIds || []).includes(p.id));
-      if (linkedProducts.length > 0) {
-        return linkedProducts.reduce((s: number, p: any) => s + (Number(p.price) || 0), 0);
-      }
       const linkedProposal = (proposals as any[] || [])
         .filter((p: any) => p.lead_id === l.id)
         .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0];
@@ -274,7 +274,7 @@ export function useDashboard() {
       deals: s.deals,
       rate: Math.round((s.deals / Math.max(leads.filter(l => l.seller === s.name).length, 1)) * 100),
     }));
-  }, [leads, products, proposals]);
+  }, [leads, proposals]);
 
   // Funnel data: count leads by real pipeline stage (stageId), não por um
   // vocabulário fixo de `status`. O Kanban (PipelineKanbanBoard.handleDrop)
@@ -282,6 +282,22 @@ export function useDashboard() {
   // "Proposta Enviada" etc. — então o funil ficava quase todo zerado exceto
   // na primeira/última etapa. Usa o funil comercial ativo (por tenant) pra
   // bater com as mesmas etapas/nomes mostrados no Pipeline.
+  //
+  // 2 BUGS reais achados em produção (2026-09-27, funil da Pluppex — "FUNIL
+  // COMERCIAL" com 10 etapas custom terminando em Ganho/Perdido):
+  // 1) "última etapa = etapa de ganho" era uma suposição errada — pra esse
+  //    funil a ÚLTIMA etapa é "Perdido", não "Ganho" (posição 8, não 9). Os
+  //    5 leads Fechados (corretamente já contados em "Ganho" pelo stageId
+  //    real) eram contados DE NOVO na etapa errada ("Perdido"), inflando e
+  //    mislabeling vendas fechadas como perdidas no gráfico. Agora acha a
+  //    etapa de ganho pelo NOME (contém "ganh"/"fech"/"venda"), não pela
+  //    posição; sem nome identificável, cai na última etapa como antes.
+  // 2) Leads com stageId de um funil ANTIGO/reconfigurado (ex.: "1", "2" —
+  //    convenção antiga de funil-comercial-default) não batem com NENHUMA
+  //    etapa do funil custom atual e ficavam de fora do gráfico inteiro (39
+  //    leads da Pluppex sumiam assim) — mesmo "stageId órfão" que o Kanban já
+  //    trata (PipelineKanbanBoard.tsx `unmatchedLeads`), aqui caem na 1ª
+  //    etapa, mesma convenção.
   const funnelData = useMemo(() => {
     const funisConfig: any[] = funis && funis.length > 0 ? funis : FUNIS_DEFAULT;
     const comercialFunil =
@@ -291,19 +307,27 @@ export function useDashboard() {
 
     const stageNames: string[] = comercialFunil.etapasConfig?.map((s: any) => s.nome) ?? comercialFunil.etapas ?? [];
     const stageIds = stageNames.map((_: string, idx: number) => getStageId(comercialFunil.id, idx));
-    const lastIdx = stageNames.length - 1;
+
+    const normalize = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const namedWonIdx = stageNames.findIndex((n) => /ganh|fech|venda|won/.test(normalize(n)));
+    const wonIdx = namedWonIdx !== -1 ? namedWonIdx : stageNames.length - 1;
 
     const comercialLeads = leads.filter(l => !l.pipelineId || l.pipelineId === 'comercial');
     const total = comercialLeads.length || 1;
 
+    // Cada lead cai em EXATAMENTE uma etapa: Fechado sempre vira a etapa de
+    // ganho (mesmo que o card não tenha sido arrastado até lá); senão, a
+    // etapa do stageId real dele; sem bater com nenhuma (stageId órfão), cai
+    // na 1ª etapa — nunca fica de fora da contagem.
+    const counts = new Array(stageNames.length).fill(0);
+    for (const l of comercialLeads) {
+      const idx = l.status === 'Fechado' ? wonIdx : stageIds.indexOf(l.stageId);
+      counts[idx === -1 ? 0 : idx]++;
+    }
+
     let prevCount = total;
     return stageNames.map((name, i) => {
-      let count = comercialLeads.filter(l => l.stageId === stageIds[i]).length;
-      if (i === lastIdx) {
-        // Leads marcados como "Fechado" contam na etapa final mesmo que o
-        // stageId não tenha sido avançado até o fim.
-        count = comercialLeads.filter(l => l.stageId === stageIds[i] || l.status === 'Fechado').length;
-      }
+      const count = counts[i];
       const drop = i > 0 && prevCount > 0 ? Math.round((1 - count / prevCount) * 100) : 0;
       const step = { label: name, value: count, drop, color: FUNNEL_COLORS[i] ?? 'bg-emerald-100' };
       prevCount = count;
