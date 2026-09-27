@@ -20,17 +20,17 @@ export function RevenueByProductDonut({ slices }: { slices: RevenueSlice[] }) {
 
   return (
     <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm h-full flex flex-col">
-      <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2 mb-4">
+      <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2 mb-5">
         <PieChartIcon className="w-4 h-4 text-cyan-500" /> Receita por Produto
       </h3>
       {slices.length === 0 ? (
         <EmptyState icon={PieChartIcon} title="Sem vendas fechadas ainda" description="A distribuição por produto aparece assim que houver leads fechados." className="py-8 flex-1" />
       ) : (
-        <>
-          <div className="relative h-[170px] w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={150}>
+        <div className="flex-1 flex items-center gap-5">
+          <div className="relative h-[150px] w-[150px] shrink-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={140}>
               <PieChart>
-                <Pie data={slices} cx="50%" cy="50%" innerRadius={52} outerRadius={72} paddingAngle={3} dataKey="value" stroke="none">
+                <Pie data={slices} cx="50%" cy="50%" innerRadius={48} outerRadius={68} paddingAngle={3} dataKey="value" stroke="none">
                   {slices.map((s, i) => <Cell key={i} fill={s.color} />)}
                 </Pie>
                 <Tooltip
@@ -41,24 +41,20 @@ export function RevenueByProductDonut({ slices }: { slices: RevenueSlice[] }) {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-sm font-black text-[var(--color-text-primary)] font-mono">{formatCurrency(total)}</span>
-              <span className="text-[9px] text-[var(--color-text-faint)] font-bold uppercase">Total</span>
+              <span className="text-[9px] text-[var(--color-text-faint)] font-bold uppercase">Total Mensal</span>
             </div>
           </div>
-          <div className="space-y-2 mt-3">
+          <div className="flex-1 min-w-0 space-y-3">
             {slices.map((s) => (
-              <div key={s.name} className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                  <span className="text-[11px] text-[var(--color-text-muted)] font-semibold truncate">{s.name}</span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] text-[var(--color-text-faint)] font-mono">{formatCurrency(s.value)}</span>
-                  <span className="text-[11px] font-black text-[var(--color-text-primary)] tabular-nums w-10 text-right">{s.pct}%</span>
-                </div>
+              <div key={s.name} className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                <span className="text-xs text-[var(--color-text-muted)] font-semibold truncate flex-1">{s.name}</span>
+                <span className="text-xs font-bold text-[var(--color-text-muted)] tabular-nums w-11 text-right shrink-0">{s.pct}%</span>
+                <span className="text-xs font-black text-[var(--color-text-primary)] tabular-nums w-24 text-right shrink-0 truncate">{formatCurrency(s.value)}</span>
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
     </Card>
   );

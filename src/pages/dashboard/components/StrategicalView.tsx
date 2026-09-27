@@ -158,11 +158,11 @@ export function StrategicalView({
     const clientes = new Set(all.filter((l) => negociacoes.has(l.id) && l.status === 'Fechado').map((l) => l.id));
 
     const base = [
-      { label: 'Leads', value: all.length, color: 'bg-purple-500' },
-      { label: 'Qualificados', value: qualificados.size, color: 'bg-[var(--color-primary-blue)]' },
-      { label: 'Propostas', value: propostas.size, color: 'bg-cyan-500' },
-      { label: 'Negociações', value: negociacoes.size, color: 'bg-teal-500' },
-      { label: 'Clientes', value: clientes.size, color: 'bg-emerald-500' },
+      { label: 'Leads', value: all.length, color: 'bg-purple-500', textColor: 'text-purple-600' },
+      { label: 'Qualificados', value: qualificados.size, color: 'bg-[var(--color-primary-blue)]', textColor: 'text-[var(--color-primary-blue)]' },
+      { label: 'Propostas', value: propostas.size, color: 'bg-cyan-500', textColor: 'text-cyan-600' },
+      { label: 'Negociações', value: negociacoes.size, color: 'bg-teal-500', textColor: 'text-teal-600' },
+      { label: 'Clientes', value: clientes.size, color: 'bg-emerald-500', textColor: 'text-emerald-600' },
     ];
     const top = base[0].value || 1;
     return base.map((s) => ({ ...s, pct: Math.round((s.value / top) * 1000) / 10 }));

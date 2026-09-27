@@ -8,21 +8,17 @@ export interface FunnelStepData {
   value: number;
   pct: number;
   color: string;
+  textColor: string;
 }
 
 const MIN_FRACTION = 0.22; // faixa nunca fica fina demais visualmente
+const ROW_H = 62; // px — altura de cada faixa do cone = altura de cada linha da lista (ficam alinhadas)
 
-/** Funil de Vendas: cone contínuo (cada faixa conecta com a largura da próxima), 5 etapas
- * genéricas e ACUMULATIVAS — cada uma é um subconjunto real da anterior (ver
- * StrategicalView.tsx), então o funil só pode encolher, nunca "crescer" por acaso dos dados.
- *
- * O texto (valor/rótulo/%) fica numa camada SEPARADA por cima do cone, não dentro da faixa
- * colorida com `clip-path` — colocar texto ancorado nas bordas de um elemento com clip-path
- * tapering quebra: como o corte estreita de cima pra baixo, na ALTURA VERTICAL onde o texto fica
- * centralizado a largura visível já é menor que a do topo da faixa, cortando o texto que estava
- * perto da borda (achado real: valor e % sumiam, só o rótulo central sobrevivia). Com o texto
- * numa camada própria, sem clip-path nenhum, nunca é cortado, mesmo nas faixas mais estreitas.
- */
+/** Funil de Vendas: cone (só a forma, sem texto dentro — ver por quê no SalesFunnelWidget antigo)
+ * à esquerda, com o número/rótulo/% de cada etapa numa lista à direita, cada linha alinhada com a
+ * faixa correspondente. 5 etapas genéricas e ACUMULATIVAS — cada uma é um subconjunto real da
+ * anterior (ver StrategicalView.tsx), então o funil só pode encolher, nunca "crescer" por acaso
+ * dos dados. */
 export function SalesFunnelWidget({ steps }: { steps: FunnelStepData[] }) {
   const top = steps[0]?.value || 1;
   const hasData = steps.some((s) => s.value > 0);
@@ -36,29 +32,37 @@ export function SalesFunnelWidget({ steps }: { steps: FunnelStepData[] }) {
       {!hasData ? (
         <EmptyState icon={Filter} title="Sem leads ainda" description="O funil aparece assim que os primeiros leads entrarem no pipeline." className="py-8 flex-1" />
       ) : (
-        <div className="flex-1 flex flex-col justify-center">
-          <div className="mx-auto w-full max-w-[280px]">
+        <div className="flex-1 flex items-center gap-5">
+          {/* Cone — decorativo, cada faixa proporcional ao valor real da etapa */}
+          <div className="w-[42%] max-w-[170px] shrink-0" style={{ height: ROW_H * steps.length }}>
             {steps.map((s, i) => {
               const topFrac = fractionOf(s.value);
               const bottomFrac = i === steps.length - 1 ? Math.max(MIN_FRACTION * 0.7, topFrac - 0.12) : fractionOf(steps[i + 1].value);
               const clip = `polygon(${50 - topFrac * 50}% 0%, ${50 + topFrac * 50}% 0%, ${50 + bottomFrac * 50}% 100%, ${50 - bottomFrac * 50}% 100%)`;
               return (
-                <div key={s.label} className="relative w-full h-12">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.08, duration: 0.4 }}
-                    className={`absolute inset-0 ${s.color}`}
-                    style={{ clipPath: clip }}
-                  />
-                  <div className="relative h-full flex items-center justify-center gap-2.5 px-2">
-                    <span className="text-xs font-black !text-white tabular-nums shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">{s.value}</span>
-                    <span className="text-[10px] font-bold !text-white truncate [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">{s.label}</span>
-                    <span className="text-[10px] font-bold !text-white/90 tabular-nums shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">{s.pct}%</span>
-                  </div>
-                </div>
+                <motion.div
+                  key={s.label}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: i * 0.08, duration: 0.4 }}
+                  className={`w-full ${s.color}`}
+                  style={{ height: ROW_H, clipPath: clip }}
+                />
               );
             })}
+          </div>
+
+          {/* Números — uma linha por etapa, alinhada com a faixa correspondente do cone */}
+          <div className="flex-1 min-w-0">
+            {steps.map((s) => (
+              <div key={s.label} className="flex items-center justify-between gap-3" style={{ height: ROW_H }}>
+                <div className="min-w-0">
+                  <p className={`text-2xl font-black tabular-nums leading-none ${s.textColor}`}>{s.value}</p>
+                  <p className="text-xs font-semibold text-[var(--color-text-muted)] truncate mt-0.5">{s.label}</p>
+                </div>
+                <span className="text-base font-bold text-[var(--color-text-faint)] tabular-nums shrink-0">{s.pct}%</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
