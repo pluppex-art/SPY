@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "../../../../components/ui/card";
 import { Badge } from "../../../../components/ui/badge";
-import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
 import { EmptyState } from "../../../../components/ui/empty-state";
+import { Pagination } from "../../../../components/ui/Pagination";
 import {
   Table,
   TableHeader,
@@ -56,9 +56,13 @@ export function ContractsTable({ contracts, searchQuery, onSearchChange, onDelet
     c.plan.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery]);
-  const paged = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  // Mesmo componente de paginação da Base de Clientes (ClientesList.tsx) —
+  // antes era um botão "Carregar mais" aqui e páginas numeradas lá, dois
+  // padrões diferentes pra telas de lista quase idênticas do mesmo módulo.
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [searchQuery]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = useMemo(() => filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE), [filtered, page]);
 
   return (
     <Card className="overflow-hidden">
@@ -165,13 +169,9 @@ export function ContractsTable({ contracts, searchQuery, onSearchChange, onDelet
           </TableBody>
         </Table>
       )}
-      {visibleCount < filtered.length && (
-        <div className="flex justify-center p-4 border-t border-[var(--color-border-subtle)]">
-          <Button variant="outline" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
-            Carregar mais ({filtered.length - visibleCount} restantes)
-          </Button>
-        </div>
-      )}
+      <div className="p-4 border-t border-[var(--color-border-subtle)]">
+        <Pagination page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="contrato" />
+      </div>
     </Card>
   );
 }
