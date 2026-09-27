@@ -21,7 +21,7 @@ export type DashboardStatsCard = {
   sparkline?: number[];
 };
 
-type PerformancePoint = { name: string; vendas: number; leads: number; retention: number };
+type PerformancePoint = { name: string; vendas: number; faturamento?: number; leads: number; retention: number };
 
 const TAIL_POINTS = 8;
 const tail = (arr: number[]) => arr.slice(Math.max(0, arr.length - TAIL_POINTS));
@@ -43,6 +43,7 @@ function computeTrend(series: number[] | undefined): string {
 export function DashboardStatsByNiche({
   tenantNiche,
   totalRevenue,
+  faturamentoContratado,
   leadsLength,
   conversionRate,
   churnRate,
@@ -50,7 +51,18 @@ export function DashboardStatsByNiche({
   performanceData,
 }: {
   tenantNiche: string | undefined;
+  /** MRR — só a parcela recorrente (ver revenueMetrics.getMRR). Usado
+   * exclusivamente pelo card "Receita (MRR)" do nicho Master/default. */
   totalRevenue: number;
+  /** Faturamento contratado = MRR + avulso/implantação (ver
+   * revenueMetrics.getFaturamentoContratado). Usado pelos cards cujo rótulo
+   * NÃO é "MRR" (Hardware & Upgrades, Faturamento Clínico, VGV Estimado) —
+   * achado real 2026-09-27: esses 3 cards mostravam `totalRevenue` (MRR puro)
+   * como se fosse o valor total contratado, uma métrica genuinamente diferente
+   * (MRR exclui projeto avulso/implantação por definição). Opcional: cai pro
+   * próprio `totalRevenue` quando o chamador não passa essa prop, nunca "sem
+   * dado" onde já existia um número (só menos preciso que o ideal). */
+  faturamentoContratado?: number;
   leadsLength: number;
   conversionRate: number;
   churnRate: number;
@@ -72,11 +84,25 @@ export function DashboardStatsByNiche({
   // por bucket calculada hoje, então fica sem tendência/sparkline (nunca
   // reaproveita a série errada só pra "preencher" o card).
   const revenueSeries = useMemo(() => tail((performanceData || []).map(p => p.vendas)), [performanceData]);
+  // Mesmo bucket do `revenueSeries` acima, só que somando o valor TOTAL
+  // contratado (recorrente + avulso) por bucket, não só o `mrr` — a série que
+  // bate com `faturamentoContratado` (snapshot), pros cards que mostram
+  // faturamento total em vez de MRR (ver comentário no tipo das props acima).
+  // `p.faturamento` pode faltar num chamador antigo — cai pro `vendas` (só
+  // fica menos preciso, nunca quebra ou inventa dado maior que o real).
+  const faturamentoSeries = useMemo(
+    () => tail((performanceData || []).map(p => p.faturamento ?? p.vendas)),
+    [performanceData]
+  );
   const leadsSeries = useMemo(() => tail((performanceData || []).map(p => p.leads)), [performanceData]);
   const conversionSeries = useMemo(
     () => tail((performanceData || []).map(p => (p.leads > 0 ? Math.round((p.retention / p.leads) * 1000) / 10 : 0))),
     [performanceData]
   );
+  // Faturamento contratado: cai pro próprio totalRevenue (MRR) quando o
+  // chamador não passa a prop nova — nunca fica "sem dado" onde já existia
+  // um número, só um pouco menos preciso (ver comentário na prop acima).
+  const faturamento = faturamentoContratado ?? totalRevenue;
 
   const stats = useMemo<DashboardStatsCard[]>(() => {
     const niche = tenantNiche || 'Master';
@@ -85,13 +111,14 @@ export function DashboardStatsByNiche({
       return [
         {
           label: 'Hardware & Upgrades',
-          value: formatCurrency(totalRevenue),
-          trend: computeTrend(revenueSeries),
+          value: formatCurrency(faturamento),
+          trend: computeTrend(faturamentoSeries),
           color: 'text-slate-400',
           bg: 'bg-white/5',
           icon: DollarSign,
           forecast: '--',
-          sparkline: revenueSeries,
+          tooltip: 'Valor total dos contratos ativos (recorrente + venda avulsa de aparelho/upgrade) — diferente de MRR, que conta só a parcela recorrente.',
+          sparkline: faturamentoSeries,
         },
         {
           label: 'Aparelhos Trade-In',
@@ -171,13 +198,14 @@ export function DashboardStatsByNiche({
       return [
         {
           label: 'Faturamento Clínico',
-          value: formatCurrency(totalRevenue),
-          trend: computeTrend(revenueSeries),
+          value: formatCurrency(faturamento),
+          trend: computeTrend(faturamentoSeries),
           color: 'text-slate-400',
           bg: 'bg-white/5',
           icon: DollarSign,
           forecast: '--',
-          sparkline: revenueSeries,
+          tooltip: 'Valor total dos contratos/planos ativos (recorrente + procedimento avulso) — diferente de MRR, que conta só a parcela recorrente.',
+          sparkline: faturamentoSeries,
         },
         {
           label: 'Consultas Agendadas',
@@ -214,13 +242,14 @@ export function DashboardStatsByNiche({
       return [
         {
           label: 'VGV Estimado',
-          value: formatCurrency(totalRevenue),
-          trend: computeTrend(revenueSeries),
+          value: formatCurrency(faturamento),
+          trend: computeTrend(faturamentoSeries),
           color: 'text-slate-400',
           bg: 'bg-white/5',
           icon: DollarSign,
           forecast: '--',
-          sparkline: revenueSeries,
+          tooltip: 'Valor Geral de Vendas: total contratado (recorrente + avulso) dos contratos ativos — diferente de MRR, que conta só a parcela recorrente mensal.',
+          sparkline: faturamentoSeries,
         },
         {
           label: 'Visitas Incorporador',
@@ -300,7 +329,7 @@ export function DashboardStatsByNiche({
         forecast: '--',
       },
     ];
-  }, [tenantNiche, totalRevenue, leadsLength, conversionRate, churnRate, churnValue, formatCurrency, revenueSeries, leadsSeries, conversionSeries]);
+  }, [tenantNiche, totalRevenue, faturamento, leadsLength, conversionRate, churnRate, churnValue, formatCurrency, revenueSeries, faturamentoSeries, leadsSeries, conversionSeries]);
 
   return stats;
 }

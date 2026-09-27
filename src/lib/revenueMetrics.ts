@@ -17,7 +17,18 @@ import { parseCurrencyBR } from "./utils";
  * atrito sem necessidade real (as funções só leem os campos abaixo).
  */
 
-type ContractLike = { mrr: string | number; status: string; client?: string; date?: string; cancelledAt?: string | null };
+type ContractLike = {
+  mrr: string | number;
+  status: string;
+  client?: string;
+  date?: string;
+  cancelledAt?: string | null;
+  /** Valor total do contrato (recorrente + avulso/implantação) — mesmo campo
+   * de src/types.ts Contract.totalValue. Quando ausente, `getFaturamentoContratado`
+   * assume igual ao `mrr` (contrato sem componente avulso), nunca inventa um
+   * valor maior. */
+  totalValue?: number;
+};
 type LeadLike = { value?: any; status: string; seller?: string };
 
 const isCancelled = (c: ContractLike) => c.status === "Cancelado";
@@ -28,6 +39,35 @@ const isActive = (c: ContractLike) => !isCancelled(c) && c.status !== "Perdido";
  * que já não entra em `mrr` desde a Fase 2 (ver Propostas.tsx syncAcceptedProposal). */
 export function getMRR(contracts: ContractLike[]): number {
   return contracts.filter(isActive).reduce((sum, c) => sum + parseCurrencyBR(c.mrr), 0);
+}
+
+/**
+ * Faturamento contratado = MRR + parcela avulsa/implantação que ainda está
+ * "no contrato" (Contract.totalValue, quando maior que o `mrr` — contrato sem
+ * componente avulso não tem totalValue > mrr, então soma igual ao MRR mesmo).
+ *
+ * IMPORTANTE — isto NÃO é o mesmo número que "MRR": MRR é só a parcela
+ * recorrente; isto é o valor total contratado (recorrente + avulso) dos
+ * contratos ativos agora. Mistura os dois sob o mesmo rótulo foi o bug real
+ * corrigido em 2026-09-27 (cards "Faturamento Clínico"/"VGV Estimado" do
+ * Dashboard mostravam getMRR() como se fosse faturamento total).
+ *
+ * Também não é "Faturamento do período" (fluxo de caixa recebido em um
+ * intervalo de datas) — isso já existe em FinanceiroVisaoGeral.tsx
+ * (`receita`/`receitaMes`, somados a partir do livro-caixa `finance_entries`,
+ * fonte mais correta pra "quanto entrou de verdade no período"). Esta função
+ * é um SALDO do momento atual (mesma convenção de getMRR: "ativo" = agora),
+ * útil onde só se tem acesso a `contracts`, não ao livro-caixa financeiro.
+ */
+export function getFaturamentoContratado(contracts: ContractLike[]): number {
+  return contracts.filter(isActive).reduce((sum, c) => {
+    const mrrValue = parseCurrencyBR(c.mrr);
+    const total = c.totalValue;
+    const totalValue = total !== undefined && total !== null ? Number(total) : mrrValue;
+    // Nunca deixa o total contar MENOS que o mrr (dado inconsistente não
+    // deveria fazer o faturamento parecer menor que a própria recorrência).
+    return sum + Math.max(totalValue, mrrValue);
+  }, 0);
 }
 
 /** Receita recorrente perdida (contratos cancelados), útil pra "MRR em risco"/churn em R$. */

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { parseCurrencyBR } from '../../lib/utils';
-import { getMRR, getConversionRate, getActiveLeadsCount, getChurnRate } from '../../lib/revenueMetrics';
+import { getMRR, getFaturamentoContratado, getConversionRate, getActiveLeadsCount, getChurnRate } from '../../lib/revenueMetrics';
 import { FUNIS_DEFAULT } from '../settings/sections/crm/funisTypes';
 import { apiFetch } from '../../lib/apiClient';
 
@@ -146,6 +146,13 @@ export function useDashboard() {
   // `getMRR(contracts)` (sem filtro de período) de propósito — ver comentário
   // acima sobre "MRR Ativo" ser saldo atual, não fluxo do período.
   const totalRevenueClient = useMemo(() => getMRR(contracts), [contracts]);
+  // Faturamento contratado (recorrente + avulso/implantação) — distinto do
+  // MRR acima. Sem filtro de período, mesma convenção de "saldo do momento
+  // atual" (ver revenueMetrics.getFaturamentoContratado). Usado só pelos
+  // cards de nicho cujo rótulo não é "MRR" (Faturamento Clínico, VGV
+  // Estimado, Hardware & Upgrades — ver DashboardStatsByNiche.tsx); o card
+  // "Receita (MRR)" continua em cima de `totalRevenue`/getMRR, sem mudança.
+  const faturamentoContratado = useMemo(() => getFaturamentoContratado(contracts), [contracts]);
   const conversionRateClient = useMemo(() => getConversionRate(leads).toFixed(1), [leads]);
   const activeLeadsCountClient = useMemo(() => getActiveLeadsCount(leads), [leads]);
   // BUG real: essa função trocava de fórmula (churn de contrato cancelado ->
@@ -232,11 +239,22 @@ export function useDashboard() {
         const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
         const dayLeads = leads.filter(l => leadDateIso(l).slice(0, 10) === iso);
         const closedThisDay = dayLeads.filter(l => l.status === 'Fechado').length;
-        const revenueThisDay = filteredContracts.filter(c => contractDateToIso(c.date) === iso && c.status !== 'Cancelado')
-          .reduce((sum, c) => sum + parseCurrencyBR(c.mrr), 0);
+        const contractsThisDay = filteredContracts.filter(c => contractDateToIso(c.date) === iso && c.status !== 'Cancelado');
+        const revenueThisDay = contractsThisDay.reduce((sum, c) => sum + parseCurrencyBR(c.mrr), 0);
+        // Mesmo contrato-do-dia, mas somando o valor TOTAL (recorrente + avulso/
+        // implantação, `totalValue` — cai pro mrr quando ausente) em vez de só o
+        // `mrr` — flow real de faturamento contratado, não só de recorrência.
+        // Ver revenueMetrics.getFaturamentoContratado pro mesmo critério aplicado
+        // ao saldo atual (snapshot) em vez de por-bucket (flow).
+        const faturamentoThisDay = contractsThisDay.reduce((sum, c: any) => {
+          const mrrValue = parseCurrencyBR(c.mrr);
+          const total = c.totalValue;
+          return sum + Math.max(total !== undefined && total !== null ? Number(total) : mrrValue, mrrValue);
+        }, 0);
         return {
           name: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
           vendas: Math.round(revenueThisDay),
+          faturamento: Math.round(faturamentoThisDay),
           leads: dayLeads.length,
           retention: closedThisDay,
         };
@@ -258,13 +276,20 @@ export function useDashboard() {
       const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
       const monthLeads = leads.filter(l => leadDateIso(l).slice(0, 7) === monthKey);
       const closedThisMonth = monthLeads.filter(l => l.status === 'Fechado').length;
-      const mrrThisMonth = filteredContracts
-        .filter(c => c.status !== 'Cancelado' && contractDateToIso(c.date)?.slice(0, 7) === monthKey)
-        .reduce((sum, c) => sum + parseCurrencyBR(c.mrr), 0);
+      const contractsThisMonth = filteredContracts
+        .filter(c => c.status !== 'Cancelado' && contractDateToIso(c.date)?.slice(0, 7) === monthKey);
+      const mrrThisMonth = contractsThisMonth.reduce((sum, c) => sum + parseCurrencyBR(c.mrr), 0);
+      // Mesmo critério do branch diário acima (ver comentário lá).
+      const faturamentoThisMonth = contractsThisMonth.reduce((sum, c: any) => {
+        const mrrValue = parseCurrencyBR(c.mrr);
+        const total = c.totalValue;
+        return sum + Math.max(total !== undefined && total !== null ? Number(total) : mrrValue, mrrValue);
+      }, 0);
 
       return {
         name,
         vendas: Math.round(mrrThisMonth),
+        faturamento: Math.round(faturamentoThisMonth),
         leads: monthLeads.length,
         retention: closedThisMonth,
       };
@@ -411,6 +436,7 @@ export function useDashboard() {
     setComparisonPeriod,
     goalAlerts,
     totalRevenue,
+    faturamentoContratado,
     conversionRate,
     performanceData,
     salesRanking,

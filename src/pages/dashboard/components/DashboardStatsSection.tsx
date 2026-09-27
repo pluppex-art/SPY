@@ -4,6 +4,7 @@ import { DashboardStatsByNiche } from './DashboardStatsByNiche';
 export function DashboardStatsSection({
   tenantNiche,
   totalRevenue,
+  faturamentoContratado,
   leadsLength,
   conversionRate,
   churnRate,
@@ -14,6 +15,12 @@ export function DashboardStatsSection({
 }: {
   tenantNiche: string | undefined;
   totalRevenue: number;
+  /** Faturamento contratado (recorrente + avulso/implantação) — distinto do
+   * `totalRevenue` acima, que é só MRR (ver revenueMetrics.getFaturamentoContratado
+   * e o comentário em DashboardStatsByNiche.tsx). Opcional pra não quebrar
+   * outro chamador que ainda não passe essa prop — cai pro próprio
+   * `totalRevenue` nesse caso (nunca mostra "sem dado" onde já existia número). */
+  faturamentoContratado?: number;
   leadsLength: number;
   conversionRate: number | string;
   churnRate: number;
@@ -23,11 +30,12 @@ export function DashboardStatsSection({
   /** Mesma série do Fluxo de Performance — dá a tendência real e o
    * mini-gráfico de cada KPI (ver DashboardStatsByNiche.tsx). Opcional pra
    * não quebrar outro chamador que ainda não passe essa prop. */
-  performanceData?: { name: string; vendas: number; leads: number; retention: number }[];
+  performanceData?: { name: string; vendas: number; faturamento?: number; leads: number; retention: number }[];
 }) {
   const stats = DashboardStatsByNiche({
     tenantNiche,
     totalRevenue,
+    faturamentoContratado,
     leadsLength,
     conversionRate: typeof conversionRate === "string" ? parseFloat(conversionRate) : conversionRate,
     churnRate,

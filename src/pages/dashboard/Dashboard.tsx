@@ -18,6 +18,7 @@ export default function Dashboard() {
     setComparisonPeriod,
     goalAlerts,
     totalRevenue,
+    faturamentoContratado,
     conversionRate,
     squads,
     contracts,
@@ -66,6 +67,7 @@ export default function Dashboard() {
         <DashboardStatsSection
           tenantNiche={user?.tenantNiche}
           totalRevenue={totalRevenue}
+          faturamentoContratado={faturamentoContratado}
           leadsLength={activeLeadsCount}
           conversionRate={conversionRate}
           churnRate={churnRate}
