@@ -155,12 +155,34 @@ export function PipelineKanbanBoard({
     (l: any) => !activePipelineStages.some((stage) => matchesStage(l, stage))
   );
 
+  // Ordem do card dentro da coluna: na 1ª etapa (entrada do funil — "Novo Lead" na maioria dos
+  // funis) o mais recente é quem ACABOU DE CHEGAR, então ordena por data de criação; ali um
+  // reprocessamento em massa (reimportação, sincronização de integração tocando muitos leads de
+  // uma vez) não pode embaralhar quem chegou primeiro. Da 2ª etapa em diante o lead já está sendo
+  // trabalhado, então o mais recente é quem teve a ÚLTIMA ATIVIDADE (updated_at, atualizado pelo
+  // banco a cada mudança — mover de coluna, editar um campo, etc.), pra quem foi mexido por último
+  // subir. Achado real (2026-09-27): um ajuste em massa nas tags de interesse de ~1150 leads
+  // "Novo" carimbou o updated_at de todos com o mesmo instante, embaralhando a ordem de chegada
+  // deles — por isso a 1ª etapa não pode depender de updated_at.
+  const createdKey = (l: any): string => l.created_at ?? l.createdAt ?? "";
+  const activityKey = (l: any): string => l.updated_at ?? l.updatedAt ?? l.created_at ?? l.createdAt ?? "";
+  const sortByRecency = (list: any[], key: (l: any) => string) =>
+    [...list].sort((a, b) => {
+      const ka = key(a);
+      const kb = key(b);
+      if (!ka && !kb) return 0;
+      if (!ka) return -1;
+      if (!kb) return 1;
+      return kb > ka ? 1 : kb < ka ? -1 : 0;
+    });
+
   return (
     <div className="flex gap-3 overflow-x-auto pb-4 h-[calc(100vh-250px)] min-h-[500px] scrollbar-none select-none items-stretch">
       {activePipelineStages.map((stage, stageIdx) => {
         const isMinimized = minimizedColumns.has(stage.id);
-        const stageLeads = filteredItemsList.filter((l: any) => matchesStage(l, stage));
-        if (stageIdx === 0) stageLeads.push(...unmatchedLeads);
+        const rawStageLeads = filteredItemsList.filter((l: any) => matchesStage(l, stage));
+        if (stageIdx === 0) rawStageLeads.push(...unmatchedLeads);
+        const stageLeads = sortByRecency(rawStageLeads, stageIdx === 0 ? createdKey : activityKey);
         const visibleCount = visibleCounts[stage.id] ?? CARDS_PAGE_SIZE;
         const visibleStageLeads = stageLeads.slice(0, visibleCount);
 
