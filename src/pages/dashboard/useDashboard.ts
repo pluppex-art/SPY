@@ -24,6 +24,20 @@ export interface DashboardSummary {
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const FUNNEL_COLORS = ['bg-emerald-500', 'bg-emerald-400', 'bg-emerald-300', 'bg-emerald-200', 'bg-emerald-100'];
 
+// `lead.date` é um campo de texto livre digitado no cadastro — NewLeadModal.tsx grava
+// literalmente a string "Hoje" (não uma data ISO) em todo lead criado por lá, e muitos leads
+// migrados ficam com "" (vazio). Usar `.date` sozinho pra filtrar por período ou agrupar por
+// mês fazia um tenant inteiro sumir do Fluxo de Performance e do filtro de período (achado
+// real: 60 leads da Pluppex, 40 com "" e 20 com "Hoje" — ZERO com uma data ISO de verdade,
+// então "Volume de Leads" dava 0 em todo mês e o eixo direito do gráfico colapsava pra caber só
+// "Negócios Fechados"). `created_at` (carimbado pelo banco, sempre presente) é o fallback
+// confiável quando `.date` não é uma data ISO de verdade.
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}/;
+function leadDateIso(l: any): string {
+  if (typeof l?.date === "string" && ISO_DATE_RE.test(l.date)) return l.date;
+  return typeof l?.created_at === "string" ? l.created_at : "";
+}
+
 // Mesma convenção de stageId usada em usePipeline.ts — precisa bater com o
 // stageId real gravado no lead pelo Kanban, senão o funil conta tudo errado.
 function getStageId(funilId: string, idx: number): string {
@@ -49,9 +63,10 @@ export function useDashboard() {
   const leads = useMemo(() => {
     if (!dateFrom && !dateTo) return allLeads;
     return (allLeads as any[]).filter((l) => {
-      if (!l.date) return false;
-      if (dateFrom && l.date < dateFrom) return false;
-      if (dateTo && l.date > dateTo) return false;
+      const iso = leadDateIso(l).slice(0, 10);
+      if (!iso) return false;
+      if (dateFrom && iso < dateFrom) return false;
+      if (dateTo && iso > dateTo) return false;
       return true;
     });
   }, [allLeads, dateFrom, dateTo]);
@@ -192,7 +207,7 @@ export function useDashboard() {
       });
       return days.map((d) => {
         const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        const dayLeads = leads.filter(l => (l.date || "").slice(0, 10) === iso);
+        const dayLeads = leads.filter(l => leadDateIso(l).slice(0, 10) === iso);
         const closedThisDay = dayLeads.filter(l => l.status === 'Fechado').length;
         const revenueThisDay = filteredContracts.filter(c => contractDateToIso(c.date) === iso && c.status !== 'Cancelado')
           .reduce((sum, c) => sum + parseCurrencyBR(c.mrr), 0);
@@ -218,7 +233,7 @@ export function useDashboard() {
 
     return months.map(({ year, month, name }) => {
       const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-      const monthLeads = leads.filter(l => (l.date || "").slice(0, 7) === monthKey);
+      const monthLeads = leads.filter(l => leadDateIso(l).slice(0, 7) === monthKey);
       const closedThisMonth = monthLeads.filter(l => l.status === 'Fechado').length;
       const mrrThisMonth = filteredContracts
         .filter(c => c.status !== 'Cancelado' && contractDateToIso(c.date)?.slice(0, 7) === monthKey)
