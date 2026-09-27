@@ -206,7 +206,7 @@ export function StrategicalView({
       className="space-y-6 text-left"
     >
       <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative overflow-hidden shadow-sm">
+        <Card className="lg:col-span-2 p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative shadow-sm">
           <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
             <div>
               <h3 className="text-lg font-black text-[var(--color-text-primary)] uppercase tracking-tight flex items-center gap-2.5">
@@ -306,7 +306,7 @@ export function StrategicalView({
         </Card>
 
         <div className="space-y-6">
-          <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative overflow-hidden h-full flex flex-col shadow-sm">
+          <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative h-full flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
                 <Target className="w-4 h-4 text-emerald-500" /> Medidor de Metas
