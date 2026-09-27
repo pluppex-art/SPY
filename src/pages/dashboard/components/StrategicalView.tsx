@@ -371,9 +371,10 @@ export function StrategicalView({
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6 items-stretch">
+      <SalesFunnelWidget steps={salesFunnelSteps} />
+
+      <div className="grid lg:grid-cols-2 gap-6 items-stretch">
         <RecentActivityFeed activities={recentActivities} />
-        <SalesFunnelWidget steps={salesFunnelSteps} />
         <RevenueByProductDonut slices={revenueByProduct} />
       </div>
 
