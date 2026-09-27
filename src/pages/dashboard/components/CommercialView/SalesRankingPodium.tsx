@@ -16,7 +16,7 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
   const hasSales = top3.length > 0;
 
   return (
-    <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative overflow-hidden group shadow-sm">
+    <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative group shadow-sm">
       <div className="flex items-center justify-between mb-8">
         <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
           <Trophy className="w-4 h-4 text-amber-500" /> Ranking de Vendas
