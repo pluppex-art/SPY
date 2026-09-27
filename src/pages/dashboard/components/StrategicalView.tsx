@@ -254,7 +254,7 @@ export function StrategicalView({
               esmague visualmente a outra (achado real: um mês com centenas
               de leads sincronizados de uma vez fazia a linha de MRR, em
               milhares de reais, parecer achatada perto do zero). */}
-          <div className="h-[340px] w-full min-w-0 -mx-2">
+          <div className="h-[230px] w-full min-w-0 -mx-2">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
               <AreaChart data={performanceData}>
                 <defs>
@@ -322,7 +322,7 @@ export function StrategicalView({
                 </div>
               ) : (
                 <>
-                  <div className="relative w-44 h-44 mb-6">
+                  <div className="relative w-32 h-32 mb-4">
                     <svg className="w-full h-full" viewBox="0 0 100 100">
                       <circle cx="50" cy="50" r="45" fill="none" stroke="var(--color-border-default)" strokeWidth="8" />
                       <motion.circle
