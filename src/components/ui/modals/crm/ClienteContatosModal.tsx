@@ -128,7 +128,9 @@ export function ClienteContatosModal({ isOpen, onClose, clienteId, clienteNome }
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      maxWidth="max-w-2xl"
+      maxWidth="max-w-[480px]"
+      position="right"
+      overlay="light"
       title={
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
