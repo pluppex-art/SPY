@@ -45,12 +45,13 @@ export function CommercialView({ salesRanking, funnelData, recentActivities }: C
       exit={{ opacity: 0, scale: 0.98 }}
       className="space-y-6 text-left"
     >
-      {/* Achado real (visto em print): o grid esticava os 2 cards pra mesma
-          altura (align-items padrão do grid = stretch) — como o Funil tem
-          bem mais linhas que o Ranking, o Ranking sempre sobrava com um
-          espaço em branco enorme embaixo. `items-start` faz cada card ficar
-          só do tamanho do próprio conteúdo. */}
-      <div className="grid lg:grid-cols-2 gap-6 items-start">
+      {/* Pedido explícito do usuário: os 2 cards ficam com a MESMA altura
+          (o Ranking preenche até a base do Funil) — voltou o stretch padrão
+          do grid (removido o items-start de uma tentativa anterior). O
+          conteúdo de cada card continua ancorado no topo (SalesRankingPodium
+          não força os filhos a esticar), só a caixa do card acompanha a
+          altura do vizinho. */}
+      <div className="grid lg:grid-cols-2 gap-6 items-stretch">
         <SalesRankingPodium salesRanking={salesRanking} />
         <FunnelConversionChart funnelData={funnelData} topConversionRate={topConversionRate} />
       </div>
