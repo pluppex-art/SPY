@@ -45,7 +45,12 @@ export function CommercialView({ salesRanking, funnelData, recentActivities }: C
       exit={{ opacity: 0, scale: 0.98 }}
       className="space-y-6 text-left"
     >
-      <div className="grid lg:grid-cols-2 gap-6">
+      {/* Achado real (visto em print): o grid esticava os 2 cards pra mesma
+          altura (align-items padrão do grid = stretch) — como o Funil tem
+          bem mais linhas que o Ranking, o Ranking sempre sobrava com um
+          espaço em branco enorme embaixo. `items-start` faz cada card ficar
+          só do tamanho do próprio conteúdo. */}
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
         <SalesRankingPodium salesRanking={salesRanking} />
         <FunnelConversionChart funnelData={funnelData} topConversionRate={topConversionRate} />
       </div>
