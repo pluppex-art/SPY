@@ -33,7 +33,14 @@ export function FunnelConversionChart({ funnelData, topConversionRate }: FunnelC
             className="py-10"
           />
         ) : (
-          <div className="space-y-3.5">
+          /* Achado real: com 9 etapas (funil custom do tenant), este card
+             ficava bem mais alto que o Ranking de Vendas ao lado — mesma
+             linha do grid (items-start), mas alturas muito diferentes.
+             max-height + scroll aqui em vez de comprimir a fonte/espaçamento
+             (que prejudicaria a leitura): todas as etapas continuam
+             acessíveis, só não empurram o card inteiro pra uma altura bem
+             maior que a do vizinho. */
+          <div className="space-y-3.5 max-h-[400px] overflow-y-auto pr-1 scrollbar-thin">
             {funnelData.map((step, i) => (
               <div key={i} className="relative">
                 <div className="flex items-center justify-between mb-1 px-1">

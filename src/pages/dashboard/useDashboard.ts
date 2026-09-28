@@ -331,7 +331,12 @@ export function useDashboard() {
 
     const sorted = Object.values(bySellerMap).sort((a, b) => b.total - a.total);
 
-    return sorted.slice(0, 3).map(s => ({
+    // Achado real: cortava em 3 aqui na origem — o card do Ranking (pódio +
+    // lista dos demais colocados) nunca tinha como mostrar um 4º/5º vendedor
+    // real mesmo quando existiam, mesmo cálculo/critério de sempre, só sem
+    // truncar tão cedo (SalesRankingPodium.tsx decide o que fazer com o
+    // resto: pódio pros 3 primeiros, lista simples do 4º em diante).
+    return sorted.slice(0, 8).map(s => ({
       name: s.name,
       total: s.total,
       deals: s.deals,

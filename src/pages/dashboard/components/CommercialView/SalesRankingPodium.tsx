@@ -13,6 +13,12 @@ interface SalesEntry {
 
 export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[] }) {
   const top3 = salesRanking.slice(0, 3);
+  // Achado real: o card ficava com uma área em branco enorme quando havia só
+  // 1-2 vendedores (o pódio sempre reserva 3 posições) ou mesmo com 3 — o
+  // Funil ao lado tem bem mais linhas. Em vez de inventar conteúdo, mostra o
+  // resto do ranking real (4º colocado em diante, mesmo cálculo de sempre,
+  // useDashboard.ts não corta mais em 3) como lista simples.
+  const rest = salesRanking.slice(3);
   const hasSales = top3.length > 0;
 
   return (
@@ -107,6 +113,26 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
               ) : <div key={idx} />
             ))}
           </div>
+
+          {rest.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-[var(--color-border-subtle)] space-y-1.5">
+              {rest.map((entry, i) => (
+                <div key={entry.name} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-[var(--radius-control)] hover:bg-[var(--color-surface-sunken)] transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-5 h-5 shrink-0 rounded-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] flex items-center justify-center text-[9px] font-black text-[var(--color-text-faint)]">
+                      {i + 4}º
+                    </span>
+                    <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">{entry.name}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 text-[10px] font-mono">
+                    <span className="text-[var(--color-text-faint)]">{entry.deals} contrato(s)</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">{entry.rate}%</span>
+                    <span className="text-[var(--color-text-primary)] font-bold w-20 text-right">R$ {entry.total.toLocaleString('pt-BR')}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
     </Card>
