@@ -1744,27 +1744,43 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (hasStatusOrStageChange) {
       setTimeout(() => { triggerScoreRecalculation(id, mergedLead ? [mergedLead] : undefined); }, 400);
     }
-    // Achado real: editar a Cidade no Detalhe do Lead (customFields.cidade,
-    // ver ProfileDataForm.tsx) nunca refletia na Base de Clientes — são
-    // registros DIFERENTES (leads.customFields x clientes.city), sem
-    // sincronia nenhuma entre os dois. Um cliente criado automaticamente ao
-    // ganhar um lead nasce com city=null de propósito (nunca inventa
-    // "São Paulo", ver createClientFromWonLead acima) — a Localização na
-    // Base de Clientes só existia se alguém preenchesse manualmente por lá.
-    // Agora, sempre que o lead tem uma cidade real e já está vinculado a um
-    // cliente, propaga pra `clientes.city` também — só nessa direção (lead ->
-    // cliente) e só com valor não-vazio, nunca apaga uma cidade que o
-    // cliente já tinha só porque o campo do lead ficou em branco.
+    // Achado real: editar Cidade/Setor/CNPJ no Detalhe do Lead nunca refletia
+    // na Base de Clientes — são registros DIFERENTES (leads.customFields/
+    // leads.cnpj x clientes.city/industry/documento), sem sincronia nenhuma
+    // entre os dois. Um cliente criado automaticamente ao ganhar um lead
+    // nasce com city=null de propósito (nunca inventa "São Paulo", ver
+    // createClientFromWonLead acima) — Localização/Setor/Documento só
+    // existiam na Base de Clientes se alguém preenchesse manualmente por lá.
+    // Sempre que o lead tem um valor real e já está vinculado a um cliente,
+    // propaga pros campos correspondentes de `clientes` também — só nessa
+    // direção (lead -> cliente) e só com valor não-vazio, nunca apaga um dado
+    // que o cliente já tinha só porque o campo do lead ficou em branco.
     if (supabase) {
-      const novaCidade = (updates.customFields as any)?.cidade;
       const clienteAlvo = mergedLead?.clientId;
-      if (clienteAlvo && typeof novaCidade === "string" && novaCidade.trim()) {
-        const cidade = novaCidade.trim();
-        supabase.from("clientes").update({ city: cidade }).eq("id", clienteAlvo).then(({ error }) => {
-          if (!error) {
-            setClienteBase(prev => prev.map((c: any) => c.id === clienteAlvo ? { ...c, city: cidade } : c));
-          }
-        });
+      if (clienteAlvo) {
+        const novaCidade = (updates.customFields as any)?.cidade;
+        const novoSetor = (updates.customFields as any)?.setor;
+        const novoDocumento = updates.cnpj;
+        const patch: Record<string, string> = {};
+        if (typeof novaCidade === "string" && novaCidade.trim()) patch.city = novaCidade.trim();
+        // `clientes.industry` na tela de Clientes (NovoClienteModal.tsx) é um
+        // select fixo de 8 setores genéricos — o CNAE fiscal real do CNPJ
+        // (ex.: "Desenvolvimento de programas de computador sob encomenda")
+        // é bem mais específico que isso. Grava o valor real mesmo assim
+        // (nunca força numa das 8 categorias — isso seria inventar uma
+        // classificação que ninguém confirmou); o select desse modal só não
+        // vai mostrar nenhuma opção pré-marcada quando o texto não bater com
+        // uma delas, o dado em si fica correto na tabela/detalhe do cliente.
+        if (typeof novoSetor === "string" && novoSetor.trim()) patch.industry = novoSetor.trim();
+        if (typeof novoDocumento === "string" && novoDocumento.trim()) patch.documento = novoDocumento.trim();
+
+        if (Object.keys(patch).length > 0) {
+          supabase.from("clientes").update(patch).eq("id", clienteAlvo).then(({ error }) => {
+            if (!error) {
+              setClienteBase(prev => prev.map((c: any) => c.id === clienteAlvo ? { ...c, ...patch } : c));
+            }
+          });
+        }
       }
     }
     // BUG real (visto em produção: "Wemerson Carvalho"/"Guruseg" duplicados

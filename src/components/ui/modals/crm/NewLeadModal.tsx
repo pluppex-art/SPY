@@ -39,6 +39,7 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
   const [cnpjValue, setCnpjValue] = useState("");
   const [companyValue, setCompanyValue] = useState("");
   const [cidadeValue, setCidadeValue] = useState("");
+  const [setorValue, setSetorValue] = useState("");
   const [emailValue, setEmailValue] = useState("");
   const [phoneValue, setPhoneValue] = useState("");
   const [cnpjStatus, setCnpjStatus] = useState<CnpjStatus>({ status: "idle" });
@@ -134,6 +135,7 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
           if (result.email && !emailValue) setEmailValue(result.email.toLowerCase());
           if (result.ddd_telefone_1 && !phoneValue) setPhoneValue(formatPhone(result.ddd_telefone_1.replace(/\D/g, "")));
           if (result.municipio && !cidadeValue) setCidadeValue(result.municipio);
+          if (result.cnae_fiscal_descricao && !setorValue) setSetorValue(result.cnae_fiscal_descricao);
         } else {
           const err = await resp.json().catch(() => ({}));
           setCnpjStatus({ status: "invalid", message: err.message || "CNPJ não encontrado." });
@@ -194,12 +196,12 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
       lead_interesse_cliente: formData.get("lead_interesse_cliente") as string,
       tenantId: tenantIdMap[selectedTenant], tenantName: selectedTenant,
       clientId: selectedClientId || undefined, clientName: selectedClientName || undefined,
-      customFields: { linkedinLink, currentRole, teamSize, cidade: cidadeValue || undefined },
+      customFields: { linkedinLink, currentRole, teamSize, cidade: cidadeValue || undefined, setor: setorValue || undefined },
     });
 
     setLoading(false);
     setCnpjValue(""); setCompanyValue(""); setEmailValue(""); setPhoneValue("");
-    setCidadeValue("");
+    setCidadeValue(""); setSetorValue("");
     setValueEstimate("");
     setLinkedinLink(""); setCurrentRole(""); setTeamSize("");
     setClientSearch(""); setSelectedClientId(""); setSelectedClientName("");
@@ -260,6 +262,7 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
           cnpjStatus={cnpjStatus} isCnpjDuplicate={isCnpjDuplicate}
           companyValue={companyValue} setCompanyValue={setCompanyValue}
           cidadeValue={cidadeValue} setCidadeValue={setCidadeValue}
+          setorValue={setorValue} setSetorValue={setSetorValue}
         />
         <QualificationBlock
           teamSize={teamSize} setTeamSize={setTeamSize}

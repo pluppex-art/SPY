@@ -14,11 +14,13 @@ interface CompanyBlockProps {
   setCompanyValue: (v: string) => void;
   cidadeValue: string;
   setCidadeValue: (v: string) => void;
+  setorValue: string;
+  setSetorValue: (v: string) => void;
 }
 
 export function CompanyBlock({
   cnpjValue, handleCnpjChange, cnpjStatus, isCnpjDuplicate, companyValue, setCompanyValue,
-  cidadeValue, setCidadeValue,
+  cidadeValue, setCidadeValue, setorValue, setSetorValue,
 }: CompanyBlockProps) {
   return (
     <div className="space-y-4">
@@ -85,6 +87,16 @@ export function CompanyBlock({
             />
           </FormField>
         </div>
+
+        <FormField label="Setor de Atuação" hint="Preenchido automaticamente ao validar o CNPJ (CNAE fiscal)">
+          <Input
+            name="setor"
+            type="text"
+            value={setorValue}
+            onChange={(e) => setSetorValue(e.target.value)}
+            placeholder="Ex: Desenvolvimento de programas de computador sob encomenda"
+          />
+        </FormField>
 
         <FormField label="Website Corporativo">
           <Input

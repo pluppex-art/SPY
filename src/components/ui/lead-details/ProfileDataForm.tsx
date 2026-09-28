@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Mail, Phone, Building2, User, FileCheck, Briefcase, DollarSign, Lock, Edit, Search, Package, Repeat, MapPin,
+  Mail, Phone, Building2, User, FileCheck, Briefcase, DollarSign, Lock, Edit, Search, Package, Repeat, MapPin, Factory,
 } from "lucide-react";
 import { formatCNPJ } from "../../../lib/utils";
 import { CityAutocomplete } from "../CityAutocomplete";
@@ -227,6 +227,23 @@ export function ProfileDataForm({
             onFocus={() => setIsEditingInline(true)}
             placeholder="Não informado"
             className={isEditingInline ? inputActiveClass : viewCls(customFieldsState.cidade ? "text-[var(--color-text-primary)] font-semibold" : "text-[var(--color-text-faint)]")}
+          />
+        </div>
+
+        <div className="p-3">
+          <div
+            className="text-[10px] font-bold text-[var(--color-text-faint)] mb-1 uppercase tracking-wider flex items-center gap-1"
+            title="Preenchido automaticamente ao consultar o CNPJ na Receita (CNAE fiscal), se ainda vazio."
+          >
+            <Factory className="w-3 h-3 text-[var(--color-text-muted)]" /> Setor de Atuação
+          </div>
+          <input
+            type="text"
+            value={(customFieldsState.setor as string) || ""}
+            placeholder="Não informado"
+            onFocus={() => setIsEditingInline(true)}
+            onChange={(e) => setCustomFieldsState((prev) => ({ ...prev, setor: e.target.value }))}
+            className={isEditingInline ? inputActiveClass : viewCls(customFieldsState.setor ? "text-[var(--color-text-primary)] font-semibold" : "text-[var(--color-text-faint)]")}
           />
         </div>
 

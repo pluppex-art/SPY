@@ -156,6 +156,9 @@ export function ProfileSection({
         if (data.municipio && !customFieldsState.cidade) {
           setCustomFieldsState((prev) => ({ ...prev, cidade: data.municipio }));
         }
+        if (data.cnae_fiscal_descricao && !customFieldsState.setor) {
+          setCustomFieldsState((prev) => ({ ...prev, setor: data.cnae_fiscal_descricao }));
+        }
         if (data.ddd_telefone_1 && !phone) {
           const raw = data.ddd_telefone_1.replace(/\D/g, "").slice(0, 11);
           const fmt = raw.length === 11
