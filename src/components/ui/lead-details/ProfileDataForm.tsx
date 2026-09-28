@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Mail, Phone, Building2, User, FileCheck, Briefcase, DollarSign, Lock, Edit, Search, Package, Repeat,
+  Mail, Phone, Building2, User, FileCheck, Briefcase, DollarSign, Lock, Edit, Search, Package, Repeat, MapPin,
 } from "lucide-react";
 import { formatCNPJ } from "../../../lib/utils";
 
@@ -211,6 +211,23 @@ export function ProfileDataForm({
               <span>Receita</span>
             </button>
           </div>
+        </div>
+
+        <div className="p-3">
+          <div
+            className="text-[10px] font-bold text-[var(--color-text-faint)] mb-1 uppercase tracking-wider flex items-center gap-1"
+            title="Preenchida automaticamente ao consultar o CNPJ na Receita, se ainda vazia."
+          >
+            <MapPin className="w-3 h-3 text-[var(--color-text-muted)]" /> Cidade
+          </div>
+          <input
+            type="text"
+            value={(customFieldsState.cidade as string) || ""}
+            placeholder="Não informado"
+            onFocus={() => setIsEditingInline(true)}
+            onChange={(e) => setCustomFieldsState((prev) => ({ ...prev, cidade: e.target.value }))}
+            className={isEditingInline ? inputActiveClass : viewCls(customFieldsState.cidade ? "text-[var(--color-text-primary)] font-semibold" : "text-[var(--color-text-faint)]")}
+          />
         </div>
 
         <div className="p-3">

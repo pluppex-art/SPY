@@ -11,10 +11,13 @@ interface CompanyBlockProps {
   isCnpjDuplicate: boolean;
   companyValue: string;
   setCompanyValue: (v: string) => void;
+  cidadeValue: string;
+  setCidadeValue: (v: string) => void;
 }
 
 export function CompanyBlock({
   cnpjValue, handleCnpjChange, cnpjStatus, isCnpjDuplicate, companyValue, setCompanyValue,
+  cidadeValue, setCidadeValue,
 }: CompanyBlockProps) {
   return (
     <div className="space-y-4">
@@ -71,14 +74,24 @@ export function CompanyBlock({
               placeholder="Nome da empresa..."
             />
           </FormField>
-          <FormField label="Website Corporativo">
+          <FormField label="Cidade" hint="Preenchida automaticamente ao validar o CNPJ, se ainda vazia">
             <Input
-              name="website"
-              type="url"
-              placeholder="https://www.empresa.com.br"
+              name="cidade"
+              type="text"
+              value={cidadeValue}
+              onChange={(e) => setCidadeValue(e.target.value)}
+              placeholder="Cidade do lead..."
             />
           </FormField>
         </div>
+
+        <FormField label="Website Corporativo">
+          <Input
+            name="website"
+            type="url"
+            placeholder="https://www.empresa.com.br"
+          />
+        </FormField>
       </div>
     </div>
   );

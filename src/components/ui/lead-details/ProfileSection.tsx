@@ -153,6 +153,9 @@ export function ProfileSection({
         const data = await resp.json();
         if (data.nome_fantasia || data.razao_social) setCompanyName(data.nome_fantasia || data.razao_social);
         if (data.email && !email) setEmail(data.email.toLowerCase());
+        if (data.municipio && !customFieldsState.cidade) {
+          setCustomFieldsState((prev) => ({ ...prev, cidade: data.municipio }));
+        }
         if (data.ddd_telefone_1 && !phone) {
           const raw = data.ddd_telefone_1.replace(/\D/g, "").slice(0, 11);
           const fmt = raw.length === 11
