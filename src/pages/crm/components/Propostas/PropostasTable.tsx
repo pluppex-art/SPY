@@ -143,11 +143,19 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
               // venda com desconto — inconsistente com a coluna "Valor" ao lado.
               const undiscountedTotal = itens.reduce((s, i) => s + (Number(i.preco_unitario) || 0) * (Number(i.quantidade) || 1), 0);
               const discountRatio = undiscountedTotal > 0 && item.valor ? Math.min(1, item.valor / undiscountedTotal) : 1;
+              // Achado real (pedido do usuário): a coluna "Valor" só mostrava o
+              // TOTAL da proposta — pra proposta com item recorrente, o valor
+              // do CICLO (a cobrança que se repete de verdade) não aparecia em
+              // lugar nenhum aqui, só escondido no resumo truncado dos itens.
+              // Mesmo cálculo já usado ali, só somado no nível da proposta
+              // inteira (pode ter mais de 1 item recorrente).
+              let valorCiclo = 0;
               const itensResumo = itens.map((i) => {
                 const itemTotal = (Number(i.preco_unitario) || 0) * (Number(i.quantidade) || 1) * discountRatio;
                 const months = Number(i.contract_months) || 0;
                 const isRecurringItem = i.billing_type !== "one_time";
                 const monthly = isRecurringItem && months > 1 ? itemTotal / months : null;
+                if (monthly !== null) valorCiclo += monthly;
                 return monthly
                   ? `${i.quantidade}x ${i.product_name} — ${formatCurrency(monthly)}/mês (${months}x, total ${formatCurrency(itemTotal)})`
                   : `${i.quantidade}x ${i.product_name} — ${formatCurrency(itemTotal)}`;
@@ -182,6 +190,11 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
                   </TableCell>
                   <TableCell>
                     <div className="text-sm font-black text-[var(--color-text-primary)]">{formatCurrency(item.valor || 0)}</div>
+                    {valorCiclo > 0 && (
+                      <div className="text-[10px] font-bold text-[var(--color-primary-blue)] font-mono mt-0.5" title="Valor da cobrança recorrente (soma dos itens recorrentes da proposta)">
+                        {formatCurrency(valorCiclo)}/mês
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

@@ -137,15 +137,34 @@ export function LeadCard({
   // inventado (o "~R$ 149,33" em leads novos parecia um valor negativo/errado).
   const isEstimated = !hasRealValue && estimateFromInterest > 0;
   const interestValue = leadInterestEstimate(item, proposals as any[], products as any[]);
-  const displayValue = interestValue !== null
-    ? formatCurrency(interestValue)
+  // Valor numérico real por trás do card (mesma prioridade de sempre) —
+  // extraído à parte do texto formatado pra poder derivar o valor MENSAL
+  // abaixo sem reformatar/re-parsear a string.
+  const realNumericValue = interestValue !== null
+    ? interestValue
     : parseCurrencyBR(item.value) > 0
-    ? formatCurrency(parseCurrencyBR(item.value))
-    : linkedProposalValue
-      ? formatCurrency(Number(linkedProposalValue))
-      : estimateFromInterest > 0
-        ? `~${formatCurrency(estimateFromInterest)}`
-        : 'R$ 0';
+      ? parseCurrencyBR(item.value)
+      : linkedProposalValue
+        ? Number(linkedProposalValue)
+        : null;
+  const displayValue = realNumericValue !== null
+    ? formatCurrency(realNumericValue)
+    : estimateFromInterest > 0
+      ? `~${formatCurrency(estimateFromInterest)}`
+      : 'R$ 0';
+  // Achado real (pedido do usuário): pra produto recorrente, o valor do card
+  // é o TOTAL do contrato inteiro (proposals.valor = totalProjectedAmount,
+  // ver saleCalculator.ts — nunca o valor de uma cobrança individual), mas
+  // em nenhum lugar aparecia o valor MENSAL (a cobrança recorrente de
+  // verdade) — só um total que, pra negócio recorrente, não é o número que
+  // entra no caixa a cada mês. Mesma simplificação já usada no badge de
+  // duração (1 ciclo = 1 mês, cobre a esmagadora maioria dos contratos
+  // recorrentes daqui) — nunca calculado em cima de uma ESTIMATIVA, só de
+  // valor real, e só quando há mais de 1 mês de contrato (com 1 mês, mensal
+  // = total, não precisa de um segundo número).
+  const monthlyValue = realNumericValue !== null && !!contractMonths && contractMonths > 1
+    ? realNumericValue / contractMonths
+    : null;
 
   // Tags de produto do card: seguem o estado ATUAL do lead — sem proposta = os produtos de
   // interesse marcados (mudam ao marcar/desmarcar); com proposta = os produtos dos itens dela;
@@ -406,6 +425,14 @@ export function LeadCard({
                 </span>
               )}
             </span>
+            {/* Achado real: o valor acima é o TOTAL do contrato inteiro — pra
+                produto recorrente, o número que entra no caixa TODO MÊS
+                nunca aparecia em lugar nenhum do card. */}
+            {monthlyValue !== null && (
+              <span className="text-[9px] font-bold text-[var(--color-primary-blue)] font-mono leading-none" title="Valor da cobrança recorrente mensal (total ÷ meses de contrato)">
+                {formatCurrency(monthlyValue)}/mês
+              </span>
+            )}
             {createdLabel && (
               <span className="text-[9px] text-[var(--color-text-faint)] font-medium">{createdLabel}</span>
             )}
