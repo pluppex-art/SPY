@@ -3,6 +3,7 @@ import {
   Mail, Phone, Building2, User, FileCheck, Briefcase, DollarSign, Lock, Edit, Search, Package, Repeat, MapPin,
 } from "lucide-react";
 import { formatCNPJ } from "../../../lib/utils";
+import { CityAutocomplete } from "../CityAutocomplete";
 
 interface ProfileDataFormProps {
   isEditingInline: boolean;
@@ -220,12 +221,11 @@ export function ProfileDataForm({
           >
             <MapPin className="w-3 h-3 text-[var(--color-text-muted)]" /> Cidade
           </div>
-          <input
-            type="text"
+          <CityAutocomplete
             value={(customFieldsState.cidade as string) || ""}
-            placeholder="Não informado"
+            onChange={(v) => setCustomFieldsState((prev) => ({ ...prev, cidade: v }))}
             onFocus={() => setIsEditingInline(true)}
-            onChange={(e) => setCustomFieldsState((prev) => ({ ...prev, cidade: e.target.value }))}
+            placeholder="Não informado"
             className={isEditingInline ? inputActiveClass : viewCls(customFieldsState.cidade ? "text-[var(--color-text-primary)] font-semibold" : "text-[var(--color-text-faint)]")}
           />
         </div>

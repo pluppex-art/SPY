@@ -1,6 +1,7 @@
 import { Building2, Hash, Building, LinkIcon, AlertTriangle, Target } from "lucide-react";
 import { FormField } from "../form-field";
 import { Input } from "../input";
+import { CityAutocomplete } from "../CityAutocomplete";
 
 type CnpjStatus = { status: "idle" | "checking" | "active" | "inactive" | "invalid"; message?: string };
 
@@ -74,13 +75,13 @@ export function CompanyBlock({
               placeholder="Nome da empresa..."
             />
           </FormField>
-          <FormField label="Cidade" hint="Preenchida automaticamente ao validar o CNPJ, se ainda vazia">
-            <Input
+          <FormField label="Cidade" hint="Busca no IBGE — ou preenchida automaticamente ao validar o CNPJ">
+            <CityAutocomplete
               name="cidade"
-              type="text"
               value={cidadeValue}
-              onChange={(e) => setCidadeValue(e.target.value)}
-              placeholder="Cidade do lead..."
+              onChange={setCidadeValue}
+              placeholder="Buscar cidade..."
+              className="flex h-10 w-full rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] ring-offset-[var(--color-surface)] placeholder:text-[var(--color-text-faint)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-blue)] focus-visible:ring-offset-2 transition-all"
             />
           </FormField>
         </div>
