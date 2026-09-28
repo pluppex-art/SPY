@@ -89,12 +89,22 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
             ) : <div className="flex-1 max-w-[110px]" />}
           </div>
 
+          {/* Achado real: esta grade renderizava top3 na ordem de colocação
+              (1º, 2º, 3º), mas o pódio ACIMA mostra na ordem visual (2º, 1º,
+              3º, prata-ouro-bronze) — com 2 ou 3 vendedores, os números de
+              contrato(s)/conv. apareciam embaixo do card da PESSOA ERRADA
+              (ex.: as estatísticas do 1º colocado apareciam sob o card do 2º
+              colocado). Mesma ordem visual do pódio agora, slot por slot —
+              inclusive o placeholder vazio quando não há 2º/3º colocado, pra
+              as colunas continuarem alinhadas com os cards acima. */}
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            {top3.map((entry, idx) => (
-              <div key={idx} className="p-2 bg-[var(--color-surface-sunken)] rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-                <p className="text-[10px] text-[var(--color-text-faint)] font-bold">{entry.deals} contrato(s)</p>
-                <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">{entry.rate}% conv.</p>
-              </div>
+            {[top3[1], top3[0], top3[2]].map((entry, idx) => (
+              entry ? (
+                <div key={idx} className="p-2 bg-[var(--color-surface-sunken)] rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
+                  <p className="text-[10px] text-[var(--color-text-faint)] font-bold">{entry.deals} contrato(s)</p>
+                  <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">{entry.rate}% conv.</p>
+                </div>
+              ) : <div key={idx} />
             ))}
           </div>
         </>
