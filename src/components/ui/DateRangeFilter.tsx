@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CalendarRange, ChevronDown, X, Check } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -43,8 +43,31 @@ function buildPresets() {
   ] as const;
 }
 
+// Largura real do card do popover (w-[280px] abaixo) — usada só pra decidir
+// de que lado abrir, nunca pra estilizar.
+const POPOVER_WIDTH = 280;
+
 export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, className }: DateRangeFilterProps) {
   const [open, setOpen] = useState(false);
+  // Achado real: este componente é reaproveitado em telas onde o botão fica
+  // perto da borda DIREITA da área de conteúdo (Propostas.tsx, Financeiro/BI —
+  // ambos dentro de um `justify-between` no fim da barra) — o popover sempre
+  // abria "colado à esquerda" do botão (`left-0`), então nesses casos ele
+  // estourava a largura da tela e o navegador criava um scroll horizontal só
+  // pra caber o pedaço cortado. Em vez de fixar um lado só (que quebraria o
+  // outro uso, no Dashboard, onde o botão fica perto da borda ESQUERDA), mede
+  // o espaço disponível à direita do botão na hora de abrir e escolhe o lado
+  // que cabe — funciona em qualquer tela sem precisar configurar caso a caso.
+  const [align, setAlign] = useState<"left" | "right">("left");
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const fitsOnRight = rect.left + POPOVER_WIDTH <= window.innerWidth - 16;
+    setAlign(fitsOnRight ? "left" : "right");
+  }, [open]);
+
   const presets = useMemo(buildPresets, []);
   const activePreset = presets.find((p) => p.from === dateFrom && p.to === dateTo);
 
@@ -57,6 +80,7 @@ export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, clas
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
@@ -76,7 +100,10 @@ export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, clas
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
-            className="absolute left-0 top-full mt-1.5 z-50 w-[280px] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl p-3 space-y-3"
+            className={cn(
+              "absolute top-full mt-1.5 z-50 w-[280px] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl p-3 space-y-3",
+              align === "left" ? "left-0" : "right-0"
+            )}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="space-y-0.5">
