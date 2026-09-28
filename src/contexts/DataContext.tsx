@@ -849,6 +849,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'squads' }, () => debouncedRefetch('squads', fetchSquads))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => debouncedRefetch('appointments', fetchAppointments))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => debouncedRefetch('products', fetchProducts))
+        // Achado real: `clientes` nunca teve realtime — a tela de Base de
+        // Clientes nem usava esse `clienteBase` (mantinha uma busca própria,
+        // isolada, só carregada uma vez no mount — ver Clientes.tsx). Editar
+        // a cidade/setor/CNPJ de um lead vinculado (sincroniza em
+        // updateLead acima) só aparecia lá depois de recarregar a página.
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => debouncedRefetch('clientes', () => fetchTableData('clientes', setClienteBase)))
         // Mesmo motivo do handler de `contracts` acima — `proposals` também
         // está no array de deps da reconciliação.
         .on('postgres_changes', { event: '*', schema: 'public', table: 'proposals' }, () => debouncedRefetch('proposals', () => fetchTableData('proposals', setProposals)))

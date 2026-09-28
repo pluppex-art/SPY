@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../components/ui/button";
 import { Plus } from "lucide-react";
 import { NovoClienteModal } from "../../components/ui/modals/crm/NovoClienteModal";
@@ -11,14 +11,19 @@ import { PageContainer } from "../../components/PageContainer";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
-import { apiFetch } from "../../lib/apiClient";
 import { ClientesKPIs } from "./components/Clientes/ClientesKPIs";
 import { ClientesList } from "./components/Clientes/ClientesList";
-import { friendlyError } from "../../lib/friendlyError";
 
 export default function Clientes() {
   const { activeTenantId } = useAuth();
-  const { leads } = useData();
+  // `clienteBase` (renomeado aqui pra `clientes`, resto do arquivo não muda)
+  // é o mesmo estado compartilhado que Contracts.tsx e o resto do sistema já
+  // usam — assinado no canal de realtime único do DataContext (achado real:
+  // esta tela tinha sua PRÓPRIA busca isolada, nunca usava esse estado
+  // compartilhado, então nem tinha realtime nem via ao vivo a sincronia de
+  // Cidade/Setor/Documento feita a partir do Detalhe do Lead — só depois de
+  // recarregar a página).
+  const { leads, clienteBase: clientes, addClienteBase, updateClienteBase, deleteClienteBase } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<any | null>(null);
   const [contatosClienteId, setContatosClienteId] = useState<string | null>(null);
@@ -33,12 +38,6 @@ export default function Clientes() {
   const [sectorFilter, setSectorFilter] = useState("Todos os setores");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Supabase (clientes) é a fonte de verdade — a busca completa abaixo
-  // sempre roda e sempre tem a palavra final. GET /api/crm/clientes-list
-  // (Redis-SPY, TTL de 20s) só adianta uma prévia enquanto ela não termina.
-  const [clientes, setClientes] = useState<any[]>([]);
-  const authoritativeLoadedRef = useRef(false);
-
   // Decisor por cliente, pra mostrar na tabela junto com o Documento — vem do
   // contato marcado como "principal" em cliente_contatos (a mesma tabela do
   // ícone de "Contatos e Decisores"), não de `leads`/`proposals`: é a única
@@ -47,28 +46,8 @@ export default function Clientes() {
   const [decisorPorCliente, setDecisorPorCliente] = useState<Record<string, { nome: string; cargo?: string | null }>>({});
 
   useEffect(() => {
-    if (!activeTenantId) return;
+    if (!activeTenantId || !supabase) return;
     let cancelled = false;
-    authoritativeLoadedRef.current = false;
-
-    apiFetch(`/api/crm/clientes-list?tenantId=${encodeURIComponent(activeTenantId)}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (cancelled || authoritativeLoadedRef.current || !json?.data) return;
-        setClientes(json.data);
-      })
-      .catch(() => { /* silencioso — a busca completa abaixo segue normalmente */ });
-
-    if (!supabase) return;
-    // Sem o filtro de tenant, contas de parceiro (has_tenant_access verdadeiro
-    // pra vários tenants) recebiam via RLS linhas de todos os tenants acessíveis
-    // misturadas numa única lista.
-    supabase.from("clientes").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }).then(({ data, error }) => {
-      if (cancelled) return;
-      authoritativeLoadedRef.current = true;
-      if (error) toast.error(`Erro ao carregar clientes: ${friendlyError(error)}`);
-      else if (data) setClientes(data);
-    });
 
     supabase.from("cliente_contatos").select("cliente_id, nome, cargo, papel_decisao, principal")
       .eq("tenant_id", activeTenantId).eq("principal", true).then(({ data, error }) => {
@@ -126,38 +105,32 @@ export default function Clientes() {
     };
 
     if (editingCliente) {
-      const { data: updated, error } = await supabase.from("clientes").update(clientPayload).eq("id", editingCliente.id).select().maybeSingle();
-      if (error) { toast.error(`Erro ao atualizar cliente: ${friendlyError(error)}`); return; }
-      if (updated) setClientes(prev => prev.map(c => c.id === updated.id ? updated : c));
+      await updateClienteBase(editingCliente.id, clientPayload);
       toast.success("Cliente atualizado com sucesso!");
       setEditingCliente(null);
       return;
     }
 
-    const { data: inserted, error } = await supabase.from("clientes").insert({ ...clientPayload, status: "Ativo", tenant_id: activeTenantId }).select().maybeSingle();
-    if (error) { toast.error(`Erro ao cadastrar cliente: ${friendlyError(error)}`); return; }
-    if (inserted) setClientes(prev => [inserted, ...prev]);
+    await addClienteBase({ ...clientPayload, status: "Ativo" });
     toast.success("Cliente cadastrado com sucesso!");
     setIsModalOpen(false);
   };
 
   const handleDeleteCliente = async (id: string) => {
-    if (!supabase) { toast.error("Não foi possível conectar ao servidor."); return; }
     const alvo = clientes.find(c => c.id === id);
     if (!(await confirmDialog({
       title: "Excluir cliente",
       description: `Excluir ${alvo?.name || "este cliente"} da base de clientes? Essa ação não pode ser desfeita.`,
     }))) return;
-    const { error } = await supabase.from("clientes").delete().eq("id", id);
-    if (error) { toast.error(`Erro ao remover cliente: ${friendlyError(error)}`); return; }
+    const ok = await deleteClienteBase(id);
+    if (!ok) return; // deleteClienteBase já mostra o toast de erro
     // Sem isso, o(s) lead(s) que apontavam pra esse cliente ficam com um
     // `clientId` órfão pra sempre — a reconciliação em DataContext trata
     // "clientId setado" como "já vinculado" mesmo quando o cliente por trás
     // foi excluído, então o negócio ganho nunca reaparece na Base de
     // Clientes sozinho (achado real: exclusão de "To Na Pista Boliche"
     // deixou o lead "Fabiano Fagundes" preso a um cliente inexistente).
-    await supabase.from("leads").update({ clientId: null }).eq("clientId", id).eq("tenant_id", activeTenantId);
-    setClientes(prev => prev.filter(c => c.id !== id));
+    if (supabase) await supabase.from("leads").update({ clientId: null }).eq("clientId", id).eq("tenant_id", activeTenantId);
     toast.success("Cliente removido com sucesso!");
   };
 
