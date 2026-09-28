@@ -394,6 +394,12 @@ export function useDashboard() {
     const normalize = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
     const namedWonIdx = stageNames.findIndex((n) => /ganh|fech|venda|won/.test(normalize(n)));
     const wonIdx = namedWonIdx !== -1 ? namedWonIdx : stageNames.length - 1;
+    // Achado real: Ganho/Perdido são dois desfechos PARALELOS (o lead vai pra
+    // um ou pro outro, nunca "flui" de um pro outro), não mais um passo na
+    // progressão normal do funil — coloridos como parte do gradiente de
+    // posição, "Perdido" saía num tom de azul (a mesma família de cor de
+    // "avançou bastante no funil"), o oposto do que essa etapa representa.
+    const lostIdx = stageNames.findIndex((n) => /perdid|lost/.test(normalize(n)));
 
     const comercialLeads = leads.filter(l => !l.pipelineId || l.pipelineId === 'comercial');
     const total = comercialLeads.length || 1;
@@ -411,8 +417,12 @@ export function useDashboard() {
     let prevCount = total;
     return stageNames.map((name, i) => {
       const count = counts[i];
-      const drop = i > 0 && prevCount > 0 ? Math.round((1 - count / prevCount) * 100) : 0;
-      const step = { label: name, value: count, drop, color: funnelStageColor(i, stageNames.length) };
+      // `null` (não 0) quando não há base real pra comparar (1ª etapa, ou
+      // etapa anterior zerada) — 0 vira um valor real e distinto ("ficou
+      // igual"), não mais indistinguível de "sem base pra calcular".
+      const drop = i > 0 && prevCount > 0 ? Math.round((1 - count / prevCount) * 100) : null;
+      const color = i === wonIdx ? 'bg-emerald-500' : i === lostIdx ? 'bg-rose-500' : funnelStageColor(i, stageNames.length);
+      const step = { label: name, value: count, drop, color };
       prevCount = count;
       return step;
     });

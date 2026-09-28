@@ -6,7 +6,9 @@ import { EmptyState } from '../../../../components/ui/empty-state';
 interface FunnelStep {
   label: string;
   value: number;
-  drop: number;
+  /** null = sem base real pra comparar (1ª etapa, ou etapa anterior
+   * zerada) — distinto de 0 (comparou e ficou igual, um valor real). */
+  drop: number | null;
   color: string;
 }
 
@@ -23,12 +25,12 @@ export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps
 
   // Maior gargalo REAL: a etapa com a maior queda (drop) já calculada — nunca
   // um motivo/causa inventado, só aponta ONDE a queda é maior entre as que
-  // já existem no funil. i=0 sempre tem drop=0 por definição (não há etapa
-  // anterior), então nunca pode ser o gargalo.
+  // já existem no funil. i=0 e etapas sem base real (drop null) nunca entram
+  // na comparação.
   let bottleneck: { label: string; drop: number; i: number } | null = null;
   if (hasFunnel) {
     funnelData.forEach((step, i) => {
-      if (i > 0 && step.drop > (bottleneck?.drop ?? -1)) bottleneck = { label: step.label, drop: step.drop, i };
+      if (i > 0 && step.drop !== null && step.drop > (bottleneck?.drop ?? -1)) bottleneck = { label: step.label, drop: step.drop, i };
     });
   }
 
@@ -52,8 +54,18 @@ export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps
                 <p className="text-xs font-bold text-[var(--color-text-muted)]">{step.label}</p>
                 <div className="flex items-center gap-2 w-20 justify-end shrink-0">
                   <span className="text-xs font-black text-[var(--color-text-primary)] font-mono">{step.value}</span>
-                  <span className={`text-[10px] font-bold w-10 text-right ${step.drop > 0 ? "text-rose-500" : "text-[var(--color-text-faint)]"}`}>
-                    {step.drop > 0 ? `-${step.drop}%` : "—"}
+                  {/* Achado real: só mostrava queda (drop > 0) — uma alta real
+                      entre 2 etapas adjacentes (comum num funil custom, onde a
+                      contagem é "quantos leads estão AGORA nessa etapa", não um
+                      fluxo estritamente decrescente) ficava escondida atrás de
+                      "—", como se não houvesse dado nenhum ali. */}
+                  <span className={`text-[10px] font-bold w-10 text-right ${
+                    step.drop === null ? "text-[var(--color-text-faint)]"
+                    : step.drop > 0 ? "text-rose-500"
+                    : step.drop < 0 ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-[var(--color-text-faint)]"
+                  }`}>
+                    {step.drop === null ? "—" : step.drop === 0 ? "0%" : step.drop > 0 ? `-${step.drop}%` : `+${Math.abs(step.drop)}%`}
                   </span>
                 </div>
               </div>

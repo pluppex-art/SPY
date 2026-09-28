@@ -9,7 +9,9 @@ import { RecentActivitiesList } from './RecentActivitiesList';
 interface FunnelStep {
   label: string;
   value: number;
-  drop: number;
+  /** null = sem base real pra comparar (1ª etapa, ou etapa anterior
+   * zerada) — distinto de 0 (comparou e ficou igual, valor real). */
+  drop: number | null;
   color: string;
 }
 
