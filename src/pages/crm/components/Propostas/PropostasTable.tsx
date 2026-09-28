@@ -189,10 +189,17 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
                         <status.icon className="w-3 h-3" />
                         {item.status}
                       </Badge>
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <button onClick={() => onUpdateStatus(item.id, "Aceita")} className="px-1.5 py-0.5 text-[8px] font-extrabold uppercase bg-success/10 text-success rounded hover:bg-success/20">Aceitar</button>
-                        <button onClick={() => onUpdateStatus(item.id, "Recusada")} className="px-1.5 py-0.5 text-[8px] font-extrabold uppercase bg-danger/10 text-danger rounded hover:bg-danger/20">Recusar</button>
-                      </div>
+                      {/* Achado real: esses 2 botões ficavam sempre no DOM (só escondidos
+                          pelo hover da linha), mesmo numa proposta já Aceita/Recusada —
+                          dava pra "Recusar" uma proposta já aceita (ou vice-versa) sem
+                          nenhum aviso. Uma decisão já tomada é definitiva; some os dois
+                          assim que o status sair de Enviada/Aberta. */}
+                      {item.status !== "Aceita" && item.status !== "Recusada" && (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                          <button onClick={() => onUpdateStatus(item.id, "Aceita")} className="px-1.5 py-0.5 text-[8px] font-extrabold uppercase bg-success/10 text-success rounded hover:bg-success/20">Aceitar</button>
+                          <button onClick={() => onUpdateStatus(item.id, "Recusada")} className="px-1.5 py-0.5 text-[8px] font-extrabold uppercase bg-danger/10 text-danger rounded hover:bg-danger/20">Recusar</button>
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
