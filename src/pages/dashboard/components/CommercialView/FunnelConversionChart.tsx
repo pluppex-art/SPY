@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { Card } from '../../../../components/ui/card';
-import { Filter } from 'lucide-react';
+import { Filter, AlertTriangle } from 'lucide-react';
 import { EmptyState } from '../../../../components/ui/empty-state';
 
 interface FunnelStep {
@@ -20,6 +20,17 @@ interface FunnelConversionChartProps {
 export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps) {
   const hasFunnel = funnelData.some(s => s.value > 0);
   const maxFunnelValue = funnelData[0]?.value || 1;
+
+  // Maior gargalo REAL: a etapa com a maior queda (drop) já calculada — nunca
+  // um motivo/causa inventado, só aponta ONDE a queda é maior entre as que
+  // já existem no funil. i=0 sempre tem drop=0 por definição (não há etapa
+  // anterior), então nunca pode ser o gargalo.
+  let bottleneck: { label: string; drop: number; i: number } | null = null;
+  if (hasFunnel) {
+    funnelData.forEach((step, i) => {
+      if (i > 0 && step.drop > (bottleneck?.drop ?? -1)) bottleneck = { label: step.label, drop: step.drop, i };
+    });
+  }
 
   return (
     <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative shadow-sm h-full flex flex-col">
@@ -56,6 +67,16 @@ export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {bottleneck && bottleneck.drop > 0 && (
+        <div className="mt-5 pt-4 border-t border-[var(--color-border-subtle)] flex items-start gap-2.5 shrink-0">
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+            <strong className="text-[var(--color-text-primary)] font-bold">Maior gargalo:</strong>{" "}
+            {funnelData[bottleneck.i - 1]?.label} → {bottleneck.label}, queda de {bottleneck.drop}%.
+          </p>
         </div>
       )}
     </Card>

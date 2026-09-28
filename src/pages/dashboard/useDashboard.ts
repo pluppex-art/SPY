@@ -22,7 +22,22 @@ export interface DashboardSummary {
 }
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-const FUNNEL_COLORS = ['bg-emerald-500', 'bg-emerald-400', 'bg-emerald-300', 'bg-emerald-200', 'bg-emerald-100'];
+// Antes só 5 tons de verde (ciclava/repetia em funis com mais de 5 etapas,
+// ex.: o funil custom de 9 etapas de um tenant real). Gradiente de verdade
+// agora — verde (início) -> âmbar (meio) -> azul (fim) — indexado pela
+// POSIÇÃO relativa da etapa, não por um array curto fixo. Classes literais
+// (Tailwind JIT só inclui o que existe no código-fonte, não dá pra montar
+// `bg-${cor}-${tom}` dinamicamente).
+const FUNNEL_GRADIENT = [
+  'bg-emerald-500', 'bg-emerald-400', 'bg-lime-400',
+  'bg-amber-300', 'bg-amber-400', 'bg-amber-500',
+  'bg-cyan-400', 'bg-blue-400', 'bg-blue-500', 'bg-blue-600', 'bg-blue-700',
+];
+function funnelStageColor(i: number, total: number): string {
+  if (total <= 1) return FUNNEL_GRADIENT[0];
+  const idx = Math.round((i / (total - 1)) * (FUNNEL_GRADIENT.length - 1));
+  return FUNNEL_GRADIENT[idx];
+}
 
 // `lead.date` é um campo de texto livre digitado no cadastro — NewLeadModal.tsx grava
 // literalmente a string "Hoje" (não uma data ISO) em todo lead criado por lá, e muitos leads
@@ -397,7 +412,7 @@ export function useDashboard() {
     return stageNames.map((name, i) => {
       const count = counts[i];
       const drop = i > 0 && prevCount > 0 ? Math.round((1 - count / prevCount) * 100) : 0;
-      const step = { label: name, value: count, drop, color: FUNNEL_COLORS[i] ?? 'bg-emerald-100' };
+      const step = { label: name, value: count, drop, color: funnelStageColor(i, stageNames.length) };
       prevCount = count;
       return step;
     });
