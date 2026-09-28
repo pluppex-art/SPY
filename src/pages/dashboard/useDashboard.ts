@@ -22,22 +22,25 @@ export interface DashboardSummary {
 }
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-// Antes só 5 tons de verde (ciclava/repetia em funis com mais de 5 etapas,
-// ex.: o funil custom de 9 etapas de um tenant real). Gradiente de verdade
-// agora — verde (início) -> âmbar (meio) -> azul (fim) — indexado pela
-// POSIÇÃO relativa da etapa, não por um array curto fixo. Classes literais
-// (Tailwind JIT só inclui o que existe no código-fonte, não dá pra montar
-// `bg-${cor}-${tom}` dinamicamente).
-const FUNNEL_GRADIENT = [
-  'bg-emerald-500', 'bg-emerald-400', 'bg-lime-400',
-  'bg-amber-300', 'bg-amber-400', 'bg-amber-500',
-  'bg-cyan-400', 'bg-blue-400', 'bg-blue-500', 'bg-blue-600', 'bg-blue-700',
+// Pedido explícito do usuário: cada etapa de progressão (tudo que não é
+// Ganho/Perdido, esses ficam fixos verde/vermelho — ver funnelData abaixo)
+// com uma cor bem distinta da vizinha, não um gradiente suave (um degradê
+// deixava etapas adjacentes parecidas demais, difícil de diferenciar o
+// bastão de uma da outra). Ordem pedida: Novo Lead azul, Reunião azul claro,
+// Diagnóstico roxo, e assim por diante — cicla se o funil tiver mais etapas
+// de progressão do que cores aqui. Classes literais (Tailwind JIT só inclui
+// o que existe no código-fonte).
+const FUNNEL_STAGE_COLORS = [
+  'bg-blue-500',    // Novo Lead
+  'bg-cyan-400',    // Reunião (azul claro)
+  'bg-purple-500',  // Diagnóstico (roxo)
+  'bg-fuchsia-500', // Apresentação
+  'bg-pink-500',    // Proposta
+  'bg-orange-500',  // Follow-Up
+  'bg-amber-500',   // Negociação
+  'bg-teal-500',    // Contrato
+  'bg-indigo-500',
 ];
-function funnelStageColor(i: number, total: number): string {
-  if (total <= 1) return FUNNEL_GRADIENT[0];
-  const idx = Math.round((i / (total - 1)) * (FUNNEL_GRADIENT.length - 1));
-  return FUNNEL_GRADIENT[idx];
-}
 
 // `lead.date` é um campo de texto livre digitado no cadastro — NewLeadModal.tsx grava
 // literalmente a string "Hoje" (não uma data ISO) em todo lead criado por lá, e muitos leads
@@ -415,13 +418,17 @@ export function useDashboard() {
     }
 
     let prevCount = total;
+    let progressIdx = 0;
     return stageNames.map((name, i) => {
       const count = counts[i];
       // `null` (não 0) quando não há base real pra comparar (1ª etapa, ou
       // etapa anterior zerada) — 0 vira um valor real e distinto ("ficou
       // igual"), não mais indistinguível de "sem base pra calcular".
       const drop = i > 0 && prevCount > 0 ? Math.round((1 - count / prevCount) * 100) : null;
-      const color = i === wonIdx ? 'bg-emerald-500' : i === lostIdx ? 'bg-rose-500' : funnelStageColor(i, stageNames.length);
+      let color: string;
+      if (i === wonIdx) color = 'bg-emerald-500';
+      else if (i === lostIdx) color = 'bg-rose-500';
+      else { color = FUNNEL_STAGE_COLORS[progressIdx % FUNNEL_STAGE_COLORS.length]; progressIdx++; }
       const step = { label: name, value: count, drop, color };
       prevCount = count;
       return step;
