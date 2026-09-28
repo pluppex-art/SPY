@@ -1,4 +1,6 @@
 import { motion } from 'motion/react';
+import { TrendingUp } from 'lucide-react';
+import { Card } from '../../../../components/ui/card';
 import { SalesRankingPodium } from './SalesRankingPodium';
 import { FunnelConversionChart } from './FunnelConversionChart';
 import { RadarAtributos } from './RadarAtributos';
@@ -36,6 +38,7 @@ interface CommercialViewProps {
 export function CommercialView({ salesRanking, funnelData, recentActivities }: CommercialViewProps) {
   const topConversionRate = salesRanking.length > 0 ? salesRanking[0].rate : 0;
   const funnelLeadsCount = funnelData[0]?.value || 0;
+  const hasFunnel = funnelData.some(s => s.value > 0);
 
   return (
     <motion.div
@@ -45,16 +48,29 @@ export function CommercialView({ salesRanking, funnelData, recentActivities }: C
       exit={{ opacity: 0, scale: 0.98 }}
       className="space-y-6 text-left"
     >
-      {/* Pedido explícito do usuário: os 2 cards ficam com a MESMA altura
-          (o Ranking preenche até a base do Funil) — voltou o stretch padrão
-          do grid (removido o items-start de uma tentativa anterior). O
-          conteúdo de cada card continua ancorado no topo (SalesRankingPodium
-          não força os filhos a esticar), só a caixa do card acompanha a
-          altura do vizinho. */}
+      {/* Ranking de Vendas e Funil de Conversão ficam com a MESMA altura
+          (items-stretch — o menor acompanha o maior). "Eficiência do
+          Pipeline" saiu de dentro do Funil e virou uma faixa só, de largura
+          inteira, embaixo dos dois — não faz sentido ficar presa só a um
+          dos dois cards quando fala do funil como um todo. */}
       <div className="grid lg:grid-cols-2 gap-6 items-stretch">
         <SalesRankingPodium salesRanking={salesRanking} />
-        <FunnelConversionChart funnelData={funnelData} topConversionRate={topConversionRate} />
+        <FunnelConversionChart funnelData={funnelData} />
       </div>
+
+      <Card className="p-4 bg-[var(--color-primary-blue)]/5 border border-[var(--color-primary-blue)]/20 shadow-sm flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 flex items-center justify-center shrink-0">
+          <TrendingUp className="w-4 h-4 text-[var(--color-primary-blue)]" />
+        </div>
+        <div>
+          <h4 className="text-[10px] font-black text-[var(--color-primary-blue)] uppercase tracking-wider">Eficiência do Pipeline</h4>
+          <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+            {hasFunnel
+              ? `${funnelData[0].value} leads em prospecção com taxa de conversão média estimada em ${topConversionRate}%.`
+              : 'Cadastre leads e avance os negócios para visualizar a taxa de conversão do time.'}
+          </p>
+        </div>
+      </Card>
 
       <div className="grid lg:grid-cols-3 gap-6">
         <RadarAtributos salesRanking={salesRanking} funnelLeadsCount={funnelLeadsCount} />
