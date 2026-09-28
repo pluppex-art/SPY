@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '../../../components/ui/card';
-import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, PieChart, Pie, Cell } from 'recharts';
-import { Globe, Share2, Sparkles, MousePointer2, Layers, Users, DollarSign } from 'lucide-react';
+import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, PieChart, Pie, Cell, Sankey, Treemap } from 'recharts';
+import { Globe, Share2, Sparkles, MousePointer2, Layers, Users, DollarSign, Workflow, LayoutGrid } from 'lucide-react';
 import { useData } from '../../../contexts/DataContext';
 import { useLocalization } from '../../../contexts/LocalizationContext';
 import { parseCurrencyBR } from '../../../lib/utils';
@@ -53,6 +53,46 @@ export function MarketingView() {
   }, [leads]);
 
   const topSource = sourceData[0];
+
+  // Receita fechada real por origem (leads.value dos Fechados, mesma fonte
+  // do total no topo do arquivo) — pro Treemap abaixo. Diferente de
+  // `sourceData`: aquele conta QUANTIDADE de leads por origem, este soma o
+  // VALOR fechado por origem — origens com poucos leads mas alto ticket
+  // aparecem grandes aqui mesmo sendo pequenas em contagem.
+  const revenueBySourceData = useMemo(() => {
+    const map: Record<string, number> = {};
+    leads.filter(l => l.status === 'Fechado').forEach(l => {
+      const src = l.source || 'Orgânico';
+      map[src] = (map[src] || 0) + parseCurrencyBR(l.value);
+    });
+    return Object.entries(map)
+      .filter(([, value]) => value > 0)
+      .map(([name, value], i) => ({ name, size: value, fill: COLORS[i % COLORS.length] }))
+      .sort((a, b) => b.size - a.size);
+  }, [leads]);
+
+  // Sankey: de cada origem, quantos leads fecharam x quantos não fecharam
+  // (ainda em aberto ou perdido) — só 2 desfechos reais, sem inventar
+  // etapas intermediárias que o funil comercial já cobre em outro card.
+  const sankeyData = useMemo(() => {
+    const bySource: Record<string, { fechado: number; naoFechado: number }> = {};
+    leads.forEach(l => {
+      const src = l.source || 'Orgânico';
+      if (!bySource[src]) bySource[src] = { fechado: 0, naoFechado: 0 };
+      if (l.status === 'Fechado') bySource[src].fechado++;
+      else bySource[src].naoFechado++;
+    });
+    const sources = Object.keys(bySource);
+    const nodes = [...sources.map(s => ({ name: s })), { name: 'Fechado' }, { name: 'Não Fechado' }];
+    const fechadoIdx = sources.length;
+    const naoFechadoIdx = sources.length + 1;
+    const links: { source: number; target: number; value: number }[] = [];
+    sources.forEach((s, i) => {
+      if (bySource[s].fechado > 0) links.push({ source: i, target: fechadoIdx, value: bySource[s].fechado });
+      if (bySource[s].naoFechado > 0) links.push({ source: i, target: naoFechadoIdx, value: bySource[s].naoFechado });
+    });
+    return { nodes, links, hasData: links.length > 0 };
+  }, [leads]);
 
   const totalLpViews = (marketingLandingPages || []).reduce((s: number, p: any) => s + (p.views || 0), 0);
   const totalLpConversions = (marketingLandingPages || []).reduce((s: number, p: any) => s + (p.conversions || 0), 0);
@@ -197,6 +237,50 @@ export function MarketingView() {
               </p>
            </Card>
         </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Card className="p-6 shadow-sm">
+          <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1 flex items-center gap-2">
+            <Workflow className="w-4 h-4 text-cyan-500" /> Jornada do Lead (Origem → Desfecho)
+          </h4>
+          <p className="text-xs text-[var(--color-text-muted)] mb-4 font-medium">De cada origem, quantos leads fecharam negócio até agora.</p>
+          {!sankeyData.hasData ? (
+            <div className="py-10 text-center text-xs text-[var(--color-text-faint)]">Sem leads suficientes pra montar a jornada.</div>
+          ) : (
+            <div className="h-[240px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+                <Sankey
+                  data={sankeyData}
+                  nodePadding={20}
+                  margin={{ top: 10, right: 90, bottom: 10, left: 10 }}
+                  link={{ stroke: 'var(--color-border-default)', strokeOpacity: 0.4 }}
+                  node={{ stroke: 'var(--color-surface-elevated)', fill: '#3b82f6' }}
+                >
+                  <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} />
+                </Sankey>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
+
+        <Card className="p-6 shadow-sm">
+          <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1 flex items-center gap-2">
+            <LayoutGrid className="w-4 h-4 text-emerald-500" /> Receita Fechada por Origem
+          </h4>
+          <p className="text-xs text-[var(--color-text-muted)] mb-4 font-medium">Quanto cada origem realmente gerou em negócios fechados — não só volume de leads.</p>
+          {revenueBySourceData.length === 0 ? (
+            <div className="py-10 text-center text-xs text-[var(--color-text-faint)]">Sem negócios fechados com valor no período.</div>
+          ) : (
+            <div className="h-[240px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+                <Treemap data={revenueBySourceData} dataKey="size" stroke="var(--color-surface-elevated)" isAnimationActive={false}>
+                  <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} formatter={(v: number) => formatCurrency(v)} />
+                </Treemap>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

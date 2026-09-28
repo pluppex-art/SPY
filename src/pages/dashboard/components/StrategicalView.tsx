@@ -14,6 +14,7 @@ import type { DashboardSummary } from '../useDashboard';
 import { RecentActivityFeed, type FeedActivity } from './StrategicalWidgets/RecentActivityFeed';
 import { SalesFunnelWidget, type FunnelStepData } from './StrategicalWidgets/SalesFunnelWidget';
 import { RevenueByProductDonut, type RevenueSlice } from './StrategicalWidgets/RevenueByProductDonut';
+import { RevenueWaterfallChart } from './StrategicalWidgets/RevenueWaterfallChart';
 
 interface Squad {
   nome: string;
@@ -103,9 +104,30 @@ export function StrategicalView({
     const clientes = clienteBase as any[];
     const clientesAtivos = clientes.filter(c => c.status === 'Ativo').length;
     const clientesPerdidos = clientes.filter(c => c.status === 'Inativo').length;
+
+    // Mesmas despesas pagas no período (`despesas` acima), só quebradas por
+    // categoria real (FinanceEntry.category) em vez de um total só — pro
+    // waterfall Receita Bruta -> Lucro Líquido abaixo. Top 6 categorias +
+    // "Outras" agrupando o resto, senão um tenant com muitas categorias
+    // cadastradas vira um waterfall ilegível de 20+ barras.
+    const despesasPorCategoriaMap: Record<string, number> = {};
+    pagosNoPeriodo.filter(f => f.type === 'Pagar').forEach(f => {
+      const cat = f.category || 'Sem categoria';
+      despesasPorCategoriaMap[cat] = (despesasPorCategoriaMap[cat] || 0) + (Number(f.value) || 0);
+    });
+    const despesasOrdenadas = Object.entries(despesasPorCategoriaMap)
+      .map(([category, value]) => ({ category, value }))
+      .sort((a, b) => b.value - a.value);
+    const despesasPorCategoria = despesasOrdenadas.length > 7
+      ? [
+          ...despesasOrdenadas.slice(0, 6),
+          { category: 'Outras', value: despesasOrdenadas.slice(6).reduce((s, d) => s + d.value, 0) },
+        ]
+      : despesasOrdenadas;
+
     return {
       receita, despesas, receitaLiquida: receita - despesas, novasVendas,
-      contasAReceber, contasAPagar, clientesAtivos, clientesPerdidos,
+      contasAReceber, contasAPagar, clientesAtivos, clientesPerdidos, despesasPorCategoria,
       hasAnyEntry: entries.length > 0, hasAnyCliente: clientes.length > 0,
     };
   }, [financeEntries, clienteBase, dateFrom, dateTo]);
@@ -491,6 +513,14 @@ export function StrategicalView({
                 <p className="text-[10px] text-[var(--color-text-faint)] mt-4">Clientes Ativos/Perdidos: sem registros na Base de Clientes ainda.</p>
               )}
             </Card>
+
+            <div className="lg:col-span-4">
+              <RevenueWaterfallChart
+                receita={financeSnapshot.receita}
+                despesasPorCategoria={financeSnapshot.despesasPorCategoria}
+                receitaLiquida={financeSnapshot.receitaLiquida}
+              />
+            </div>
           </div>
         )}
       </div>

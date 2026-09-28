@@ -1,13 +1,21 @@
+import { useMemo } from 'react';
 import { motion } from 'motion/react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Card } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
-import { AlertCircle, ShieldAlert, HeartHandshake, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, ShieldAlert, HeartHandshake, CheckCircle2, BarChart3 } from 'lucide-react';
 import { useData } from '../../../contexts/DataContext';
 import { toast } from 'sonner';
 import { useLocalization } from '../../../contexts/LocalizationContext';
 import { parseCurrencyBR as toNumberMRR } from '../../../lib/utils';
 import type { DashboardSummary } from '../useDashboard';
+
+function parseContractDate(d: string | undefined | null): Date | null {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(d || '');
+  if (!m) return null;
+  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+}
 
 export function CustomerSuccessView({ serverSummary }: { serverSummary?: DashboardSummary | null }) {
   const { contracts, addTask } = useData();
@@ -22,6 +30,43 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
   const mrrAtivo = serverSummary?.mrrAtivo ?? ativos.reduce((s, c: any) => s + toNumberMRR(c.mrr), 0);
   const mrrEmRisco = serverSummary?.mrrEmRisco ?? emRisco.reduce((s, c: any) => s + toNumberMRR(c.mrr), 0);
   const taxaRisco = serverSummary?.taxaInadimplencia ?? (contracts.length > 0 ? (emRisco.length / contracts.length) * 100 : 0);
+
+  // CLV (proxy real, não uma métrica de "lifetime value" formal com churn
+  // preditivo): tempo de contrato (assinatura -> cancelamento ou hoje, se
+  // ainda ativo) em meses × MRR do contrato. Sem contrato com data válida,
+  // não entra na amostra — nunca assume uma duração média inventada.
+  const clvHistogram = useMemo(() => {
+    const now = new Date();
+    const values: number[] = [];
+    for (const c of contracts as any[]) {
+      const start = parseContractDate(c.date);
+      if (!start) continue;
+      const end = c.cancelledAt ? new Date(c.cancelledAt) : now;
+      const months = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+      const clv = months * toNumberMRR(c.mrr);
+      if (clv > 0) values.push(clv);
+    }
+    if (values.length < 2) return { bins: [] as { label: string; count: number }[], sampleSize: values.length };
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const BIN_COUNT = 5;
+    const width = (max - min) / BIN_COUNT || 1;
+    const bins = Array.from({ length: BIN_COUNT }, (_, i) => {
+      const from = min + i * width;
+      const to = i === BIN_COUNT - 1 ? max : min + (i + 1) * width;
+      return { from, to, count: 0 };
+    });
+    values.forEach(v => {
+      const idx = Math.min(BIN_COUNT - 1, Math.floor((v - min) / width));
+      bins[idx].count++;
+    });
+    const fmtShort = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(0)}k` : n.toFixed(0);
+    return {
+      bins: bins.map(b => ({ label: `R$${fmtShort(b.from)}–${fmtShort(b.to)}`, count: b.count })),
+      sampleSize: values.length,
+    };
+  }, [contracts]);
 
   const handleAbrirProtocolo = (contractClient: string) => {
     addTask({
@@ -38,8 +83,9 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="grid lg:grid-cols-3 gap-6 text-left"
+      className="space-y-6 text-left"
     >
+    <div className="grid lg:grid-cols-3 gap-6">
       <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative overflow-hidden shadow-sm flex flex-col justify-between">
         <div>
           <div className="flex items-center justify-between mb-6">
@@ -133,6 +179,39 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
           </div>
         )}
       </Card>
+    </div>
+
+    <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+      <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2.5">
+        <BarChart3 className="w-4 h-4 text-purple-500" /> Distribuição de CLV (Valor Vitalício)
+      </h3>
+      <p className="text-xs text-[var(--color-text-muted)] mt-1 mb-4 font-medium">
+        Tempo de contrato × MRR, por faixa de valor — quantos clientes reais caem em cada faixa.
+      </p>
+      {clvHistogram.bins.length === 0 ? (
+        <div className="h-[140px] flex items-center justify-center text-xs text-[var(--color-text-muted)]">
+          Sem contratos com data de assinatura válida o suficiente pra calcular.
+        </div>
+      ) : (
+        <>
+          <div className="h-[220px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={180}>
+              <BarChart data={clvHistogram.bins}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={30} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-default)', borderRadius: '12px', fontSize: '11px' }}
+                  formatter={(v: number) => [`${v} contrato(s)`, 'Quantidade']}
+                />
+                <Bar dataKey="count" name="Contratos" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-[10px] text-[var(--color-text-faint)] mt-2">Baseado em {clvHistogram.sampleSize} contrato(s) com data de assinatura válida.</p>
+        </>
+      )}
+    </Card>
     </motion.div>
   );
 }

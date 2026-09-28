@@ -5,6 +5,7 @@ import { SalesRankingPodium } from './SalesRankingPodium';
 import { FunnelConversionChart } from './FunnelConversionChart';
 import { RadarAtributos } from './RadarAtributos';
 import { RecentActivitiesList } from './RecentActivitiesList';
+import { SalesVelocityMeter } from './SalesVelocityMeter';
 
 interface FunnelStep {
   label: string;
@@ -75,6 +76,7 @@ export function CommercialView({ salesRanking, funnelData, recentActivities }: C
       </Card>
 
       <div className="grid lg:grid-cols-3 gap-6">
+        <SalesVelocityMeter />
         <RadarAtributos salesRanking={salesRanking} funnelLeadsCount={funnelLeadsCount} />
         <RecentActivitiesList recentActivities={recentActivities} />
       </div>
