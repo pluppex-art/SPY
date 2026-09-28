@@ -1,5 +1,5 @@
 import { Card } from '../../../../components/ui/card';
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip } from 'recharts';
 import { Compass } from 'lucide-react';
 
 interface SalesEntry {
@@ -35,7 +35,15 @@ export function RadarAtributos({ salesRanking, funnelLeadsCount }: RadarAtributo
           <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
             <PolarGrid stroke="rgba(148, 163, 184, 0.2)" />
             <PolarAngleAxis dataKey="subject" stroke="var(--color-text-muted)" fontSize={10} fontStyle="bold" />
-            <Radar name="Top Closers" dataKey="A" stroke="#2563EB" fill="#2563EB" fillOpacity={0.35} />
+            {/* Sem isso, o gráfico mostrava só uma forma sem nenhuma régua —
+                dava pra ver "maior/menor" entre os eixos, mas não o valor em
+                si (achado real: item 6 do pedido, "boa escala"). */}
+            <PolarRadiusAxis angle={90} domain={[0, 150]} tick={{ fontSize: 9, fill: 'var(--color-text-faint)' }} tickCount={4} axisLine={false} />
+            <Tooltip
+              contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-default)', borderRadius: '12px', fontSize: '11px' }}
+              itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
+            />
+            <Radar name="Desempenho Comercial" dataKey="A" stroke="#2563EB" fill="#2563EB" fillOpacity={0.35} />
           </RadarChart>
         </ResponsiveContainer>
       </div>

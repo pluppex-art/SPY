@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '../../../components/ui/card';
-import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, PieChart, Pie, Cell } from 'recharts';
 import { Globe, Share2, Sparkles, MousePointer2, Layers, Users, DollarSign } from 'lucide-react';
 import { useData } from '../../../contexts/DataContext';
 import { useLocalization } from '../../../contexts/LocalizationContext';
@@ -116,6 +116,7 @@ export function MarketingView() {
                       contentStyle={tooltipStyle}
                       itemStyle={tooltipItemStyle}
                     />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Bar dataKey="direct" name="Direto" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
                     <Bar dataKey="organic" name="Orgânico" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
                     <Bar dataKey="social" name="Social" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={20} />
@@ -162,18 +163,23 @@ export function MarketingView() {
                            <Cell key={`cell-${i}`} fill={entry.color} />
                          ))}
                        </Pie>
-                       <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} />
+                       <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} formatter={(v: number) => `${v.toFixed(1)}%`} />
                     </PieChart>
                  </ResponsiveContainer>
               </div>
-              <div className="space-y-2 mt-4">
-                 {sourceData.slice(0, 2).map((item, i) => (
-                   <div key={i} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                         <span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase">{item.name}</span>
+              {/* Antes só os 2 primeiros — o donut de Receita por Produto
+                  (StrategicalWidgets/RevenueByProductDonut.tsx) já usa esse
+                  padrão de legenda manual mostrando TODAS as fatias, não só
+                  as maiores; aqui ficava sem explicação nenhuma pras origens
+                  menores. */}
+              <div className="space-y-2 mt-4 max-h-[120px] overflow-y-auto scrollbar-thin pr-1">
+                 {sourceData.map((item, i) => (
+                   <div key={i} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                         <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                         <span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase truncate">{item.name}</span>
                       </div>
-                      <span className="text-xs font-black text-[var(--color-text-primary)]">{item.value.toFixed(1)}%</span>
+                      <span className="text-xs font-black text-[var(--color-text-primary)] shrink-0">{item.value.toFixed(1)}%</span>
                    </div>
                  ))}
               </div>

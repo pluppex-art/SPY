@@ -64,6 +64,15 @@ function toIso(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Eixo Y dos gráficos em R$ mostrava o número cru (ex.: "15000") — formato
+// curto ("R$15k") deixa o eixo legível sem precisar passar o mouse; o
+// tooltip continua mostrando o valor completo formatado.
+function tickCurrencyShort(v: number): string {
+  const abs = Math.abs(v);
+  if (abs >= 1000) return `R$${(v / 1000).toFixed(0)}k`;
+  return `R$${v}`;
+}
+
 const kpiCardClass = "p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm";
 const kpiLabelClass = "text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-faint)] flex items-center gap-1.5 mb-1.5";
 const kpiValueClass = "text-xl font-black text-[var(--color-text-primary)] font-mono tracking-tight";
@@ -246,7 +255,7 @@ export function BusinessIntelligenceView() {
                     <LineChart data={summary.crm.evolucaoVendas.map((d) => ({ ...d, mesLabel: monthLabel(d.mes) }))}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
                       <XAxis dataKey="mesLabel" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} tickFormatter={tickCurrencyShort} width={56} />
                       <Tooltip formatter={(v: number) => formatCurrency(v)} />
                       <Line type="monotone" dataKey="valorGanho" name="Valor Ganho" stroke="#10b981" strokeWidth={2} dot={false} />
                     </LineChart>
@@ -278,10 +287,14 @@ export function BusinessIntelligenceView() {
                 ) : (
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
-                      <Pie data={origemData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(d: any) => d.name}>
+                      {/* Rótulo direto na fatia (nome completo da origem) sobrepunha
+                          quando havia várias origens finas — trocado por legenda
+                          própria (nomes) + a fatia mostra só o número no hover. */}
+                      <Pie data={origemData} dataKey="value" nameKey="name" cx="42%" cy="50%" outerRadius={80}>
                         {origemData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
                       <Tooltip />
+                      <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: 10 }} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}
@@ -355,7 +368,7 @@ export function BusinessIntelligenceView() {
                   <BarChart data={summary.financeiro.evolucaoFinanceira.map((d) => ({ ...d, mesLabel: monthLabel(d.mes) }))}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
                     <XAxis dataKey="mesLabel" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={tickCurrencyShort} width={56} />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Bar dataKey="receita" name="Receita" fill="#10b981" radius={[4, 4, 0, 0]} />
