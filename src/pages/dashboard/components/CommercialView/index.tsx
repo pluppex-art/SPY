@@ -75,11 +75,18 @@ export function CommercialView({ salesRanking, funnelData, recentActivities }: C
         </div>
       </Card>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      {/* Achado real (pedido do usuário): Velocidade de Vendas + Radar
+          dividiam a linha com Atividades Recentes em 3 colunas iguais —
+          sobrava um vão à direita do Radar (card mais estreito, gráfico
+          circular sobra espaço nas laterais). Agora os dois primeiros
+          dividem a linha sozinhos (mais respiro entre eles) e Atividades
+          Recentes ganha a linha inteira embaixo. */}
+      <div className="grid lg:grid-cols-2 gap-6">
         <SalesVelocityMeter />
         <RadarAtributos salesRanking={salesRanking} funnelLeadsCount={funnelLeadsCount} />
-        <RecentActivitiesList recentActivities={recentActivities} />
       </div>
+
+      <RecentActivitiesList recentActivities={recentActivities} />
     </motion.div>
   );
 }

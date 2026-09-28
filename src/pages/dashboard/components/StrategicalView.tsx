@@ -195,13 +195,24 @@ export function StrategicalView({
   // vinculado(s). Mais de um produto na mesma venda divide o valor igualmente entre eles; sem
   // produto vinculado nenhum, cai em "Outros" (nunca fica de fora do total).
   const revenueByProduct = useMemo<RevenueSlice[]>(() => {
+    // Achado real: um tenant com um catálogo de 1 produto só (ex.: vende só
+    // "Licença SPY") tinha TODA a receita caindo em "Outros", porque leads
+    // fechados manualmente nem sempre têm productIds vinculado — mesmo sem
+    // esse vínculo, com só 1 produto no catálogo inteiro não existe
+    // ambiguidade nenhuma sobre o que foi vendido (não é um chute: é a única
+    // opção possível). Com 0 ou 2+ produtos no catálogo, continua "Outros"
+    // (aí sim seria inventar qual produto foi).
+    const singleProduct = (products as any[]).length === 1 ? (products as any[])[0] : null;
     const byCategory: Record<string, number> = {};
     for (const l of (leads as any[]).filter((l) => l.status === 'Fechado')) {
       const value = getLeadRealValue(l, proposals as any[]);
       if (value <= 0) continue;
       const ids: string[] = Array.isArray(l.productIds) ? l.productIds : [];
       const cats = [...new Set(ids.map((id) => (products as any[]).find((p) => p.id === id)?.category).filter(Boolean))] as string[];
-      if (cats.length === 0) {
+      if (cats.length === 0 && singleProduct) {
+        const label = singleProduct.category || singleProduct.name || 'Outros';
+        byCategory[label] = (byCategory[label] || 0) + value;
+      } else if (cats.length === 0) {
         byCategory['Outros'] = (byCategory['Outros'] || 0) + value;
       } else {
         const share = value / cats.length;
