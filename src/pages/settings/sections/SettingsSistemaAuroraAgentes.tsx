@@ -42,7 +42,7 @@ const EXECUTE_MODULE_BY_NAME: Record<string, string> = {
 // financeiro, marketing, operações, executivo, pesquisa) — são personas de
 // negócio, não os nomes técnicos das AURORA_TOOLS (ferramentas internas que
 // a Aurora chama por trás; o agente é quem representa isso pro usuário).
-const AURORA_AGENTS_DEFAULT: Array<Pick<AuroraAgent, "name" | "role" | "description">> = [
+export const AURORA_AGENTS_DEFAULT: Array<Pick<AuroraAgent, "name" | "role" | "description">> = [
   { name: "Júlia — SDR", role: "SDR", description: "Qualificação e primeiro contato com leads recebidos." },
   { name: "Agente Secreto", role: "Inteligência", description: "Monitoramento e alertas de oportunidades ocultas no pipeline." },
   { name: "Radar de Oportunidades", role: "Prospecção", description: "Identifica leads quentes e sinais de compra em tempo real." },
@@ -57,7 +57,7 @@ const AURORA_AGENTS_DEFAULT: Array<Pick<AuroraAgent, "name" | "role" | "descript
   { name: "Briefing Diário", role: "Briefing", description: "Resumo executivo enviado por WhatsApp às 8h, com prioridades do dia personalizadas por pessoa." },
 ];
 
-const ROLE_ICONS: Record<string, typeof Bot> = {
+export const ROLE_ICONS: Record<string, typeof Bot> = {
   SDR: UserSearch,
   "Inteligência": Eye,
   "Prospecção": Radar,
@@ -72,7 +72,7 @@ const ROLE_ICONS: Record<string, typeof Bot> = {
   Briefing: Sunrise,
 };
 
-function RoleIcon({ role }: { role?: string }) {
+export function RoleIcon({ role }: { role?: string }) {
   const Icon = (role && ROLE_ICONS[role]) || Bot;
   return <Icon className="w-4 h-4 text-violet-400" />;
 }
@@ -82,7 +82,7 @@ function RoleIcon({ role }: { role?: string }) {
 // do nome: o catálogo permite editar o nome de um agente (botão Editar), e se a chave mudasse
 // junto o vínculo com o n8n quebraria silenciosamente. As personas sem workflow 1:1 continuam
 // usando uma chave derivada do nome, prefixada "persona-" pra nunca colidir com as fixas.
-const FIXED_N8N_PROMPT_KEY: Record<string, string> = {
+export const FIXED_N8N_PROMPT_KEY: Record<string, string> = {
   Aurora: "aurora", // Helper - Checar Config Aurora Tenant + AURORA CORE
   ...EXECUTE_MODULE_BY_NAME, // Radar, Júlia SDR v2, Closer AI
   "Diretoria": "diretoria", // CEO AI
@@ -96,7 +96,7 @@ const FIXED_N8N_PROMPT_KEY: Record<string, string> = {
   "Briefing Diário": "briefing_diario", // Autonomous Daily Briefing
 };
 
-function promptKeyForAgent(name: string): string {
+export function promptKeyForAgent(name: string): string {
   if (FIXED_N8N_PROMPT_KEY[name]) return FIXED_N8N_PROMPT_KEY[name];
   const slug = name
     .normalize("NFD").replace(/[̀-ͯ]/g, "")

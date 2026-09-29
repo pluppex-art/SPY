@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Activity, DollarSign, TerminalSquare, Bell,
-  Plus, Cpu, ShieldCheck, Building2, LayoutGrid, Wrench
+  Plus, Cpu, ShieldCheck, Building2, LayoutGrid, Wrench, Bot
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
@@ -13,6 +13,7 @@ import { AdminTenantsTab } from "./components/AdminTenantsTab";
 import { AdminModulesTab } from "./components/AdminModulesTab";
 import { AdminModuleManifestTab } from "./components/AdminModuleManifestTab";
 import { AdminToolsTab } from "./components/AdminToolsTab";
+import { AdminAgentsTab } from "./components/AdminAgentsTab";
 import { AdminBillingTab } from "./components/AdminBillingTab";
 import { AdminLogsTab } from "./components/AdminLogsTab";
 import { AdminHealthTab } from "./components/AdminHealthTab";
@@ -26,6 +27,7 @@ const TABS = [
   { id: "modules", label: "Módulos & Presets", icon: Cpu },
   { id: "manifest", label: "Módulos (Manifest)", icon: LayoutGrid },
   { id: "tools", label: "Ferramentas (Registry)", icon: Wrench },
+  { id: "agents", label: "Agentes", icon: Bot },
   { id: "billing", label: "Faturamento & Planos", icon: DollarSign },
   { id: "logs", label: "Logs & Auditoria", icon: TerminalSquare },
   { id: "health", label: "Saúde & Diagnóstico", icon: ShieldCheck },
@@ -199,6 +201,8 @@ export default function AdminSaaS() {
 
       {activeTab === "manifest" && <AdminModuleManifestTab />}
       {activeTab === "tools" && <AdminToolsTab />}
+
+      {activeTab === "agents" && <AdminAgentsTab />}
 
       {activeTab === "billing" && (
         <AdminBillingTab revenueData={revenueData} CustomTooltip={CustomTooltip} />
