@@ -24,6 +24,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@types/papaparse": "^5.5.2",
     "@vitejs/plugin-react": "^5.0.4",
+    "@xyflow/react": "^12.12.0",
     "axios": "^1.16.1",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",

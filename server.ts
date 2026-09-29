@@ -20,6 +20,7 @@ import { registerTableComparisonExportRoutes } from "./server/tableComparisonExp
 import { registerTableComparisonResearchRoutes } from "./server/tableComparisonResearch.js";
 import { makeN8nAiJson } from "./server/tableComparisonN8n.js";
 import { registerFinancialReportRoutes } from "./server/financialReportPdf.js";
+import { registerMessageTriggerRoutes } from "./server/messageTriggers.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
 import { extractDocs as maxExtractDocs, mapMaxEntryToNota, type MaxEntry, type MaxEntryItem } from "./src/lib/maxdataEntry.js";
 import { findProductForItem, defaultQtdEstoque } from "./src/lib/notaEntrada.js";
@@ -305,6 +306,8 @@ registerTableComparisonExportRoutes(app, { requireUser, resolveRequestedTenantId
 registerTableComparisonResearchRoutes(app, { requireUser, resolveRequestedTenantId });
 // Relatório financeiro em PDF sob demanda (Aurora/n8n) — ver server/financialReportPdf.ts.
 registerFinancialReportRoutes(app, { supabaseService, hasSupabaseService: Boolean(supabaseServiceKey) });
+// Gatilhos de mensagem em linguagem natural (interpretação + execução rodam no n8n/Júlia) — ver server/messageTriggers.ts.
+registerMessageTriggerRoutes(app, { requireUser });
 app.use("/api/auth/tenant-theme", tenantThemeLimiter);
 app.use("/api/v1/leads", apiKeyLimiter);
 app.use("/api/v1/lead-activities", apiKeyLimiter);

@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import {
   Bot, Pencil, Sparkles, UserSearch, Eye, Radar,
-  Handshake, Briefcase, LineChart, Search, Headset, Wallet, Megaphone, ClipboardList, Trash2, Sunrise,
+  Handshake, Briefcase, LineChart, Search, Headset, Wallet, Megaphone, ClipboardList, Trash2, Sunrise, Workflow,
 } from "lucide-react";
+import { AgentFlowViewerModal } from "./AgentFlowViewer";
+import { getFlowForAgentKey } from "./agentFlowDiagrams";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Switch } from "../../../components/ui/switch";
@@ -104,16 +106,28 @@ function promptKeyForAgent(name: string): string {
   return `persona-${slug}`;
 }
 
-// originalName é o nome de quando o modal abriu (nunca muda com o que o usuário digita) —
-// é ele que decide se o campo Nome fica travado (ver isN8nLinked no JSX), pra nunca deixar
-// alguém "destravar" a proteção só digitando um nome diferente antes de salvar.
+// originalName é o nome de CATÁLOGO (interno, nunca editável) de quando o modal abriu — é ele
+// que resolve o agent_key (promptKeyForAgent), nunca o que o usuário digita no campo Nome.
+// Pra agente ligado ao n8n, o campo Nome edita um APELIDO por tenant (guardado em
+// ai_agent_prompts.name, mesma linha do prompt aditivo), não o nome de catálogo — é assim que
+// o cliente pode chamar a Júlia de outro nome sem quebrar o vínculo com o workflow real.
 type EditingState = { id?: string; name: string; originalName: string; role: string; description: string } | null;
+
+// Nome de exibição real de um agente: pra quem tem workflow no n8n, é o apelido que o tenant
+// salvou em ai_agent_prompts.name (upsert por tenant, nunca sobrescreve o catálogo global);
+// sem apelido salvo ainda, ou pra quem não é ligado ao n8n, mostra o nome de catálogo mesmo.
+function displayNameForAgent(agent: Pick<AuroraAgent, "name">, promptByKey: Map<string, { name: string }>): string {
+  const key = FIXED_N8N_PROMPT_KEY[agent.name];
+  if (!key) return agent.name;
+  return promptByKey.get(key)?.name || agent.name;
+}
 
 export function ConfigSistemaAuroraAgentes() {
   const { auroraAgents, addAuroraAgent, updateAuroraAgent, deleteAuroraAgent, toggleAuroraAgent, ensureNicheModulesLoaded } = useData();
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
   const [editing, setEditing] = useState<EditingState>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [flowViewerAgentId, setFlowViewerAgentId] = useState<string | null>(null);
   const { prompts, loading: promptsLoading, savingKey: promptSavingKey, updatePrompt } = useAgentPrompts();
   const promptByKey = new Map(prompts.map((p) => [p.agentKey, p]));
   const { config, update: updateTenantAiConfig } = useTenantAiConfig();
@@ -181,6 +195,18 @@ export function ConfigSistemaAuroraAgentes() {
 
   const handleSave = () => {
     if (!editing?.name.trim()) { toast.error("Nome do agente é obrigatório."); return; }
+    const n8nKey = FIXED_N8N_PROMPT_KEY[editing.originalName];
+    if (n8nKey) {
+      // Agente ligado ao n8n: o campo Nome é o apelido do tenant, grava em
+      // ai_agent_prompts.name (mesma linha do prompt aditivo) — nunca em aurora_agents.name,
+      // que fica fixo pra não perder o vínculo com o agent_key real. Preserva o texto do
+      // prompt e a descrição já salvos (se houver) em vez de zerar ao só trocar o nome.
+      const existing = promptByKey.get(n8nKey);
+      updatePrompt(n8nKey, existing?.prompt ?? "", editing.name, existing?.description ?? editing.description);
+      toast.success("Apelido do agente atualizado.");
+      setEditing(null);
+      return;
+    }
     if (!hasCustomAgents) {
       // Catálogo ainda em memória — a primeira edição materializa todo mundo de uma vez
       // (mesmo padrão do handleToggle/handleDelete abaixo): o agente editado entra com os
@@ -269,7 +295,7 @@ export function ConfigSistemaAuroraAgentes() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">{agent.name}</p>
+                      <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">{displayNameForAgent(agent, promptByKey)}</p>
                       {agent.role && (
                         <span className="text-[9px] font-black uppercase tracking-widest text-violet-400">
                           {agent.role}
@@ -293,10 +319,17 @@ export function ConfigSistemaAuroraAgentes() {
                       expandedKey={expandedId}
                       setExpandedKey={setExpandedId}
                     />
+                    <button
+                      onClick={() => setFlowViewerAgentId(agent.id)}
+                      className="flex items-center gap-1 px-2 py-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors text-[10px] font-bold"
+                      title="Ver como esse agente funciona"
+                    >
+                      <Workflow className="w-3 h-3" /> Ver fluxo
+                    </button>
                     {agent.id !== AURORA_CORE_ID && (
                       <>
                         <button
-                          onClick={() => setEditing({ id: agent.id, name: agent.name, originalName: agent.name, role: agent.role || "", description: agent.description || "" })}
+                          onClick={() => setEditing({ id: agent.id, name: displayNameForAgent(agent, promptByKey), originalName: agent.name, role: agent.role || "", description: agent.description || "" })}
                           className="flex items-center gap-1 px-2 py-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors text-[10px] font-bold"
                           title="Editar agente"
                         >
@@ -344,18 +377,17 @@ export function ConfigSistemaAuroraAgentes() {
           const isN8nLinked = !!FIXED_N8N_PROMPT_KEY[editing.originalName];
           return (
             <div className="space-y-4">
-              <FormField label="Nome do Agente">
+              <FormField label={isN8nLinked ? "Apelido do Agente" : "Nome do Agente"}>
                 <Input
                   value={editing.name}
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                   placeholder="Ex: Closer"
-                  disabled={isN8nLinked}
                 />
                 {isN8nLinked && (
                   <p className="text-[10px] text-[var(--color-text-faint)] mt-1">
-                    Este agente já está ligado a um workflow real no n8n — o nome fica travado pra não perder essa
-                    conexão (renomear faria o prompt customizado parar de ser lido). Papel e descrição podem ser
-                    editados livremente.
+                    Esse é o nome que aparece pra você e pro seu cliente — pode trocar à vontade (ex: "Júlia" vira
+                    outro nome). O funcionamento por trás continua o mesmo, controlado pela Pluppex; só o apelido
+                    muda por empresa.
                   </p>
                 )}
               </FormField>
@@ -369,6 +401,20 @@ export function ConfigSistemaAuroraAgentes() {
           );
         })()}
       </Modal>
+
+      {(() => {
+        const flowAgent = displayList.find((a) => a.id === flowViewerAgentId);
+        if (!flowAgent) return null;
+        const key = FIXED_N8N_PROMPT_KEY[flowAgent.name] ?? promptKeyForAgent(flowAgent.name);
+        return (
+          <AgentFlowViewerModal
+            isOpen={!!flowViewerAgentId}
+            onClose={() => setFlowViewerAgentId(null)}
+            agentDisplayName={displayNameForAgent(flowAgent, promptByKey)}
+            diagram={getFlowForAgentKey(key)}
+          />
+        );
+      })()}
     </div>
   );
 }

@@ -521,7 +521,7 @@ function AppContent() {
             <Route path="integracoes/links-dinamicos" element={<ConfigLinksDinamicos />} />
 
             <Route path="sistema/backups" element={<ConfigSistemaBackups />} />
-            <Route path="sistema/aurora" element={<ConfigSistemaAuroraUso />} />
+            <Route path="sistema/aurora" element={<ProtectedRoute requireTenantAdmin><ConfigSistemaAuroraUso /></ProtectedRoute>} />
             {/* Páginas "Aurora" e "Aurora — Consumo & Agentes" foram unificadas em uma só
                 (sistema/aurora) — redirect pra quem tiver o link antigo salvo. */}
             <Route path="ia/aurora" element={<Navigate to="/app/configuracoes/sistema/aurora" replace />} />
