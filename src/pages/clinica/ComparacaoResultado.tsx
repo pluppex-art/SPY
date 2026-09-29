@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, GitCompare, Loader2, Percent, Search, TrendingDown, Wallet, X, Replace, Layers } from "lucide-react";
+import { ArrowLeft, Check, Sparkles, ChevronLeft, ChevronRight, GitCompare, Loader2, Percent, Search, TrendingDown, Wallet, X, Replace, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
@@ -61,6 +61,7 @@ export default function ComparacaoResultado() {
   const [acionando, setAcionando] = useState<string | null>(null);
   const [trocaBusca, setTrocaBusca] = useState("");
   const [trocaRes, setTrocaRes] = useState<any[]>([]);
+  const [auroraRodando, setAuroraRodando] = useState(false);
 
   const carregarComp = useCallback(async () => {
     if (!supabase || !activeTenantId || !id) return;
@@ -126,6 +127,23 @@ export default function ComparacaoResultado() {
     finally { setAcionando(null); }
   };
 
+  const analisarComAurora = async () => {
+    if (!activeTenantId || !id) return;
+    setAuroraRodando(true);
+    try {
+      const res = await apiFetch(`/api/health/table-comparison/${id}/aurora?tenantId=${encodeURIComponent(activeTenantId)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limite: 45 }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || "Falha na análise da Aurora.");
+      if (body.summary) setComp(body.summary);
+      await carregarItens();
+      if (body.analisados === 0 && !body.falhas) toast.info(body.mensagem || "Nada para a Aurora analisar.");
+      else toast.success(`Aurora analisou ${body.analisados} itens: ${body.sugeridos} sugestão(ões), ${body.rebaixados} descartada(s), ${body.incertos} sem segurança${body.falhas ? ` · ${body.falhas} falharam (tente de novo)` : ""}.${body.restantes ? ` Restam ${body.restantes}.` : ""}`, { duration: 8000 });
+    } catch (e: any) { toast.error(e?.message || "Falha na análise da Aurora."); }
+    finally { setAuroraRodando(false); }
+  };
+
   const resumo = useMemo(() => {
     if (!comp) return null;
     const t = comp.total || 0;
@@ -153,6 +171,11 @@ export default function ComparacaoResultado() {
           <Link to="/app/clinicas/comparacao-tabelas" className="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] px-2"><ArrowLeft className="w-3.5 h-3.5" /> Histórico</Link>
           {activeTenantId && <ComparacaoPesquisaExterna comparacaoId={comp.id} tenantId={activeTenantId} pendentes={comp.qtd_nao_identificado} />}
           {activeTenantId && <ComparacaoExportButtons comparacaoId={comp.id} tenantId={activeTenantId} />}
+          {(comp.qtd_revisao > 0 || comp.qtd_nao_identificado > 0) && (
+            <Button variant="outline" onClick={analisarComAurora} disabled={auroraRodando} className="h-9 px-4 text-xs font-medium gap-1.5" title="A Aurora analisa só os itens em dúvida; você continua confirmando o que ela sugerir.">
+              {auroraRodando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />} Analisar pendências com a Aurora
+            </Button>
+          )}
           <span className={cn("inline-flex px-3 py-1.5 rounded-lg text-xs font-bold border", COMPARISON_STATUS_TONE[comp.status])}>{COMPARISON_STATUS_LABEL[comp.status] || comp.status}</span>
         </div>
       }

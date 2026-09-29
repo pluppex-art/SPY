@@ -12,8 +12,9 @@ interface FinanceiroAnexosTabProps {
 
 const fmtBytes = (n: number) => n < 1024 * 1024 ? `${(n / 1024).toFixed(0)} KB` : `${(n / (1024 * 1024)).toFixed(2)} MB`;
 
-/** Aba "Arquivos" do lançamento (§3.9) — mesmo padrão de bucket público com
- * path prefixado por tenant_id já usado em produtos/propostas/avatares. */
+/** Aba "Arquivos" do lançamento (§3.9). Bucket `finance` PRIVADO com path prefixado por
+ * tenant_id: o arquivo só é aberto por URL assinada de curta duração (createSignedUrl),
+ * gerada para quem tem acesso à pasta do próprio tenant (policy de SELECT do bucket). */
 export function FinanceiroAnexosTab({ transacaoId }: FinanceiroAnexosTabProps) {
   const { financeAttachments, addFinanceAttachment, deleteFinanceAttachment } = useData();
   const { activeTenantId } = useAuth();
@@ -33,13 +34,12 @@ export function FinanceiroAnexosTab({ transacaoId }: FinanceiroAnexosTabProps) {
         const path = `${activeTenantId}/${transacaoId}/${Date.now()}-${file.name}`;
         const { error: uploadError } = await supabase.storage.from("finance").upload(path, file, { upsert: true });
         if (uploadError) throw uploadError;
-        const { data } = supabase.storage.from("finance").getPublicUrl(path);
         await addFinanceAttachment({
           transacao_id: transacaoId,
           nome_arquivo: file.name,
           tamanho_bytes: file.size,
           storage_key: path,
-          url: data.publicUrl,
+          url: path, // caminho no bucket privado (não é URL pública); o link é gerado sob demanda
         });
       }
       toast.success("Arquivo(s) anexado(s).");
@@ -48,6 +48,13 @@ export function FinanceiroAnexosTab({ transacaoId }: FinanceiroAnexosTabProps) {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleOpen = async (anexo: any) => {
+    if (!supabase || !anexo.storage_key) { toast.error("Arquivo sem caminho de armazenamento."); return; }
+    const { data, error } = await supabase.storage.from("finance").createSignedUrl(anexo.storage_key, 300);
+    if (error || !data?.signedUrl) { toast.error("Não foi possível abrir o arquivo."); return; }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleRemove = async (anexo: any) => {
@@ -80,13 +87,13 @@ export function FinanceiroAnexosTab({ transacaoId }: FinanceiroAnexosTabProps) {
           <p className="text-xs text-[var(--color-text-faint)] text-center py-4">Nenhum anexo neste lançamento.</p>
         ) : anexos.map(a => (
           <div key={a.id} className="flex items-center justify-between p-3 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)]">
-            <a href={a.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 min-w-0 flex-1 text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)]">
+            <button type="button" onClick={() => handleOpen(a)} className="flex items-center gap-3 min-w-0 flex-1 text-left text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)]">
               {iconFor(a.nome_arquivo)}
               <div className="min-w-0">
                 <span className="block text-xs font-medium text-[var(--color-text-primary)] truncate">{a.nome_arquivo}</span>
                 <span className="text-[10px] text-[var(--color-text-faint)]">{fmtBytes(a.tamanho_bytes)}</span>
               </div>
-            </a>
+            </button>
             <button type="button" onClick={() => handleRemove(a)} className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 shrink-0">
               <Trash2 className="w-3.5 h-3.5" />
             </button>

@@ -18,6 +18,8 @@ import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { buildEmpresaDados, tenantReadiness } from "./src/lib/implementationTenant.js";
 import { registerTableComparisonExportRoutes } from "./server/tableComparisonExport.js";
 import { registerTableComparisonResearchRoutes } from "./server/tableComparisonResearch.js";
+import { makeN8nAiJson } from "./server/tableComparisonN8n.js";
+import { registerFinancialReportRoutes } from "./server/financialReportPdf.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
 import { extractDocs as maxExtractDocs, mapMaxEntryToNota, type MaxEntry, type MaxEntryItem } from "./src/lib/maxdataEntry.js";
 import { findProductForItem, defaultQtdEstoque } from "./src/lib/notaEntrada.js";
@@ -291,11 +293,18 @@ const maxdataLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders:
 app.use("/api/integrations/maxdata", maxdataLimiter);
 app.use("/api/varejo/maxdata", maxdataLimiter);
 const tableComparisonLimiter = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false });
-registerTableComparisonRoutes(app, { requireUser, resolveRequestedTenantId, limiter: tableComparisonLimiter });
+registerTableComparisonRoutes(app, {
+  requireUser, resolveRequestedTenantId, limiter: tableComparisonLimiter,
+  // A IA (Aurora) roda no n8n (workflow "Comparação de Tabelas - Analisar Itens (IA)"): prompts, modelo,
+  // limitador de tokens e consumo ficam lá. Sem TABLE_COMPARISON_AI_WEBHOOK_URL a rota da Aurora responde 503.
+  aiJson: makeN8nAiJson(),
+});
 // Resultado estruturado + exportações (Excel/PDF) — só leitura; o limiter acima já cobre este prefixo.
 registerTableComparisonExportRoutes(app, { requireUser, resolveRequestedTenantId });
 // Pesquisa externa (web) da Aurora para itens não identificados — a busca roda no n8n; só gera sugestões p/ revisão.
 registerTableComparisonResearchRoutes(app, { requireUser, resolveRequestedTenantId });
+// Relatório financeiro em PDF sob demanda (Aurora/n8n) — ver server/financialReportPdf.ts.
+registerFinancialReportRoutes(app, { supabaseService, hasSupabaseService: Boolean(supabaseServiceKey) });
 app.use("/api/auth/tenant-theme", tenantThemeLimiter);
 app.use("/api/v1/leads", apiKeyLimiter);
 app.use("/api/v1/lead-activities", apiKeyLimiter);
@@ -2030,7 +2039,7 @@ app.get("/api/data/table-preview", requireUser, async (req: any, res) => {
     }
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
-    const cacheKey = `data-preview:tenant:${tenantId}:${table === "students" || table === "turmas" ? `user:${req.user.id}:` : ""}${table}`;
+    const cacheKey = `data-preview:tenant:${tenantId}:${table === "students" || table === "turmas" || table === "education_content" ? `user:${req.user.id}:` : ""}${table}`;
 
     const cached = await cacheGet<any[]>(cacheKey);
     if (cached) {
@@ -3516,9 +3525,12 @@ app.post("/api/ai/aurora-chat", requireUser, async (req: any, res: any) => {
     isMasterCaller = !!caller.is_master;
     tenantId = caller.tenant_id ?? null;
     tenantName = (caller as any).tenants?.name ?? null;
+    // A chave de memória do agente é sempre derivada do usuário autenticado; um sessionId
+    // enviado pelo cliente (fora do caso aurora-reuniao-*, validado acima por RLS) é ignorado
+    // para ninguém endereçar a memória de outro usuário ou do master.
     sessionId = isMasterCaller
-      ? (clientSessionId || "aurora-gustavo-principal")
-      : (clientSessionId || `aurora-user-${req.user.id}`);
+      ? "aurora-gustavo-principal"
+      : `aurora-user-${req.user.id}`;
   }
 
   try {
@@ -4563,11 +4575,15 @@ app.post("/api/whatsapp/instances/:id/connect", requireUser, async (req: any, re
 
 app.delete("/api/whatsapp/instances/:id", requireUser, async (req: any, res) => {
   const { id } = req.params;
+  // Posse primeiro: só a instância visível ao chamador (RLS) chega ao gateway WAHA compartilhado.
+  const { data: owned, error: ownErr } = await req.supabase.from("whatsapp_instances").select("id").eq("id", id).maybeSingle();
+  if (ownErr) return res.status(500).json({ error: "Erro ao remover instância." });
+  if (!owned) return res.status(404).json({ error: "Instância não encontrada." });
   const provider = getWhatsAppProvider();
-  try { await provider.deleteInstance(id); } catch (err: any) { console.error(`[whatsapp/instances DELETE] provider=${provider.name}`, err?.message); }
-  const { error } = await req.supabase.from("whatsapp_instances").delete().eq("id", id).select("id");
+  try { await provider.deleteInstance(owned.id); } catch (err: any) { console.error(`[whatsapp/instances DELETE] provider=${provider.name}`, err?.message); }
+  const { error } = await req.supabase.from("whatsapp_instances").delete().eq("id", owned.id).select("id");
   if (error) return res.status(500).json({ error: "Erro ao remover instância." });
-  res.json({ success: true, message: `Instância ${id} removida` });
+  res.json({ success: true, message: `Instância ${owned.id} removida` });
 });
 
 app.put("/api/whatsapp/instances/:id", requireUser, async (req: any, res) => {
@@ -4977,11 +4993,14 @@ app.post("/api/integrations/external/:id/test", requireUser, requireTenantAdmin,
   }
 
   try {
+    // Mesma guarda do webhook-test: só https público, sem redirects (evita SSRF interno).
+    const safeUrl = await assertSafeHttpUrl(integration.base_url).catch((e: any) => { res.status(400).json({ ok: false, error: e?.message || "URL inválida." }); return null; });
+    if (!safeUrl) return;
     const started = Date.now();
     const response = await axios.post(
-      integration.base_url,
+      safeUrl.toString(),
       { event: "test_ping", integration: integration.name, timestamp: new Date().toISOString() },
-      { headers, timeout: 8000, validateStatus: () => true }
+      { headers, timeout: 8000, validateStatus: () => true, maxRedirects: 0, maxContentLength: 1_000_000 }
     );
     const ok = response.status >= 200 && response.status < 300;
     res.json({ ok, status: response.status, latencyMs: Date.now() - started });

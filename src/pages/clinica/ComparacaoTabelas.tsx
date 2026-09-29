@@ -59,6 +59,7 @@ export default function ComparacaoTabelas() {
   const [autoThreshold, setAutoThreshold] = useState(95);
   const [reviewThreshold, setReviewThreshold] = useState(80);
   const [baseValueField, setBaseValueField] = useState<"valor" | "custo">("valor");
+  const [aiAutoAccept, setAiAutoAccept] = useState(false);
   const [processando, setProcessando] = useState(false);
   const [stage, setStage] = useState(0);
 
@@ -118,7 +119,7 @@ export default function ComparacaoTabelas() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           parceiro: parceiro.trim(), arquivo_nome: table.fileName, rows: mapped.rows,
-          config: { autoThreshold, reviewThreshold }, rules: { baseValueField },
+          config: { autoThreshold, reviewThreshold, aiAutoAccept }, rules: { baseValueField },
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -255,6 +256,10 @@ export default function ComparacaoTabelas() {
                         </select>
                       </div>
                     </div>
+                    <label className="flex items-start gap-2 text-[11px] text-[var(--color-text-muted)] mt-3 cursor-pointer">
+                      <input type="checkbox" className="mt-0.5" checked={aiAutoAccept} onChange={(e) => setAiAutoAccept(e.target.checked)} />
+                      <span>Permitir que a Aurora aceite sozinha correspondências com 97% ou mais de confiança. <strong>Desligado por padrão:</strong> sem isso, tudo que a Aurora sugere vai para a sua revisão.</span>
+                    </label>
                   </details>
                 </>
               )}

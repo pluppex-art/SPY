@@ -116,7 +116,7 @@ const STOPWORDS = new Set([
 const CRITICAL_TOKENS = new Set([
   "igg", "igm", "iga", "ige", "livre", "total", "direto", "indireto", "fracao", "fracionado", "fracionada",
   "urina", "fezes", "jejum", "pos", "prandial", "basal", "materno", "fetal", "neonatal", "titulacao",
-  "ldl", "hdl", "vldl", "t3", "t4", "ft3", "ft4",
+  "ldl", "hdl", "vldl", "t3", "t4", "ft3", "ft4", "clearance", "depuracao", "curva",
 ]);
 
 export function stripAccents(s: string): string {
@@ -190,8 +190,9 @@ export function similarity(normA: string, normB: string): number {
 }
 
 export function criticalDiff(tokA: string[], tokB: string[]): string[] {
-  const a = new Set(tokA.filter((t) => CRITICAL_TOKENS.has(t) || /^\d+$/.test(t)));
-  const b = new Set(tokB.filter((t) => CRITICAL_TOKENS.has(t) || /^\d+$/.test(t)));
+  const isCritical = (t: string) => CRITICAL_TOKENS.has(t) || /^\d+h?$/.test(t);
+  const a = new Set(tokA.filter(isCritical));
+  const b = new Set(tokB.filter(isCritical));
   const diff: string[] = [];
   for (const t of a) if (!b.has(t)) diff.push(t);
   for (const t of b) if (!a.has(t)) diff.push(t);

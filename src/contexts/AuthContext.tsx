@@ -216,6 +216,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     sessionStorage.removeItem(SPY_SESSION_KEY);
+    // Tokens do Google (GIS) e caches por tenant não devem sobreviver ao logout do SPY.
+    try {
+      Object.keys(localStorage).filter((k) => k.startsWith("axis_google_token:")).forEach((k) => localStorage.removeItem(k));
+      Object.keys(sessionStorage).filter((k) => k.startsWith("spy_cache:")).forEach((k) => sessionStorage.removeItem(k));
+    } catch { /* storage indisponível */ }
     setUser(null);
     supabase?.auth.signOut();
   };

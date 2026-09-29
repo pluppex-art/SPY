@@ -40,6 +40,19 @@ import { Reuniao } from "../../contexts/DataContextTypes";
 import { googleSignIn, getAccessToken, logout as googleLogout, initAuth, SCOPES_CALENDAR } from "../../lib/firebase";
 import { supabase } from "../../lib/supabase";
 
+// Só https e hosts do Google Meet chegam ao window.open (meetLink vem de eventos do Google Calendar,
+// que convidados externos podem escrever). Evita esquemas como javascript:.
+const isSafeMeetLink = (link?: string | null): boolean => {
+  if (!link) return false;
+  try {
+    const u = new URL(link);
+    return u.protocol === "https:" && u.hostname === "meet.google.com";
+  } catch {
+    return false;
+  }
+};
+
+
 type ViewMode = "mes" | "semana" | "dia" | "lista";
 type StatusFilter = "Todos" | "Agendada" | "Em Andamento" | "Concluída" | "Cancelada";
 
@@ -713,7 +726,7 @@ export default function AgendaCRM() {
                   <div className="space-y-3">
                     {dayMeetings.map((r) => {
                       const isGoogle = !!r.googleEventId || r.companyName === "Google Calendar";
-                      const isMeet = r.meetLink && r.meetLink.includes("meet.google.com");
+                      const isMeet = isSafeMeetLink(r.meetLink);
 
                       return (
                         <div
@@ -772,7 +785,7 @@ export default function AgendaCRM() {
                             {isMeet && r.meetLink ? (
                               <Button
                                 size="sm"
-                                onClick={() => window.open(r.meetLink, "_blank")}
+                                onClick={() => { if (isSafeMeetLink(r.meetLink)) window.open(r.meetLink, "_blank", "noopener,noreferrer"); }}
                                 className="gap-1.5 h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" /> Google Meet
@@ -843,7 +856,7 @@ export default function AgendaCRM() {
               <div className="space-y-2.5">
                 {visibleReunioes.map((r) => {
                   const isGoogle = !!r.googleEventId || r.companyName === "Google Calendar";
-                  const isMeet = r.meetLink && r.meetLink.includes("meet.google.com");
+                  const isMeet = isSafeMeetLink(r.meetLink);
 
                   return (
                     <div
@@ -896,7 +909,7 @@ export default function AgendaCRM() {
                         {isMeet && r.meetLink ? (
                           <Button
                             size="sm"
-                            onClick={() => window.open(r.meetLink, "_blank")}
+                            onClick={() => { if (isSafeMeetLink(r.meetLink)) window.open(r.meetLink, "_blank", "noopener,noreferrer"); }}
                             className="h-8 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                           >
                             <ExternalLink className="w-3.5 h-3.5" /> Meet
