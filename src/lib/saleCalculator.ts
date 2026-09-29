@@ -133,6 +133,64 @@ export interface SaleCalculationResult {
  * explícito na tela que os ciclos seguintes precisam ser gerados depois. */
 export const OPEN_ENDED_BATCH_CYCLES = 12;
 
+/** Valor real de UM item já configurado no formulário (antes de virar
+ * `proposal_items`) — nunca o "lote de OPEN_ENDED_BATCH_CYCLES ciclos"
+ * (`totalProjectedAmount`) que existe só como projeção/relatório (ver
+ * comentário no topo do arquivo). Pra item recorrente SEM PRAZO, o valor real
+ * do negócio é o ciclo (`cycleAmount`) — não existe um "total" de verdade
+ * quando não há data de término. Pra item com prazo fechado ou pontual,
+ * `totalProjectedAmount` já É o total real (contrato tem fim, ou é uma venda
+ * única) — comportamento inalterado.
+ *
+ * Achado real (2026-09-29): `AddProdutoLeadModal.tsx` somava
+ * `totalProjectedAmount` de TODO item pra formar `proposals.valor`/
+ * `leads.value` — pra item sem prazo isso inflava o valor do negócio em até
+ * OPEN_ENDED_BATCH_CYCLES vezes (ex.: R$997/mês virava "R$11.964" só porque
+ * o sistema precisa gerar um lote inicial de cobranças, sem ter uma automação
+ * de recorrência real). Esse valor inflado se propagava pro Kanban ("valor de
+ * ganho"), Propostas, ranking de vendas, ticket médio etc. — em vez de
+ * corrigir cada um desses ~20 lugares, corrige na origem: o valor que sai
+ * daqui pra `proposals.valor`/`leads.value` já nasce certo. */
+export function getSaleRealValue(sale: Pick<SaleCalculationResult, "isOpenEnded" | "cycleAmount" | "totalProjectedAmount">): number {
+  return sale.isOpenEnded ? sale.cycleAmount : sale.totalProjectedAmount;
+}
+
+/** Mesma correção que `getSaleRealValue`, só que a partir de uma linha já
+ * persistida em `proposal_items` (preco_unitario/quantidade/contract_months),
+ * pra telas que releem a proposta em vez de terem o `SaleCalculationResult`
+ * em mãos (ex.: PropostasTable.tsx). `quantidade` guarda ciclos × unidades
+ * pra item recorrente (ver AddProdutoLeadModal.tsx) — pra item SEM PRAZO
+ * (contract_months null) criado pelo fluxo atual, ciclos = sempre
+ * OPEN_ENDED_BATCH_CYCLES, então `quantidade` é sempre um múltiplo exato de
+ * 12. Só desfaz o lote quando essa condição bate — protege dados antigos/de
+ * outra origem (ex.: proposta criada antes dessa convenção existir, com
+ * `quantidade` = unidades puras, nunca multiplicada por ciclo nenhum) de
+ * serem divididos por engano. */
+export function getProposalItemRealValue(item: { preco_unitario: any; quantidade: any; billing_type?: string | null; contract_months?: number | null }): number {
+  const precoUnitario = Number(item.preco_unitario) || 0;
+  const quantidade = Number(item.quantidade) || 0;
+  const raw = precoUnitario * quantidade;
+  if (item.billing_type === "one_time") return raw;
+  if (item.contract_months && item.contract_months > 0) return raw;
+  const isBatchScaled = quantidade > 0 && quantidade % OPEN_ENDED_BATCH_CYCLES === 0;
+  return isBatchScaled ? raw / OPEN_ENDED_BATCH_CYCLES : raw;
+}
+
+/** Valor MENSAL real de um item de `proposal_items` — `null` pra item
+ * pontual (não tem "mês"). Mesma proteção de `getProposalItemRealValue`
+ * contra dividir `quantidade` que não é, de fato, um lote de ciclos. */
+export function getProposalItemMonthlyValue(item: { preco_unitario: any; quantidade: any; billing_type?: string | null; contract_months?: number | null }): number | null {
+  if (item.billing_type === "one_time") return null;
+  const precoUnitario = Number(item.preco_unitario) || 0;
+  const quantidade = Number(item.quantidade) || 0;
+  const raw = precoUnitario * quantidade;
+  const months = Number(item.contract_months) || 0;
+  if (months > 1) return raw / months;
+  if (months === 1) return null; // total já É a mensalidade, não duplica
+  const isBatchScaled = quantidade > 0 && quantidade % OPEN_ENDED_BATCH_CYCLES === 0;
+  return isBatchScaled ? raw / OPEN_ENDED_BATCH_CYCLES : raw;
+}
+
 export function calculateSale(input: SaleCalculationInput): SaleCalculationResult {
   const { unitPrice, quantity, billingType, setupFee, discountType, discountValue, firstDueDate } = input;
   const baseAmount = Math.max(0, unitPrice) * Math.max(1, quantity);

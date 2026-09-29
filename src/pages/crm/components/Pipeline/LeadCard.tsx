@@ -105,13 +105,19 @@ export function LeadCard({
   // duração padrão do catálogo, ex.: licença de 12 meses fechada por 4 meses
   // pago adiantado) — vem do item da proposta persistido (contract_months),
   // não do produto do catálogo, senão o card mostraria o prazo padrão errado.
-  const contractMonths = latestLeadProposal
-    ? (proposalItems as any[] || [])
-        .filter(pi => pi.proposal_id === latestLeadProposal.id)
-        .map(pi => Number(pi.contract_months) || 0)
-        .filter(m => m > 0)
-        .sort((a, b) => b - a)[0]
-    : undefined;
+  const latestLeadProposalItems = latestLeadProposal
+    ? (proposalItems as any[] || []).filter(pi => pi.proposal_id === latestLeadProposal.id)
+    : [];
+  const contractMonths = latestLeadProposalItems
+    .map(pi => Number(pi.contract_months) || 0)
+    .filter(m => m > 0)
+    .sort((a, b) => b - a)[0];
+  // Proposta com item recorrente SEM PRAZO (contract_months null em TODOS os
+  // itens recorrentes) — `item.value` já nasce como o valor mensal real (ver
+  // getSaleRealValue em saleCalculator.ts), não um total de contrato. Sem essa
+  // tag o card parecia mostrar um total fixo, quando na real é a cobrança que
+  // se repete todo mês.
+  const isOpenEndedRecurring = !contractMonths && latestLeadProposalItems.some(pi => pi.billing_type !== "one_time");
   // `item.value` é a fonte de verdade — soma corretamente múltiplas propostas
   // já realizadas/aceitas pro mesmo lead (mini PDV, aceite de proposta).
   //
@@ -422,6 +428,11 @@ export function LeadCard({
               {!!contractMonths && (
                 <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400" title="Duração do contrato vendida">
                   {contractMonths}m
+                </span>
+              )}
+              {isOpenEndedRecurring && (
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400" title="Recorrência sem prazo fixo — este valor já é a cobrança mensal">
+                  /mês
                 </span>
               )}
             </span>

@@ -21,6 +21,7 @@ import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
+import { getProposalItemRealValue, getProposalItemMonthlyValue } from "../../../../lib/saleCalculator";
 import {
   PropostaEditorWordModal,
   PropostaEditorData,
@@ -141,23 +142,34 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
               // só existe no total da proposta (`item.valor`), então sem essa
               // proporção o resumo de produto mostrava o valor cheio mesmo numa
               // venda com desconto — inconsistente com a coluna "Valor" ao lado.
-              const undiscountedTotal = itens.reduce((s, i) => s + (Number(i.preco_unitario) || 0) * (Number(i.quantidade) || 1), 0);
+              // `getProposalItemRealValue` já desfaz o lote de
+              // OPEN_ENDED_BATCH_CYCLES ciclos que item recorrente SEM PRAZO
+              // recebe (preco_unitario*quantidade sozinho superestimava esse
+              // item em até 12x — mesmo bug corrigido na origem em
+              // AddProdutoLeadModal.tsx) — sem isso, `undiscountedTotal`
+              // ficava inflado e o `discountRatio` saía errado pra proposta
+              // inteira, mesmo pros itens não-recorrentes dela.
+              const undiscountedTotal = itens.reduce((s, i) => s + getProposalItemRealValue(i), 0);
               const discountRatio = undiscountedTotal > 0 && item.valor ? Math.min(1, item.valor / undiscountedTotal) : 1;
               // Achado real (pedido do usuário): a coluna "Valor" só mostrava o
               // TOTAL da proposta — pra proposta com item recorrente, o valor
               // do CICLO (a cobrança que se repete de verdade) não aparecia em
               // lugar nenhum aqui, só escondido no resumo truncado dos itens.
               // Mesmo cálculo já usado ali, só somado no nível da proposta
-              // inteira (pode ter mais de 1 item recorrente).
+              // inteira (pode ter mais de 1 item recorrente). Cobre item com
+              // prazo fechado (total ÷ contract_months) E item sem prazo
+              // (getProposalItemMonthlyValue já cai pro lote/12 nesse caso).
               let valorCiclo = 0;
               const itensResumo = itens.map((i) => {
-                const itemTotal = (Number(i.preco_unitario) || 0) * (Number(i.quantidade) || 1) * discountRatio;
+                const itemTotal = getProposalItemRealValue(i) * discountRatio;
                 const months = Number(i.contract_months) || 0;
-                const isRecurringItem = i.billing_type !== "one_time";
-                const monthly = isRecurringItem && months > 1 ? itemTotal / months : null;
+                const monthlyRaw = getProposalItemMonthlyValue(i);
+                const monthly = monthlyRaw !== null ? monthlyRaw * discountRatio : null;
                 if (monthly !== null) valorCiclo += monthly;
                 return monthly
-                  ? `${i.quantidade}x ${i.product_name} — ${formatCurrency(monthly)}/mês (${months}x, total ${formatCurrency(itemTotal)})`
+                  ? (months > 0
+                      ? `${i.quantidade}x ${i.product_name} — ${formatCurrency(monthly)}/mês (${months}x, total ${formatCurrency(itemTotal)})`
+                      : `${i.quantidade}x ${i.product_name} — ${formatCurrency(monthly)}/mês (sem prazo)`)
                   : `${i.quantidade}x ${i.product_name} — ${formatCurrency(itemTotal)}`;
               });
               return (

@@ -13,7 +13,7 @@ import { useLocalization } from "../../../../contexts/LocalizationContext";
 import { cn } from "../../../../lib/utils";
 import { toast } from "sonner";
 import {
-  calculateSale, FREQUENCY_LABELS, cycleMonthsFor, OPEN_ENDED_BATCH_CYCLES,
+  calculateSale, FREQUENCY_LABELS, cycleMonthsFor, OPEN_ENDED_BATCH_CYCLES, getSaleRealValue,
   type Frequencia, type BillingType, type DiscountType,
 } from "../../../../lib/saleCalculator";
 
@@ -293,12 +293,17 @@ export function AddProdutoLeadModal({
     firstDueDate,
   }), [unitPrice, quantity, isRecurring, frequency, customCycleMonths, durationMonths, showImplToggle, implFee, discountType, discountValue, installments, firstDueDate]);
 
-  // Composição Comercial (visão do vendedor: custo/comissão/margem) — sempre em cima do
-  // valor TOTAL projetado da venda, nunca de um valor de ciclo isolado.
-  const totalCost = (Number(product?.cost) || 0) * quantity * (isRecurring ? sale.numberOfCycles : 1);
-  const totalCommission = sale.totalProjectedAmount * ((Number(product?.commission) || 0) / 100);
-  const netProfit = sale.totalProjectedAmount - totalCost - totalCommission;
-  const marginPercent = sale.totalProjectedAmount > 0 ? Math.round((netProfit / sale.totalProjectedAmount) * 100) : 0;
+  // Composição Comercial (visão do vendedor: custo/comissão/margem) — em cima
+  // do valor REAL do negócio, nunca do lote de OPEN_ENDED_BATCH_CYCLES ciclos
+  // que item recorrente SEM PRAZO recebe (`sale.totalProjectedAmount` nesse
+  // caso é só uma projeção de cobrança, não o valor do negócio — ver
+  // getSaleRealValue em saleCalculator.ts). Pra item com prazo fechado ou
+  // pontual, continua sendo o total mesmo (comportamento inalterado).
+  const dealValue = getSaleRealValue(sale);
+  const totalCost = (Number(product?.cost) || 0) * quantity * (isRecurring ? (sale.isOpenEnded ? 1 : sale.numberOfCycles) : 1);
+  const totalCommission = dealValue * ((Number(product?.commission) || 0) / 100);
+  const netProfit = dealValue - totalCost - totalCommission;
+  const marginPercent = dealValue > 0 ? Math.round((netProfit / dealValue) * 100) : 0;
 
   const discountOptions = isRecurring ? DISCOUNT_OPTIONS_RECURRING : DISCOUNT_OPTIONS_ONE_TIME;
   const freqLabel = FREQUENCY_LABELS[frequency];
@@ -373,7 +378,7 @@ export function AddProdutoLeadModal({
     setCartItems((prev) => prev.filter((ci) => ci.key !== key));
   };
 
-  const cartTotal = cartItems.reduce((sum, ci) => sum + ci.sale.totalProjectedAmount, 0);
+  const cartTotal = cartItems.reduce((sum, ci) => sum + getSaleRealValue(ci.sale), 0);
 
   // Produtos que já estão na proposta, agrupados (linha do produto + linha de implantação).
   const isSetupLine = (it: any) => String(it.product_name || "").startsWith("Taxa de Implantação");
@@ -527,7 +532,13 @@ export function AddProdutoLeadModal({
         }
       }
 
-      const totalValor = allItems.reduce((sum, ci) => sum + ci.sale.totalProjectedAmount, 0);
+      // Valor real do negócio — nunca o lote de OPEN_ENDED_BATCH_CYCLES ciclos
+      // de um item recorrente SEM PRAZO (ver getSaleRealValue). Esse número
+      // vira `proposals.valor` e, por sua vez, `leads.value` (fonte de
+      // verdade somada em TODO o sistema — Kanban, ranking, ticket médio,
+      // Propostas, BI) — corrigir aqui evita ter que corrigir cada um
+      // desses lugares separadamente.
+      const totalValor = allItems.reduce((sum, ci) => sum + getSaleRealValue(ci.sale), 0);
 
       let proposalId: string;
       if (existingProposal?.id) {
@@ -649,9 +660,11 @@ export function AddProdutoLeadModal({
 
       const productNames = allItems.map((ci) => ci.product.name).join(", ");
       const resumoMsg = allItems.length > 1
-        ? `${allItems.length} produtos — total previsto ${formatCurrency(totalValor)}`
+        ? `${allItems.length} produtos — valor do negócio ${formatCurrency(totalValor)}`
         : (allItems[0].isRecurring
-          ? `${formatCurrency(allItems[0].sale.cycleAmount)}/${FREQUENCY_LABELS[allItems[0].frequency].toLowerCase()} — 1ª cobrança ${formatCurrency(allItems[0].sale.firstChargeAmount)}, ${allItems[0].sale.numberOfCycles} ciclos, total previsto ${formatCurrency(allItems[0].sale.totalProjectedAmount)}`
+          ? (allItems[0].sale.isOpenEnded
+              ? `${formatCurrency(allItems[0].sale.cycleAmount)}/${FREQUENCY_LABELS[allItems[0].frequency].toLowerCase()} — 1ª cobrança ${formatCurrency(allItems[0].sale.firstChargeAmount)}, sem prazo (lote inicial de ${allItems[0].sale.numberOfCycles} ciclos)`
+              : `${formatCurrency(allItems[0].sale.cycleAmount)}/${FREQUENCY_LABELS[allItems[0].frequency].toLowerCase()} — 1ª cobrança ${formatCurrency(allItems[0].sale.firstChargeAmount)}, ${allItems[0].sale.numberOfCycles} ciclos, total previsto ${formatCurrency(allItems[0].sale.totalProjectedAmount)}`)
           : `${formatCurrency(allItems[0].sale.firstChargeAmount)}${allItems[0].sale.numberOfCycles > 1 ? ` (1ª de ${allItems[0].sale.numberOfCycles}x)` : ""} via ${formaPagamento}`);
 
       addNotification({
@@ -797,7 +810,9 @@ export function AddProdutoLeadModal({
                     <p className="text-[11px] font-bold text-[var(--color-text-primary)] truncate">{ci.product.name}</p>
                     <p className="text-[9px] text-[var(--color-text-faint)] font-mono">
                       {ci.isRecurring
-                        ? `${formatCurrency(ci.sale.cycleAmount)}/${FREQUENCY_LABELS[ci.frequency].toLowerCase()} · ${ci.sale.numberOfCycles} ciclos · total ${formatCurrency(ci.sale.totalProjectedAmount)}`
+                        ? (ci.sale.isOpenEnded
+                            ? `${formatCurrency(ci.sale.cycleAmount)}/${FREQUENCY_LABELS[ci.frequency].toLowerCase()} · sem prazo (lote inicial de ${ci.sale.numberOfCycles} ciclos)`
+                            : `${formatCurrency(ci.sale.cycleAmount)}/${FREQUENCY_LABELS[ci.frequency].toLowerCase()} · ${ci.sale.numberOfCycles} ciclos · total ${formatCurrency(ci.sale.totalProjectedAmount)}`)
                         : `${formatCurrency(ci.sale.totalProjectedAmount)}${ci.sale.numberOfCycles > 1 ? ` em ${ci.sale.numberOfCycles}x` : ""}`}
                     </p>
                   </div>
