@@ -13,13 +13,18 @@ interface QuickStatsGridProps {
 const ICON_COLORS = ["text-[var(--color-primary-blue)]", "text-emerald-500", "text-cyan-500", "text-rose-500"];
 
 export function QuickStatsGrid({ stats, periodoLabel }: QuickStatsGridProps) {
+  // Nicho Master/default agora tem 5 cards (Receita + Receita MRR separados,
+  // ver DashboardStatsByNiche.tsx) — em lg:grid-cols-4 isso deixava o 5º card
+  // sozinho numa linha nova, esticado. Classe literal (Tailwind JIT não
+  // aceita `lg:grid-cols-${n}` dinâmico) — outros nichos continuam com 4.
+  const gridColsClass = stats.length >= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4';
   return (
     <motion.div
       key="stats-grid"
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      className={`grid grid-cols-1 sm:grid-cols-2 ${gridColsClass} gap-4`}
     >
       {stats.map((stat, i) => (
         <motion.div

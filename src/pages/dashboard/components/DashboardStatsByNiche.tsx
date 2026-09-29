@@ -286,6 +286,26 @@ export function DashboardStatsByNiche({
     // Default fallback
     return [
       {
+        // Achado real (2026-09-29): o card único "Receita (MRR)" somava
+        // `mrr_value`, mas por causa de contratos legados com esse campo
+        // gravado errado (valor total do contrato em vez da mensalidade),
+        // o usuário via um número que não batia com MRR nenhum. Em vez de
+        // só corrigir o dado, agora existem os dois cards separados: este
+        // (total contratado, recorrente + avulso — pode incluir contratos
+        // plurianuais pelo valor cheio) e "Receita (MRR)" logo abaixo (só a
+        // parcela mensal). Nunca são o mesmo número quando há contrato de
+        // mais de 1 mês.
+        label: 'Receita',
+        value: formatCurrency(faturamento),
+        trend: computeTrend(faturamentoSeries),
+        color: 'text-slate-400',
+        bg: 'bg-white/5',
+        icon: DollarSign,
+        forecast: '--',
+        tooltip: 'Valor total contratado (recorrente + avulso/implantação) dos contratos ativos agora — em contratos de mais de 1 mês, é o valor cheio do contrato, não a mensalidade. Para a parcela mensal, veja o card "Receita (MRR)".',
+        sparkline: faturamentoSeries,
+      },
+      {
         label: 'Receita (MRR)',
         value: formatCurrency(totalRevenue),
         trend: computeTrend(revenueSeries),
@@ -293,7 +313,7 @@ export function DashboardStatsByNiche({
         bg: 'bg-white/5',
         icon: DollarSign,
         forecast: '--',
-        tooltip: 'Soma do valor recorrente (mrr) de todos os contratos ativos agora — não muda com o período selecionado, é um saldo do momento atual.',
+        tooltip: 'Soma do valor recorrente (mrr) de todos os contratos ativos agora — só a parcela mensal, mesmo em contratos de vários meses. Não muda com o período selecionado, é um saldo do momento atual.',
         sparkline: revenueSeries,
       },
       {
