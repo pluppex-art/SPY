@@ -21,6 +21,7 @@ import { registerTableComparisonResearchRoutes } from "./server/tableComparisonR
 import { makeN8nAiJson } from "./server/tableComparisonN8n.js";
 import { registerFinancialReportRoutes } from "./server/financialReportPdf.js";
 import { registerMessageTriggerRoutes } from "./server/messageTriggers.js";
+import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
 import { extractDocs as maxExtractDocs, mapMaxEntryToNota, type MaxEntry, type MaxEntryItem } from "./src/lib/maxdataEntry.js";
 import { findProductForItem, defaultQtdEstoque } from "./src/lib/notaEntrada.js";
@@ -308,6 +309,9 @@ registerTableComparisonResearchRoutes(app, { requireUser, resolveRequestedTenant
 registerFinancialReportRoutes(app, { supabaseService, hasSupabaseService: Boolean(supabaseServiceKey) });
 // Gatilhos de mensagem em linguagem natural (interpretação + execução rodam no n8n/Júlia) — ver server/messageTriggers.ts.
 registerMessageTriggerRoutes(app, { requireUser });
+// "Ver fluxo" ao vivo — busca o workflow real na instância n8n (n8n Public API) sob demanda,
+// com fallback automático pro snapshot estático no frontend. Ver server/agentFlow.ts.
+registerAgentFlowRoutes(app, { requireUser });
 app.use("/api/auth/tenant-theme", tenantThemeLimiter);
 app.use("/api/v1/leads", apiKeyLimiter);
 app.use("/api/v1/lead-activities", apiKeyLimiter);

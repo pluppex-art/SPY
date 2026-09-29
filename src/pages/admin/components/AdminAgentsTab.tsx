@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Bot, Workflow } from "lucide-react";
+import { Bot, Workflow, Loader2 } from "lucide-react";
 import {
   AURORA_AGENTS_DEFAULT, ROLE_ICONS, FIXED_N8N_PROMPT_KEY, promptKeyForAgent,
 } from "../../settings/sections/SettingsSistemaAuroraAgentes";
 import { AgentFlowViewerModal } from "../../settings/sections/AgentFlowViewer";
-import { getFlowForAgentKey } from "../../settings/sections/agentFlowDiagrams";
+import { useAgentFlow } from "../../../hooks/useAgentFlow";
+import { Modal } from "../../../components/ui/modal";
 
 /**
  * Catálogo global de agentes da plataforma, visível pra qualquer master — antes só existia
@@ -21,6 +22,8 @@ const CATALOG_WITH_AURORA = [
 export function AdminAgentsTab() {
   const [flowAgentName, setFlowAgentName] = useState<string | null>(null);
   const flowAgent = CATALOG_WITH_AURORA.find((a) => a.name === flowAgentName);
+  const flowAgentKey = flowAgent ? (FIXED_N8N_PROMPT_KEY[flowAgent.name] ?? promptKeyForAgent(flowAgent.name)) : "";
+  const { diagram: flowDiagram, loading: flowLoading, isLive: flowIsLive } = useAgentFlow(flowAgentKey);
 
   return (
     <div className="space-y-4">
@@ -69,13 +72,21 @@ export function AdminAgentsTab() {
         })}
       </div>
 
-      {flowAgent && (
+      {flowAgent && flowDiagram && (
         <AgentFlowViewerModal
           isOpen={!!flowAgentName}
           onClose={() => setFlowAgentName(null)}
           agentDisplayName={flowAgent.name}
-          diagram={getFlowForAgentKey(FIXED_N8N_PROMPT_KEY[flowAgent.name] ?? promptKeyForAgent(flowAgent.name))}
+          diagram={flowDiagram}
+          isLive={flowIsLive}
         />
+      )}
+      {flowAgent && !flowDiagram && flowLoading && (
+        <Modal isOpen={!!flowAgentName} onClose={() => setFlowAgentName(null)} title={`Como o ${flowAgent.name} funciona`}>
+          <div className="flex items-center justify-center gap-2 py-10 text-[var(--color-text-muted)]">
+            <Loader2 className="w-4 h-4 animate-spin" /> Carregando fluxo...
+          </div>
+        </Modal>
       )}
     </div>
   );

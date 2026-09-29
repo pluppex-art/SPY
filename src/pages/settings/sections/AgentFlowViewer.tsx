@@ -10,6 +10,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import dagre from "@dagrejs/dagre";
 import {
   Webhook, Clock, Code2, GitBranch, Database, Globe, Workflow as WorkflowIcon,
   SendHorizontal, GitMerge, Bot, Wrench, Sparkles, Mic, AlertTriangle, Circle,
@@ -17,12 +18,17 @@ import {
 import { Modal } from "../../../components/ui/modal";
 import type { AgentFlowDiagram, FlowNode } from "./agentFlowDiagrams";
 
-// Visualização somente-leitura do fluxo real de um agente — usa o NOME, TIPO e POSIÇÃO reais
+// Visualização somente-leitura do fluxo real de um agente — usa o NOME, TIPO e conexões reais
 // dos nós do workflow no n8n (ver agentFlowDiagrams.ts), desenhada pra lembrar o canvas do
-// próprio n8n (cartão + fio curvo entre nós), mas em fundo claro e com espaço suficiente pra
-// mostrar, embaixo do nome de cada nó, o que ele faz em linguagem simples — não só o nome
-// técnico. Não é o editor do n8n: 100% somente-leitura, layout fixo nas posições reais, sem
-// drag nem edição; a construção/edição de verdade continua sendo feita pela nossa equipe.
+// próprio n8n (cartão + fio curvo entre nós), em fundo claro e com espaço suficiente pra mostrar,
+// embaixo do nome de cada nó, o que ele faz em linguagem simples — não só o nome técnico.
+//
+// A posição de cada cartão NÃO usa a posição real do n8n (`step.position`) — o layout real de um
+// workflow no n8n frequentemente tem nós sobrepostos (arrasto manual, copiar/colar, nós antigos
+// nunca reorganizados), e isso ficaria ilegível aqui. Em vez disso, todo layout é recalculado na
+// hora com dagre, a partir só das CONEXÕES reais (nunca das posições) — isso garante zero
+// sobreposição sempre, não importa o tamanho do fluxo. Não é o editor do n8n: 100% somente-
+// leitura, sem drag nem edição; a construção/edição de verdade continua sendo feita no n8n.
 
 interface NodeStyle {
   icon: typeof Webhook;
@@ -98,22 +104,36 @@ function FlowStepNodeRenderer({ data }: NodeProps) {
 
 const nodeTypes = { flowStep: FlowStepNodeRenderer };
 
-// Espaça mais que a posição real do n8n pra sobrar espaço pro texto de descrição (os cartões
-// aqui são mais altos/largos que um nó de verdade no n8n, que só mostra o nome).
-const SPREAD_X = 1.15;
-const SPREAD_Y = 1.6;
+// Tamanho estimado do cartão (w-64 = 256px + folga pra descrição de 2-3 linhas) — usado só pelo
+// dagre pra calcular o layout sem sobrepor; não precisa bater pixel-a-pixel com o CSS real.
+const NODE_WIDTH = 256;
+const NODE_HEIGHT = 96;
 
-function toReactFlowGraph(diagram: AgentFlowDiagram): { nodes: Node[]; edges: Edge[] } {
-  const minX = Math.min(...diagram.nodes.map((n) => n.position[0]));
-  const minY = Math.min(...diagram.nodes.map((n) => n.position[1]));
-  const nodes: Node[] = diagram.nodes.map((step) => ({
-    id: step.id,
-    type: "flowStep",
-    position: { x: (step.position[0] - minX) * SPREAD_X, y: (step.position[1] - minY) * SPREAD_Y },
-    data: step as unknown as Record<string, unknown>,
-    draggable: false,
-    selectable: false,
-  }));
+function layoutWithDagre(diagram: AgentFlowDiagram): { nodes: Node[]; edges: Edge[] } {
+  const g = new dagre.graphlib.Graph();
+  g.setDefaultEdgeLabel(() => ({}));
+  // Esquerda→direita (mesmo sentido de leitura do canvas do n8n), com espaçamento generoso —
+  // nodesep separa cartões na mesma coluna, ranksep separa uma etapa da próxima.
+  g.setGraph({ rankdir: "LR", nodesep: 48, ranksep: 110, marginx: 24, marginy: 24 });
+
+  diagram.nodes.forEach((step) => g.setNode(step.id, { width: NODE_WIDTH, height: NODE_HEIGHT }));
+  diagram.edges.forEach((e) => g.setEdge(e.from, e.to));
+
+  dagre.layout(g);
+
+  const nodes: Node[] = diagram.nodes.map((step) => {
+    const { x, y } = g.node(step.id);
+    return {
+      id: step.id,
+      type: "flowStep",
+      // dagre centraliza no meio do nó; React Flow posiciona pelo canto superior esquerdo.
+      position: { x: x - NODE_WIDTH / 2, y: y - NODE_HEIGHT / 2 },
+      data: step as unknown as Record<string, unknown>,
+      draggable: false,
+      selectable: false,
+    };
+  });
+
   const edges: Edge[] = diagram.edges.map((e, i) => ({
     id: `${e.from}-${e.to}-${i}`,
     source: e.from,
@@ -134,20 +154,32 @@ export function AgentFlowViewerModal({
   onClose,
   agentDisplayName,
   diagram,
+  isLive,
 }: {
   isOpen: boolean;
   onClose: () => void;
   agentDisplayName: string;
   diagram: AgentFlowDiagram;
+  /** true = veio ao vivo da API do n8n agora mesmo (ver useAgentFlow.ts); false/undefined =
+   * caiu pro snapshot estático (agentFlowDiagrams.ts) — sempre mostrado com honestidade, nunca
+   * escondido, pra quem está vendo saber se o que aparece é o fluxo atual ou uma foto antiga. */
+  isLive?: boolean;
 }) {
-  const { nodes, edges } = useMemo(() => toReactFlowGraph(diagram), [diagram]);
+  const { nodes, edges } = useMemo(() => layoutWithDagre(diagram), [diagram]);
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={`Como o ${agentDisplayName} funciona`}
-      description="Estrutura real do fluxo — cada cartão é uma etapa real, com o que ela faz. Visualização apenas: a construção e edição é feita pela nossa equipe."
+      description={
+        <>
+          Estrutura real do fluxo — cada cartão é uma etapa real, com o que ela faz. Visualização apenas: a construção e edição é feita pela nossa equipe.{" "}
+          <span className={isLive ? "text-emerald-500" : "text-[var(--color-text-faint)]"}>
+            {isLive ? "• Ao vivo, direto do n8n" : "• Última versão salva (sincronização automática ainda não configurada)"}
+          </span>
+        </>
+      }
       maxWidth="max-w-6xl"
       noPadding
     >

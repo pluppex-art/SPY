@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import {
   Bot, Pencil, Sparkles, UserSearch, Eye, Radar,
-  Handshake, Briefcase, LineChart, Search, Headset, Wallet, Megaphone, ClipboardList, Trash2, Sunrise, Workflow,
+  Handshake, Briefcase, LineChart, Search, Headset, Wallet, Megaphone, ClipboardList, Trash2, Sunrise, Workflow, Loader2,
 } from "lucide-react";
 import { AgentFlowViewerModal } from "./AgentFlowViewer";
-import { getFlowForAgentKey } from "./agentFlowDiagrams";
+import { useAgentFlow } from "../../../hooks/useAgentFlow";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Switch } from "../../../components/ui/switch";
@@ -146,6 +146,13 @@ export function ConfigSistemaAuroraAgentes() {
     active: config?.auroraEnabled ?? true,
   } as AuroraAgent;
   const displayList: AuroraAgent[] = [auroraCoreEntry, ...personaList];
+
+  // "Ver fluxo" — chave vazia enquanto nenhum agente está selecionado (modal fechado); o hook
+  // não busca nada nesse caso (ver useAgentFlow.ts). Precisa ficar no nível do componente (não
+  // dentro da IIFE de render mais abaixo) porque hooks não podem ser chamados condicionalmente.
+  const flowAgent = displayList.find((a) => a.id === flowViewerAgentId);
+  const flowAgentKey = flowAgent ? (FIXED_N8N_PROMPT_KEY[flowAgent.name] ?? promptKeyForAgent(flowAgent.name)) : "";
+  const { diagram: flowDiagram, loading: flowLoading, isLive: flowIsLive } = useAgentFlow(flowAgentKey);
 
   // Convencao da tabela: array vazio = tudo liberado (nenhuma restricao adicional).
   const executeRestricted = (config?.allowedExecuteModules.length ?? 0) > 0;
@@ -402,19 +409,22 @@ export function ConfigSistemaAuroraAgentes() {
         })()}
       </Modal>
 
-      {(() => {
-        const flowAgent = displayList.find((a) => a.id === flowViewerAgentId);
-        if (!flowAgent) return null;
-        const key = FIXED_N8N_PROMPT_KEY[flowAgent.name] ?? promptKeyForAgent(flowAgent.name);
-        return (
-          <AgentFlowViewerModal
-            isOpen={!!flowViewerAgentId}
-            onClose={() => setFlowViewerAgentId(null)}
-            agentDisplayName={displayNameForAgent(flowAgent, promptByKey)}
-            diagram={getFlowForAgentKey(key)}
-          />
-        );
-      })()}
+      {flowAgent && flowDiagram && (
+        <AgentFlowViewerModal
+          isOpen={!!flowViewerAgentId}
+          onClose={() => setFlowViewerAgentId(null)}
+          agentDisplayName={displayNameForAgent(flowAgent, promptByKey)}
+          diagram={flowDiagram}
+          isLive={flowIsLive}
+        />
+      )}
+      {flowAgent && !flowDiagram && flowLoading && (
+        <Modal isOpen={!!flowViewerAgentId} onClose={() => setFlowViewerAgentId(null)} title={`Como o ${displayNameForAgent(flowAgent, promptByKey)} funciona`}>
+          <div className="flex items-center justify-center gap-2 py-10 text-[var(--color-text-muted)]">
+            <Loader2 className="w-4 h-4 animate-spin" /> Carregando fluxo...
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
