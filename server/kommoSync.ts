@@ -29,6 +29,8 @@ const MAX_PAGES = 800; // 800 × 250 = 200.000 leads — só uma trava de segura
 const TIME_BUDGET_MS = 30_000;
 const COLORS = ["blue", "cyan", "indigo", "purple", "amber", "orange", "pink", "slate"];
 const INTEREST_RE = /interess|produto|servi[cç]o|procura|necessidade/i;
+// Campo do lead que nomeia o vendedor (ex.: "Comercial"); tem prioridade sobre o "Responsável" nativo da Kommo.
+const SELLER_RE = /^\s*(comercial|vendedor|consultor|closer|atendente)\b/i;
 const SOURCE_RE = /origem|fonte|source|canal|campanha|utm_source/i;
 const iso = (unix: any) => (unix ? new Date(Number(unix) * 1000).toISOString() : null);
 const WON = 142;
@@ -230,7 +232,7 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
             company: companyName,
             email: kommoFieldValue(contact, "EMAIL").toLowerCase(),
             phone: digits(kommoFieldValue(contact, "PHONE")),
-            seller: users.get(l.responsible_user_id)?.name || "",
+            seller: kommoFieldByName([l], SELLER_RE) || users.get(l.responsible_user_id)?.name || "",
             source: kommoFieldByName([l, contact], SOURCE_RE) || "Kommo",
             status: place.status,
             priority: "Média",
