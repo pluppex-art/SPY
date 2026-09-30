@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Card } from "../card";
 import { Button } from "../button";
 import { Badge } from "../badge";
 import { EmptyState } from "../empty-state";
-import { FileText, Plus, Pencil, Edit3, Check, Package, Search, Tag, X, Info } from "lucide-react";
+import { FileText, Plus, Pencil, Edit3, Check, Package, Search, Tag, X, Info, FilePlus2 } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
@@ -43,6 +43,12 @@ export function ProductsSection({
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [prefillProductId, setPrefillProductId] = useState<string | undefined>(undefined);
+  const [prefillProductIds, setPrefillProductIds] = useState<string[] | undefined>(undefined);
+  // Clique único num produto do catálogo = vender agora (abre o modal já configurado); clique
+  // duplo = marcar como interesse (mesma ação do botão "+" abaixo, ver toggleInteresse). O
+  // browser sempre dispara 2 cliques antes do dblclick — sem esse pequeno debounce, um duplo
+  // clique abriria o modal de venda E marcaria interesse ao mesmo tempo, os dois juntos.
+  const clickTimerRef = useRef<Record<string, number>>({});
   // true = o modal acrescenta itens na proposta existente (lápis ao lado do status).
   const [editingExistingProposal, setEditingExistingProposal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -82,6 +88,31 @@ export function ProductsSection({
     .map((id) => availableProducts.find((p) => p.id === id))
     .filter(Boolean) as any[];
 
+  // Valor de catálogo dos produtos marcados — distingue recorrente (mensal) de pontual, mesma
+  // lógica já usada em todo o resto do sistema (nunca soma os dois como se fossem a mesma
+  // coisa). É só uma prévia pelo preço de tabela; ciclo/parcelamento real se define ao
+  // organizar a proposta no modal.
+  const interesseTotais = useMemo(() => {
+    return produtosInteresse.reduce((acc, p) => {
+      const price = Number(p.price) || 0;
+      if (p.recurrence) acc.recorrente += price; else acc.pontual += price;
+      return acc;
+    }, { recorrente: 0, pontual: 0 });
+  }, [produtosInteresse]);
+
+  const handleProductRowClick = (productId: string) => {
+    if (clickTimerRef.current[productId]) {
+      window.clearTimeout(clickTimerRef.current[productId]);
+      delete clickTimerRef.current[productId];
+      toggleInteresse(productId);
+      return;
+    }
+    clickTimerRef.current[productId] = window.setTimeout(() => {
+      delete clickTimerRef.current[productId];
+      openAddModal(productId);
+    }, 250);
+  };
+
   const filteredProducts = useMemo(() => {
     const term = searchTerm.toLowerCase();
     return availableProducts.filter((p) =>
@@ -91,7 +122,19 @@ export function ProductsSection({
 
   const openAddModal = (productId?: string, toExistingProposal = false) => {
     setPrefillProductId(productId);
+    setPrefillProductIds(undefined);
     setEditingExistingProposal(toExistingProposal);
+    setIsAddModalOpen(true);
+  };
+
+  // "Criar Proposta" a partir dos Produtos de Interesse: os N produtos marcados entram de uma
+  // vez no carrinho do modal (ver initialProductIds em AddProdutoLeadModal), já somados numa
+  // proposta só — nunca uma proposta por produto.
+  const openAddModalBulk = () => {
+    if (produtosInteresse.length === 0) return;
+    setPrefillProductId(undefined);
+    setPrefillProductIds(interesseIds);
+    setEditingExistingProposal(false);
     setIsAddModalOpen(true);
   };
 
@@ -269,35 +312,60 @@ export function ProductsSection({
           </span>
           <span
             className="text-[var(--color-text-faint)]"
-            title="Marcação rápida, sem criar proposta nenhuma — não entra no Valor da Proposta nem no financeiro. Quando a venda sair de verdade, use '+ Novo Produto' abaixo."
+            title="Marcação rápida, sem criar proposta nenhuma — não entra no Valor da Proposta nem no financeiro. Quando a venda sair de verdade, use 'Criar Proposta' abaixo."
           >
             <Info className="w-3 h-3" />
           </span>
         </div>
         {produtosInteresse.length === 0 ? (
           <p className="text-[11px] text-[var(--color-text-faint)]">
-            Nenhum produto marcado ainda — clique no <Tag className="w-2.5 h-2.5 inline" /> de um item abaixo pra marcar, sem precisar fazer a proposta.
+            Nenhum produto marcado ainda — clique duas vezes (ou no <Plus className="w-2.5 h-2.5 inline" />) de um item abaixo pra marcar, sem precisar fazer a proposta.
           </p>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {produtosInteresse.map((prod) => (
-              <span
-                key={prod.id}
-                className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] font-bold text-amber-700 dark:text-amber-400"
-              >
-                {prod.name}
-                <span className="font-mono text-[10px] opacity-80">{formatCurrency(Number(prod.price) || 0)}</span>
-                <button
-                  type="button"
-                  onClick={() => toggleInteresse(prod.id)}
-                  className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-amber-500/20 transition-colors"
-                  title="Remover marcação"
+          <>
+            <div className="flex flex-wrap gap-1.5">
+              {produtosInteresse.map((prod) => (
+                <span
+                  key={prod.id}
+                  className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] font-bold text-amber-700 dark:text-amber-400"
                 >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            ))}
-          </div>
+                  {prod.name}
+                  <span className="font-mono text-[10px] opacity-80">{formatCurrency(Number(prod.price) || 0)}</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleInteresse(prod.id)}
+                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-amber-500/20 transition-colors"
+                    title="Remover marcação"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-[var(--color-border-subtle)]">
+              <div className="flex flex-col gap-0.5">
+                {interesseTotais.recorrente > 0 && (
+                  <span className="text-[11px] font-bold text-[var(--color-primary-blue)] font-mono">
+                    {formatCurrency(interesseTotais.recorrente)}/mês <span className="text-[var(--color-text-faint)] font-normal">recorrente</span>
+                  </span>
+                )}
+                {interesseTotais.pontual > 0 && (
+                  <span className="text-[11px] font-bold text-[var(--color-text-primary)] font-mono">
+                    {formatCurrency(interesseTotais.pontual)} <span className="text-[var(--color-text-faint)] font-normal">pontual</span>
+                  </span>
+                )}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={openAddModalBulk}
+                className="h-8 text-[11px] font-bold gap-1.5"
+              >
+                <FilePlus2 className="w-3.5 h-3.5" /> Criar Proposta ({produtosInteresse.length})
+              </Button>
+            </div>
+          </>
         )}
       </Card>
 
@@ -338,9 +406,9 @@ export function ProductsSection({
                 >
                   <button
                     type="button"
-                    onClick={() => openAddModal(prod.id)}
+                    onClick={() => handleProductRowClick(prod.id)}
                     className="min-w-0 flex-1 text-left cursor-pointer"
-                    title="Vender este produto agora (cria proposta real)"
+                    title="Clique: vender agora (cria proposta real) · Duplo clique: marcar como interesse"
                   >
                     <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{prod.name}</p>
                     <span className="text-[9px] text-[var(--color-text-faint)] uppercase font-semibold">
@@ -357,14 +425,6 @@ export function ProductsSection({
                         "w-5 h-5 rounded flex items-center justify-center transition-colors cursor-pointer",
                         isMarked ? "bg-amber-500/20 text-amber-600 dark:text-amber-400" : "bg-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-amber-500"
                       )}
-                    >
-                      <Tag className="w-3 h-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openAddModal(prod.id)}
-                      title="Vender este produto agora (cria proposta real)"
-                      className="w-5 h-5 rounded flex items-center justify-center bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/20 transition-colors cursor-pointer"
                     >
                       <Plus className="w-3 h-3" />
                     </button>
@@ -388,6 +448,7 @@ export function ProductsSection({
         onClose={() => setIsAddModalOpen(false)}
         availableProducts={availableProducts}
         initialProductId={prefillProductId}
+        initialProductIds={prefillProductIds}
         existingProposal={editingExistingProposal && existingProposal ? { id: existingProposal.id, titulo: existingProposal.titulo, status: existingProposal.status, valor: existingProposal.valor } : null}
         existingItems={editingExistingProposal ? existingProposalItems : []}
         leadId={leadId}

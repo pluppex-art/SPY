@@ -53,6 +53,11 @@ interface AddProdutoLeadModalProps {
   seller?: string;
   /** Pré-seleciona o produto ao abrir (clique num item da lista na aba Produtos). */
   initialProductId?: string;
+  /** "Criar Proposta" a partir dos Produtos de Interesse: os N produtos entram direto no
+   * carrinho (config padrão do catálogo de cada um — recorrência/prazo/implantação vêm de
+   * `product.recurrence`/`contractMonths`/`implementationFee`), prontos pra revisar/ajustar e
+   * virar UMA proposta só. Ignorado quando `initialProductId` (fluxo de 1 produto) é passado. */
+  initialProductIds?: string[];
   /** Modo "editar proposta": os produtos escolhidos entram como itens DESTA proposta já
    * existente (nunca cria uma segunda proposta pro mesmo lead). */
   existingProposal?: { id: string; titulo?: string; status?: string; valor?: number } | null;
@@ -164,6 +169,7 @@ export function AddProdutoLeadModal({
   companyName,
   seller,
   initialProductId,
+  initialProductIds,
   existingProposal,
   existingItems = [],
   onDone,
@@ -228,7 +234,43 @@ export function AddProdutoLeadModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    setCartItems([]);
+    // "Criar Proposta" a partir de Produtos de Interesse: monta o carrinho direto com a config
+    // PADRÃO de catálogo de cada produto (mesma derivação do formulário abaixo — isRecurring/
+    // durationMonths/implFee — só que sem passar pelo state do form, já que são N produtos de
+    // uma vez). Usuário revisa/remove/ajusta a partir daqui, igual a quem adiciona um por um.
+    if (!initialProductId && initialProductIds && initialProductIds.length > 0) {
+      const builtItems: CartItem[] = initialProductIds
+        .map((pid) => availableProducts.find((p) => p.id === pid))
+        .filter(Boolean)
+        .map((p: any) => {
+          const isRecurringItem = !!(p.recurrence || p.typeAttributes?.isRecurring || p.type === "Assinatura" || p.category === "Software");
+          const itemDurationMonths = isRecurringItem ? (p.contractMonths || p.typeAttributes?.contractMonths || 12) : null;
+          const itemImplFee = p.implementationFee || p.typeAttributes?.implementationFee || (p.category === "Implantação" ? Number(p.price) || 0 : 0);
+          const itemUnitPrice = Number(p.price) || 0;
+          const sale = calculateSale({
+            unitPrice: itemUnitPrice,
+            quantity: 1,
+            billingType: isRecurringItem ? "recurring" : "one_time",
+            frequency: "mensal",
+            customCycleMonths: 1,
+            durationMonths: itemDurationMonths,
+            setupFee: itemImplFee,
+            discountType: "none",
+            discountValue: 0,
+            installments: 1,
+            firstDueDate: new Date(),
+          });
+          const item: CartItem = {
+            key: crypto.randomUUID(), product: p, quantity: 1, isRecurring: isRecurringItem,
+            frequency: "mensal", durationMonths: itemDurationMonths, isOpenEnded: sale.isOpenEnded,
+            implFee: itemImplFee, unitPrice: itemUnitPrice, sale,
+          };
+          return item;
+        });
+      setCartItems(builtItems);
+    } else {
+      setCartItems([]);
+    }
     setEditingGroup(null);
     setUnitPriceInput(null);
     setStagedGroupIds([]);
@@ -254,7 +296,7 @@ export function AddProdutoLeadModal({
     setDetalhesPagamento("");
     setFirstDueDateInput(new Date().toISOString().slice(0, 10));
     setSaving(false);
-  }, [isOpen, initialProductId]);
+  }, [isOpen, initialProductId, initialProductIds, availableProducts]);
 
   const product = availableProducts.find((p) => p.id === productId);
 
