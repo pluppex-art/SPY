@@ -2651,7 +2651,7 @@ app.post("/api/integrations/maxdata/test", requireUser, async (req: any, res) =>
   }
 });
 
-const kommoLimiter = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false });
+const kommoLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
 registerKommoRoutes(app, { requireUser, resolveRequestedTenantId, limiter: kommoLimiter });
 
 app.get("/api/varejo/maxdata/entries", requireUser, async (req: any, res) => {

@@ -13,7 +13,7 @@
 import type { Express } from "express";
 import { createHash } from "crypto";
 import {
-  kommoConnFromConfig, kommoAccount, kommoPipelines, kommoUsers, kommoPaged, kommoByIds, kommoFieldValue,
+  kommoConnFromConfig, kommoAccount, kommoPipelines, kommoUsers, kommoPage, kommoByIds, kommoFieldValue,
   KommoError, type KommoConn, type KommoPipeline,
 } from "./kommoClient.js";
 
@@ -23,7 +23,9 @@ interface Deps {
   limiter: any;
 }
 
-const MAX_LEADS = 10_000;
+const MAX_PAGES = 40; // 40 × 250 = 10.000 leads por importação
+// A Vercel corta a função em 60s: cada chamada processa páginas até este orçamento e devolve o cursor.
+const TIME_BUDGET_MS = 30_000;
 const COLORS = ["blue", "cyan", "indigo", "purple", "amber", "orange", "pink", "slate"];
 const WON = 142;
 const LOST = 143;
@@ -99,96 +101,103 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
     if (!(await requireAdmin(req, res))) return;
     const conn = await loadConn(req, res, tenantId);
     if (!conn) return;
-    res.setTimeout(10 * 60_000);
     const sb = req.supabase;
+    const started = Date.now();
+    const cursor = Math.max(1, Math.min(MAX_PAGES, Math.floor(Number(req.body?.cursor)) || 1));
 
     try {
-      // 1) Funis e etapas
+      // Funis/etapas: sempre lidos (mapa de etapas); gravados só na 1ª chamada.
       const pipelines = await kommoPipelines(conn);
       if (pipelines.length === 0) return res.status(422).json({ error: "A Kommo não retornou nenhum funil." });
-      const { error: funilErr } = await sb.from("crm_funis").upsert(pipelines.map((p) => funilRow(tenantId, p)), { onConflict: "id" });
-      if (funilErr) return res.status(500).json({ error: `Não foi possível salvar os funis: ${funilErr.message}` });
-
+      if (cursor === 1) {
+        const { error: funilErr } = await sb.from("crm_funis").upsert(pipelines.map((p) => funilRow(tenantId, p)), { onConflict: "id" });
+        if (funilErr) return res.status(500).json({ error: `Não foi possível salvar os funis: ${funilErr.message}` });
+      }
       const stageIndex = new Map<string, { idx: number; status: "Novo" | "Fechado" | "Perdido" }>();
       for (const p of pipelines) p.statuses.forEach((s, idx) => stageIndex.set(`${p.id}:${s.id}`, {
         idx, status: s.id === WON ? "Fechado" : s.id === LOST ? "Perdido" : "Novo",
       }));
+      const users = await kommoUsers(conn);
 
-      // 2) Leads + relacionados
-      const [users, leads] = await Promise.all([
-        kommoUsers(conn),
-        kommoPaged(conn, "/leads", "leads", { with: "contacts,loss_reason" }, MAX_LEADS),
-      ]);
-      const contactIds = new Set<number>();
-      const companyIds = new Set<number>();
-      for (const l of leads) {
-        for (const c of l._embedded?.contacts || []) contactIds.add(c.id);
-        for (const c of l._embedded?.companies || []) companyIds.add(c.id);
-      }
-      const contacts = new Map<number, any>((await kommoByIds(conn, "/contacts", "contacts", [...contactIds])).map((c) => [c.id, c]));
-      const companies = new Map<number, any>((await kommoByIds(conn, "/companies", "companies", [...companyIds])).map((c) => [c.id, c]));
+      let page = cursor;
+      let hasNext = true;
+      let created = 0, updated = 0, skipped = 0;
+      while (hasNext && page <= MAX_PAGES && (page === cursor || Date.now() - started < TIME_BUDGET_MS)) {
+        const { items: leads, hasNext: more } = await kommoPage(conn, "/leads", "leads", page, { with: "contacts,loss_reason" });
+        hasNext = more;
+        page++;
+        if (leads.length === 0) break;
 
-      // 3) Mescla com o que já existe (não apaga customFields locais do SPY)
-      const ids = leads.map((l) => leadUuid(tenantId, l.id));
-      const existing = new Map<string, any>();
-      for (let i = 0; i < ids.length; i += 200) {
-        const { data } = await sb.from("leads").select("id, customFields").in("id", ids.slice(i, i + 200));
-        for (const r of data || []) existing.set(r.id, r.customFields || {});
-      }
+        const contactIds = new Set<number>();
+        const companyIds = new Set<number>();
+        for (const l of leads) {
+          for (const c of l._embedded?.contacts || []) contactIds.add(c.id);
+          for (const c of l._embedded?.companies || []) companyIds.add(c.id);
+        }
+        const contacts = new Map<number, any>((await kommoByIds(conn, "/contacts", "contacts", [...contactIds])).map((c) => [c.id, c]));
+        const companies = new Map<number, any>((await kommoByIds(conn, "/companies", "companies", [...companyIds])).map((c) => [c.id, c]));
 
-      let skipped = 0;
-      const rows: any[] = [];
-      leads.forEach((l, n) => {
-        const place = stageIndex.get(`${l.pipeline_id}:${l.status_id}`);
-        if (!place) { skipped++; return; } // funil arquivado/etapa desconhecida
-        const main = (l._embedded?.contacts || []).find((c: any) => c.is_main) || (l._embedded?.contacts || [])[0];
-        const contact = main ? contacts.get(main.id) : null;
-        const company = (l._embedded?.companies || [])[0];
-        const companyName = company ? (companies.get(company.id)?.name || company.name || "") : "";
-        const createdIso = new Date((l.created_at || Date.now() / 1000) * 1000).toISOString();
-        const id = ids[n];
-        rows.push({
-          id, tenant_id: tenantId,
-          name: contact?.name || l.name || `Lead Kommo #${l.id}`,
-          title: l.name || "",
-          company: companyName,
-          email: kommoFieldValue(contact, "EMAIL").toLowerCase(),
-          phone: digits(kommoFieldValue(contact, "PHONE")),
-          seller: users.get(l.responsible_user_id) || "",
-          source: "Kommo",
-          status: place.status,
-          priority: "Média",
-          value: Number(l.price) || 0,
-          pipelineId: "comercial",
-          stageId: `${funilId(l.pipeline_id)}-${place.idx}`,
-          lead_interesse_cliente: "",
-          clientId: "", clientName: "", productIds: [], tenantName: "", scoreIA: 50,
-          date: createdIso.slice(0, 10),
-          created_at: createdIso,
-          customFields: {
-            ...(existing.get(id) || {}),
-            kommo: {
-              leadId: l.id, pipelineId: l.pipeline_id, statusId: l.status_id,
-              contactId: main?.id ?? null, companyId: company?.id ?? null,
-              lossReason: l._embedded?.loss_reason?.[0]?.name ?? null,
-              tags: (l._embedded?.tags || []).map((t: any) => t.name),
-              syncedAt: new Date().toISOString(),
+        // Mescla com o que já existe (não apaga customFields locais do SPY)
+        const ids = leads.map((l) => leadUuid(tenantId, l.id));
+        const existing = new Map<string, any>();
+        const { data: prev } = await sb.from("leads").select("id, customFields").in("id", ids);
+        for (const r of prev || []) existing.set(r.id, r.customFields || {});
+
+        const rows: any[] = [];
+        leads.forEach((l, n) => {
+          const place = stageIndex.get(`${l.pipeline_id}:${l.status_id}`);
+          if (!place) { skipped++; return; } // funil arquivado/etapa desconhecida
+          const main = (l._embedded?.contacts || []).find((c: any) => c.is_main) || (l._embedded?.contacts || [])[0];
+          const contact = main ? contacts.get(main.id) : null;
+          const company = (l._embedded?.companies || [])[0];
+          const companyName = company ? (companies.get(company.id)?.name || company.name || "") : "";
+          const createdIso = new Date((l.created_at || Date.now() / 1000) * 1000).toISOString();
+          const id = ids[n];
+          rows.push({
+            id, tenant_id: tenantId,
+            name: contact?.name || l.name || `Lead Kommo #${l.id}`,
+            title: l.name || "",
+            company: companyName,
+            email: kommoFieldValue(contact, "EMAIL").toLowerCase(),
+            phone: digits(kommoFieldValue(contact, "PHONE")),
+            seller: users.get(l.responsible_user_id) || "",
+            source: "Kommo",
+            status: place.status,
+            priority: "Média",
+            value: Number(l.price) || 0,
+            pipelineId: "comercial",
+            stageId: `${funilId(l.pipeline_id)}-${place.idx}`,
+            lead_interesse_cliente: "",
+            clientId: "", clientName: "", productIds: [], tenantName: "", scoreIA: 50,
+            date: createdIso.slice(0, 10),
+            created_at: createdIso,
+            customFields: {
+              ...(existing.get(id) || {}),
+              kommo: {
+                leadId: l.id, pipelineId: l.pipeline_id, statusId: l.status_id,
+                contactId: main?.id ?? null, companyId: company?.id ?? null,
+                lossReason: l._embedded?.loss_reason?.[0]?.name ?? null,
+                tags: (l._embedded?.tags || []).map((t: any) => t.name),
+                syncedAt: new Date().toISOString(),
+              },
             },
-          },
+          });
         });
-      });
 
-      for (let i = 0; i < rows.length; i += 200) {
-        const { error } = await sb.from("leads").upsert(rows.slice(i, i + 200), { onConflict: "id" });
-        if (error) return res.status(500).json({ error: `Falha ao salvar leads (lote ${i / 200 + 1}): ${error.message}`, imported: i });
+        if (rows.length > 0) {
+          const { error } = await sb.from("leads").upsert(rows, { onConflict: "id" });
+          if (error) return res.status(500).json({ error: `Falha ao salvar leads (página ${page - 1}): ${error.message}` });
+        }
+        const upd = rows.filter((r) => existing.has(r.id)).length;
+        updated += upd;
+        created += rows.length - upd;
       }
 
-      const updated = rows.filter((r) => existing.has(r.id)).length;
+      const done = !hasNext || page > MAX_PAGES;
       return res.json({
-        ok: true,
-        funis: pipelines.length,
-        leads: rows.length, created: rows.length - updated, updated, skipped,
-        truncated: leads.length >= MAX_LEADS,
+        ok: true, done, nextCursor: done ? null : page,
+        funis: pipelines.length, created, updated, skipped,
+        truncated: done && hasNext, // parou no limite de páginas com mais leads na Kommo
         finishedAt: new Date().toISOString(),
       });
     } catch (e: any) {

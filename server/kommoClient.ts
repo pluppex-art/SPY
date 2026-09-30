@@ -108,16 +108,11 @@ export async function kommoUsers(conn: KommoConn): Promise<Map<number, string>> 
   return map;
 }
 
-/** Todas as páginas de uma coleção paginada da Kommo, até `max` itens. */
-export async function kommoPaged(conn: KommoConn, path: string, key: string, params: Record<string, string | string[]> = {}, max = 10_000): Promise<any[]> {
-  const out: any[] = [];
-  for (let page = 1; out.length < max; page++) {
-    const body = await kommoGet(conn, path, { ...params, page: String(page), limit: "250" });
-    const items: any[] = body?._embedded?.[key] || [];
-    out.push(...items);
-    if (items.length < 250 || !body?._links?.next) break;
-  }
-  return out.slice(0, max);
+/** Uma página (250 itens) de uma coleção paginada da Kommo; `hasNext` diz se há mais. */
+export async function kommoPage(conn: KommoConn, path: string, key: string, page: number, params: Record<string, string | string[]> = {}): Promise<{ items: any[]; hasNext: boolean }> {
+  const body = await kommoGet(conn, path, { ...params, page: String(page), limit: "250" });
+  const items: any[] = body?._embedded?.[key] || [];
+  return { items, hasNext: items.length >= 250 && !!body?._links?.next };
 }
 
 /** Busca entidades por ID em lotes (contatos/empresas) — o filtro por id aceita vários valores. */

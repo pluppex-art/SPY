@@ -206,6 +206,7 @@ function CatalogIntegrationModal({
 }) {
   const style = CATALOG_CATEGORY_STYLE[def.category];
   const Icon = style.icon;
+  const [progress, setProgress] = useState("");
   const [busy, setBusy] = useState<"test" | "import" | null>(null);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const missing = catalogMissingRequired(def, values);
@@ -216,17 +217,32 @@ function CatalogIntegrationModal({
     try {
       // O servidor lê as credenciais salvas — aguarda o autosave do card antes de chamar.
       await new Promise((r) => setTimeout(r, 800));
-      const res = await apiFetch(`/api/integrations/kommo/${action}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`, { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setResult({ ok: false, text: data?.error || "Falha ao falar com a Kommo." }); return; }
+      const url = `/api/integrations/kommo/${action}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`;
       if (action === "test") {
+        const res = await apiFetch(url, { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { setResult({ ok: false, text: data?.error || "Falha ao falar com a Kommo." }); return; }
         const funis = (data.pipelines || []).map((p: any) => `${p.name} (${p.stages} etapas)`).join(", ");
         setResult({ ok: true, text: `Conectado à conta "${data.account?.name}". Funis: ${funis || "nenhum"}.` });
         onChange({ connected: true });
       } else {
-        const text = `${data.leads} leads sincronizados (${data.created} novos, ${data.updated} atualizados) em ${data.funis} funil(is).${data.skipped ? ` ${data.skipped} ignorados (funil arquivado).` : ""}${data.truncated ? " Limite de 10.000 leads atingido." : ""}`;
+        // O servidor processa alguns lotes por chamada (limite de tempo da hospedagem); repetimos até acabar.
+        let cursor: number | null = 1;
+        let created = 0, updated = 0, skipped = 0, funis = 0, truncated = false;
+        while (cursor) {
+          setProgress(`Importando… ${created + updated} leads até agora`);
+          const res: Response = await apiFetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cursor }) });
+          const data: any = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            setResult({ ok: false, text: `${data?.error || "Falha ao importar da Kommo."}${created + updated > 0 ? ` (${created + updated} leads já foram salvos; é só importar de novo para continuar.)` : ""}` });
+            return;
+          }
+          created += data.created; updated += data.updated; skipped += data.skipped; funis = data.funis; truncated = !!data.truncated;
+          cursor = data.done ? null : data.nextCursor;
+        }
+        const text = `${created + updated} leads sincronizados (${created} novos, ${updated} atualizados) em ${funis} funil(is).${skipped ? ` ${skipped} ignorados (funil arquivado).` : ""}${truncated ? " Limite de 10.000 leads atingido." : ""}`;
         setResult({ ok: true, text });
-        onChange({ connected: true, lastImportAt: data.finishedAt, lastImportSummary: text });
+        onChange({ connected: true, lastImportAt: new Date().toISOString(), lastImportSummary: text });
         toast.success("Kommo sincronizada com o SPY.");
       }
     } catch (e: any) {
@@ -297,7 +313,7 @@ function CatalogIntegrationModal({
           <div className="space-y-3">
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => callKommo("test")} disabled={!!busy}>{busy === "test" ? "Testando…" : "Testar conexão"}</Button>
-              <Button onClick={() => callKommo("import")} disabled={!!busy}>{busy === "import" ? "Importando… (pode levar alguns minutos)" : `Importar da ${def.name}`}</Button>
+              <Button onClick={() => callKommo("import")} disabled={!!busy}>{busy === "import" ? (progress || "Importando…") : `Importar da ${def.name}`}</Button>
             </div>
             {result && <Alert variant={result.ok ? "success" : "danger"} title={result.ok ? "Tudo certo" : "Não deu certo"}>{result.text}</Alert>}
             {!result && values.lastImportAt && (
