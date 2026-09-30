@@ -161,29 +161,3 @@ export async function kommoCatalogs(conn: KommoConn): Promise<{ id: number; name
   const body = await kommoGet(conn, "/catalogs", { limit: "250" });
   return ((body?._embedded?.catalogs || []) as any[]).map((c) => ({ id: c.id, name: c.name, type: c.type }));
 }
-
-/** Escrita na Kommo (PATCH de leads). Mesmo espaçamento de chamadas e mensagens de erro da leitura. */
-export async function kommoPatchLeads(conn: KommoConn, leads: Record<string, any>[]): Promise<void> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const wait = lastCallAt + MIN_INTERVAL_MS - Date.now();
-    if (wait > 0) await sleep(wait);
-    lastCallAt = Date.now();
-    let res: Response;
-    try {
-      res = await fetch(`https://${conn.subdomain}.kommo.com/api/v4/leads`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${conn.accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(leads),
-        signal: AbortSignal.timeout(25_000),
-      });
-    } catch {
-      throw new KommoError("Não foi possível alcançar a Kommo.");
-    }
-    if (res.status === 429) { await sleep(1000 * (attempt + 1)); continue; }
-    if (res.status === 401) throw new KommoError("Token recusado pela Kommo (401). Gere um novo token de longa duração.", 401);
-    if (res.status === 403) throw new KommoError("A Kommo negou a escrita (403). A integração precisa de permissão para editar leads.", 403);
-    if (!res.ok) throw new KommoError(`A Kommo recusou a alteração (erro ${res.status}).`, res.status);
-    return;
-  }
-  throw new KommoError("A Kommo limitou as requisições (429).", 429);
-}

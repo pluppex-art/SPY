@@ -13,7 +13,7 @@
 import type { Express } from "express";
 import { createHash, randomBytes } from "crypto";
 import {
-  kommoConnFromConfig, kommoAccount, kommoPipelines, kommoUsers, kommoPage, kommoCatalogs, kommoPatchLeads, kommoByIds, kommoFieldValue, kommoCustomFields, kommoFieldByName,
+  kommoConnFromConfig, kommoAccount, kommoPipelines, kommoUsers, kommoPage, kommoCatalogs, kommoByIds, kommoFieldValue, kommoCustomFields, kommoFieldByName,
   KommoError, type KommoConn, type KommoPipeline,
 } from "./kommoClient.js";
 
@@ -266,45 +266,6 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
       });
     } catch (e: any) {
       return res.status(errorStatus(e)).json({ ok: false, error: e?.message || "Falha ao conectar à Kommo." });
-    }
-  });
-
-
-  // SPY → Kommo: leva a etapa, o valor e o título de um lead vindo da Kommo de volta para lá.
-  // Chamado pelo navegador depois de editar/mover o lead. Desligável no card ("Enviar alterações").
-  app.post("/api/integrations/kommo/push-lead", requireUser, async (req: any, res) => {
-    const tenantId = await resolveRequestedTenantId(req, res);
-    if (!tenantId) return;
-    const leadId = String(req.body?.leadId || "");
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leadId)) return res.status(400).json({ error: "leadId inválido." });
-    const sb = req.supabase;
-    const { data: cfg } = await sb.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_catalogo").maybeSingle();
-    const kommoCfg = cfg?.value?.kommo || {};
-    if (kommoCfg.sincronizarDeVolta === "Não") return res.json({ ok: true, skipped: "envio para a Kommo desligado" });
-    const parsed = kommoConnFromConfig(kommoCfg);
-    if ("error" in parsed) return res.json({ ok: true, skipped: parsed.error });
-
-    const { data: lead } = await sb.from("leads").select("id, title, value, stageId, customFields").eq("id", leadId).eq("tenant_id", tenantId).maybeSingle();
-    const kommoLeadId = lead?.customFields?.kommo?.leadId;
-    if (!lead || !kommoLeadId) return res.json({ ok: true, skipped: "lead não veio da Kommo" });
-
-    try {
-      const patch: Record<string, any> = { id: kommoLeadId, price: Math.round(Number(lead.value) || 0) };
-      if (lead.title) patch.name = String(lead.title).slice(0, 255);
-      const m = /^kommo-(\d+)-(\d+)$/.exec(String(lead.stageId || ""));
-      let place: { pipelineId: number; statusId: number } | null = null;
-      if (m) {
-        const pipeline = (await kommoPipelines(parsed.conn)).find((p) => p.id === Number(m[1]));
-        const status = pipeline?.statuses[Number(m[2])];
-        if (pipeline && status) { place = { pipelineId: pipeline.id, statusId: status.id }; patch.pipeline_id = pipeline.id; patch.status_id = status.id; }
-      }
-      await kommoPatchLeads(parsed.conn, [patch]);
-      await sb.from("leads").update({
-        customFields: { ...lead.customFields, kommo: { ...lead.customFields.kommo, ...(place ? { pipelineId: place.pipelineId, statusId: place.statusId } : {}), pushedAt: new Date().toISOString() } },
-      }).eq("id", leadId);
-      return res.json({ ok: true, pushed: true });
-    } catch (e: any) {
-      return res.status(errorStatus(e)).json({ ok: false, error: e?.message || "Falha ao enviar para a Kommo." });
     }
   });
 
