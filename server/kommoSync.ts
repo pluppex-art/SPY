@@ -24,7 +24,7 @@ interface Deps {
   supabaseService: any;
 }
 
-const MAX_PAGES = 40; // 40 × 250 = 10.000 leads por importação
+const MAX_PAGES = 800; // 800 × 250 = 200.000 leads — só uma trava de segurança contra laço infinito
 // A Vercel corta a função em 60s: cada chamada processa páginas até este orçamento e devolve o cursor.
 const TIME_BUDGET_MS = 30_000;
 const COLORS = ["blue", "cyan", "indigo", "purple", "amber", "orange", "pink", "slate"];
@@ -177,11 +177,19 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
       let page = cursor;
       let hasNext = true;
       let created = 0, updated = 0, skipped = 0;
+      const porFunil: Record<string, { nome: string; vistos: number; salvos: number }> = {};
+      const nomeFunil = new Map(pipelines.map((p) => [p.id, p.name]));
+      const bump = (pid: number, k: "vistos" | "salvos", n = 1) => {
+        const e = (porFunil[pid] ||= { nome: nomeFunil.get(pid) || `Funil ${pid}`, vistos: 0, salvos: 0 });
+        e[k] += n;
+      };
+      const skippedSamples: string[] = [];
       while (hasNext && page <= MAX_PAGES && (page === cursor || Date.now() - started < TIME_BUDGET_MS)) {
         const { items: leads, hasNext: more } = await kommoPage(conn, "/leads", "leads", page, { with: "contacts,loss_reason" });
         hasNext = more;
         page++;
         if (leads.length === 0) break;
+        for (const l of leads) bump(l.pipeline_id, "vistos");
 
         const contactIds = new Set<number>();
         const companyIds = new Set<number>();
@@ -195,13 +203,20 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
         // Mescla com o que já existe (não apaga customFields locais do SPY)
         const ids = leads.map((l) => leadUuid(tenantId, l.id));
         const existing = new Map<string, any>();
-        const { data: prev } = await sb.from("leads").select("id, customFields").in("id", ids);
-        for (const r of prev || []) existing.set(r.id, r.customFields || {});
+        for (let i = 0; i < ids.length; i += 80) { // ids na URL: lotes pequenos para não estourar o limite do PostgREST
+          const { data: prev, error: prevErr } = await sb.from("leads").select("id, customFields").in("id", ids.slice(i, i + 80));
+          if (prevErr) return res.status(500).json({ error: `Falha ao consultar leads existentes: ${prevErr.message}` });
+          for (const r of prev || []) existing.set(r.id, r.customFields || {});
+        }
 
         const rows: any[] = [];
         leads.forEach((l, n) => {
           const place = stageIndex.get(`${l.pipeline_id}:${l.status_id}`);
-          if (!place) { skipped++; return; } // funil arquivado/etapa desconhecida
+          if (!place) {
+            skipped++; // funil arquivado/etapa desconhecida
+            if (skippedSamples.length < 5) skippedSamples.push(`lead ${l.id} (funil ${l.pipeline_id}, etapa ${l.status_id})`);
+            return;
+          }
           const main = (l._embedded?.contacts || []).find((c: any) => c.is_main) || (l._embedded?.contacts || [])[0];
           const contact = main ? contacts.get(main.id) : null;
           const company = (l._embedded?.companies || [])[0];
@@ -245,6 +260,7 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
           const { error } = await sb.from("leads").upsert(rows, { onConflict: "id" });
           if (error) return res.status(500).json({ error: `Falha ao salvar leads (página ${page - 1}): ${error.message}` });
         }
+        for (const r of rows) bump(r.customFields.kommo.pipelineId, "salvos");
         const upd = rows.filter((r) => existing.has(r.id)).length;
         updated += upd;
         created += rows.length - upd;
@@ -253,7 +269,7 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
       const done = !hasNext || page > MAX_PAGES;
       return res.json({
         ok: true, done, nextCursor: done ? null : page,
-        funis: pipelines.length, created, updated, skipped,
+        funis: pipelines.length, created, updated, skipped, porFunil, skippedSamples,
         vendedores: [...new Set([...users.values()].map((u) => u.name))],
         ...(sellerSync ? { cadastroVendedores: sellerSync } : {}),
         truncated: done && hasNext, // parou no limite de páginas com mais leads na Kommo

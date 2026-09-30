@@ -231,6 +231,8 @@ function CatalogIntegrationModal({
         let created = 0, updated = 0, skipped = 0, funis = 0, truncated = false;
         let vendedores: string[] = [];
         let cadastro: any = null;
+        const porFunil: Record<string, { nome: string; vistos: number; salvos: number }> = {};
+        const amostras: string[] = [];
         while (cursor) {
           setProgress(`Importando… ${created + updated} leads até agora`);
           const res: Response = await apiFetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cursor }) });
@@ -240,9 +242,14 @@ function CatalogIntegrationModal({
             return;
           }
           created += data.created; updated += data.updated; skipped += data.skipped; funis = data.funis; truncated = !!data.truncated; vendedores = data.vendedores || vendedores; cadastro = data.cadastroVendedores || cadastro;
+          for (const [pid, v] of Object.entries<any>(data.porFunil || {})) {
+            const e = (porFunil[pid] ||= { nome: v.nome, vistos: 0, salvos: 0 });
+            e.vistos += v.vistos; e.salvos += v.salvos;
+          }
+          for (const a of data.skippedSamples || []) if (amostras.length < 5) amostras.push(a);
           cursor = data.done ? null : data.nextCursor;
         }
-        const text = `${created + updated} leads sincronizados (${created} novos, ${updated} atualizados) em ${funis} funil(is).${skipped ? ` ${skipped} ignorados (funil arquivado).` : ""}${cadastro ? ` Vendedores: ${cadastro.created.length} cadastrados, ${cadastro.existing} já existiam, ${cadastro.colaboradores} no RH (Colaboradores)${cadastro.skipped.length ? `, ${cadastro.skipped.length} não cadastrados (${cadastro.skipped.map((s: any) => `${s.name}: ${s.reason}`).join("; ")})` : ""}. Eles entram pelo "Esqueci minha senha".` : vendedores.length ? ` Vendedores: ${vendedores.join(", ")}.` : ""}${truncated ? " Limite de 10.000 leads atingido." : ""}`;
+        const text = `${created + updated} leads sincronizados (${created} novos, ${updated} atualizados) em ${funis} funil(is).${skipped ? ` ${skipped} ignorados (funil arquivado).` : ""}${cadastro ? ` Vendedores: ${cadastro.created.length} cadastrados, ${cadastro.existing} já existiam, ${cadastro.colaboradores} no RH (Colaboradores)${cadastro.skipped.length ? `, ${cadastro.skipped.length} não cadastrados (${cadastro.skipped.map((s: any) => `${s.name}: ${s.reason}`).join("; ")})` : ""}. Eles entram pelo "Esqueci minha senha".` : vendedores.length ? ` Vendedores: ${vendedores.join(", ")}.` : ""}${truncated ? " Limite de segurança atingido; importe de novo para continuar." : ""}\nPor funil (Kommo → SPY): ${Object.values(porFunil).map((f) => `${f.nome} ${f.vistos} → ${f.salvos}`).join(" · ")}.${amostras.length ? ` Não importados: ${amostras.join("; ")}.` : ""}`;
         setResult({ ok: true, text });
         onChange({ connected: true, lastImportAt: new Date().toISOString(), lastImportSummary: text });
         toast.success("Kommo sincronizada com o SPY.");
