@@ -362,7 +362,7 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
             email: kommoFieldValue(contact, "EMAIL").toLowerCase(),
             phone: digits(kommoFieldValue(contact, "PHONE")),
             seller: kommoFieldByName([l], SELLER_RE) || users.get(l.responsible_user_id)?.name || "",
-            source: kommoFieldByName([l, contact], SOURCE_RE) || "Kommo",
+            source: kommoFieldByName([l, contact], SOURCE_RE) || "Não informada",
             status: place.status,
             priority: "Média",
             value: Number(l.price) || 0,
