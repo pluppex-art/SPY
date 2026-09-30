@@ -13,7 +13,7 @@
 import type { Express } from "express";
 import { createHash, randomBytes } from "crypto";
 import {
-  kommoConnFromConfig, kommoAccount, kommoPipelines, kommoUsers, kommoPage, kommoByIds, kommoFieldValue, kommoCustomFields, kommoFieldByName,
+  kommoConnFromConfig, kommoAccount, kommoPipelines, kommoUsers, kommoPage, kommoCatalogs, kommoByIds, kommoFieldValue, kommoCustomFields, kommoFieldByName,
   KommoError, type KommoConn, type KommoPipeline,
 } from "./kommoClient.js";
 
@@ -41,6 +41,13 @@ function leadUuid(tenantId: string, kommoLeadId: number): string {
   const h = createHash("sha1").update(`kommo:${tenantId}:${kommoLeadId}`).digest("hex");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
+
+const uuidFrom = (...parts: (string | number)[]) => {
+  const h = createHash("sha1").update(parts.join(":")).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+};
+const productUuid = (tenantId: string, catalogId: number, elementId: number) => uuidFrom("kommo-prod", tenantId, catalogId, elementId);
+const clip = (v: any, n: number) => String(v ?? "").slice(0, n);
 
 const funilId = (pipelineId: number) => `kommo-${pipelineId}`;
 const digits = (v: string) => v.replace(/\D/g, "");
@@ -129,6 +136,117 @@ async function syncSellers(sb: any, tenantId: string, users: Map<number, { name:
   return out;
 }
 
+const EXTRA_STEPS = ["produtos", "empresas", "notas", "tarefas"] as const;
+type ExtraStep = (typeof EXTRA_STEPS)[number];
+
+async function upsertChunks(sb: any, table: string, rows: any[]): Promise<string | null> {
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await sb.from(table).upsert(rows.slice(i, i + 200), { onConflict: "id" });
+    if (error) return error.message;
+  }
+  return null;
+}
+
+/**
+ * Etapas complementares do "Kommo completo": produtos (catálogos), empresas → Clientes,
+ * notas → histórico do lead, tarefas → Tarefas. Cada uma é paginada por cursor e respeita o
+ * orçamento de tempo. Falha de uma etapa NÃO derruba a importação: devolve `warning` e segue.
+ */
+async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId: string, cursor: number, started: number) {
+  const users = await kommoUsers(conn);
+  const t8 = tenantId.slice(0, 8);
+  let saved = 0;
+
+  if (step === "produtos") {
+    const catalogs = (await kommoCatalogs(conn)).filter((c) => c.type === "products");
+    for (const cat of catalogs) {
+      for (let page = 1; page <= 40; page++) {
+        const { items, hasNext } = await kommoPage(conn, `/catalogs/${cat.id}/elements`, "elements", page);
+        const rows = items.map((e) => ({
+          id: productUuid(tenantId, cat.id, e.id), tenant_id: tenantId, name: clip(e.name || `Produto ${e.id}`, 255),
+          sku: clip(kommoFieldValue(e, "SKU"), 100) || null, description: kommoFieldValue(e, "DESCRIPTION") || null,
+          price: Number(kommoFieldValue(e, "PRICE").replace(",", ".")) || 0, active: true,
+        }));
+        if (rows.length) {
+          const err = await upsertChunks(sb, "products", rows);
+          if (err) return { done: true, saved, warning: `Produtos não importados: ${err}` };
+          saved += rows.length;
+        }
+        if (!hasNext) break;
+      }
+    }
+    return { done: true, saved };
+  }
+
+  // SPY users por e-mail (responsável das tarefas)
+  const spyByEmail = new Map<string, string>();
+  if (step === "tarefas") {
+    const { data } = await sb.from("users").select("id, email").eq("tenant_id", tenantId);
+    for (const u of data || []) if (u.email) spyByEmail.set(String(u.email).toLowerCase(), u.id);
+  }
+
+  let page = cursor;
+  let hasNext = true;
+  while (hasNext && page <= MAX_PAGES && (page === cursor || Date.now() - started < TIME_BUDGET_MS)) {
+    const path = step === "empresas" ? "/companies" : step === "notas" ? "/leads/notes" : "/tasks";
+    const key = step === "empresas" ? "companies" : step === "notas" ? "notes" : "tasks";
+    const params = step === "tarefas" ? { "filter[entity_type]": "leads" } : {};
+    const { items, hasNext: more } = await kommoPage(conn, path, key, page, params);
+    hasNext = more; page++;
+    if (items.length === 0) break;
+
+    let table = "", rows: any[] = [];
+    if (step === "empresas") {
+      table = "clientes";
+      rows = items.map((c) => ({
+        id: `kommo-${t8}-${c.id}`, tenant_id: tenantId, name: clip(c.name || `Empresa ${c.id}`, 255),
+        phone: digits(kommoFieldValue(c, "PHONE")), email: kommoFieldValue(c, "EMAIL").toLowerCase(), status: "Ativo",
+      }));
+    } else if (step === "notas") {
+      table = "lead_activities";
+      rows = items.map((n) => {
+        const text = String(n.params?.text ?? n.params?.comment ?? "").trim();
+        const call = /^call/.test(n.note_type || "");
+        return {
+          id: `kommo-note-${t8}-${n.id}`, tenant_id: tenantId, lead_id: leadUuid(tenantId, n.entity_id),
+          type: call ? "Ligação" : "Nota",
+          title: clip(text.split("\n")[0] || (call ? "Ligação" : "Nota da Kommo"), 255),
+          description: text || (n.params?.phone ? `Telefone: ${n.params.phone}` : ""),
+          date: (iso(n.created_at) || new Date().toISOString()).slice(0, 10),
+          seller: users.get(n.created_by)?.name || "",
+          created_at: iso(n.created_at) || undefined,
+        };
+      });
+    } else {
+      table = "tasks";
+      const leadIds = [...new Set(items.map((t) => leadUuid(tenantId, t.entity_id)))];
+      const existing = new Set<string>();
+      for (let i = 0; i < leadIds.length; i += 80) {
+        const { data } = await sb.from("leads").select("id").in("id", leadIds.slice(i, i + 80));
+        for (const r of data || []) existing.add(r.id);
+      }
+      rows = items.map((t) => {
+        const lid = leadUuid(tenantId, t.entity_id);
+        const email = users.get(t.responsible_user_id)?.email;
+        const text = String(t.text || "").trim();
+        return {
+          id: uuidFrom("kommo-task", tenantId, t.id), tenant_id: tenantId, lead_id: existing.has(lid) ? lid : null,
+          assigned_to: (email && spyByEmail.get(email)) || null,
+          title: clip(text.split("\n")[0] || "Tarefa da Kommo", 255), description: text || null,
+          status: t.is_completed ? "Done" : "To Do", priority: "Medium",
+          due_date: iso(t.complete_till), completed_at: t.is_completed ? iso(t.updated_at) : null,
+          created_at: iso(t.created_at) || undefined,
+        };
+      });
+    }
+    const err = await upsertChunks(sb, table, rows);
+    if (err) return { done: true, saved, warning: `${step[0].toUpperCase()}${step.slice(1)} não importadas: ${err}` };
+    saved += rows.length;
+  }
+  const done = !hasNext || page > MAX_PAGES;
+  return { done, nextCursor: done ? null : page, saved };
+}
+
 const errorStatus = (e: any) => (e instanceof KommoError ? (e.status && e.status >= 400 && e.status < 500 ? 422 : 502) : 500);
 
 export function registerKommoRoutes(app: Express, { requireUser, resolveRequestedTenantId, limiter, supabaseService }: Deps) {
@@ -159,7 +277,18 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
     if (!conn) return;
     const sb = req.supabase;
     const started = Date.now();
+    const step = String(req.body?.step || "leads");
     const cursor = Math.max(1, Math.min(MAX_PAGES, Math.floor(Number(req.body?.cursor)) || 1));
+
+    if ((EXTRA_STEPS as readonly string[]).includes(step)) {
+      try {
+        return res.json({ ok: true, ...(await runExtraStep(step as ExtraStep, conn, sb, tenantId, cursor, started)) });
+      } catch (e: any) {
+        if (e instanceof KommoError) return res.json({ ok: true, done: true, saved: 0, warning: `Etapa "${step}": ${e.message}` });
+        console.error("[kommo-import]", step, e?.message);
+        return res.status(500).json({ error: e?.message || "Falha ao importar da Kommo." });
+      }
+    }
 
     try {
       // Funis/etapas: sempre lidos (mapa de etapas); gravados só na 1ª chamada.
@@ -187,7 +316,7 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
       };
       const skippedSamples: string[] = [];
       while (hasNext && page <= MAX_PAGES && (page === cursor || Date.now() - started < TIME_BUDGET_MS)) {
-        const { items: leads, hasNext: more } = await kommoPage(conn, "/leads", "leads", page, { with: "contacts,loss_reason" });
+        const { items: leads, hasNext: more } = await kommoPage(conn, "/leads", "leads", page, { with: "contacts,loss_reason,catalog_elements" });
         hasNext = more;
         page++;
         if (leads.length === 0) break;
@@ -240,7 +369,8 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
             pipelineId: "comercial",
             stageId: `${funilId(l.pipeline_id)}-${place.idx}`,
             lead_interesse_cliente: kommoFieldByName([l, contact], INTEREST_RE),
-            clientId: "", clientName: "", productIds: [], tenantName: "", scoreIA: 50,
+            clientId: "", clientName: "",
+            productIds: (l._embedded?.catalog_elements || []).map((e: any) => productUuid(tenantId, e.metadata?.catalog_id, e.id)), tenantName: "", scoreIA: 50,
             date: createdIso.slice(0, 10),
             created_at: createdIso,
             customFields: {

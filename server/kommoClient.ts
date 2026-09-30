@@ -156,3 +156,8 @@ export function kommoFieldByName(entities: any[], re: RegExp): string {
   }
   return "";
 }
+
+export async function kommoCatalogs(conn: KommoConn): Promise<{ id: number; name: string; type: string }[]> {
+  const body = await kommoGet(conn, "/catalogs", { limit: "250" });
+  return ((body?._embedded?.catalogs || []) as any[]).map((c) => ({ id: c.id, name: c.name, type: c.type }));
+}

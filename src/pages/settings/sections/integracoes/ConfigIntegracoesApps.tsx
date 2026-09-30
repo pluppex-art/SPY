@@ -249,7 +249,24 @@ function CatalogIntegrationModal({
           for (const a of data.skippedSamples || []) if (amostras.length < 5) amostras.push(a);
           cursor = data.done ? null : data.nextCursor;
         }
-        const text = `${created + updated} leads sincronizados (${created} novos, ${updated} atualizados) em ${funis} funil(is).${skipped ? ` ${skipped} ignorados (funil arquivado).` : ""}${cadastro ? ` Vendedores: ${cadastro.created.length} cadastrados, ${cadastro.existing} já existiam, ${cadastro.colaboradores} no RH (Colaboradores)${cadastro.skipped.length ? `, ${cadastro.skipped.length} não cadastrados (${cadastro.skipped.map((s: any) => `${s.name}: ${s.reason}`).join("; ")})` : ""}. Eles entram pelo "Esqueci minha senha".` : vendedores.length ? ` Vendedores: ${vendedores.join(", ")}.` : ""}${truncated ? " Limite de segurança atingido; importe de novo para continuar." : ""}\nPor funil (Kommo → SPY): ${Object.values(porFunil).map((f) => `${f.nome} ${f.vistos} → ${f.salvos}`).join(" · ")}.${amostras.length ? ` Não importados: ${amostras.join("; ")}.` : ""}`;
+        // Etapas complementares: produtos, empresas (Clientes), notas (histórico) e tarefas.
+        const extras: Record<string, number> = {};
+        const avisos: string[] = [];
+        const rotulos: Record<string, string> = { produtos: "produtos", empresas: "empresas/clientes", notas: "notas", tarefas: "tarefas" };
+        for (const step of ["produtos", "empresas", "notas", "tarefas"]) {
+          let c: number | null = 1;
+          extras[step] = 0;
+          while (c) {
+            setProgress(`Importando ${rotulos[step]}… ${extras[step]} até agora`);
+            const r: Response = await apiFetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ step, cursor: c }) });
+            const d: any = await r.json().catch(() => ({}));
+            if (!r.ok) { avisos.push(`${rotulos[step]}: ${d?.error || "falhou"}`); break; }
+            extras[step] += d.saved || 0;
+            if (d.warning) avisos.push(d.warning);
+            c = d.done ? null : d.nextCursor;
+          }
+        }
+        const text = `${created + updated} leads sincronizados (${created} novos, ${updated} atualizados) em ${funis} funil(is).${skipped ? ` ${skipped} ignorados (funil arquivado).` : ""}${cadastro ? ` Vendedores: ${cadastro.created.length} cadastrados, ${cadastro.existing} já existiam, ${cadastro.colaboradores} no RH (Colaboradores)${cadastro.skipped.length ? `, ${cadastro.skipped.length} não cadastrados (${cadastro.skipped.map((s: any) => `${s.name}: ${s.reason}`).join("; ")})` : ""}. Eles entram pelo "Esqueci minha senha".` : vendedores.length ? ` Vendedores: ${vendedores.join(", ")}.` : ""}${truncated ? " Limite de segurança atingido; importe de novo para continuar." : ""}\nPor funil (Kommo → SPY): ${Object.values(porFunil).map((f) => `${f.nome} ${f.vistos} → ${f.salvos}`).join(" · ")}.${amostras.length ? ` Não importados: ${amostras.join("; ")}.` : ""}\nTambém: ${Object.entries(extras).map(([k, v]) => `${v} ${rotulos[k]}`).join(", ")}.${avisos.length ? ` Avisos: ${avisos.join("; ")}.` : ""}`;
         setResult({ ok: true, text });
         onChange({ connected: true, lastImportAt: new Date().toISOString(), lastImportSummary: text });
         toast.success("Kommo sincronizada com o SPY.");
@@ -286,7 +303,7 @@ function CatalogIntegrationModal({
         {def.live ? (
           <Alert variant="info" title={`Sincronização com ${def.name}`}>
             Preencha as credenciais (salvas automaticamente), use <strong>Testar conexão</strong> e depois <strong>Importar da {def.name}</strong>.
-            A importação é somente leitura e pode ser repetida sem duplicar: leads já importados são atualizados.
+            A importação traz o Kommo completo (funis, leads, contatos, empresas, produtos, notas, tarefas e vendedores) e pode ser repetida sem duplicar: o que já foi importado é atualizado.
           </Alert>
         ) : (
           <Alert variant="info" title="Só credenciais, por enquanto">
