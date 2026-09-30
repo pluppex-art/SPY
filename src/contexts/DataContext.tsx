@@ -1674,6 +1674,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // SPY → Kommo: leads que vieram da Kommo (customFields.kommo.leadId) levam etapa/valor/título de
+  // volta pra lá. Fire-and-forget, com debounce por lead (arrastes seguidos viram uma chamada).
+  const kommoPushTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pushLeadToKommo = (leadId: string) => {
+    clearTimeout(kommoPushTimers.current[leadId]);
+    kommoPushTimers.current[leadId] = setTimeout(() => {
+      apiFetch(`/api/integrations/kommo/push-lead${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leadId }),
+      }).then(async (r) => {
+        if (!r.ok) { const d = await r.json().catch(() => ({})); console.warn('[Kommo] push falhou:', d?.error); }
+      }).catch(() => {});
+    }, 1200);
+  };
+
   const updateLead = async (id: string, updates: Partial<Lead>) => {
     let hasStatusOrStageChange = false;
     let becameWon = false;
@@ -1749,6 +1763,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
     if (hasStatusOrStageChange) {
       setTimeout(() => { triggerScoreRecalculation(id, mergedLead ? [mergedLead] : undefined); }, 400);
+    }
+    if ((mergedLead as any)?.customFields?.kommo?.leadId && ('stageId' in updates || 'status' in updates || 'value' in updates || 'title' in updates || 'pipelineId' in updates)) {
+      pushLeadToKommo(id);
     }
     // Achado real: editar Cidade/Setor/CNPJ no Detalhe do Lead nunca refletia
     // na Base de Clientes — são registros DIFERENTES (leads.customFields/
@@ -1856,9 +1873,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const moveLead = async (leadId: string, destStageId: string, index: number) => {
+    let isKommoLead = false;
     setLeads(prev => {
       const lead = prev.find(l => l.id === leadId);
       if (!lead) return prev;
+      isKommoLead = !!(lead as any).customFields?.kommo?.leadId;
       const otherLeads = prev.filter(l => l.id !== leadId);
       const updatedLead = { ...lead, stageId: destStageId };
 
@@ -1876,6 +1895,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (supabase) {
       try {
         await supabase.from('leads').update({ stageId: destStageId }).eq('id', leadId);
+        if (isKommoLead) pushLeadToKommo(leadId);
       } catch (err) {
         console.error("Supabase move lead failed:", err);
       }
