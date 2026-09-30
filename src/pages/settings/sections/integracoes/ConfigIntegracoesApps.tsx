@@ -195,8 +195,9 @@ const CATALOG_CATEGORY_STYLE: Record<string, { icon: any; iconBg: string }> = {
 
 /** Modal genérico do catálogo: mesma tela pra qualquer serviço, montada a partir dos campos dele. */
 function CatalogIntegrationModal({
-  def, values, onChange, onClose, onToggleReady,
+  def, values, onChange, onClose, onToggleReady, tenantId,
 }: {
+  tenantId?: string | null;
   def: CatalogIntegration;
   values: CatalogValues;
   onChange: (patch: CatalogValues) => void;
@@ -205,6 +206,34 @@ function CatalogIntegrationModal({
 }) {
   const style = CATALOG_CATEGORY_STYLE[def.category];
   const Icon = style.icon;
+  const [busy, setBusy] = useState<"test" | "import" | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const missing = catalogMissingRequired(def, values);
+
+  const callKommo = async (action: "test" | "import") => {
+    if (missing.length > 0) { toast.error(`Preencha: ${missing.join(", ")}`); return; }
+    setBusy(action); setResult(null);
+    try {
+      // O servidor lê as credenciais salvas — aguarda o autosave do card antes de chamar.
+      await new Promise((r) => setTimeout(r, 800));
+      const res = await apiFetch(`/api/integrations/kommo/${action}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setResult({ ok: false, text: data?.error || "Falha ao falar com a Kommo." }); return; }
+      if (action === "test") {
+        const funis = (data.pipelines || []).map((p: any) => `${p.name} (${p.stages} etapas)`).join(", ");
+        setResult({ ok: true, text: `Conectado à conta "${data.account?.name}". Funis: ${funis || "nenhum"}.` });
+        onChange({ connected: true });
+      } else {
+        const text = `${data.leads} leads sincronizados (${data.created} novos, ${data.updated} atualizados) em ${data.funis} funil(is).${data.skipped ? ` ${data.skipped} ignorados (funil arquivado).` : ""}${data.truncated ? " Limite de 10.000 leads atingido." : ""}`;
+        setResult({ ok: true, text });
+        onChange({ connected: true, lastImportAt: data.finishedAt, lastImportSummary: text });
+        toast.success("Kommo sincronizada com o SPY.");
+      }
+    } catch (e: any) {
+      setResult({ ok: false, text: e?.message || "Falha de rede." });
+    } finally { setBusy(null); }
+  };
+
   return (
     <Modal
       isOpen={true}
@@ -217,22 +246,29 @@ function CatalogIntegrationModal({
           </div>
           <div>
             <h3 className="text-base font-black text-[var(--color-text-primary)]">{def.name}</h3>
-            <p className="text-xs text-[var(--color-text-muted)]">Cadastro de credenciais</p>
+            <p className="text-xs text-[var(--color-text-muted)]">{def.live ? "Conexão e sincronização" : "Cadastro de credenciais"}</p>
           </div>
         </div>
       }
       footer={
         <div className="flex justify-between items-center w-full">
-          <Badge variant={values.connected ? "success" : "neutral"} dot>{values.connected ? "Credenciais prontas" : "Não marcada"}</Badge>
+          <Badge variant={values.connected ? "success" : "neutral"} dot>{values.connected ? (def.live ? "Conectada" : "Credenciais prontas") : "Não marcada"}</Badge>
           <Button onClick={onClose}>Fechar</Button>
         </div>
       }
     >
       <div className="space-y-4">
-        <Alert variant="info" title="Só credenciais, por enquanto">
-          Guarda com segurança as credenciais deste serviço neste ambiente (salvas automaticamente). O SPY ainda
-          <strong> não sincroniza dados</strong> com {def.name} — o cadastro deixa tudo pronto para quando a conexão for ligada.
-        </Alert>
+        {def.live ? (
+          <Alert variant="info" title={`Sincronização com ${def.name}`}>
+            Preencha as credenciais (salvas automaticamente), use <strong>Testar conexão</strong> e depois <strong>Importar da {def.name}</strong>.
+            A importação é somente leitura e pode ser repetida sem duplicar: leads já importados são atualizados.
+          </Alert>
+        ) : (
+          <Alert variant="info" title="Só credenciais, por enquanto">
+            Guarda com segurança as credenciais deste serviço neste ambiente (salvas automaticamente). O SPY ainda
+            <strong> não sincroniza dados</strong> com {def.name} — o cadastro deixa tudo pronto para quando a conexão for ligada.
+          </Alert>
+        )}
         {def.fields.map((f) => (
           <FormField key={f.prop} label={f.label} required={f.required} hint={f.help}>
             {f.kind === "select" ? (
@@ -257,13 +293,28 @@ function CatalogIntegrationModal({
         <FormField label="Observações">
           <Input type="text" value={values.notes ?? ""} onChange={(e) => onChange({ notes: e.target.value })} />
         </FormField>
-        <div className="flex items-center justify-between rounded-[var(--radius-control)] border border-[var(--color-border-default)] p-3">
-          <div>
-            <p className="text-xs font-bold text-[var(--color-text-primary)]">Marcar credenciais como prontas</p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Requer os campos obrigatórios preenchidos.</p>
+        {def.live ? (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => callKommo("test")} disabled={!!busy}>{busy === "test" ? "Testando…" : "Testar conexão"}</Button>
+              <Button onClick={() => callKommo("import")} disabled={!!busy}>{busy === "import" ? "Importando… (pode levar alguns minutos)" : `Importar da ${def.name}`}</Button>
+            </div>
+            {result && <Alert variant={result.ok ? "success" : "danger"} title={result.ok ? "Tudo certo" : "Não deu certo"}>{result.text}</Alert>}
+            {!result && values.lastImportAt && (
+              <p className="text-[11px] text-[var(--color-text-muted)]">
+                Última importação: {new Date(values.lastImportAt).toLocaleString("pt-BR")} — {values.lastImportSummary}
+              </p>
+            )}
           </div>
-          <Switch checked={!!values.connected} onCheckedChange={onToggleReady} />
-        </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-[var(--radius-control)] border border-[var(--color-border-default)] p-3">
+            <div>
+              <p className="text-xs font-bold text-[var(--color-text-primary)]">Marcar credenciais como prontas</p>
+              <p className="text-[11px] text-[var(--color-text-muted)]">Requer os campos obrigatórios preenchidos.</p>
+            </div>
+            <Switch checked={!!values.connected} onCheckedChange={onToggleReady} />
+          </div>
+        )}
       </div>
     </Modal>
   );
@@ -824,12 +875,12 @@ export function ConfigIntegracoesApps() {
         iconBg: style.iconBg,
         description: def.description,
         connected: ready,
-        credentialOnly: true,
-        statusText: ready ? "Credenciais prontas" : hasAny ? "Incompleta" : "Não configurada",
+        credentialOnly: !def.live,
+        statusText: ready ? (def.live ? "Conectada" : "Credenciais prontas") : hasAny ? "Incompleta" : "Não configurada",
         statusVariant: (ready ? "success" : hasAny ? "info" : "neutral") as any,
-        badgeText: "Só credenciais",
-        highlightInfo: ready ? "Credenciais salvas" : missing.length > 0 ? `Falta: ${missing[0]}${missing.length > 1 ? ` +${missing.length - 1}` : ""}` : "Pronta para marcar",
-        configureLabel: "Configurar",
+        badgeText: def.live ? "Sincroniza" : "Só credenciais",
+        highlightInfo: def.live && cfg?.lastImportAt ? `Importado em ${new Date(cfg.lastImportAt).toLocaleDateString("pt-BR")}` : ready ? "Credenciais salvas" : missing.length > 0 ? `Falta: ${missing[0]}${missing.length > 1 ? ` +${missing.length - 1}` : ""}` : "Pronta para marcar",
+        configureLabel: def.live ? "Conectar / Sincronizar" : "Configurar",
         toggleOnLabel: "Marcar pronta",
         toggleOffLabel: "Desmarcar",
         onConfigure: () => setSelectedConfigModal(`cat-${def.id}`),
@@ -1281,6 +1332,7 @@ export function ConfigIntegracoesApps() {
             onChange={(patch) => updateCatalog(def.id, patch)}
             onClose={() => setSelectedConfigModal(null)}
             onToggleReady={() => toggleCatalogReady(def)}
+            tenantId={activeTenantId}
           />
         ) : null;
       })()}

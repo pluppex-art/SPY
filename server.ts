@@ -15,6 +15,7 @@ import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
 import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
+import { registerKommoRoutes } from "./server/kommoSync.js";
 import { buildEmpresaDados, tenantReadiness } from "./src/lib/implementationTenant.js";
 import { registerTableComparisonExportRoutes } from "./server/tableComparisonExport.js";
 import { registerTableComparisonResearchRoutes } from "./server/tableComparisonResearch.js";
@@ -2649,6 +2650,9 @@ app.post("/api/integrations/maxdata/test", requireUser, async (req: any, res) =>
     return res.status(maxErrorStatus(e)).json({ ok: false, error: e?.message || "Falha ao conectar à Max Data." });
   }
 });
+
+const kommoLimiter = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false });
+registerKommoRoutes(app, { requireUser, resolveRequestedTenantId, limiter: kommoLimiter });
 
 app.get("/api/varejo/maxdata/entries", requireUser, async (req: any, res) => {
   const tenantId = await resolveRequestedTenantId(req, res);

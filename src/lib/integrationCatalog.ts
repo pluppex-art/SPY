@@ -31,6 +31,8 @@ export interface CatalogIntegration {
   category: CatalogCategory;
   description: string;
   fields: CatalogField[];
+  /** Conector real implementado no servidor (teste de conexão + importação): tira o rótulo "Só credenciais". */
+  live?: boolean;
 }
 
 const ENV = ["Produção", "Sandbox / testes"];
@@ -85,7 +87,7 @@ export const INTEGRATION_CATALOG: CatalogIntegration[] = [
   { id: "hubspot", name: "HubSpot", category: "crm", description: d("HubSpot", "Private App."), fields: [sec("accessToken", "Private App Access Token"), t("portalId", "Portal ID")] },
   { id: "pipedrive", name: "Pipedrive", category: "crm", description: d("Pipedrive"), fields: [sec("apiToken", "API Token"), t("domain", "Domínio da empresa", true, "Ex.: suaempresa (de suaempresa.pipedrive.com)")] },
   { id: "activecampaign", name: "ActiveCampaign", category: "crm", description: d("ActiveCampaign"), fields: [url("apiUrl", "URL da conta", true, undefined, "https://suaconta.api-us1.com"), sec("apiKey", "API Key")] },
-  { id: "kommo", name: "Kommo", category: "crm", description: d("Kommo"), fields: [t("subdomain", "Subdomínio", true, "Ex.: suaempresa (de suaempresa.kommo.com)", "suaempresa"), sec("accessToken", "Token de Longa Duração (long-lived token)")] },
+  { id: "kommo", name: "Kommo", category: "crm", live: true, description: "Conecta a Kommo ao SPY: importa funis, etapas, leads, contatos e empresas (somente leitura, sem duplicar ao reimportar).", fields: [t("subdomain", "Subdomínio", true, "Ex.: suaempresa (de suaempresa.kommo.com)", "suaempresa"), sec("accessToken", "Token de Longa Duração (long-lived token)", true, "Na Kommo: Configurações → Integrações → sua integração → Chaves e escopos → \"Gerar token de longa duração\".")] },
 
   // ── ERP & Fiscal
   { id: "bling", name: "Bling", category: "erp", description: d("Bling", "API v3."), fields: [t("clientId", "Client ID", true), sec("clientSecret", "Client Secret")] },
