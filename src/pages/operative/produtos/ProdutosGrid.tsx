@@ -173,7 +173,7 @@ export function ProdutosGrid({
 
             {/* Tags row in card bottom */}
             <div className="mt-3.5 flex gap-1 items-center overflow-x-auto scrollbar-none">
-              {p.tags.slice(0, 3).map((tag, i) => (
+              {(p.tags ?? []).slice(0, 3).map((tag, i) => (
                 <button 
                   key={i} 
                   onClick={(e) => { 

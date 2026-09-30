@@ -145,7 +145,7 @@ export function useProdutoForm() {
     setFormStockMin(p.stockMin.toString());
     setFormStockMax(p.stockMax.toString());
     setFormProvider(p.provider || "Interno");
-    setFormTags(p.tags.join(", "));
+    setFormTags((p.tags ?? []).join(", "));
     setFormIsBestSeller(!!p.isBestSeller);
     setFormDimensions(p.dimensions || "");
     setFormWeight(p.weight?.toString() || "");
