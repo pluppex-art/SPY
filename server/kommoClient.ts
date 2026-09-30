@@ -131,3 +131,24 @@ export function kommoFieldValue(entity: any, code: string): string {
   const v = f?.values?.[0]?.value;
   return typeof v === "string" ? v.trim() : "";
 }
+
+const fieldText = (f: any): string =>
+  (f?.values || []).map((v: any) => (typeof v?.value === "string" || typeof v?.value === "number" ? String(v.value) : "")).filter(Boolean).join(", ").trim();
+
+/** Todos os campos personalizados da entidade como { "Nome do campo": "valor" } (vazios ignorados). */
+export function kommoCustomFields(entity: any): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of entity?.custom_fields_values || []) {
+    const v = fieldText(f);
+    if (v && f.field_name) out[f.field_name] = v;
+  }
+  return out;
+}
+
+/** Primeiro campo personalizado cujo nome casa com a regex, procurando nas entidades na ordem dada. */
+export function kommoFieldByName(entities: any[], re: RegExp): string {
+  for (const e of entities) {
+    for (const [name, value] of Object.entries(kommoCustomFields(e))) if (re.test(name)) return value;
+  }
+  return "";
+}

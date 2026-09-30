@@ -73,8 +73,11 @@ export function usePipeline() {
   const sdrFunis      = useMemo(() => allActiveFunis.filter((f) => f.tipo === "sdr_ia"),   [allActiveFunis]);
   const isSdrEnabled  = sdrFunis.length > 0;
 
-  // Keep selectedFunilId pointing to a valid funil when the pool changes
+  // Keep selectedFunilId pointing to a valid funil when the pool changes —
+  // "__todos__" nunca é "corrigido" de volta pra um funil específico, já que
+  // não é (e não precisa ser) um id de funil real.
   useEffect(() => {
+    if (selectedFunilId === "__todos__") return;
     const pool = currentPipeline === "sdr" ? sdrFunis : comercialFunis;
     if (pool.length > 0 && !pool.find((f) => f.id === selectedFunilId)) {
       setSelectedFunilId(pool[0].id);
@@ -90,27 +93,62 @@ export function usePipeline() {
     setSearchQuery("");
   };
 
+  // "Todos" (ver todos os funis do pipeline atual combinados) — sentinela, não
+  // um id de funil de verdade. Só faz sentido oferecer quando o tenant tem
+  // MAIS de um funil do mesmo tipo (pedido real: tenant com 7 funis comerciais
+  // migrados do Kommo, sem forma nenhuma de ver tudo junto).
+  const isAllFunisSelected = selectedFunilId === "__todos__";
+
   const activeFunil = useMemo(() => {
+    if (isAllFunisSelected) return null;
     const pool = currentPipeline === "sdr" ? sdrFunis : comercialFunis;
     return pool.find((f) => f.id === selectedFunilId) ?? pool[0] ?? null;
-  }, [currentPipeline, selectedFunilId, sdrFunis, comercialFunis]);
+  }, [currentPipeline, selectedFunilId, sdrFunis, comercialFunis, isAllFunisSelected]);
 
-  // Build stages from the active funil's etapasConfig
-  const activePipelineStages = useMemo(() => {
-    if (!activeFunil) return [];
-    const configs: any[] = activeFunil.etapasConfig ??
-      activeFunil.etapas.map((nome: string, i: number) => ({
+  const buildStagesForFunil = (funil: any) => {
+    const configs: any[] = funil.etapasConfig ??
+      funil.etapas.map((nome: string, i: number) => ({
         nome,
         cor: ["cyan","indigo","purple","amber","emerald","pink","rose","blue","orange","slate"][i % 10],
         iniciarMinimizado: false,
       }));
     return configs.map((s: any, idx: number) => ({
-      id: getStageId(activeFunil.id, idx),
+      id: getStageId(funil.id, idx),
       name: s.nome,
       color: ETAPA_DOT_COLORS[s.cor] ?? "#64748b",
       iniciarMinimizado: s.iniciarMinimizado ?? false,
     }));
-  }, [activeFunil]);
+  };
+
+  // Build stages from the active funil's etapasConfig — em modo "Todos",
+  // concatena as etapas de TODOS os funis do pipeline atual (cada stageId já
+  // é único por funil via getStageId, então colunas de funis diferentes nunca
+  // se confundem, mesmo com nomes de etapa repetidos entre eles).
+  const activePipelineStages = useMemo(() => {
+    if (isAllFunisSelected) {
+      const pool = currentPipeline === "sdr" ? sdrFunis : comercialFunis;
+      return pool.flatMap((f: any) => buildStagesForFunil(f));
+    }
+    if (!activeFunil) return [];
+    return buildStagesForFunil(activeFunil);
+  }, [activeFunil, isAllFunisSelected, currentPipeline, sdrFunis, comercialFunis]);
+
+  // Anti-regressão: só restringe `filteredItemsList` por etapa quando existe
+  // MAIS de 1 funil do mesmo tipo (ou "Todos" foi trocado por um específico) —
+  // pra tenant com um funil só (a esmagadora maioria), nunca muda nada, mesmo
+  // que algum lead tenha um stageId legado que não bate exatamente com as
+  // etapas atuais do funil. Achado real: com múltiplos funis comerciais (ex.:
+  // migração do Kommo, 7 funis pro mesmo tenant), escolher um funil específico
+  // no seletor não filtrava NADA — Kanban por coluna funcionava (compara
+  // stageId por etapa), mas o card "Total" e a visão de Lista usavam
+  // `filteredItemsList` sem nenhum filtro de funil, sempre somando TODOS os
+  // funis juntos independente do que estava selecionado.
+  const activeFunilStageIds = useMemo(() => {
+    if (isAllFunisSelected) return null;
+    const pool = currentPipeline === "sdr" ? sdrFunis : comercialFunis;
+    if (pool.length <= 1) return null;
+    return new Set(activePipelineStages.map((s: any) => s.id));
+  }, [currentPipeline, sdrFunis, comercialFunis, activePipelineStages, isAllFunisSelected]);
 
   // ─── Leads do pipeline atual (usado para montar os dropdowns de filtro) ──────
   // Filtra apenas por pipeline — sem seller/company/client — para que os
@@ -175,7 +213,8 @@ export function usePipeline() {
       const matchesDate =
         (!dateFrom || (item.date && item.date >= dateFrom)) &&
         (!dateTo || (item.date && item.date <= dateTo));
-      return matchesPipeline && matchesSeller && matchesCompany && matchesClient && matchesSearch && matchesDate;
+      const matchesFunil = !activeFunilStageIds || activeFunilStageIds.has(item.stageId);
+      return matchesPipeline && matchesFunil && matchesSeller && matchesCompany && matchesClient && matchesSearch && matchesDate;
     })
     // Card sempre no topo de quem teve a atividade mais recente — tanto um lead recém-criado
     // quanto um já existente que só mudou de etapa/status/campo (updated_at é atualizado a cada
@@ -193,7 +232,7 @@ export function usePipeline() {
       if (!db) return 1;
       return db > da ? 1 : db < da ? -1 : 0;
     }),
-  [leads, currentPipeline, sellerFilter, searchQuery, companyFilter, clientFilter, clientNameToId, products, dateFrom, dateTo]);
+  [leads, currentPipeline, activeFunilStageIds, sellerFilter, searchQuery, companyFilter, clientFilter, clientNameToId, products, dateFrom, dateTo]);
 
   // ─── Metrics ─────────────────────────────────────────────────────────────────
   const analyticsData = useMemo(() =>

@@ -13,7 +13,7 @@
 import type { Express } from "express";
 import { createHash } from "crypto";
 import {
-  kommoConnFromConfig, kommoAccount, kommoPipelines, kommoUsers, kommoPage, kommoByIds, kommoFieldValue,
+  kommoConnFromConfig, kommoAccount, kommoPipelines, kommoUsers, kommoPage, kommoByIds, kommoFieldValue, kommoCustomFields, kommoFieldByName,
   KommoError, type KommoConn, type KommoPipeline,
 } from "./kommoClient.js";
 
@@ -27,6 +27,9 @@ const MAX_PAGES = 40; // 40 × 250 = 10.000 leads por importação
 // A Vercel corta a função em 60s: cada chamada processa páginas até este orçamento e devolve o cursor.
 const TIME_BUDGET_MS = 30_000;
 const COLORS = ["blue", "cyan", "indigo", "purple", "amber", "orange", "pink", "slate"];
+const INTEREST_RE = /interess|produto|servi[cç]o|procura|necessidade/i;
+const SOURCE_RE = /origem|fonte|source|canal|campanha|utm_source/i;
+const iso = (unix: any) => (unix ? new Date(Number(unix) * 1000).toISOString() : null);
 const WON = 142;
 const LOST = 143;
 
@@ -161,13 +164,13 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
             email: kommoFieldValue(contact, "EMAIL").toLowerCase(),
             phone: digits(kommoFieldValue(contact, "PHONE")),
             seller: users.get(l.responsible_user_id) || "",
-            source: "Kommo",
+            source: kommoFieldByName([l, contact], SOURCE_RE) || "Kommo",
             status: place.status,
             priority: "Média",
             value: Number(l.price) || 0,
             pipelineId: "comercial",
             stageId: `${funilId(l.pipeline_id)}-${place.idx}`,
-            lead_interesse_cliente: "",
+            lead_interesse_cliente: kommoFieldByName([l, contact], INTEREST_RE),
             clientId: "", clientName: "", productIds: [], tenantName: "", scoreIA: 50,
             date: createdIso.slice(0, 10),
             created_at: createdIso,
@@ -178,6 +181,8 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
                 contactId: main?.id ?? null, companyId: company?.id ?? null,
                 lossReason: l._embedded?.loss_reason?.[0]?.name ?? null,
                 tags: (l._embedded?.tags || []).map((t: any) => t.name),
+                lastContactAt: iso(l.updated_at), closedAt: iso(l.closed_at),
+                fields: { ...kommoCustomFields(contact), ...kommoCustomFields(l) },
                 syncedAt: new Date().toISOString(),
               },
             },
@@ -197,6 +202,7 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
       return res.json({
         ok: true, done, nextCursor: done ? null : page,
         funis: pipelines.length, created, updated, skipped,
+        vendedores: [...new Set(users.values())],
         truncated: done && hasNext, // parou no limite de páginas com mais leads na Kommo
         finishedAt: new Date().toISOString(),
       });
