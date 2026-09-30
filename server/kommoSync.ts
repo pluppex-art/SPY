@@ -205,16 +205,30 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
     } else if (step === "notas") {
       table = "lead_activities";
       rows = items.map((n) => {
-        const text = String(n.params?.text ?? n.params?.comment ?? "").trim();
-        const call = /^call/.test(n.note_type || "");
+        const p = n.params || {};
+        const text = String(p.text ?? p.comment ?? "").trim();
+        const kind = String(n.note_type || "common");
+        const call = /^call/.test(kind);
+        const titulo = kind === "common" ? "Comentário"
+          : kind === "call_in" ? "Ligação recebida" : kind === "call_out" ? "Ligação realizada"
+          : /^sms/.test(kind) ? "SMS" : /mail/.test(kind) ? "E-mail"
+          : /service_message/.test(kind) ? "Mensagem do sistema" : kind === "geolocation" ? "Localização"
+          : kind === "attachment" ? "Anexo" : `Kommo: ${kind}`;
+        // Mantém o conteúdo como está na Kommo: texto integral + detalhes da ligação quando houver.
+        const detalhes = [
+          p.phone ? `Telefone: ${p.phone}` : "", p.duration ? `Duração: ${p.duration}s` : "",
+          p.call_result ? `Resultado: ${p.call_result}` : "", p.link ? `Gravação: ${p.link}` : "",
+          p.file_name ? `Arquivo: ${p.file_name}` : "",
+        ].filter(Boolean).join("\n");
+        const when = iso(n.created_at) || new Date().toISOString();
         return {
           id: `kommo-note-${t8}-${n.id}`, tenant_id: tenantId, lead_id: leadUuid(tenantId, n.entity_id),
-          type: call ? "Ligação" : "Nota",
-          title: clip(text.split("\n")[0] || (call ? "Ligação" : "Nota da Kommo"), 255),
-          description: text || (n.params?.phone ? `Telefone: ${n.params.phone}` : ""),
-          date: (iso(n.created_at) || new Date().toISOString()).slice(0, 10),
-          seller: users.get(n.created_by)?.name || "",
-          created_at: iso(n.created_at) || undefined,
+          type: call ? "Ligação" : kind === "common" ? "Outro" : /mail/.test(kind) ? "E-mail" : "Outro",
+          title: clip(titulo, 255),
+          description: [text, detalhes].filter(Boolean).join("\n\n"),
+          date: new Date(when).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+          seller: n.created_by ? (users.get(n.created_by)?.name || "Kommo") : "Kommo",
+          created_at: when,
         };
       });
     } else {

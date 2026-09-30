@@ -424,6 +424,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [proposalsLoaded, setProposalsLoaded] = useState(false);
 
   const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
+  // O banco guarda `lead_id`; a UI (linha do tempo do lead) lê `leadId`. Sem esse mapeamento nenhuma
+  // atividade carregada do banco aparecia. Mais recentes primeiro, como no histórico da Kommo.
+  const normalizeActivities = (rows: any[]): LeadActivity[] =>
+    rows.map((r) => ({ ...r, leadId: r.leadId ?? r.lead_id }))
+      .sort((a: any, b: any) => String(b.created_at || '').localeCompare(String(a.created_at || ''))) as LeadActivity[];
 
   const [whatsappWebhookUrl, setWhatsappWebhookUrl] = useState<string>("");
 
@@ -1058,7 +1063,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           // achar "nenhum contrato existente" toda vez e recriar um duplicado
           // + disparar notificação de novo contrato a cada entrada na tela.
           { name: 'contracts', promise: fetchAllRowsForTenant('contracts', tenantId), apply: (res) => { if (res.data) setContracts(res.data.map(rowToContract)); setContractsLoaded(true); } },
-          { name: 'lead_activities', promise: fetchAllRowsForTenant('lead_activities', tenantId), apply: (res) => { if (res.data) setLeadActivities(res.data as LeadActivity[]); } },
+          { name: 'lead_activities', promise: fetchAllRowsForTenant('lead_activities', tenantId), apply: (res) => { if (res.data) setLeadActivities(normalizeActivities(res.data)); } },
           { name: 'finance_entries', promise: fetchAllRowsForTenant('finance_entries', tenantId), apply: (res) => { if (res.data) setFinanceEntries((res.data as any[]).map(normalizeFinanceEntry)); financeEntriesAuthoritativeLoadedRef.current = true; } },
           { name: 'appointments', promise: fetchAllRowsForTenant('appointments', tenantId), apply: (res) => { if (res.data) setAppointments(res.data.map(mapAppointmentRow)); } },
           { name: 'squads', promise: cachedFetchAllRowsForTenant('squads', tenantId, true), apply: (res) => { if (res.data) setSquads(res.data.map(mapSquadRow)); } },
@@ -1196,7 +1201,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const genericPreviewTables: [string, (data: any[]) => void][] = [
           ['notifications', setNotifications],
           ['proposal_items', setProposalItems],
-          ['lead_activities', setLeadActivities],
+          ['lead_activities', (d: any[]) => setLeadActivities(normalizeActivities(d))],
           ['colaboradores', setColaboradores],
           ['students', setStudents],
           ['turmas', setTurmas],
