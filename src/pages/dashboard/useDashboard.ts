@@ -68,7 +68,6 @@ export function useDashboard() {
   const { leads: allLeads, contracts, squads, leadActivities, appointments, funis, proposals } = useData();
   const { isModuleEnabled, user, activeTenantId } = useAuth();
   const [activeTab, setActiveTab] = useState<'executivo' | 'comercial' | 'sucesso' | 'marketing' | 'bi'>('executivo');
-  const [comparisonPeriod, setComparisonPeriod] = useState<'month' | 'year'>('month');
 
   // Filtro de período do Dashboard — por `date` do lead (data de cadastro/
   // criação), o mesmo campo já usado no gráfico de performance mais abaixo.
@@ -469,8 +468,6 @@ export function useDashboard() {
     user,
     activeTab,
     setActiveTab,
-    comparisonPeriod,
-    setComparisonPeriod,
     goalAlerts,
     totalRevenue,
     faturamentoContratado,

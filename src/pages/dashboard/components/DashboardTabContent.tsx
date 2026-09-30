@@ -7,8 +7,6 @@ import type { DashboardSummary } from "../useDashboard";
 
 export function DashboardTabContent(props: {
   activeTab: "executivo" | "comercial" | "marketing" | "sucesso" | "bi";
-  comparisonPeriod: "month" | "year";
-  setComparisonPeriod: (p: "month" | "year") => void;
   performanceData: any[];
   squads: any[];
   contracts: any[];
@@ -21,8 +19,6 @@ export function DashboardTabContent(props: {
 }) {
   const {
     activeTab,
-    comparisonPeriod,
-    setComparisonPeriod,
     performanceData,
     squads,
     contracts,
@@ -38,8 +34,6 @@ export function DashboardTabContent(props: {
     <>
       {activeTab === "executivo" && (
         <StrategicalView
-          comparisonPeriod={comparisonPeriod}
-          setComparisonPeriod={setComparisonPeriod}
           performanceData={performanceData}
           squads={squads}
           contracts={contracts}

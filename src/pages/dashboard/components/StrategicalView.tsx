@@ -28,8 +28,6 @@ interface Contract {
 }
 
 interface StrategicalViewProps {
-  comparisonPeriod: 'month' | 'year';
-  setComparisonPeriod: (p: 'month' | 'year') => void;
   performanceData: any[];
   squads?: Squad[];
   contracts?: Contract[];
@@ -39,8 +37,6 @@ interface StrategicalViewProps {
 }
 
 export function StrategicalView({
-  comparisonPeriod,
-  setComparisonPeriod,
   performanceData,
   squads = [],
   contracts = [],
@@ -246,24 +242,6 @@ export function StrategicalView({
                 <BarChart3 className="w-5 h-5 text-[var(--color-primary-blue)]" /> Fluxo de Performance
               </h3>
               <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">Correlação entre volume de leads prospectados e faturamento recorrente.</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] p-1 rounded-[var(--radius-control)] gap-1">
-                {(['MRR', 'Retenção'] as const).map(type => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setComparisonPeriod(type === 'MRR' ? 'month' : 'year')}
-                    className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all border-none cursor-pointer ${
-                      comparisonPeriod === (type === 'MRR' ? 'month' : 'year')
-                        ? 'bg-[var(--color-primary-blue)] text-white shadow-xs'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
 

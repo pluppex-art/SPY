@@ -14,8 +14,6 @@ export default function Dashboard() {
     activeLeadsCount,
     activeTab,
     setActiveTab,
-    comparisonPeriod,
-    setComparisonPeriod,
     goalAlerts,
     totalRevenue,
     faturamentoContratado,
@@ -81,8 +79,6 @@ export default function Dashboard() {
 
         <DashboardTabContent
           activeTab={activeTab as any}
-          comparisonPeriod={comparisonPeriod}
-          setComparisonPeriod={setComparisonPeriod}
           performanceData={performanceData}
           squads={squads}
           contracts={contracts}
