@@ -99,11 +99,15 @@ export async function kommoPipelines(conn: KommoConn): Promise<KommoPipeline[]> 
     }));
 }
 
-export async function kommoUsers(conn: KommoConn): Promise<Map<number, string>> {
-  const map = new Map<number, string>();
+export interface KommoUser { name: string; email: string; active: boolean }
+
+export async function kommoUsers(conn: KommoConn): Promise<Map<number, KommoUser>> {
+  const map = new Map<number, KommoUser>();
   try {
     const body = await kommoGet(conn, "/users", { limit: "250" });
-    for (const u of body?._embedded?.users || []) map.set(u.id, u.name);
+    for (const u of body?._embedded?.users || []) {
+      map.set(u.id, { name: String(u.name || "").trim(), email: String(u.email || "").trim().toLowerCase(), active: u.rights?.is_active !== false });
+    }
   } catch { /* sem escopo de usuários: segue sem nome do responsável */ }
   return map;
 }

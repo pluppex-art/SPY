@@ -11,7 +11,7 @@
  * do lead segue a convenção do SPY `${funilId}-${índiceDaEtapa}`.
  */
 import type { Express } from "express";
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import {
   kommoConnFromConfig, kommoAccount, kommoPipelines, kommoUsers, kommoPage, kommoByIds, kommoFieldValue, kommoCustomFields, kommoFieldByName,
   KommoError, type KommoConn, type KommoPipeline,
@@ -21,6 +21,7 @@ interface Deps {
   requireUser: any;
   resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>;
   limiter: any;
+  supabaseService: any;
 }
 
 const MAX_PAGES = 40; // 40 × 250 = 10.000 leads por importação
@@ -76,9 +77,47 @@ async function requireAdmin(req: any, res: any): Promise<boolean> {
   return true;
 }
 
+interface SellerSync { created: string[]; existing: number; skipped: { name: string; reason: string }[] }
+
+/**
+ * Cadastra os usuários da Kommo como vendedores (role "Agente") no tenant, pelo e-mail.
+ * Quem já existe no SPY é mantido como está. A conta nasce com senha aleatória e e-mail
+ * confirmado — a pessoa entra por "Esqueci minha senha". Sem e-mail na Kommo não dá para
+ * criar login: o vendedor continua aparecendo nos leads pelo nome.
+ */
+async function syncSellers(sb: any, tenantId: string, users: Map<number, { name: string; email: string; active: boolean }>): Promise<SellerSync> {
+  const out: SellerSync = { created: [], existing: 0, skipped: [] };
+  if (!sb) return out;
+  for (const u of users.values()) {
+    if (!u.name) continue;
+    if (!u.email) { out.skipped.push({ name: u.name, reason: "sem e-mail na Kommo" }); continue; }
+    const { data: found } = await sb.from("users").select("id, tenant_id").eq("email", u.email).maybeSingle();
+    if (found) {
+      if (found.tenant_id === tenantId) out.existing++;
+      else out.skipped.push({ name: u.name, reason: "e-mail já usado em outra empresa" });
+      continue;
+    }
+    const { data: auth, error: authErr } = await sb.auth.admin.createUser({
+      email: u.email, password: randomBytes(18).toString("base64url"), email_confirm: true,
+    });
+    if (authErr || !auth?.user) { out.skipped.push({ name: u.name, reason: "não foi possível criar o acesso" }); continue; }
+    const { error: profileErr } = await sb.from("users").insert({
+      id: auth.user.id, tenant_id: tenantId, name: u.name, email: u.email,
+      role: "Agente", is_master: false, is_tenant_admin: false, active: u.active,
+    });
+    if (profileErr) {
+      await sb.auth.admin.deleteUser(auth.user.id);
+      out.skipped.push({ name: u.name, reason: "não foi possível criar o perfil" });
+      continue;
+    }
+    out.created.push(u.name);
+  }
+  return out;
+}
+
 const errorStatus = (e: any) => (e instanceof KommoError ? (e.status && e.status >= 400 && e.status < 500 ? 422 : 502) : 500);
 
-export function registerKommoRoutes(app: Express, { requireUser, resolveRequestedTenantId, limiter }: Deps) {
+export function registerKommoRoutes(app: Express, { requireUser, resolveRequestedTenantId, limiter, supabaseService }: Deps) {
   app.use("/api/integrations/kommo", limiter);
 
   app.post("/api/integrations/kommo/test", requireUser, async (req: any, res) => {
@@ -121,6 +160,7 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
         idx, status: s.id === WON ? "Fechado" : s.id === LOST ? "Perdido" : "Novo",
       }));
       const users = await kommoUsers(conn);
+      const sellerSync = cursor === 1 ? await syncSellers(supabaseService, tenantId, users) : null;
 
       let page = cursor;
       let hasNext = true;
@@ -163,7 +203,7 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
             company: companyName,
             email: kommoFieldValue(contact, "EMAIL").toLowerCase(),
             phone: digits(kommoFieldValue(contact, "PHONE")),
-            seller: users.get(l.responsible_user_id) || "",
+            seller: users.get(l.responsible_user_id)?.name || "",
             source: kommoFieldByName([l, contact], SOURCE_RE) || "Kommo",
             status: place.status,
             priority: "Média",
@@ -202,7 +242,8 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
       return res.json({
         ok: true, done, nextCursor: done ? null : page,
         funis: pipelines.length, created, updated, skipped,
-        vendedores: [...new Set(users.values())],
+        vendedores: [...new Set([...users.values()].map((u) => u.name))],
+        ...(sellerSync ? { cadastroVendedores: sellerSync } : {}),
         truncated: done && hasNext, // parou no limite de páginas com mais leads na Kommo
         finishedAt: new Date().toISOString(),
       });

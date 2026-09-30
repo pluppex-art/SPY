@@ -230,6 +230,7 @@ function CatalogIntegrationModal({
         let cursor: number | null = 1;
         let created = 0, updated = 0, skipped = 0, funis = 0, truncated = false;
         let vendedores: string[] = [];
+        let cadastro: any = null;
         while (cursor) {
           setProgress(`Importando… ${created + updated} leads até agora`);
           const res: Response = await apiFetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cursor }) });
@@ -238,10 +239,10 @@ function CatalogIntegrationModal({
             setResult({ ok: false, text: `${data?.error || "Falha ao importar da Kommo."}${created + updated > 0 ? ` (${created + updated} leads já foram salvos; é só importar de novo para continuar.)` : ""}` });
             return;
           }
-          created += data.created; updated += data.updated; skipped += data.skipped; funis = data.funis; truncated = !!data.truncated; vendedores = data.vendedores || vendedores;
+          created += data.created; updated += data.updated; skipped += data.skipped; funis = data.funis; truncated = !!data.truncated; vendedores = data.vendedores || vendedores; cadastro = data.cadastroVendedores || cadastro;
           cursor = data.done ? null : data.nextCursor;
         }
-        const text = `${created + updated} leads sincronizados (${created} novos, ${updated} atualizados) em ${funis} funil(is).${skipped ? ` ${skipped} ignorados (funil arquivado).` : ""}${vendedores.length ? ` Vendedores: ${vendedores.join(", ")}.` : ""}${truncated ? " Limite de 10.000 leads atingido." : ""}`;
+        const text = `${created + updated} leads sincronizados (${created} novos, ${updated} atualizados) em ${funis} funil(is).${skipped ? ` ${skipped} ignorados (funil arquivado).` : ""}${cadastro ? ` Vendedores: ${cadastro.created.length} cadastrados, ${cadastro.existing} já existiam${cadastro.skipped.length ? `, ${cadastro.skipped.length} não cadastrados (${cadastro.skipped.map((s: any) => `${s.name}: ${s.reason}`).join("; ")})` : ""}. Eles entram pelo "Esqueci minha senha".` : vendedores.length ? ` Vendedores: ${vendedores.join(", ")}.` : ""}${truncated ? " Limite de 10.000 leads atingido." : ""}`;
         setResult({ ok: true, text });
         onChange({ connected: true, lastImportAt: new Date().toISOString(), lastImportSummary: text });
         toast.success("Kommo sincronizada com o SPY.");

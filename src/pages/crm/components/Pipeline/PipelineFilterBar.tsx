@@ -52,6 +52,7 @@ export function PipelineFilterBar({
                 onChange={(e) => { setCurrentPipeline("comercial"); setSelectedFunilId(e.target.value); }}
                 className="bg-transparent border-none focus:outline-none text-[10px] font-bold cursor-pointer"
               >
+                <option value="__todos__" className="bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]">Todos os funis</option>
                 {comercialFunis.map((f: any) => <option key={f.id} value={f.id} className="bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]">{f.nome}</option>)}
               </select>
             </div>
@@ -74,6 +75,7 @@ export function PipelineFilterBar({
                 onChange={(e) => { setCurrentPipeline("sdr"); setSelectedFunilId(e.target.value); }}
                 className="bg-transparent border-none focus:outline-none text-[10px] font-bold cursor-pointer"
               >
+                <option value="__todos__" className="bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]">Todos os funis</option>
                 {sdrFunis.map((f: any) => <option key={f.id} value={f.id} className="bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]">{f.nome}</option>)}
               </select>
             </div>
