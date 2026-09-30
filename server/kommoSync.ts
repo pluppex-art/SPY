@@ -77,7 +77,7 @@ async function requireAdmin(req: any, res: any): Promise<boolean> {
   return true;
 }
 
-interface SellerSync { created: string[]; existing: number; skipped: { name: string; reason: string }[] }
+interface SellerSync { created: string[]; existing: number; colaboradores: number; skipped: { name: string; reason: string }[] }
 
 /**
  * Cadastra os usuários da Kommo como vendedores (role "Agente") no tenant, pelo e-mail.
@@ -86,31 +86,43 @@ interface SellerSync { created: string[]; existing: number; skipped: { name: str
  * criar login: o vendedor continua aparecendo nos leads pelo nome.
  */
 async function syncSellers(sb: any, tenantId: string, users: Map<number, { name: string; email: string; active: boolean }>): Promise<SellerSync> {
-  const out: SellerSync = { created: [], existing: 0, skipped: [] };
+  const out: SellerSync = { created: [], existing: 0, colaboradores: 0, skipped: [] };
   if (!sb) return out;
-  for (const u of users.values()) {
+  for (const [kommoId, u] of users) {
     if (!u.name) continue;
-    if (!u.email) { out.skipped.push({ name: u.name, reason: "sem e-mail na Kommo" }); continue; }
-    const { data: found } = await sb.from("users").select("id, tenant_id").eq("email", u.email).maybeSingle();
-    if (found) {
-      if (found.tenant_id === tenantId) out.existing++;
-      else out.skipped.push({ name: u.name, reason: "e-mail já usado em outra empresa" });
-      continue;
+    let userId: string | null = null;
+    if (!u.email) {
+      out.skipped.push({ name: u.name, reason: "sem e-mail na Kommo (sem login)" });
+    } else {
+      const { data: found } = await sb.from("users").select("id, tenant_id").eq("email", u.email).maybeSingle();
+      if (found) {
+        if (found.tenant_id === tenantId) { out.existing++; userId = found.id; }
+        else out.skipped.push({ name: u.name, reason: "e-mail já usado em outra empresa" });
+      } else {
+        const { data: auth, error: authErr } = await sb.auth.admin.createUser({
+          email: u.email, password: randomBytes(18).toString("base64url"), email_confirm: true,
+        });
+        if (authErr || !auth?.user) {
+          out.skipped.push({ name: u.name, reason: "não foi possível criar o acesso" });
+        } else {
+          const { error: profileErr } = await sb.from("users").insert({
+            id: auth.user.id, tenant_id: tenantId, name: u.name, email: u.email,
+            role: "Agente", is_master: false, is_tenant_admin: false, active: u.active,
+          });
+          if (profileErr) {
+            await sb.auth.admin.deleteUser(auth.user.id);
+            out.skipped.push({ name: u.name, reason: "não foi possível criar o perfil" });
+          } else { out.created.push(u.name); userId = auth.user.id; }
+        }
+      }
     }
-    const { data: auth, error: authErr } = await sb.auth.admin.createUser({
-      email: u.email, password: randomBytes(18).toString("base64url"), email_confirm: true,
-    });
-    if (authErr || !auth?.user) { out.skipped.push({ name: u.name, reason: "não foi possível criar o acesso" }); continue; }
-    const { error: profileErr } = await sb.from("users").insert({
-      id: auth.user.id, tenant_id: tenantId, name: u.name, email: u.email,
-      role: "Agente", is_master: false, is_tenant_admin: false, active: u.active,
-    });
-    if (profileErr) {
-      await sb.auth.admin.deleteUser(auth.user.id);
-      out.skipped.push({ name: u.name, reason: "não foi possível criar o perfil" });
-      continue;
-    }
-    out.created.push(u.name);
+    // RH › Colaboradores: todo usuário da Kommo vira colaborador (Comercial), com ou sem login.
+    const { error: colabErr } = await sb.from("colaboradores").upsert({
+      id: `kommo-${tenantId.slice(0, 8)}-${kommoId}`, tenant_id: tenantId, user_id: userId,
+      nome: u.name, cargo: "Vendedor", departamento: "Comercial",
+      status: u.active ? "Ativo" : "Inativo", email: u.email || null, squad: "Sem squad",
+    }, { onConflict: "id" });
+    if (!colabErr) out.colaboradores++;
   }
   return out;
 }
