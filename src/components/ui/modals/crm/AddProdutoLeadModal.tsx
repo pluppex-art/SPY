@@ -83,6 +83,12 @@ interface CartItem {
   implFee: number;
   unitPrice: number;
   sale: ReturnType<typeof calculateSale>;
+  /** Guardado à parte pra poder reabrir este item já adicionado no formulário e editar de
+   * verdade (quantidade, preço, recorrência, desconto...) — sem isso, editar um item do
+   * carrinho só dava pra fazer removendo e recomeçando do zero, porque `sale` já vem com o
+   * desconto aplicado e embutido no cálculo, sem guardar de onde veio. */
+  discountType: DiscountType;
+  discountValue: number;
   /** Modo edição: ids dos proposal_items que este item substitui + lançamentos financeiros ligados a ele. */
   replaceItemIds?: string[];
   replaceEntryIds?: string[];
@@ -264,6 +270,7 @@ export function AddProdutoLeadModal({
             key: crypto.randomUUID(), product: p, quantity: 1, isRecurring: isRecurringItem,
             frequency: "mensal", durationMonths: itemDurationMonths, isOpenEnded: sale.isOpenEnded,
             implFee: itemImplFee, unitPrice: itemUnitPrice, sale,
+            discountType: "none", discountValue: 0,
           };
           return item;
         });
@@ -391,6 +398,8 @@ export function AddProdutoLeadModal({
       implFee: showImplToggle ? implFee : 0,
       unitPrice,
       sale,
+      discountType,
+      discountValue,
       ...editingMeta,
     };
     setCartItems((prev) => [...prev, item]);
@@ -418,6 +427,34 @@ export function AddProdutoLeadModal({
 
   const handleRemoveFromCart = (key: string) => {
     setCartItems((prev) => prev.filter((ci) => ci.key !== key));
+  };
+
+  // Reabre um item já no carrinho (ainda não salvo — só state local) de volta no formulário
+  // pra editar de verdade (quantidade, preço, recorrência, desconto...), em vez de só poder
+  // remover e recomeçar do zero. Processo simples: tira do carrinho, preenche o formulário com
+  // a config exata que foi salva, usuário ajusta e clica "Adicionar Produto" de novo.
+  const handleEditCartItem = (key: string) => {
+    const item = cartItems.find((ci) => ci.key === key);
+    if (!item) return;
+    setCartItems((prev) => prev.filter((ci) => ci.key !== key));
+    setEditingGroup(null);
+    setProductId(item.product.id);
+    setQuantity(item.quantity);
+    setUnitPriceInput(String(item.unitPrice));
+    setBillingTypeOverride(item.isRecurring ? "recurring" : "one_time");
+    setFrequency(item.frequency);
+    // `customCycleMonths` (meses por ciclo, só pra frequência "personalizado") não fica
+    // guardado no CartItem — só o `durationMonths` total. Volta pro padrão (1) nesse caso
+    // raro; o usuário reconfigura se o item era de fato personalizado.
+    setCustomCycleMonthsInput("1");
+    setIsOpenEndedDuration(item.isOpenEnded);
+    setDurationOverride(item.isOpenEnded ? null : item.durationMonths);
+    setCustomDurationDraft(item.durationMonths ? String(item.durationMonths) : "");
+    setHasImplementation(item.implFee > 0);
+    setImplementationFeeInput(item.implFee > 0 ? String(item.implFee) : null);
+    setDiscountType(item.discountType);
+    setDiscountInput(String(item.discountValue));
+    setStep(1);
   };
 
   const cartTotal = cartItems.reduce((sum, ci) => sum + getSaleRealValue(ci.sale), 0);
@@ -517,6 +554,8 @@ export function AddProdutoLeadModal({
             implFee: showImplToggle ? implFee : 0,
             unitPrice,
             sale,
+            discountType,
+            discountValue,
             ...editingMeta,
           }]
         : []),
@@ -848,8 +887,16 @@ export function AddProdutoLeadModal({
             <div className="space-y-1.5">
               {cartItems.map((ci) => (
                 <div key={ci.key} className="flex items-center justify-between gap-2 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] rounded-lg px-2.5 py-1.5">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-[var(--color-text-primary)] truncate">{ci.product.name}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleEditCartItem(ci.key)}
+                    title="Editar este item (quantidade, preço, recorrência, desconto...)"
+                    className="min-w-0 flex-1 text-left cursor-pointer group"
+                  >
+                    <p className="text-[11px] font-bold text-[var(--color-text-primary)] truncate flex items-center gap-1">
+                      {ci.product.name}
+                      <Pencil className="w-2.5 h-2.5 text-[var(--color-text-faint)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    </p>
                     <p className="text-[9px] text-[var(--color-text-faint)] font-mono">
                       {ci.isRecurring
                         ? (ci.sale.isOpenEnded
@@ -857,7 +904,7 @@ export function AddProdutoLeadModal({
                             : `${formatCurrency(ci.sale.cycleAmount)}/${FREQUENCY_LABELS[ci.frequency].toLowerCase()} · ${ci.sale.numberOfCycles} ciclos · total ${formatCurrency(ci.sale.totalProjectedAmount)}`)
                         : `${formatCurrency(ci.sale.totalProjectedAmount)}${ci.sale.numberOfCycles > 1 ? ` em ${ci.sale.numberOfCycles}x` : ""}`}
                     </p>
-                  </div>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleRemoveFromCart(ci.key)}
