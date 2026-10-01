@@ -295,16 +295,16 @@ export function NotasSection({
   };
 
   const tempIcon = temperature === "Quente"
-    ? <Flame className="w-4 h-4 text-rose-500" />
+    ? <Flame className="w-4 h-4 text-danger" />
     : temperature === "Morno"
-    ? <Sun className="w-4 h-4 text-amber-500" />
-    : <Snowflake className="w-4 h-4 text-blue-400" />;
+    ? <Sun className="w-4 h-4 text-warning" />
+    : <Snowflake className="w-4 h-4 text-[var(--color-primary-blue)]" />;
 
   const tempBadgeClass = temperature === "Quente"
-    ? "bg-rose-500/10 border-rose-500/30 text-rose-400"
+    ? "bg-danger/10 border-danger/30 text-danger"
     : temperature === "Morno"
-    ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-    : "bg-blue-500/10 border-blue-500/30 text-blue-400";
+    ? "bg-warning/10 border-warning/30 text-warning"
+    : "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/30 text-[var(--color-primary-blue)]";
 
   return (
     <div className="px-5 py-4 space-y-4">
@@ -317,7 +317,7 @@ export function NotasSection({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-white tracking-wide">Score do Lead</span>
+                <span className="text-xs font-black text-[var(--color-text-primary)] tracking-wide">Score do Lead</span>
                 <span className={cn("text-[9px] px-2 py-0.5 rounded-full border font-black uppercase tracking-wider", tempBadgeClass)}>
                   {temperature}
                 </span>
@@ -335,17 +335,17 @@ export function NotasSection({
               size="sm"
               onClick={handleAIEvaluateScore}
               disabled={isAnalyzingIA}
-              className="h-7 text-[10px] font-bold gap-1 text-purple-400 border-purple-500/30 hover:bg-purple-500/10 cursor-pointer"
+              className="h-7 text-[10px] font-bold gap-1 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/30 hover:bg-[var(--color-primary-blue)]/10 cursor-pointer"
               title="A IA analisa as notas e calcula o Score automaticamente"
             >
-              <Sparkles className={cn("w-3 h-3 text-purple-400", isAnalyzingIA && "animate-spin")} />
+              <Sparkles className={cn("w-3 h-3 text-[var(--color-primary-blue)]", isAnalyzingIA && "animate-spin")} />
               {isAnalyzingIA ? "Avaliando..." : "Score por IA"}
             </Button>
 
             <button
               type="button"
               onClick={() => setShowScoreSlider(v => !v)}
-              className="w-7 h-7 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-center text-[var(--color-text-muted)] hover:text-white transition-colors"
+              className="w-7 h-7 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
               title="Ajuste manual de Score"
             >
               <Sliders className="w-3.5 h-3.5" />
@@ -357,22 +357,22 @@ export function NotasSection({
         <div className="space-y-1.5 pt-1">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black text-white tabular-nums">{score}</span>
-              <span className="text-[10px] text-slate-500 font-bold">/100</span>
+              <span className="text-xl font-black text-[var(--color-text-primary)] tabular-nums">{score}</span>
+              <span className="text-[10px] text-[var(--color-text-muted)] font-bold">/100</span>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold">
-              <TrendingUp className="w-3 h-3 text-emerald-400" />
+            <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] font-bold">
+              <TrendingUp className="w-3 h-3 text-success" />
               <span>{probability}% de conversão</span>
             </div>
           </div>
 
-          <div className="h-2 w-full bg-[var(--color-surface-sunken)] rounded-full overflow-hidden border border-white/[0.05]">
+          <div className="h-2 w-full bg-[var(--color-surface-sunken)] rounded-full overflow-hidden border border-[var(--color-border-subtle)]">
             <div
               className={cn(
                 "h-full rounded-full transition-all duration-500",
-                score >= 71 ? "bg-gradient-to-r from-amber-500 to-rose-500" :
-                score >= 41 ? "bg-gradient-to-r from-cyan-500 to-amber-500" :
-                "bg-gradient-to-r from-slate-600 to-blue-500"
+                score >= 71 ? "bg-success" :
+                score >= 41 ? "bg-warning" :
+                "bg-danger"
               )}
               style={{ width: `${Math.max(4, score)}%` }}
             />
@@ -382,9 +382,9 @@ export function NotasSection({
         {/* Quick presets or Slider */}
         {showScoreSlider ? (
           <div className="pt-2 border-t border-[var(--color-border-subtle)] space-y-2 animate-in fade-in">
-            <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+            <div className="flex items-center justify-between text-[10px] font-bold text-[var(--color-text-muted)]">
               <span>Frio (0)</span>
-              <span className="text-white font-mono text-xs">{score}</span>
+              <span className="text-[var(--color-text-primary)] font-mono text-xs">{score}</span>
               <span>Quente (100)</span>
             </div>
             <input
@@ -393,45 +393,45 @@ export function NotasSection({
               max="100"
               value={score}
               onChange={(e) => applyScoreChange(Number(e.target.value), true)}
-              className="w-full accent-blue-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg"
+              className="w-full accent-[var(--color-primary-blue)] cursor-pointer h-1.5 bg-[var(--color-surface-sunken)] rounded-lg"
             />
           </div>
         ) : (
           <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-[var(--color-border-subtle)] text-[10px]">
-            <span className="text-slate-500 font-bold">Ajustes rápidos:</span>
+            <span className="text-[var(--color-text-muted)] font-bold">Ajustes rápidos:</span>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => applyScoreChange(30, true)}
-                className="px-2 py-0.5 rounded border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/15 text-blue-400 font-bold transition-all"
+                className="px-2 py-0.5 rounded border border-[var(--color-primary-blue)]/20 bg-[var(--color-primary-blue)]/5 hover:bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)] font-bold transition-all"
               >
                 ❄️ 30
               </button>
               <button
                 type="button"
                 onClick={() => applyScoreChange(65, true)}
-                className="px-2 py-0.5 rounded border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/15 text-amber-400 font-bold transition-all"
+                className="px-2 py-0.5 rounded border border-warning/20 bg-warning/5 hover:bg-warning/15 text-warning font-bold transition-all"
               >
                 ☀️ 65
               </button>
               <button
                 type="button"
                 onClick={() => applyScoreChange(90, true)}
-                className="px-2 py-0.5 rounded border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/15 text-rose-400 font-bold transition-all"
+                className="px-2 py-0.5 rounded border border-danger/20 bg-danger/5 hover:bg-danger/15 text-danger font-bold transition-all"
               >
                 🔥 90
               </button>
               <button
                 type="button"
                 onClick={() => applyScoreChange(5, false)}
-                className="px-2 py-0.5 rounded border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 font-bold transition-all"
+                className="px-2 py-0.5 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-subtle)] text-[var(--color-text-muted)] font-bold transition-all"
               >
                 +5
               </button>
               <button
                 type="button"
                 onClick={() => applyScoreChange(-5, false)}
-                className="px-2 py-0.5 rounded border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 font-bold transition-all"
+                className="px-2 py-0.5 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-subtle)] text-[var(--color-text-muted)] font-bold transition-all"
               >
                 -5
               </button>
@@ -454,7 +454,7 @@ export function NotasSection({
               onClick={() => (isRecording ? stopRecording() : startRecording())}
               className="text-[10px] font-bold h-7 gap-1"
             >
-              {isRecording ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3 text-purple-400" />}
+              {isRecording ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3 text-[var(--color-text-muted)]" />}
               {isRecording ? "Parar" : "Gravar Voz"}
             </Button>
           </div>
@@ -471,11 +471,11 @@ export function NotasSection({
             className={cn(
               "px-2.5 py-1 rounded-lg border text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer",
               activeCategory === "chamada"
-                ? "bg-blue-500/20 border-blue-500 text-blue-300"
-                : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-slate-400 hover:text-white"
+                ? "bg-[var(--color-primary-blue)]/20 border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]"
+                : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
             )}
           >
-            <Phone className="w-3 h-3 inline mr-1 text-blue-400" /> Ligação
+            <Phone className="w-3 h-3 inline mr-1 text-[var(--color-primary-blue)]" /> Ligação
           </button>
 
           <button
@@ -487,11 +487,11 @@ export function NotasSection({
             className={cn(
               "px-2.5 py-1 rounded-lg border text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer",
               activeCategory === "interesse"
-                ? "bg-rose-500/20 border-rose-500 text-rose-300"
-                : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-slate-400 hover:text-white"
+                ? "bg-success/20 border-success text-success"
+                : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
             )}
           >
-            <Flame className="w-3 h-3 inline mr-1 text-rose-400" /> Interesse (+15)
+            <Flame className="w-3 h-3 inline mr-1 text-success" /> Interesse (+15)
           </button>
 
           <button
@@ -503,11 +503,11 @@ export function NotasSection({
             className={cn(
               "px-2.5 py-1 rounded-lg border text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer",
               activeCategory === "decisor"
-                ? "bg-emerald-500/20 border-emerald-500 text-emerald-300"
-                : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-slate-400 hover:text-white"
+                ? "bg-success/20 border-success text-success"
+                : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
             )}
           >
-            <CheckCircle2 className="w-3 h-3 inline mr-1 text-emerald-400" /> Decisor (+10)
+            <CheckCircle2 className="w-3 h-3 inline mr-1 text-success" /> Decisor (+10)
           </button>
 
           <button
@@ -519,11 +519,11 @@ export function NotasSection({
             className={cn(
               "px-2.5 py-1 rounded-lg border text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer",
               activeCategory === "objecao"
-                ? "bg-amber-500/20 border-amber-500 text-amber-300"
-                : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-slate-400 hover:text-white"
+                ? "bg-warning/20 border-warning text-warning"
+                : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
             )}
           >
-            <AlertTriangle className="w-3 h-3 inline mr-1 text-amber-400" /> Objeção (-10)
+            <AlertTriangle className="w-3 h-3 inline mr-1 text-warning" /> Objeção (-10)
           </button>
         </div>
       </div>
@@ -532,8 +532,8 @@ export function NotasSection({
       <div className="relative">
         {isRecording && (
           <div className="absolute top-2.5 left-3.5 flex items-center gap-1.5 z-10 pointer-events-none">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-            <span className="text-[9px] text-rose-500 font-black uppercase tracking-widest">Gravando voz...</span>
+            <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
+            <span className="text-[9px] text-danger font-black uppercase tracking-widest">Gravando voz...</span>
           </div>
         )}
         <textarea
@@ -549,7 +549,7 @@ export function NotasSection({
           rows={3}
           className={cn(
             "w-full bg-[var(--color-surface-elevated)] border rounded-[var(--radius-control)] px-4 py-3 pr-12 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] transition-all resize-none leading-relaxed",
-            isRecording ? "border-rose-500/30 pt-8" : "border-[var(--color-border-default)]"
+            isRecording ? "border-danger/30 pt-8" : "border-[var(--color-border-default)]"
           )}
         />
         <Button
@@ -568,7 +568,7 @@ export function NotasSection({
           Autor: <span className="text-[var(--color-text-muted)] font-semibold">{authorName}</span>
         </p>
         <p className="text-[10px] text-[var(--color-text-faint)] flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-purple-400" /> Correção ortográfica IA ativa
+          <Sparkles className="w-3 h-3 text-[var(--color-primary-blue)]" /> Correção ortográfica IA ativa
         </p>
       </div>
 
@@ -585,8 +585,8 @@ export function NotasSection({
                 key={note.id}
                 className={cn(
                   "p-3.5 bg-[var(--color-surface-elevated)] border space-y-2 transition-all",
-                  isInterest ? "border-rose-500/25 bg-rose-500/[0.02]" :
-                  isObjection ? "border-amber-500/25 bg-amber-500/[0.02]" :
+                  isInterest ? "border-success/25 bg-success/[0.02]" :
+                  isObjection ? "border-warning/25 bg-warning/[0.02]" :
                   "border-[var(--color-border-default)]"
                 )}
               >
@@ -599,8 +599,8 @@ export function NotasSection({
                       <span className={cn(
                         "text-[9px] font-black px-1.5 py-0.2 rounded border",
                         note.scoreImpact > 0
-                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                          : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                          ? "bg-success/10 border-success/30 text-success"
+                          : "bg-warning/10 border-warning/30 text-warning"
                       )}>
                         {note.scoreImpact > 0 ? `+${note.scoreImpact}` : note.scoreImpact} Score
                       </span>
@@ -610,7 +610,7 @@ export function NotasSection({
 
                   <button
                     onClick={() => deleteNote(note.id)}
-                    className="p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-rose-500/10 rounded text-[var(--color-text-faint)] hover:text-rose-500 transition-all cursor-pointer"
+                    className="p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-danger/10 rounded text-[var(--color-text-faint)] hover:text-danger transition-all cursor-pointer"
                     title="Remover Nota"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

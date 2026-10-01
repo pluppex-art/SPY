@@ -14,7 +14,7 @@ export function LogsSection({ alterationLogs }: LogsSectionProps) {
       <Card className="p-4 space-y-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
         <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-2">
           <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--color-primary-blue)] flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" /> Auditoria & Histórico de Modificações
+            <ShieldCheck className="w-4 h-4 text-[var(--color-primary-blue)]" /> Auditoria & Histórico de Modificações
           </h4>
           <Badge variant="secondary" className="text-[9px]">LGPD Audit</Badge>
         </div>

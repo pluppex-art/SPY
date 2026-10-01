@@ -176,7 +176,7 @@ export function ProfileSection({
     {
       label: "WhatsApp",
       icon: MessageSquare,
-      color: "text-emerald-600 dark:text-emerald-400",
+      color: "text-[var(--color-text-muted)]",
       action: () => window.open(`https://wa.me/55${phone.replace(/\D/g, "")}`, "_blank"),
     },
     {
@@ -191,13 +191,13 @@ export function ProfileSection({
     {
       label: "Enviar E-mail",
       icon: Mail,
-      color: "text-amber-600 dark:text-amber-400",
+      color: "text-[var(--color-text-muted)]",
       action: () => window.open(`mailto:${email}`),
     },
     {
       label: "Contrato",
       icon: FileCheck,
-      color: "text-purple-600 dark:text-purple-400",
+      color: "text-[var(--color-text-muted)]",
       action: () =>
         setAlterationLogs((prev: any[]) => [
           { id: Date.now().toString(), author: seller || "Sistema", desc: "Contrato solicitado — gere o PDF na tela de Propostas", time: "Agora" },
@@ -207,7 +207,7 @@ export function ProfileSection({
     {
       label: "Converter Lead",
       icon: Trophy,
-      color: "text-rose-600 dark:text-rose-400",
+      color: "text-[var(--color-primary-blue)]",
       action: handleConvertLead,
     },
   ];
@@ -227,16 +227,16 @@ export function ProfileSection({
 
         <Card className="p-3 text-center bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="text-[10px] font-bold text-[var(--color-text-faint)] uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
-            <TrendingUp className="w-3 h-3 text-emerald-500" /> Probabilidade
+            <TrendingUp className="w-3 h-3 text-[var(--color-text-muted)]" /> Probabilidade
           </div>
-          <div className="text-lg font-display font-black text-emerald-600 dark:text-emerald-400">
+          <div className="text-lg font-display font-black text-[var(--color-text-primary)]">
             {Math.round(Number(probability) || 0)}%
           </div>
         </Card>
 
         <Card className="p-3 text-center bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="text-[10px] font-bold text-[var(--color-text-faint)] uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
-            <Clock className="w-3 h-3 text-amber-500" /> Inatividade
+            <Clock className="w-3 h-3 text-[var(--color-text-muted)]" /> Inatividade
           </div>
           <div className="text-lg font-display font-black text-[var(--color-text-primary)]">
             {timeIdle || "0h"}
@@ -303,7 +303,7 @@ export function ProfileSection({
               Recomendação S.P.Y. Copilot
             </span>
           </div>
-          <Badge variant="purple" dot dotPulse>IA</Badge>
+          <Badge variant="default" dot dotPulse>IA</Badge>
         </div>
         <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
           Score <strong className="text-[var(--color-text-primary)] font-bold">{score}</strong> — Lead com alto interesse em propostas personalizadas. Recomendamos contato ativo para acelerar o fechamento.
@@ -340,7 +340,7 @@ export function ProfileSection({
                   key={tag}
                   onClick={() => handleRemoveTag(tag)}
                   title="Clique para remover"
-                  className="group flex items-center gap-1 bg-[var(--color-surface-sunken)] hover:bg-rose-500/10 text-[var(--color-text-primary)] hover:text-rose-600 dark:hover:text-rose-400 border border-[var(--color-border-default)] hover:border-rose-500/30 text-[11px] font-semibold px-2.5 py-0.5 rounded-full transition-all cursor-pointer"
+                  className="group flex items-center gap-1 bg-[var(--color-surface-sunken)] hover:bg-danger/10 text-[var(--color-text-primary)] hover:text-danger border border-[var(--color-border-default)] hover:border-danger/30 text-[11px] font-semibold px-2.5 py-0.5 rounded-full transition-all cursor-pointer"
                 >
                   #{tag}
                   <span className="text-[9px] font-bold opacity-0 group-hover:opacity-100">&times;</span>

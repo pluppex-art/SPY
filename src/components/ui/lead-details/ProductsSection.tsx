@@ -218,11 +218,11 @@ export function ProductsSection({
       {existingProposal && (
         <Card className={cn(
           "p-4 bg-[var(--color-surface-elevated)] shadow-sm space-y-3",
-          isProposalAccepted ? "border border-emerald-500/30 bg-emerald-500/[0.03]" : "border border-blue-500/25"
+          isProposalAccepted ? "border border-success/30 bg-success/[0.03]" : "border border-[var(--color-primary-blue)]/25"
         )}>
           <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-2.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
-              <FileText className={cn("w-3.5 h-3.5", isProposalAccepted ? "text-emerald-400" : "text-blue-400")} />
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)] flex items-center gap-2">
+              <FileText className={cn("w-3.5 h-3.5", isProposalAccepted ? "text-success" : "text-[var(--color-primary-blue)]")} />
               Proposta Comercial Vinculada
             </span>
             <div className="flex items-center gap-1.5">
@@ -236,7 +236,7 @@ export function ProductsSection({
                 type="button"
                 onClick={() => openAddModal(undefined, true)}
                 title="Editar proposta: adicionar produtos a esta mesma proposta"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 transition-colors"
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
@@ -245,8 +245,8 @@ export function ProductsSection({
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-bold text-white truncate">{existingProposal.titulo}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">
+              <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{existingProposal.titulo}</p>
+              <p className="text-[10px] text-[var(--color-text-faint)] mt-0.5">
                 {existingProposalItems.length} {existingProposalItems.length === 1 ? "item" : "itens"}
                 {existingProposal.validade && (
                   <> · Válida até {new Date(existingProposal.validade + "T12:00:00").toLocaleDateString("pt-BR")}</>
@@ -254,7 +254,7 @@ export function ProductsSection({
               </p>
             </div>
             <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-              <span className="text-sm font-mono font-black text-emerald-400">
+              <span className="text-sm font-mono font-black text-success">
                 {formatCurrency(existingProposal.valor || 0)}
               </span>
               <Button
@@ -262,7 +262,7 @@ export function ProductsSection({
                 variant="outline"
                 size="sm"
                 onClick={handleOpenExistingProposal}
-                className="h-8 text-xs font-bold gap-1.5 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-300 cursor-pointer"
+                className="h-8 text-xs font-bold gap-1.5 border-success/30 hover:bg-success/10 text-success cursor-pointer"
               >
                 <Edit3 className="w-3.5 h-3.5" /> Ver / Editar Proposta
               </Button>
@@ -271,7 +271,7 @@ export function ProductsSection({
                 variant="outline"
                 size="sm"
                 onClick={handleDownloadExistingProposalPdf}
-                className="h-8 text-xs font-bold gap-1.5 border-blue-500/30 hover:bg-blue-500/10 text-blue-300 cursor-pointer"
+                className="h-8 text-xs font-bold gap-1.5 border-[var(--color-primary-blue)]/30 hover:bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] cursor-pointer"
               >
                 <FileText className="w-3.5 h-3.5" /> Baixar PDF
               </Button>
@@ -279,8 +279,8 @@ export function ProductsSection({
           </div>
 
           {isProposalAccepted && (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs">
-              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-success/10 border border-success/20 text-success text-xs">
+              <Check className="w-4 h-4 text-success shrink-0" />
               <span>
                 <strong>Proposta Aceita & Venda Fechada!</strong> O contrato está ativado e as faturas foram provisionadas no financeiro.
               </span>
@@ -288,13 +288,13 @@ export function ProductsSection({
           )}
 
           {isProposalAccepted && existingProposalItems.length > 0 && (
-            <div className="space-y-1.5 pt-1 border-t border-white/5">
-              <span className="text-[9px] uppercase font-bold text-slate-400 block">Itens da Proposta Aprovada:</span>
+            <div className="space-y-1.5 pt-1 border-t border-[var(--color-border-subtle)]">
+              <span className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] block">Itens da Proposta Aprovada:</span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto scrollbar-thin">
                 {existingProposalItems.map((item: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-[var(--color-surface-sunken)] border border-white/5">
-                    <span className="text-slate-300 font-medium truncate text-[11px]">{item.product_name}</span>
-                    <span className="font-mono text-emerald-400 text-[11px] font-bold shrink-0 ml-2">
+                  <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)]">
+                    <span className="text-[var(--color-text-primary)] font-medium truncate text-[11px]">{item.product_name}</span>
+                    <span className="font-mono text-success text-[11px] font-bold shrink-0 ml-2">
                       {item.quantidade}x {formatCurrency(item.preco_unitario)}
                     </span>
                   </div>
@@ -308,7 +308,7 @@ export function ProductsSection({
       <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-2.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5">
-            <Tag className="w-3.5 h-3.5 text-amber-500" /> Produtos de Interesse
+            <Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)]" /> Produtos de Interesse
           </span>
           <span
             className="text-[var(--color-text-faint)]"
@@ -327,14 +327,14 @@ export function ProductsSection({
               {produtosInteresse.map((prod) => (
                 <span
                   key={prod.id}
-                  className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] font-bold text-amber-700 dark:text-amber-400"
+                  className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[11px] font-bold text-[var(--color-text-muted)]"
                 >
                   {prod.name}
                   <span className="font-mono text-[10px] opacity-80">{formatCurrency(Number(prod.price) || 0)}</span>
                   <button
                     type="button"
                     onClick={() => toggleInteresse(prod.id)}
-                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-amber-500/20 transition-colors"
+                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-[var(--color-border-default)] transition-colors"
                     title="Remover marcação"
                   >
                     <X className="w-2.5 h-2.5" />
@@ -416,14 +416,14 @@ export function ProductsSection({
                     </span>
                   </button>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs font-mono font-black text-emerald-600">{formatCurrency(Number(prod.price) || 0)}</span>
+                    <span className="text-xs font-mono font-black text-[var(--color-primary-blue)]">{formatCurrency(Number(prod.price) || 0)}</span>
                     <button
                       type="button"
                       onClick={() => toggleInteresse(prod.id)}
                       title={isMarked ? "Remover marcação de interesse" : "Marcar como produto de interesse (sem criar proposta)"}
                       className={cn(
                         "w-5 h-5 rounded flex items-center justify-center transition-colors cursor-pointer",
-                        isMarked ? "bg-amber-500/20 text-amber-600 dark:text-amber-400" : "bg-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-amber-500"
+                        isMarked ? "bg-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" : "bg-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)]"
                       )}
                     >
                       <Plus className="w-3 h-3" />

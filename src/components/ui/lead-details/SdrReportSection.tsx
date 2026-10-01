@@ -125,7 +125,7 @@ export function SdrReportSection({
         {/* MODE BANNER */}
         <div className="flex items-center justify-between p-3 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)]">
           <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)] animate-pulse"></span>
             <div className="text-xs truncate">
               <span className="text-[var(--color-text-muted)] font-medium">Contexto Ativo: </span>
               <span className="text-[var(--color-text-primary)] font-bold">
@@ -135,7 +135,7 @@ export function SdrReportSection({
               </span>
             </div>
           </div>
-          <Badge variant="cyan" dot>Ativo</Badge>
+          <Badge variant="default" dot>Ativo</Badge>
         </div>
 
         {/* DYNAMIC CONTENT PANELS */}
@@ -153,7 +153,7 @@ export function SdrReportSection({
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[var(--color-text-muted)]">Status:</span>
-                  <Badge variant="purple">{educacaoData.statusTurma}</Badge>
+                  <Badge variant="neutral">{educacaoData.statusTurma}</Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[var(--color-text-muted)]">Presença:</span>
@@ -168,7 +168,7 @@ export function SdrReportSection({
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between items-center">
                   <span className="text-[var(--color-text-muted)]">NPS:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">{csData.npsScore}</span>
+                  <span className="text-[var(--color-text-primary)] font-bold">{csData.npsScore}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[var(--color-text-muted)]">Engajamento:</span>
@@ -191,7 +191,7 @@ export function SdrReportSection({
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[var(--color-text-muted)]">Porte:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">{normalData.potencialComercial}</span>
+                  <span className="text-[var(--color-text-primary)] font-bold">{normalData.potencialComercial}</span>
                 </div>
                 <div className="pt-1">
                   <span className="text-[var(--color-text-muted)] block mb-0.5">Dores Mapeadas:</span>
@@ -219,7 +219,7 @@ export function SdrReportSection({
               <div>
                 <span className="text-[var(--color-text-muted)] font-bold text-[10px] block mb-1">Próxima Ação Clave:</span>
                 <div className="p-2 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] text-[var(--color-text-primary)] font-bold text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-primary-blue)] shrink-0" />
                   <span className="truncate">
                     {activeMode === 'educacao' ? educacaoData.nextStep : 
                      activeMode === 'posvenda' ? csData.nextStep : 

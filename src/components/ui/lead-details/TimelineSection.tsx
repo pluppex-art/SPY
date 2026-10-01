@@ -158,7 +158,7 @@ export function TimelineSection({
                     e.stopPropagation();
                     setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
                   }}
-                  className="hover:text-rose-500 font-bold ml-1 text-xs cursor-pointer"
+                  className="hover:text-danger font-bold ml-1 text-xs cursor-pointer"
                 >
                   &times;
                 </button>

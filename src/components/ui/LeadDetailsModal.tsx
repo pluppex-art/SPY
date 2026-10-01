@@ -282,74 +282,74 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
 
                     {/* Stats compactas */}
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="flex items-center gap-2 bg-[var(--color-surface-elevated)] border border-white/[0.06] rounded-xl px-3 py-2.5">
-                        <div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                          <Activity className="w-3 h-3 text-blue-400" />
+                      <div className="flex items-center gap-2 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] rounded-xl px-3 py-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-[var(--color-primary-blue)]/10 flex items-center justify-center shrink-0">
+                          <Activity className="w-3 h-3 text-[var(--color-primary-blue)]" />
                         </div>
                         <div>
-                          <div className="text-sm font-black text-white tabular-nums leading-none">{leadActs.length}</div>
-                          <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Interações</div>
+                          <div className="text-sm font-black text-[var(--color-text-primary)] tabular-nums leading-none">{leadActs.length}</div>
+                          <div className="text-[8px] font-bold text-[var(--color-text-faint)] uppercase tracking-wider mt-0.5">Interações</div>
                         </div>
                       </div>
 
                       <div className={cn(
                         "flex items-center gap-2 rounded-xl px-3 py-2.5 border",
-                        timeIdleNum > 7 ? "bg-rose-500/[0.08] border-rose-500/20"
-                        : timeIdleNum > 3 ? "bg-amber-500/[0.08] border-amber-500/15"
-                        : "bg-[var(--color-surface-elevated)] border-white/[0.06]"
+                        timeIdleNum > 7 ? "bg-danger/[0.08] border-danger/20"
+                        : timeIdleNum > 3 ? "bg-warning/[0.08] border-warning/15"
+                        : "bg-[var(--color-surface-elevated)] border-[var(--color-border-subtle)]"
                       )}>
                         <div className={cn(
                           "w-6 h-6 rounded-lg flex items-center justify-center shrink-0",
-                          timeIdleNum > 7 ? "bg-rose-500/15" : timeIdleNum > 3 ? "bg-amber-500/15" : "bg-slate-700/40"
+                          timeIdleNum > 7 ? "bg-danger/15" : timeIdleNum > 3 ? "bg-warning/15" : "bg-[var(--color-surface-sunken)]"
                         )}>
                           {timeIdleNum > 7
-                            ? <AlertTriangle className="w-3 h-3 text-rose-400 animate-pulse" />
-                            : <Phone className={cn("w-3 h-3", timeIdleNum > 3 ? "text-amber-400" : "text-slate-500")} />
+                            ? <AlertTriangle className="w-3 h-3 text-danger animate-pulse" />
+                            : <Phone className={cn("w-3 h-3", timeIdleNum > 3 ? "text-warning" : "text-[var(--color-text-faint)]")} />
                           }
                         </div>
                         <div>
                           <div className={cn(
                             "text-sm font-black tabular-nums leading-none",
-                            timeIdleNum > 7 ? "text-rose-400" : timeIdleNum > 3 ? "text-amber-400" : "text-white"
+                            timeIdleNum > 7 ? "text-danger" : timeIdleNum > 3 ? "text-warning" : "text-[var(--color-text-primary)]"
                           )}>
                             {timeIdleNum}<span className="text-[10px]">d</span>
                           </div>
-                          <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Sem Contato</div>
+                          <div className="text-[8px] font-bold text-[var(--color-text-faint)] uppercase tracking-wider mt-0.5">Sem Contato</div>
                         </div>
                       </div>
 
                       <div className={cn(
                         "flex items-center gap-2 rounded-xl px-3 py-2.5 border",
-                        probNum >= 70 ? "bg-emerald-500/[0.08] border-emerald-500/20"
-                        : probNum >= 40 ? "bg-amber-500/[0.08] border-amber-500/15"
-                        : "bg-[var(--color-surface-elevated)] border-white/[0.06]"
+                        probNum >= 70 ? "bg-success/[0.08] border-success/20"
+                        : probNum >= 40 ? "bg-warning/[0.08] border-warning/15"
+                        : "bg-[var(--color-surface-elevated)] border-[var(--color-border-subtle)]"
                       )}>
                         <div className={cn(
                           "w-6 h-6 rounded-lg flex items-center justify-center shrink-0",
-                          probNum >= 70 ? "bg-emerald-500/15" : probNum >= 40 ? "bg-amber-500/15" : "bg-slate-700/40"
+                          probNum >= 70 ? "bg-success/15" : probNum >= 40 ? "bg-warning/15" : "bg-[var(--color-surface-sunken)]"
                         )}>
                           <TrendingUp className={cn(
                             "w-3 h-3",
-                            probNum >= 70 ? "text-emerald-400" : probNum >= 40 ? "text-amber-400" : "text-slate-500"
+                            probNum >= 70 ? "text-success" : probNum >= 40 ? "text-warning" : "text-[var(--color-text-faint)]"
                           )} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className={cn(
                             "text-sm font-black tabular-nums leading-none",
-                            probNum >= 70 ? "text-emerald-400" : probNum >= 40 ? "text-amber-400" : "text-white"
+                            probNum >= 70 ? "text-success" : probNum >= 40 ? "text-warning" : "text-[var(--color-text-primary)]"
                           )}>
                             {probNum}<span className="text-[10px]">%</span>
                           </div>
-                          <div className="mt-1 h-[2px] bg-white/5 rounded-full overflow-hidden">
+                          <div className="mt-1 h-[2px] bg-[var(--color-border-subtle)] rounded-full overflow-hidden">
                             <div
                               className={cn(
                                 "h-full rounded-full transition-all duration-700",
-                                probNum >= 70 ? "bg-emerald-400" : probNum >= 40 ? "bg-amber-400" : "bg-slate-600"
+                                probNum >= 70 ? "bg-success" : probNum >= 40 ? "bg-warning" : "bg-[var(--color-border-default)]"
                               )}
                               style={{ width: `${probNum}%` }}
                             />
                           </div>
-                          <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Prob. Ganho</div>
+                          <div className="text-[8px] font-bold text-[var(--color-text-faint)] uppercase tracking-wider mt-0.5">Prob. Ganho</div>
                         </div>
                       </div>
                     </div>
@@ -434,7 +434,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
       )}
 
       {showCopilot && (
-        <div className="fixed top-0 bottom-0 right-[546px] w-[300px] z-[110] bg-[var(--color-surface)] border-r border-white/10 overflow-hidden shadow-2xl rounded-l-2xl animate-in slide-in-from-right-10 duration-200 flex flex-col">
+        <div className="fixed top-0 bottom-0 right-[546px] w-[300px] z-[110] bg-[var(--color-surface)] border-r border-[var(--color-border-subtle)] overflow-hidden shadow-2xl rounded-l-2xl animate-in slide-in-from-right-10 duration-200 flex flex-col">
           <LeadCopilot
             onClose={() => setShowCopilot(false)}
             leadContext={{

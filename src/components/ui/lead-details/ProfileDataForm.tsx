@@ -86,7 +86,7 @@ export function ProfileDataForm({
           onClick={() => setIsEditingInline(!isEditingInline)}
           className={`text-[10px] font-bold flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all cursor-pointer ${
             isEditingInline
-              ? "text-rose-600 dark:text-rose-400 border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20"
+              ? "text-warning border-warning/20 bg-warning/10 hover:bg-warning/20"
               : "text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/20 bg-[var(--color-primary-blue)]/10 hover:bg-[var(--color-primary-blue)]/20"
           }`}
         >
@@ -175,7 +175,7 @@ export function ProfileDataForm({
               placeholder="Não informado"
               onFocus={() => setIsEditingInline(true)}
               onChange={(e) => setPhone(e.target.value)}
-              className={isEditingInline ? inputActiveClass : viewCls(phone ? "text-emerald-600 dark:text-emerald-400 font-semibold font-mono" : "text-[var(--color-text-faint)] font-mono")}
+              className={isEditingInline ? inputActiveClass : viewCls(phone ? "text-[var(--color-primary-blue)] font-semibold font-mono" : "text-[var(--color-text-faint)] font-mono")}
             />
           </div>
         </div>
@@ -276,7 +276,7 @@ export function ProfileDataForm({
             <Lock className="w-2.5 h-2.5 text-[var(--color-text-faint)]" />
           </div>
           <div className="flex items-center flex-wrap gap-2">
-            <span className="text-xl font-display font-black font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">
+            <span className="text-xl font-display font-black font-mono text-[var(--color-primary-blue)] tracking-tight">
               {displayValue}
             </span>
             {productValue && (
@@ -322,7 +322,7 @@ export function ProfileDataForm({
               onClick={() => setIsEditingInline(true)}
               className={isEditingInline
                 ? inputActiveClass
-                : viewSelectCls(`font-bold ${priority === "Alta" ? "text-rose-600 dark:text-rose-400" : priority === "Média" ? "text-amber-600 dark:text-amber-400" : "text-[var(--color-primary-blue)]"}`)}
+                : viewSelectCls(`font-bold ${priority === "Alta" ? "text-danger" : priority === "Média" ? "text-warning" : "text-[var(--color-text-muted)]"}`)}
             >
               <option value="Alta">Alta</option>
               <option value="Média">Média</option>

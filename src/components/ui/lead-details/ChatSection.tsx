@@ -59,7 +59,7 @@ export function ChatSection({
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                 <div className={`p-3 rounded-2xl text-xs max-w-[82%] leading-relaxed ${
                   isMe ? 'bg-[var(--color-primary-blue)] text-white rounded-tr-none' :
-                  isAi ? 'bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-300 rounded-tl-none font-medium' :
+                  isAi ? 'bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)] rounded-tl-none font-medium' :
                   'bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-tl-none shadow-sm'
                 }`}>
                   <p>{msg.text}</p>

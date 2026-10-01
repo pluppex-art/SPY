@@ -79,7 +79,7 @@ export function LeadDetailsModalHero({
                   ...prev,
                 ]);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-control)] border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-control)] border border-success/30 bg-success/10 hover:bg-success/20 text-success text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
             >
               <Trophy className="w-3 h-3" /> Ganho
             </button>
@@ -97,7 +97,7 @@ export function LeadDetailsModalHero({
                   ...prev,
                 ]);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-control)] border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-control)] border border-danger/30 bg-danger/10 hover:bg-danger/20 text-danger text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
             >
               <ThumbsDown className="w-3 h-3" /> Perdido
             </button>
@@ -122,8 +122,8 @@ export function LeadDetailsModalHero({
               className={cn(
                 "p-1.5 rounded-[var(--radius-control)] border transition-all cursor-pointer",
                 showCopilot
-                  ? "bg-purple-500/20 border-purple-500/40 text-purple-600 dark:text-purple-400 shadow-sm"
-                  : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-purple-600 hover:border-purple-500/30 hover:bg-purple-500/10"
+                  ? "bg-[var(--color-primary-blue)]/20 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)] shadow-sm"
+                  : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:border-[var(--color-primary-blue)]/30 hover:bg-[var(--color-primary-blue)]/10"
               )}
             >
               <Brain className="w-4 h-4" />
@@ -171,16 +171,16 @@ export function LeadDetailsModalHero({
             )}
 
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
+              <span className="text-sm font-black text-[var(--color-primary-blue)] font-mono tracking-tight">
                 {formattedValue}
               </span>
               <div className="w-px h-3 bg-[var(--color-border-default)] shrink-0" />
               <span className={cn(
                 "text-[10px] font-bold px-2 py-0.5 rounded-full border",
                 priority === "Alta"
-                  ? "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400"
+                  ? "bg-danger/10 border-danger/20 text-danger"
                   : priority === "Média"
-                  ? "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400"
+                  ? "bg-warning/10 border-warning/20 text-warning"
                   : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)]"
               )}>
                 ▲ {priority}
@@ -189,10 +189,10 @@ export function LeadDetailsModalHero({
                 <span className={cn(
                   "text-[10px] font-bold px-2 py-0.5 rounded-full border",
                   slaStatus === "Em Dia"
-                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                    ? "bg-success/10 border-success/20 text-success"
                     : slaStatus === "Crítico"
-                    ? "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400"
-                    : "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400"
+                    ? "bg-warning/10 border-warning/20 text-warning"
+                    : "bg-danger/10 border-danger/20 text-danger"
                 )}>
                   SLA · {slaStatus}
                 </span>
@@ -217,7 +217,7 @@ export function LeadDetailsModalHero({
                       isActive
                         ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/30 font-black shadow-sm"
                         : isPast
-                        ? "text-emerald-600 dark:text-emerald-400 border-transparent hover:border-[var(--color-border-default)] hover:bg-[var(--color-surface-sunken)]"
+                        ? "text-success border-transparent hover:border-[var(--color-border-default)] hover:bg-[var(--color-surface-sunken)]"
                         : "text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-default)] hover:bg-[var(--color-surface-sunken)]"
                     )}
                   >
@@ -225,8 +225,8 @@ export function LeadDetailsModalHero({
                       <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary-blue)] animate-pulse shrink-0" />
                     )}
                     {isPast && (
-                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
-                        <Check className="w-2 h-2 text-emerald-600 dark:text-emerald-400" />
+                      <span className="w-3.5 h-3.5 rounded-full bg-success/15 flex items-center justify-center shrink-0">
+                        <Check className="w-2 h-2 text-success" />
                       </span>
                     )}
                     {stg.name}

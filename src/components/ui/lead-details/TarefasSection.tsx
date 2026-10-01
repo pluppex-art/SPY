@@ -302,13 +302,13 @@ export function TarefasSection({ lead, leadName, seller }: TarefasSectionProps) 
                 {convidados.map((email) => (
                   <span
                     key={email}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 border border-blue-500/25 rounded-md text-[11px] text-blue-400 font-medium"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-md text-[11px] text-[var(--color-text-muted)] font-medium"
                   >
                     {email}
                     <button
                       type="button"
                       onClick={() => handleRemoveConvidado(email)}
-                      className="hover:text-rose-400 p-0.5"
+                      className="hover:text-danger p-0.5"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -321,7 +321,7 @@ export function TarefasSection({ lead, leadName, seller }: TarefasSectionProps) 
           {/* Sincronização Google Calendar */}
           <div className="p-3 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <CalendarCheck className={cn("w-4 h-4 shrink-0", vincularGoogle ? "text-emerald-400" : "text-[var(--color-text-faint)]")} />
+              <CalendarCheck className={cn("w-4 h-4 shrink-0", vincularGoogle ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-faint)]")} />
               <div className="min-w-0">
                 <p className="text-xs font-bold text-[var(--color-text-primary)]">Vincular ao Google Agenda</p>
                 <p className="text-[10px] text-[var(--color-text-muted)] truncate">
@@ -338,7 +338,7 @@ export function TarefasSection({ lead, leadName, seller }: TarefasSectionProps) 
                 onChange={(e) => setVincularGoogle(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--color-primary-blue)]"></div>
+              <div className="w-9 h-5 bg-[var(--color-border-default)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--color-primary-blue)]"></div>
             </label>
           </div>
 
@@ -430,7 +430,7 @@ function TaskCard({ task, onToggle, onDelete, dimmed, colaboradores }: {
     )}>
       <button onClick={() => onToggle(task)} className="mt-0.5 shrink-0 cursor-pointer">
         {isDone ? (
-          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          <CheckCircle2 className="w-4 h-4 text-success" />
         ) : (
           <Circle className="w-4 h-4 text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] transition-colors" />
         )}
@@ -466,7 +466,7 @@ function TaskCard({ task, onToggle, onDelete, dimmed, colaboradores }: {
             </span>
           )}
           {task.convidados && task.convidados.length > 0 && (
-            <span className="flex items-center gap-1 text-[10px] text-blue-400 font-medium">
+            <span className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)] font-medium">
               <Users className="w-3 h-3" /> {task.convidados.length} convidado{task.convidados.length !== 1 ? "s" : ""}
             </span>
           )}
@@ -475,7 +475,7 @@ function TaskCard({ task, onToggle, onDelete, dimmed, colaboradores }: {
               href={task.calendarLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 font-bold transition-colors ml-auto"
+              className="flex items-center gap-1 text-[10px] text-[var(--color-primary-blue)] hover:opacity-80 font-bold transition-colors ml-auto"
             >
               <CalendarCheck className="w-3 h-3" /> Google Agenda
             </a>
@@ -492,7 +492,7 @@ function TaskCard({ task, onToggle, onDelete, dimmed, colaboradores }: {
           onDelete(task.id);
           toast.info("Tarefa removida.");
         }}
-        className="shrink-0 p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-rose-500/10 rounded text-[var(--color-text-faint)] hover:text-rose-500 transition-all cursor-pointer"
+        className="shrink-0 p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-danger/10 rounded text-[var(--color-text-faint)] hover:text-danger transition-all cursor-pointer"
         title="Remover Tarefa"
       >
         <Trash2 className="w-3.5 h-3.5" />
