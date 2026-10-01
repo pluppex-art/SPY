@@ -102,7 +102,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     };
   }, [financeEntries, type, statusFilter]);
 
-  const STATUS_CHART_COLORS: Record<string, string> = { Pago: "#10b981", "A Vencer": "#3b82f6", Atrasado: "#f43f5e", Pendente: "#f59e0b" };
+  const STATUS_CHART_COLORS: Record<string, string> = { Pago: "var(--color-success)", "A Vencer": "var(--color-text-muted)", Atrasado: "var(--color-danger)", Pendente: "var(--color-warning)" };
   const statusBreakdown = useMemo(() => {
     if (kpis.kind !== "pipeline") return [];
     return [
@@ -450,10 +450,10 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Pago': return "bg-emerald-500/10 text-emerald-500 border-emerald-500/30";
-      case 'A Vencer': return "bg-blue-500/10 text-blue-500 border-blue-500/30";
-      case 'Atrasado': return "bg-rose-500/10 text-rose-500 border-rose-500/30";
-      case 'Pendente': return "bg-amber-500/10 text-amber-500 border-amber-500/30";
+      case 'Pago': return "bg-success/10 text-success border-success/30";
+      case 'A Vencer': return "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]";
+      case 'Atrasado': return "bg-danger/10 text-danger border-danger/30";
+      case 'Pendente': return "bg-warning/10 text-warning border-warning/30";
       default: return "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]";
     }
   };
@@ -461,21 +461,21 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const RepeatBadge = ({ item }: { item: (typeof financeEntries)[number] }) => {
     if (item.is_recurring) {
       return (
-        <span title={`Recorrente (${item.recurring_frequency})`} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-md bg-violet-500/10 text-violet-500 border border-violet-500/25">
+        <span title={`Recorrente (${item.recurring_frequency})`} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-md bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border border-[var(--color-primary-blue)]/25">
           <Repeat className="w-2.5 h-2.5" /> {item.recurring_frequency}
         </span>
       );
     }
     if (item.installment_total && item.installment_total > 1) {
       return (
-        <span title={`Parcela ${item.installment_number} de ${item.installment_total}`} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+        <span title={`Parcela ${item.installment_number} de ${item.installment_total}`} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-md bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border border-[var(--color-border-default)]">
           <Layers className="w-2.5 h-2.5" /> {item.installment_number}/{item.installment_total}
         </span>
       );
     }
     if ((item as any).division_group_id) {
       return (
-        <span title="Parte de um lançamento detalhado (rateio)" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/25">
+        <span title="Parte de um lançamento detalhado (rateio)" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-md bg-[var(--color-surface-sunken)] text-[var(--color-text-faint)] border border-[var(--color-border-subtle)]">
           <Layers className="w-2.5 h-2.5" /> Rateio
         </span>
       );
@@ -717,7 +717,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                         <Lock className="w-2.5 h-2.5 ml-1.5 opacity-60" />
                       </span>
                     </td>
-                    <td className={`px-6 py-4 text-right font-mono font-bold ${type === 'Pagar' ? 'text-rose-500' : 'text-emerald-500'}`}>
+                    <td className={`px-6 py-4 text-right font-mono font-bold ${type === 'Pagar' ? 'text-danger' : 'text-success'}`}>
                       {type === 'Pagar' ? '-' : '+'} {formatCurrency(item.value)}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -733,7 +733,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                         <button
                           type="button"
                           onClick={() => handleDelete(item)}
-                          className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 rounded-lg transition-colors cursor-pointer"
                           title="Excluir lançamento"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -747,7 +747,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             <tfoot className="bg-[var(--color-surface-sunken)] border-t border-[var(--color-border-subtle)] font-bold">
               <tr>
                 <td colSpan={6} className="px-6 py-4 text-[var(--color-text-muted)] text-right uppercase tracking-wider text-[10px]">Total:</td>
-                <td className={`px-6 py-4 font-mono font-bold text-sm text-right ${type === 'Pagar' ? 'text-rose-500' : 'text-emerald-500'}`}>
+                <td className={`px-6 py-4 font-mono font-bold text-sm text-right ${type === 'Pagar' ? 'text-danger' : 'text-success'}`}>
                   {formatCurrency(totalValue)}
                 </td>
                 <td></td>
@@ -784,7 +784,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                   <button
                     type="button"
                     onClick={() => handleDelete(item)}
-                    className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-rose-500 hover:bg-rose-500/10 hover:border-rose-500/25 p-1 transition-colors"
+                    className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 hover:border-danger/25 p-1 transition-colors"
                     title="Excluir lançamento"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -815,7 +815,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                     {item.status}
                     <Lock className="w-2.5 h-2.5 ml-1 opacity-60" />
                   </span>
-                  <p className={`font-mono font-bold text-xs ${type === 'Pagar' ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  <p className={`font-mono font-bold text-xs ${type === 'Pagar' ? 'text-danger' : 'text-success'}`}>
                     {formatCurrency(item.value)}
                   </p>
                 </div>
@@ -852,9 +852,9 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               placeholder="Ex: Servidor AWS, Licença de Software, Fatura..."
               value={newDesc}
               onChange={(e) => { setNewDesc(e.target.value); setFormErrors(prev => ({ ...prev, desc: undefined })); }}
-              className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] ${formErrors.desc ? "border-rose-500" : "border-[var(--color-border-default)]"}`}
+              className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] ${formErrors.desc ? "border-danger" : "border-[var(--color-border-default)]"}`}
             />
-            {formErrors.desc && <p className="text-[10px] text-rose-500 mt-1">{formErrors.desc}</p>}
+            {formErrors.desc && <p className="text-[10px] text-danger mt-1">{formErrors.desc}</p>}
           </div>
 
           <div>
@@ -880,7 +880,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                     setNewCategoryId(e.target.value);
                     setFormErrors(prev => ({ ...prev, category: undefined }));
                   }}
-                  className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer ${formErrors.category ? "border-rose-500" : "border-[var(--color-border-default)]"}`}
+                  className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer ${formErrors.category ? "border-danger" : "border-[var(--color-border-default)]"}`}
                 >
                   <option value="">Selecione...</option>
                   {categoriasDoTipo.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
@@ -911,7 +911,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                   <option value="IMPOSTOS">Impostos</option>
                 </select>
               )}
-              {formErrors.category && <p className="text-[10px] text-rose-500 mt-1">{formErrors.category}</p>}
+              {formErrors.category && <p className="text-[10px] text-danger mt-1">{formErrors.category}</p>}
             </div>
             <div>
               <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">{type === 'Pagar' ? 'Fornecedor' : 'Cliente'}</label>
@@ -1002,9 +1002,9 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 placeholder="0,00"
                 value={newValue}
                 onChange={(e) => { setNewValue(e.target.value); setFormErrors(prev => ({ ...prev, value: undefined })); }}
-                className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono ${formErrors.value ? "border-rose-500" : "border-[var(--color-border-default)]"}`}
+                className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono ${formErrors.value ? "border-danger" : "border-[var(--color-border-default)]"}`}
               />
-              {formErrors.value && <p className="text-[10px] text-rose-500 mt-1">{formErrors.value}</p>}
+              {formErrors.value && <p className="text-[10px] text-danger mt-1">{formErrors.value}</p>}
             </div>
 
             <div>
@@ -1033,14 +1033,14 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               <button
                 type="button"
                 onClick={() => setNewRepeatMode("recorrente")}
-                className={`flex flex-col items-center gap-1 py-2.5 rounded-[var(--radius-control)] border text-[10px] font-bold uppercase transition-colors cursor-pointer ${newRepeatMode === "recorrente" ? "bg-violet-500/10 border-violet-500/40 text-violet-500" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+                className={`flex flex-col items-center gap-1 py-2.5 rounded-[var(--radius-control)] border text-[10px] font-bold uppercase transition-colors cursor-pointer ${newRepeatMode === "recorrente" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
               >
                 <Repeat className="w-3.5 h-3.5" /> Recorrente
               </button>
               <button
                 type="button"
                 onClick={() => setNewRepeatMode("parcelado")}
-                className={`flex flex-col items-center gap-1 py-2.5 rounded-[var(--radius-control)] border text-[10px] font-bold uppercase transition-colors cursor-pointer ${newRepeatMode === "parcelado" ? "bg-amber-500/10 border-amber-500/40 text-amber-600 dark:text-amber-400" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+                className={`flex flex-col items-center gap-1 py-2.5 rounded-[var(--radius-control)] border text-[10px] font-bold uppercase transition-colors cursor-pointer ${newRepeatMode === "parcelado" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
               >
                 <Layers className="w-3.5 h-3.5" /> Parcelado
               </button>
@@ -1164,12 +1164,12 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         ) : (
         <form onSubmit={handleSaveEdit} className="space-y-4">
           {editingItem?.recurring_group_id && (
-            <div className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase rounded-md bg-violet-500/10 text-violet-500 border border-violet-500/25">
+            <div className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase rounded-md bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border border-[var(--color-primary-blue)]/25">
               <Repeat className="w-2.5 h-2.5" /> Faz parte de uma recorrência {editingItem.recurring_frequency} — editar aqui só afeta esta ocorrência.
             </div>
           )}
           {editingItem?.installment_group_id && (
-            <div className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+            <div className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase rounded-md bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border border-[var(--color-border-default)]">
               <Layers className="w-2.5 h-2.5" /> Parcela {editingItem.installment_number} de {editingItem.installment_total} — editar aqui só afeta esta parcela.
             </div>
           )}

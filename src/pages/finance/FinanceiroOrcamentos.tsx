@@ -122,7 +122,7 @@ export default function FinanceiroOrcamentos() {
             {rows.map(({ categoria, orcado, realizado }) => {
               const perc = orcado > 0 ? Math.round((realizado / orcado) * 100) : realizado > 0 ? 100 : 0;
               const estourou = orcado > 0 && realizado > orcado;
-              const barColor = estourou ? "bg-rose-500" : perc > 85 ? "bg-amber-500" : "bg-emerald-500";
+              const barColor = estourou ? "bg-danger" : perc > 85 ? "bg-warning" : "bg-success";
               return (
                 <div key={categoria.id} className="space-y-1.5">
                   <div className="flex items-center justify-between gap-3">
@@ -151,7 +151,7 @@ export default function FinanceiroOrcamentos() {
                         </button>
                       )}
                       <span className="text-[var(--color-text-faint)] text-xs">/</span>
-                      <span className={`text-xs font-mono font-bold ${estourou ? "text-rose-500" : "text-[var(--color-text-primary)]"}`}>
+                      <span className={`text-xs font-mono font-bold ${estourou ? "text-danger" : "text-[var(--color-text-primary)]"}`}>
                         {formatCurrency(realizado)}
                       </span>
                     </div>
@@ -162,7 +162,7 @@ export default function FinanceiroOrcamentos() {
                     </div>
                   )}
                   {estourou && (
-                    <p className="text-[10px] text-rose-500 font-semibold">
+                    <p className="text-[10px] text-danger font-semibold">
                       {formatCurrency(realizado - orcado)} acima do orçado ({perc}%)
                     </p>
                   )}
@@ -201,35 +201,35 @@ export default function FinanceiroOrcamentos() {
         <div className="space-y-5">
           <div className="grid sm:grid-cols-2 gap-4">
             <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
-                <TrendingDown className="w-4 h-4 text-rose-500" />
+              <div className="w-9 h-9 rounded-xl bg-danger/10 flex items-center justify-center shrink-0">
+                <TrendingDown className="w-4 h-4 text-danger" />
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase text-[var(--color-text-faint)] block">Despesas — Orçado x Realizado</span>
                 <span className="text-sm font-mono font-black text-[var(--color-text-primary)]">
                   {formatCurrency(totalOrcadoDespesa)} <span className="text-[var(--color-text-faint)]">/</span>{" "}
-                  <span className={totalRealizadoDespesa > totalOrcadoDespesa && totalOrcadoDespesa > 0 ? "text-rose-500" : "text-[var(--color-text-primary)]"}>
+                  <span className={totalRealizadoDespesa > totalOrcadoDespesa && totalOrcadoDespesa > 0 ? "text-danger" : "text-[var(--color-text-primary)]"}>
                     {formatCurrency(totalRealizadoDespesa)}
                   </span>
                 </span>
               </div>
             </Card>
             <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-4 h-4 text-emerald-500" />
+              <div className="w-9 h-9 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-4 h-4 text-success" />
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase text-[var(--color-text-faint)] block">Receitas — Orçado x Realizado</span>
                 <span className="text-sm font-mono font-black text-[var(--color-text-primary)]">
                   {formatCurrency(totalOrcadoReceita)} <span className="text-[var(--color-text-faint)]">/</span>{" "}
-                  <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(totalRealizadoReceita)}</span>
+                  <span className="text-success">{formatCurrency(totalRealizadoReceita)}</span>
                 </span>
               </div>
             </Card>
           </div>
 
-          {renderGrupo("Despesas", TrendingDown, despesaRows, totalOrcadoDespesa, totalRealizadoDespesa, "text-rose-500")}
-          {renderGrupo("Receitas", TrendingUp, receitaRows, totalOrcadoReceita, totalRealizadoReceita, "text-emerald-600 dark:text-emerald-400")}
+          {renderGrupo("Despesas", TrendingDown, despesaRows, totalOrcadoDespesa, totalRealizadoDespesa, "text-danger")}
+          {renderGrupo("Receitas", TrendingUp, receitaRows, totalOrcadoReceita, totalRealizadoReceita, "text-success")}
 
           <p className="text-[10px] text-[var(--color-text-faint)] flex items-center gap-1.5">
             <Wallet className="w-3 h-3" /> Clique no valor orçado de qualquer categoria pra definir/editar. O realizado é sempre calculado a partir dos lançamentos pagos deste mês — nunca digitado.

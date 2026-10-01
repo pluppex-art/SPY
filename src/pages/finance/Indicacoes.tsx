@@ -26,10 +26,10 @@ const STATUS_FLOW: Record<string, string> = {
 
 function statusStyle(status: string) {
   switch (status) {
-    case "Paga": return "bg-emerald-500/10 text-emerald-500 border-emerald-500/30";
-    case "Aprovada": return "bg-blue-500/10 text-blue-500 border-blue-500/30";
-    case "Cancelada": return "bg-rose-500/10 text-rose-500 border-rose-500/30";
-    default: return "bg-amber-500/10 text-amber-500 border-amber-500/30";
+    case "Paga": return "bg-success/10 text-success border-success/30";
+    case "Aprovada": return "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/30";
+    case "Cancelada": return "bg-danger/10 text-danger border-danger/30";
+    default: return "bg-warning/10 text-warning border-warning/30";
   }
 }
 
@@ -108,12 +108,12 @@ export default function Indicacoes() {
   }, [indicacoes]);
 
   const STATUS_COLORS: Record<string, string> = {
-    Pendente: "#f59e0b", Aprovada: "#3b82f6", Paga: "#10b981", Cancelada: "#f43f5e",
+    Pendente: "var(--color-warning)", Aprovada: "var(--color-primary-blue)", Paga: "var(--color-success)", Cancelada: "var(--color-danger)",
   };
   const statusBreakdown = useMemo(() => {
     const counts = new Map<string, number>();
     for (const i of indicacoes) counts.set(i.status, (counts.get(i.status) || 0) + 1);
-    return Array.from(counts.entries()).map(([status, count]) => ({ status, count, fill: STATUS_COLORS[status] || "#94a3b8" }));
+    return Array.from(counts.entries()).map(([status, count]) => ({ status, count, fill: STATUS_COLORS[status] || "var(--color-text-faint)" }));
   }, [indicacoes]);
 
   const referrerOptions = referrerType === "colaborador" ? colaboradores : clienteBase;
@@ -321,15 +321,16 @@ export default function Indicacoes() {
           {/* Botão 1 Solicitado: Cadastrar Afiliado */}
           <Button
             onClick={() => setIsAffiliateModalOpen(true)}
-            className="h-9 px-4 text-xs font-black gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 !text-white shadow-md shadow-purple-600/20 cursor-pointer"
+            className="h-9 px-4 text-xs font-black gap-1.5 shadow-md cursor-pointer"
           >
             <UserPlus className="w-4 h-4" /> Cadastrar Afiliado
           </Button>
 
           {/* Botão 2 Solicitado: Link & Formulário de Indicação */}
           <Button
+            variant="secondary"
             onClick={() => setIsLinkModalOpen(true)}
-            className="h-9 px-4 text-xs font-black gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 !text-white shadow-md shadow-emerald-600/20 cursor-pointer"
+            className="h-9 px-4 text-xs font-black gap-1.5 shadow-md cursor-pointer"
           >
             <Share2 className="w-4 h-4" /> Link & Formulário
           </Button>
@@ -352,11 +353,11 @@ export default function Indicacoes() {
         </Card>
         <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Em Aberto</p>
-          <p className="text-xl font-black text-amber-500">{kpis.pendentes}</p>
+          <p className="text-xl font-black text-warning">{kpis.pendentes}</p>
         </Card>
         <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Comissão Paga</p>
-          <p className="text-xl font-black text-emerald-500">{currency(kpis.totalPago)}</p>
+          <p className="text-xl font-black text-success">{currency(kpis.totalPago)}</p>
         </Card>
         <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Comissão a Pagar</p>
@@ -443,16 +444,16 @@ export default function Indicacoes() {
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)] text-[var(--color-text-primary)] font-medium">
                 {indicacoes.map((item) => (
-                  <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
+                  <tr key={item.id} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors">
                     <td className="p-3 font-bold flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center text-[10px] font-bold">
+                      <span className="w-6 h-6 rounded-full bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center text-[10px] font-bold">
                         {item.referrer_name.charAt(0).toUpperCase()}
                       </span>
                       {item.referrer_name}
                     </td>
-                    <td className="p-3 text-white font-bold">{item.referred_name}</td>
+                    <td className="p-3 text-[var(--color-text-primary)] font-bold">{item.referred_name}</td>
                     <td className="p-3 text-[var(--color-text-muted)]">{item.referred_contact || "—"}</td>
-                    <td className="p-3 font-mono font-bold text-emerald-400">{currency(Number(item.commission_value || 0))}</td>
+                    <td className="p-3 font-mono font-bold text-[var(--color-primary-blue)]">{currency(Number(item.commission_value || 0))}</td>
                     <td className="p-3 text-[var(--color-text-muted)] font-mono">{item.date_indicated || "—"}</td>
                     <td className="p-3">
                       <button
@@ -466,7 +467,7 @@ export default function Indicacoes() {
                     <td className="p-3 text-right">
                       <button
                         onClick={() => handleDelete(item)}
-                        className="p-1.5 bg-white/5 border border-white/10 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer rounded-lg hover:bg-rose-500/10 hover:border-rose-500/25"
+                        className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger transition-colors cursor-pointer rounded-lg hover:bg-danger/10 hover:border-danger/25"
                         title="Excluir"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -537,14 +538,14 @@ export default function Indicacoes() {
             <div>
               <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Código / Slug do Link *</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-xs">ref=</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] font-mono text-xs">ref=</span>
                 <input
                   type="text"
                   required
                   placeholder="carlos"
                   value={affCode}
                   onChange={(e) => setAffCode(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
-                  className="w-full pl-11 bg-[var(--color-surface-sunken)] text-white font-mono font-bold border border-[var(--color-border-default)] rounded-[var(--radius-control)] pr-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                  className="w-full pl-11 bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] font-mono font-bold border border-[var(--color-border-default)] rounded-[var(--radius-control)] pr-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
                 />
               </div>
             </div>
@@ -557,7 +558,7 @@ export default function Indicacoes() {
                 placeholder={String(defaultCommission || "100,00")}
                 value={affCommission}
                 onChange={(e) => setAffCommission(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-emerald-400 font-mono font-bold border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] font-mono font-bold border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
               />
             </div>
           </div>
@@ -577,7 +578,7 @@ export default function Indicacoes() {
             <Button type="button" variant="outline" onClick={() => setIsAffiliateModalOpen(false)} className="h-9 px-4 text-xs font-bold">
               Cancelar
             </Button>
-            <Button type="submit" className="h-9 px-5 text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-xs">
+            <Button type="submit" className="h-9 px-5 text-xs font-bold shadow-xs">
               Salvar Afiliado
             </Button>
           </div>
@@ -598,7 +599,7 @@ export default function Indicacoes() {
               <select
                 value={selectedAffiliateCode}
                 onChange={(e) => setSelectedAffiliateCode(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-white border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none"
               >
                 {affiliates.map((a: any) => (
                   <option key={a.code} value={a.code}>
@@ -610,8 +611,8 @@ export default function Indicacoes() {
           )}
 
           {/* Card com o Link Gerado */}
-          <div className="p-3.5 rounded-xl bg-[var(--color-surface-sunken)] border border-emerald-500/25 space-y-2.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">
+          <div className="p-3.5 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-primary-blue)]/25 space-y-2.5">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-primary-blue)] block">
               Link de Indicação Rastreável
             </span>
             <div className="flex items-center gap-2">
@@ -619,12 +620,12 @@ export default function Indicacoes() {
                 type="text"
                 readOnly
                 value={currentReferralUrl}
-                className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none"
+                className="flex-1 bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] font-mono focus:outline-none"
               />
               <Button
                 type="button"
                 onClick={handleCopyLink}
-                className="h-9 px-3 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-500 text-white"
+                className="h-9 px-3 text-xs font-bold gap-1"
               >
                 {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 {copiedLink ? "Copiado!" : "Copiar"}
@@ -635,15 +636,17 @@ export default function Indicacoes() {
             <div className="grid grid-cols-2 gap-2 pt-1">
               <Button
                 type="button"
+                variant="outline"
                 onClick={handleShareWhatsApp}
-                className="h-8 text-[11px] font-bold gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-black"
+                className="h-8 text-[11px] font-bold gap-1.5"
               >
                 <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
               </Button>
               <Button
                 type="button"
+                variant="outline"
                 onClick={handleShareInstagram}
-                className="h-8 text-[11px] font-bold gap-1.5 bg-gradient-to-r from-pink-600 via-rose-500 to-amber-500 text-white hover:brightness-110"
+                className="h-8 text-[11px] font-bold gap-1.5"
               >
                 <Share2 className="w-3.5 h-3.5" /> Instagram (Bio)
               </Button>
@@ -652,14 +655,14 @@ export default function Indicacoes() {
 
           {/* Visualização / Teste do Formulário que o Cliente / Indicado vê */}
           <div className="p-4 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-3">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
-              <span className="text-[11px] font-black uppercase text-white flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-blue-400" /> Formulário de Cadastro do Indicado
+            <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-2">
+              <span className="text-[11px] font-black uppercase text-[var(--color-text-primary)] flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Formulário de Cadastro do Indicado
               </span>
-              <span className="text-[10px] text-emerald-400 font-mono font-bold">Rastreio: {currentAffiliate ? currentAffiliate.name : "Geral"}</span>
+              <span className="text-[10px] text-[var(--color-text-muted)] font-mono font-bold">Rastreio: {currentAffiliate ? currentAffiliate.name : "Geral"}</span>
             </div>
 
-            <p className="text-[11px] text-slate-400 leading-tight">
+            <p className="text-[11px] text-[var(--color-text-muted)] leading-tight">
               Quando o indicado acessa pelo WhatsApp ou Instagram, ele preenche este formulário e entra automaticamente no CRM:
             </p>
 
@@ -671,7 +674,7 @@ export default function Indicacoes() {
                   placeholder="Nome do indicado *"
                   value={previewLeadName}
                   onChange={(e) => setPreviewLeadName(e.target.value)}
-                  className="bg-[var(--color-surface-sunken)] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none"
+                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none"
                 />
                 <input
                   type="text"
@@ -679,7 +682,7 @@ export default function Indicacoes() {
                   placeholder="WhatsApp com DDD *"
                   value={previewLeadPhone}
                   onChange={(e) => setPreviewLeadPhone(e.target.value)}
-                  className="bg-[var(--color-surface-sunken)] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none"
+                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none"
                 />
               </div>
 
@@ -689,19 +692,19 @@ export default function Indicacoes() {
                   placeholder="E-mail"
                   value={previewLeadEmail}
                   onChange={(e) => setPreviewLeadEmail(e.target.value)}
-                  className="bg-[var(--color-surface-sunken)] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none"
+                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none"
                 />
                 <input
                   type="text"
                   placeholder="Nome da Empresa"
                   value={previewLeadCompany}
                   onChange={(e) => setPreviewLeadCompany(e.target.value)}
-                  className="bg-[var(--color-surface-sunken)] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none"
+                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none"
                 />
               </div>
 
               <div className="flex justify-end pt-1">
-                <Button type="submit" className="h-8 px-4 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white gap-1.5">
+                <Button type="submit" className="h-8 px-4 text-xs font-bold gap-1.5">
                   <Send className="w-3 h-3" /> Testar Envio do Formulário
                 </Button>
               </div>

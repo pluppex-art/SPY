@@ -139,8 +139,8 @@ export default function FinanceiroConciliacao() {
   const pendentes = extrato.filter(e => !e.conciliado).length;
   const statusChartData = useMemo(
     () => [
-      { name: "Conciliados", value: conciliados, fill: "#10b981" },
-      { name: "Pendentes", value: pendentes, fill: "#f59e0b" },
+      { name: "Conciliados", value: conciliados, fill: "var(--color-success)" },
+      { name: "Pendentes", value: pendentes, fill: "var(--color-warning)" },
     ].filter(d => d.value > 0),
     [conciliados, pendentes]
   );
@@ -268,25 +268,25 @@ export default function FinanceiroConciliacao() {
     >
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-5 bg-[var(--color-surface)] border border-emerald-500/25 shadow-xs">
+        <Card className="p-5 bg-[var(--color-surface)] border border-success/25 shadow-xs">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
               Lançamentos Conciliados
             </span>
-            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            <CheckCircle2 className="w-5 h-5 text-success" />
           </div>
-          <div className="text-2xl font-black text-emerald-500">{conciliados}</div>
+          <div className="text-2xl font-black text-success">{conciliados}</div>
           <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Conferidos e sincronizados com extrato</p>
         </Card>
 
-        <Card className="p-5 bg-[var(--color-surface)] border border-amber-500/25 shadow-xs">
+        <Card className="p-5 bg-[var(--color-surface)] border border-warning/25 shadow-xs">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
               Pendentes de Match
             </span>
-            <AlertCircle className="w-5 h-5 text-amber-500" />
+            <AlertCircle className="w-5 h-5 text-warning" />
           </div>
-          <div className="text-2xl font-black text-amber-500">{pendentes}</div>
+          <div className="text-2xl font-black text-warning">{pendentes}</div>
           <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Aguardando conferência ou aceite por IA</p>
         </Card>
 
@@ -377,21 +377,21 @@ export default function FinanceiroConciliacao() {
                   <td className="px-4 py-3.5">
                     {item.matchSugerido ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] px-2 py-0.5 rounded-lg border border-[var(--color-border-subtle)]">
-                        <Sparkles className="w-3 h-3 text-amber-500" /> {item.matchSugerido}
+                        <Sparkles className="w-3 h-3 text-warning" /> {item.matchSugerido}
                       </span>
                     ) : (
                       <span className="text-[10px] text-[var(--color-text-muted)]">Nenhum match automático</span>
                     )}
                   </td>
                   <td className={`px-4 py-3.5 text-right font-mono font-bold ${
-                    item.tipo === "credito" ? "text-emerald-500" : "text-rose-500"
+                    item.tipo === "credito" ? "text-success" : "text-danger"
                   }`}>
                     {item.tipo === "credito" ? "+ " : "- "}
                     R$ {item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-5 py-3.5 text-right">
                     {item.conciliado ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-success bg-success/10 px-2.5 py-1 rounded-full border border-success/20">
                         <Check className="w-3 h-3" /> Conciliado
                       </span>
                     ) : (

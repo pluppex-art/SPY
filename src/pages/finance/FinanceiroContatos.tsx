@@ -262,8 +262,8 @@ export default function FinanceiroContatos() {
 
           <div>
             <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Nome / Razão Social *</label>
-            <input type="text" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormError(""); }} maxLength={115} className={`w-full bg-[var(--color-surface-sunken)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none ${formError ? "border-rose-500" : "border-[var(--color-border-default)]"}`} />
-            {formError && <p className="text-[10px] text-rose-500 mt-1">{formError}</p>}
+            <input type="text" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormError(""); }} maxLength={115} className={`w-full bg-[var(--color-surface-sunken)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none ${formError ? "border-danger" : "border-[var(--color-border-default)]"}`} />
+            {formError && <p className="text-[10px] text-danger mt-1">{formError}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -177,23 +177,23 @@ export default function FinanceiroCentrosCusto() {
           </div>
         </Card>
 
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-amber-500/25">
+        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-warning/25">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Total Consumido</span>
-            <TrendingUp className="w-4 h-4 text-amber-500" />
+            <TrendingUp className="w-4 h-4 text-warning" />
           </div>
-          <div className="text-2xl font-black text-amber-500">
+          <div className="text-2xl font-black text-warning">
             R$ {totalGasto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
           </div>
           <span className="text-[10px] text-[var(--color-text-muted)] block mt-0.5">{percGeral}% do teto global</span>
         </Card>
 
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-emerald-500/25">
+        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-success/25">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Saldo Disponível</span>
-            <DollarSign className="w-4 h-4 text-emerald-500" />
+            <DollarSign className="w-4 h-4 text-success" />
           </div>
-          <div className="text-2xl font-black text-emerald-500">
+          <div className="text-2xl font-black text-success">
             R$ {saldoGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
           </div>
         </Card>
@@ -201,7 +201,7 @@ export default function FinanceiroCentrosCusto() {
         <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Unidades de Custo</span>
-            <Layers className="w-4 h-4 text-indigo-500" />
+            <Layers className="w-4 h-4 text-[var(--color-text-muted)]" />
           </div>
           <div className="text-2xl font-black text-[var(--color-text-primary)]">
             {centros.length}
@@ -243,7 +243,7 @@ export default function FinanceiroCentrosCusto() {
                   </button>
                   <button
                     onClick={() => handleDelete(c.id)}
-                    className="p-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 hover:border-rose-500/25 transition-colors"
+                    className="p-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-danger hover:bg-danger/10 hover:border-danger/25 transition-colors"
                     title="Excluir"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -259,14 +259,14 @@ export default function FinanceiroCentrosCusto() {
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
                   <span className="text-[var(--color-text-muted)]">Consumo:</span>
-                  <span className={`font-bold ${perc > 90 ? 'text-rose-500' : perc > 75 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                  <span className={`font-bold ${perc > 90 ? 'text-danger' : perc > 75 ? 'text-warning' : 'text-success'}`}>
                     {perc}%
                   </span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      perc > 90 ? 'bg-rose-500' : perc > 75 ? 'bg-amber-500' : 'bg-emerald-500'
+                      perc > 90 ? 'bg-danger' : perc > 75 ? 'bg-warning' : 'bg-success'
                     }`}
                     style={{ width: `${Math.min(perc, 100)}%` }}
                   />

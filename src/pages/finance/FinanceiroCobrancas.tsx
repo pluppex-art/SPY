@@ -248,10 +248,10 @@ export default function FinanceiroCobrancas() {
       {/* KPIs — recortadas pelo filtro de período acima (vencimento) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
-          { icon: Receipt, label: `Emitido (${periodoLabel})`, val: formatCurrency(cobrancasKpis.valorTotal), hint: `${cobrancasKpis.count} cobrança(s)`, color: "text-blue-500" },
-          { icon: CheckCircle2, label: "Liquidadas", val: formatCurrency(cobrancasKpis.valorLiquidado), hint: `${cobrancasKpis.countLiquidadas} cobrança(s)`, color: "text-emerald-500" },
-          { icon: Clock, label: "Pendentes", val: formatCurrency(cobrancasKpis.valorPendente), hint: `${cobrancasKpis.countPendentes} cobrança(s)`, color: "text-amber-500" },
-          { icon: QrCode, label: "Cobranças Pix", val: cobrancasKpis.countPix, hint: "por quantidade", color: "text-indigo-500" },
+          { icon: Receipt, label: `Emitido (${periodoLabel})`, val: formatCurrency(cobrancasKpis.valorTotal), hint: `${cobrancasKpis.count} cobrança(s)`, color: "text-[var(--color-primary-blue)]" },
+          { icon: CheckCircle2, label: "Liquidadas", val: formatCurrency(cobrancasKpis.valorLiquidado), hint: `${cobrancasKpis.countLiquidadas} cobrança(s)`, color: "text-success" },
+          { icon: Clock, label: "Pendentes", val: formatCurrency(cobrancasKpis.valorPendente), hint: `${cobrancasKpis.countPendentes} cobrança(s)`, color: "text-warning" },
+          { icon: QrCode, label: "Cobranças Pix", val: cobrancasKpis.countPix, hint: "por quantidade", color: "text-[var(--color-text-muted)]" },
         ].map((k, i) => (
           <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
             <div className="flex items-center justify-between mb-2">
@@ -272,8 +272,8 @@ export default function FinanceiroCobrancas() {
               <PieChart>
                 <Pie
                   data={[
-                    { name: "Liquidado", value: cobrancasKpis.valorLiquidado, fill: "#10b981" },
-                    { name: "Pendente", value: cobrancasKpis.valorPendente, fill: "#f59e0b" },
+                    { name: "Liquidado", value: cobrancasKpis.valorLiquidado, fill: "var(--color-success)" },
+                    { name: "Pendente", value: cobrancasKpis.valorPendente, fill: "var(--color-warning)" },
                   ]}
                   dataKey="value"
                   nameKey="name"
@@ -281,8 +281,8 @@ export default function FinanceiroCobrancas() {
                   outerRadius={60}
                   paddingAngle={2}
                 >
-                  <Cell fill="#10b981" />
-                  <Cell fill="#f59e0b" />
+                  <Cell fill="var(--color-success)" />
+                  <Cell fill="var(--color-warning)" />
                 </Pie>
                 <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
                 <Legend wrapperStyle={{ fontSize: "11px" }} />
@@ -351,8 +351,8 @@ export default function FinanceiroCobrancas() {
                       onClick={() => handleToggleStatus(c.id, c.status)}
                       className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border transition-all inline-flex items-center gap-1 ${
                         c.status === "Liquidada"
-                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20"
-                          : "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20"
+                          ? "bg-success/10 text-success border-success/20 hover:bg-success/20"
+                          : "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20"
                       }`}
                       title="Clique para alternar o status"
                     >
@@ -373,13 +373,13 @@ export default function FinanceiroCobrancas() {
                     <button
                       onClick={() => openSendCobranca(c)}
                       title="Enviar cobrança por WhatsApp ou E-mail"
-                      className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold transition-all inline-flex items-center gap-1"
+                      className="px-2.5 py-1 rounded-lg bg-[var(--color-primary-blue)]/10 hover:bg-[var(--color-primary-blue)]/20 border border-[var(--color-primary-blue)]/30 text-[var(--color-primary-blue)] text-[11px] font-bold transition-all inline-flex items-center gap-1"
                     >
                       <Send className="w-3 h-3" /> Enviar
                     </button>
                     <button
                       onClick={() => handleDelete(c.id)}
-                      className="p-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 hover:border-rose-500/25 transition-colors"
+                      className="p-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-danger hover:bg-danger/10 hover:border-danger/25 transition-colors"
                       title="Excluir Cobrança"
                     >
                       <Trash2 className="w-4 h-4" />
