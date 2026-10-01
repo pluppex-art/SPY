@@ -168,9 +168,20 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
           price: Number(kommoFieldValue(e, "PRICE").replace(",", ".")) || 0, active: true,
         }));
         if (rows.length) {
-          const err = await upsertChunks(sb, "products", rows);
-          if (err) return { done: true, saved, warning: `Produtos não importados: ${err}` };
-          saved += rows.length;
+          // Nunca sobrescreve produto que já existe (preço/nome editados no SPY valem mais que a Kommo):
+          // só cria os que faltam e preenche o preço de quem ainda está zerado.
+          const { data: have, error: haveErr } = await sb.from("products").select("id, price").in("id", rows.map((r) => r.id));
+          if (haveErr) return { done: true, saved, warning: `Produtos não importados: ${haveErr.message}` };
+          const existing = new Map<string, number>((have || []).map((h: any) => [h.id, Number(h.price) || 0]));
+          const novos = rows.filter((r) => !existing.has(r.id));
+          if (novos.length) {
+            const { error } = await sb.from("products").insert(novos);
+            if (error) return { done: true, saved, warning: `Produtos não importados: ${error.message}` };
+          }
+          for (const r of rows) {
+            if (existing.has(r.id) && existing.get(r.id) === 0 && r.price > 0) await sb.from("products").update({ price: r.price }).eq("id", r.id);
+          }
+          saved += novos.length;
         }
         if (!hasNext) break;
       }
@@ -313,6 +324,8 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
         if (funilErr) return res.status(500).json({ error: `Não foi possível salvar os funis: ${funilErr.message}` });
       }
       const stageIndex = new Map<string, { idx: number; status: "Novo" | "Fechado" | "Perdido" }>();
+      // Lead que ainda está na caixa de entrada da Kommo cai na 1ª etapa real do funil.
+      for (const p of pipelines) for (const id of p.incomingIds) stageIndex.set(`${p.id}:${id}`, { idx: 0, status: "Novo" });
       for (const p of pipelines) p.statuses.forEach((s, idx) => stageIndex.set(`${p.id}:${s.id}`, {
         idx, status: s.id === WON ? "Fechado" : s.id === LOST ? "Perdido" : "Novo",
       }));

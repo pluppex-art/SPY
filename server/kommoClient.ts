@@ -79,7 +79,7 @@ export async function kommoAccount(conn: KommoConn): Promise<{ id: number; name:
 }
 
 export interface KommoStatus { id: number; name: string; sort: number; type: number; pipelineId: number }
-export interface KommoPipeline { id: number; name: string; sort: number; statuses: KommoStatus[] }
+export interface KommoPipeline { id: number; name: string; sort: number; statuses: KommoStatus[]; incomingIds: number[] }
 
 export async function kommoPipelines(conn: KommoConn): Promise<KommoPipeline[]> {
   const body = await kommoGet(conn, "/leads/pipelines");
@@ -89,7 +89,10 @@ export async function kommoPipelines(conn: KommoConn): Promise<KommoPipeline[]> 
     .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
     .map((p) => ({
       id: p.id, name: p.name, sort: p.sort ?? 0,
+      // "Etapa de leads de entrada" (type 1) é a caixa de entrada automática da Kommo, não uma etapa do funil.
+      incomingIds: ((p._embedded?.statuses || []) as any[]).filter((s) => s.type === 1).map((s) => s.id),
       statuses: ((p._embedded?.statuses || []) as any[])
+        .filter((s) => s.type !== 1)
         .map((s) => ({ id: s.id, name: s.name, sort: s.sort ?? 0, type: s.type ?? 0, pipelineId: p.id }))
         // ganho (142) e perda (143) ficam sempre no fim, na ordem do funil
         .sort((a, b) => {
@@ -133,7 +136,7 @@ export async function kommoByIds(conn: KommoConn, path: string, key: string, ids
 export function kommoFieldValue(entity: any, code: string): string {
   const f = (entity?.custom_fields_values || []).find((c: any) => c.field_code === code);
   const v = f?.values?.[0]?.value;
-  return typeof v === "string" ? v.trim() : "";
+  return typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "";
 }
 
 const fieldText = (f: any): string =>
