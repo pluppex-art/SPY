@@ -1,4 +1,4 @@
-import { Search, Filter, Building2, Briefcase, Zap } from "lucide-react";
+import { Search, Filter, Building2, Briefcase, Zap, MapPin } from "lucide-react";
 import { DateRangeFilter } from "../../../../components/ui/DateRangeFilter";
 
 interface PipelineFilterBarProps {
@@ -13,6 +13,9 @@ interface PipelineFilterBarProps {
   companyFilter: string;
   setCompanyFilter: (c: string) => void;
   companiesList: string[];
+  cityFilter: string;
+  setCityFilter: (c: string) => void;
+  citiesList: string[];
   clientFilter: string;
   setClientFilter: (c: string) => void;
   clientsList: string[];
@@ -29,6 +32,7 @@ export function PipelineFilterBar({
   comercialFunis, sdrFunis, currentPipeline, setCurrentPipeline,
   selectedFunilId, setSelectedFunilId, searchQuery, setSearchQuery,
   companyFilter, setCompanyFilter, companiesList,
+  cityFilter, setCityFilter, citiesList,
   clientFilter, setClientFilter, clientsList,
   sellerFilter, setSellerFilter, sellers,
   dateFrom, setDateFrom, dateTo, setDateTo,
@@ -102,6 +106,17 @@ export function PipelineFilterBar({
           onChange={(e) => setCompanyFilter(e.target.value)}
         >
           {companiesList.map(c => <option key={c} value={c} className="bg-[var(--color-surface-elevated)]">{c === "Todos" ? "Todas as empresas" : c}</option>)}
+        </select>
+      </div>
+
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px]">
+        <MapPin className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
+        <select
+          className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer"
+          value={cityFilter}
+          onChange={(e) => setCityFilter(e.target.value)}
+        >
+          {citiesList.map(c => <option key={c} value={c} className="bg-[var(--color-surface-elevated)]">{c === "Todos" ? "Todas as cidades" : c}</option>)}
         </select>
       </div>
 

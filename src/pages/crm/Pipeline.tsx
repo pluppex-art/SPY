@@ -53,6 +53,7 @@ export default function Pipeline() {
     selectedLead, setSelectedLead,
     sellerFilter, setSellerFilter,
     companyFilter, setCompanyFilter,
+    cityFilter, setCityFilter, citiesList,
     searchQuery, setSearchQuery,
     showAnalytics, setShowAnalytics,
     openDropdownId, setOpenDropdownId,
@@ -189,7 +190,9 @@ export default function Pipeline() {
               selectedFunilId={selectedFunilId} setSelectedFunilId={setSelectedFunilId}
               searchQuery={searchQuery} setSearchQuery={setSearchQuery}
               companyFilter={companyFilter} setCompanyFilter={setCompanyFilter}
-              companiesList={companiesList} clientFilter={clientFilter}
+              companiesList={companiesList}
+              cityFilter={cityFilter} setCityFilter={setCityFilter} citiesList={citiesList}
+              clientFilter={clientFilter}
               setClientFilter={setClientFilter} clientsList={clientsList}
               sellerFilter={sellerFilter} setSellerFilter={setSellerFilter}
               sellers={sellers}

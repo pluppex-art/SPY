@@ -28,6 +28,7 @@ export function usePipeline() {
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [sellerFilter, setSellerFilter] = useState("Todos");
   const [companyFilter, setCompanyFilter] = useState("Todos");
+  const [cityFilter, setCityFilter] = useState("Todos");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
@@ -89,6 +90,7 @@ export function usePipeline() {
     setCurrentPipeline(pipeline);
     setSellerFilter("Todos");
     setCompanyFilter("Todos");
+    setCityFilter("Todos");
     setClientFilter("Todos");
     setSearchQuery("");
   };
@@ -180,6 +182,14 @@ export function usePipeline() {
     "Todos",
     ...Array.from(new Set(pipelineLeads.map((l: any) => l.company).filter(Boolean))).sort() as string[],
   ], [pipelineLeads]);
+  // Cidade real do lead (customFields.cidade, preenchida pelo autocomplete de
+  // município na qualificação — ver CompanyBlock.tsx/NewLeadModal.tsx) — só
+  // lista cidade que algum lead do pipeline atual realmente tem, nunca a
+  // lista inteira de municípios do Brasil.
+  const citiesList = useMemo(() => [
+    "Todos",
+    ...Array.from(new Set(pipelineLeads.map((l: any) => l.customFields?.cidade).filter(Boolean))).sort() as string[],
+  ], [pipelineLeads]);
 
   // ─── Filtered leads ───────────────────────────────────────────────────────────
   const filteredItemsList = useMemo(() => leads
@@ -189,6 +199,7 @@ export function usePipeline() {
         : !item.pipelineId || item.pipelineId === "comercial";
       const matchesSeller  = sellerFilter  === "Todos" || item.seller  === sellerFilter;
       const matchesCompany = companyFilter === "Todos" || item.company === companyFilter;
+      const matchesCity    = cityFilter    === "Todos" || item.customFields?.cidade === cityFilter;
       const clientId = clientNameToId[clientFilter];
       // Match by lead's own clientName/clientId OR via any linked product's client
       const matchesClient  = clientFilter  === "Todos"
@@ -214,7 +225,7 @@ export function usePipeline() {
         (!dateFrom || (item.date && item.date >= dateFrom)) &&
         (!dateTo || (item.date && item.date <= dateTo));
       const matchesFunil = !activeFunilStageIds || activeFunilStageIds.has(item.stageId);
-      return matchesPipeline && matchesFunil && matchesSeller && matchesCompany && matchesClient && matchesSearch && matchesDate;
+      return matchesPipeline && matchesFunil && matchesSeller && matchesCompany && matchesCity && matchesClient && matchesSearch && matchesDate;
     })
     // Card sempre no topo de quem teve a atividade mais recente — tanto um lead recém-criado
     // quanto um já existente que só mudou de etapa/status/campo (updated_at é atualizado a cada
@@ -232,7 +243,7 @@ export function usePipeline() {
       if (!db) return 1;
       return db > da ? 1 : db < da ? -1 : 0;
     }),
-  [leads, currentPipeline, activeFunilStageIds, sellerFilter, searchQuery, companyFilter, clientFilter, clientNameToId, products, dateFrom, dateTo]);
+  [leads, currentPipeline, activeFunilStageIds, sellerFilter, searchQuery, companyFilter, cityFilter, clientFilter, clientNameToId, products, dateFrom, dateTo]);
 
   // ─── Metrics ─────────────────────────────────────────────────────────────────
   const analyticsData = useMemo(() =>
@@ -414,6 +425,7 @@ export function usePipeline() {
     selectedLead, setSelectedLead,
     sellerFilter, setSellerFilter,
     companyFilter, setCompanyFilter,
+    cityFilter, setCityFilter, citiesList,
     searchQuery, setSearchQuery,
     showAnalytics, setShowAnalytics,
     openDropdownId, setOpenDropdownId,
