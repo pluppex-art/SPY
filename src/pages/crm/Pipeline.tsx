@@ -148,7 +148,8 @@ export default function Pipeline() {
   const noPipelineConfigured = comercialFunis.length === 0 && sdrFunis.length === 0;
 
   const kpis = useMemo(() => ({
-    total: filteredItemsList.length,
+    // Em aberto: ganhos, perdidos e cancelados saem da contagem (continuam nas colunas finais e no Win Rate).
+    total: filteredItemsList.filter((l: any) => l.status !== "Fechado" && l.status !== "Perdido" && l.status !== "Cancelado").length,
     hot: filteredItemsList.filter((l: any) => l.priority === "Alta").length,
     closed: filteredItemsList.filter((l: any) => l.status === "Fechado").length,
   }), [filteredItemsList]);

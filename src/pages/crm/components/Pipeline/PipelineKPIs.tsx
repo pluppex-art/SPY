@@ -11,7 +11,7 @@ interface PipelineKPIsProps {
 
 export function PipelineKPIs({ total, hot, closed, winRate, formattedTotalValue }: PipelineKPIsProps) {
   const items = [
-    { label: "Total", value: total, icon: Users, color: "text-[var(--color-primary-blue)]" },
+    { label: "Em aberto", value: total, icon: Users, color: "text-[var(--color-primary-blue)]" },
     { label: "Alta Prior.", value: hot, icon: Flame, color: "text-warning" },
     { label: "Ganhos", value: closed, icon: CheckCircle2, color: "text-success" },
     { label: "Win Rate", value: `${winRate}%`, icon: Target, color: "text-info" },
