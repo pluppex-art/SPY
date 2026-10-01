@@ -28,26 +28,16 @@ interface LeadCardProps {
   currentPipeline: 'comercial' | 'sdr';
 }
 
-// Paleta padronizada do card (pedido real do usuário — "muitas cores" demais,
-// causando confusão visual): só cinza/branco (tokens de tema) como base, a
-// cor da marca do tenant (--color-primary-blue, já configurável por tenant em
-// Configurações) como destaque principal, e os 3 tokens semânticos que já
-// existem no resto do app (danger/warning/success — ver Badge.tsx) só pra
-// sinal de urgência de verdade. Nada de roxo/ciano/rosa decorativos.
-const TEMP: Record<string, { flame: string; accent: string }> = {
-  quente: { flame: 'text-danger',  accent: 'border-l-danger'  },
-  morno:  { flame: 'text-warning', accent: 'border-l-warning' },
-  frio:   { flame: 'text-[var(--color-primary-blue)]',  accent: 'border-l-[var(--color-primary-blue)]' },
-};
+// Paleta padronizada do card (pedido real do usuário, 2a rodada: cor só em
+// DOIS lugares — a barra de score e a borda lateral, ambas seguindo o MESMO
+// gatilho, o score do lead: vermelho se baixo, amarelo se médio, verde
+// quando >70%. Todo o resto (nomes, badges, valores, ícones) vira neutro —
+// preto no claro, branco no escuro — via --color-text-primary).
+const SCORE_BAR    = (s: number) => s > 70 ? 'bg-success' : s > 50 ? 'bg-warning' : 'bg-danger';
+const SCORE_TEXT   = (s: number) => s > 70 ? 'text-success' : s > 50 ? 'text-warning' : 'text-danger';
+const SCORE_BORDER = (s: number) => s > 70 ? 'border-l-success' : s > 50 ? 'border-l-warning' : 'border-l-danger';
 
-const SCORE_BAR  = (s: number) => s > 80 ? 'bg-success' : s > 50 ? 'bg-warning' : 'bg-danger';
-const SCORE_TEXT = (s: number) => s > 80 ? 'text-success' : s > 50 ? 'text-warning' : 'text-danger';
-
-const PRIORITY_BADGE: Record<string, string> = {
-  Alta:  'bg-danger/10 text-danger border-danger/20',
-  Média: 'bg-warning/10 text-warning border-warning/20',
-  Baixa: 'bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]',
-};
+const NEUTRAL_BADGE = 'bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border-[var(--color-border-default)]';
 
 const SOURCE_ICON: Record<string, typeof Globe> = {
   site:       Globe,
@@ -84,9 +74,8 @@ export function LeadCard({
   const hasDelayedTask = tasks.some(
     t => t.lead_id === item.id && t.status === 'Atrasado'
   );
-  const temp      = (item.temperature || 'frio').toLowerCase() as keyof typeof TEMP;
+  const temp      = (item.temperature || 'frio').toLowerCase();
   const score     = item.scoreIA ?? 45;
-  const tempStyle = TEMP[temp] ?? TEMP.frio;
   const tags      = Array.isArray(item.tags) ? item.tags : [];
   const timeIdleNum = Number(item.timeIdle) || 0;
 
@@ -224,7 +213,7 @@ export function LeadCard({
         "relative overflow-hidden cursor-grab active:cursor-grabbing group text-left select-none",
         "bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] border-l-3 rounded-[var(--radius-panel)] shadow-sm",
         "hover:border-[var(--color-primary-blue)]/50 hover:shadow-md transition-all duration-150",
-        tempStyle.accent,
+        SCORE_BORDER(score),
         isDragging && "opacity-40 scale-[0.97] ring-2 ring-[var(--color-primary-blue)]",
       )}
     >
@@ -251,7 +240,7 @@ export function LeadCard({
                 title={`Temperatura: ${temp}`}
                 className="p-0.5 rounded hover:bg-[var(--color-surface-sunken)] border-none bg-transparent cursor-pointer"
               >
-                <Flame className={`w-3.5 h-3.5 ${tempStyle.flame}`} />
+                <Flame className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
               </button>
               {tempDropdownId === item.id && (
                 <>
@@ -259,7 +248,10 @@ export function LeadCard({
                   <div className="absolute left-0 top-full mt-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl shadow-xl p-1 z-50 flex gap-1" onClick={(e) => e.stopPropagation()}>
                     {(['quente', 'morno', 'frio'] as const).map((t) => (
                       <button key={t} onClick={() => { updateLead(item.id, { temperature: t }); setTempDropdownId(null); }}
-                        className={`p-1.5 hover:bg-[var(--color-surface-sunken)] rounded-lg border-none bg-transparent cursor-pointer ${TEMP[t].flame}`} title={t}>
+                        className={cn(
+                          "p-1.5 hover:bg-[var(--color-surface-sunken)] rounded-lg border-none bg-transparent cursor-pointer",
+                          temp === t ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-faint)]"
+                        )} title={t}>
                         <Flame className="w-3.5 h-3.5" />
                       </button>
                     ))}
@@ -272,7 +264,7 @@ export function LeadCard({
             {item.priority && (
               <span className={cn(
                 "text-[8px] font-bold px-1.5 py-0.5 rounded-full border uppercase tracking-wider inline-flex items-center gap-0.5",
-                PRIORITY_BADGE[item.priority] ?? 'bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)]'
+                NEUTRAL_BADGE
               )}>
                 <TrendingUp className="w-2.5 h-2.5" /> {item.priority === 'Alta' ? 'ALTO' : item.priority === 'Média' ? 'MÉDIO' : 'BAIXO'}
               </span>
@@ -339,7 +331,7 @@ export function LeadCard({
         {/* Pills row: stage + source */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {stageName && (
-            <span className="inline-flex items-center gap-1 bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+            <span className={cn("inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border", NEUTRAL_BADGE)}>
               <Zap className="w-2.5 h-2.5" />
               {stageName}
             </span>
@@ -377,7 +369,7 @@ export function LeadCard({
         {(tags.length > 0 || leadSquad || productTags.length > 0 || clientName) && (
           <div className="flex flex-wrap gap-1">
             {clientName && (
-              <span className="inline-flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-full bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)] uppercase tracking-wide">
+              <span className={cn("inline-flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide", NEUTRAL_BADGE)}>
                 <UserCheck className="w-2.5 h-2.5" /> {clientName}
               </span>
             )}
@@ -420,7 +412,7 @@ export function LeadCard({
                 "font-mono text-xs font-black leading-none flex items-center gap-1",
                 isEstimated
                   ? "text-[var(--color-text-muted)] italic"
-                  : "text-[var(--color-primary-blue)]"
+                  : "text-[var(--color-text-primary)]"
               )}
               title={
                 isEstimated
@@ -432,12 +424,12 @@ export function LeadCard({
             >
               {displayValue}
               {!!contractMonths && (
-                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" title="Duração do contrato vendida">
+                <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded-full border", NEUTRAL_BADGE)} title="Duração do contrato vendida">
                   {contractMonths}m
                 </span>
               )}
               {isOpenEndedRecurring && (
-                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" title="Recorrência sem prazo fixo — este valor já é a cobrança mensal">
+                <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded-full border", NEUTRAL_BADGE)} title="Recorrência sem prazo fixo — este valor já é a cobrança mensal">
                   /mês
                 </span>
               )}
@@ -446,7 +438,7 @@ export function LeadCard({
                 produto recorrente, o número que entra no caixa TODO MÊS
                 nunca aparecia em lugar nenhum do card. */}
             {monthlyValue !== null && (
-              <span className="text-[9px] font-bold text-[var(--color-primary-blue)] font-mono leading-none" title="Valor da cobrança recorrente mensal (total ÷ meses de contrato)">
+              <span className="text-[9px] font-bold text-[var(--color-text-muted)] font-mono leading-none" title="Valor da cobrança recorrente mensal (total ÷ meses de contrato)">
                 {formatCurrency(monthlyValue)}/mês
               </span>
             )}
@@ -456,11 +448,7 @@ export function LeadCard({
           </div>
           <span className={cn(
             "text-[9px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 shrink-0",
-            timeIdleNum > 7
-              ? 'bg-danger/10 text-danger border-danger/20'
-              : timeIdleNum > 3
-              ? 'bg-warning/10 text-warning border-warning/20'
-              : 'bg-[var(--color-surface-sunken)] text-[var(--color-text-faint)] border-[var(--color-border-default)]'
+            NEUTRAL_BADGE
           )}>
             <Clock className="w-2.5 h-2.5" /> {timeIdleNum}d
           </span>
