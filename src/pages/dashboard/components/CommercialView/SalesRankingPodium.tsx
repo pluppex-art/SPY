@@ -25,7 +25,7 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
     <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative group shadow-sm">
       <div className="flex items-center justify-between mb-8">
         <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
-          <Trophy className="w-4 h-4 text-amber-500" /> Ranking de Vendas
+          <Trophy className="w-4 h-4 text-[var(--color-primary-blue)]" /> Ranking de Vendas
         </h3>
         <Badge variant="secondary" className="font-mono text-[10px]">
           {new Date().toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).toUpperCase()}
@@ -51,7 +51,7 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
               >
                 <div className="relative">
                   <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] flex items-center justify-center text-xl shadow-sm">🥈</div>
-                  <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-slate-400 text-white text-[8px] font-black rounded-full flex items-center justify-center">2º</div>
+                  <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] text-[8px] font-black rounded-full flex items-center justify-center">2º</div>
                 </div>
                 <div className="w-full h-full bg-[var(--color-surface-sunken)] border-x border-t border-[var(--color-border-default)] rounded-t-xl p-3 flex flex-col items-center justify-center">
                   <p className="text-xs font-bold text-[var(--color-text-primary)] text-center truncate w-full mb-0.5">{top3[1].name}</p>
@@ -67,12 +67,12 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
               className="flex-1 max-w-[140px] flex flex-col items-center gap-2.5"
             >
               <div className="relative">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border-2 border-amber-500 flex items-center justify-center text-2xl shadow-md">🥇</div>
+                <div className="w-12 h-12 rounded-2xl bg-[var(--color-primary-blue)]/20 border-2 border-[var(--color-primary-blue)] flex items-center justify-center text-2xl shadow-md">🥇</div>
               </div>
-              <div className="w-full h-full bg-amber-500/10 border-x border-t border-amber-500/30 rounded-t-2xl p-4 flex flex-col items-center justify-center">
+              <div className="w-full h-full bg-[var(--color-primary-blue)]/10 border-x border-t border-[var(--color-primary-blue)]/30 rounded-t-2xl p-4 flex flex-col items-center justify-center">
                 <p className="text-xs font-black text-[var(--color-text-primary)] text-center truncate w-full mb-0.5">{top3[0].name}</p>
-                <p className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">R$ {top3[0].total.toLocaleString('pt-BR')}</p>
-                <Badge variant="warning" className="mt-2 text-[8px] py-0">Top Closer</Badge>
+                <p className="text-sm font-black text-[var(--color-primary-blue)] font-mono">R$ {top3[0].total.toLocaleString('pt-BR')}</p>
+                <Badge variant="default" className="mt-2 text-[8px] py-0">Top Closer</Badge>
               </div>
             </motion.div>
 
@@ -85,7 +85,7 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
               >
                 <div className="relative">
                   <div className="w-9 h-9 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] flex items-center justify-center text-lg shadow-sm">🥉</div>
-                  <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-amber-700 text-white text-[8px] font-black rounded-full flex items-center justify-center">3º</div>
+                  <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] text-[8px] font-black rounded-full flex items-center justify-center">3º</div>
                 </div>
                 <div className="w-full h-full bg-[var(--color-surface-sunken)] border-x border-t border-[var(--color-border-default)] rounded-t-xl p-2.5 flex flex-col items-center justify-center">
                   <p className="text-[11px] font-bold text-[var(--color-text-primary)] text-center truncate w-full mb-0.5">{top3[2].name}</p>
@@ -108,7 +108,7 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
               entry ? (
                 <div key={idx} className="p-2 bg-[var(--color-surface-sunken)] rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
                   <p className="text-[10px] text-[var(--color-text-faint)] font-bold">{entry.deals} contrato(s)</p>
-                  <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">{entry.rate}% conv.</p>
+                  <p className="text-xs font-black text-success font-mono">{entry.rate}% conv.</p>
                 </div>
               ) : <div key={idx} />
             ))}
@@ -126,7 +126,7 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
                   </div>
                   <div className="flex items-center gap-3 shrink-0 text-[10px] font-mono">
                     <span className="text-[var(--color-text-faint)]">{entry.deals} contrato(s)</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">{entry.rate}%</span>
+                    <span className="text-success font-bold">{entry.rate}%</span>
                     <span className="text-[var(--color-text-primary)] font-bold w-20 text-right">R$ {entry.total.toLocaleString('pt-BR')}</span>
                   </div>
                 </div>

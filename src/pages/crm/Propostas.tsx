@@ -178,7 +178,7 @@ export default function Propostas() {
           <Button
             size="lg"
             onClick={() => setIsPropostaModalOpen(true)}
-            className="font-black uppercase tracking-widest text-[10px] bg-[#2563EB] hover:bg-blue-600 !text-white"
+            className="font-black uppercase tracking-widest text-[10px] bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 !text-white"
           >
             <Plus className="w-4 h-4 mr-2" /> Nova Proposta
           </Button>
@@ -194,8 +194,8 @@ export default function Propostas() {
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
               activeTab === "propostas"
-                ? "bg-[#2563EB] text-white shadow-md shadow-blue-500/20"
-                : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] text-slate-400 hover:text-white"
+                ? "bg-[var(--color-primary-blue)] text-white shadow-md shadow-[var(--color-primary-blue)]/20"
+                : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"
             )}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -207,8 +207,8 @@ export default function Propostas() {
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
               activeTab === "contratos"
-                ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
-                : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] text-slate-400 hover:text-white"
+                ? "bg-[var(--color-primary-blue)] text-white shadow-md shadow-[var(--color-primary-blue)]/20"
+                : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"
             )}
           >
             <FileSignature className="w-3.5 h-3.5" />

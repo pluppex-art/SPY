@@ -190,10 +190,10 @@ export default function Contatos() {
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
-          { icon: Users, label: "Total de Contatos", val: contatos.length, color: "text-blue-500" },
-          { icon: ShieldCheck, label: "Decisores / C-Level", val: decisoresCount, color: "text-emerald-500" },
-          { icon: Phone, label: "Com WhatsApp", val: contatos.filter(c => !!c.telefone).length, color: "text-amber-500" },
-          { icon: Mail, label: "Com E-mail", val: contatos.filter(c => !!c.email).length, color: "text-indigo-500" },
+          { icon: Users, label: "Total de Contatos", val: contatos.length, color: "text-[var(--color-primary-blue)]" },
+          { icon: ShieldCheck, label: "Decisores / C-Level", val: decisoresCount, color: "text-[var(--color-text-muted)]" },
+          { icon: Phone, label: "Com WhatsApp", val: contatos.filter(c => !!c.telefone).length, color: "text-[var(--color-text-muted)]" },
+          { icon: Mail, label: "Com E-mail", val: contatos.filter(c => !!c.email).length, color: "text-[var(--color-text-muted)]" },
         ].map((k, i) => (
           <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
             <div className="flex items-center justify-between mb-2">
@@ -237,14 +237,14 @@ export default function Contatos() {
                 <tr key={c.id} className="hover:bg-[var(--color-surface-sunken)]/40 transition-colors">
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-500 font-bold flex items-center justify-center text-xs shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)] font-bold flex items-center justify-center text-xs shrink-0">
                         {c.nome.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
                         <div className="font-bold text-[var(--color-text-primary)] flex items-center gap-1.5">
                           {c.nome}
                           {c.isDecisor && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border border-[var(--color-primary-blue)]/20">
                               Decisor
                             </span>
                           )}
@@ -272,7 +272,7 @@ export default function Contatos() {
                           href={`https://wa.me/55${c.telefone.replace(/\D/g, '')}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-colors"
+                          className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] hover:bg-[var(--color-primary-blue)]/10 text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] transition-colors"
                           title="Conversar no WhatsApp"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
@@ -281,7 +281,7 @@ export default function Contatos() {
                       {c.email && (
                         <a
                           href={`mailto:${c.email}`}
-                          className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 transition-colors"
+                          className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] hover:bg-[var(--color-primary-blue)]/10 text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] transition-colors"
                           title="Enviar E-mail"
                         >
                           <Mail className="w-3.5 h-3.5" />
@@ -292,7 +292,7 @@ export default function Contatos() {
                   <td className="px-4 py-3.5 text-right">
                     <button
                       onClick={() => handleDelete(c.id, c.nome)}
-                      className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-rose-500/10 hover:border-rose-500/25 text-[var(--color-text-muted)] hover:text-rose-500 transition-colors"
+                      className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-danger/10 hover:border-danger/25 text-[var(--color-text-muted)] hover:text-danger transition-colors"
                       title="Excluir"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

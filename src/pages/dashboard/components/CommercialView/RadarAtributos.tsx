@@ -28,7 +28,7 @@ export function RadarAtributos({ salesRanking, funnelLeadsCount }: RadarAtributo
   return (
     <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] lg:col-span-1 shadow-sm">
       <h3 className="text-xs font-black text-[var(--color-text-primary)] mb-6 uppercase tracking-wider flex items-center gap-2">
-        <Compass className="w-4 h-4 text-purple-500" /> Radar de Competências
+        <Compass className="w-4 h-4 text-[var(--color-primary-blue)]" /> Radar de Competências
       </h3>
       <div className="h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -43,7 +43,7 @@ export function RadarAtributos({ salesRanking, funnelLeadsCount }: RadarAtributo
               contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-default)', borderRadius: '12px', fontSize: '11px' }}
               itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
             />
-            <Radar name="Desempenho Comercial" dataKey="A" stroke="#2563EB" fill="#2563EB" fillOpacity={0.35} />
+            <Radar name="Desempenho Comercial" dataKey="A" stroke="var(--color-primary-blue)" fill="var(--color-primary-blue)" fillOpacity={0.35} />
           </RadarChart>
         </ResponsiveContainer>
       </div>

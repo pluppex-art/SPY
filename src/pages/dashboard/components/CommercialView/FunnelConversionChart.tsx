@@ -37,7 +37,7 @@ export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps
   return (
     <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative shadow-sm h-full flex flex-col">
       <h3 className="text-xs font-black text-[var(--color-text-primary)] mb-6 uppercase tracking-wider flex items-center gap-2 shrink-0">
-        <Filter className="w-4 h-4 text-emerald-500" /> Funil de Conversão Comercial
+        <Filter className="w-4 h-4 text-[var(--color-primary-blue)]" /> Funil de Conversão Comercial
       </h3>
       {!hasFunnel ? (
         <EmptyState
@@ -61,8 +61,8 @@ export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps
                       "—", como se não houvesse dado nenhum ali. */}
                   <span className={`text-[10px] font-bold w-10 text-right ${
                     step.drop === null ? "text-[var(--color-text-faint)]"
-                    : step.drop > 0 ? "text-rose-500"
-                    : step.drop < 0 ? "text-emerald-600 dark:text-emerald-400"
+                    : step.drop > 0 ? "text-danger"
+                    : step.drop < 0 ? "text-success"
                     : "text-[var(--color-text-faint)]"
                   }`}>
                     {step.drop === null ? "—" : step.drop === 0 ? "0%" : step.drop > 0 ? `-${step.drop}%` : `+${Math.abs(step.drop)}%`}
@@ -84,7 +84,7 @@ export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps
 
       {bottleneck && bottleneck.drop > 0 && (
         <div className="mt-5 pt-4 border-t border-[var(--color-border-subtle)] flex items-start gap-2.5 shrink-0">
-          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+          <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
           <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
             <strong className="text-[var(--color-text-primary)] font-bold">Maior gargalo:</strong>{" "}
             {funnelData[bottleneck.i - 1]?.label} → {bottleneck.label}, queda de {bottleneck.drop}%.

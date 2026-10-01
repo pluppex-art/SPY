@@ -7,7 +7,17 @@ import { useData } from '../../../contexts/DataContext';
 import { useLocalization } from '../../../contexts/LocalizationContext';
 import { parseCurrencyBR } from '../../../lib/utils';
 
-const COLORS = ['#3b82f6', '#f43f5e', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4'];
+// Paleta de categorias sem contagem fixa (origens de lead variam por tenant)
+// — em vez do arco-íris antigo, usa a cor da marca (destaque pra fatia mais
+// relevante) + tons neutros de cinza (ver regra de cores do dashboard: só
+// branco/cinza/cor do tenant). Cicla se houver mais origens que tons.
+const COLORS = [
+  'var(--color-primary-blue)',
+  'var(--color-text-primary)',
+  'var(--color-text-muted)',
+  'var(--color-text-faint)',
+  'var(--color-border-default)',
+];
 
 const tooltipStyle = { backgroundColor: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-default)', borderRadius: '12px' };
 const tooltipItemStyle = { fontSize: '10px', fontWeight: 'bold' as const };
@@ -157,9 +167,9 @@ export function MarketingView() {
                       itemStyle={tooltipItemStyle}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="direct" name="Direto" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
-                    <Bar dataKey="organic" name="Orgânico" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
-                    <Bar dataKey="social" name="Social" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="direct" name="Direto" fill="var(--color-primary-blue)" radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="organic" name="Orgânico" fill="var(--color-text-muted)" radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="social" name="Social" fill="var(--color-text-faint)" radius={[4, 4, 0, 0]} barSize={20} />
                  </BarChart>
               </ResponsiveContainer>
            </div>
@@ -186,7 +196,7 @@ export function MarketingView() {
         <div className="space-y-6">
            <Card className="p-6 shadow-sm">
               <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Share2 className="w-3.5 h-3.5 text-purple-500" /> Distribuição por Origem
+                <Share2 className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Distribuição por Origem
               </h4>
               <div className="h-[180px] w-full min-w-0">
                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={160}>
@@ -242,7 +252,7 @@ export function MarketingView() {
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="p-6 shadow-sm">
           <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1 flex items-center gap-2">
-            <Workflow className="w-4 h-4 text-cyan-500" /> Jornada do Lead (Origem → Desfecho)
+            <Workflow className="w-4 h-4 text-[var(--color-primary-blue)]" /> Jornada do Lead (Origem → Desfecho)
           </h4>
           <p className="text-xs text-[var(--color-text-muted)] mb-4 font-medium">De cada origem, quantos leads fecharam negócio até agora.</p>
           {!sankeyData.hasData ? (
@@ -255,7 +265,7 @@ export function MarketingView() {
                   nodePadding={20}
                   margin={{ top: 10, right: 90, bottom: 10, left: 10 }}
                   link={{ stroke: 'var(--color-border-default)', strokeOpacity: 0.4 }}
-                  node={{ stroke: 'var(--color-surface-elevated)', fill: '#3b82f6' }}
+                  node={{ stroke: 'var(--color-surface-elevated)', fill: 'var(--color-primary-blue)' }}
                 >
                   <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} />
                 </Sankey>
@@ -266,7 +276,7 @@ export function MarketingView() {
 
         <Card className="p-6 shadow-sm">
           <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1 flex items-center gap-2">
-            <LayoutGrid className="w-4 h-4 text-emerald-500" /> Receita Fechada por Origem
+            <LayoutGrid className="w-4 h-4 text-[var(--color-primary-blue)]" /> Receita Fechada por Origem
           </h4>
           <p className="text-xs text-[var(--color-text-muted)] mb-4 font-medium">Quanto cada origem realmente gerou em negócios fechados — não só volume de leads.</p>
           {revenueBySourceData.length === 0 ? (
@@ -287,10 +297,10 @@ export function MarketingView() {
          {[
            // CTR (cliques/impressões) depende de integração com plataformas de anúncio que o
            // sistema ainda não tem — mostrar "—" em vez de um número de exemplo.
-           { icon: MousePointer2, label: "CTR Médio", value: "—", color: "text-indigo-500", bg: "bg-indigo-500/10" },
-           { icon: Layers, label: "Conv. Landing Pages", value: lpConversionRate !== null ? `${lpConversionRate.toFixed(1)}%` : "—", color: "text-blue-500", bg: "bg-blue-500/10" },
-           { icon: Users, label: "Leads de Marketing", value: totalLeads.toString(), color: "text-emerald-500", bg: "bg-emerald-500/10" },
-           { icon: DollarSign, label: "Total Investido", value: formatCurrency(totalSpent), color: "text-amber-500", bg: "bg-amber-500/10" },
+           { icon: MousePointer2, label: "CTR Médio", value: "—", color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-sunken)]" },
+           { icon: Layers, label: "Conv. Landing Pages", value: lpConversionRate !== null ? `${lpConversionRate.toFixed(1)}%` : "—", color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-sunken)]" },
+           { icon: Users, label: "Leads de Marketing", value: totalLeads.toString(), color: "text-[var(--color-primary-blue)]", bg: "bg-[var(--color-primary-blue)]/10" },
+           { icon: DollarSign, label: "Total Investido", value: formatCurrency(totalSpent), color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-sunken)]" },
          ].map((metric, i) => (
             <Card key={i} className="p-5 shadow-sm">
                <div className="flex items-center gap-3 mb-3">

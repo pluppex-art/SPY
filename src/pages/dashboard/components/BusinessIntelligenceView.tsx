@@ -16,7 +16,17 @@ import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
 import { apiFetch } from "../../../lib/apiClient";
 
-const COLORS = ["#3b82f6", "#f43f5e", "#10b981", "#8b5cf6", "#f59e0b", "#06b6d4", "#64748b", "#ec4899"];
+// Paleta de categorias sem contagem fixa (origens de lead variam por tenant)
+// — cor da marca pra fatia mais relevante + tons neutros de cinza, em vez do
+// arco-íris antigo (regra de cores do dashboard: só branco/cinza/cor do
+// tenant). Cicla se houver mais origens que tons.
+const COLORS = [
+  "var(--color-primary-blue)",
+  "var(--color-text-primary)",
+  "var(--color-text-muted)",
+  "var(--color-text-faint)",
+  "var(--color-border-default)",
+];
 
 interface BiSummary {
   periodo: { from: string; to: string };
@@ -223,13 +233,13 @@ export function BusinessIntelligenceView() {
                 <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">{summary.crm.leadsNovosNoPeriodo} novos no período</div>
               </Card>
               <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><TrendingUp className="w-3 h-3 text-emerald-500" /> Negócios Ganhos</div>
-                <div className="text-xl font-black text-emerald-600 font-mono tracking-tight">{summary.crm.negociosGanhos}</div>
+                <div className={kpiLabelClass}><TrendingUp className="w-3 h-3 text-success" /> Negócios Ganhos</div>
+                <div className="text-xl font-black text-success font-mono tracking-tight">{summary.crm.negociosGanhos}</div>
                 <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">Taxa de conversão: {summary.crm.taxaConversao}%</div>
               </Card>
               <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><TrendingDown className="w-3 h-3 text-rose-500" /> Negócios Perdidos</div>
-                <div className="text-xl font-black text-rose-500 font-mono tracking-tight">{summary.crm.negociosPerdidos}</div>
+                <div className={kpiLabelClass}><TrendingDown className="w-3 h-3 text-danger" /> Negócios Perdidos</div>
+                <div className="text-xl font-black text-danger font-mono tracking-tight">{summary.crm.negociosPerdidos}</div>
               </Card>
               <Card className={kpiCardClass}>
                 <div className={kpiLabelClass}><DollarSign className="w-3 h-3" /> Ticket Médio</div>
@@ -240,8 +250,8 @@ export function BusinessIntelligenceView() {
                 <div className={kpiValueClass}>{formatCurrency(summary.crm.valorTotalOportunidades)}</div>
               </Card>
               <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><DollarSign className="w-3 h-3 text-emerald-500" /> Valor Ganho</div>
-                <div className="text-xl font-black text-emerald-600 font-mono tracking-tight">{formatCurrency(summary.crm.valorGanho)}</div>
+                <div className={kpiLabelClass}><DollarSign className="w-3 h-3 text-success" /> Valor Ganho</div>
+                <div className="text-xl font-black text-success font-mono tracking-tight">{formatCurrency(summary.crm.valorGanho)}</div>
               </Card>
             </div>
 
@@ -257,7 +267,7 @@ export function BusinessIntelligenceView() {
                       <XAxis dataKey="mesLabel" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} tickFormatter={tickCurrencyShort} width={56} />
                       <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                      <Line type="monotone" dataKey="valorGanho" name="Valor Ganho" stroke="#10b981" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="valorGanho" name="Valor Ganho" stroke="var(--color-success)" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 )}
@@ -274,7 +284,7 @@ export function BusinessIntelligenceView() {
                       <XAxis type="number" tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={90} />
                       <Tooltip />
-                      <Bar dataKey="value" name="Leads" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="value" name="Leads" fill="var(--color-primary-blue)" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -311,7 +321,7 @@ export function BusinessIntelligenceView() {
                         <span className="font-bold text-[var(--color-text-primary)] truncate">{v.name}</span>
                         <span className="flex items-center gap-3 shrink-0 font-mono">
                           <span className="text-[var(--color-text-faint)]">{v.leads} leads</span>
-                          <span className="text-emerald-600 font-bold">{v.ganhos} ganhos</span>
+                          <span className="text-success font-bold">{v.ganhos} ganhos</span>
                           <span className="text-[var(--color-text-primary)] font-bold">{formatCurrency(v.valorGanho)}</span>
                         </span>
                       </div>
@@ -329,22 +339,22 @@ export function BusinessIntelligenceView() {
             </span>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><TrendingUp className="w-3 h-3 text-emerald-500" /> Receita Recebida</div>
-                <div className="text-xl font-black text-emerald-600 font-mono tracking-tight">{formatCurrency(summary.financeiro.receitaRecebida)}</div>
+                <div className={kpiLabelClass}><TrendingUp className="w-3 h-3 text-success" /> Receita Recebida</div>
+                <div className="text-xl font-black text-success font-mono tracking-tight">{formatCurrency(summary.financeiro.receitaRecebida)}</div>
               </Card>
               <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><TrendingDown className="w-3 h-3 text-rose-500" /> Despesas Pagas</div>
-                <div className="text-xl font-black text-rose-500 font-mono tracking-tight">{formatCurrency(summary.financeiro.despesasPagas)}</div>
+                <div className={kpiLabelClass}><TrendingDown className="w-3 h-3 text-danger" /> Despesas Pagas</div>
+                <div className="text-xl font-black text-danger font-mono tracking-tight">{formatCurrency(summary.financeiro.despesasPagas)}</div>
               </Card>
               <Card className={kpiCardClass}>
                 <div className={kpiLabelClass}><DollarSign className="w-3 h-3" /> Saldo do Período</div>
-                <div className={`text-xl font-black font-mono tracking-tight ${summary.financeiro.saldoPeriodo >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
+                <div className={`text-xl font-black font-mono tracking-tight ${summary.financeiro.saldoPeriodo >= 0 ? "text-success" : "text-danger"}`}>
                   {formatCurrency(summary.financeiro.saldoPeriodo)}
                 </div>
               </Card>
               <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><AlertTriangle className="w-3 h-3 text-amber-500" /> Inadimplência (Receber)</div>
-                <div className="text-xl font-black text-amber-600 font-mono tracking-tight">{formatCurrency(summary.financeiro.inadimplenciaReceber.value)}</div>
+                <div className={kpiLabelClass}><AlertTriangle className="w-3 h-3 text-warning" /> Inadimplência (Receber)</div>
+                <div className="text-xl font-black text-warning font-mono tracking-tight">{formatCurrency(summary.financeiro.inadimplenciaReceber.value)}</div>
                 <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">{summary.financeiro.inadimplenciaReceber.count} lançamento(s) em atraso</div>
               </Card>
               <Card className={kpiCardClass}>
@@ -371,8 +381,8 @@ export function BusinessIntelligenceView() {
                     <YAxis tick={{ fontSize: 10 }} tickFormatter={tickCurrencyShort} width={56} />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="receita" name="Receita" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="despesa" name="Despesa" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="receita" name="Receita" fill="var(--color-success)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="despesa" name="Despesa" fill="var(--color-danger)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -394,14 +404,14 @@ export function BusinessIntelligenceView() {
                 <div className={kpiLabelClass}><CalendarCheck className="w-3 h-3" /> Reuniões</div>
                 <div className={kpiValueClass}>{summary.operacional.reunioes.total}</div>
                 <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">
-                  <span className="text-emerald-600 font-bold">{summary.operacional.reunioes.concluidas} concluídas</span> · {summary.operacional.reunioes.pendentes} agendadas
+                  <span className="text-success font-bold">{summary.operacional.reunioes.concluidas} concluídas</span> · {summary.operacional.reunioes.pendentes} agendadas
                 </div>
               </Card>
               <Card className={kpiCardClass}>
                 <div className={kpiLabelClass}><ListChecks className="w-3 h-3" /> Tarefas</div>
                 <div className={kpiValueClass}>{summary.operacional.tarefas.total}</div>
                 <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">
-                  <span className="text-emerald-600 font-bold">{summary.operacional.tarefas.concluidas} concluídas</span> · {summary.operacional.tarefas.pendentes} pendentes
+                  <span className="text-success font-bold">{summary.operacional.tarefas.concluidas} concluídas</span> · {summary.operacional.tarefas.pendentes} pendentes
                 </div>
               </Card>
             </div>
@@ -417,7 +427,7 @@ export function BusinessIntelligenceView() {
                       <div key={name} className="flex items-center justify-between text-xs bg-[var(--color-surface-sunken)] px-3 py-2 rounded-lg">
                         <span className="font-bold text-[var(--color-text-primary)] truncate">{name}</span>
                         <span className="font-mono">
-                          <span className="text-emerald-600 font-bold">{v.concluidas}</span>
+                          <span className="text-success font-bold">{v.concluidas}</span>
                           <span className="text-[var(--color-text-faint)]"> / {v.total}</span>
                         </span>
                       </div>

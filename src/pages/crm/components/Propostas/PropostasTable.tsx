@@ -253,7 +253,7 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
                         >
                           <Link2 className="w-4 h-4" />
                           {!!item.view_count && (
-                            <span className="absolute -top-1 -right-1 flex items-center gap-0.5 text-[8px] font-black bg-emerald-500 text-white rounded-full px-1">
+                            <span className="absolute -top-1 -right-1 flex items-center gap-0.5 text-[8px] font-black bg-[var(--color-primary-blue)] text-white rounded-full px-1">
                               <Eye className="w-2 h-2" />{item.view_count}
                             </span>
                           )}
@@ -284,7 +284,7 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
                           }}
                           title="Visualizar / Editar no Modo Word (Diretrizes e Contrato)"
                           aria-label="Visualizar / Editar no Modo Word (Diretrizes e Contrato)"
-                          className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                          className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>

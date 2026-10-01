@@ -27,7 +27,7 @@ export function RecentActivitiesList({ recentActivities }: { recentActivities: A
     <Card className="lg:col-span-2 p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
-          <Eye className="w-4 h-4 text-emerald-500" /> Atividades Recentes do Time
+          <Eye className="w-4 h-4 text-[var(--color-primary-blue)]" /> Atividades Recentes do Time
         </h3>
         <Badge variant="success" dot dotPulse>
           Tempo Real
