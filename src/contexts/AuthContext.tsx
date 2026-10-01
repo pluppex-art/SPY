@@ -1,3 +1,4 @@
+import { snapshotClearAll } from "../lib/tableCache";
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { supabase, fetchTenants, fetchTenantIdMap, fetchUserProfile, updateTenantModulesInDB } from "../lib/supabase";
 
@@ -222,6 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       Object.keys(sessionStorage).filter((k) => k.startsWith("spy_cache:")).forEach((k) => sessionStorage.removeItem(k));
     } catch { /* storage indisponível */ }
     setUser(null);
+    void snapshotClearAll();
     supabase?.auth.signOut();
   };
 

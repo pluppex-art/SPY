@@ -20,6 +20,7 @@ import {
 } from './dataMocks';
 import { DataContext, DataContextType, LeadActivity, Notification, Appointment, GlobalWebhook, FinanceEntry, Reuniao, Indicacao, AuroraAgent, useData } from './DataContextTypes';
 import { apiFetch } from "../lib/apiClient";
+import { snapshotGet, snapshotSet } from "../lib/tableCache";
 import { isDateLocked } from "../pages/finance/lib/financeEngine";
 import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
@@ -82,6 +83,16 @@ function createLimiter(concurrency: number) {
 // validado, que já tinha rodado bem antes desse incidente específico.
 const dbLimit = createLimiter(10);
 
+
+const NOTIFICATIONS_UNREAD_LIMIT = 100;
+async function fetchUnreadNotifications(tenantId: string) {
+  const res: any = await dbLimit(() =>
+    supabase!.from('notifications').select('*').eq('tenant_id', tenantId).eq('is_read', false)
+      .order('created_at', { ascending: false }).limit(NOTIFICATIONS_UNREAD_LIMIT)
+  );
+  return { data: (res.data ?? []) as any[], error: res.error };
+}
+
 async function fetchPageWithRetry(
   table: string,
   tenantId: string,
@@ -120,7 +131,7 @@ async function fetchPageWithRetry(
 // sucesso nas outras em vez de jogar tudo fora — melhor mostrar 90% dos
 // registros do que zerar a tela inteira (e o chamador sabe disso pelo
 // `error` retornado, sem precisar que ele seja null pra usar o `data`).
-async function fetchAllRowsForTenant(table: string, tenantId: string, extraFilter?: (query: any) => any) {
+async function fetchAllRowsFull(table: string, tenantId: string, extraFilter?: (query: any) => any) {
   const first = await fetchPageWithRetry(table, tenantId, extraFilter, 0, true);
   if (first.error) {
     console.error(`[fetchAllRowsForTenant] Falha ao buscar 1ª página de "${table}" após 3 tentativas.`, first.error);
@@ -153,6 +164,68 @@ async function fetchAllRowsForTenant(table: string, tenantId: string, extraFilte
     if (page.data) all = all.concat(page.data);
   }
   return { data: all, error: firstError };
+}
+
+
+// ── Carga incremental (delta sync) ─────────────────────────────────────────────
+// Escala por tenant: com 100 mil leads, rebaixar a tabela inteira a cada login seria ~130 MB.
+// Aqui o 1º acesso baixa tudo e guarda em IndexedDB; os próximos buscam só as linhas com
+// updated_at > última marca (com folga de 2 min p/ transações que commitam atrasadas) e fundem
+// por id. Exclusões não aparecem num delta, então comparamos a contagem do servidor com a do
+// cache — se divergir, refaz a carga completa (e re-sincroniza). Sem a coluna updated_at na
+// tabela (migração ainda não aplicada) ou sem IndexedDB, cai direto na carga completa de sempre.
+const DELTA_TABLES = new Set([
+  'leads', 'clientes', 'tasks', 'reunioes', 'finance_entries', 'lead_activities',
+  'contracts', 'appointments', 'proposals', 'proposal_items',
+]);
+// SÓ ligar depois de aplicar supabase/migrations/*perf_updated_at_delta_sync.sql: sem o trigger
+// que mantém updated_at, um UPDATE não muda a coluna e o cache serviria dado velho.
+const DELTA_SYNC_ENABLED = false;
+const DELTA_OVERLAP_MS = 2 * 60 * 1000;
+const deltaUnsupported = new Set<string>(); // tabelas sem updated_at nesta sessão
+
+function maxUpdatedAt(rows: any[]): string | null {
+  let max = '';
+  for (const r of rows) { const u = r?.updated_at; if (typeof u === 'string' && u > max) max = u; }
+  return max || null;
+}
+
+async function persistSnapshot(tenantId: string, table: string, rows: any[]) {
+  const since = maxUpdatedAt(rows);
+  if (since) await snapshotSet(tenantId, table, { rows, since, ts: Date.now() });
+}
+
+async function fetchAllRowsForTenant(table: string, tenantId: string, extraFilter?: (query: any) => any) {
+  if (!DELTA_SYNC_ENABLED || !DELTA_TABLES.has(table) || extraFilter || deltaUnsupported.has(table)) {
+    return fetchAllRowsFull(table, tenantId, extraFilter);
+  }
+  const full = async () => {
+    const res = await fetchAllRowsFull(table, tenantId);
+    if (!res.error && res.data) {
+      if (res.data.length > 0 && !('updated_at' in res.data[0])) deltaUnsupported.add(table);
+      else await persistSnapshot(tenantId, table, res.data);
+    }
+    return res;
+  };
+  const snap = await snapshotGet(tenantId, table);
+  if (!snap || !snap.rows.length) return full();
+
+  const sinceIso = new Date(new Date(snap.since).getTime() - DELTA_OVERLAP_MS).toISOString();
+  const delta = await fetchAllRowsFull(table, tenantId, (q) => q.gte('updated_at', sinceIso));
+  if (delta.error) return full();
+
+  const byId = new Map<string, any>();
+  for (const r of snap.rows) byId.set(r.id, r);
+  for (const r of delta.data) byId.set(r.id, r);
+  const merged = Array.from(byId.values());
+
+  const head: any = await dbLimit(() =>
+    supabase!.from(table).select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId)
+  );
+  if (head.error || head.count == null || head.count !== merged.length) return full();
+
+  await persistSnapshot(tenantId, table, merged);
+  return { data: merged, error: null as any };
 }
 
 // Aplica um evento realtime (INSERT/UPDATE/DELETE) direto no estado local em
@@ -1067,7 +1140,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           { name: 'finance_entries', promise: fetchAllRowsForTenant('finance_entries', tenantId), apply: (res) => { if (res.data) setFinanceEntries((res.data as any[]).map(normalizeFinanceEntry)); financeEntriesAuthoritativeLoadedRef.current = true; } },
           { name: 'appointments', promise: fetchAllRowsForTenant('appointments', tenantId), apply: (res) => { if (res.data) setAppointments(res.data.map(mapAppointmentRow)); } },
           { name: 'squads', promise: cachedFetchAllRowsForTenant('squads', tenantId, true), apply: (res) => { if (res.data) setSquads(res.data.map(mapSquadRow)); } },
-          { name: 'notifications', promise: fetchAllRowsForTenant('notifications', tenantId), apply: (res) => { if (res.data) setNotifications(res.data as Notification[]); } },
+          // Só as NÃO LIDAS (teto de 100, mais recentes primeiro) — o sino nunca precisa do
+          // histórico inteiro, e a tabela cresce sem parar (milhares por tenant). Marcou como
+          // lida / limpou → grava is_read=true e a notificação não volta mais no próximo login.
+          { name: 'notifications', promise: fetchUnreadNotifications(tenantId), apply: (res) => { if (res.data) setNotifications(res.data as Notification[]); } },
           { name: 'marketing_landing_pages', promise: fetchAllRowsForTenant('marketing_landing_pages', tenantId), apply: (res) => { if (res.data) setMarketingLandingPages(res.data); } },
           {
             name: 'app_settings',
@@ -1199,7 +1275,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // por tabela. `contracts`/`proposals` ficam de fora de propósito
         // (ver comentário no endpoint).
         const genericPreviewTables: [string, (data: any[]) => void][] = [
-          ['notifications', setNotifications],
           ['proposal_items', setProposalItems],
           ['lead_activities', (d: any[]) => setLeadActivities(normalizeActivities(d))],
           ['colaboradores', setColaboradores],
