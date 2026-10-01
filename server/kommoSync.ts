@@ -49,6 +49,9 @@ const uuidFrom = (...parts: (string | number)[]) => {
 const productUuid = (tenantId: string, catalogId: number, elementId: number) => uuidFrom("kommo-prod", tenantId, catalogId, elementId);
 const clip = (v: any, n: number) => String(v ?? "").slice(0, n);
 
+// A Kommo preenche empresas sem nome com este texto; não é um nome de verdade.
+const isPlaceholderName = (v: string) => !v.trim() || /^(\.|company name not specified)$/i.test(v.trim());
+
 const funilId = (pipelineId: number) => `kommo-${pipelineId}`;
 const digits = (v: string) => v.replace(/\D/g, "");
 
@@ -209,7 +212,7 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
     let table = "", rows: any[] = [];
     if (step === "empresas") {
       table = "clientes";
-      rows = items.map((c) => ({
+      rows = items.filter((c) => !isPlaceholderName(String(c.name || ""))).map((c) => ({
         id: `kommo-${t8}-${c.id}`, tenant_id: tenantId, name: clip(c.name || `Empresa ${c.id}`, 255),
         phone: digits(kommoFieldValue(c, "PHONE")), email: kommoFieldValue(c, "EMAIL").toLowerCase(), status: "Ativo",
       }));
@@ -361,10 +364,11 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
         // Mescla com o que já existe (não apaga customFields locais do SPY)
         const ids = leads.map((l) => leadUuid(tenantId, l.id));
         const existing = new Map<string, any>();
+        const vinculo = new Map<string, { clientId: string; clientName: string }>(); // cliente já ligado no SPY: nunca zerar
         for (let i = 0; i < ids.length; i += 80) { // ids na URL: lotes pequenos para não estourar o limite do PostgREST
-          const { data: prev, error: prevErr } = await sb.from("leads").select("id, customFields").in("id", ids.slice(i, i + 80));
+          const { data: prev, error: prevErr } = await sb.from("leads").select("id, customFields, clientId, clientName").in("id", ids.slice(i, i + 80));
           if (prevErr) return res.status(500).json({ error: `Falha ao consultar leads existentes: ${prevErr.message}` });
-          for (const r of prev || []) existing.set(r.id, r.customFields || {});
+          for (const r of prev || []) { existing.set(r.id, r.customFields || {}); vinculo.set(r.id, { clientId: r.clientId || "", clientName: r.clientName || "" }); }
         }
 
         const rows: any[] = [];
@@ -378,7 +382,8 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
           const main = (l._embedded?.contacts || []).find((c: any) => c.is_main) || (l._embedded?.contacts || [])[0];
           const contact = main ? contacts.get(main.id) : null;
           const company = (l._embedded?.companies || [])[0];
-          const companyName = company ? (companies.get(company.id)?.name || company.name || "") : "";
+          const rawCompany = company ? (companies.get(company.id)?.name || company.name || "") : "";
+          const companyName = isPlaceholderName(rawCompany) ? "" : rawCompany;
           const createdIso = new Date((l.created_at || Date.now() / 1000) * 1000).toISOString();
           const id = ids[n];
           rows.push({
@@ -396,7 +401,7 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
             pipelineId: "comercial",
             stageId: `${funilId(l.pipeline_id)}-${place.idx}`,
             lead_interesse_cliente: kommoFieldByName([l, contact], INTEREST_RE),
-            clientId: "", clientName: "",
+            clientId: vinculo.get(id)?.clientId ?? "", clientName: vinculo.get(id)?.clientName ?? "",
             productIds: (l._embedded?.catalog_elements || []).map((e: any) => productUuid(tenantId, e.metadata?.catalog_id, e.id)), tenantName: "", scoreIA: 50,
             date: createdIso.slice(0, 10),
             created_at: createdIso,

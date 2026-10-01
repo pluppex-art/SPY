@@ -1699,10 +1699,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const documento = lead.cnpj || null;
       let existing: any = null;
       if (documento) {
-        const { data } = await supabase.from('clientes').select('id, name').eq('tenant_id', tenantId).eq('documento', documento).maybeSingle();
+        const { data } = await supabase.from('clientes').select('id, name').eq('tenant_id', tenantId).eq('documento', documento).limit(1).maybeSingle();
         existing = data;
       } else if (lead.email) {
-        const { data } = await supabase.from('clientes').select('id, name').eq('tenant_id', tenantId).eq('email', lead.email).maybeSingle();
+        const { data } = await supabase.from('clientes').select('id, name').eq('tenant_id', tenantId).eq('email', lead.email).limit(1).maybeSingle();
+        existing = data;
+      }
+      // Sem CNPJ nem e-mail (ex.: leads importados de outro CRM) o cliente nunca era achado e um novo era
+      // criado a cada lead ganho/reconciliação. Passa a casar pelo nome (sem diferenciar maiúsculas).
+      // `.limit(1)` em todas as consultas: com duplicatas já existentes, maybeSingle() dava erro e virava "não existe".
+      const nomeCliente = String(lead.company || lead.name || '').trim();
+      if (!existing && nomeCliente) {
+        const { data } = await supabase.from('clientes').select('id, name').eq('tenant_id', tenantId).ilike('name', nomeCliente.replace(/[%_\\]/g, (m) => '\\' + m)).limit(1).maybeSingle();
         existing = data;
       }
 
