@@ -28,6 +28,18 @@ const BENIGN_DOM_RACE = /insertBefore|removeChild/;
 const MAX_AUTO_RETRIES = 8;
 const RETRY_DECAY_MS = 4000;
 
+// Depois de um deploy, os arquivos de chunk antigos (hash no nome) somem do
+// servidor. Um navegador que ainda tem o index.html antigo em cache tenta
+// buscar um chunk com hash velho, recebe o fallback HTML da SPA (vercel.json
+// reescreve tudo pra index.html) e o browser rejeita por MIME type errado —
+// vira exatamente este erro. Recarregar a página busca o index.html atual
+// (agora sem cache, ver vercel.json) com os hashes corretos e resolve por
+// conta própria; só a MARCA de que já tentamos fica em sessionStorage, pra
+// não entrar num loop se o problema for outra coisa.
+const CHUNK_LOAD_ERROR = /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i;
+const CHUNK_RELOAD_KEY = "spy_chunk_reload_at";
+const CHUNK_RELOAD_COOLDOWN_MS = 10000;
+
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null };
   private autoRetryCount = 0;
@@ -39,6 +51,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    if (CHUNK_LOAD_ERROR.test(error.message)) {
+      const lastReload = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || 0);
+      if (Date.now() - lastReload > CHUNK_RELOAD_COOLDOWN_MS) {
+        sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+        window.location.reload();
+        return;
+      }
+      // Já recarregamos há pouco e o erro voltou — não é cache velho, é um
+      // problema real. Cai pro log + tela de erro normal abaixo.
+      console.error("[S.P.Y.] Falha ao carregar chunk persistiu após reload:", error, info.componentStack);
+      return;
+    }
+
     const isBenignDomRace = error.name === "NotFoundError" && BENIGN_DOM_RACE.test(error.message);
 
     if (isBenignDomRace) {
