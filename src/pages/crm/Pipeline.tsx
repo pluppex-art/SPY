@@ -177,28 +177,35 @@ export default function Pipeline() {
       <div className="flex flex-col space-y-4 flex-1 min-h-0">
         <PipelineKPIs total={kpis.total} hot={kpis.hot} closed={kpis.closed} winRate={winRate} formattedTotalValue={formattedTotalValue} />
 
+        {/* Achado real (pedido do usuário): esta barra só existia dentro da
+            visão Kanban — quem trabalha em visão de Lista (comum pra tenant
+            com muitos leads, ex.: Fora da Curva com 14 mil+) não tinha NENHUM
+            filtro de funil/empresa/cidade/cliente disponível, só o mini-filtro
+            próprio da Lista (busca + vendedor). Agora é compartilhada pelas
+            duas visões — os filtros (inclusive o de funil, que já afeta
+            `filteredItemsList`, a mesma lista usada pelas duas) funcionam
+            igual nos dois lugares. */}
+        <PipelineFilterBar
+          comercialFunis={comercialFunis} sdrFunis={sdrFunis}
+          currentPipeline={currentPipeline} setCurrentPipeline={switchPipeline as any}
+          selectedFunilId={selectedFunilId} setSelectedFunilId={setSelectedFunilId}
+          searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+          companyFilter={companyFilter} setCompanyFilter={setCompanyFilter}
+          companiesList={companiesList}
+          cityFilter={cityFilter} setCityFilter={setCityFilter} citiesList={citiesList}
+          clientFilter={clientFilter}
+          setClientFilter={setClientFilter} clientsList={clientsList}
+          sellerFilter={sellerFilter} setSellerFilter={setSellerFilter}
+          sellers={sellers}
+          dateFrom={dateFrom} setDateFrom={setDateFrom}
+          dateTo={dateTo} setDateTo={setDateTo}
+        />
+
         {view === "kanban" && (
           <>
             <PipelineAnalytics showAnalytics={showAnalytics} analyticsData={analyticsData} exportPDF={exportPDF} hotLeadsCount={hotLeadsCount} />
 
             {noPipelineConfigured ? <PipelineDefaultState /> : null}
-
-
-            <PipelineFilterBar
-              comercialFunis={comercialFunis} sdrFunis={sdrFunis}
-              currentPipeline={currentPipeline} setCurrentPipeline={switchPipeline as any}
-              selectedFunilId={selectedFunilId} setSelectedFunilId={setSelectedFunilId}
-              searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-              companyFilter={companyFilter} setCompanyFilter={setCompanyFilter}
-              companiesList={companiesList}
-              cityFilter={cityFilter} setCityFilter={setCityFilter} citiesList={citiesList}
-              clientFilter={clientFilter}
-              setClientFilter={setClientFilter} clientsList={clientsList}
-              sellerFilter={sellerFilter} setSellerFilter={setSellerFilter}
-              sellers={sellers}
-              dateFrom={dateFrom} setDateFrom={setDateFrom}
-              dateTo={dateTo} setDateTo={setDateTo}
-            />
 
             {activePipelineStages.length > 0 ? (
               <PipelineKanbanBoard
@@ -222,11 +229,11 @@ export default function Pipeline() {
 
         {view === "lista" && (
           <PipelineListaView
-            listaLeads={listaLeads} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-            sellerFilter={sellerFilter} setSellerFilter={setSellerFilter} sellers={sellers}
+            listaLeads={listaLeads}
             temperatureFilter={temperatureFilter} setTemperatureFilter={setTemperatureFilter}
             sortOrder={sortOrder} setSortOrder={setSortOrder}
             setSelectedLead={setSelectedLead} updateLead={updateLead}
+            sellers={sellers}
           />
         )}
       </div>
