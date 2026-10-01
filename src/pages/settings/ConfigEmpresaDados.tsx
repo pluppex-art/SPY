@@ -187,7 +187,7 @@ export default function ConfigEmpresaDados() {
                   <button
                     type="button"
                     onClick={handleRemoveLogo}
-                    className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-500 text-[var(--color-text-muted)] transition-all cursor-pointer"
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] hover:bg-danger/10 hover:border-danger/30 hover:text-danger text-[var(--color-text-muted)] transition-all cursor-pointer"
                   >
                     Remover
                   </button>
@@ -245,17 +245,17 @@ export default function ConfigEmpresaDados() {
                   </p>
                 )}
                 {cnpjStatus.status === "active" && (
-                  <p className="text-xs text-emerald-500 font-bold flex items-center gap-1">
+                  <p className="text-xs text-success font-bold flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" /> CNPJ Ativo — dados preenchidos
                   </p>
                 )}
                 {cnpjStatus.status === "inactive" && (
-                  <p className="text-xs text-amber-500 font-bold flex items-center gap-1">
+                  <p className="text-xs text-warning font-bold flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5" /> {cnpjStatus.message}
                   </p>
                 )}
                 {cnpjStatus.status === "invalid" && (
-                  <p className="text-xs text-rose-500 font-bold flex items-center gap-1">
+                  <p className="text-xs text-danger font-bold flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5" /> {cnpjStatus.message}
                   </p>
                 )}

@@ -128,7 +128,7 @@ export function ConfigPreferenciasSistema() {
       {/* Theme Selector */}
       <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2 pb-2 border-b border-[var(--color-border-subtle)]">
-          <Sun className="w-4 h-4 text-amber-500" /> {t("Aparência & Tema")}
+          <Sun className="w-4 h-4 text-[var(--color-primary-blue)]" /> {t("Aparência & Tema")}
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -234,7 +234,7 @@ export function ConfigPreferenciasSistema() {
             <div className="flex flex-wrap items-center gap-3">
               <input
                 type="color"
-                value={customHex ?? "#2563eb"}
+                value={customHex ?? tenantPrimaryColor}
                 onChange={(e) => setCustomInput(e.target.value)}
                 className="w-12 h-10 rounded-lg border border-[var(--color-border-default)] bg-transparent cursor-pointer p-0.5"
                 aria-label={t("Seletor de cor")}
@@ -260,10 +260,10 @@ export function ConfigPreferenciasSistema() {
               </Button>
             </div>
             {!customHex && customInput.trim() !== "" && (
-              <p className="text-[11px] text-rose-500">{t("Digite uma cor válida no formato #RRGGBB (ex.: #0EA5E9).")}</p>
+              <p className="text-[11px] text-danger">{t("Digite uma cor válida no formato #RRGGBB (ex.: #0EA5E9).")}</p>
             )}
             {customTooLight && (
-              <p className="text-[11px] text-amber-600">{t("Essa cor é clara demais: o texto branco dos botões e do menu ficaria ilegível. Escolha uma cor mais escura.")}</p>
+              <p className="text-[11px] text-warning">{t("Essa cor é clara demais: o texto branco dos botões e do menu ficaria ilegível. Escolha uma cor mais escura.")}</p>
             )}
           </div>
         )}

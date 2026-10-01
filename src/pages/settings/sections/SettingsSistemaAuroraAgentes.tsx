@@ -74,7 +74,7 @@ export const ROLE_ICONS: Record<string, typeof Bot> = {
 
 export function RoleIcon({ role }: { role?: string }) {
   const Icon = (role && ROLE_ICONS[role]) || Bot;
-  return <Icon className="w-4 h-4 text-violet-400" />;
+  return <Icon className="w-4 h-4 text-[var(--color-primary-blue)]" />;
 }
 
 // Todo agente do catálogo com workflow real no n8n usa chave FIXA — é exatamente o agent_key
@@ -260,7 +260,7 @@ export function ConfigSistemaAuroraAgentes() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-lg font-bold tracking-tight flex items-center gap-2">
-            <Bot className="w-5 h-5 text-violet-400" /> Agentes vinculados à Aurora
+            <Bot className="w-5 h-5 text-[var(--color-primary-blue)]" /> Agentes vinculados à Aurora
           </h2>
           <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
             Cada agente pode ser ativado ou desativado — a Aurora não age em nome de um agente inativo quando ele é citado diretamente na conversa.
@@ -272,8 +272,8 @@ export function ConfigSistemaAuroraAgentes() {
       </div>
 
       {!hasCustomAgents && (
-        <div className="p-3 bg-violet-500/10 border border-violet-500/20 rounded-xl flex items-start gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0 mt-0.5" />
+        <div className="p-3 bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 rounded-xl flex items-start gap-2">
+          <Sparkles className="w-3.5 h-3.5 text-[var(--color-primary-blue)] shrink-0 mt-0.5" />
           <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
             Nenhum agente foi salvo ainda — mostrando o catálogo padrão. Ative/desative ou edite algum pra começar a personalizar por sua empresa.
           </p>
@@ -296,7 +296,7 @@ export function ConfigSistemaAuroraAgentes() {
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
                   <RoleIcon role={agent.role} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -304,7 +304,7 @@ export function ConfigSistemaAuroraAgentes() {
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">{displayNameForAgent(agent, promptByKey)}</p>
                       {agent.role && (
-                        <span className="text-[9px] font-black uppercase tracking-widest text-violet-400">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--color-primary-blue)]">
                           {agent.role}
                         </span>
                       )}
@@ -344,7 +344,7 @@ export function ConfigSistemaAuroraAgentes() {
                         </button>
                         <button
                           onClick={() => handleDelete(agent)}
-                          className="flex items-center gap-1 px-2 py-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors text-[10px] font-bold"
+                          className="flex items-center gap-1 px-2 py-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-danger hover:bg-danger/10 rounded-lg transition-colors text-[10px] font-bold"
                           title="Remover agente"
                         >
                           <Trash2 className="w-3 h-3" /> Remover

@@ -37,17 +37,17 @@ export function ModulesCombobox({ selected, onChange }: ModulesComboboxProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#2563EB] focus:outline-none transition-all flex items-center justify-between text-left"
+        className="w-full bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary-blue)] focus:outline-none transition-all flex items-center justify-between text-left"
       >
-        <span className={selected.length === 0 ? "text-slate-600" : "text-white"}>{displayText}</span>
-        <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        <span className={selected.length === 0 ? "text-[var(--color-text-faint)]" : "text-[var(--color-text-primary)]"}>{displayText}</span>
+        <ChevronDown className={`w-4 h-4 text-[var(--color-text-muted)] shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-[var(--color-surface)] border border-white/10 rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5">
-            <button type="button" onClick={() => onChange(ALL_MODULES.map((m) => m.id))} className="text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-blue-300 transition-colors">Todos</button>
-            <span className="text-slate-700">·</span>
-            <button type="button" onClick={() => onChange([])} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors">Limpar</button>
+        <div className="absolute z-50 mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-border-subtle)]">
+            <button type="button" onClick={() => onChange(ALL_MODULES.map((m) => m.id))} className="text-[10px] font-black uppercase tracking-widest text-[var(--color-primary-blue)] hover:opacity-80 transition-colors">Todos</button>
+            <span className="text-[var(--color-text-faint)]">·</span>
+            <button type="button" onClick={() => onChange([])} className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] transition-colors">Limpar</button>
           </div>
           <div className="max-h-56 overflow-y-auto">
             {ALL_MODULES.map((mod) => {
@@ -57,14 +57,14 @@ export function ModulesCombobox({ selected, onChange }: ModulesComboboxProps) {
                   key={mod.id}
                   type="button"
                   onClick={() => toggle(mod.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-white/[0.04] ${checked ? "bg-blue-600/[0.06]" : ""}`}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-[var(--color-surface-sunken)] ${checked ? "bg-[var(--color-primary-blue)]/[0.06]" : ""}`}
                 >
-                  <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-all ${checked ? "bg-blue-600 border-blue-600" : "border-white/20"}`}>
+                  <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-all ${checked ? "bg-[var(--color-primary-blue)] border-[var(--color-primary-blue)]" : "border-[var(--color-border-default)]"}`}>
                     {checked && <Check className="w-2.5 h-2.5 text-white" />}
                   </div>
                   <div className="text-left min-w-0">
-                    <div className="text-[11px] font-black text-white">{mod.label}</div>
-                    <div className="text-[9px] text-slate-500 font-bold truncate">{mod.desc}</div>
+                    <div className="text-[11px] font-black text-[var(--color-text-primary)]">{mod.label}</div>
+                    <div className="text-[9px] text-[var(--color-text-faint)] font-bold truncate">{mod.desc}</div>
                   </div>
                 </button>
               );

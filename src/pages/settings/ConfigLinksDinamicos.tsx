@@ -71,8 +71,8 @@ export function ConfigLinksDinamicos() {
         </p>
       </div>
 
-      <Card className="p-4 bg-amber-500/5 border border-amber-500/20 flex gap-3">
-        <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+      <Card className="p-4 bg-warning/5 border border-warning/20 flex gap-3">
+        <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <p className="text-xs text-[var(--color-text-muted)]">
           Isto NÃO gera um link de pagamento ou checkout novo — o SPY ainda não processa pagamentos diretamente. Cadastre
           aqui o link que você já tem hoje (ex.: o link de cobrança da sua conta Asaas/Mercado Pago/Stripe, ou o seu

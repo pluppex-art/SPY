@@ -165,7 +165,7 @@ function MaxDataConnectionModal({
           <Activity className="w-3.5 h-3.5 text-cyan-500" /> {testing ? "Testando…" : "Testar conexão (usa a configuração salva)"}
         </Button>
         {result && (
-          <div className={`p-3 rounded-[var(--radius-control)] border text-xs ${result.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"}`}>
+          <div className={`p-3 rounded-[var(--radius-control)] border text-xs ${result.ok ? "border-success/30 bg-success/10 text-success" : "border-danger/30 bg-danger/10 text-danger"}`}>
             {result.text}
           </div>
         )}
@@ -182,15 +182,15 @@ function MaxDataConnectionModal({
 }
 
 const CATALOG_CATEGORY_STYLE: Record<string, { icon: any; iconBg: string }> = {
-  anuncios: { icon: Globe, iconBg: "bg-pink-500/10 text-pink-400 border-pink-500/20" },
-  mensageria: { icon: MessageSquare, iconBg: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
-  pagamentos: { icon: CreditCard, iconBg: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" },
-  email: { icon: Send, iconBg: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
-  crm: { icon: Layers, iconBg: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
-  erp: { icon: Server, iconBg: "bg-teal-500/10 text-teal-400 border-teal-500/20" },
-  ecommerce: { icon: ShoppingCart, iconBg: "bg-lime-500/10 text-lime-500 border-lime-500/20" },
-  produtividade: { icon: Zap, iconBg: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
-  logistica: { icon: Truck, iconBg: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
+  anuncios: { icon: Globe, iconBg: "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]" },
+  mensageria: { icon: MessageSquare, iconBg: "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]" },
+  pagamentos: { icon: CreditCard, iconBg: "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]" },
+  email: { icon: Send, iconBg: "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]" },
+  crm: { icon: Layers, iconBg: "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]" },
+  erp: { icon: Server, iconBg: "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]" },
+  ecommerce: { icon: ShoppingCart, iconBg: "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]" },
+  produtividade: { icon: Zap, iconBg: "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]" },
+  logistica: { icon: Truck, iconBg: "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]" },
 };
 
 /** Modal genérico do catálogo: mesma tela pra qualquer serviço, montada a partir dos campos dele. */
@@ -985,7 +985,7 @@ export function ConfigIntegracoesApps() {
             <span className="tabular-nums font-bold text-[var(--color-text-primary)]">{connectedReal} de {realIntegrations.length}</span>
           </div>
           <div className="w-full h-1.5 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden">
-            <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${realIntegrations.length === 0 ? 0 : Math.round((connectedReal / realIntegrations.length) * 100)}%` }} />
+            <div className="h-full rounded-full bg-[var(--color-primary-blue)] transition-all duration-500" style={{ width: `${realIntegrations.length === 0 ? 0 : Math.round((connectedReal / realIntegrations.length) * 100)}%` }} />
           </div>
         </div>
         <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
@@ -1341,8 +1341,8 @@ export function ConfigIntegracoesApps() {
                   </div>
 
                   {metaConfig.lastTestPing && (
-                    <div className={`p-3.5 rounded-[var(--radius-control)] border space-y-2 text-xs ${metaConfig.lastTestPing.ok ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10"}`}>
-                      <div className={`flex items-center justify-between font-bold ${metaConfig.lastTestPing.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                    <div className={`p-3.5 rounded-[var(--radius-control)] border space-y-2 text-xs ${metaConfig.lastTestPing.ok ? "border-success/30 bg-success/10" : "border-danger/30 bg-danger/10"}`}>
+                      <div className={`flex items-center justify-between font-bold ${metaConfig.lastTestPing.ok ? "text-success" : "text-danger"}`}>
                         <span className="flex items-center gap-1.5">
                           <CheckCircle2 className="w-4 h-4" /> {metaConfig.lastTestPing.ok ? `HTTP ${metaConfig.lastTestPing.status} — Evento aceito pela Graph API` : `HTTP ${metaConfig.lastTestPing.status || "?"} — Graph API recusou o evento`}
                         </span>
@@ -1504,10 +1504,10 @@ export function ConfigIntegracoesApps() {
                 loading={isTestingGoogle}
                 className="w-full text-xs font-bold gap-2"
               >
-                <Activity className="w-3.5 h-3.5 text-emerald-500" /> Validar via GA4 Measurement Protocol
+                <Activity className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Validar via GA4 Measurement Protocol
               </Button>
               {googleConfig.lastTestPing && (
-                <div className={`p-3 rounded-[var(--radius-control)] border text-xs ${googleConfig.lastTestPing.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"}`}>
+                <div className={`p-3 rounded-[var(--radius-control)] border text-xs ${googleConfig.lastTestPing.ok ? "border-success/30 bg-success/10 text-success" : "border-danger/30 bg-danger/10 text-danger"}`}>
                   {googleConfig.lastTestPing.ok
                     ? `HTTP ${googleConfig.lastTestPing.status} — payload aceito pelo GA4 (${googleConfig.lastTestPing.timestamp})`
                     : `HTTP ${googleConfig.lastTestPing.status || "?"} — GA4 rejeitou o payload (${googleConfig.lastTestPing.timestamp})`}
@@ -1567,7 +1567,7 @@ export function ConfigIntegracoesApps() {
                       {inst.name} — 📞 <span className="font-bold text-[var(--color-text-primary)]">{inst.phone || "sem número"}</span>
                     </div>
                     <div className="text-[var(--color-text-muted)] flex items-center justify-between">
-                      🌐 Status: <span className={inst.status === "CONNECTED" ? "text-emerald-500 font-bold" : "text-amber-500 font-bold"}>{inst.status}</span>
+                      🌐 Status: <span className={inst.status === "CONNECTED" ? "text-success font-bold" : "text-warning font-bold"}>{inst.status}</span>
                       {inst.status !== "CONNECTED" && (
                         <Button size="sm" onClick={() => handleConnectInstance(inst.id)} loading={connectingInstanceId === inst.id} className="h-7 text-[10px] px-2.5">
                           Conectar
@@ -1678,7 +1678,7 @@ export function ConfigIntegracoesApps() {
             </Button>
 
             {paymentTestResult && (
-              <div className={`p-3 rounded-[var(--radius-control)] border text-xs ${paymentTestResult.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"}`}>
+              <div className={`p-3 rounded-[var(--radius-control)] border text-xs ${paymentTestResult.ok ? "border-success/30 bg-success/10 text-success" : "border-danger/30 bg-danger/10 text-danger"}`}>
                 {paymentTestResult.detail}
               </div>
             )}

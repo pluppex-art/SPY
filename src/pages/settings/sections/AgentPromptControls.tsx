@@ -7,12 +7,13 @@ import type { AgentPrompt } from "../../../hooks/useAgentPrompts";
 // usa uma chave FIXA (ver FIXED_N8N_PROMPT_KEY lá) quando tem workflow real ligado no n8n,
 // ou uma chave derivada do nome (promptKeyForAgent) quando ainda não tem.
 //
-// Cores por CSS var (--color-text-*, --color-surface-*, --color-border-*), não Tailwind
-// slate/violet cru: essa tela é usada nos dois temas (claro/escuro, toggle via classe
-// `.dark` no <html>, ver index.css) e slate-200/violet-200 etc. só ficam legíveis no
-// escuro — no claro (fundo branco) o texto pálido some quase por completo. O acento
-// violeta usa par claro/escuro explícito (bg-violet-100/dark:bg-violet-500/25 etc.) porque
-// não existe variável de tema pra essa cor de destaque especificamente.
+// Cores por CSS var (--color-text-*, --color-surface-*, --color-border-*, --color-primary-blue),
+// não Tailwind slate/violet cru: essa tela é usada nos dois temas (claro/escuro, toggle via
+// classe `.dark` no <html>, ver index.css) e tons de cinza/roxo fixos só ficam legíveis em
+// um dos dois temas — no claro (fundo branco), por exemplo, texto pálido demais some quase
+// por completo. O destaque de
+// "customizado por este tenant" usa --color-primary-blue (a cor de marca do tenant, já
+// configurável em Configurações) em vez de um roxo decorativo fixo.
 
 export function ViewPromptButton({
   agentKey,
@@ -132,7 +133,7 @@ export function InlinePromptEditor({
         <span
           className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide border ${
             agent.isCustomized
-              ? "bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-500/25 dark:text-violet-200 dark:border-violet-500/50"
+              ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/30"
               : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"
           }`}
         >
@@ -145,7 +146,7 @@ export function InlinePromptEditor({
           disabled={!dirty || saving}
           className={`flex items-center gap-1.5 text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg shadow-none border ${
             dirty
-              ? "bg-violet-100 !text-violet-700 border-violet-300 hover:bg-violet-200 dark:bg-violet-500/25 dark:!text-violet-200 dark:border-violet-500/50 dark:hover:bg-violet-500/35"
+              ? "bg-[var(--color-primary-blue)]/10 !text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/30 hover:bg-[var(--color-primary-blue)]/20"
               : "bg-[var(--color-surface-sunken)] !text-[var(--color-text-faint)] border-[var(--color-border-default)]"
           }`}
         >
@@ -158,7 +159,7 @@ export function InlinePromptEditor({
         onChange={(e) => setValue(e.target.value)}
         placeholder="Instruções adicionais para este agente, específicas da sua empresa (ex: um produto especial, uma regra de atendimento, um jeito de falar)..."
         rows={6}
-        className="w-full text-xs font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg p-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-1 focus:ring-violet-500/50 resize-y"
+        className="w-full text-xs font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg p-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-blue)]/50 resize-y"
       />
       <p className="text-[10px] text-[var(--color-text-faint)]">
         Isto é somado ao comportamento padrão do agente, nunca o substitui — não cole o prompt inteiro aqui.

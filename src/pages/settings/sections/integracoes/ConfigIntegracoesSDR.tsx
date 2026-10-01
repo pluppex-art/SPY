@@ -72,7 +72,7 @@ export function ConfigIntegracoesSDR() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
           Integrações SDR & Pré-Vendas
-          <Zap className="w-5 h-5 text-purple-500" />
+          <Zap className="w-5 h-5 text-[var(--color-primary-blue)]" />
         </h1>
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
           Cadastre os endpoints e valide a conexão com "Disparar Teste" (chamada HTTP real). O disparo automático nestes eventos de qualificação ainda não está implementado — hoje só o teste manual envia uma requisição de verdade.
@@ -81,13 +81,13 @@ export function ConfigIntegracoesSDR() {
 
       {/* Reunião Agendada */}
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden shadow-sm">
-        <div className="p-5 border-b border-[var(--color-border-subtle)] bg-purple-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="p-5 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-[var(--color-text-primary)] text-sm">
                 Reunião Agendada (Qualificação Concluída)
               </h3>
-              <Badge variant={config.webhookActive ? "purple" : "neutral"} dot dotPulse={config.webhookActive}>
+              <Badge variant={config.webhookActive ? "success" : "neutral"} dot dotPulse={config.webhookActive}>
                 {config.webhookActive ? "Ativo" : "Pausado"}
               </Badge>
             </div>
@@ -117,7 +117,7 @@ export function ConfigIntegracoesSDR() {
             <span className="text-[10px] font-black uppercase text-[var(--color-text-faint)] tracking-widest block">
               Payload de Exemplo (JSON)
             </span>
-            <pre className="text-[11px] text-purple-500 dark:text-purple-300 font-mono overflow-auto leading-relaxed">{`{
+            <pre className="text-[11px] text-[var(--color-text-muted)] font-mono overflow-auto leading-relaxed">{`{
   "event": "sdr.reuniao_agendada",
   "lead": {
     "id": "123",
@@ -155,7 +155,7 @@ export function ConfigIntegracoesSDR() {
 
       {/* Lead Qualificado */}
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden shadow-sm">
-        <div className="p-5 border-b border-[var(--color-border-subtle)] bg-emerald-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="p-5 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-[var(--color-text-primary)] text-sm">
@@ -191,7 +191,7 @@ export function ConfigIntegracoesSDR() {
             <span className="text-[10px] font-black uppercase text-[var(--color-text-faint)] tracking-widest block">
               Payload de Exemplo (JSON)
             </span>
-            <pre className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono overflow-auto leading-relaxed">{`{
+            <pre className="text-[11px] text-[var(--color-text-muted)] font-mono overflow-auto leading-relaxed">{`{
   "event": "sdr.lead_qualificado",
   "lead": {
     "id": "123",

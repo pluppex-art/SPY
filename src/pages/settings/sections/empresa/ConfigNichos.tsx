@@ -92,7 +92,7 @@ export function ConfigNichos() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleToggleAtivo(nicho.id, nicho.ativo)}
-                  className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md border transition-colors ${nicho.ativo ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-faint)] border-[var(--color-border-default)]"}`}
+                  className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md border transition-colors ${nicho.ativo ? "bg-success/10 text-success border-success/20" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-faint)] border-[var(--color-border-default)]"}`}
                   title="Alternar ativo/inativo"
                 >
                   {nicho.ativo ? "Ativo" : "Inativo"}
@@ -101,7 +101,7 @@ export function ConfigNichos() {
                   variant="ghost"
                   size="xs"
                   onClick={() => handleDelete(nicho.id, nicho.nome)}
-                  className="h-8 w-8 p-0 text-[var(--color-text-faint)] hover:text-rose-500 hover:bg-rose-500/10"
+                  className="h-8 w-8 p-0 text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10"
                   title="Remover nicho"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -121,7 +121,7 @@ export function ConfigNichos() {
             {nichosGlobais.map((nicho: any) => (
               <Card key={nicho.id} className="p-3 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] flex items-center gap-3 opacity-80">
                 <Globe className="w-3.5 h-3.5 text-[var(--color-text-faint)] shrink-0" />
-                <span className="text-sm text-[var(--color-text-secondary)]">{nicho.nome}</span>
+                <span className="text-sm text-[var(--color-text-muted)]">{nicho.nome}</span>
               </Card>
             ))}
           </div>

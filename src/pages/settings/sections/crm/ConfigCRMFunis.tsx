@@ -113,9 +113,9 @@ export function ConfigCRMFunis() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Funis & Etapas</h1>
-          <p className="text-sm text-slate-400">Configure os pipelines de vendas e o comportamento do SDR IA.</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Configure os pipelines de vendas e o comportamento do SDR IA.</p>
         </div>
-        <Button onClick={() => setEditingFunil("new")} className="bg-[#2563EB] hover:bg-blue-600 font-bold px-6 shadow-lg shadow-blue-500/20">
+        <Button onClick={() => setEditingFunil("new")} className="px-6">
           <Plus className="w-4 h-4 mr-2" /> Novo Funil
         </Button>
       </div>
@@ -126,16 +126,16 @@ export function ConfigCRMFunis() {
           const stages = initStageConfigs(f.etapas, f.etapasConfig);
 
           return (
-            <Card key={f.id} className="bg-[var(--color-surface-elevated)]/80 backdrop-blur-xl border border-white/10 hover:border-white/15 transition-all">
+            <Card key={f.id} className="bg-[var(--color-surface-elevated)]/80 backdrop-blur-xl border border-[var(--color-border-default)] hover:border-[var(--color-border-default)] transition-all">
               <div className="p-5 flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${f.tipo === "sdr_ia" ? "bg-blue-500/10 border border-blue-500/20" : "bg-slate-500/10 border border-slate-500/20"}`}>
-                  {f.tipo === "sdr_ia" ? <Bot className="w-5 h-5 text-blue-400" /> : <Columns3 className="w-5 h-5 text-slate-400" />}
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${f.tipo === "sdr_ia" ? "bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20" : "bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)]"}`}>
+                  {f.tipo === "sdr_ia" ? <Bot className="w-5 h-5 text-[var(--color-primary-blue)]" /> : <Columns3 className="w-5 h-5 text-[var(--color-text-muted)]" />}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-black text-white text-sm uppercase tracking-tight">{f.nome}</span>
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${f.tipo === "sdr_ia" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-slate-500/10 border-slate-500/20 text-slate-400"}`}>
+                    <span className="font-black text-[var(--color-text-primary)] text-sm uppercase tracking-tight">{f.nome}</span>
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${f.tipo === "sdr_ia" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)]"}`}>
                       {f.tipo === "sdr_ia" ? "SDR IA" : "Comercial"}
                     </span>
                   </div>
@@ -144,28 +144,28 @@ export function ConfigCRMFunis() {
                       const cor = ETAPA_CORES[s.cor] ?? ETAPA_CORES.slate;
                       return (
                         <React.Fragment key={i}>
-                          <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded border bg-white/5 border-white/5 text-slate-500">
+                          <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded border bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-faint)]">
                             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: cor.dot }} />
                             {s.nome}
                           </span>
-                          {i < Math.min(stages.length, 5) - 1 && <ChevronRight className="w-2.5 h-2.5 text-slate-700 shrink-0" />}
+                          {i < Math.min(stages.length, 5) - 1 && <ChevronRight className="w-2.5 h-2.5 text-[var(--color-text-faint)] shrink-0" />}
                         </React.Fragment>
                       );
                     })}
-                    {stages.length > 5 && <span className="text-[9px] text-slate-600 font-bold">+{stages.length - 5}</span>}
+                    {stages.length > 5 && <span className="text-[9px] text-[var(--color-text-faint)] font-bold">+{stages.length - 5}</span>}
                   </div>
                   {availableClients.length > 0 && (
                     <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                      <Users className="w-2.5 h-2.5 text-slate-600 shrink-0" />
+                      <Users className="w-2.5 h-2.5 text-[var(--color-text-faint)] shrink-0" />
                       {f.clientIds && f.clientIds.length > 0 ? (
                         <>
                           {f.clientIds.slice(0, 3).map((t: string) => (
-                            <span key={t} className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">{t}</span>
+                            <span key={t} className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]">{t}</span>
                           ))}
-                          {f.clientIds.length > 3 && <span className="text-[8px] text-slate-600 font-bold">+{f.clientIds.length - 3}</span>}
+                          {f.clientIds.length > 3 && <span className="text-[8px] text-[var(--color-text-faint)] font-bold">+{f.clientIds.length - 3}</span>}
                         </>
                       ) : (
-                        <span className="text-[8px] font-bold text-slate-600">Global — todos os clientes</span>
+                        <span className="text-[8px] font-bold text-[var(--color-text-faint)]">Global — todos os clientes</span>
                       )}
                     </div>
                   )}
@@ -173,25 +173,25 @@ export function ConfigCRMFunis() {
 
                 <div className="flex items-center gap-2 shrink-0">
                   <button onClick={() => handleToggle(f.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${f.ativo ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-white/5 border-white/10 text-slate-500"}`}>
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${f.ativo ? "bg-success/10 border-success/20 text-success" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)]"}`}>
                     {f.ativo ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
                     {f.ativo ? "Ativo" : "Inativo"}
                   </button>
-                  <button onClick={() => setEditingFunil(f)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition-all">
+                  <button onClick={() => setEditingFunil(f)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-default)] transition-all">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => handleDelete(f.id)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-slate-600 hover:text-rose-400 hover:border-rose-500/30 transition-all">
+                  <button onClick={() => handleDelete(f.id)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-faint)] hover:text-danger hover:border-danger/30 transition-all">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                   <button onClick={() => setExpandedId(isExpanded ? null : f.id)}
-                    className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${isExpanded ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"}`}>
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${isExpanded ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-default)]"}`}>
                     <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`} />
                   </button>
                 </div>
               </div>
 
               {isExpanded && (
-                <div className="border-t border-white/5 overflow-x-auto">
+                <div className="border-t border-[var(--color-border-subtle)] overflow-x-auto">
                   <DragDropContext onDragEnd={onDragEnd}>
                     <Droppable droppableId={f.id} direction="horizontal">
                       {(provided) => (
@@ -217,7 +217,7 @@ export function ConfigCRMFunis() {
                           })}
                           {provided.placeholder}
                           <button onClick={() => handleStageAdd(f.id)}
-                            className="flex-shrink-0 w-[200px] rounded-2xl border border-dashed border-white/10 bg-transparent flex flex-col items-center justify-center min-h-[220px] gap-2 text-slate-600 hover:text-slate-400 hover:border-white/20 transition-all">
+                            className="flex-shrink-0 w-[200px] rounded-2xl border border-dashed border-[var(--color-border-default)] bg-transparent flex flex-col items-center justify-center min-h-[220px] gap-2 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] hover:border-[var(--color-border-default)] transition-all">
                             <Plus className="w-6 h-6" />
                             <span className="text-[9px] font-black uppercase tracking-widest">Adicionar Etapa</span>
                           </button>
@@ -232,9 +232,9 @@ export function ConfigCRMFunis() {
         })}
 
         {funis.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 gap-4 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
-            <Columns3 className="w-8 h-8 text-slate-600" />
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-center">Nenhum funil cadastrado.<br />Clique em "Novo Funil" para começar.</p>
+          <div className="flex flex-col items-center justify-center py-16 gap-4 bg-[var(--color-surface-sunken)] border border-dashed border-[var(--color-border-default)] rounded-2xl">
+            <Columns3 className="w-8 h-8 text-[var(--color-text-faint)]" />
+            <p className="text-[11px] font-black text-[var(--color-text-muted)] uppercase tracking-widest text-center">Nenhum funil cadastrado.<br />Clique em "Novo Funil" para começar.</p>
           </div>
         )}
       </div>

@@ -359,13 +359,13 @@ export function ConfigPerfilUsuario() {
         <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-4 flex flex-col justify-between">
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2 pb-3 border-b border-[var(--color-border-subtle)]">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" /> Autenticação & Segurança
+              <ShieldCheck className="w-4 h-4 text-[var(--color-primary-blue)]" /> Autenticação & Segurança
             </h3>
 
             <div className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] p-4 rounded-xl space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center">
                     <Smartphone className="w-4 h-4" />
                   </div>
                   <div>
@@ -400,7 +400,7 @@ export function ConfigPerfilUsuario() {
               </div>
               <div className="flex items-center justify-between py-1">
                 <span>Status da sessão:</span>
-                <strong className="text-emerald-500 font-bold flex items-center gap-1">
+                <strong className="text-success font-bold flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Protegida SSL/TLS
                 </strong>
               </div>

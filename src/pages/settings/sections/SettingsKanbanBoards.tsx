@@ -63,7 +63,7 @@ function ColCard({
               <Pencil className="w-3 h-3" />
             </button>
             {canDelete && (
-              <button onClick={onDelete} className="p-1 text-[var(--color-text-muted)] hover:text-rose-500 transition-colors rounded border-none bg-transparent cursor-pointer">
+              <button onClick={onDelete} className="p-1 text-[var(--color-text-muted)] hover:text-danger transition-colors rounded border-none bg-transparent cursor-pointer">
                 <Trash2 className="w-3 h-3" />
               </button>
             )}
@@ -247,7 +247,7 @@ function BoardEditor({ boardKey, canAddRemove }: { boardKey: BoardKey; canAddRem
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {dirty && (
-            <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+            <span className="text-[10px] font-bold text-warning bg-warning/10 px-2 py-0.5 rounded border border-warning/20">
               Alterações não salvas
             </span>
           )}

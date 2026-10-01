@@ -71,7 +71,7 @@ export function ConfigCRMOrigens() {
             <button
               type="button"
               onClick={() => handleDelete(origem)}
-              className="p-1.5 text-[var(--color-text-faint)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer border-none bg-transparent"
+              className="p-1.5 text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 rounded-lg transition-colors cursor-pointer border-none bg-transparent"
               title="Excluir origem"
             >
               <Trash2 className="w-3.5 h-3.5" />

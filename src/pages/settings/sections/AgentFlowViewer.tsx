@@ -38,39 +38,52 @@ interface NodeStyle {
   isTrigger?: boolean;
 }
 
+// Tipos de nó do fluxo real do n8n — continuam sendo categorias visualmente distintas
+// (gatilho/estrutural vs IA vs erro vs conclusão), mas só com os tokens de tema do app, não
+// mais um arco-íris decorativo (era rose/amber/violet/purple/sky/emerald cru, cada um só
+// legível com um par light/dark manual). Resultado: cinza neutro pros nós estruturais
+// (trigger comum, condição, código, tool, dado, http), --color-primary-blue só pros nós de
+// IA de verdade (agente, modelo, extractor/memória, voz — o que a tela de Aurora realmente
+// quer destacar), e danger/success só onde o nó É literalmente um erro ou uma conclusão
+// (errorTrigger / respondToWebhook, executeWorkflow). A distinção entre os tipos dentro de
+// cada grupo continua vindo do ÍCONE, não da cor.
 function styleForNodeType(nodeType: string): NodeStyle {
   const t = nodeType.toLowerCase();
-  if (t.includes("webhook") || t.includes("chattrigger") || t.includes("executeworkflowtrigger"))
-    return { icon: Webhook, accent: "border-rose-400 bg-rose-50 dark:bg-rose-500/10", iconBg: "bg-rose-500", iconColor: "text-white", isTrigger: true };
-  if (t.includes("scheduletrigger"))
-    return { icon: Clock, accent: "border-rose-400 bg-rose-50 dark:bg-rose-500/10", iconBg: "bg-rose-500", iconColor: "text-white", isTrigger: true };
+  const NEUTRAL = { accent: "border-[var(--color-border-default)] bg-[var(--color-surface-elevated)]", iconBg: "bg-[var(--color-text-muted)]", iconColor: "text-white" };
+  const AI = { accent: "border-[var(--color-primary-blue)]/40 bg-[var(--color-primary-blue)]/5", iconBg: "bg-[var(--color-primary-blue)]", iconColor: "text-white" };
+  const DONE = { accent: "border-success/40 bg-success/5", iconBg: "bg-success", iconColor: "text-white" };
+
   if (t.includes("errortrigger"))
-    return { icon: AlertTriangle, accent: "border-rose-400 bg-rose-50 dark:bg-rose-500/10", iconBg: "bg-rose-500", iconColor: "text-white", isTrigger: true };
+    return { icon: AlertTriangle, accent: "border-danger/40 bg-danger/5", iconBg: "bg-danger", iconColor: "text-white", isTrigger: true };
+  if (t.includes("webhook") || t.includes("chattrigger") || t.includes("executeworkflowtrigger"))
+    return { icon: Webhook, ...NEUTRAL, isTrigger: true };
+  if (t.includes("scheduletrigger"))
+    return { icon: Clock, ...NEUTRAL, isTrigger: true };
   if (t.includes(".if") || t.includes("switch"))
-    return { icon: GitBranch, accent: "border-amber-400 bg-amber-50 dark:bg-amber-500/10", iconBg: "bg-amber-500", iconColor: "text-white" };
+    return { icon: GitBranch, ...NEUTRAL };
   if (t.includes("merge") || t.includes("splitinbatches") || t.includes("wait"))
-    return { icon: GitMerge, accent: "border-amber-400 bg-amber-50 dark:bg-amber-500/10", iconBg: "bg-amber-500", iconColor: "text-white" };
+    return { icon: GitMerge, ...NEUTRAL };
   if (t.includes("code") || t.includes("set"))
-    return { icon: Code2, accent: "border-slate-300 bg-slate-50 dark:bg-slate-500/10", iconBg: "bg-slate-500", iconColor: "text-white" };
+    return { icon: Code2, ...NEUTRAL };
   if (t.includes("langchain.agent"))
-    return { icon: Bot, accent: "border-violet-400 bg-violet-50 dark:bg-violet-500/15", iconBg: "bg-violet-600", iconColor: "text-white" };
+    return { icon: Bot, ...AI };
   if (t.includes("lmchat") || t.includes("googlegemini"))
-    return { icon: Sparkles, accent: "border-purple-400 bg-purple-50 dark:bg-purple-500/10", iconBg: "bg-purple-600", iconColor: "text-white" };
+    return { icon: Sparkles, ...AI };
   if (t.includes("toolworkflow") || t.includes("supabasetool"))
-    return { icon: Wrench, accent: "border-sky-400 bg-sky-50 dark:bg-sky-500/10", iconBg: "bg-sky-600", iconColor: "text-white" };
+    return { icon: Wrench, ...NEUTRAL };
   if (t.includes("informationextractor") || t.includes("memory"))
-    return { icon: Sparkles, accent: "border-purple-400 bg-purple-50 dark:bg-purple-500/10", iconBg: "bg-purple-600", iconColor: "text-white" };
+    return { icon: Sparkles, ...AI };
   if (t.includes("supabase") || t.includes("redis") || t.includes("datatable"))
-    return { icon: Database, accent: "border-sky-400 bg-sky-50 dark:bg-sky-500/10", iconBg: "bg-sky-600", iconColor: "text-white" };
+    return { icon: Database, ...NEUTRAL };
   if (t.includes("httprequest"))
-    return { icon: Globe, accent: "border-sky-400 bg-sky-50 dark:bg-sky-500/10", iconBg: "bg-sky-600", iconColor: "text-white" };
+    return { icon: Globe, ...NEUTRAL };
   if (t.includes("executeworkflow"))
-    return { icon: WorkflowIcon, accent: "border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10", iconBg: "bg-emerald-600", iconColor: "text-white" };
+    return { icon: WorkflowIcon, ...DONE };
   if (t.includes("respondtowebhook"))
-    return { icon: SendHorizontal, accent: "border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10", iconBg: "bg-emerald-600", iconColor: "text-white" };
+    return { icon: SendHorizontal, ...DONE };
   if (t.includes("speech") || t.includes("audio"))
-    return { icon: Mic, accent: "border-purple-400 bg-purple-50 dark:bg-purple-500/10", iconBg: "bg-purple-600", iconColor: "text-white" };
-  return { icon: Circle, accent: "border-[var(--color-border-default)] bg-[var(--color-surface-elevated)]", iconBg: "bg-slate-400", iconColor: "text-white" };
+    return { icon: Mic, ...AI };
+  return { icon: Circle, ...NEUTRAL };
 }
 
 function FlowStepNodeRenderer({ data }: NodeProps) {
@@ -85,14 +98,14 @@ function FlowStepNodeRenderer({ data }: NodeProps) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="text-[11px] font-bold text-slate-900 dark:text-white leading-tight">{step.name}</p>
+            <p className="text-[11px] font-bold text-[var(--color-text-primary)] leading-tight">{step.name}</p>
             {isTrigger && (
-              <span className="shrink-0 text-[8px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-rose-500 text-white">
+              <span className="shrink-0 text-[8px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-[var(--color-text-muted)] text-white">
                 Gatilho
               </span>
             )}
           </div>
-          <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-snug mt-1">
+          <p className="text-[10px] text-[var(--color-text-muted)] leading-snug mt-1">
             {step.description}
           </p>
         </div>
@@ -175,7 +188,7 @@ export function AgentFlowViewerModal({
       description={
         <>
           Estrutura real do fluxo — cada cartão é uma etapa real, com o que ela faz. Visualização apenas: a construção e edição é feita pela nossa equipe.{" "}
-          <span className={isLive ? "text-emerald-500" : "text-[var(--color-text-faint)]"}>
+          <span className={isLive ? "text-success" : "text-[var(--color-text-faint)]"}>
             {isLive ? "• Ao vivo, direto do n8n" : "• Última versão salva (sincronização automática ainda não configurada)"}
           </span>
         </>
@@ -183,7 +196,7 @@ export function AgentFlowViewerModal({
       maxWidth="max-w-6xl"
       noPadding
     >
-      <div style={{ height: "70vh" }} className="w-full bg-slate-100 dark:bg-[var(--color-surface-sunken)]">
+      <div style={{ height: "70vh" }} className="w-full bg-[var(--color-surface-sunken)]">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -198,7 +211,7 @@ export function AgentFlowViewerModal({
           minZoom={0.1}
           proOptions={{ hideAttribution: true }}
         >
-          <Background gap={24} size={1.5} color="rgba(100,116,139,0.25)" />
+          <Background gap={24} size={1.5} color="var(--color-border-default)" />
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>

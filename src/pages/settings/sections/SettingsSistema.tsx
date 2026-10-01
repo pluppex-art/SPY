@@ -29,7 +29,7 @@ export function ConfigSistemaBackups() {
 
       <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-4 shadow-sm">
         <h3 className="font-bold text-sm text-[var(--color-text-primary)] flex items-center gap-2">
-          <HardDrive className="w-4 h-4 text-emerald-500" /> Onde o backup é gerenciado
+          <HardDrive className="w-4 h-4 text-[var(--color-primary-blue)]" /> Onde o backup é gerenciado
         </h3>
         <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
           O Supabase realiza backups automáticos do banco de dados de acordo com o plano contratado do projeto
@@ -116,8 +116,8 @@ export function ConfigSistemaAuroraUso() {
   const percent = usage?.percentUsed ?? 0;
   const creditsUsed = Math.round((percent / 100) * CREDITS_PER_CYCLE);
   const creditsLeft = Math.max(0, CREDITS_PER_CYCLE - creditsUsed);
-  const barColor = usage?.limitReached ? "bg-rose-500" : percent >= 90 ? "bg-amber-500" : "bg-violet-500";
-  const textColor = usage?.limitReached ? "text-rose-600 dark:text-rose-400" : percent >= 90 ? "text-amber-600 dark:text-amber-400" : "text-violet-600 dark:text-violet-400";
+  const barColor = usage?.limitReached ? "bg-danger" : percent >= 90 ? "bg-warning" : "bg-success";
+  const textColor = usage?.limitReached ? "text-danger" : percent >= 90 ? "text-warning" : "text-success";
 
   return (
     <div className="max-w-3xl space-y-6 animate-in fade-in duration-300 pb-12">
@@ -134,7 +134,7 @@ export function ConfigSistemaAuroraUso() {
           onClick={handleRefresh}
           disabled={refreshing}
           size="sm"
-          className="bg-violet-600 hover:bg-violet-500 text-white border border-violet-600 font-bold uppercase tracking-wider shrink-0"
+          className="bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white border border-[var(--color-primary-blue)] font-bold uppercase tracking-wider shrink-0"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
           Atualizar
@@ -147,7 +147,7 @@ export function ConfigSistemaAuroraUso() {
         <>
           <Card className="p-6 bg-[var(--color-surface-elevated)]/80 border border-[var(--color-border-default)] space-y-3">
             <div>
-              <h3 className="font-bold text-xs uppercase tracking-widest text-violet-600 dark:text-violet-400 flex items-center gap-2">
+              <h3 className="font-bold text-xs uppercase tracking-widest text-[var(--color-primary-blue)] flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5" />
                 <span>Instruções específicas deste tenant</span>
               </h3>
@@ -162,7 +162,7 @@ export function ConfigSistemaAuroraUso() {
               onChange={(e) => setCustomPromptDraft(e.target.value)}
               placeholder="Ex.: Somos uma boliche/lazer familiar, sempre trate reservas como 'partidas', evite jargão técnico..."
               rows={5}
-              className="w-full text-xs font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg p-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-1 focus:ring-violet-500/50 resize-y"
+              className="w-full text-xs font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg p-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-blue)]/50 resize-y"
             />
             <div className="flex items-center justify-between">
               {config.updatedAt ? (
@@ -177,7 +177,7 @@ export function ConfigSistemaAuroraUso() {
                 disabled={savingCustomPrompt || customPromptDraft === null || customPromptDraft === config.customPrompt}
                 className={`flex items-center gap-1.5 text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg shadow-none border ${
                   customPromptDraft !== null && customPromptDraft !== config.customPrompt
-                    ? "bg-violet-100 !text-violet-700 border-violet-300 hover:bg-violet-200 dark:bg-violet-500/25 dark:!text-violet-200 dark:border-violet-500/50 dark:hover:bg-violet-500/35"
+                    ? "bg-[var(--color-primary-blue)]/10 !text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/30 hover:bg-[var(--color-primary-blue)]/15"
                     : "bg-[var(--color-surface-sunken)] !text-[var(--color-text-faint)] border-[var(--color-border-default)]"
                 }`}
               >
@@ -190,7 +190,7 @@ export function ConfigSistemaAuroraUso() {
       )}
 
       <Card className="p-6 bg-[var(--color-surface-elevated)]/80 border border-[var(--color-border-default)] space-y-5">
-        <h3 className="font-bold text-xs uppercase tracking-widest text-violet-600 dark:text-violet-400 flex items-center gap-2">
+        <h3 className="font-bold text-xs uppercase tracking-widest text-[var(--color-primary-blue)] flex items-center gap-2">
           <Gauge className="w-3.5 h-3.5" />
           <span>Consumo do ciclo atual</span>
         </h3>
@@ -219,15 +219,15 @@ export function ConfigSistemaAuroraUso() {
             </div>
 
             {usage.limitReached && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                <p className="text-xs text-rose-600 dark:text-rose-400 leading-relaxed">
+              <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl">
+                <p className="text-xs text-danger leading-relaxed">
                   Limite atingido — a Aurora está bloqueada até o próximo ciclo ou até um upgrade de plano.
                 </p>
               </div>
             )}
             {!usage.limitReached && percent >= 90 && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
+              <div className="p-3 bg-warning/10 border border-warning/20 rounded-xl">
+                <p className="text-xs text-warning leading-relaxed">
                   Consumo perto do limite deste ciclo — a Aurora bloqueia automaticamente ao atingir 100%.
                 </p>
               </div>
@@ -255,11 +255,11 @@ export function ConfigSistemaAuroraUso() {
         <ConfigSistemaAuroraAgentes />
       </div>
 
-      <Card className="p-5 bg-amber-500/5 border border-amber-500/20 space-y-2">
-        <h3 className="font-bold text-xs text-amber-600 dark:text-amber-400 flex items-center gap-2">
+      <Card className="p-5 bg-warning/5 border border-warning/20 space-y-2">
+        <h3 className="font-bold text-xs text-warning flex items-center gap-2">
           <ShieldAlert className="w-3.5 h-3.5" /> Ainda não existe nesta tela
         </h3>
-        <p className="text-xs text-amber-800/70 dark:text-amber-200/70 leading-relaxed">
+        <p className="text-xs text-warning/80 leading-relaxed">
           Permissão granular de leitura/escrita por ferramenta (ex: "Aurora pode ler leads mas não criar"),
           conexão com sistemas externos do cliente e integrações/APIs de terceiros fazem parte de fases
           futuras do projeto de integração — ainda não estão implementadas, e esta tela não finge que estão.

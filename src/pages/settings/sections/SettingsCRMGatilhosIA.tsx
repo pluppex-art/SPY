@@ -56,7 +56,7 @@ export function ConfigCRMGatilhosIA() {
     <div className="max-w-4xl space-y-6 animate-in fade-in duration-300">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
-          Gatilhos de Lead Score IA <Zap className="w-5 h-5 text-amber-500 fill-amber-500/10" />
+          Gatilhos de Lead Score IA <Zap className="w-5 h-5 text-[var(--color-primary-blue)] fill-[var(--color-primary-blue)]/10" />
         </h1>
         <p className="text-sm text-[var(--color-text-muted)]">
           Configure regras automatizadas baseadas no Lead Score para mover os leads imediatamente para etapas do funil SDR.
@@ -83,7 +83,7 @@ export function ConfigCRMGatilhosIA() {
                 <div className="space-y-1">
                   <h4 className="text-sm font-bold text-[var(--color-text-primary)]">Regra de Automação</h4>
                   <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5 flex-wrap">
-                    Se <span className="font-mono text-amber-500 bg-amber-500/10 px-1 rounded border border-amber-500/20 font-bold">Lead Score</span> for <strong>{trigger.condition === 'greater' ? 'Maior ou Igual a' : 'Menor ou Igual a'}</strong> <strong className="text-[var(--color-text-primary)] font-mono">{trigger.scoreThreshold}</strong>, 
+                    Se <span className="font-mono text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 px-1 rounded border border-[var(--color-primary-blue)]/20 font-bold">Lead Score</span> for <strong>{trigger.condition === 'greater' ? 'Maior ou Igual a' : 'Menor ou Igual a'}</strong> <strong className="text-[var(--color-text-primary)] font-mono">{trigger.scoreThreshold}</strong>,
                     mover de forma autônoma para a coluna <strong className="text-[var(--color-primary-blue)]">{sdrStagesMap[trigger.targetStageId] || trigger.targetStageId}</strong>.
                   </p>
                 </div>
@@ -93,7 +93,7 @@ export function ConfigCRMGatilhosIA() {
                     variant="ghost"
                     size="xs"
                     onClick={() => handleDelete(trigger.id)}
-                    className="text-rose-500 hover:bg-rose-500/10"
+                    className="text-danger hover:bg-danger/10"
                   >
                     Remover
                   </Button>

@@ -196,7 +196,7 @@ export function ConfigBusinessDashboard() {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <input type="checkbox" checked={kpi.alertEnabled} onChange={(e) => updateKPI(kpi.name, 'alertEnabled', e.target.checked)} className="rounded border-[var(--color-border-default)] bg-[var(--color-surface)]" />
-                  <span className="text-xs text-[var(--color-text-muted)] flex items-center gap-1"><Bell className="w-3 h-3 text-amber-500" /> Alerta (Meta: {kpi.target})</span>
+                  <span className="text-xs text-[var(--color-text-muted)] flex items-center gap-1"><Bell className="w-3 h-3 text-[var(--color-primary-blue)]" /> Alerta (Meta: {kpi.target})</span>
                   <input type="number" value={kpi.target} onChange={(e) => updateKPI(kpi.name, 'target', Number(e.target.value))} className="w-20 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded px-2 py-1 text-xs text-[var(--color-text-primary)]" />
                 </div>
                 <input

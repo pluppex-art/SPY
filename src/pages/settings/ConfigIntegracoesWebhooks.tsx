@@ -235,7 +235,7 @@ export function ConfigIntegracoesWebhooks() {
 
         <Card className="p-5 space-y-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-            <Activity className="w-4 h-4 text-emerald-500" /> Disparos de Teste (manuais)
+            <Activity className="w-4 h-4 text-[var(--color-primary-blue)]" /> Disparos de Teste (manuais)
           </h3>
           <div className="space-y-2.5 text-xs font-mono">
             {webhookLogs.length === 0 ? (
@@ -261,12 +261,12 @@ export function ConfigIntegracoesWebhooks() {
         <Card className="p-5 space-y-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm md:col-span-2">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-              <Zap className="w-4 h-4 text-violet-400" /> Disparos Automáticos Reais (eventos do CRM)
+              <Zap className="w-4 h-4 text-[var(--color-primary-blue)]" /> Disparos Automáticos Reais (eventos do CRM)
             </h3>
             <Button
               type="button"
               onClick={refreshRealLogs}
-              className="bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 font-bold uppercase text-[10px] py-1.5 px-2.5 rounded-lg"
+              className="bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] border border-[var(--color-border-default)] font-bold uppercase text-[10px] py-1.5 px-2.5 rounded-lg"
             >
               <RefreshCw className={`w-3 h-3 mr-1 ${loadingRealLogs ? "animate-spin" : ""}`} />
               Atualizar

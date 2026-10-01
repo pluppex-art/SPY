@@ -112,8 +112,8 @@ export function TabClosersCRM() {
         <div className="pt-4 border-t border-[var(--color-border-subtle)] space-y-3">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className={`p-2 rounded-xl mt-0.5 ${global.blockOnMultipleClients ? "bg-rose-500/10" : "bg-[var(--color-surface-sunken)]"}`}>
-                {global.blockOnMultipleClients ? <Lock className="w-4 h-4 text-rose-500" /> : <Unlock className="w-4 h-4 text-[var(--color-text-muted)] text-slate-500" />}
+              <div className={`p-2 rounded-xl mt-0.5 ${global.blockOnMultipleClients ? "bg-danger/10" : "bg-[var(--color-surface-sunken)]"}`}>
+                {global.blockOnMultipleClients ? <Lock className="w-4 h-4 text-danger" /> : <Unlock className="w-4 h-4 text-[var(--color-text-muted)]" />}
               </div>
               <div>
                 <p className="text-xs font-bold text-[var(--color-text-primary)]">Bloquear closer com múltiplos atendimentos em paralelo</p>
@@ -121,7 +121,7 @@ export function TabClosersCRM() {
               </div>
             </div>
             <button type="button" onClick={() => updateGlobal({ blockOnMultipleClients: !global.blockOnMultipleClients })} className="shrink-0 cursor-pointer">
-              {global.blockOnMultipleClients ? <ToggleRight className="w-7 h-7 text-rose-500" /> : <ToggleLeft className="w-7 h-7 text-[var(--color-text-muted)]" />}
+              {global.blockOnMultipleClients ? <ToggleRight className="w-7 h-7 text-danger" /> : <ToggleLeft className="w-7 h-7 text-[var(--color-text-muted)]" />}
             </button>
           </div>
 
@@ -184,7 +184,7 @@ export function TabClosersCRM() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-bold text-[var(--color-text-primary)]">{closer.name}</span>
                         {closer.blocked && global.blockOnMultipleClients && (
-                          <span className="text-[9px] font-bold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded uppercase flex items-center gap-1">
+                          <span className="text-[9px] font-bold text-danger bg-danger/10 border border-danger/20 px-2 py-0.5 rounded uppercase flex items-center gap-1">
                             <Lock className="w-2.5 h-2.5" /> Bloqueado
                           </span>
                         )}
@@ -198,11 +198,11 @@ export function TabClosersCRM() {
                     <div className="flex items-center gap-3 shrink-0">
                       {global.blockOnMultipleClients && (
                         <button type="button" onClick={() => toggleBlocked(closer.id, closer.name)} className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] transition-colors cursor-pointer">
-                          {closer.blocked ? <Lock className="w-4 h-4 text-rose-500" /> : <Unlock className="w-4 h-4 text-[var(--color-text-muted)]" />}
+                          {closer.blocked ? <Lock className="w-4 h-4 text-danger" /> : <Unlock className="w-4 h-4 text-[var(--color-text-muted)]" />}
                         </button>
                       )}
                       <button type="button" onClick={() => toggleActive(closer.id, closer.name)} className="cursor-pointer">
-                        {closer.active ? <ToggleRight className="w-7 h-7 text-emerald-500" /> : <ToggleLeft className="w-7 h-7 text-[var(--color-text-muted)]" />}
+                        {closer.active ? <ToggleRight className="w-7 h-7 text-[var(--color-primary-blue)]" /> : <ToggleLeft className="w-7 h-7 text-[var(--color-text-muted)]" />}
                       </button>
                       <button
                         type="button"

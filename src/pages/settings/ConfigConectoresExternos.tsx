@@ -105,8 +105,8 @@ export function ConfigConectoresExternos() {
         </p>
       </div>
 
-      <Card className="p-4 bg-amber-500/5 border border-amber-500/20 flex gap-3">
-        <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+      <Card className="p-4 bg-warning/5 border border-warning/20 flex gap-3">
+        <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <p className="text-xs text-[var(--color-text-muted)]">
           Esta é a V1 do conector: só API/Webhook autenticado (chave de API, Bearer Token ou Basic Auth), nunca conexão SQL
           direta a um banco de terceiro — decisão deliberada por segurança. A chave/token que você cadastrar aqui nunca é

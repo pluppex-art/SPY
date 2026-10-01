@@ -322,7 +322,7 @@ export function ConfigNotificacoesPreferencias() {
             type="button"
             onClick={() => handleToggleChannelAll("inApp", !generalInApp)}
             className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 border-none ${
-              generalInApp ? "bg-[var(--color-primary-blue)]" : "bg-slate-300 dark:bg-slate-700"
+              generalInApp ? "bg-[var(--color-primary-blue)]" : "bg-[var(--color-border-default)]"
             }`}
           >
             <div
@@ -336,7 +336,7 @@ export function ConfigNotificacoesPreferencias() {
         {/* E-mails */}
         <Card className="p-3.5 sm:p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-row items-center justify-between gap-3 shadow-sm min-w-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0">
+            <div className="p-2 rounded-lg bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] shrink-0">
               <Mail className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -348,7 +348,7 @@ export function ConfigNotificacoesPreferencias() {
             type="button"
             onClick={() => handleToggleChannelAll("email", !generalEmail)}
             className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 border-none ${
-              generalEmail ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
+              generalEmail ? "bg-[var(--color-primary-blue)]" : "bg-[var(--color-border-default)]"
             }`}
           >
             <div
@@ -374,7 +374,7 @@ export function ConfigNotificacoesPreferencias() {
             type="button"
             onClick={() => handleToggleChannelAll("whatsapp", !generalWhatsapp)}
             className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 border-none ${
-              generalWhatsapp ? "bg-cyan-500" : "bg-slate-300 dark:bg-slate-700"
+              generalWhatsapp ? "bg-cyan-500" : "bg-[var(--color-border-default)]"
             }`}
           >
             <div
@@ -388,7 +388,7 @@ export function ConfigNotificacoesPreferencias() {
         {/* Sons & Alerta Sonoro */}
         <Card className="p-3.5 sm:p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-row items-center justify-between gap-3 shadow-sm min-w-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500 shrink-0">
+            <div className="p-2 rounded-lg bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] shrink-0">
               <Volume2 className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -398,7 +398,7 @@ export function ConfigNotificacoesPreferencias() {
                   type="button"
                   onClick={handleTestSound}
                   title="Ouvir som de teste"
-                  className="text-purple-500 hover:text-purple-600 p-0.5 rounded cursor-pointer border-none bg-transparent"
+                  className="text-[var(--color-primary-blue)] hover:brightness-110 p-0.5 rounded cursor-pointer border-none bg-transparent"
                 >
                   <Play className="w-2.5 h-2.5 fill-current" />
                 </button>
@@ -410,7 +410,7 @@ export function ConfigNotificacoesPreferencias() {
             type="button"
             onClick={toggleSound}
             className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 border-none ${
-              soundEnabled ? "bg-purple-500" : "bg-slate-300 dark:bg-slate-700"
+              soundEnabled ? "bg-[var(--color-primary-blue)]" : "bg-[var(--color-border-default)]"
             }`}
           >
             <div
@@ -423,7 +423,7 @@ export function ConfigNotificacoesPreferencias() {
       </div>
 
       {/* Push no Navegador (Web Notification) Banner */}
-      <Card className="p-4 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+      <Card className="p-4 bg-[var(--color-primary-blue)]/5 border border-[var(--color-primary-blue)]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center shrink-0">
             <Sparkles className="w-4 h-4" />
@@ -432,15 +432,15 @@ export function ConfigNotificacoesPreferencias() {
             <div className="flex items-center gap-2">
               <h4 className="text-xs font-bold text-[var(--color-text-primary)]">Alertas Nativos do Navegador (Web Push)</h4>
               {pushPermission === "granted" ? (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-success/10 text-success border border-success/30">
                   ✓ Ativo
                 </span>
               ) : pushPermission === "denied" ? (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/30">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-danger/10 text-danger border border-danger/30">
                   Bloqueado no navegador
                 </span>
               ) : (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/30">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/30">
                   Não ativado
                 </span>
               )}
@@ -539,7 +539,7 @@ export function ConfigNotificacoesPreferencias() {
                                 type="button"
                                 onClick={() => handleToggle(pref.id, "inApp")}
                                 className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 border-none ${
-                                  pref.inApp ? "bg-[var(--color-primary-blue)]" : "bg-slate-300 dark:bg-slate-700"
+                                  pref.inApp ? "bg-[var(--color-primary-blue)]" : "bg-[var(--color-border-default)]"
                                 }`}
                               >
                                 <div
@@ -559,7 +559,7 @@ export function ConfigNotificacoesPreferencias() {
                                 type="button"
                                 onClick={() => handleToggle(pref.id, "email")}
                                 className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 border-none ${
-                                  pref.email ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
+                                  pref.email ? "bg-[var(--color-primary-blue)]" : "bg-[var(--color-border-default)]"
                                 }`}
                               >
                                 <div
@@ -579,7 +579,7 @@ export function ConfigNotificacoesPreferencias() {
                                 type="button"
                                 onClick={() => handleToggle(pref.id, "whatsapp")}
                                 className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 border-none ${
-                                  pref.whatsapp ? "bg-cyan-500" : "bg-slate-300 dark:bg-slate-700"
+                                  pref.whatsapp ? "bg-cyan-500" : "bg-[var(--color-border-default)]"
                                 }`}
                               >
                                 <div

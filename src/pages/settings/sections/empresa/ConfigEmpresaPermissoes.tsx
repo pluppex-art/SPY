@@ -14,9 +14,9 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 const NIVEL_COLORS: Record<string, string> = {
-  "Estratégico": "text-purple-500 bg-purple-500/10 border-purple-500/20",
-  "Tático": "text-blue-500 bg-blue-500/10 border-blue-500/20",
-  "Operacional": "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+  "Estratégico": "text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/20",
+  "Tático": "text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-[var(--color-border-default)]",
+  "Operacional": "text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-[var(--color-border-default)]",
 };
 
 export function ConfigEmpresaPermissoes() {
@@ -118,7 +118,7 @@ export function ConfigEmpresaPermissoes() {
                     variant="ghost"
                     size="xs"
                     onClick={() => handleRemovePermissoes(cargo)}
-                    className="h-8 w-8 p-0 text-[var(--color-text-faint)] hover:text-rose-500 hover:bg-rose-500/10"
+                    className="h-8 w-8 p-0 text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10"
                     title="Remover permissões"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

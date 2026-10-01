@@ -79,7 +79,7 @@ export function ConfigIntegracoesSMTP() {
 
       <Card className="p-6 space-y-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
         <h3 className="font-bold text-xs uppercase tracking-widest text-[var(--color-primary-blue)] flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-500" /> Credenciais de Transmissão Autenticada
+          <ShieldCheck className="w-4 h-4 text-[var(--color-primary-blue)]" /> Credenciais de Transmissão Autenticada
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

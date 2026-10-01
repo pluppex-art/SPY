@@ -56,8 +56,8 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
     setSaving(false);
   };
 
-  const inputClass = "w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/30 transition-all";
-  const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block";
+  const inputClass = "w-full bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary-blue)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-blue)]/30 transition-all";
+  const labelClass = "text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest mb-1.5 block";
 
   return (
     <Modal
@@ -66,19 +66,19 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
       maxWidth="max-w-2xl"
       title={
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#2563EB]/10 border border-[#2563EB]/20 flex items-center justify-center">
-            {tipo === "sdr_ia" ? <Bot className="w-4 h-4 text-[#60A5FA]" /> : <Columns3 className="w-4 h-4 text-[#60A5FA]" />}
+          <div className="w-9 h-9 rounded-xl bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center">
+            {tipo === "sdr_ia" ? <Bot className="w-4 h-4 text-[var(--color-primary-blue)]" /> : <Columns3 className="w-4 h-4 text-[var(--color-primary-blue)]" />}
           </div>
           <div>
-            <div className="text-base font-black text-white">{isNew ? "Novo Funil" : "Editar Funil"}</div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">Pipeline de vendas</div>
+            <div className="text-base font-black text-[var(--color-text-primary)]">{isNew ? "Novo Funil" : "Editar Funil"}</div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mt-0.5">Pipeline de vendas</div>
           </div>
         </div>
       }
       footer={
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="ghost" onClick={onClose} className="text-slate-400 hover:text-white">Cancelar</Button>
-          <Button type="submit" form="funil-form" disabled={saving || !nome.trim() || etapas.length === 0} className="bg-[#2563EB] hover:bg-blue-600 font-bold px-6">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" form="funil-form" disabled={saving || !nome.trim() || etapas.length === 0} className="px-6">
             <Save className="w-4 h-4 mr-2" />
             {saving ? "Salvando..." : isNew ? "Criar Funil" : "Salvar Alterações"}
           </Button>
@@ -90,19 +90,19 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
           <label className={labelClass}>Tipo de Funil</label>
           <div className="grid grid-cols-2 gap-3">
             <button type="button" onClick={() => setTipo("sdr_ia")}
-              className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${tipo === "sdr_ia" ? "bg-blue-500/10 border-blue-500/40 text-white" : "bg-white/[0.02] border-white/10 text-slate-400 hover:border-white/20"}`}>
-              <Bot className={`w-5 h-5 shrink-0 ${tipo === "sdr_ia" ? "text-blue-400" : "text-slate-600"}`} />
+              className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${tipo === "sdr_ia" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-text-primary)]" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-default)]"}`}>
+              <Bot className={`w-5 h-5 shrink-0 ${tipo === "sdr_ia" ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-faint)]"}`} />
               <div>
                 <div className="text-xs font-black uppercase tracking-tight">SDR IA</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Qualificação automática pela Aurora</div>
+                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">Qualificação automática pela Aurora</div>
               </div>
             </button>
             <button type="button" onClick={() => setTipo("comercial")}
-              className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${tipo === "comercial" ? "bg-blue-500/10 border-blue-500/40 text-white" : "bg-white/[0.02] border-white/10 text-slate-400 hover:border-white/20"}`}>
-              <Columns3 className={`w-5 h-5 shrink-0 ${tipo === "comercial" ? "text-blue-400" : "text-slate-600"}`} />
+              className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${tipo === "comercial" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-text-primary)]" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-default)]"}`}>
+              <Columns3 className={`w-5 h-5 shrink-0 ${tipo === "comercial" ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-faint)]"}`} />
               <div>
                 <div className="text-xs font-black uppercase tracking-tight">Comercial</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Pipeline manual pelos vendedores</div>
+                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">Pipeline manual pelos vendedores</div>
               </div>
             </button>
           </div>
@@ -116,7 +116,7 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
           <div>
             <label className={labelClass}>Status</label>
             <button type="button" onClick={() => setAtivo(v => !v)}
-              className={`w-full h-[42px] flex items-center justify-center gap-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${ativo ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/10 text-slate-500"}`}>
+              className={`w-full h-[42px] flex items-center justify-center gap-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${ativo ? "bg-success/10 border-success/30 text-success" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)]"}`}>
               {ativo ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
               {ativo ? "Ativo" : "Inativo"}
             </button>
@@ -130,7 +130,7 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
           {etapas.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {etapas.map((e, i) => (
-                <span key={i} className="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold text-slate-400">
+                <span key={i} className="px-2 py-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg text-[10px] font-bold text-[var(--color-text-muted)]">
                   {i + 1}. {e}
                 </span>
               ))}
@@ -141,57 +141,57 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
         {availableClients.length > 0 && (
           <div>
             <label className={labelClass}>
-              <Users className="w-3 h-3 inline mr-1 text-indigo-400" />
+              <Users className="w-3 h-3 inline mr-1 text-[var(--color-primary-blue)]" />
               Clientes atribuídos
             </label>
             <div className="grid grid-cols-2 gap-2 mt-1">
               {availableClients.map(client => (
                 <label key={client}
-                  className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${clientIds.includes(client) ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-300" : "bg-white/[0.02] border-white/10 text-slate-400 hover:border-white/20"}`}>
-                  <input type="checkbox" checked={clientIds.includes(client)} onChange={() => toggleClient(client)} className="accent-indigo-500 w-3.5 h-3.5 shrink-0" />
+                  className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${clientIds.includes(client) ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/30 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-default)]"}`}>
+                  <input type="checkbox" checked={clientIds.includes(client)} onChange={() => toggleClient(client)} className="accent-[var(--color-primary-blue)] w-3.5 h-3.5 shrink-0" />
                   <span className="text-xs font-bold truncate">{client}</span>
                 </label>
               ))}
             </div>
-            <p className="text-[10px] text-slate-600 mt-1.5">
+            <p className="text-[10px] text-[var(--color-text-faint)] mt-1.5">
               {clientIds.length === 0 ? "Nenhum cliente selecionado — funil global." : `Restrito a ${clientIds.length} cliente(s).`}
             </p>
           </div>
         )}
 
         {tipo === "sdr_ia" && (
-          <div className="border border-blue-500/20 bg-blue-500/[0.03] rounded-2xl p-5 space-y-5">
+          <div className="border border-[var(--color-primary-blue)]/20 bg-[var(--color-primary-blue)]/[0.03] rounded-2xl p-5 space-y-5">
             <div className="flex items-center gap-2 mb-1">
-              <Bot className="w-4 h-4 text-blue-400" />
-              <span className="text-[11px] font-black text-blue-300 uppercase tracking-widest">Configuração SDR IA</span>
+              <Bot className="w-4 h-4 text-[var(--color-primary-blue)]" />
+              <span className="text-[11px] font-black text-[var(--color-primary-blue)] uppercase tracking-widest">Configuração SDR IA</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}><Zap className="w-3 h-3 inline mr-1 text-blue-400" />Etapa de entrada (Aurora atua)</label>
+                <label className={labelClass}><Zap className="w-3 h-3 inline mr-1 text-[var(--color-primary-blue)]" />Etapa de entrada (Aurora atua)</label>
                 <select value={sdrEtapaEntrada} onChange={e => setSdrEtapaEntrada(e.target.value)} className={inputClass}>
                   {etapas.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
               </div>
               <div>
-                <label className={labelClass}><ArrowRight className="w-3 h-3 inline mr-1 text-amber-400" />Etapa de handoff (passa p/ humano)</label>
+                <label className={labelClass}><ArrowRight className="w-3 h-3 inline mr-1 text-[var(--color-primary-blue)]" />Etapa de handoff (passa p/ humano)</label>
                 <select value={sdrEtapaHandoff} onChange={e => setSdrEtapaHandoff(e.target.value)} className={inputClass}>
                   {etapas.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
               </div>
               <div>
-                <label className={labelClass}><Star className="w-3 h-3 inline mr-1 text-purple-400" />Score mínimo — <span className="text-purple-300">{sdrScoreMinimo} pts</span></label>
-                <input type="range" min={0} max={100} step={5} value={sdrScoreMinimo} onChange={e => setSdrScoreMinimo(Number(e.target.value))} className="w-full accent-[#2563EB] mt-1" />
-                <div className="flex justify-between text-[9px] text-slate-600 font-bold mt-1">
+                <label className={labelClass}><Star className="w-3 h-3 inline mr-1 text-[var(--color-primary-blue)]" />Score mínimo — <span className="text-[var(--color-primary-blue)]">{sdrScoreMinimo} pts</span></label>
+                <input type="range" min={0} max={100} step={5} value={sdrScoreMinimo} onChange={e => setSdrScoreMinimo(Number(e.target.value))} className="w-full accent-[var(--color-primary-blue)] mt-1" />
+                <div className="flex justify-between text-[9px] text-[var(--color-text-faint)] font-bold mt-1">
                   <span>0 — Qualquer lead</span><span>100 — Apenas perfeitos</span>
                 </div>
               </div>
               <div>
-                <label className={labelClass}><Timer className="w-3 h-3 inline mr-1 text-emerald-400" />Delay de resposta (minutos)</label>
+                <label className={labelClass}><Timer className="w-3 h-3 inline mr-1 text-[var(--color-primary-blue)]" />Delay de resposta (minutos)</label>
                 <input type="number" min={0} max={60} value={sdrDelayResposta} onChange={e => setSdrDelayResposta(Number(e.target.value))} className={inputClass} placeholder="2" />
-                <p className="text-[10px] text-slate-600 mt-1">0 = imediato. Recomendado: 1–5 min para parecer humano.</p>
+                <p className="text-[10px] text-[var(--color-text-faint)] mt-1">0 = imediato. Recomendado: 1–5 min para parecer humano.</p>
               </div>
               <div>
-                <label className={labelClass}><XCircle className="w-3 h-3 inline mr-1 text-rose-400" />Critério de desqualificação</label>
+                <label className={labelClass}><XCircle className="w-3 h-3 inline mr-1 text-[var(--color-primary-blue)]" />Critério de desqualificação</label>
                 <select value={sdrCriterioDesqualificacao} onChange={e => setSdrCriterioDesqualificacao(e.target.value)} className={inputClass}>
                   <option value="sem_interesse">Lead expressa falta de interesse</option>
                   <option value="sem_orcamento">Lead não tem orçamento</option>

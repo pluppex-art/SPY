@@ -8,9 +8,9 @@ import { CargoModal } from "./CargoModal";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 
 const NIVEL_COLORS: Record<string, string> = {
-  "Estratégico": "text-purple-500 bg-purple-500/10 border-purple-500/20",
-  "Tático": "text-blue-500 bg-blue-500/10 border-blue-500/20",
-  "Operacional": "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+  "Estratégico": "text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/20",
+  "Tático": "text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-[var(--color-border-default)]",
+  "Operacional": "text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-[var(--color-border-default)]",
 };
 
 type CargoFormData = { nome: string; nivel: string; descricao: string };
@@ -98,7 +98,7 @@ export function ConfigEmpresaCargos() {
                       deleteCargo(cargo.id);
                       toast.success(`Cargo "${cargo.nome}" removido.`);
                     }}
-                    className="h-8 w-8 p-0 text-[var(--color-text-faint)] hover:text-rose-500 hover:bg-rose-500/10"
+                    className="h-8 w-8 p-0 text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10"
                     title="Excluir cargo"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

@@ -61,12 +61,12 @@ export function TabFormularioSDR({ tenantId }: { tenantId: string }) {
   return (
     <div className="space-y-6">
       {nextSdr && (
-        <Card className="flex items-center gap-4 p-4 bg-emerald-500/5 border border-emerald-500/20 shadow-sm">
-          <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+        <Card className="flex items-center gap-4 p-4 bg-[var(--color-primary-blue)]/5 border border-[var(--color-primary-blue)]/20 shadow-sm">
+          <div className="w-9 h-9 rounded-full bg-[var(--color-primary-blue)] text-white flex items-center justify-center text-xs font-bold shrink-0">
             {nextSdr.nome.split(" ").map(n => n[0]).join("").substring(0, 2)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-0.5">Próximo na fila</p>
+            <p className="text-[10px] font-bold text-[var(--color-primary-blue)] uppercase tracking-wider mb-0.5">Próximo na fila</p>
             <p className="text-sm font-bold text-[var(--color-text-primary)]">{nextSdr.nome}</p>
             <p className="text-xs text-[var(--color-text-muted)] font-mono">{nextSdr.phone} · Lead #{config.current_index + 1}</p>
           </div>
@@ -84,7 +84,7 @@ export function TabFormularioSDR({ tenantId }: { tenantId: string }) {
 
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden shadow-sm">
         <div className="flex items-start gap-3 p-4 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]">
-          <div className="p-2 rounded-xl bg-orange-500/10 text-orange-500">
+          <div className="p-2 rounded-xl bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]">
             <FileText className="w-4 h-4" />
           </div>
           <div className="flex-1">
@@ -113,14 +113,14 @@ export function TabFormularioSDR({ tenantId }: { tenantId: string }) {
               const initials = sdr.nome.split(" ").map(n => n[0]).join("").substring(0, 2);
               return (
                 <div key={sdr.id} className={`flex items-center gap-4 px-5 py-3.5 transition-opacity ${isActive ? "" : "opacity-40"}`}>
-                  <div className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[var(--color-primary-blue)] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                     {initials}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-bold text-[var(--color-text-primary)]">{sdr.nome}</span>
                       {isNext && isActive && (
-                        <span className="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded uppercase flex items-center gap-1">
+                        <span className="text-[9px] font-bold text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 px-2 py-0.5 rounded uppercase flex items-center gap-1">
                           <CheckCircle2 className="w-2.5 h-2.5" /> Próximo
                         </span>
                       )}
@@ -128,7 +128,7 @@ export function TabFormularioSDR({ tenantId }: { tenantId: string }) {
                     <p className="text-xs text-[var(--color-text-muted)] font-mono mt-0.5">{sdr.phone}</p>
                   </div>
                   <button type="button" onClick={() => toggleSdr(sdr.id)} disabled={saving} className="cursor-pointer">
-                    {isActive ? <ToggleRight className="w-7 h-7 text-emerald-500" /> : <ToggleLeft className="w-7 h-7 text-[var(--color-text-muted)]" />}
+                    {isActive ? <ToggleRight className="w-7 h-7 text-[var(--color-primary-blue)]" /> : <ToggleLeft className="w-7 h-7 text-[var(--color-text-muted)]" />}
                   </button>
                 </div>
               );

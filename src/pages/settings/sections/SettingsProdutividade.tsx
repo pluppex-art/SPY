@@ -18,27 +18,27 @@ const SUBTIPO_LABELS: Record<FinanceCategorySubtipo, string> = {
 
 const TASK_CATEGORIES_SETTING_KEY = "produtividade_categorias_tarefa";
 const DEFAULT_TASK_CATEGORIES = [
-    { id: "1", nome: "Follow-up", cor: "bg-blue-500" },
-    { id: "2", nome: "Reunião", cor: "bg-purple-500" },
-    { id: "3", nome: "Proposta", cor: "bg-emerald-500" }
+    { id: "1", nome: "Follow-up", cor: "bg-[var(--color-primary-blue)]" },
+    { id: "2", nome: "Reunião", cor: "bg-[var(--color-text-muted)]" },
+    { id: "3", nome: "Proposta", cor: "bg-success" }
 ];
 // O modal usa nomes de cor em português (Azul, Verde...); as categorias
 // armazenadas usam classes Tailwind (bg-blue-500...) — sem esse mapeamento,
 // uma categoria nova salvava "Azul" como classe CSS e a bolinha de cor
 // nunca aparecia.
 const CATEGORIA_COR_TO_CLASS: Record<string, string> = {
-    Azul: "bg-blue-500",
-    Verde: "bg-emerald-500",
-    Vermelho: "bg-rose-500",
-    Laranja: "bg-orange-500",
-    Roxo: "bg-purple-500",
+    Azul: "bg-[var(--color-primary-blue)]",
+    Verde: "bg-success",
+    Vermelho: "bg-danger",
+    Laranja: "bg-warning",
+    Roxo: "bg-[var(--color-text-muted)]",
 };
 const CATEGORIA_CLASS_TO_COR: Record<string, string> = {
-    "bg-blue-500": "Azul",
-    "bg-emerald-500": "Verde",
-    "bg-rose-500": "Vermelho",
-    "bg-orange-500": "Laranja",
-    "bg-purple-500": "Roxo",
+    "bg-[var(--color-primary-blue)]": "Azul",
+    "bg-success": "Verde",
+    "bg-danger": "Vermelho",
+    "bg-warning": "Laranja",
+    "bg-[var(--color-text-muted)]": "Roxo",
 };
 
 export function ConfigProdutividadeCategorias() {
@@ -61,7 +61,7 @@ export function ConfigProdutividadeCategorias() {
     };
 
     const handleSave = (data: { nome: string; cor: string }) => {
-        const corClass = CATEGORIA_COR_TO_CLASS[data.cor] || "bg-blue-500";
+        const corClass = CATEGORIA_COR_TO_CLASS[data.cor] || "bg-[var(--color-primary-blue)]";
         if (editingCategory) {
             persistCategories(categories.map((c) => (c.id === editingCategory.id ? { ...c, nome: data.nome, cor: corClass } : c)));
             toast.success("Categoria de tarefa atualizada!");
@@ -100,20 +100,20 @@ export function ConfigProdutividadeCategorias() {
         <div className="max-w-4xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Categorias & Produtividade</h1>
-                    <p className="text-sm text-slate-400">Organize as tarefas e visualize o CAC por time comercial.</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Categorias & Produtividade</h1>
+                    <p className="text-sm text-[var(--color-text-muted)]">Organize as tarefas e visualize o CAC por time comercial.</p>
                 </div>
-                <Button onClick={() => { setEditingCategory(null); setIsModalOpen(true); }} className="bg-[#2563EB] hover:bg-blue-600 font-bold px-6 shadow-lg shadow-blue-500/20"><Plus className="w-4 h-4 mr-2" /> Nova Categoria</Button>
+                <Button onClick={() => { setEditingCategory(null); setIsModalOpen(true); }} className="font-bold px-6"><Plus className="w-4 h-4 mr-2" /> Nova Categoria</Button>
             </div>
 
             {/* CAC Visualization Section */}
-            <Card className="p-6 bg-[var(--color-surface-elevated)]/80 backdrop-blur-xl border border-white/10 overflow-hidden relative group">
+            <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden relative group">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4 text-emerald-400" /> Custo de Aquisição (CAC) por Squad
+                        <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-widest flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-[var(--color-primary-blue)]" /> Custo de Aquisição (CAC) por Squad
                         </h3>
-                        <p className="text-[10px] text-slate-500 font-medium uppercase mt-1">Investimento Mensal / Novos Leads (Mês Atual)</p>
+                        <p className="text-[10px] text-[var(--color-text-faint)] font-medium uppercase mt-1">Investimento Mensal / Novos Leads (Mês Atual)</p>
                     </div>
                 </div>
 
@@ -121,16 +121,16 @@ export function ConfigProdutividadeCategorias() {
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={cacData}>
-                                <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                                <XAxis dataKey="name" stroke="var(--color-text-faint)" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis stroke="var(--color-text-faint)" fontSize={10} tickLine={false} axisLine={false} />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid #ffffff10', borderRadius: '12px' }}
-                                    itemStyle={{ fontSize: '10px', color: '#fff' }}
+                                    contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border-default)', borderRadius: '12px' }}
+                                    itemStyle={{ fontSize: '10px', color: 'var(--color-text-primary)' }}
                                     formatter={(value: any) => [`R$ ${value.toFixed(2)}`, 'CAC']}
                                 />
                                 <Bar dataKey="cac" radius={[4, 4, 0, 0]} barSize={32}>
                                     {cacData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.cac > 200 ? '#f43f5e' : '#10b981'} fillOpacity={0.6} />
+                                        <Cell key={`cell-${index}`} fill={entry.cac > 200 ? 'var(--color-danger)' : 'var(--color-success)'} fillOpacity={0.6} />
                                     ))}
                                 </Bar>
                             </BarChart>
@@ -139,21 +139,21 @@ export function ConfigProdutividadeCategorias() {
 
                     <div className="space-y-4">
                         {cacData.map((sq, i) => (
-                            <div key={i} className="p-3 bg-white/5 border border-white/5 rounded-xl hover:border-white/10 transition-colors">
+                            <div key={i} className="p-3 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl hover:border-[var(--color-border-default)] transition-colors">
                                 <div className="flex justify-between items-center mb-1">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase truncate max-w-[150px]">{sq.name}</span>
-                                    <span className={`text-[10px] font-black ${sq.cac > 200 ? 'text-rose-400' : 'text-emerald-400'}`}>R$ {sq.cac.toFixed(0)}</span>
+                                    <span className="text-[10px] font-black text-[var(--color-text-muted)] uppercase truncate max-w-[150px]">{sq.name}</span>
+                                    <span className={`text-[10px] font-black ${sq.cac > 200 ? 'text-danger' : 'text-success'}`}>R$ {sq.cac.toFixed(0)}</span>
                                 </div>
-                                <div className="flex items-center gap-4 text-[9px] text-slate-500 font-bold uppercase">
+                                <div className="flex items-center gap-4 text-[9px] text-[var(--color-text-faint)] font-bold uppercase">
                                     <span>leads: {sq.leads}</span>
                                     <span>verba: R$ {sq.budget}</span>
                                 </div>
                             </div>
                         ))}
                         {cacData.some(s => s.leads === 0) && (
-                            <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-2">
-                                <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
-                                <span className="text-[9px] text-amber-500 font-bold uppercase">Alguns squads estão sem leads novos este mês</span>
+                            <div className="p-2.5 bg-warning/10 border border-warning/20 rounded-lg flex items-center gap-2">
+                                <AlertCircle className="w-3.5 h-3.5 text-warning" />
+                                <span className="text-[9px] text-warning font-bold uppercase">Alguns squads estão sem leads novos este mês</span>
                             </div>
                         )}
                     </div>
@@ -162,16 +162,15 @@ export function ConfigProdutividadeCategorias() {
 
             <div className="grid md:grid-cols-2 gap-4">
                 {categories.map((cat: any) => (
-                    <Card key={cat.id} className="p-4 bg-[var(--color-surface-elevated)]/80 backdrop-blur-xl border border-white/10 flex justify-between items-center group">
+                    <Card key={cat.id} className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex justify-between items-center group">
                         <div className="flex items-center gap-3">
                             <div className={`w-3 h-3 rounded-full ${cat.cor}`}></div>
-                            <span className="font-semibold text-slate-200">{cat.nome}</span>
+                            <span className="font-semibold text-[var(--color-text-primary)]">{cat.nome}</span>
                         </div>
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => { setEditingCategory(cat); setIsModalOpen(true); }}
-                            className="text-slate-400 hover:text-white"
                         >
                             Editar
                         </Button>
@@ -231,21 +230,21 @@ export function ConfigFinanceiroCategorias() {
     };
 
     const renderRow = (cat: typeof categories[number]) => (
-        <div key={cat.id} className="p-3 bg-[var(--color-surface)] border border-white/5 rounded-lg flex justify-between items-center group">
+        <div key={cat.id} className="p-3 bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg flex justify-between items-center group">
             <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-300">{cat.nome}</span>
+                <span className="text-sm text-[var(--color-text-primary)]">{cat.nome}</span>
                 {cat.subtipo && (
-                    <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">
+                    <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border border-[var(--color-border-default)]">
                         {SUBTIPO_LABELS[cat.subtipo]}
                     </span>
                 )}
-                {!emUso.has(cat.id) && <span className="text-[9px] text-slate-500 italic">Categoria ainda não utilizada</span>}
+                {!emUso.has(cat.id) && <span className="text-[9px] text-[var(--color-text-faint)] italic">Categoria ainda não utilizada</span>}
             </div>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button type="button" onClick={() => handleEdit(cat)} title="Editar" className="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-500/10">
+                <button type="button" onClick={() => handleEdit(cat)} title="Editar" className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10">
                     <Pencil className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" onClick={() => handleDelete(cat)} title="Excluir" className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10">
+                <button type="button" onClick={() => handleDelete(cat)} title="Excluir" className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-danger hover:bg-danger/10">
                     <Trash2 className="w-3.5 h-3.5" />
                 </button>
             </div>
@@ -256,22 +255,22 @@ export function ConfigFinanceiroCategorias() {
         <div className="max-w-4xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Planos de Contas (Categorias)</h1>
-                    <p className="text-sm text-slate-400">Categorias para classificar receitas e despesas — o par tipo/subtipo define em qual linha do DRE cada lançamento é somado.</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Planos de Contas (Categorias)</h1>
+                    <p className="text-sm text-[var(--color-text-muted)]">Categorias para classificar receitas e despesas — o par tipo/subtipo define em qual linha do DRE cada lançamento é somado.</p>
                 </div>
-                <Button onClick={() => { setEditing(null); setIsModalOpen(true); }} className="bg-[#2563EB] hover:bg-blue-600 font-bold px-6 shadow-lg shadow-blue-500/20"><Plus className="w-4 h-4 mr-2" /> Nova Categoria</Button>
+                <Button onClick={() => { setEditing(null); setIsModalOpen(true); }} className="font-bold px-6"><Plus className="w-4 h-4 mr-2" /> Nova Categoria</Button>
             </div>
 
             <div className="space-y-6">
-                <Card className="p-6 bg-[var(--color-surface-elevated)]/80 backdrop-blur-xl border border-white/10">
-                    <h3 className="font-bold text-lg mb-4 text-[#10B981] flex items-center gap-2"><DollarSign className="w-5 h-5" /> Receitas</h3>
+                <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+                    <h3 className="font-bold text-lg mb-4 text-success flex items-center gap-2"><DollarSign className="w-5 h-5" /> Receitas</h3>
                     <div className="space-y-2">
                         {categories.filter(c => c.tipo === "Receita").map(renderRow)}
                     </div>
                 </Card>
 
-                <Card className="p-6 bg-[var(--color-surface-elevated)]/80 backdrop-blur-xl border border-white/10">
-                    <h3 className="font-bold text-lg mb-4 text-red-400 flex items-center gap-2"><DollarSign className="w-5 h-5" /> Despesas</h3>
+                <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+                    <h3 className="font-bold text-lg mb-4 text-danger flex items-center gap-2"><DollarSign className="w-5 h-5" /> Despesas</h3>
                     <div className="space-y-2">
                         {categories.filter(c => c.tipo === "Despesa").map(renderRow)}
                     </div>
@@ -301,8 +300,8 @@ export function ConfigFinanceiroSquads() {
     return (
         <div className="max-w-4xl space-y-6">
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">Gestão Financeira de Times & CAC <Briefcase className="w-5 h-5 text-blue-500" /></h1>
-                <p className="text-sm text-slate-400 mt-1">Configure o orçamento mensal de cada squad para cálculo automático de Custo de Aquisição de Clientes (CAC) em tempo real.</p>
+                <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">Gestão Financeira de Times & CAC <Briefcase className="w-5 h-5 text-[var(--color-primary-blue)]" /></h1>
+                <p className="text-sm text-[var(--color-text-muted)] mt-1">Configure o orçamento mensal de cada squad para cálculo automático de Custo de Aquisição de Clientes (CAC) em tempo real.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
@@ -311,34 +310,34 @@ export function ConfigFinanceiroSquads() {
                     const cac = sq.orcamentoMensal / squadLeadsCount;
 
                     return (
-                        <Card key={sq.id} className="bg-[var(--color-surface-elevated)]/80 border border-white/10 p-5 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-blue-500/30 transition-all">
+                        <Card key={sq.id} className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] p-5 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-[var(--color-primary-blue)]/30 transition-all">
                             <div className="flex items-center gap-4 w-full md:w-1/3">
-                                <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500">
+                                <div className="w-10 h-10 rounded-full bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center text-[var(--color-primary-blue)]">
                                     <Target className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-white">{sq.nome}</h4>
-                                    <p className="text-[10px] text-slate-500 uppercase font-black">{sq.membros.length} Integrantes</p>
+                                    <h4 className="text-sm font-bold text-[var(--color-text-primary)]">{sq.nome}</h4>
+                                    <p className="text-[10px] text-[var(--color-text-faint)] uppercase font-black">{sq.membros.length} Integrantes</p>
                                 </div>
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-6 w-full md:w-2/3 justify-end items-center">
                                 <div className="w-full sm:w-48 space-y-1.5">
-                                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest block">Orçamento Mensal (Spend)</label>
+                                    <label className="text-[10px] font-black uppercase text-[var(--color-text-faint)] tracking-widest block">Orçamento Mensal (Spend)</label>
                                     <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">R$</span>
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--color-text-faint)]">R$</span>
                                         <input
                                             type="number"
                                             defaultValue={sq.orcamentoMensal}
                                             onBlur={(e) => handleUpdateBudget(sq.id, e.target.value)}
-                                            className="w-full bg-[var(--color-surface)] border border-white/10 rounded-lg p-2 pl-9 text-xs text-white focus:border-blue-500 focus:outline-none font-bold"
+                                            className="w-full bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-lg p-2 pl-9 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-primary-blue)] focus:outline-none font-bold"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="bg-blue-600/5 border border-blue-500/10 p-2 px-4 rounded-xl text-center min-w-[120px]">
-                                    <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest block mb-0.5">CAC Sugerido</span>
-                                    <span className="text-sm font-bold text-white italic">R$ {cac.toFixed(2)}</span>
+                                <div className="bg-[var(--color-primary-blue)]/5 border border-[var(--color-primary-blue)]/10 p-2 px-4 rounded-xl text-center min-w-[120px]">
+                                    <span className="text-[9px] font-black text-[var(--color-primary-blue)] uppercase tracking-widest block mb-0.5">CAC Sugerido</span>
+                                    <span className="text-sm font-bold text-[var(--color-text-primary)] italic">R$ {cac.toFixed(2)}</span>
                                 </div>
                             </div>
                         </Card>
@@ -346,12 +345,12 @@ export function ConfigFinanceiroSquads() {
                 })}
             </div>
 
-            <div className="p-4 bg-yellow-500/5 border border-yellow-500/10 rounded-2xl flex gap-3">
-                <Zap className="w-5 h-5 text-yellow-500 shrink-0" />
-                <p className="text-xs text-slate-400 leading-relaxed">
-                    <strong className="text-white block mb-0.5 uppercase tracking-wide">Como funciona o CAC por Squad?</strong>
+            <div className="p-4 bg-warning/5 border border-warning/10 rounded-2xl flex gap-3">
+                <Zap className="w-5 h-5 text-warning shrink-0" />
+                <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+                    <strong className="text-[var(--color-text-primary)] block mb-0.5 uppercase tracking-wide">Como funciona o CAC por Squad?</strong>
                     O sistema cruza o orçamento mensal alocado acima com os leads ganhos/gerados atribuídos aos membros do squad.
-                    O cálculo é: <code className="text-yellow-400 font-mono">Orcamento / Total_Leads_no_Periodo</code>.
+                    O cálculo é: <code className="text-warning font-mono">Orcamento / Total_Leads_no_Periodo</code>.
                     Manter orçamentos precisos permite que a IA identifique qual squad tem a melhor eficiência financeira na prospecção.
                 </p>
             </div>

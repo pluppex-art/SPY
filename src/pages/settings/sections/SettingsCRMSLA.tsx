@@ -16,9 +16,9 @@ interface SLARule {
 
 const SLA_SETTING_KEY = "crm_sla_rules";
 const DEFAULT_SLA_RULES: SLARule[] = [
-  { priority: "Alta", limitHours: 2, alertBeforeMinutes: 30, autoReassign: true, active: true, color: "#EF4444" },
-  { priority: "Média", limitHours: 8, alertBeforeMinutes: 60, autoReassign: false, active: true, color: "#F59E0B" },
-  { priority: "Baixa", limitHours: 24, alertBeforeMinutes: 120, autoReassign: false, active: true, color: "#3B82F6" },
+  { priority: "Alta", limitHours: 2, alertBeforeMinutes: 30, autoReassign: true, active: true, color: "var(--color-danger)" },
+  { priority: "Média", limitHours: 8, alertBeforeMinutes: 60, autoReassign: false, active: true, color: "var(--color-warning)" },
+  { priority: "Baixa", limitHours: 24, alertBeforeMinutes: 120, autoReassign: false, active: true, color: "var(--color-primary-blue)" },
 ];
 
 export function ConfigCRMSLA() {
@@ -68,8 +68,8 @@ export function ConfigCRMSLA() {
                     key={p}
                     onClick={() => setActivePriority(p)}
                     className={`flex-1 sm:flex-initial text-center px-2 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all uppercase tracking-normal cursor-pointer ${
-                      activePriority === p 
-                        ? p === "Alta" ? "bg-rose-500 text-white" : p === "Média" ? "bg-amber-500 text-white" : "bg-blue-600 text-white"
+                      activePriority === p
+                        ? p === "Alta" ? "bg-danger text-white" : p === "Média" ? "bg-warning text-white" : "bg-[var(--color-primary-blue)] text-white"
                         : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
                     }`}
                   >
@@ -90,7 +90,7 @@ export function ConfigCRMSLA() {
                   type="checkbox" 
                   checked={currentRule.active}
                   onChange={(e) => updateCurrentRule({ active: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 rounded border-[var(--color-border-default)] bg-[var(--color-surface)] cursor-pointer shrink-0"
+                  className="w-4 h-4 text-[var(--color-primary-blue)] rounded border-[var(--color-border-default)] bg-[var(--color-surface)] cursor-pointer shrink-0"
                 />
               </div>
 
@@ -130,7 +130,7 @@ export function ConfigCRMSLA() {
               {/* Action Rules */}
               <div className="space-y-3 pt-2">
                 <h4 className="text-xs font-black text-[var(--color-text-primary)] flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-500" /> Ações em Caso de Estouro
+                  <ShieldAlert className="w-3.5 h-3.5 text-warning" /> Ações em Caso de Estouro
                 </h4>
 
                 <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] gap-3">
@@ -138,11 +138,11 @@ export function ConfigCRMSLA() {
                     <span className="text-xs font-bold text-[var(--color-text-primary)] block">Reatribuição Automática</span>
                     <span className="text-[10px] text-[var(--color-text-muted)] block">Transferir o lead para a fila geral ou outro corretor disponível.</span>
                   </div>
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={currentRule.autoReassign}
                     onChange={(e) => updateCurrentRule({ autoReassign: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded border-[var(--color-border-default)] bg-[var(--color-surface)] cursor-pointer shrink-0"
+                    className="w-4 h-4 text-[var(--color-primary-blue)] rounded border-[var(--color-border-default)] bg-[var(--color-surface)] cursor-pointer shrink-0"
                   />
                 </div>
               </div>
@@ -155,14 +155,14 @@ export function ConfigCRMSLA() {
           <div>
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--color-border-subtle)]">
               <span className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Prévia Visual do Lead
+                <Sparkles className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Prévia Visual do Lead
               </span>
             </div>
 
             <div className="p-4 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[var(--color-text-primary)]">Lead em Atendimento</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-danger/10 text-danger border border-danger/20">
                   Prioridade {activePriority}
                 </span>
               </div>
