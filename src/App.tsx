@@ -1,197 +1,195 @@
 import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { requestNotificationPermission } from "./lib/notifications";
-import LandingPage from "./pages/landing/LandingPage";
+const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
 // Lazy: página de marketing pública, sem nenhuma dependência do app autenticado — fica no
 // próprio chunk pra quem visita /lp não baixar o bundle inteiro do CRM.
 const SPYLandingPage = lazy(() => import("./pages/lp/SPYLandingPage"));
-import Dashboard from "./pages/dashboard/Dashboard";
-import PerformanceIA from "./pages/dashboard/PerformanceIA";
-import PainelGeral from "./pages/clinica/PainelGeral";
-import AgendaMedica from "./pages/clinica/AgendaMedica";
-import AnaliseFatura from "./pages/solar/AnaliseFatura";
-import PainelSolar from "./pages/solar/PainelSolar";
-import Prontuarios from "./pages/clinica/Prontuarios";
-import Faturamento from "./pages/clinica/Faturamento";
-import Estoque from "./pages/clinica/Estoque";
-import Telemedicina from "./pages/clinica/Telemedicina";
-import Exames from "./pages/clinica/Exames";
-import EstatisticasClinicas from "./pages/clinica/Estatisticas";
-import Pacientes from "./pages/clinica/Pacientes";
-import Login from "./pages/auth/Login";
-import ResetPassword from "./pages/auth/ResetPassword";
+const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
+const PerformanceIA = lazy(() => import("./pages/dashboard/PerformanceIA"));
+const PainelGeral = lazy(() => import("./pages/clinica/PainelGeral"));
+const AgendaMedica = lazy(() => import("./pages/clinica/AgendaMedica"));
+const AnaliseFatura = lazy(() => import("./pages/solar/AnaliseFatura"));
+const PainelSolar = lazy(() => import("./pages/solar/PainelSolar"));
+const Prontuarios = lazy(() => import("./pages/clinica/Prontuarios"));
+const Faturamento = lazy(() => import("./pages/clinica/Faturamento"));
+const Estoque = lazy(() => import("./pages/clinica/Estoque"));
+const Telemedicina = lazy(() => import("./pages/clinica/Telemedicina"));
+const Exames = lazy(() => import("./pages/clinica/Exames"));
+const EstatisticasClinicas = lazy(() => import("./pages/clinica/Estatisticas"));
+const Pacientes = lazy(() => import("./pages/clinica/Pacientes"));
+const Login = lazy(() => import("./pages/auth/Login"));
+const ResetPassword = lazy(() => import("./pages/auth/ResetPassword"));
 import Layout from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import Pipeline from "./pages/crm/Pipeline";
-import Clientes from "./pages/crm/Clientes";
-import AgendaCRM from "./pages/crm/AgendaCRM";
-import Contatos from "./pages/crm/Contatos";
-import Empresas from "./pages/crm/Empresas";
-import Oportunidades from "./pages/crm/Oportunidades";
-import Atividades from "./pages/crm/Atividades";
-import FollowUps from "./pages/crm/FollowUps";
-import CRMImportacao from "./pages/crm/Importacao";
-import Tarefas from "./pages/operative/Tarefas";
-import Produtos from "./pages/operative/Produtos";
-import Indicadores from "./pages/operative/Indicadores";
-import RelatoriosExecutivos from "./pages/crm/RelatoriosExecutivos";
-import Contracts from "./pages/crm/Contracts";
-import Implementacoes from "./pages/crm/Implementacoes";
-import ImplementacaoDetalhe from "./pages/crm/ImplementacaoDetalhe";
-import ImplementacaoRelatorio from "./pages/crm/ImplementacaoRelatorio";
-import Messaging from "./pages/crm/Messaging";
-import Automations from "./pages/marketing/Automations";
-import AdminSaaS from "./pages/admin/AdminSaaS";
-import PartnersOverview from "./pages/partners/PartnersOverview";
+const Pipeline = lazy(() => import("./pages/crm/Pipeline"));
+const Clientes = lazy(() => import("./pages/crm/Clientes"));
+const AgendaCRM = lazy(() => import("./pages/crm/AgendaCRM"));
+const Contatos = lazy(() => import("./pages/crm/Contatos"));
+const Empresas = lazy(() => import("./pages/crm/Empresas"));
+const Oportunidades = lazy(() => import("./pages/crm/Oportunidades"));
+const Atividades = lazy(() => import("./pages/crm/Atividades"));
+const FollowUps = lazy(() => import("./pages/crm/FollowUps"));
+const CRMImportacao = lazy(() => import("./pages/crm/Importacao"));
+const Tarefas = lazy(() => import("./pages/operative/Tarefas"));
+const Produtos = lazy(() => import("./pages/operative/Produtos"));
+const Indicadores = lazy(() => import("./pages/operative/Indicadores"));
+const RelatoriosExecutivos = lazy(() => import("./pages/crm/RelatoriosExecutivos"));
+const Contracts = lazy(() => import("./pages/crm/Contracts"));
+const Implementacoes = lazy(() => import("./pages/crm/Implementacoes"));
+const ImplementacaoDetalhe = lazy(() => import("./pages/crm/ImplementacaoDetalhe"));
+const ImplementacaoRelatorio = lazy(() => import("./pages/crm/ImplementacaoRelatorio"));
+const Messaging = lazy(() => import("./pages/crm/Messaging"));
+const Automations = lazy(() => import("./pages/marketing/Automations"));
+const AdminSaaS = lazy(() => import("./pages/admin/AdminSaaS"));
+const PartnersOverview = lazy(() => import("./pages/partners/PartnersOverview"));
 
-import FinanceiroLayout from "./pages/finance/FinanceiroLayout";
-import FinanceiroVisaoGeral from "./pages/finance/FinanceiroVisaoGeral";
-import FinanceiroReceber from "./pages/finance/FinanceiroReceber";
-import FinanceiroPagar from "./pages/finance/FinanceiroPagar";
-import FinanceiroReceitas from "./pages/finance/FinanceiroReceitas";
-import FinanceiroDespesas from "./pages/finance/FinanceiroDespesas";
-import FinanceiroFluxoCaixa from "./pages/finance/FinanceiroFluxoCaixa";
-import FinanceiroTransacoes from "./pages/finance/FinanceiroTransacoes";
-import FinanceiroCobrancas from "./pages/finance/FinanceiroCobrancas";
-import FinanceiroConciliacao from "./pages/finance/FinanceiroConciliacao";
-import FinanceiroCentrosCusto from "./pages/finance/FinanceiroCentrosCusto";
-import FinanceiroOrcamentos from "./pages/finance/FinanceiroOrcamentos";
-import FinanceiroDRE from "./pages/finance/FinanceiroDRE";
-import FinanceiroContasBancarias from "./pages/finance/FinanceiroContasBancarias";
-import FinanceiroTransferencias from "./pages/finance/FinanceiroTransferencias";
-import FinanceiroInadimplencia from "./pages/finance/FinanceiroInadimplencia";
-import FinanceiroMRR from "./pages/finance/FinanceiroMRR";
-import FinanceiroProjecao from "./pages/finance/FinanceiroProjecao";
-import FinanceiroRelatorios from "./pages/finance/FinanceiroRelatorios";
-import FinanceiroRelatorioAgrupado from "./pages/finance/FinanceiroRelatorioAgrupado";
-import FinanceiroExtrato from "./pages/finance/FinanceiroExtrato";
-import FinanceiroPerformanceMensal from "./pages/finance/FinanceiroPerformanceMensal";
-import FinanceiroPerformanceAnual from "./pages/finance/FinanceiroPerformanceAnual";
-import FinanceiroBuscaGlobal from "./pages/finance/FinanceiroBuscaGlobal";
-import FinanceiroImportarMovimentacoes from "./pages/finance/FinanceiroImportarMovimentacoes";
-import FinanceiroContatos from "./pages/finance/FinanceiroContatos";
-import Indicacoes from "./pages/finance/Indicacoes";
+const FinanceiroLayout = lazy(() => import("./pages/finance/FinanceiroLayout"));
+const FinanceiroVisaoGeral = lazy(() => import("./pages/finance/FinanceiroVisaoGeral"));
+const FinanceiroReceber = lazy(() => import("./pages/finance/FinanceiroReceber"));
+const FinanceiroPagar = lazy(() => import("./pages/finance/FinanceiroPagar"));
+const FinanceiroReceitas = lazy(() => import("./pages/finance/FinanceiroReceitas"));
+const FinanceiroDespesas = lazy(() => import("./pages/finance/FinanceiroDespesas"));
+const FinanceiroFluxoCaixa = lazy(() => import("./pages/finance/FinanceiroFluxoCaixa"));
+const FinanceiroTransacoes = lazy(() => import("./pages/finance/FinanceiroTransacoes"));
+const FinanceiroCobrancas = lazy(() => import("./pages/finance/FinanceiroCobrancas"));
+const FinanceiroConciliacao = lazy(() => import("./pages/finance/FinanceiroConciliacao"));
+const FinanceiroCentrosCusto = lazy(() => import("./pages/finance/FinanceiroCentrosCusto"));
+const FinanceiroOrcamentos = lazy(() => import("./pages/finance/FinanceiroOrcamentos"));
+const FinanceiroDRE = lazy(() => import("./pages/finance/FinanceiroDRE"));
+const FinanceiroContasBancarias = lazy(() => import("./pages/finance/FinanceiroContasBancarias"));
+const FinanceiroTransferencias = lazy(() => import("./pages/finance/FinanceiroTransferencias"));
+const FinanceiroInadimplencia = lazy(() => import("./pages/finance/FinanceiroInadimplencia"));
+const FinanceiroMRR = lazy(() => import("./pages/finance/FinanceiroMRR"));
+const FinanceiroProjecao = lazy(() => import("./pages/finance/FinanceiroProjecao"));
+const FinanceiroRelatorios = lazy(() => import("./pages/finance/FinanceiroRelatorios"));
+const FinanceiroRelatorioAgrupado = lazy(() => import("./pages/finance/FinanceiroRelatorioAgrupado"));
+const FinanceiroExtrato = lazy(() => import("./pages/finance/FinanceiroExtrato"));
+const FinanceiroPerformanceMensal = lazy(() => import("./pages/finance/FinanceiroPerformanceMensal"));
+const FinanceiroPerformanceAnual = lazy(() => import("./pages/finance/FinanceiroPerformanceAnual"));
+const FinanceiroBuscaGlobal = lazy(() => import("./pages/finance/FinanceiroBuscaGlobal"));
+const FinanceiroImportarMovimentacoes = lazy(() => import("./pages/finance/FinanceiroImportarMovimentacoes"));
+const FinanceiroContatos = lazy(() => import("./pages/finance/FinanceiroContatos"));
+const Indicacoes = lazy(() => import("./pages/finance/Indicacoes"));
 
-import Calendario from "./pages/agenda/Calendario";
-import Eventos from "./pages/agenda/Eventos";
-import Disponibilidade from "./pages/agenda/Disponibilidade";
-import AgendaConfiguracoes from "./pages/agenda/AgendaConfiguracoes";
+const Calendario = lazy(() => import("./pages/agenda/Calendario"));
+const Eventos = lazy(() => import("./pages/agenda/Eventos"));
+const Disponibilidade = lazy(() => import("./pages/agenda/Disponibilidade"));
+const AgendaConfiguracoes = lazy(() => import("./pages/agenda/AgendaConfiguracoes"));
 
-import SettingsLayout from "./pages/settings/SettingsLayout";
-import ConfigEmpresaDados from "./pages/settings/ConfigEmpresaDados";
-import {
-  ConfigEmpresaFiliais,
-  ConfigEmpresaEquipe,
-  ConfigEmpresaPermissoes,
-  ConfigEmpresaCargos,
-  ConfigNichos,
-  ConfigCRMFunis,
-  ConfigCRMOrigens,
-  ConfigCRMProdutos,
-  ConfigProdutividadeCategorias,
-  ConfigFinanceiroCategorias,
-  ConfigEngajamentoModelos,
-  ConfigEngajamentoAutomacoes,
-  ConfigIntegracoesApps,
-  ConfigNotificacoesPreferencias,
-  ConfigPerfilUsuario,
-  ConfigPreferenciasSistema,
-  ConfigCRMCampos,
-  ConfigCRMSLA,
-  ConfigCRMGatilhosIA,
-  ConfigIntegracoesSMTP,
-  ConfigSistemaBackups,
-  ConfigSistemaAuroraUso,
-  ConfigIntegracoesSDR,
-  ConfigFinanceiroSquads,
-  ConfigFinanceiroBloqueioPeriodo,
-  ConfigFinanceiroAuditoria,
-  ConfigRodizioLeads,
-  ConfigKanbanBoards
-} from "./pages/settings/SettingsPages";
-import { ConfigIntegracoesWebhooks } from "./pages/settings/ConfigIntegracoesWebhooks";
-import { ConfigConectoresExternos } from "./pages/settings/ConfigConectoresExternos";
-import { ConfigLinksDinamicos } from "./pages/settings/ConfigLinksDinamicos";
-import SettingsGenericForm from "./pages/settings/SettingsGenericForm";
-import GenericPlaceholder from "./pages/common/GenericPlaceholder";
-import EducationTurmas from "./pages/education/Turmas";
-import EducationConteudo from "./pages/education/Conteudo";
-import EducationCertificados from "./pages/education/Certificados";
-import EducationMensalidades from "./pages/education/Mensalidades";
-import AlunosEdu from "./pages/education/Alunos";
-import PainelGeralEdu from "./pages/education/PainelGeral";
-import Propostas from "./pages/crm/Propostas";
-import CommercialDashboard from "./pages/crm/Dashboard";
-import MarketingAutomacoes from "./pages/marketing/MarketingAutomacoes";
-import MarketingConteudo from "./pages/marketing/MarketingConteudo";
-import MarketingCampanhas from "./pages/marketing/MarketingCampanhas";
-import MarketingAnalytics from "./pages/marketing/MarketingAnalytics";
-import MarketingSocial from "./pages/marketing/MarketingSocial";
-import MarketingLandingPages from "./pages/marketing/MarketingLandingPages";
-import EEmpreendaEditor from "./pages/marketing/EEmpreendaEditor";
-import MarketingFormularios from "./pages/marketing/MarketingFormularios";
-import RHColaboradores from "./pages/hr/RHColaboradores";
-import ReunioesList from "./pages/reunioes/index";
-import ReuniaoRoom from "./pages/reunioes/ReuniaoRoom";
+const SettingsLayout = lazy(() => import("./pages/settings/SettingsLayout"));
+const ConfigEmpresaDados = lazy(() => import("./pages/settings/ConfigEmpresaDados"));
+const ConfigEmpresaFiliais = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaFiliais })));
+const ConfigEmpresaEquipe = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaEquipe })));
+const ConfigEmpresaPermissoes = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaPermissoes })));
+const ConfigEmpresaCargos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaCargos })));
+const ConfigNichos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigNichos })));
+const ConfigCRMFunis = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMFunis })));
+const ConfigCRMOrigens = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMOrigens })));
+const ConfigCRMProdutos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMProdutos })));
+const ConfigProdutividadeCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigProdutividadeCategorias })));
+const ConfigFinanceiroCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroCategorias })));
+const ConfigEngajamentoModelos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEngajamentoModelos })));
+const ConfigEngajamentoAutomacoes = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEngajamentoAutomacoes })));
+const ConfigIntegracoesApps = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigIntegracoesApps })));
+const ConfigNotificacoesPreferencias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigNotificacoesPreferencias })));
+const ConfigPerfilUsuario = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigPerfilUsuario })));
+const ConfigPreferenciasSistema = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigPreferenciasSistema })));
+const ConfigCRMCampos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMCampos })));
+const ConfigCRMSLA = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMSLA })));
+const ConfigCRMGatilhosIA = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMGatilhosIA })));
+const ConfigIntegracoesSMTP = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigIntegracoesSMTP })));
+const ConfigSistemaBackups = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigSistemaBackups })));
+const ConfigSistemaAuroraUso = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigSistemaAuroraUso })));
+const ConfigIntegracoesSDR = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigIntegracoesSDR })));
+const ConfigFinanceiroSquads = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroSquads })));
+const ConfigFinanceiroBloqueioPeriodo = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroBloqueioPeriodo })));
+const ConfigFinanceiroAuditoria = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroAuditoria })));
+const ConfigRodizioLeads = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigRodizioLeads })));
+const ConfigKanbanBoards = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigKanbanBoards })));
+const ConfigIntegracoesWebhooks = lazy(() => import("./pages/settings/ConfigIntegracoesWebhooks").then(m => ({ default: m.ConfigIntegracoesWebhooks })));
+const ConfigConectoresExternos = lazy(() => import("./pages/settings/ConfigConectoresExternos").then(m => ({ default: m.ConfigConectoresExternos })));
+const ConfigLinksDinamicos = lazy(() => import("./pages/settings/ConfigLinksDinamicos").then(m => ({ default: m.ConfigLinksDinamicos })));
+const SettingsGenericForm = lazy(() => import("./pages/settings/SettingsGenericForm"));
+const GenericPlaceholder = lazy(() => import("./pages/common/GenericPlaceholder"));
+const EducationTurmas = lazy(() => import("./pages/education/Turmas"));
+const EducationConteudo = lazy(() => import("./pages/education/Conteudo"));
+const EducationCertificados = lazy(() => import("./pages/education/Certificados"));
+const EducationMensalidades = lazy(() => import("./pages/education/Mensalidades"));
+const AlunosEdu = lazy(() => import("./pages/education/Alunos"));
+const PainelGeralEdu = lazy(() => import("./pages/education/PainelGeral"));
+const Propostas = lazy(() => import("./pages/crm/Propostas"));
+const CommercialDashboard = lazy(() => import("./pages/crm/Dashboard"));
+const MarketingAutomacoes = lazy(() => import("./pages/marketing/MarketingAutomacoes"));
+const MarketingConteudo = lazy(() => import("./pages/marketing/MarketingConteudo"));
+const MarketingCampanhas = lazy(() => import("./pages/marketing/MarketingCampanhas"));
+const MarketingAnalytics = lazy(() => import("./pages/marketing/MarketingAnalytics"));
+const MarketingSocial = lazy(() => import("./pages/marketing/MarketingSocial"));
+const MarketingLandingPages = lazy(() => import("./pages/marketing/MarketingLandingPages"));
+const EEmpreendaEditor = lazy(() => import("./pages/marketing/EEmpreendaEditor"));
+const MarketingFormularios = lazy(() => import("./pages/marketing/MarketingFormularios"));
+const RHColaboradores = lazy(() => import("./pages/hr/RHColaboradores"));
+const ReunioesList = lazy(() => import("./pages/reunioes/index"));
+const ReuniaoRoom = lazy(() => import("./pages/reunioes/ReuniaoRoom"));
 
-import ImobiliarioPainel from "./pages/imobiliario/PainelGeral";
-import ImobiliariosImoveis from "./pages/imobiliario/Imoveis";
-import ImobiliariosVeiculos from "./pages/imobiliario/Veiculos";
-import ImobiliariosCorretores from "./pages/imobiliario/Corretores";
-import ImobiliariosVisitas from "./pages/imobiliario/Visitas";
-import Proprietarios from "./pages/imobiliario/Proprietarios";
-import Captacoes from "./pages/imobiliario/Captacoes";
-import Empreendimentos from "./pages/imobiliario/Empreendimentos";
-import ImobiliarioComissoes from "./pages/imobiliario/ImobiliarioComissoes";
+const ImobiliarioPainel = lazy(() => import("./pages/imobiliario/PainelGeral"));
+const ImobiliariosImoveis = lazy(() => import("./pages/imobiliario/Imoveis"));
+const ImobiliariosVeiculos = lazy(() => import("./pages/imobiliario/Veiculos"));
+const ImobiliariosCorretores = lazy(() => import("./pages/imobiliario/Corretores"));
+const ImobiliariosVisitas = lazy(() => import("./pages/imobiliario/Visitas"));
+const Proprietarios = lazy(() => import("./pages/imobiliario/Proprietarios"));
+const Captacoes = lazy(() => import("./pages/imobiliario/Captacoes"));
+const Empreendimentos = lazy(() => import("./pages/imobiliario/Empreendimentos"));
+const ImobiliarioComissoes = lazy(() => import("./pages/imobiliario/ImobiliarioComissoes"));
 
-import ProjetosSolar from "./pages/solar/ProjetosSolar";
-import VistoriasSolar from "./pages/solar/VistoriasSolar";
-import InstalacoesSolar from "./pages/solar/InstalacoesSolar";
-import HomologacoesSolar from "./pages/solar/HomologacoesSolar";
-import ManutencoesSolar from "./pages/solar/ManutencoesSolar";
+const ProjetosSolar = lazy(() => import("./pages/solar/ProjetosSolar"));
+const VistoriasSolar = lazy(() => import("./pages/solar/VistoriasSolar"));
+const InstalacoesSolar = lazy(() => import("./pages/solar/InstalacoesSolar"));
+const HomologacoesSolar = lazy(() => import("./pages/solar/HomologacoesSolar"));
+const ManutencoesSolar = lazy(() => import("./pages/solar/ManutencoesSolar"));
 
-import PainelAutomotivo from "./pages/automotivo/PainelAutomotivo";
-import AvaliacoesVeiculos from "./pages/automotivo/AvaliacoesVeiculos";
-import ConsignacoesVeiculos from "./pages/automotivo/ConsignacoesVeiculos";
-import TrocasVeiculos from "./pages/automotivo/TrocasVeiculos";
-import TestDrives from "./pages/automotivo/TestDrives";
+const PainelAutomotivo = lazy(() => import("./pages/automotivo/PainelAutomotivo"));
+const AvaliacoesVeiculos = lazy(() => import("./pages/automotivo/AvaliacoesVeiculos"));
+const ConsignacoesVeiculos = lazy(() => import("./pages/automotivo/ConsignacoesVeiculos"));
+const TrocasVeiculos = lazy(() => import("./pages/automotivo/TrocasVeiculos"));
+const TestDrives = lazy(() => import("./pages/automotivo/TestDrives"));
 
-import PainelVarejo from "./pages/varejo/PainelVarejo";
-import FornecedoresVarejo from "./pages/varejo/FornecedoresVarejo";
-import ComprasVarejo from "./pages/varejo/ComprasVarejo";
-import NotasEntrada from "./pages/varejo/NotasEntrada";
-import OrdensServico from "./pages/operative/OrdensServico";
-import OrdemServicoDetalhe from "./pages/operative/OrdemServicoDetalhe";
-import BaseExames from "./pages/clinica/BaseExames";
-import ComparacaoTabelas from "./pages/clinica/ComparacaoTabelas";
-import ComparacaoResultado from "./pages/clinica/ComparacaoResultado";
-import NotaEntradaDetalhe from "./pages/varejo/NotaEntradaDetalhe";
-import PedidosVarejo from "./pages/varejo/PedidosVarejo";
+const PainelVarejo = lazy(() => import("./pages/varejo/PainelVarejo"));
+const FornecedoresVarejo = lazy(() => import("./pages/varejo/FornecedoresVarejo"));
+const ComprasVarejo = lazy(() => import("./pages/varejo/ComprasVarejo"));
+const NotasEntrada = lazy(() => import("./pages/varejo/NotasEntrada"));
+const OrdensServico = lazy(() => import("./pages/operative/OrdensServico"));
+const OrdemServicoDetalhe = lazy(() => import("./pages/operative/OrdemServicoDetalhe"));
+const BaseExames = lazy(() => import("./pages/clinica/BaseExames"));
+const ComparacaoTabelas = lazy(() => import("./pages/clinica/ComparacaoTabelas"));
+const ComparacaoResultado = lazy(() => import("./pages/clinica/ComparacaoResultado"));
+const NotaEntradaDetalhe = lazy(() => import("./pages/varejo/NotaEntradaDetalhe"));
+const PedidosVarejo = lazy(() => import("./pages/varejo/PedidosVarejo"));
 
-import ProfissionaisClinica from "./pages/clinica/ProfissionaisClinica";
-import ServicosClinica from "./pages/clinica/ServicosClinica";
-import PlanosTratamento from "./pages/clinica/PlanosTratamento";
+const ProfissionaisClinica = lazy(() => import("./pages/clinica/ProfissionaisClinica"));
+const ServicosClinica = lazy(() => import("./pages/clinica/ServicosClinica"));
+const PlanosTratamento = lazy(() => import("./pages/clinica/PlanosTratamento"));
 
-import PortfolioCorretor from "./pages/imobiliario/PortfolioCorretor";
-import ImovelPublico from "./pages/imobiliario/ImovelPublico";
-import PropostaPublica from "./pages/public/PropostaPublica";
-import ImplementacaoPublica from "./pages/public/ImplementacaoPublica";
-import CatalogoPublico from "./pages/public/CatalogoPublico";
-import VarejoVendas from "./pages/varejo/Vendas";
-import VarejoEstoque from "./pages/varejo/Estoque";
-import PainelDev from "./pages/dev/PainelDev";
-import ProjetosDev from "./pages/dev/Projetos";
-import SprintsDev from "./pages/dev/Sprints";
-import IssuesDev from "./pages/dev/Issues";
-import RepositoriosDev from "./pages/dev/Repositorios";
-import AmbientesDev from "./pages/dev/Ambientes";
-import ProjetoDetalhesDev from "./pages/dev/ProjetoDetalhesDev";
+const PortfolioCorretor = lazy(() => import("./pages/imobiliario/PortfolioCorretor"));
+const ImovelPublico = lazy(() => import("./pages/imobiliario/ImovelPublico"));
+const PropostaPublica = lazy(() => import("./pages/public/PropostaPublica"));
+const ImplementacaoPublica = lazy(() => import("./pages/public/ImplementacaoPublica"));
+const CatalogoPublico = lazy(() => import("./pages/public/CatalogoPublico"));
+const VarejoVendas = lazy(() => import("./pages/varejo/Vendas"));
+const VarejoEstoque = lazy(() => import("./pages/varejo/Estoque"));
+const PainelDev = lazy(() => import("./pages/dev/PainelDev"));
+const ProjetosDev = lazy(() => import("./pages/dev/Projetos"));
+const SprintsDev = lazy(() => import("./pages/dev/Sprints"));
+const IssuesDev = lazy(() => import("./pages/dev/Issues"));
+const RepositoriosDev = lazy(() => import("./pages/dev/Repositorios"));
+const AmbientesDev = lazy(() => import("./pages/dev/Ambientes"));
+const ProjetoDetalhesDev = lazy(() => import("./pages/dev/ProjetoDetalhesDev"));
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { DataProvider, useData } from "./contexts/DataContext";
 import { LocalizationProvider } from "./contexts/LocalizationContext";
 import { Toaster } from "sonner";
-import { InteractiveForm } from "./pages/common/InteractiveForm";
+const InteractiveForm = lazy(() => import("./pages/common/InteractiveForm").then(m => ({ default: m.InteractiveForm })));
 import { ConfirmDialogHost } from "./components/ui/confirm-dialog";
 
 function AppContent() {
@@ -213,6 +211,7 @@ function AppContent() {
     <>
       {isLoginRoute && <Toaster theme={theme} position="bottom-right" richColors closeButton />}
       {isAppRoute && <ConfirmDialogHost />}
+      <Suspense fallback={<div className="min-h-screen bg-white" />}>
       <Routes>
         <Route path="/" element={<Navigate to="/app" replace />} />
         <Route path="/landing" element={<LandingPage />} />
@@ -567,6 +566,7 @@ function AppContent() {
         <Route path="/f/:niche" element={<InteractiveForm />} />
 
       </Routes>
+      </Suspense>
     </>
   );
 }

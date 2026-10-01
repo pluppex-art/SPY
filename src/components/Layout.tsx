@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -47,7 +47,9 @@ export default function Layout() {
 
         <div className={`flex-1 min-h-0 relative ${location.pathname.includes("/messaging") || location.pathname.includes("/mensageria") ? "overflow-hidden p-1 pb-20 sm:p-2 sm:pb-2.5" : "overflow-y-auto p-4 md:p-8 pb-24 sm:pb-8"}`}>
           <ErrorBoundary resetKey={location.pathname}>
-            <Outlet />
+            <Suspense fallback={<div className="flex items-center justify-center py-24 text-sm text-slate-400">Carregando...</div>}>
+              <Outlet />
+            </Suspense>
           </ErrorBoundary>
         </div>
       </main>
