@@ -44,17 +44,17 @@ export function PipelineFilterBar({
           {comercialFunis.length === 1 ? (
             <button
               onClick={() => { setCurrentPipeline("comercial"); setSelectedFunilId(comercialFunis[0].id); }}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${currentPipeline === "comercial" ? "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer max-w-[180px] ${currentPipeline === "comercial" ? "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
             >
-              <Briefcase className="w-3 h-3" /> {comercialFunis[0].nome}
+              <Briefcase className="w-3 h-3 shrink-0" /> <span className="truncate">{comercialFunis[0].nome}</span>
             </button>
           ) : comercialFunis.length > 1 ? (
-            <div className={`flex items-center gap-1 px-2 rounded-lg ${currentPipeline === "comercial" ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)]"}`}>
-              <Briefcase className="w-3 h-3" />
+            <div className={`flex items-center gap-1 px-2 rounded-lg max-w-[180px] ${currentPipeline === "comercial" ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)]"}`}>
+              <Briefcase className="w-3 h-3 shrink-0" />
               <select
                 value={selectedFunilId}
                 onChange={(e) => { setCurrentPipeline("comercial"); setSelectedFunilId(e.target.value); }}
-                className="bg-transparent border-none focus:outline-none text-[10px] font-bold cursor-pointer"
+                className="bg-transparent border-none focus:outline-none text-[10px] font-bold cursor-pointer w-full truncate"
               >
                 <option value="__todos__" className="bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]">Todos os funis</option>
                 {comercialFunis.map((f: any) => <option key={f.id} value={f.id} className="bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]">{f.nome}</option>)}
@@ -67,17 +67,17 @@ export function PipelineFilterBar({
           {sdrFunis.length === 1 ? (
             <button
               onClick={() => { setCurrentPipeline("sdr"); setSelectedFunilId(sdrFunis[0].id); }}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${currentPipeline === "sdr" ? "bg-accent/15 text-accent" : "text-[var(--color-text-muted)] hover:text-accent"}`}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer max-w-[180px] ${currentPipeline === "sdr" ? "bg-accent/15 text-accent" : "text-[var(--color-text-muted)] hover:text-accent"}`}
             >
-              <Zap className="w-3 h-3" /> {sdrFunis[0].nome}
+              <Zap className="w-3 h-3 shrink-0" /> <span className="truncate">{sdrFunis[0].nome}</span>
             </button>
           ) : sdrFunis.length > 1 ? (
-            <div className={`flex items-center gap-1 px-2 rounded-lg ${currentPipeline === "sdr" ? "text-accent" : "text-[var(--color-text-muted)]"}`}>
-              <Zap className="w-3 h-3" />
+            <div className={`flex items-center gap-1 px-2 rounded-lg max-w-[180px] ${currentPipeline === "sdr" ? "text-accent" : "text-[var(--color-text-muted)]"}`}>
+              <Zap className="w-3 h-3 shrink-0" />
               <select
                 value={selectedFunilId}
                 onChange={(e) => { setCurrentPipeline("sdr"); setSelectedFunilId(e.target.value); }}
-                className="bg-transparent border-none focus:outline-none text-[10px] font-bold cursor-pointer"
+                className="bg-transparent border-none focus:outline-none text-[10px] font-bold cursor-pointer w-full truncate"
               >
                 <option value="__todos__" className="bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]">Todos os funis</option>
                 {sdrFunis.map((f: any) => <option key={f.id} value={f.id} className="bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]">{f.nome}</option>)}
@@ -98,10 +98,10 @@ export function PipelineFilterBar({
         />
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
         <Building2 className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
-          className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer"
+          className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
           value={companyFilter}
           onChange={(e) => setCompanyFilter(e.target.value)}
         >
@@ -109,10 +109,10 @@ export function PipelineFilterBar({
         </select>
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
         <MapPin className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
-          className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer"
+          className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
           value={cityFilter}
           onChange={(e) => setCityFilter(e.target.value)}
         >
@@ -121,10 +121,10 @@ export function PipelineFilterBar({
       </div>
 
       {clientsList.length > 0 && (
-        <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px]">
+        <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
           <Building2 className="w-3 h-3 text-[var(--color-primary-blue)] shrink-0" />
           <select
-            className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer"
+            className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
             value={clientFilter}
             onChange={(e) => setClientFilter(e.target.value)}
           >
@@ -134,10 +134,10 @@ export function PipelineFilterBar({
         </div>
       )}
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
         <Filter className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
-          className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer"
+          className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
           value={sellerFilter}
           onChange={(e) => setSellerFilter(e.target.value)}
         >
