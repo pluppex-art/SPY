@@ -28,19 +28,25 @@ interface LeadCardProps {
   currentPipeline: 'comercial' | 'sdr';
 }
 
+// Paleta padronizada do card (pedido real do usuário — "muitas cores" demais,
+// causando confusão visual): só cinza/branco (tokens de tema) como base, a
+// cor da marca do tenant (--color-primary-blue, já configurável por tenant em
+// Configurações) como destaque principal, e os 3 tokens semânticos que já
+// existem no resto do app (danger/warning/success — ver Badge.tsx) só pra
+// sinal de urgência de verdade. Nada de roxo/ciano/rosa decorativos.
 const TEMP: Record<string, { flame: string; accent: string }> = {
-  quente: { flame: 'text-rose-500',  accent: 'border-l-rose-500'  },
-  morno:  { flame: 'text-amber-500', accent: 'border-l-amber-500' },
+  quente: { flame: 'text-danger',  accent: 'border-l-danger'  },
+  morno:  { flame: 'text-warning', accent: 'border-l-warning' },
   frio:   { flame: 'text-[var(--color-primary-blue)]',  accent: 'border-l-[var(--color-primary-blue)]' },
 };
 
-const SCORE_BAR  = (s: number) => s > 80 ? 'bg-emerald-500' : s > 50 ? 'bg-amber-500' : 'bg-rose-500';
-const SCORE_TEXT = (s: number) => s > 80 ? 'text-emerald-600 dark:text-emerald-400' : s > 50 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400';
+const SCORE_BAR  = (s: number) => s > 80 ? 'bg-success' : s > 50 ? 'bg-warning' : 'bg-danger';
+const SCORE_TEXT = (s: number) => s > 80 ? 'text-success' : s > 50 ? 'text-warning' : 'text-danger';
 
 const PRIORITY_BADGE: Record<string, string> = {
-  Alta:  'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
-  Média: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-  Baixa: 'bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/20',
+  Alta:  'bg-danger/10 text-danger border-danger/20',
+  Média: 'bg-warning/10 text-warning border-warning/20',
+  Baixa: 'bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]',
 };
 
 const SOURCE_ICON: Record<string, typeof Globe> = {
@@ -224,8 +230,8 @@ export function LeadCard({
     >
       {hasDelayedTask && (
         <span className="absolute top-2.5 right-2.5 flex h-2 w-2 z-10 pointer-events-none">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-danger" />
         </span>
       )}
 
@@ -305,11 +311,11 @@ export function LeadCard({
                         <ArrowRight className="w-3.5 h-3.5 shrink-0" /> Transferir p/ Closer
                       </button>
                       <button onClick={(e) => handleExportIAResume(e, item)}
-                        className="flex items-center gap-2 w-full p-2 hover:bg-emerald-500/10 rounded-lg text-xs font-semibold text-emerald-600 dark:text-emerald-400 transition-colors border-none bg-transparent cursor-pointer text-left">
+                        className="flex items-center gap-2 w-full p-2 hover:bg-[var(--color-primary-blue)]/10 rounded-lg text-xs font-semibold text-[var(--color-primary-blue)] transition-colors border-none bg-transparent cursor-pointer text-left">
                         <FileDown className="w-3.5 h-3.5 shrink-0" /> Resumo IA (PDF)
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); setWebhookModalLead(item); }}
-                        className="flex items-center gap-2 w-full p-2 hover:bg-purple-500/10 rounded-lg text-xs font-semibold text-purple-600 dark:text-purple-400 transition-colors border-none bg-transparent cursor-pointer text-left">
+                        className="flex items-center gap-2 w-full p-2 hover:bg-[var(--color-primary-blue)]/10 rounded-lg text-xs font-semibold text-[var(--color-primary-blue)] transition-colors border-none bg-transparent cursor-pointer text-left">
                         <Activity className="w-3.5 h-3.5 shrink-0" /> Webhook SDR
                       </button>
                     </>
@@ -346,7 +352,7 @@ export function LeadCard({
           )}
           {reservationsCount > 0 && (
             <span
-              className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+              className="inline-flex items-center gap-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
               title={`${reservationsCount} reserva${reservationsCount > 1 ? 's' : ''} no histórico`}
             >
               <CalendarClock className="w-2.5 h-2.5" />
@@ -371,7 +377,7 @@ export function LeadCard({
         {(tags.length > 0 || leadSquad || productTags.length > 0 || clientName) && (
           <div className="flex flex-wrap gap-1">
             {clientName && (
-              <span className="inline-flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-600 dark:text-cyan-400 uppercase tracking-wide">
+              <span className="inline-flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-full bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)] uppercase tracking-wide">
                 <UserCheck className="w-2.5 h-2.5" /> {clientName}
               </span>
             )}
@@ -393,13 +399,13 @@ export function LeadCard({
               </span>
             ))}
             {productTags.slice(0, 2).map((prod: any) => (
-              <span key={prod.id} className="inline-flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 uppercase tracking-wide">
+              <span key={prod.id} className="inline-flex items-center gap-1 text-[8px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] uppercase tracking-wide">
                 <Package className="w-2.5 h-2.5 shrink-0" />
                 {prod.name}
               </span>
             ))}
             {productTags.length > 2 && (
-              <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400">
+              <span className="text-[8px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)]">
                 +{productTags.length - 2}
               </span>
             )}
@@ -414,7 +420,7 @@ export function LeadCard({
                 "font-mono text-xs font-black leading-none flex items-center gap-1",
                 isEstimated
                   ? "text-[var(--color-text-muted)] italic"
-                  : "text-emerald-600 dark:text-emerald-400"
+                  : "text-[var(--color-primary-blue)]"
               )}
               title={
                 isEstimated
@@ -426,12 +432,12 @@ export function LeadCard({
             >
               {displayValue}
               {!!contractMonths && (
-                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400" title="Duração do contrato vendida">
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" title="Duração do contrato vendida">
                   {contractMonths}m
                 </span>
               )}
               {isOpenEndedRecurring && (
-                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400" title="Recorrência sem prazo fixo — este valor já é a cobrança mensal">
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" title="Recorrência sem prazo fixo — este valor já é a cobrança mensal">
                   /mês
                 </span>
               )}
@@ -451,9 +457,9 @@ export function LeadCard({
           <span className={cn(
             "text-[9px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 shrink-0",
             timeIdleNum > 7
-              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+              ? 'bg-danger/10 text-danger border-danger/20'
               : timeIdleNum > 3
-              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+              ? 'bg-warning/10 text-warning border-warning/20'
               : 'bg-[var(--color-surface-sunken)] text-[var(--color-text-faint)] border-[var(--color-border-default)]'
           )}>
             <Clock className="w-2.5 h-2.5" /> {timeIdleNum}d
