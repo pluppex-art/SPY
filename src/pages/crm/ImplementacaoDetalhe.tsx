@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FileText, Trash2, ClipboardList, ArrowLeft, Check, Loader2, PartyPopper, Link2, Copy, RefreshCw, Gauge, ListChecks, CalendarClock, Building2, StickyNote, FormInput } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import {
   IMPLEMENTATION_SECTIONS, IMPLEMENTATION_STATUSES, IMPLEMENTATION_STATUS_TONE, computeProgress,
   type ImplData, type ImplementationStatus,
 } from "../../lib/implementationForm";
+import { getImplementacaoStages, getImplementationStageInfo, moveImplementationStage } from "../../lib/implementationStage";
 
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]";
@@ -32,11 +33,17 @@ export default function ImplementacaoDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { implementations, clienteBase, updateImplementation, deleteImplementation, updateClienteBase } = useData();
+  const { implementations, clienteBase, leads, funis, appSettings, updateImplementation, deleteImplementation, updateClienteBase, updateLead } = useData();
   const { user } = useAuth();
 
   const impl = (implementations as any[]).find((i) => i.id === id);
   const cliente = impl ? (clienteBase as any[]).find((c) => c.id === impl.cliente_id) : null;
+
+  // Mesmo funil espelhado da lista (ver Implementacoes.tsx) — quando resolve
+  // (tenant com funil configurado + esta implementação tem lead vinculado
+  // nele), o status de 4 opções abaixo dá lugar à etapa real do funil.
+  const implementacaoStages = useMemo(() => getImplementacaoStages(appSettings, funis), [appSettings, funis]);
+  const stageInfo = impl ? getImplementationStageInfo(impl, leads as any[], implementacaoStages) : null;
 
   const [data, setData] = useState<ImplData>({});
   const [createdHere, setCreatedHere] = useState(false);
@@ -157,6 +164,18 @@ export default function ImplementacaoDetalhe() {
     }
   };
 
+  // Mesma ação, mas movendo a ETAPA do lead vinculado (funil espelhado do
+  // Pipeline) em vez do status manual — usada quando `stageInfo` resolve.
+  const changeStage = async (nextStageId: string) => {
+    const { isLast } = await moveImplementationStage(impl, cliente, nextStageId, implementacaoStages, {
+      updateLead, updateImplementation, updateClienteBase,
+    });
+    if (isLast && user?.isMaster && !impl.linked_tenant_id && readiness.ready) {
+      setTab("ambiente");
+      setAutoOpenSignal(Date.now());
+    }
+  };
+
   const readiness = tenantReadiness(data);
   const etapasComItens = IMPLEMENTATION_SECTIONS.filter((s) => sections[s.id]?.total > 0).length;
   const etapasCompletas = IMPLEMENTATION_SECTIONS.filter((s) => sections[s.id]?.total > 0 && sections[s.id].percent >= 100).length;
@@ -201,13 +220,24 @@ export default function ImplementacaoDetalhe() {
             {saveState === "saving" && <><Loader2 className="w-3 h-3 animate-spin" /> Salvando…</>}
             {saveState === "saved" && <><Check className="w-3 h-3 text-emerald-500" /> Salvo</>}
           </span>
-          <select
-            value={status}
-            onChange={(e) => changeStatus(e.target.value as ImplementationStatus)}
-            className={cn("h-9 px-3 rounded-[var(--radius-control)] text-xs font-bold border cursor-pointer bg-transparent", IMPLEMENTATION_STATUS_TONE[status])}
-          >
-            {IMPLEMENTATION_STATUSES.map((s) => <option key={s} value={s} className="text-[var(--color-text-primary)] bg-[var(--color-surface-elevated)]">{s}</option>)}
-          </select>
+          {stageInfo ? (
+            <select
+              value={stageInfo.stage.id}
+              onChange={(e) => changeStage(e.target.value)}
+              title="Etapa no funil de Implementação (espelhado do Pipeline)"
+              className={cn("h-9 px-3 rounded-[var(--radius-control)] text-xs font-bold border cursor-pointer bg-transparent", IMPLEMENTATION_STATUS_TONE[status])}
+            >
+              {implementacaoStages.map((s) => <option key={s.id} value={s.id} className="text-[var(--color-text-primary)] bg-[var(--color-surface-elevated)]">{s.name}</option>)}
+            </select>
+          ) : (
+            <select
+              value={status}
+              onChange={(e) => changeStatus(e.target.value as ImplementationStatus)}
+              className={cn("h-9 px-3 rounded-[var(--radius-control)] text-xs font-bold border cursor-pointer bg-transparent", IMPLEMENTATION_STATUS_TONE[status])}
+            >
+              {IMPLEMENTATION_STATUSES.map((s) => <option key={s} value={s} className="text-[var(--color-text-primary)] bg-[var(--color-surface-elevated)]">{s}</option>)}
+            </select>
+          )}
           <Button variant="outline" onClick={() => setLinkOpen(true)} className="h-9 px-4 text-xs font-medium gap-1.5"><Link2 className="w-3.5 h-3.5" /> Link do cliente</Button>
           <Link to={`/app/crm/implementacoes/${impl.id}/relatorio`}>
             <Button variant="outline" className="h-9 px-4 text-xs font-medium gap-1.5"><FileText className="w-3.5 h-3.5" /> Relatório</Button>
@@ -266,7 +296,15 @@ export default function ImplementacaoDetalhe() {
           {overall.percent === 100 && status !== "Concluída" && (
             <div className="mt-4 flex items-center justify-between gap-3 rounded-[var(--radius-control)] bg-emerald-500/10 border border-emerald-500/25 px-4 py-2.5">
               <span className="text-xs text-emerald-600 flex items-center gap-2"><PartyPopper className="w-4 h-4" /> Todos os itens acompanhados estão prontos.</span>
-              <Button size="sm" onClick={() => changeStatus("Concluída")} className="h-8 px-3 text-xs font-medium">Marcar como concluída</Button>
+              <Button
+                size="sm"
+                onClick={() => stageInfo
+                  ? changeStage(implementacaoStages[implementacaoStages.length - 1].id)
+                  : changeStatus("Concluída")}
+                className="h-8 px-3 text-xs font-medium"
+              >
+                Marcar como concluída
+              </Button>
             </div>
           )}
         </Card>

@@ -1,13 +1,13 @@
 import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Rocket, Play, Search, ClipboardList, CheckCircle2, Clock, Gauge, ChevronRight, LayoutList, Columns3 } from "lucide-react";
+import { Rocket, Play, Search, ClipboardList, CheckCircle2, Clock, Gauge, ChevronRight, LayoutList, Columns3, Workflow } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
 import { StatCell, StatCellRow } from "../finance/components/StatCell";
 import { ImplementationProgressBar } from "../../components/implementacao/ImplementationProgressBar";
-import { ImplementacoesKanban } from "../../components/implementacao/ImplementacoesKanban";
+import { ImplementacoesKanban, type KanbanColumnDef } from "../../components/implementacao/ImplementacoesKanban";
 import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
 import { cn } from "../../lib/utils";
@@ -16,11 +16,19 @@ import {
 } from "../../lib/implementationForm";
 import { startImplementationForClient } from "../../lib/implementationAutoStart";
 import { tenantReadiness } from "../../lib/implementationTenant";
+import { getImplementacaoStages, getImplementationStageInfo, moveImplementationStage } from "../../lib/implementationStage";
 
 const FILTROS = ["Todas", ...IMPLEMENTATION_STATUSES] as const;
 
+const LEGACY_STATUS_DOT: Record<ImplementationStatus, string> = {
+  "Em andamento": "bg-blue-500",
+  "Aguardando cliente": "bg-amber-500",
+  "Bloqueada": "bg-rose-500",
+  "Concluída": "bg-emerald-500",
+};
+
 export default function Implementacoes() {
-  const { implementations, clienteBase, leads, addImplementation, updateImplementation, updateClienteBase } = useData();
+  const { implementations, clienteBase, leads, funis, appSettings, addImplementation, updateImplementation, updateClienteBase, updateLead } = useData();
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState<(typeof FILTROS)[number]>("Todas");
   const [busca, setBusca] = useState("");
@@ -67,6 +75,24 @@ export default function Implementacoes() {
     [clienteBase, comImplementacao]
   );
 
+  // Espelha o funil de Implementação do Pipeline (ver handleWinStageDrop em
+  // usePipeline.ts): quando o tenant tem um configurado, essa tela passa a
+  // usar as MESMAS etapas (lidas do lead vinculado de cada implementação) em
+  // vez do status manual de 4 opções — arrastar aqui ou lá mexe no mesmo
+  // `leads.stageId`. Sem funil configurado, stages fica [] e tudo cai no
+  // comportamento de status manual de sempre (ver getColumnId/moverStatus).
+  const implementacaoStages = useMemo(() => getImplementacaoStages(appSettings, funis), [appSettings, funis]);
+
+  const getColumnId = (impl: any): string => {
+    if (implementacaoStages.length === 0) return impl.status;
+    const info = getImplementationStageInfo(impl, leads as any[], implementacaoStages);
+    return info?.stage.id ?? implementacaoStages[0].id;
+  };
+
+  const kanbanColumns: KanbanColumnDef[] = implementacaoStages.length > 0
+    ? implementacaoStages.map((s) => ({ id: s.id, label: s.name, dot: s.color, isHex: true }))
+    : IMPLEMENTATION_STATUSES.map((s) => ({ id: s, label: s, dot: LEGACY_STATUS_DOT[s] }));
+
   const kpis = useMemo(() => {
     const abertas = linhas.filter((l) => l.impl.status !== "Concluída");
     const media = abertas.length === 0 ? 0 : Math.round(abertas.reduce((s, l) => s + l.progresso.percent, 0) / abertas.length);
@@ -90,9 +116,25 @@ export default function Implementacoes() {
     return aguardando.filter(({ cliente }) => !q || (cliente.name || "").toLowerCase().includes(q));
   }, [aguardando, busca]);
 
-  // Mesmas regras da tela de detalhe ao mudar o status (conclusão finaliza o cliente e vice-versa).
-  const moverStatus = async (impl: any, cliente: any, next: ImplementationStatus) => {
-    if (impl.status === next) return;
+  // Mesmas regras da tela de detalhe ao mudar de coluna (conclusão finaliza o cliente e vice-versa).
+  const moverStatus = async (impl: any, cliente: any, nextColumnId: string) => {
+    if (getColumnId(impl) === nextColumnId) return;
+
+    // Funil espelhado do Pipeline e essa implementação tem lead vinculado:
+    // arrastar move a ETAPA do lead (mesmo dado que o Kanban do Pipeline usa).
+    if (implementacaoStages.length > 0 && impl.lead_id) {
+      const { isLast } = await moveImplementationStage(impl, cliente, nextColumnId, implementacaoStages, {
+        updateLead, updateImplementation, updateClienteBase,
+      });
+      if (isLast && !impl.linked_tenant_id && tenantReadiness(impl.data || {}).ready) {
+        navigate(`/app/crm/implementacoes/${impl.id}?abrirAmbiente=1`);
+      }
+      return;
+    }
+
+    // Sem funil configurado pro tenant, ou implementação sem lead vinculado
+    // (ex.: iniciada manualmente "para outro cliente") — status manual de sempre.
+    const next = nextColumnId as ImplementationStatus;
     const patch: Record<string, any> = { status: next };
     if (next === "Concluída") {
       patch.completed_at = new Date().toISOString();
@@ -205,6 +247,11 @@ export default function Implementacoes() {
               </button>
             ))}
           </div>
+          {implementacaoStages.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" title="As colunas acima são as mesmas etapas do funil de Implementação no Pipeline — mover um card aqui também move lá.">
+              <Workflow className="w-3 h-3" /> Espelhado do Pipeline
+            </span>
+          )}
           {view === "lista" && (
           <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] flex-wrap">
             {FILTROS.map((f) => (
@@ -236,6 +283,8 @@ export default function Implementacoes() {
             <ImplementacoesKanban
               linhas={linhasBusca}
               aguardando={aguardandoFiltrado}
+              columns={kanbanColumns}
+              getColumnId={getColumnId}
               iniciandoId={iniciando}
               onOpen={(id) => navigate(`/app/crm/implementacoes/${id}`)}
               onStart={iniciar}
@@ -287,6 +336,10 @@ export default function Implementacoes() {
                     <td className="px-6 py-3.5 font-medium text-[var(--color-text-primary)]">{cliente?.name || "Cliente removido"}</td>
                     <td className="px-6 py-3.5">
                       <span className={cn("inline-flex px-2.5 py-1 rounded-lg text-[10px] font-bold border", IMPLEMENTATION_STATUS_TONE[impl.status as ImplementationStatus])}>{impl.status}</span>
+                      {(() => {
+                        const info = implementacaoStages.length > 0 ? getImplementationStageInfo(impl, leads as any[], implementacaoStages) : null;
+                        return info ? <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{info.stage.name}</p> : null;
+                      })()}
                     </td>
                     <td className="px-6 py-3.5 text-[var(--color-text-muted)]">{impl.responsavel || "—"}</td>
                     <td className="px-6 py-3.5">

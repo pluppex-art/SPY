@@ -5,14 +5,10 @@ import { supabase } from "../../../lib/supabase";
 import { toast } from "sonner";
 import { calculateLeadScore } from "../../../lib/leadScore";
 import { startImplementationForClient } from "../../../lib/implementationAutoStart";
+import { getStageId } from "../../../lib/funilStages";
+import { WIN_FUNIL_CONFIG_KEY } from "../../../lib/implementationStage";
 
 // ─── Stage helpers ────────────────────────────────────────────────────────────
-
-function getStageId(funilId: string, idx: number): string {
-  if (funilId === "funil-comercial-default") return String(idx + 1);
-  if (funilId === "funil-sdr-ia-default") return `sdr-${idx + 1}`;
-  return `${funilId}-${idx}`;
-}
 
 function buildStages(funis: any[], isSDR: boolean) {
   const funil = funis.find(
@@ -27,11 +23,6 @@ function buildStages(funis: any[], isSDR: boolean) {
   }));
 }
 
-// Mesmo mecanismo genérico de usePipeline.ts (ver handleWinStageDrop) —
-// duplicado aqui (não um import) seguindo o mesmo padrão já usado por
-// getStageId acima, já que os dois hooks resolvem o funil do lead de formas
-// diferentes e não compartilham estado.
-const WIN_FUNIL_CONFIG_KEY = "axis_win_funil_config";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 

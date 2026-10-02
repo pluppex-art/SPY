@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { CalendarClock, Clock, Loader2, Play, User } from "lucide-react";
 import { ImplementationProgressBar } from "./ImplementationProgressBar";
-import { IMPLEMENTATION_STATUSES, type ImplementationStatus } from "../../lib/implementationForm";
 import { cn } from "../../lib/utils";
 
 export interface KanbanImplRow {
@@ -13,77 +12,82 @@ export interface KanbanWaitingRow {
   cliente: any;
   lead: any;
 }
+export interface KanbanColumnDef {
+  id: string;
+  label: string;
+  /** Cor da bolinha/faixa da coluna — hex (etapa de funil) ou uma classe Tailwind já pronta (status legado). */
+  dot: string;
+  isHex?: boolean;
+}
 
 interface Props {
   linhas: KanbanImplRow[];
   aguardando: KanbanWaitingRow[];
+  /** Colunas depois de "Aguardando início" — ou as etapas do funil de Implementação espelhado do
+   * Pipeline (quando o tenant tem um configurado), ou os 4 status manuais de sempre (fallback). */
+  columns: KanbanColumnDef[];
+  /** Em qual coluna (de `columns`) uma implementação está hoje. */
+  getColumnId: (impl: any) => string;
   iniciandoId: string | null;
   onOpen: (implId: string) => void;
   onStart: (cliente: any, lead?: any) => void;
-  onMove: (impl: any, cliente: any, next: ImplementationStatus) => void;
+  onMove: (impl: any, cliente: any, nextColumnId: string) => void;
 }
 
-const WAITING = "Aguardando início" as const;
-type ColumnId = typeof WAITING | ImplementationStatus;
-
-const COLUMN_STYLE: Record<ColumnId, { dot: string; stripe: string }> = {
-  [WAITING]: { dot: "bg-slate-400", stripe: "bg-slate-400" },
-  "Em andamento": { dot: "bg-blue-500", stripe: "bg-blue-500" },
-  "Aguardando cliente": { dot: "bg-amber-500", stripe: "bg-amber-500" },
-  Bloqueada: { dot: "bg-rose-500", stripe: "bg-rose-500" },
-  "Concluída": { dot: "bg-emerald-500", stripe: "bg-emerald-500" },
-};
+const WAITING_ID = "__aguardando__";
+const WAITING_COLUMN: KanbanColumnDef = { id: WAITING_ID, label: "Aguardando início", dot: "bg-slate-400" };
 
 const initials = (name?: string) =>
   (name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
 
 const fmtDate = (d?: string | null) => (d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR") : null);
 
-/** Visão Kanban das implementações: uma coluna por status (+ "Aguardando início" para clientes
- * que já fecharam). Arrastar um cartão para outra coluna muda o status; arrastar um cliente
- * "aguardando início" para "Em andamento" inicia a implementação. */
-export function ImplementacoesKanban({ linhas, aguardando, iniciandoId, onOpen, onStart, onMove }: Props) {
+/** Visão Kanban das implementações: uma coluna por etapa/status (+ "Aguardando início" para
+ * clientes que já fecharam). Arrastar um cartão para outra coluna move pra lá (etapa do funil
+ * espelhado do Pipeline, ou status manual, dependendo do que o chamador configurou); arrastar um
+ * cliente "aguardando início" para a 1ª coluna inicia a implementação. */
+export function ImplementacoesKanban({ linhas, aguardando, columns, getColumnId, iniciandoId, onOpen, onStart, onMove }: Props) {
   const [drag, setDrag] = useState<{ kind: "impl" | "wait"; id: string } | null>(null);
-  const [over, setOver] = useState<ColumnId | null>(null);
+  const [over, setOver] = useState<string | null>(null);
   const today = new Date().toISOString().slice(0, 10);
 
-  const columns: ColumnId[] = [WAITING, ...IMPLEMENTATION_STATUSES];
+  const allColumns: KanbanColumnDef[] = [WAITING_COLUMN, ...columns];
 
-  const canDrop = (col: ColumnId) => {
+  const canDrop = (colId: string) => {
     if (!drag) return false;
-    if (col === WAITING) return false;
-    if (drag.kind === "wait") return col === "Em andamento";
+    if (colId === WAITING_ID) return false;
+    if (drag.kind === "wait") return colId === columns[0]?.id;
     const row = linhas.find((l) => l.impl.id === drag.id);
-    return !!row && row.impl.status !== col;
+    return !!row && getColumnId(row.impl) !== colId;
   };
 
-  const handleDrop = (col: ColumnId) => {
+  const handleDrop = (colId: string) => {
     const d = drag;
     setDrag(null); setOver(null);
-    if (!d || !canDrop(col)) return;
+    if (!d || !canDrop(colId)) return;
     if (d.kind === "wait") {
       const w = aguardando.find((x) => x.cliente.id === d.id);
       if (w) onStart(w.cliente, w.lead);
       return;
     }
     const row = linhas.find((l) => l.impl.id === d.id);
-    if (row) onMove(row.impl, row.cliente, col as ImplementationStatus);
+    if (row) onMove(row.impl, row.cliente, colId);
   };
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-3 -mx-1 px-1">
-      {columns.map((col) => {
-        const rows = col === WAITING ? [] : linhas.filter((l) => l.impl.status === col);
-        const waiting = col === WAITING ? aguardando : [];
-        const count = col === WAITING ? waiting.length : rows.length;
+      {allColumns.map((col) => {
+        const rows = col.id === WAITING_ID ? [] : linhas.filter((l) => getColumnId(l.impl) === col.id);
+        const waiting = col.id === WAITING_ID ? aguardando : [];
+        const count = col.id === WAITING_ID ? waiting.length : rows.length;
         const avg = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.progresso.percent, 0) / rows.length) : null;
-        const highlight = over === col && canDrop(col);
+        const highlight = over === col.id && canDrop(col.id);
         return (
           <div
-            key={col}
-            onDragOver={(e) => { if (canDrop(col)) { e.preventDefault(); setOver(col); } }}
-            onDragLeave={() => setOver((o) => (o === col ? null : o))}
-            onDrop={(e) => { e.preventDefault(); handleDrop(col); }}
+            key={col.id}
+            onDragOver={(e) => { if (canDrop(col.id)) { e.preventDefault(); setOver(col.id); } }}
+            onDragLeave={() => setOver((o) => (o === col.id ? null : o))}
+            onDrop={(e) => { e.preventDefault(); handleDrop(col.id); }}
             className={cn(
               "w-[300px] shrink-0 rounded-2xl border bg-[var(--color-surface-sunken)] p-2.5 flex flex-col gap-2.5 transition-colors",
               highlight ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/5" : "border-[var(--color-border-subtle)]",
@@ -91,8 +95,11 @@ export function ImplementacoesKanban({ linhas, aguardando, iniciandoId, onOpen, 
           >
             <div className="flex items-center justify-between px-1.5 pt-1">
               <div className="flex items-center gap-2 min-w-0">
-                <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", COLUMN_STYLE[col].dot)} />
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-primary)] truncate">{col}</h3>
+                <span
+                  className={cn("w-2.5 h-2.5 rounded-full shrink-0", !col.isHex && col.dot)}
+                  style={col.isHex ? { backgroundColor: col.dot } : undefined}
+                />
+                <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-primary)] truncate">{col.label}</h3>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {avg !== null && <span className="text-[10px] font-semibold text-[var(--color-text-faint)] tabular-nums">{avg}%</span>}
@@ -110,7 +117,7 @@ export function ImplementacoesKanban({ linhas, aguardando, iniciandoId, onOpen, 
                   onDragEnd={() => { setDrag(null); setOver(null); }}
                   className={cn("relative rounded-2xl border border-dashed border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] p-3 pl-4 cursor-grab active:cursor-grabbing", drag?.id === cliente.id && "opacity-50")}
                 >
-                  <span className={cn("absolute left-0 top-3 bottom-3 w-1 rounded-r-full", COLUMN_STYLE[WAITING].stripe)} />
+                  <span className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-slate-400" />
                   <div className="flex items-center gap-2.5">
                     <span className="w-8 h-8 rounded-full bg-slate-500/10 text-slate-500 flex items-center justify-center text-[10px] font-black shrink-0">{initials(cliente.name)}</span>
                     <div className="min-w-0">
@@ -144,7 +151,10 @@ export function ImplementacoesKanban({ linhas, aguardando, iniciandoId, onOpen, 
                       drag?.id === impl.id && "opacity-50",
                     )}
                   >
-                    <span className={cn("absolute left-0 top-3 bottom-3 w-1 rounded-r-full", COLUMN_STYLE[col].stripe)} />
+                    <span
+                      className={cn("absolute left-0 top-3 bottom-3 w-1 rounded-r-full", !col.isHex && col.dot)}
+                      style={col.isHex ? { backgroundColor: col.dot } : undefined}
+                    />
                     <div className="flex items-center gap-2.5">
                       <span className="w-8 h-8 rounded-full bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center text-[10px] font-black shrink-0">{initials(cliente?.name)}</span>
                       <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{cliente?.name || "Cliente removido"}</p>
@@ -169,7 +179,7 @@ export function ImplementacoesKanban({ linhas, aguardando, iniciandoId, onOpen, 
 
               {count === 0 && (
                 <div className="rounded-2xl border border-dashed border-[var(--color-border-default)] py-6 text-center text-[11px] text-[var(--color-text-faint)]">
-                  {col === WAITING ? "Nenhum cliente aguardando" : "Arraste um cartão para cá"}
+                  {col.id === WAITING_ID ? "Nenhum cliente aguardando" : "Arraste um cartão para cá"}
                 </div>
               )}
             </div>

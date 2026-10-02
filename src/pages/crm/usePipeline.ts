@@ -10,20 +10,8 @@ import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
 import { parseCurrencyBR } from "../../lib/utils";
 import { supabase } from "../../lib/supabase";
 import { startImplementationForClient } from "../../lib/implementationAutoStart";
-
-// Matches ETAPA_CORES in SettingsCRM
-const ETAPA_DOT_COLORS: Record<string, string> = {
-  slate: "#64748b", blue: "#3b82f6", orange: "#f97316",
-  cyan: "#06b6d4", emerald: "#10b981", purple: "#a855f7",
-  rose: "#f43f5e", amber: "#f59e0b", indigo: "#6366f1", pink: "#ec4899",
-};
-
-// Produces stable stageIds backward-compatible with existing lead data
-function getStageId(funilId: string, idx: number): string {
-  if (funilId === "funil-comercial-default") return String(idx + 1);
-  if (funilId === "funil-sdr-ia-default") return `sdr-${idx + 1}`;
-  return `${funilId}-${idx}`;
-}
+import { getStageId, buildStagesForFunil } from "../../lib/funilStages";
+import { WIN_FUNIL_CONFIG_KEY } from "../../lib/implementationStage";
 
 export function usePipeline() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -108,22 +96,6 @@ export function usePipeline() {
     const pool = currentPipeline === "sdr" ? sdrFunis : comercialFunis;
     return pool.find((f) => f.id === selectedFunilId) ?? pool[0] ?? null;
   }, [currentPipeline, selectedFunilId, sdrFunis, comercialFunis, isAllFunisSelected]);
-
-  const buildStagesForFunil = (funil: any) => {
-    const configs: any[] = funil.etapasConfig ??
-      funil.etapas.map((nome: string, i: number) => ({
-        nome,
-        cor: ["cyan","indigo","purple","amber","emerald","pink","rose","blue","orange","slate"][i % 10],
-        iniciarMinimizado: false,
-      }));
-    return configs.map((s: any, idx: number) => ({
-      id: getStageId(funil.id, idx),
-      name: s.nome,
-      color: ETAPA_DOT_COLORS[s.cor] ?? "#64748b",
-      iniciarMinimizado: s.iniciarMinimizado ?? false,
-      funilId: funil.id,
-    }));
-  };
 
   // Build stages from the active funil's etapasConfig — em modo "Todos",
   // concatena as etapas de TODOS os funis do pipeline atual (cada stageId já
@@ -404,7 +376,6 @@ export function usePipeline() {
   // { [funilIdDeOrigem]: funilIdDeDestino }) qual funil recebe automaticamente
   // os negócios ganhos de qual funil comercial. Sem config pra aquele funil,
   // não faz nada (comportamento de hoje, intacto).
-  const WIN_FUNIL_CONFIG_KEY = "axis_win_funil_config";
   const handleWinStageDrop = (leadId: string, stage: any) => {
     const config = appSettings[WIN_FUNIL_CONFIG_KEY] as Record<string, string> | undefined;
     const targetFunilId = stage?.funilId ? config?.[stage.funilId] : undefined;
