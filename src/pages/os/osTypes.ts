@@ -29,8 +29,15 @@ export interface OsFunil {
 // Mesmos valores do CHECK de public.ordens_servico.prioridade.
 export type OsPrioridade = "Baixa" | "Normal" | "Alta" | "Urgente";
 
-/** Status legado da tabela (CHECK de public.ordens_servico.status). */
-export type OsStatus = "Rascunho" | "Aberta" | "Em execução" | "Concluída" | "Faturada" | "Cancelada";
+import { OS_STATUSES, type OsStatus } from "../../lib/ordemServico";
+
+export type { OsStatus };
+
+/** Colunas do quadro por status (visão "Todos"), na ordem do ciclo de vida da OS. */
+export const OS_STATUS_COLUNAS: { id: OsStatus; cor: string }[] = OS_STATUSES.map(id => ({
+  id,
+  cor: { Rascunho: "slate", Aberta: "blue", "Em execução": "amber", Concluída: "emerald", Faturada: "purple", Cancelada: "rose" }[id],
+}));
 
 export interface OrdemServico {
   id: string;
@@ -47,6 +54,8 @@ export interface OrdemServico {
   responsavelNome: string;
   clienteNome: string;
   prazo: string | null;
+  dataConclusao: string | null;
+  valorTotal: number;
   campos: Record<string, string>;
   origemTipo: string | null;
   createdAt: string;

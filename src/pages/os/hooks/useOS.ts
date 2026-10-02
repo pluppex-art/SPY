@@ -15,6 +15,7 @@ import {
   type OsStatus,
   statusDaEtapa,
 } from "../osTypes";
+import { OS_NEXT, isOsLocked } from "../../../lib/ordemServico";
 
 const rowToDepartamento = (r: any): OsDepartamento => ({
   id: r.id,
@@ -48,6 +49,8 @@ const rowToOrdem = (r: any): OrdemServico => ({
   responsavelNome: r.responsavel || "",
   clienteNome: r.cliente_nome || "",
   prazo: r.data_prevista || null,
+  dataConclusao: r.data_conclusao || null,
+  valorTotal: Number(r.valor_total) || 0,
   campos: r.campos && typeof r.campos === "object" ? r.campos : {},
   origemTipo: r.origem_tipo ?? null,
   createdAt: r.created_at,
@@ -91,7 +94,12 @@ export function useOS() {
     const [dep, fun, ord] = await Promise.all([
       supabase.from("os_departamentos").select("*").eq("tenant_id", tenantId).order("ordem").order("created_at"),
       supabase.from("os_funis").select("*").eq("tenant_id", tenantId).order("created_at"),
-      supabase.from("ordens_servico").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+      supabase
+        .from("ordens_servico")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(1000),
     ]);
     const erro = dep.error || fun.error || ord.error;
     if (erro) errMsg(erro, "Erro ao carregar Ordens de Serviço");
@@ -334,15 +342,15 @@ export function useOS() {
     const funil = ordem?.funilId ? funis.find(f => f.id === ordem.funilId) : undefined;
     const etapa = funil?.etapas.find(e => e.id === etapaId);
     if (!ordem || !funil || !etapa || ordem.etapaId === etapaId) return;
-    // "Faturada" é um estado do financeiro (já gerou cobrança): a OS não muda mais de etapa.
-    if (ordem.status === "Faturada") {
-      toast.error("OS faturada não pode mudar de etapa.");
+    // Mesma regra do módulo: faturada (já gerou cobrança) e cancelada ficam travadas.
+    if (isOsLocked(ordem.status)) {
+      toast.error(ordem.status === "Faturada" ? "OS faturada não pode mudar de etapa." : "OS cancelada: reabra pela tela da OS para mover.");
       return;
     }
     const status: OsStatus = statusDaEtapa(funil.etapas, etapa);
-    const dataConclusao = etapa.tipo === "concluida" ? new Date().toISOString().slice(0, 10) : null;
+    const dataConclusao = etapa.tipo === "concluida" ? ordem.dataConclusao ?? new Date().toISOString().slice(0, 10) : null;
     const anterior = ordens;
-    setOrdens(prev => prev.map(o => (o.id === id ? { ...o, etapaId, status } : o)));
+    setOrdens(prev => prev.map(o => (o.id === id ? { ...o, etapaId, status, dataConclusao } : o)));
     const { error } = await supabase
       .from("ordens_servico")
       .update({ etapa_id: etapaId, status, data_conclusao: dataConclusao })
@@ -353,8 +361,47 @@ export function useOS() {
     }
   };
 
+  // Quadro por status (visão "Todos"): só segue os passos do ciclo de vida do módulo.
+  // Faturar gera cobrança no Financeiro e só acontece na tela da OS.
+  const moverStatus = async (id: string, novo: OsStatus) => {
+    if (!supabase) return;
+    const ordem = ordens.find(o => o.id === id);
+    if (!ordem || ordem.status === novo) return;
+    if (novo === "Faturada") {
+      toast.error("Para faturar, abra a OS e use \"Gerar cobrança\" (a cobrança vai para o Financeiro).");
+      return;
+    }
+    if (!(OS_NEXT[ordem.status] ?? []).includes(novo)) {
+      toast.error(`Uma OS ${ordem.status.toLowerCase()} não passa direto para ${novo.toLowerCase()}.`);
+      return;
+    }
+    const dataConclusao = novo === "Concluída" ? ordem.dataConclusao ?? new Date().toISOString().slice(0, 10) : ordem.dataConclusao;
+    const anterior = ordens;
+    setOrdens(prev => prev.map(o => (o.id === id ? { ...o, status: novo, dataConclusao } : o)));
+    const { error } = await supabase.from("ordens_servico").update({ status: novo, data_conclusao: dataConclusao }).eq("id", id);
+    if (error) {
+      setOrdens(anterior);
+      errMsg(error, "Erro ao mudar o status da OS");
+    }
+  };
+
+  // Cancelar: vai para a etapa "cancela a OS" do funil, se houver; senão só muda o status.
+  const cancelarOrdem = async (id: string) => {
+    const ordem = ordens.find(o => o.id === id);
+    if (!ordem) return;
+    const funil = ordem.funilId ? funis.find(f => f.id === ordem.funilId) : undefined;
+    const etapa = funil?.etapas.find(e => e.tipo === "cancelada");
+    if (funil && etapa) await moverOrdem(id, etapa.id);
+    else await moverStatus(id, "Cancelada");
+  };
+
   const deleteOrdem = async (id: string) => {
     if (!supabase) return;
+    // Mesma regra do módulo: só rascunho se exclui; o resto se cancela.
+    if (ordens.find(o => o.id === id)?.status !== "Rascunho") {
+      toast.error("Só rascunhos podem ser excluídos. Cancele a OS.");
+      return;
+    }
     const anterior = ordens;
     setOrdens(prev => prev.filter(o => o.id !== id));
     const { error } = await supabase.from("ordens_servico").delete().eq("id", id);
@@ -388,6 +435,8 @@ export function useOS() {
     addOrdem,
     updateOrdem,
     moverOrdem,
+    moverStatus,
+    cancelarOrdem,
     deleteOrdem,
   };
 }
