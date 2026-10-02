@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FileText, Trash2, ClipboardList, ArrowLeft, Check, Loader2, PartyPopper, Link2, Copy, RefreshCw, Gauge, ListChecks, CalendarClock, Building2, StickyNote, FormInput } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
@@ -31,6 +31,7 @@ const inputCls =
 export default function ImplementacaoDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { implementations, clienteBase, updateImplementation, deleteImplementation, updateClienteBase } = useData();
   const { user } = useAuth();
 
@@ -46,6 +47,24 @@ export default function ImplementacaoDetalhe() {
   const [linkOpen, setLinkOpen] = useState(false);
   // Abas: o formulário é o trabalho do dia a dia; ambiente do cliente (só master) e notas ficam à parte.
   const [tab, setTab] = useState<"form" | "ambiente" | "notas">("form");
+  // Dispara a abertura automática do "Criar ambiente do cliente" (ver CreateTenantCard)
+  // — muda de valor tanto ao marcar "Concluída" aqui nesta tela quanto ao chegar
+  // vindo de Implementacoes.tsx (Kanban) via "?abrirAmbiente=1".
+  const [autoOpenSignal, setAutoOpenSignal] = useState<number | undefined>(undefined);
+
+  // Chegou aqui com o status acabado de virar "Concluída" em outra tela (Kanban de
+  // Implementacoes.tsx) — mesma condição do changeStatus abaixo, só que lendo
+  // direto de impl.data (o estado local `data` só hidrata num efeito separado,
+  // levaria uma volta de render a mais pra existir).
+  useEffect(() => {
+    if (searchParams.get("abrirAmbiente") !== "1" || !impl || !user?.isMaster) return;
+    setSearchParams((prev) => { const next = new URLSearchParams(prev); next.delete("abrirAmbiente"); return next; }, { replace: true });
+    if (!impl.linked_tenant_id && tenantReadiness(impl.data || {}).ready) {
+      setTab("ambiente");
+      setAutoOpenSignal(Date.now());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, impl?.id, impl?.linked_tenant_id, user?.isMaster]);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<ImplData | null>(null);
@@ -127,6 +146,15 @@ export default function ImplementacaoDetalhe() {
       if (cliente?.status === "Ativo") await updateClienteBase(cliente.id, { status: "Em Implantação" });
     }
     await updateImplementation(impl.id, patch);
+
+    // Conecta com o provisionamento real: concluiu, os dados mínimos já estão
+    // prontos e o ambiente ainda não existe → abre o "Criar ambiente do
+    // cliente" já preenchido (ver CreateTenantCard/autoOpenSignal) em vez de
+    // depender de alguém lembrar de entrar na aba e clicar manualmente.
+    if (next === "Concluída" && user?.isMaster && !impl.linked_tenant_id && readiness.ready) {
+      setTab("ambiente");
+      setAutoOpenSignal(Date.now());
+    }
   };
 
   const readiness = tenantReadiness(data);
@@ -274,6 +302,7 @@ export default function ImplementacaoDetalhe() {
                 data={data}
                 linked={!!impl.linked_tenant_id}
                 beforeCreate={flush}
+                autoOpenSignal={autoOpenSignal}
                 // O servidor já gravou o vínculo; aqui só atualiza o estado local (e o carimbo de sincronização).
                 // `createdHere` mantém o cartão montado até fechar o modal que mostra o acesso (uma vez só).
                 onCreated={async (tenantId) => {

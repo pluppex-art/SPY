@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Building2, CheckCircle2, CircleAlert } from "lucide-react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
@@ -13,6 +13,15 @@ interface Props {
   onCreated: (tenantId: string) => Promise<void> | void;
   /** Já vinculada (acabou de criar): esconde o cartão, mas mantém o modal do acesso aberto até fechar. */
   linked?: boolean;
+  /** Muda de valor (ex.: Date.now()) pra abrir o modal sozinho — usado quando a
+   * implementação é marcada "Concluída" com os dados mínimos já prontos, pra
+   * não depender de alguém lembrar de entrar na aba "Ambiente do cliente" e
+   * clicar o botão manualmente. Continua exigindo confirmação humana na tela
+   * (o modal abre pedindo pra conferir/gerar a senha) — a senha do admin
+   * nunca fica salva em lugar nenhum (ver NovoTenantModal), então criar o
+   * ambiente 100% em segundo plano, sem ninguém olhar, deixaria o acesso
+   * perdido pra sempre. */
+  autoOpenSignal?: number;
 }
 
 /**
@@ -20,9 +29,17 @@ interface Props {
  * gravando os Dados da Empresa. Só aparece para a equipe interna (master) e o botão só surge com
  * os dados mínimos completos; enquanto faltar algo, mostra exatamente o que falta.
  */
-export function CreateTenantCard({ implementationId, data, beforeCreate, onCreated, linked }: Props) {
+export function CreateTenantCard({ implementationId, data, beforeCreate, onCreated, linked, autoOpenSignal }: Props) {
   const [open, setOpen] = useState(false);
   const { ready, missing } = tenantReadiness(data);
+  const lastAutoOpenSignal = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (!autoOpenSignal || autoOpenSignal === lastAutoOpenSignal.current || !ready || linked) return;
+    lastAutoOpenSignal.current = autoOpenSignal;
+    (async () => { await beforeCreate?.(); setOpen(true); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenSignal, ready, linked]);
 
   if (linked && !open) return null;
 

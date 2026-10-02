@@ -15,6 +15,7 @@ import {
   IMPLEMENTATION_STATUSES, IMPLEMENTATION_STATUS_TONE, computeProgress, type ImplementationStatus,
 } from "../../lib/implementationForm";
 import { startImplementationForClient } from "../../lib/implementationAutoStart";
+import { tenantReadiness } from "../../lib/implementationTenant";
 
 const FILTROS = ["Todas", ...IMPLEMENTATION_STATUSES] as const;
 
@@ -101,6 +102,14 @@ export default function Implementacoes() {
       if (cliente?.status === "Ativo") await updateClienteBase(cliente.id, { status: "Em Implantação" });
     }
     await updateImplementation(impl.id, patch);
+
+    // Concluiu por aqui (drag no Kanban) com os dados mínimos prontos e sem
+    // ambiente criado ainda → manda pra tela de detalhe já com o "Criar
+    // ambiente do cliente" pronto pra abrir (ver ImplementacaoDetalhe.tsx);
+    // quem não for master simplesmente não vê esse efeito lá.
+    if (next === "Concluída" && !impl.linked_tenant_id && tenantReadiness(impl.data || {}).ready) {
+      navigate(`/app/crm/implementacoes/${impl.id}?abrirAmbiente=1`);
+    }
   };
 
   const linhasBusca = useMemo(() => {
