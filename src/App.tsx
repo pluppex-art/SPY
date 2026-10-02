@@ -159,6 +159,7 @@ const FornecedoresVarejo = lazy(() => import("./pages/varejo/FornecedoresVarejo"
 const ComprasVarejo = lazy(() => import("./pages/varejo/ComprasVarejo"));
 const NotasEntrada = lazy(() => import("./pages/varejo/NotasEntrada"));
 const OrdensServico = lazy(() => import("./pages/operative/OrdensServico"));
+const ConfigOSFunis = lazy(() => import("./pages/settings/sections/os/ConfigOSFunis").then(m => ({ default: m.ConfigOSFunis })));
 const OrdemServicoDetalhe = lazy(() => import("./pages/operative/OrdemServicoDetalhe"));
 const BaseExames = lazy(() => import("./pages/clinica/BaseExames"));
 const ComparacaoTabelas = lazy(() => import("./pages/clinica/ComparacaoTabelas"));
@@ -503,6 +504,7 @@ function AppContent() {
 
             <Route path="produtividade/categorias" element={<ConfigProdutividadeCategorias />} />
             <Route path="kanbans" element={<ConfigKanbanBoards />} />
+            <Route path="os/funis" element={<ConfigOSFunis />} />
 
             <Route path="financeiro/categorias" element={<ConfigFinanceiroCategorias />} />
             <Route path="financeiro/squads" element={<ProtectedRoute requireTenantAdmin><ConfigFinanceiroSquads /></ProtectedRoute>} />

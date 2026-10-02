@@ -64,6 +64,7 @@ export default function SettingsLayout() {
       items: [
         { title: "Categorias de tarefas", path: "/app/configuracoes/produtividade/categorias" },
         { title: "Funis & Kanbans", path: "/app/configuracoes/kanbans" },
+        { title: "Departamentos da OS", path: "/app/configuracoes/os/funis" },
       ],
     }] : []),
     ...(activeModules.financeiro ? [{

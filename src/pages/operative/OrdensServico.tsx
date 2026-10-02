@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ClipboardList, Clock, Hammer, Loader2, Plus, Search, Wallet, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
@@ -12,6 +12,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
 import { OS_STATUSES, OS_STATUS_TONE, osCode, type OsStatus } from "../../lib/ordemServico";
 import { cn } from "../../lib/utils";
+import QuadroDepartamentos from "../os/QuadroDepartamentos";
 
 const FILTROS = ["Todas", ...OS_STATUSES] as const;
 
@@ -19,6 +20,14 @@ export default function OrdensServico() {
   const { activeTenantId, user } = useAuth();
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const vista = params.get("vista") === "quadro" ? "quadro" : "lista";
+  const trocarVista = (v: "lista" | "quadro") =>
+    setParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (v === "lista") { next.delete("vista"); next.delete("dep"); } else next.set("vista", "quadro");
+      return next;
+    });
 
   const [ordens, setOrdens] = useState<any[] | null>(null);
   const [filtro, setFiltro] = useState<(typeof FILTROS)[number]>("Todas");
@@ -83,13 +92,23 @@ export default function OrdensServico() {
       title="Ordens de Serviço"
       description="Emita a ordem de serviço do cliente com itens, valores e condições, acompanhe a execução e gere a cobrança."
       breadcrumb={[{ label: "Operações" }, { label: "Ordens de Serviço" }]}
-      actions={
+      actions={vista === "lista" ? (
         <Button onClick={nova} disabled={criando} className="h-9 px-4 text-xs font-medium gap-1.5">
           {criando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Nova ordem de serviço
         </Button>
-      }
+      ) : undefined}
     >
       <div className="space-y-5 max-w-[1700px] mx-auto pb-12">
+        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit">
+          {([["lista", "Lista"], ["quadro", "Por departamento"]] as const).map(([v, label]) => (
+            <button
+              key={v} type="button" onClick={() => trocarVista(v)}
+              className={cn("px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all", vista === v ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
+            >{label}</button>
+          ))}
+        </div>
+
+        {vista === "quadro" ? <QuadroDepartamentos /> : (<>
         <StatCellRow>
           <StatCell label="Em andamento" value={kpis.abertas} icon={Hammer} hint="Abertas ou em execução" />
           <StatCell label="Atrasadas" value={kpis.atrasadas} icon={Clock} tone={kpis.atrasadas > 0 ? "danger" : "neutral"} hint="Passaram da data prevista" />
@@ -149,6 +168,7 @@ export default function OrdensServico() {
             </table>
           </Card>
         )}
+        </>)}
       </div>
     </PageContainer>
   );
