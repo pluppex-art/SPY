@@ -4,6 +4,7 @@ import { useLocalization } from "../../../contexts/LocalizationContext";
 import { supabase } from "../../../lib/supabase";
 import { toast } from "sonner";
 import { calculateLeadScore } from "../../../lib/leadScore";
+import { startImplementationForClient } from "../../../lib/implementationAutoStart";
 
 // ─── Stage helpers ────────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ const WIN_FUNIL_CONFIG_KEY = "axis_win_funil_config";
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useLeadDetails(lead: any, onClose: () => void) {
-  const { leadActivities, addLeadActivity, updateLead, deleteLead, customLeadFields, products, addProduct, turmas, addTurma, funis, students, addStudent, proposals, appSettings } = useData();
+  const { leadActivities, addLeadActivity, updateLead, deleteLead, customLeadFields, products, addProduct, turmas, addTurma, funis, students, addStudent, proposals, appSettings, clienteBase, addImplementation, updateClienteBase } = useData();
   const { formatCurrency } = useLocalization();
 
   // ── Exclusão ─────────────────────────────────────────────────────────────────
@@ -290,6 +291,20 @@ export function useLeadDetails(lead: any, onClose: () => void) {
       toast.success(`Lead ${leadName} ganho! Movido automaticamente para "${targetFunil.nome}".`);
     } else {
       toast.success(`Lead ${leadName} convertido para Cliente Fechado!`);
+    }
+
+    // Mesma conexão com a página de Implementações usada no drag-and-drop do
+    // Kanban (ver handleWinStageDrop em usePipeline.ts) — sem isso, convertido
+    // por aqui não disparava o auto-start, só o drop no board.
+    const cliente = lead?.clientId ? (clienteBase as any[]).find((c: any) => c.id === lead.clientId) : null;
+    if (cliente) {
+      startImplementationForClient(cliente, lead, { supabase, addImplementation, updateClienteBase })
+        .then((result) => {
+          if (result && !result.alreadyExisted) {
+            toast.success(`Implementação iniciada automaticamente para "${cliente.name}".`);
+          }
+        })
+        .catch((err) => console.error("[LeadDetails] Falha ao auto-iniciar implementação:", err));
     }
     setAlterationLogs(prev => [
       { id: Date.now().toString(), author: seller || "Sistema", desc: "Lead convertido em Cliente Ativo", time: "Agora" },

@@ -8,6 +8,8 @@ import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
 import { parseCurrencyBR } from "../../lib/utils";
+import { supabase } from "../../lib/supabase";
+import { startImplementationForClient } from "../../lib/implementationAutoStart";
 
 // Matches ETAPA_CORES in SettingsCRM
 const ETAPA_DOT_COLORS: Record<string, string> = {
@@ -35,7 +37,7 @@ export function usePipeline() {
   const [tempDropdownId, setTempDropdownId] = useState<string | null>(null);
   const [webhookModalLead, setWebhookModalLead] = useState<any>(null);
   const [webhookUrl, setWebhookUrl] = useState("");
-  const { leads, updateLead, tasks, addTask, products, clienteBase, funis: dataFunis, colaboradores, appSettings } = useData();
+  const { leads, updateLead, tasks, addTask, products, clienteBase, funis: dataFunis, colaboradores, appSettings, addImplementation, updateClienteBase } = useData();
   const { user } = useAuth();
   const { formatCurrency } = useLocalization();
 
@@ -412,6 +414,24 @@ export function usePipeline() {
     const targetStageId = getStageId(targetFunilId, 0);
     updateLead(leadId, { stageId: targetStageId });
     toast.success(`Negócio ganho! Movido automaticamente para "${targetFunil.nome}".`);
+
+    // Conecta com a página de Implementações (/app/crm/implementacoes): em vez
+    // de esperar alguém clicar "Iniciar implementação" manualmente lá, já cria
+    // a implementação de verdade no mesmo instante — mesma lógica daquele
+    // botão (ver startImplementationForClient), só que disparada automática.
+    // Só roda quando o lead já tem um cliente vinculado (clientId) — sem isso,
+    // o cliente simplesmente aparece em "Aguardando início" como hoje.
+    const lead = (leads as any[]).find((l: any) => l.id === leadId);
+    const cliente = lead?.clientId ? (clienteBase as any[]).find((c: any) => c.id === lead.clientId) : null;
+    if (cliente) {
+      startImplementationForClient(cliente, lead, { supabase, addImplementation, updateClienteBase })
+        .then((result) => {
+          if (result && !result.alreadyExisted) {
+            toast.success(`Implementação iniciada automaticamente para "${cliente.name}".`);
+          }
+        })
+        .catch((err) => console.error("[Pipeline] Falha ao auto-iniciar implementação:", err));
+    }
   };
 
   const handleTransferToComercial = (e: any, lead: any) => {

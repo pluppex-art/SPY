@@ -14,26 +14,9 @@ import { cn } from "../../lib/utils";
 import {
   IMPLEMENTATION_STATUSES, IMPLEMENTATION_STATUS_TONE, computeProgress, type ImplementationStatus,
 } from "../../lib/implementationForm";
+import { startImplementationForClient } from "../../lib/implementationAutoStart";
 
 const FILTROS = ["Todas", ...IMPLEMENTATION_STATUSES] as const;
-
-/** Só dados reais do cliente/lead/contatos — nada de default inventado (ex.: o "segmento"
- * de clientes criados automaticamente nasce como "Tecnologia" por padrão, então não entra). */
-function prefillFrom(cliente: any, lead?: any, contatos: any[] = []): Record<string, any> {
-  const d: Record<string, any> = {};
-  const set = (k: string, v: any) => { if (v) d[k] = v; };
-  const principal = contatos.find((c) => c.principal) || contatos[0];
-  const decisor = contatos.find((c) => /decis/i.test(c.papel_decisao || ""));
-  set("nome_fantasia", cliente?.name);
-  set("cnpj", cliente?.documento || lead?.cnpj);
-  set("endereco", [cliente?.logradouro, cliente?.numero, cliente?.bairro, cliente?.city, cliente?.state].filter(Boolean).join(", "));
-  set("resp_nome", principal?.nome || lead?.name);
-  set("resp_cargo", principal?.cargo);
-  set("resp_email", principal?.email || cliente?.email || lead?.email);
-  set("resp_whatsapp", principal?.whatsapp || principal?.telefone || cliente?.phone || lead?.phone);
-  set("decisor_nome", decisor?.nome || lead?.customFields?.decisorNome);
-  return d;
-}
 
 export default function Implementacoes() {
   const { implementations, clienteBase, leads, addImplementation, updateImplementation, updateClienteBase } = useData();
@@ -131,28 +114,8 @@ export default function Implementacoes() {
     iniciandoRef.current = true;
     setIniciando(cliente.id);
     try {
-      // Confere no banco antes de criar: a lista local pode estar defasada (ex.: iniciada
-      // em outra aba) e o banco só aceita uma implementação por cliente.
-      if (supabase) {
-        const { data: existente } = await supabase.from("implementations").select("id").eq("cliente_id", cliente.id).maybeSingle();
-        if (existente?.id) { navigate(`/app/crm/implementacoes/${existente.id}`); return; }
-      }
-      // Contatos que o CRM já tem do cliente (responsável principal, decisor).
-      let contatos: any[] = [];
-      if (supabase) {
-        const { data: rows } = await supabase.from("cliente_contatos")
-          .select("nome, cargo, email, telefone, whatsapp, principal, papel_decisao").eq("cliente_id", cliente.id).limit(20);
-        contatos = rows || [];
-      }
-      const created = await addImplementation({
-        cliente_id: cliente.id,
-        lead_id: lead?.id || null,
-        status: "Em andamento",
-        data: prefillFrom(cliente, lead, contatos),
-      });
-      // Reflete no restante do sistema (KPI/filtro "Em Implantação" da Base de Clientes) — só sai de "Ativo".
-      if (!cliente.status || cliente.status === "Ativo") await updateClienteBase(cliente.id, { status: "Em Implantação" });
-      if (created?.id) navigate(`/app/crm/implementacoes/${created.id}`);
+      const result = await startImplementationForClient(cliente, lead, { supabase, addImplementation, updateClienteBase });
+      if (result?.id) navigate(`/app/crm/implementacoes/${result.id}`);
     } finally {
       iniciandoRef.current = false;
       setIniciando(null);
