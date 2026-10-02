@@ -75,6 +75,7 @@ export default function Pipeline() {
     formattedTotalValue, winRate,
     triggerCelebration, exportPDF,
     handleExportIAResume, handleTransferToComercial,
+    handleWinStageDrop,
   } = usePipeline();
 
   const [searchParams] = useSearchParams();
@@ -222,6 +223,7 @@ export default function Pipeline() {
                 handleTransferToComercial={handleTransferToComercial} handleExportIAResume={handleExportIAResume}
                 setWebhookModalLead={setWebhookModalLead} triggerCelebration={triggerCelebration}
                 onReuniaoStageDrop={handleReuniaoStageDrop}
+                onWinStageDrop={handleWinStageDrop}
               />
             ) : !noPipelineConfigured ? <PipelineEmptySelection /> : null}
 

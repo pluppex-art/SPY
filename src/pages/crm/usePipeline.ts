@@ -35,7 +35,7 @@ export function usePipeline() {
   const [tempDropdownId, setTempDropdownId] = useState<string | null>(null);
   const [webhookModalLead, setWebhookModalLead] = useState<any>(null);
   const [webhookUrl, setWebhookUrl] = useState("");
-  const { leads, updateLead, tasks, addTask, products, clienteBase, funis: dataFunis, colaboradores } = useData();
+  const { leads, updateLead, tasks, addTask, products, clienteBase, funis: dataFunis, colaboradores, appSettings } = useData();
   const { user } = useAuth();
   const { formatCurrency } = useLocalization();
 
@@ -119,6 +119,7 @@ export function usePipeline() {
       name: s.nome,
       color: ETAPA_DOT_COLORS[s.cor] ?? "#64748b",
       iniciarMinimizado: s.iniciarMinimizado ?? false,
+      funilId: funil.id,
     }));
   };
 
@@ -395,6 +396,24 @@ export function usePipeline() {
     setOpenDropdownId(null);
   };
 
+  // Promoção automática pra outro funil quando um negócio é ganho — genérico
+  // (não amarrado a nenhum tenant/funil específico no código): um tenant
+  // configura em app_settings (key "axis_win_funil_config", valor
+  // { [funilIdDeOrigem]: funilIdDeDestino }) qual funil recebe automaticamente
+  // os negócios ganhos de qual funil comercial. Sem config pra aquele funil,
+  // não faz nada (comportamento de hoje, intacto).
+  const WIN_FUNIL_CONFIG_KEY = "axis_win_funil_config";
+  const handleWinStageDrop = (leadId: string, stage: any) => {
+    const config = appSettings[WIN_FUNIL_CONFIG_KEY] as Record<string, string> | undefined;
+    const targetFunilId = stage?.funilId ? config?.[stage.funilId] : undefined;
+    if (!targetFunilId) return;
+    const targetFunil = funisConfig.find((f: any) => f.id === targetFunilId);
+    if (!targetFunil) return;
+    const targetStageId = getStageId(targetFunilId, 0);
+    updateLead(leadId, { stageId: targetStageId });
+    toast.success(`Negócio ganho! Movido automaticamente para "${targetFunil.nome}".`);
+  };
+
   const handleTransferToComercial = (e: any, lead: any) => {
     e.stopPropagation();
     const targetStageId = firstComercialStageId || "1";
@@ -457,6 +476,7 @@ export function usePipeline() {
     triggerCelebration,
     exportPDF,
     handleExportIAResume,
+    handleWinStageDrop,
     handleTransferToComercial,
   };
 }

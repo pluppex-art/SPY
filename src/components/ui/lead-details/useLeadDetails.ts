@@ -22,13 +22,20 @@ function buildStages(funis: any[], isSDR: boolean) {
     id: getStageId(funil.id, idx),
     name,
     status: idx === 0 ? "Novo" : idx === funil.etapas.length - 1 ? "Fechado" : "Em Negociação",
+    funilId: funil.id,
   }));
 }
+
+// Mesmo mecanismo genérico de usePipeline.ts (ver handleWinStageDrop) —
+// duplicado aqui (não um import) seguindo o mesmo padrão já usado por
+// getStageId acima, já que os dois hooks resolvem o funil do lead de formas
+// diferentes e não compartilham estado.
+const WIN_FUNIL_CONFIG_KEY = "axis_win_funil_config";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useLeadDetails(lead: any, onClose: () => void) {
-  const { leadActivities, addLeadActivity, updateLead, deleteLead, customLeadFields, products, addProduct, turmas, addTurma, funis, students, addStudent, proposals } = useData();
+  const { leadActivities, addLeadActivity, updateLead, deleteLead, customLeadFields, products, addProduct, turmas, addTurma, funis, students, addStudent, proposals, appSettings } = useData();
   const { formatCurrency } = useLocalization();
 
   // ── Exclusão ─────────────────────────────────────────────────────────────────
@@ -274,7 +281,16 @@ export function useLeadDetails(lead: any, onClose: () => void) {
   const handleConvertLead = () => {
     const lastStage = stagesDef[stagesDef.length - 1];
     updateLead(lead.id, { stageId: lastStage?.id ?? "5", status: "Fechado" });
-    toast.success(`Lead ${leadName} convertido para Cliente Fechado!`);
+
+    const winConfig = appSettings[WIN_FUNIL_CONFIG_KEY] as Record<string, string> | undefined;
+    const targetFunilId = lastStage?.funilId ? winConfig?.[lastStage.funilId] : undefined;
+    const targetFunil = targetFunilId ? (funis as any[]).find((f: any) => f.id === targetFunilId) : null;
+    if (targetFunil) {
+      updateLead(lead.id, { stageId: getStageId(targetFunilId!, 0) });
+      toast.success(`Lead ${leadName} ganho! Movido automaticamente para "${targetFunil.nome}".`);
+    } else {
+      toast.success(`Lead ${leadName} convertido para Cliente Fechado!`);
+    }
     setAlterationLogs(prev => [
       { id: Date.now().toString(), author: seller || "Sistema", desc: "Lead convertido em Cliente Ativo", time: "Agora" },
       ...prev,

@@ -33,6 +33,7 @@ interface PipelineKanbanBoardProps {
   setWebhookModalLead: (lead: any) => void;
   triggerCelebration?: () => void;
   onReuniaoStageDrop?: (leadId: string, stage: any) => void;
+  onWinStageDrop?: (leadId: string, stage: any) => void;
 }
 
 export function PipelineKanbanBoard({
@@ -58,6 +59,7 @@ export function PipelineKanbanBoard({
   setWebhookModalLead,
   triggerCelebration,
   onReuniaoStageDrop,
+  onWinStageDrop,
 }: PipelineKanbanBoardProps) {
   const { products, proposals } = useData();
   const { formatCurrency } = useLocalization();
@@ -124,6 +126,7 @@ export function PipelineKanbanBoard({
 
       if (isWon) {
         triggerCelebration?.();
+        onWinStageDrop?.(leadId, stage);
       }
 
       // Abre o modal de nova reunião para todas as etapas que tenham a palavra "reunião" (ou "reuniao").
