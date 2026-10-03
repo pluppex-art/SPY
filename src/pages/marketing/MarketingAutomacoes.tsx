@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { MessageSquarePlus, Loader2, Users, Check, X, Trash2, AlertTriangle, Sparkles, Workflow } from "lucide-react";
+import { MessageSquarePlus, Loader2, Users, Check, X, Trash2, AlertTriangle, Sparkles, Workflow, MessageCircle } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { useMessageTriggers, type MessageTrigger } from "../../hooks/useMessageTriggers";
-import { AutomationsMapModal } from "./AutomationsMapModal";
+import { AutomationFunilConnections } from "./AutomationFunilConnections";
+import { cn } from "../../lib/utils";
 
 // Central de Automações — o tenant descreve em texto livre quem quer contatar (ex: "mandar
 // mensagem pra quem não tem contato há 2 meses"), a Júlia (via n8n) interpreta e monta a lista
@@ -108,11 +109,13 @@ function TriggerCard({ trigger, onAprovar, onRejeitar, onRemover }: {
   );
 }
 
+type Aba = "julia" | "funis";
+
 export default function MarketingAutomacoes() {
   const { triggers, loading, criar, aprovar, rejeitar, remover } = useMessageTriggers();
   const [descricao, setDescricao] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
+  const [aba, setAba] = useState<Aba>("julia");
 
   const handleSubmit = async () => {
     if (!descricao.trim()) { toast.error("Descreva o que você quer que aconteça."); return; }
@@ -131,66 +134,84 @@ export default function MarketingAutomacoes() {
   return (
     <PageContainer
       title="Central de Automações S.P.Y."
-      description="Descreva quem você quer contatar em texto livre — a Júlia entende, monta a lista e a mensagem, e só envia depois que você aprovar."
-      actions={
-        <Button variant="outline" onClick={() => setMapOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5">
-          <Workflow className="w-3.5 h-3.5" /> Mapa de Automações
-        </Button>
-      }
+      description={aba === "julia"
+        ? "Descreva quem você quer contatar em texto livre — a Júlia entende, monta a lista e a mensagem, e só envia depois que você aprovar."
+        : "Conecte etapas do funil comercial (ou categorias de produto vendidas) a departamentos da Operação — monte como você quiser, sem precisar de ninguém mexer em configuração."}
     >
-      <AutomationsMapModal isOpen={mapOpen} onClose={() => setMapOpen(false)} />
-      <div className="space-y-8 pb-20">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
-            <Sparkles className="w-5 h-5 text-amber-400 mb-3" />
-            <div className="text-2xl font-black text-white font-mono mb-1">{pendentes}</div>
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Aguardando sua aprovação</div>
-          </Card>
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
-            <Check className="w-5 h-5 text-emerald-400 mb-3" />
-            <div className="text-2xl font-black text-emerald-400 font-mono mb-1">{enviados}</div>
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Gatilhos já enviados</div>
-          </Card>
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
-            <Users className="w-5 h-5 text-indigo-400 mb-3" />
-            <div className="text-2xl font-black text-white font-mono mb-1">{totalContatados}</div>
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Contatos alcançados</div>
-          </Card>
+      <div className="space-y-6 pb-20">
+        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit">
+          {([["julia", "Gatilho → Mensagem (Júlia)", MessageCircle], ["funis", "Gatilho → Funis / OS", Workflow]] as const).map(([v, label, Icon]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setAba(v)}
+              className={cn(
+                "px-4 py-2 text-xs font-bold rounded-[calc(var(--radius-control)-2px)] cursor-pointer transition-all flex items-center gap-1.5",
+                aba === v ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" /> {label}
+            </button>
+          ))}
         </div>
 
-        <Card className="p-5 rounded-2xl bg-[var(--color-surface-elevated)] border border-white/10 space-y-3">
-          <label className="text-[11px] font-black uppercase text-white tracking-wider flex items-center gap-1.5">
-            <MessageSquarePlus className="w-4 h-4 text-purple-400" /> Novo gatilho
-          </label>
-          <textarea
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-            placeholder='Ex: "Quero mandar mensagem pra todo mundo que ficou parado há mais de 30 dias"'
-            rows={3}
-            className="w-full text-sm bg-black/20 border border-white/10 rounded-xl p-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500/50 resize-y"
-          />
-          <Button onClick={handleSubmit} disabled={submitting} className="h-9 px-4 text-xs font-bold gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white">
-            {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Pedir pra Júlia entender
-          </Button>
-        </Card>
+        {aba === "julia" ? (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
+                <Sparkles className="w-5 h-5 text-amber-400 mb-3" />
+                <div className="text-2xl font-black text-white font-mono mb-1">{pendentes}</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Aguardando sua aprovação</div>
+              </Card>
+              <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
+                <Check className="w-5 h-5 text-emerald-400 mb-3" />
+                <div className="text-2xl font-black text-emerald-400 font-mono mb-1">{enviados}</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Gatilhos já enviados</div>
+              </Card>
+              <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
+                <Users className="w-5 h-5 text-indigo-400 mb-3" />
+                <div className="text-2xl font-black text-white font-mono mb-1">{totalContatados}</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Contatos alcançados</div>
+              </Card>
+            </div>
 
-        <div className="space-y-3">
-          {loading ? (
-            <p className="text-xs text-slate-500">Carregando...</p>
-          ) : triggers.length === 0 ? (
-            <p className="text-xs text-slate-500 italic p-4 text-center">Nenhum gatilho ainda — descreva um acima pra começar.</p>
-          ) : (
-            triggers.map((t) => (
-              <TriggerCard
-                key={t.id}
-                trigger={t}
-                onAprovar={async (id) => { const r = await aprovar(id); if (r.error) toast.error(r.error); else toast.success("Enviando as mensagens agora."); }}
-                onRejeitar={async (id) => { await rejeitar(id); }}
-                onRemover={remover}
+            <Card className="p-5 rounded-2xl bg-[var(--color-surface-elevated)] border border-white/10 space-y-3">
+              <label className="text-[11px] font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                <MessageSquarePlus className="w-4 h-4 text-purple-400" /> Novo gatilho
+              </label>
+              <textarea
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                placeholder='Ex: "Quero mandar mensagem pra todo mundo que ficou parado há mais de 30 dias"'
+                rows={3}
+                className="w-full text-sm bg-black/20 border border-white/10 rounded-xl p-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500/50 resize-y"
               />
-            ))
-          )}
-        </div>
+              <Button onClick={handleSubmit} disabled={submitting} className="h-9 px-4 text-xs font-bold gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white">
+                {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Pedir pra Júlia entender
+              </Button>
+            </Card>
+
+            <div className="space-y-3">
+              {loading ? (
+                <p className="text-xs text-slate-500">Carregando...</p>
+              ) : triggers.length === 0 ? (
+                <p className="text-xs text-slate-500 italic p-4 text-center">Nenhum gatilho ainda — descreva um acima pra começar.</p>
+              ) : (
+                triggers.map((t) => (
+                  <TriggerCard
+                    key={t.id}
+                    trigger={t}
+                    onAprovar={async (id) => { const r = await aprovar(id); if (r.error) toast.error(r.error); else toast.success("Enviando as mensagens agora."); }}
+                    onRejeitar={async (id) => { await rejeitar(id); }}
+                    onRemover={remover}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        ) : (
+          <AutomationFunilConnections />
+        )}
       </div>
     </PageContainer>
   );
