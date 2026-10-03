@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Users,
   Columns3,
+  Radar as RadarIcon,
   CheckSquare,
   Settings,
   Mail,
@@ -73,6 +74,7 @@ export const navSections = [
     reqModule: "crm",
     items: [
       { name: "Leads & Pipeline", path: "/app/crm/pipeline", icon: Columns3 },
+      { name: "Radar", path: "/app/crm/radar", icon: RadarIcon },
       { name: "Propostas Comerciais", path: "/app/crm/propostas", icon: FileText },
       { name: "Base de Clientes", path: "/app/crm/clientes", icon: Users },
     ],

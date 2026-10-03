@@ -10,6 +10,7 @@ import { AuroraWidget } from "./ui/AuroraWidget";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { SDRWebhookModal } from "./ui/modals/crm/SDRWebhookModal";
 import { useData } from "../contexts/DataContextTypes";
+import { BillingBanner, SuspendedScreen, useIsBlocked } from "./BillingGate";
 
 export default function Layout() {
   const location = useLocation();
@@ -21,6 +22,7 @@ export default function Layout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
   const [isSDRWebhookOpen, setIsSDRWebhookOpen] = useState(false);
+  const isBlocked = useIsBlocked();
 
   useEffect(() => {
     if (!user) navigate("/login");
@@ -45,10 +47,12 @@ export default function Layout() {
           setIsMobileSidebarOpen={setIsMobileSidebarOpen}
         />
 
+        <BillingBanner />
+
         <div className={`flex-1 min-h-0 relative ${location.pathname.includes("/messaging") || location.pathname.includes("/mensageria") ? "overflow-hidden p-1 pb-20 sm:p-2 sm:pb-2.5" : "overflow-y-auto p-4 md:p-8 pb-24 sm:pb-8"}`}>
           <ErrorBoundary resetKey={location.pathname}>
             <Suspense fallback={<div className="flex items-center justify-center py-24 text-sm text-slate-400">Carregando...</div>}>
-              <Outlet />
+              {isBlocked ? <SuspendedScreen /> : <Outlet />}
             </Suspense>
           </ErrorBoundary>
         </div>

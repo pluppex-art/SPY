@@ -1,3 +1,4 @@
+import { MfaCard } from "../../../../components/MfaCard";
 import { useState, useEffect } from "react";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
@@ -408,6 +409,8 @@ export function ConfigPerfilUsuario() {
           </div>
         </Card>
       </div>
+
+      <MfaCard />
     </div>
   );
 }

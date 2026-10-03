@@ -1,0 +1,39 @@
+name: Teste de isolamento entre tenants
+
+# Prova, com RLS real, que o Tenant A não lê, não edita e não apaga dado do Tenant B
+# (supabase/tests/tenant_isolation_test.sql). O teste cria 2 tenants/3 usuários/2 leads fictícios
+# (UUIDs aaaaaaaa-/bbbbbbbb-) e remove tudo no final.
+#
+# Requer o secret SUPABASE_DB_URL (connection string do Postgres, Session pooler).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 9 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
+
+concurrency:
+  group: tenant-isolation
+  cancel-in-progress: false
+
+jobs:
+  isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Conferir secret
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then echo "::error::Configure o secret SUPABASE_DB_URL (Settings > Secrets and variables > Actions)."; exit 1; fi
+      - name: Rodar teste de isolamento
+        env:
+          PGOPTIONS: "-c client_min_messages=notice"
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          sudo apt-get install -y -qq postgresql-client >/dev/null
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/tenant_isolation_test.sql 2>&1 | tee out.txt
+          grep -q "CLEANUP OK" out.txt

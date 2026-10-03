@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components/ui/button";
 import { Lock, Mail, ArrowRight, Eye, EyeOff, Loader2, KeyRound } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
-import { signIn, requestPasswordReset } from "../../../lib/supabase";
+import { signIn, requestPasswordReset, verifyMfaAndFinish } from "../../../lib/supabase";
 import { toast } from "sonner";
 import { persistTenantTheme } from "../hooks/useLoginTheme";
 import { DEFAULT_BRAND_COLOR } from "../../../lib/theme";
@@ -82,6 +82,8 @@ export function LoginForm({ primaryColor = DEFAULT_BRAND_COLOR, onEmailChange }:
   const navigate  = useNavigate();
   const location  = useLocation();
   const { login } = useAuth();
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
   const from      = location.state?.from?.pathname || "/app/dashboard";
 
   const r = parseInt(primaryColor.slice(1, 3), 16);
@@ -105,6 +107,29 @@ export function LoginForm({ primaryColor = DEFAULT_BRAND_COLOR, onEmailChange }:
     setResetEmail("");
   };
 
+  const completeLogin = (result: { user?: any }) => {
+    login(result.user);
+    // Persiste a cor do tenant para o favicon e para a tela de login
+    const chosenColor = (result.user as any)?.tenantPrimaryColor || primaryColor;
+    if (chosenColor) {
+      persistTenantTheme(chosenColor, result.user.tenantName);
+    }
+    toast.success(`Bem-vindo, ${result.user.name}!`);
+    navigate(from, { replace: true });
+  };
+
+  const handleMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaFactorId || mfaCode.length !== 6) return;
+    setError(""); setLoading(true);
+    try {
+      const result = await verifyMfaAndFinish(mfaFactorId, mfaCode);
+      if (!result.success) { setError(result.error || "Código inválido."); setMfaCode(""); return; }
+      completeLogin(result);
+    } catch { setError("Erro ao validar o código."); }
+    finally { setLoading(false); }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -112,21 +137,36 @@ export function LoginForm({ primaryColor = DEFAULT_BRAND_COLOR, onEmailChange }:
     setLoading(true);
     try {
       const result = await signIn(email, password);
+      if (!result.success && result.error === "MFA_REQUIRED" && result.mfaFactorId) { setMfaFactorId(result.mfaFactorId); return; }
       if (!result.success) { setError(result.error || "Falha no login"); return; }
-      login(result.user);
-      // Persiste a cor do tenant para o favicon e para a tela de login
-      const chosenColor = (result.user as any)?.tenantPrimaryColor || primaryColor;
-      if (chosenColor) {
-        persistTenantTheme(chosenColor, result.user.tenantName);
-      }
-      toast.success(`Bem-vindo, ${result.user.name}!`);
-      navigate(from, { replace: true });
+      completeLogin(result);
     } catch {
       setError("Erro ao processar autenticação.");
     } finally {
       setLoading(false);
     }
   };
+
+  /* ── Desafio de verificação em duas etapas ── */
+  if (mfaFactorId) {
+    return (
+      <form onSubmit={handleMfa} className="space-y-5">
+        <div>
+          <h3 className="text-sm font-bold" style={{ color: "#F8FAFC" }}>Verificação em duas etapas</h3>
+          <p className="text-[11px]" style={{ color: "#64748B" }}>Digite o código de 6 dígitos do seu aplicativo autenticador.</p>
+        </div>
+        <input
+          autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode}
+          onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))} placeholder="000000"
+          className="w-full rounded-xl px-4 py-3 text-center text-lg tracking-[0.5em] outline-none"
+          style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${alpha(0.35)}`, color: "#F8FAFC" }}
+        />
+        {error && <p className="text-xs" style={{ color: "#F87171" }}>{error}</p>}
+        <Button type="submit" disabled={loading || mfaCode.length !== 6} className="w-full">{loading ? "Verificando…" : "Verificar e entrar"}</Button>
+        <button type="button" className="text-xs underline" style={{ color: "#64748B" }} onClick={() => { setMfaFactorId(null); setMfaCode(""); setError(""); }}>Voltar</button>
+      </form>
+    );
+  }
 
   /* ── Tela de recuperação de senha ── */
   if (showForgotPassword) {

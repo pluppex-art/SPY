@@ -175,7 +175,7 @@ export async function fetchUserProfile(userId: string): Promise<{ success: boole
 export async function signIn(
   email: string,
   password: string
-): Promise<{ success: boolean; error?: string; user?: any }> {
+): Promise<{ success: boolean; error?: string; user?: any; mfaFactorId?: string }> {
   if (!supabase) {
     return { success: false, error: 'Não foi possível conectar ao servidor.' };
   }
@@ -190,17 +190,39 @@ export async function signIn(
       return { success: false, error: msg };
     }
 
-    const profile = await fetchUserProfile(authData.user.id);
-    if (!profile.success) {
-      // Autenticou no Supabase Auth mas não tem perfil válido em public.users — desfaz a sessão.
-      await supabase.auth.signOut();
-      return profile;
+    // Conta com verificação em duas etapas: a sessão só está em aal1 até o código TOTP ser validado.
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const factorId = factors?.totp?.find((f) => f.status === 'verified')?.id;
+      if (factorId) return { success: false, error: 'MFA_REQUIRED', mfaFactorId: factorId };
     }
 
-    return profile;
+    return await finishSignIn(authData.user.id);
   } catch (err) {
     return { success: false, error: "Erro na conexão com o banco de dados." };
   }
+}
+
+/** Carrega o perfil e fecha o login (usado direto ou depois do desafio MFA). */
+export async function finishSignIn(userId: string): Promise<{ success: boolean; error?: string; user?: any }> {
+  if (!supabase) return { success: false, error: 'Não foi possível conectar ao servidor.' };
+  const profile = await fetchUserProfile(userId);
+  if (!profile.success) {
+    // Autenticou no Supabase Auth mas não tem perfil válido em public.users — desfaz a sessão.
+    await supabase.auth.signOut();
+  }
+  return profile;
+}
+
+/** Valida o código TOTP da tela de login e conclui a sessão (aal2). */
+export async function verifyMfaAndFinish(factorId: string, code: string): Promise<{ success: boolean; error?: string; user?: any }> {
+  if (!supabase) return { success: false, error: 'Não foi possível conectar ao servidor.' };
+  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code: code.trim() });
+  if (error) return { success: false, error: 'Código inválido ou expirado.' };
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return { success: false, error: 'Sessão inválida.' };
+  return finishSignIn(data.user.id);
 }
 
 /**

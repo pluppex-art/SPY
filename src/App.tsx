@@ -79,6 +79,9 @@ const AgendaConfiguracoes = lazy(() => import("./pages/agenda/AgendaConfiguracoe
 
 const SettingsLayout = lazy(() => import("./pages/settings/SettingsLayout"));
 const ConfigEmpresaDados = lazy(() => import("./pages/settings/ConfigEmpresaDados"));
+const ConfigPlanoUso = lazy(() => import("./pages/settings/sections/ConfigPlanoUso"));
+const ConfigLGPD = lazy(() => import("./pages/settings/sections/ConfigLGPD"));
+const Radar = lazy(() => import("./pages/crm/Radar"));
 const ConfigEmpresaFiliais = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaFiliais })));
 const ConfigEmpresaEquipe = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaEquipe })));
 const ConfigEmpresaPermissoes = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaPermissoes })));
@@ -249,6 +252,7 @@ function AppContent() {
           <Route path="crm">
             <Route index element={<Navigate to="pipeline" replace />} />
             <Route path="pipeline" element={<Pipeline />} />
+            <Route path="radar" element={<Radar />} />
             <Route path="leads" element={<Navigate to="/app/crm/pipeline" replace />} />
             <Route path="contatos" element={<Contatos />} />
             <Route path="clientes" element={<Clientes />} />
@@ -487,6 +491,8 @@ function AppContent() {
             <Route path="usuario/preferencias" element={<ConfigPreferenciasSistema />} />
             <Route path="usuario/notificacoes" element={<ConfigNotificacoesPreferencias />} />
             <Route path="empresa/dados" element={<ConfigEmpresaDados />} />
+            <Route path="empresa/plano" element={<ConfigPlanoUso />} />
+            <Route path="empresa/lgpd" element={<ProtectedRoute requireTenantAdmin><ConfigLGPD /></ProtectedRoute>} />
             <Route path="empresa/modulos" element={<Navigate to="/app/admin?tab=tenants" replace />} />
             <Route path="empresa/filiais" element={<ConfigEmpresaFiliais />} />
             <Route path="empresa/nichos" element={<ConfigNichos />} />

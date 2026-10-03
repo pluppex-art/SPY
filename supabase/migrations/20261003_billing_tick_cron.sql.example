@@ -1,0 +1,4 @@
+-- OPCIONAL (rodar manualmente): agenda a régua diária de cobrança às 06:15 UTC.
+-- Sem isso, os status trial/ativo -> atraso -> suspenso só mudam quando alguém chama
+-- POST /api/billing/tick (master) ou quando o gateway (Asaas) avisa por webhook.
+select cron.schedule('spy_billing_tick', '15 6 * * *', 'select public.billing_tick()');

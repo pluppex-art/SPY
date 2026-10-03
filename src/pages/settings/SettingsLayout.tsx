@@ -36,6 +36,8 @@ export default function SettingsLayout() {
       icon: Building,
       items: [
         { title: "Dados da empresa", path: "/app/configuracoes/empresa/dados" },
+        { title: "Plano & Uso", path: "/app/configuracoes/empresa/plano" },
+        { title: "LGPD", path: "/app/configuracoes/empresa/lgpd" },
         ...(user?.isMaster ? [{ title: "Módulos & SaaS (Admin)", path: "/app/admin?tab=modules" }] : []),
         { title: "Filiais / Unidades", path: "/app/configuracoes/empresa/filiais" },
         { title: "Nichos", path: "/app/configuracoes/empresa/nichos" },

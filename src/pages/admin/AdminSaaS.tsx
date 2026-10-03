@@ -15,6 +15,7 @@ import { AdminModuleManifestTab } from "./components/AdminModuleManifestTab";
 import { AdminToolsTab } from "./components/AdminToolsTab";
 import { AdminAgentsTab } from "./components/AdminAgentsTab";
 import { AdminBillingTab } from "./components/AdminBillingTab";
+import { AdminAssinaturasTab } from "./components/AdminAssinaturasTab";
 import { AdminLogsTab } from "./components/AdminLogsTab";
 import { AdminHealthTab } from "./components/AdminHealthTab";
 import { NovoTenantModal } from "./components/NovoTenantModal";
@@ -29,6 +30,7 @@ const TABS = [
   { id: "tools", label: "Ferramentas (Registry)", icon: Wrench },
   { id: "agents", label: "Agentes", icon: Bot },
   { id: "billing", label: "Faturamento & Planos", icon: DollarSign },
+  { id: "subscriptions", label: "Assinaturas & IA", icon: DollarSign },
   { id: "logs", label: "Logs & Auditoria", icon: TerminalSquare },
   { id: "health", label: "Saúde & Diagnóstico", icon: ShieldCheck },
 ];
@@ -203,6 +205,8 @@ export default function AdminSaaS() {
       {activeTab === "tools" && <AdminToolsTab />}
 
       {activeTab === "agents" && <AdminAgentsTab />}
+
+      {activeTab === "subscriptions" && <AdminAssinaturasTab />}
 
       {activeTab === "billing" && (
         <AdminBillingTab revenueData={revenueData} CustomTooltip={CustomTooltip} />

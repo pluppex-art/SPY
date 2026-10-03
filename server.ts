@@ -10,6 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 import { randomUUID, timingSafeEqual } from "crypto";
 import axios from "axios";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
+import { createSaas, aiContext } from "./server/saas.js";
 import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./server/whatsappProvider.js";
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
@@ -179,6 +180,7 @@ async function callGroq(prompt: string): Promise<string> {
       timeout: 20000,
     }
   );
+  saas.recordAiUsage("groq/llama-3.3-70b", res.data.usage?.prompt_tokens, res.data.usage?.completion_tokens, res.data.usage?.total_tokens);
   return (res.data.choices?.[0]?.message?.content ?? "") as string;
 }
 
@@ -326,6 +328,21 @@ app.use("/api/v1/leads", apiKeyLimiter);
 app.use("/api/v1/lead-activities", apiKeyLimiter);
 app.use("/api/v1/finance-entries", apiKeyLimiter);
 app.use("/api/leads", aiLimiter);
+
+// SaaS (cobrança, teto de IA, LGPD) — ver server/saas.ts. O gate roda antes das rotas de IA:
+// tenant suspenso => 402; teto mensal de tokens estourado => 429; tokens consumidos são
+// contabilizados em ai_usage_log (Gemini via wrapper, Groq em callGroq).
+const saas = createSaas({
+  requireUser, requireMaster, supabase, supabaseService, supabaseUrl, supabaseKey,
+  createUserClient: (token: string) => createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${token}` } } }),
+});
+saas.trackGeminiUsage(ai);
+app.use("/api/ai", saas.aiGate({ enforceBudget: true }));
+app.use("/api/leads", saas.aiGate({ enforceBudget: true }));
+app.use("/api/whatsapp", saas.aiGate({ enforceBudget: false }));
+app.use("/api/billing/webhook", rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }));
+app.use("/api/billing", saas.billingRouter);
+app.use("/api/lgpd", saas.lgpdRouter);
 app.use("/api/ai", aiLimiter);
 app.use("/api/whatsapp", whatsappLimiter);
 app.use("/api/google-calendar", googleCalendarLimiter);
@@ -365,6 +382,15 @@ async function requireUser(req: express.Request, res: express.Response, next: ex
 
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data.user) return res.status(401).json({ error: "Sessão inválida ou expirada." });
+
+    // Conta com 2º fator verificado precisa de sessão aal2: senha sozinha não basta nas rotas /api.
+    // (O JWT já foi validado por getUser acima; aqui só se lê o claim `aal`.)
+    const hasVerifiedFactor = ((data.user as any).factors || []).some((f: any) => f?.status === "verified");
+    if (hasVerifiedFactor) {
+      let aal = "";
+      try { aal = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8")).aal || ""; } catch { /* token malformado já teria falhado */ }
+      if (aal !== "aal2") return res.status(401).json({ error: "Verificação em duas etapas pendente.", code: "mfa_required" });
+    }
 
     (req as any).user = data.user;
     (req as any).supabase = createClient(supabaseUrl, supabaseKey, {
@@ -4945,7 +4971,9 @@ app.post("/api/whatsapp/webhook/:instanceId", async (req: any, res) => {
     if (msgErr && msgErr.code !== "23505") console.error("[whatsapp/webhook] insert mensagem falhou:", msgErr.message);
     if (msgErr) return; // duplicata (23505) ou falha real — não dispara auto-reply de novo pro mesmo evento.
 
-    await runAuroraAutoReply(inst.tenant_id, inst.id, contact.id, contact.phone, text);
+    // Tenant suspenso ou sem saldo de IA: a mensagem já foi salva (dados guardados), mas a IA não responde.
+    if (!(await saas.isAiAllowed(inst.tenant_id))) return;
+    await aiContext.run({ tenantId: inst.tenant_id }, () => runAuroraAutoReply(inst.tenant_id, inst.id, contact.id, contact.phone, text));
   } catch (err: any) {
     console.error("[whatsapp/webhook]", err?.message);
     // Resposta HTTP já foi enviada acima — só loga.
