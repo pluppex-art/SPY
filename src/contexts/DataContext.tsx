@@ -178,9 +178,9 @@ const DELTA_TABLES = new Set([
   'leads', 'clientes', 'tasks', 'reunioes', 'finance_entries', 'lead_activities',
   'contracts', 'appointments', 'proposals', 'proposal_items',
 ]);
-// SÓ ligar depois de aplicar supabase/migrations/*perf_updated_at_delta_sync.sql: sem o trigger
-// que mantém updated_at, um UPDATE não muda a coluna e o cache serviria dado velho.
-const DELTA_SYNC_ENABLED = false;
+// Ligada: migração perf_updated_at_delta_sync aplicada em 2026-10-03 (trigger mantém updated_at).
+// Sem esse trigger um UPDATE não muda a coluna e o cache serviria dado velho — não desligar a migração.
+const DELTA_SYNC_ENABLED = true;
 const DELTA_OVERLAP_MS = 2 * 60 * 1000;
 const deltaUnsupported = new Set<string>(); // tabelas sem updated_at nesta sessão
 
