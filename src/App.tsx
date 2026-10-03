@@ -5,7 +5,10 @@ const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
 // Lazy: página de marketing pública, sem nenhuma dependência do app autenticado — fica no
 // próprio chunk pra quem visita /lp não baixar o bundle inteiro do CRM.
 const SPYLandingPage = lazy(() => import("./pages/lp/SPYLandingPage"));
-const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
+// "Central de Receita" — redesenho do Dashboard principal (/app/dashboard),
+// pedido explícito do usuário. O Dashboard.tsx antigo continua no repo (não
+// apagado) só não está mais roteado aqui — reversível se precisar.
+const Dashboard = lazy(() => import("./pages/dashboard/CentralReceita"));
 const PerformanceIA = lazy(() => import("./pages/dashboard/PerformanceIA"));
 const PainelGeral = lazy(() => import("./pages/clinica/PainelGeral"));
 const AgendaMedica = lazy(() => import("./pages/clinica/AgendaMedica"));
