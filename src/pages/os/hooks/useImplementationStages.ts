@@ -58,6 +58,7 @@ export function useImplementationStages() {
   const { activeTenantId, user } = useAuth();
 
   const [fonte, setFonte] = useState<FonteOsImplementacao | null>(null);
+  const [carregado, setCarregado] = useState(false);
   const [funilEscolhido, setFunilEscolhido] = useState<string | null>(null);
   const tentadas = useRef(new Set<string>());
   const criando = useRef(false);
@@ -65,12 +66,14 @@ export function useImplementationStages() {
   const crmStages = useMemo(() => getImplementacaoStages(appSettings, funisCrm), [appSettings, funisCrm]);
 
   const recarregar = useCallback(async () => {
-    if (!supabase || !activeTenantId) { setFonte(null); return; }
+    if (!supabase || !activeTenantId) { setFonte(null); setCarregado(true); return; }
     setFonte(await carregarFonteImplementacao(supabase, activeTenantId));
+    setCarregado(true);
   }, [activeTenantId]);
 
   useEffect(() => {
     setFonte(null);
+    setCarregado(false);
     tentadas.current.clear();
     recarregar();
   }, [recarregar]);
@@ -197,6 +200,9 @@ export function useImplementationStages() {
     setFunilId: setFunilEscolhido,
     nomeFunil: funilSel?.nome ?? null,
     nomeDepartamento: fonte?.departamento.nome ?? null,
+    departamentoId: fonte?.departamento.id ?? null,
+    /** Já terminou de descobrir de onde vêm as etapas (evita piscar a tela antiga antes de redirecionar). */
+    carregado,
     recarregar,
   };
 }

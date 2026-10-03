@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Rocket, Play, Search, ClipboardList, CheckCircle2, Clock, Gauge, ChevronRight, LayoutList, Columns3, Workflow } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
@@ -174,6 +174,12 @@ export default function Implementacoes() {
       setIniciando(null);
     }
   };
+
+  // Com o departamento Implementação na OS, o quadro é o da OS — esta lista seria uma duplicata.
+  if (etapas.origem === "os" && etapas.departamentoId) {
+    return <Navigate to={`/app/ordens-servico?dep=${etapas.departamentoId}`} replace />;
+  }
+  if (!etapas.carregado) return null;
 
   return (
     <PageContainer

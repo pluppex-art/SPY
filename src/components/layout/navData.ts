@@ -242,7 +242,7 @@ export const navSections = [
     items: [
       { name: "Painel SaaS & Infra", path: "/app/admin", icon: Server, reqCondition: "master-only" as NavReqCondition },
       { name: "Portal de Parceiros", path: "/app/parceiros", icon: Handshake, reqCondition: "master-or-partner" as NavReqCondition },
-      { name: "Implementações", path: "/app/crm/implementacoes", icon: ClipboardList, reqCondition: "master-only" as NavReqCondition },
+      { name: "Implementações", path: "/app/crm/implementacoes", icon: ClipboardList, reqCondition: "master-only" as NavReqCondition, hideWhen: "os-implementacao" },
     ],
   },
 ];

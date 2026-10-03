@@ -6,6 +6,7 @@ import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 
 import { navSections, conditionCheckers, type NavReqCondition } from "./navData";
+import { useUsaOsImplementacao } from "../../pages/os/hooks/useUsaOsImplementacao";
 import { Logo } from "../ui/Logo";
 
 interface SidebarProps {
@@ -28,6 +29,8 @@ export function Sidebar({
     activeFilialId, switchFilial,
   } = useAuth();
   const { cargos, empresaFiliais, tenantPrimaryColor } = useData();
+  // Com o departamento Implementação na OS, o trabalho de implementar vive lá (não há segundo lugar no menu).
+  const usaOsImplementacao = useUsaOsImplementacao();
   const { t } = useLocalization();
   // Achado de UX 2026-09-21: toda seção começava fechada em todo login/refresh
   // — o cliente via só títulos de categoria, sem nenhum link clicável, até
@@ -166,6 +169,7 @@ export function Sidebar({
                 if (item.reqModule && item.reqModule !== 'master' && !canAccessModule(item.reqModule)) return false;
                 if (item.reqModule === 'master' && !user?.isMaster) return false;
                 if (item.reqCondition && !conditionCheckers[item.reqCondition as NavReqCondition](user)) return false;
+                if (item.hideWhen === 'os-implementacao' && usaOsImplementacao) return false;
                 return true;
               });
 

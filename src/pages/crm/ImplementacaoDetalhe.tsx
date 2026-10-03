@@ -214,7 +214,9 @@ export default function ImplementacaoDetalhe() {
     <PageContainer
       title={cliente?.name || "Implementação"}
       description="Preencha o formulário conforme a implantação avança — salva automaticamente."
-      breadcrumb={[{ label: "CRM & Vendas" }, { label: "Implementações", path: "/app/crm/implementacoes" }, { label: cliente?.name || "Detalhe" }]}
+      breadcrumb={etapas.origem === "os" && etapas.departamentoId
+        ? [{ label: "Operações" }, { label: "Ordens de Serviço", path: `/app/ordens-servico?dep=${etapas.departamentoId}` }, { label: cliente?.name || "Implementação" }]
+        : [{ label: "CRM & Vendas" }, { label: "Implementações", path: "/app/crm/implementacoes" }, { label: cliente?.name || "Detalhe" }]}
       actions={
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] text-[var(--color-text-faint)] flex items-center gap-1 w-20 justify-end">

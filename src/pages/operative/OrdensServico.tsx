@@ -18,6 +18,8 @@ import { useOS } from "../os/hooks/useOS";
 import { OS_STATUS_COLUNAS, osEmAberto, type OrdemServico } from "../os/osTypes";
 import { OsBoard, PrioridadeBadge, prazoInfo, type OsBoardColuna } from "../os/components/OsBoard";
 import { DetalheOsModal, NovaOsModal } from "../os/components/OsModais";
+import { IniciarImplementacao } from "../os/components/IniciarImplementacao";
+import { ehDepartamentoImplementacao } from "../os/implementationOs";
 
 const FILTROS = ["Todas", ...OS_STATUSES] as const;
 const TODOS = "todos";
@@ -226,6 +228,8 @@ export default function OrdensServico() {
             })}
           </div>
         )}
+
+        {depAtual && ehDepartamentoImplementacao(depAtual.nome) && <IniciarImplementacao onIniciada={os.reload} />}
 
         {os.loading ? (
           <p className="text-xs text-[var(--color-text-faint)] flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Carregando…</p>

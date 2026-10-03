@@ -177,6 +177,9 @@ export default function OrdemServicoDetalhe() {
       actions={
         <div className="flex items-center gap-2 flex-wrap">
           <Link to="/app/ordens-servico" className="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] px-2"><ArrowLeft className="w-3.5 h-3.5" /> Lista</Link>
+          {os.origem_tipo === "implementation" && os.origem_id && (
+            <Link to={`/app/crm/implementacoes/${os.origem_id}`} className="inline-flex items-center h-9 px-4 rounded-[var(--radius-control)] border border-[var(--color-border-default)] text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]">Abrir implementação</Link>
+          )}
           <Button variant="outline" onClick={imprimir} className="h-9 px-4 text-xs font-medium gap-1.5"><Printer className="w-3.5 h-3.5" /> Imprimir / PDF</Button>
           {!locked && (
             <Button onClick={() => salvar()} disabled={salvando || !dirty} className="h-9 px-4 text-xs font-medium gap-1.5">

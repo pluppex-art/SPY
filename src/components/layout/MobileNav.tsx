@@ -10,6 +10,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { navSections, conditionCheckers, type NavReqCondition } from "./navData";
+import { useUsaOsImplementacao } from "../../pages/os/hooks/useUsaOsImplementacao";
 
 interface MobileNavProps {
   isMobileMoreOpen: boolean;
@@ -22,6 +23,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
   const navigate = useNavigate();
   const { logout, user, isModuleEnabled } = useAuth();
   const { cargos } = useData();
+  const usaOsImplementacao = useUsaOsImplementacao();
 
   const userCargo = cargos.find((c: any) => c.nome === user?.role);
   const cargoModulos: string[] | null = userCargo && Array.isArray(userCargo.modulos) && userCargo.modulos.length > 0
@@ -104,6 +106,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
                     if (item.reqModule && item.reqModule !== 'master' && !canAccessModule(item.reqModule)) return false;
                     if (item.reqModule === 'master' && !user?.isMaster) return false;
                     if (item.reqCondition && !conditionCheckers[item.reqCondition as NavReqCondition](user)) return false;
+                    if (item.hideWhen === 'os-implementacao' && usaOsImplementacao) return false;
                     return true;
                   });
 
