@@ -1,7 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  TrendingUp, Target, AlertTriangle, Gauge, Flame, Sparkles, UserX, FileWarning,
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+} from "recharts";
+import {
+  TrendingUp, Target, AlertTriangle, Gauge, Flame, Sparkles, UserX, FileWarning, SlidersHorizontal,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
@@ -12,12 +15,16 @@ import { parseCurrencyBR } from "../../lib/utils";
 import { computeProductRevenue, buildAuroraAcoes, type AuroraAcaoIcon, type DashboardData } from "./revenueInsights";
 
 const AURORA_ICONS: Record<AuroraAcaoIcon, typeof Flame> = { flame: Flame, sparkles: Sparkles, userx: UserX, filewarning: FileWarning };
+const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardData }) {
   const { contracts, proposals, proposalItems, products, squads } = useData();
-  const { leads, totalRevenue, faturamentoContratado } = dashboard;
+  const { leads, totalRevenue, faturamentoContratado, performanceData } = dashboard;
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
+  const [simConversao, setSimConversao] = useState(10);
+  const [simRecuperar, setSimRecuperar] = useState(5);
+  const [simNovosLeads, setSimNovosLeads] = useState(50);
 
   const leadsAbertos = useMemo(() => (leads as any[]).filter((l) => l.status !== "Fechado" && l.status !== "Perdido"), [leads]);
   const vendas = useMemo(() => (leads as any[]).filter((l) => l.status === "Fechado"), [leads]);
@@ -41,10 +48,31 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
   const probMeta = totalMeta > 0 ? Math.min(100, Math.round((totalAlcancado / totalMeta) * 1000) / 10) : null;
 
   const cenarios = [
-    { label: "Cenário Conservador", valor: totalRevenue + pipelinePonderado * 0.6 },
-    { label: "Cenário Base", valor: previsao90dias },
-    { label: "Cenário Otimista", valor: totalRevenue + pipelineTotal * 0.6 },
+    { label: "Cenário Conservador", valor: totalRevenue + pipelinePonderado * 0.6, cor: "#ef4444" },
+    { label: "Cenário Base", valor: previsao90dias, cor: "var(--color-primary-blue)" },
+    { label: "Cenário Otimista", valor: totalRevenue + pipelineTotal * 0.6, cor: "#10b981" },
   ];
+
+  // Extensão real do histórico (últimos 3 meses de receita, já calculados em
+  // useDashboard) + 3 meses projetados interpolando até cada cenário acima —
+  // é uma simulação (rotulada como tal), não uma previsão de IA.
+  const cenariosChartData = useMemo(() => {
+    const hist = (performanceData || []).slice(-3);
+    if (hist.length === 0) return [];
+    const lastValue = hist[hist.length - 1]?.vendas || totalRevenue;
+    const now = new Date();
+    const base = hist.map((h: any) => ({ name: h.name, conservador: h.vendas, base: h.vendas, otimista: h.vendas }));
+    const proj = [1, 2, 3].map((i) => {
+      const t = i / 3;
+      return {
+        name: MONTH_NAMES[(now.getMonth() + i) % 12],
+        conservador: Math.round(lastValue + (cenarios[0].valor - lastValue) * t),
+        base: Math.round(lastValue + (cenarios[1].valor - lastValue) * t),
+        otimista: Math.round(lastValue + (cenarios[2].valor - lastValue) * t),
+      };
+    });
+    return [...base, ...proj];
+  }, [performanceData, cenarios, totalRevenue]);
 
   const auroraAcoes = useMemo(() => buildAuroraAcoes({
     leadsAbertos, oportunidadesRecuperaveis, recuperavelValue, contratosEmRisco, propostasSemFollowUp, propostasSemFollowUpValue,
@@ -70,6 +98,16 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
     { label: "Ticket médio dos negócios fechados", valor: formatCurrency(ticketMedioFechado) },
     { label: "Oportunidades paradas (+30 dias)", valor: String(oportunidadesParadas) },
   ];
+
+  // Simulador: cada slider aplica uma fórmula real sobre os números já
+  // calculados acima (ticket médio real, taxa de conversão real de
+  // propostas) — não é uma projeção de IA, é aritmética transparente sobre
+  // dado real, pra servir de "e se" interativo.
+  const resultadoSimulado = previsao90dias
+    + previsao90dias * (simConversao / 100)
+    + simRecuperar * ticketMedioFechado
+    + simNovosLeads * (taxaConversaoPropostas / 100) * ticketMedioFechado;
+  const impactoSimulado = previsao90dias > 0 ? Math.round(((resultadoSimulado - previsao90dias) / previsao90dias) * 1000) / 10 : 0;
 
   return (
     <div className="space-y-6">
@@ -104,15 +142,36 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1">Cenários de Receita</h3>
-          <p className="text-[10px] text-[var(--color-text-muted)] mb-4">Simulação baseada no pipeline atual e na probabilidade (Score IA) de cada oportunidade.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Simulação a partir da tendência real dos últimos meses + pipeline ponderado por Score IA.</p>
+          <div className="flex flex-wrap gap-2 mb-3">
             {cenarios.map((c) => (
-              <div key={c.label} className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{c.label}</p>
-                <p className="text-lg font-black text-[var(--color-text-primary)] font-mono mt-1">{formatCurrency(c.valor)}</p>
+              <div key={c.label} className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-2.5 py-1.5">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.cor }} />
+                <span className="text-[10px] font-bold text-[var(--color-text-muted)]">{c.label}</span>
+                <span className="text-[10px] font-black font-mono text-[var(--color-text-primary)]">{formatCurrency(c.valor)}</span>
               </div>
             ))}
           </div>
+          {cenariosChartData.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-faint)] italic py-8 text-center">Histórico insuficiente pra simular cenários ainda.</p>
+          ) : (
+            <div className="h-[200px] w-full -mx-2">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={180}>
+                <LineChart data={cenariosChartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.15)" vertical={false} />
+                  <XAxis dataKey="name" stroke="var(--color-text-faint)" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--color-text-faint)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v: number) => formatCurrency(v)} width={70} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: 12, fontSize: 11 }}
+                    formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                  />
+                  <Line type="monotone" dataKey="otimista" name="Otimista" stroke={cenarios[2].cor} strokeWidth={2} dot={false} strokeDasharray="4 4" />
+                  <Line type="monotone" dataKey="base" name="Base" stroke={cenarios[1].cor as string} strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="conservador" name="Conservador" stroke={cenarios[0].cor} strokeWidth={2} dot={false} strokeDasharray="4 4" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
 
         <Card className="lg:col-span-5 p-5 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-white">
@@ -142,8 +201,8 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <Card className="lg:col-span-4 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="p-4 border-b border-[var(--color-border-subtle)]"><h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Maior Probabilidade de Fechamento</h3></div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
@@ -165,7 +224,7 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
           </div>
         </Card>
 
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="lg:col-span-4 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="p-4 border-b border-[var(--color-border-subtle)]"><h3 className="text-xs font-black text-danger uppercase tracking-wider">Riscos Previstos</h3></div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
@@ -184,6 +243,41 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
                 {contratosEmRisco.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-[var(--color-text-faint)]">Nenhum contrato em risco agora.</td></tr>}
               </tbody>
             </table>
+          </div>
+        </Card>
+
+        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1 flex items-center gap-1.5"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Simulador de Decisão</h3>
+          <p className="text-[10px] text-[var(--color-text-muted)] mb-4">Veja o impacto de diferentes ações na sua receita.</p>
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Aumentar taxa de conversão em</span>
+                <span className="text-[11px] font-black text-[var(--color-text-primary)] font-mono">{simConversao}%</span>
+              </div>
+              <input type="range" min={0} max={30} value={simConversao} onChange={(e) => setSimConversao(Number(e.target.value))} className="w-full accent-[var(--color-primary-blue)]" />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Recuperar oportunidades perdidas</span>
+                <span className="text-[11px] font-black text-[var(--color-text-primary)] font-mono">{simRecuperar}</span>
+              </div>
+              <input type="range" min={0} max={20} value={simRecuperar} onChange={(e) => setSimRecuperar(Number(e.target.value))} className="w-full accent-[var(--color-primary-blue)]" />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Adicionar novos leads mensais</span>
+                <span className="text-[11px] font-black text-[var(--color-text-primary)] font-mono">{simNovosLeads}</span>
+              </div>
+              <input type="range" min={0} max={200} step={10} value={simNovosLeads} onChange={(e) => setSimNovosLeads(Number(e.target.value))} className="w-full accent-[var(--color-primary-blue)]" />
+            </div>
+            <div className="rounded-xl bg-[var(--color-surface-sunken)] p-3.5 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-black uppercase text-[var(--color-text-faint)]">Resultado projetado</p>
+                <p className="text-sm font-black text-[var(--color-text-primary)] font-mono">{formatCurrency(resultadoSimulado)}</p>
+              </div>
+              <span className={`text-xs font-black font-mono ${impactoSimulado >= 0 ? "text-success" : "text-danger"}`}>{impactoSimulado >= 0 ? "+" : ""}{impactoSimulado}%</span>
+            </div>
           </div>
         </Card>
       </div>
