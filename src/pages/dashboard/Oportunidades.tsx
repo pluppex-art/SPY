@@ -190,7 +190,7 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
 
         {selecionado && (
           <Card className="w-full lg:w-[320px] shrink-0 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-            <div className="p-4 bg-[var(--color-text-primary)] text-white flex items-start justify-between gap-2">
+            <div className="p-4 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 text-white flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-sm font-black truncate">{selecionado.company || selecionado.name}</p>
                 <p className="text-[10px] text-white/60 flex items-center gap-1 mt-0.5"><Building2 className="w-3 h-3" /> {stageNames[selecionado.stageId] || "Oportunidade"}</p>
