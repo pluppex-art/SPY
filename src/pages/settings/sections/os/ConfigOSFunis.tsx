@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Plus, ChevronDown, ChevronRight, Pencil, Trash2, ToggleLeft, ToggleRight, Layers, Check } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, Pencil, Trash2, ToggleLeft, ToggleRight, Layers, Check, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 import { Spinner } from "../../../../components/ui/spinner";
+import { cn } from "../../../../lib/utils";
 import { CORES_LISTA, ETAPA_CORES } from "../crm/funisTypes";
 import { EtapaCard } from "../crm/EtapaCard";
 import { useOS } from "../../../os/hooks/useOS";
@@ -25,6 +26,10 @@ export function ConfigOSFunis() {
   const [novoNome, setNovoNome] = useState("");
   const [criando, setCriando] = useState(false);
   const [renomeando, setRenomeando] = useState<{ id: string; nome: string } | null>(null);
+  // Vários funis por departamento: qual está aberto no editor, criação e renomeação de funil.
+  const [funilSelPorDep, setFunilSelPorDep] = useState<Record<string, string>>({});
+  const [novoFunil, setNovoFunil] = useState<{ dep: string; nome: string } | null>(null);
+  const [renomeandoFunil, setRenomeandoFunil] = useState<{ id: string; nome: string } | null>(null);
 
   if (os.loading) {
     return (
@@ -34,7 +39,53 @@ export function ConfigOSFunis() {
     );
   }
 
-  const funilDe = (d: OsDepartamento): OsFunil | undefined => os.funilPadraoDe(d.id) ?? os.funis.find(f => f.departamentoId === d.id);
+  const funisDe = (d: OsDepartamento): OsFunil[] => os.funis.filter(f => f.departamentoId === d.id);
+  const funilDe = (d: OsDepartamento): OsFunil | undefined =>
+    funisDe(d).find(f => f.id === funilSelPorDep[d.id]) ?? os.funilPadraoDe(d.id) ?? funisDe(d)[0];
+
+  const handleCriarFunil = async (depId: string) => {
+    const nome = (novoFunil?.dep === depId ? novoFunil.nome : "").trim();
+    setNovoFunil(null);
+    if (!nome) return;
+    if (os.funis.some(f => f.departamentoId === depId && f.nome.toLowerCase() === nome.toLowerCase())) {
+      toast.error(`Já existe um funil "${nome}" neste departamento.`);
+      return;
+    }
+    const f = await os.addFunil(depId, nome);
+    if (f) {
+      setFunilSelPorDep(prev => ({ ...prev, [depId]: f.id }));
+      toast.success(`Funil "${nome}" criado, com as etapas do funil padrão para você ajustar.`);
+    }
+  };
+
+  const handleRenomearFunil = async () => {
+    if (!renomeandoFunil) return;
+    const nome = renomeandoFunil.nome.trim();
+    const atual = os.funis.find(f => f.id === renomeandoFunil.id);
+    setRenomeandoFunil(null);
+    if (nome && atual && nome !== atual.nome) await os.renomearFunil(atual.id, nome);
+  };
+
+  const handleAlternarFunil = async (f: OsFunil) => {
+    if (f.ativo && f.padrao) {
+      toast.error("O funil padrão não pode ser desativado. Defina outro como padrão antes.");
+      return;
+    }
+    const emUso = os.ordens.filter(o => o.funilId === f.id).length;
+    if (f.ativo && emUso > 0 && !(await confirmDialog({
+      title: "Desativar funil",
+      description: `${emUso} OS usam o funil "${f.nome}" e deixam de aparecer na aba do departamento enquanto ele estiver inativo. Desativar mesmo assim?`,
+    }))) return;
+    await os.updateFunil(f.id, { ativo: !f.ativo });
+  };
+
+  const handleExcluirFunil = async (f: OsFunil) => {
+    if (!(await confirmDialog({ title: "Excluir funil", description: `Excluir o funil "${f.nome}" e as etapas dele? Essa ação não pode ser desfeita.` }))) return;
+    if (await os.deleteFunil(f.id)) {
+      setFunilSelPorDep(prev => { const n = { ...prev }; delete n[f.departamentoId]; return n; });
+      toast.success("Funil removido.");
+    }
+  };
 
   const handleCriar = async () => {
     const nome = novoNome.trim();
@@ -207,7 +258,7 @@ export function ConfigOSFunis() {
                       );
                     })}
                     {(f?.etapas.length ?? 0) > 6 && <span className="text-[9px] text-[var(--color-text-faint)] font-bold">+{(f?.etapas.length ?? 0) - 6}</span>}
-                    <span className="text-[9px] text-[var(--color-text-faint)] font-bold ml-2">{qtdOs} OS</span>
+                    <span className="text-[9px] text-[var(--color-text-faint)] font-bold ml-2">{qtdOs} OS{funisDe(d).length > 1 ? ` · ${funisDe(d).length} funis` : ""}</span>
                   </div>
                 </div>
 
@@ -239,6 +290,85 @@ export function ConfigOSFunis() {
                   </button>
                 </div>
               </div>
+
+              {aberto && (
+                <div className="border-t border-[var(--color-border-subtle)] px-4 pt-3 pb-1 flex flex-wrap items-center gap-2">
+                  {funisDe(d).map(x => (
+                    <button
+                      key={x.id}
+                      type="button"
+                      onClick={() => setFunilSelPorDep(prev => ({ ...prev, [d.id]: x.id }))}
+                      title={x.padrao ? "Funil padrão: é nele que as OS novas entram" : undefined}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                        f?.id === x.id
+                          ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/30 text-[var(--color-primary-blue)]"
+                          : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]",
+                        !x.ativo && "opacity-60",
+                      )}
+                    >
+                      {x.padrao && <Star className="w-3 h-3 fill-current" />}
+                      {x.nome}
+                      {!x.ativo && <span className="text-[9px] uppercase">inativo</span>}
+                    </button>
+                  ))}
+                  {novoFunil?.dep === d.id ? (
+                    <input
+                      autoFocus
+                      value={novoFunil.nome}
+                      onChange={e => setNovoFunil({ dep: d.id, nome: e.target.value })}
+                      onBlur={() => handleCriarFunil(d.id)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") handleCriarFunil(d.id);
+                        if (e.key === "Escape") setNovoFunil(null);
+                      }}
+                      placeholder="Nome do novo funil"
+                      className="h-8 px-3 text-xs rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-primary-blue)] outline-none"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setNovoFunil({ dep: d.id, nome: "" })}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-[var(--color-border-default)] text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all"
+                    >
+                      <Plus className="w-3 h-3" /> Novo funil
+                    </button>
+                  )}
+
+                  {f && (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {renomeandoFunil?.id === f.id ? (
+                        <input
+                          autoFocus
+                          value={renomeandoFunil.nome}
+                          onChange={e => setRenomeandoFunil({ id: f.id, nome: e.target.value })}
+                          onBlur={handleRenomearFunil}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") handleRenomearFunil();
+                            if (e.key === "Escape") setRenomeandoFunil(null);
+                          }}
+                          className="h-8 px-3 text-xs rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-primary-blue)] outline-none"
+                        />
+                      ) : (
+                        <button type="button" onClick={() => setRenomeandoFunil({ id: f.id, nome: f.nome })} className="h-8 px-2.5 flex items-center gap-1 rounded-lg border border-[var(--color-border-default)] text-[11px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
+                          <Pencil className="w-3 h-3" /> Renomear
+                        </button>
+                      )}
+                      {!f.padrao && (
+                        <button type="button" onClick={() => os.definirFunilPadrao(f.id)} className="h-8 px-2.5 flex items-center gap-1 rounded-lg border border-[var(--color-border-default)] text-[11px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
+                          <Star className="w-3 h-3" /> Tornar padrão
+                        </button>
+                      )}
+                      <button type="button" onClick={() => handleAlternarFunil(f)} className="h-8 px-2.5 flex items-center gap-1 rounded-lg border border-[var(--color-border-default)] text-[11px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
+                        {f.ativo ? <ToggleRight className="w-3.5 h-3.5 text-emerald-500" /> : <ToggleLeft className="w-3.5 h-3.5" />} {f.ativo ? "Ativo" : "Inativo"}
+                      </button>
+                      <button type="button" onClick={() => handleExcluirFunil(f)} title="Excluir funil" className="h-8 w-8 flex items-center justify-center rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-faint)] hover:text-rose-500 hover:border-rose-500/30">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {aberto && f && (
                 <div className="border-t border-[var(--color-border-subtle)] overflow-x-auto">

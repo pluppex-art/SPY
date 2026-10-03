@@ -58,6 +58,7 @@ export interface OrdemServico {
   valorTotal: number;
   campos: Record<string, string>;
   origemTipo: string | null;
+  origemId: string | null;
   createdAt: string;
 }
 
@@ -133,6 +134,15 @@ export const OS_DEPARTAMENTOS_SUGERIDOS: OsDepartamentoTemplate[] = [
     cor: "pink",
     etapas: [["Pauta", "slate"], ["Produção", "blue"], ["Aprovação", "amber"], ["Agendado", "purple"], ["Publicado", "emerald", "concluida"], ["Cancelado", "rose", "cancelada"]],
   },
+  {
+    // Mesmas etapas do funil "Implementação" do CRM — a página de Implementações segue este fluxo.
+    nome: "Implementação",
+    cor: "cyan",
+    etapas: [
+      ["Contrato Assinado", "blue"], ["Kickoff Agendado", "purple"], ["Configuração Inicial", "purple"], ["Migração de Dados", "cyan"],
+      ["Treinamento da Equipe", "amber"], ["Testes/Homologação", "amber"], ["Go-live", "emerald"], ["Acompanhamento Pós Go-live", "emerald", "concluida"],
+    ],
+  },
   { nome: "Serviços", cor: "emerald", etapas: OS_FLUXO_GERAL },
   { nome: "Produtos", cor: "amber", etapas: OS_FLUXO_GERAL },
 ];
@@ -149,14 +159,14 @@ export const OS_TEMPLATES: OsTemplate[] = [
   {
     id: "agencia",
     nome: "Agência / operação completa",
-    descricao: "Dev, Tráfego, Conteúdo, Serviços e Produtos.",
-    departamentos: ["Dev", "Tráfego", "Conteúdo", "Serviços", "Produtos"],
+    descricao: "Dev, Tráfego, Conteúdo, Implementação, Serviços e Produtos.",
+    departamentos: ["Dev", "Tráfego", "Conteúdo", "Implementação", "Serviços", "Produtos"],
   },
   {
     nome: "Software house",
     id: "software-house",
-    descricao: "Dev e Serviços.",
-    departamentos: ["Dev", "Serviços"],
+    descricao: "Dev e Implementação.",
+    departamentos: ["Dev", "Implementação"],
   },
   {
     id: "geral",

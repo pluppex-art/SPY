@@ -4,24 +4,27 @@ import { Button } from "../../../components/ui/button";
 import { OS_STATUS_TONE, isOsLocked, osCode } from "../../../lib/ordemServico";
 import { cn } from "../../../lib/utils";
 import type { NovaOrdemPayload, OrdemPatch } from "../hooks/useOS";
-import { OS_ORIGEM_LABEL, OS_PRIORIDADES, type OrdemServico, type OsDepartamento, type OsEtapa, type OsPrioridade } from "../osTypes";
+import { OS_ORIGEM_LABEL, OS_PRIORIDADES, type OrdemServico, type OsDepartamento, type OsEtapa, type OsFunil, type OsPrioridade } from "../osTypes";
 
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] disabled:opacity-60";
 const labelCls = "block text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-1.5";
 
 export function NovaOsModal({
-  isOpen, onClose, departamentos, departamentoInicial, onSave,
+  isOpen, onClose, departamentos, departamentoInicial, funis, funilInicial, onSave,
 }: {
   isOpen: boolean;
   onClose: () => void;
   departamentos: OsDepartamento[];
   departamentoInicial?: string;
+  funis: OsFunil[];
+  funilInicial?: string;
   onSave: (p: NovaOrdemPayload) => Promise<boolean>;
 }) {
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [departamentoId, setDepartamentoId] = useState("");
+  const [funilId, setFunilId] = useState("");
   const [prioridade, setPrioridade] = useState<OsPrioridade>("Normal");
   const [responsavelNome, setResponsavelNome] = useState("");
   const [clienteNome, setClienteNome] = useState("");
@@ -29,6 +32,14 @@ export function NovaOsModal({
   const [salvando, setSalvando] = useState(false);
 
   const depSelecionado = departamentoId || departamentoInicial || departamentos[0]?.id || "";
+  // Departamento com vários funis: escolhe em qual a OS entra (padrão primeiro).
+  const funisDoDep = funis
+    .filter(f => f.departamentoId === depSelecionado && f.ativo)
+    .sort((a, b) => Number(b.padrao) - Number(a.padrao));
+  const funilSelecionado =
+    funisDoDep.find(f => f.id === funilId)?.id ??
+    funisDoDep.find(f => f.id === funilInicial)?.id ??
+    funisDoDep[0]?.id;
 
   const salvar = async () => {
     if (!titulo.trim() || !depSelecionado) return;
@@ -37,6 +48,7 @@ export function NovaOsModal({
       titulo: titulo.trim(),
       descricao: descricao.trim(),
       departamentoId: depSelecionado,
+      funilId: funilSelecionado,
       prioridade,
       responsavelNome: responsavelNome.trim(),
       clienteNome: clienteNome.trim(),
@@ -44,7 +56,7 @@ export function NovaOsModal({
     });
     setSalvando(false);
     if (!ok) return;
-    setTitulo(""); setDescricao(""); setDepartamentoId(""); setPrioridade("Normal");
+    setTitulo(""); setDescricao(""); setDepartamentoId(""); setFunilId(""); setPrioridade("Normal");
     setResponsavelNome(""); setClienteNome(""); setPrazo("");
   };
 
@@ -74,10 +86,18 @@ export function NovaOsModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>Departamento</label>
-            <select value={depSelecionado} onChange={e => setDepartamentoId(e.target.value)} className={inputCls}>
+            <select value={depSelecionado} onChange={e => { setDepartamentoId(e.target.value); setFunilId(""); }} className={inputCls}>
               {departamentos.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
             </select>
           </div>
+          {funisDoDep.length > 1 && (
+            <div>
+              <label className={labelCls}>Funil</label>
+              <select value={funilSelecionado} onChange={e => setFunilId(e.target.value)} className={inputCls}>
+                {funisDoDep.map(f => <option key={f.id} value={f.id}>{f.nome}{f.padrao ? " (padrão)" : ""}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className={labelCls}>Prioridade</label>
             <select value={prioridade} onChange={e => setPrioridade(e.target.value as OsPrioridade)} className={inputCls}>
@@ -103,17 +123,21 @@ export function NovaOsModal({
 }
 
 export function DetalheOsModal({
-  ordem, departamento, etapas, onClose, onUpdate, onMover, onCancelar, onExcluir, onAbrirCompleta,
+  ordem, departamento, etapas, funisDoDepartamento, onTrocarFunil, onClose, onUpdate, onMover, onCancelar, onExcluir, onAbrirCompleta, onAbrirOrigem,
 }: {
   ordem: OrdemServico | null;
   departamento?: OsDepartamento;
   etapas: OsEtapa[];
+  funisDoDepartamento: OsFunil[];
+  onTrocarFunil: (id: string, funilId: string) => Promise<void>;
   onClose: () => void;
   onUpdate: (id: string, patch: OrdemPatch) => Promise<void>;
   onMover: (id: string, etapaId: string) => Promise<void>;
   onCancelar: (o: OrdemServico) => void;
   onExcluir: (o: OrdemServico) => void;
   onAbrirCompleta: (o: OrdemServico) => void;
+  /** Abre o item que originou a OS (ex.: a implementação); sem isso o botão não aparece. */
+  onAbrirOrigem?: (o: OrdemServico) => void;
 }) {
   // Salva ao sair do campo, só se mudou — sem botão "Salvar" e sem request por tecla.
   const salvarCampo = (campo: "titulo" | "descricao" | "responsavelNome" | "clienteNome", valor: string) => {
@@ -138,6 +162,9 @@ export function DetalheOsModal({
               <Button variant="ghost" onClick={() => onCancelar(ordem)} className="text-rose-500 hover:text-rose-400">Cancelar OS</Button>
             ) : <span />}
             <div className="flex gap-2">
+              {onAbrirOrigem && ordem.origemId && (
+                <Button variant="outline" onClick={() => onAbrirOrigem(ordem)}>Abrir {(OS_ORIGEM_LABEL[ordem.origemTipo ?? ""] ?? "origem").toLowerCase()}</Button>
+              )}
               <Button variant="outline" onClick={() => onAbrirCompleta(ordem)}>Abrir OS completa</Button>
               <Button onClick={onClose}>Fechar</Button>
             </div>
@@ -156,6 +183,14 @@ export function DetalheOsModal({
             <label className={labelCls}>Título</label>
             <input defaultValue={ordem.titulo} onBlur={e => salvarCampo("titulo", e.target.value)} className={inputCls} />
           </div>
+          {funisDoDepartamento.length > 1 && ordem.funilId && (
+            <div>
+              <label className={labelCls}>Funil</label>
+              <select value={ordem.funilId} onChange={e => onTrocarFunil(ordem.id, e.target.value)} className={inputCls}>
+                {funisDoDepartamento.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+              </select>
+            </div>
+          )}
           {etapas.length > 0 && ordem.etapaId && (
             <div>
               <label className={labelCls}>Etapa do departamento</label>

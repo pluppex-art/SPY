@@ -4,6 +4,7 @@
 // handleWinStageDrop em usePipeline.ts e handleConvertLead em
 // useLeadDetails.ts), evitando duplicar essa regra em três lugares.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { garantirOrdemDaImplementacao } from "../pages/os/implementationOs";
 
 /** Só dados reais do cliente/lead/contatos — nada de default inventado (ex.: o "segmento"
  * de clientes criados automaticamente nasce como "Tecnologia" por padrão, então não entra). */
@@ -61,6 +62,12 @@ export async function startImplementationForClient(
     status: "Em andamento",
     data: prefillImplementationData(cliente, lead, contatos),
   });
+  // Se o tenant usa a Ordem de Serviço para o fluxo de implementação (departamento "Implementação"),
+  // a OS nasce junto com a implementação. Falhar aqui não impede a implementação: a página de
+  // Implementações cria as OS que faltarem na próxima vez que abrir.
+  if (supabase && created?.id && created.tenant_id) {
+    garantirOrdemDaImplementacao(supabase, created.tenant_id, created, cliente.name).catch(() => {});
+  }
   // Reflete no restante do sistema (KPI/filtro "Em Implantação" da Base de Clientes) — só sai de "Ativo".
   if (!cliente.status || cliente.status === "Ativo") await updateClienteBase(cliente.id, { status: "Em Implantação" });
 

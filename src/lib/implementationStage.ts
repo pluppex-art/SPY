@@ -66,6 +66,15 @@ export async function moveImplementationStage(
   await deps.updateLead(impl.lead_id, { stageId: nextStageId });
 
   const isLast = stages.length > 0 && nextStageId === stages[stages.length - 1].id;
+  await syncImplementationConclusion(impl, cliente, isLast, deps);
+  return { isLast };
+}
+
+/** Chegar/sair da etapa final vira o status da implementação ("Concluída"/"Em andamento" + completed_at)
+ * e do cliente ("Em Implantação" <-> "Ativo"). Compartilhada entre o funil do CRM e o funil da OS. */
+export async function syncImplementationConclusion(
+  impl: any, cliente: any, isLast: boolean, deps: Pick<MoveDeps, "updateImplementation" | "updateClienteBase">
+): Promise<void> {
   const wasConcluded = impl.status === "Concluída";
   if (isLast && !wasConcluded) {
     await deps.updateImplementation(impl.id, { status: "Concluída", completed_at: new Date().toISOString() });
@@ -74,5 +83,4 @@ export async function moveImplementationStage(
     await deps.updateImplementation(impl.id, { status: "Em andamento", completed_at: null });
     if (cliente?.status === "Ativo") await deps.updateClienteBase(cliente.id, { status: "Em Implantação" });
   }
-  return { isLast };
 }

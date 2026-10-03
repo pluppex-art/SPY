@@ -2,10 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useData } from "../../../contexts/DataContext";
+import { syncImplementationConclusion } from "../../../lib/implementationStage";
 import {
   OS_DEPARTAMENTOS_SUGERIDOS,
   OS_TEMPLATES,
+  OS_FLUXO_GERAL,
   etapasFromSeed,
+  novoIdEtapa,
   templateDepartamento,
   type OrdemServico,
   type OsDepartamento,
@@ -15,51 +19,15 @@ import {
   type OsStatus,
   statusDaEtapa,
 } from "../osTypes";
+import { rowToDepartamento, rowToFunil, rowToOrdem } from "../osMappers";
 import { OS_NEXT, isOsLocked } from "../../../lib/ordemServico";
-
-const rowToDepartamento = (r: any): OsDepartamento => ({
-  id: r.id,
-  nome: r.nome,
-  cor: r.cor || "blue",
-  ordem: r.ordem ?? 0,
-  ativo: r.ativo ?? true,
-});
-
-const rowToFunil = (r: any): OsFunil => ({
-  id: r.id,
-  departamentoId: r.departamento_id,
-  nome: r.nome,
-  etapas: Array.isArray(r.etapas) ? r.etapas : [],
-  padrao: !!r.padrao,
-  ativo: r.ativo ?? true,
-});
-
-// Mapeia public.ordens_servico (colunas legadas: responsavel, data_prevista, status...).
-const rowToOrdem = (r: any): OrdemServico => ({
-  id: r.id,
-  numero: Number(r.numero) || 0,
-  titulo: r.titulo,
-  descricao: r.descricao || "",
-  status: (r.status as OsStatus) || "Aberta",
-  departamentoId: r.departamento_id ?? null,
-  funilId: r.funil_id ?? null,
-  etapaId: r.etapa_id ?? null,
-  prioridade: (r.prioridade as OsPrioridade) || "Normal",
-  solicitanteNome: r.solicitante_nome || "",
-  responsavelNome: r.responsavel || "",
-  clienteNome: r.cliente_nome || "",
-  prazo: r.data_prevista || null,
-  dataConclusao: r.data_conclusao || null,
-  valorTotal: Number(r.valor_total) || 0,
-  campos: r.campos && typeof r.campos === "object" ? r.campos : {},
-  origemTipo: r.origem_tipo ?? null,
-  createdAt: r.created_at,
-});
 
 export interface NovaOrdemPayload {
   titulo: string;
   descricao?: string;
   departamentoId: string;
+  /** Funil do departamento; sem ele, usa o padrão. */
+  funilId?: string;
   prioridade: OsPrioridade;
   responsavelNome?: string;
   clienteNome?: string;
@@ -79,6 +47,7 @@ function errMsg(error: { message: string }, acao: string) {
 export function useOS() {
   const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId;
+  const { implementations, clienteBase, updateImplementation, updateClienteBase } = useData();
 
   const [departamentos, setDepartamentos] = useState<OsDepartamento[]>([]);
   const [funis, setFunis] = useState<OsFunil[]>([]);
@@ -278,10 +247,99 @@ export function useOS() {
     }
   };
 
+  // ─── Vários funis por departamento ──────────────────────────────────────
+  // Novo funil: começa como cópia do funil padrão do departamento (ids novos), para o time só ajustar.
+  const addFunil = async (departamentoId: string, nome: string): Promise<OsFunil | null> => {
+    if (!supabase || !tenantId) return null;
+    const base = funilPadraoDe(departamentoId);
+    const etapas: OsEtapa[] = base
+      ? base.etapas.map(e => ({ ...e, id: novoIdEtapa() }))
+      : etapasFromSeed(OS_FLUXO_GERAL);
+    const { data, error } = await supabase
+      .from("os_funis")
+      .insert({ tenant_id: tenantId, departamento_id: departamentoId, nome, etapas, padrao: false })
+      .select()
+      .single();
+    if (error || !data) {
+      if (error) errMsg(error, "Erro ao criar funil");
+      return null;
+    }
+    const f = rowToFunil(data);
+    setFunis(prev => [...prev, f]);
+    return f;
+  };
+
+  const renomearFunil = async (id: string, nome: string) => updateFunil(id, { nome });
+
+  // Um funil padrão por departamento (índice único): tira o atual e põe o novo; se a 2ª etapa falhar, desfaz a 1ª.
+  const definirFunilPadrao = async (id: string) => {
+    if (!supabase) return;
+    const alvo = funis.find(f => f.id === id);
+    if (!alvo || alvo.padrao) return;
+    const atual = funis.find(f => f.departamentoId === alvo.departamentoId && f.padrao);
+    const anterior = funis;
+    setFunis(prev => prev.map(f => (f.departamentoId !== alvo.departamentoId ? f : { ...f, padrao: f.id === id, ativo: f.id === id ? true : f.ativo })));
+    if (atual) {
+      const { error } = await supabase.from("os_funis").update({ padrao: false }).eq("id", atual.id);
+      if (error) { setFunis(anterior); errMsg(error, "Erro ao trocar o funil padrão"); return; }
+    }
+    const { error } = await supabase.from("os_funis").update({ padrao: true, ativo: true }).eq("id", id);
+    if (error) {
+      if (atual) await supabase.from("os_funis").update({ padrao: true }).eq("id", atual.id);
+      setFunis(anterior);
+      errMsg(error, "Erro ao trocar o funil padrão");
+    }
+  };
+
+  const deleteFunil = async (id: string): Promise<boolean> => {
+    if (!supabase) return false;
+    const f = funis.find(x => x.id === id);
+    if (!f) return false;
+    if (funis.filter(x => x.departamentoId === f.departamentoId).length <= 1) {
+      toast.error("O departamento precisa ter pelo menos um funil.");
+      return false;
+    }
+    if (f.padrao) {
+      toast.error("Este é o funil padrão. Escolha outro como padrão antes de excluir.");
+      return false;
+    }
+    const emUso = ordens.filter(o => o.funilId === id).length;
+    if (emUso > 0) {
+      toast.error(`${emUso} OS usam este funil. Mude essas OS de funil (ou desative o funil) antes de excluir.`);
+      return false;
+    }
+    const { error } = await supabase.from("os_funis").delete().eq("id", id);
+    if (error) { errMsg(error, "Erro ao excluir funil"); return false; }
+    setFunis(prev => prev.filter(x => x.id !== id));
+    return true;
+  };
+
+  // Muda a OS de funil (dentro do mesmo departamento): entra na 1ª etapa em andamento do novo funil.
+  const trocarFunilDaOrdem = async (id: string, funilId: string) => {
+    if (!supabase) return;
+    const ordem = ordens.find(o => o.id === id);
+    const funil = funis.find(f => f.id === funilId);
+    const etapa = funil?.etapas.find(e => e.tipo === "aberta");
+    if (!ordem || !funil || !etapa || ordem.funilId === funilId || funil.departamentoId !== ordem.departamentoId) return;
+    if (isOsLocked(ordem.status)) {
+      toast.error("OS faturada ou cancelada não muda de funil.");
+      return;
+    }
+    const status: OsStatus = statusDaEtapa(funil.etapas, etapa);
+    const anterior = ordens;
+    setOrdens(prev => prev.map(o => (o.id === id ? { ...o, funilId, etapaId: etapa.id, status, dataConclusao: null } : o)));
+    const { error } = await supabase
+      .from("ordens_servico")
+      .update({ funil_id: funilId, etapa_id: etapa.id, status, data_conclusao: null })
+      .eq("id", id);
+    if (error) { setOrdens(anterior); errMsg(error, "Erro ao mudar a OS de funil"); }
+  };
+
   // ─── Ordens de Serviço ──────────────────────────────────────────────────
   const addOrdem = async (p: NovaOrdemPayload): Promise<OrdemServico | null> => {
     if (!supabase || !tenantId) return null;
-    const funil = funilPadraoDe(p.departamentoId);
+    const escolhido = p.funilId ? funis.find(f => f.id === p.funilId && f.departamentoId === p.departamentoId && f.ativo) : undefined;
+    const funil = escolhido ?? funilPadraoDe(p.departamentoId);
     const etapaInicial = funil?.etapas.find(e => e.tipo === "aberta");
     if (!funil || !etapaInicial) {
       toast.error("Esse departamento não tem um fluxo ativo configurado.");
@@ -358,6 +416,16 @@ export function useOS() {
     if (error) {
       setOrdens(anterior);
       errMsg(error, "Erro ao mover OS");
+      return;
+    }
+    // OS de uma implementação: concluir/reabrir aqui também conclui/reabre a implementação e o
+    // cliente (mesma regra de quando se move pela página de Implementações).
+    if (ordem.origemTipo === "implementation" && ordem.origemId) {
+      const impl = (implementations as any[]).find(i => i.id === ordem.origemId);
+      if (impl) {
+        const cliente = (clienteBase as any[]).find(c => c.id === impl.cliente_id);
+        await syncImplementationConclusion(impl, cliente, etapa.tipo === "concluida", { updateImplementation, updateClienteBase });
+      }
     }
   };
 
@@ -432,6 +500,11 @@ export function useOS() {
     deleteDepartamento,
     aplicarTemplate,
     updateFunil,
+    addFunil,
+    renomearFunil,
+    definirFunilPadrao,
+    deleteFunil,
+    trocarFunilDaOrdem,
     addOrdem,
     updateOrdem,
     moverOrdem,

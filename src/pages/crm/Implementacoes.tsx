@@ -16,7 +16,7 @@ import {
 } from "../../lib/implementationForm";
 import { startImplementationForClient } from "../../lib/implementationAutoStart";
 import { tenantReadiness } from "../../lib/implementationTenant";
-import { getImplementacaoStages, getImplementationStageInfo, moveImplementationStage } from "../../lib/implementationStage";
+import { useImplementationStages } from "../os/hooks/useImplementationStages";
 
 const FILTROS = ["Todas", ...IMPLEMENTATION_STATUSES] as const;
 
@@ -28,7 +28,7 @@ const LEGACY_STATUS_DOT: Record<ImplementationStatus, string> = {
 };
 
 export default function Implementacoes() {
-  const { implementations, clienteBase, leads, funis, appSettings, addImplementation, updateImplementation, updateClienteBase, updateLead } = useData();
+  const { implementations, clienteBase, leads, addImplementation, updateImplementation, updateClienteBase, updateLead } = useData();
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState<(typeof FILTROS)[number]>("Todas");
   const [busca, setBusca] = useState("");
@@ -75,17 +75,17 @@ export default function Implementacoes() {
     [clienteBase, comImplementacao]
   );
 
-  // Espelha o funil de Implementação do Pipeline (ver handleWinStageDrop em
-  // usePipeline.ts): quando o tenant tem um configurado, essa tela passa a
-  // usar as MESMAS etapas (lidas do lead vinculado de cada implementação) em
-  // vez do status manual de 4 opções — arrastar aqui ou lá mexe no mesmo
-  // `leads.stageId`. Sem funil configurado, stages fica [] e tudo cai no
-  // comportamento de status manual de sempre (ver getColumnId/moverStatus).
-  const implementacaoStages = useMemo(() => getImplementacaoStages(appSettings, funis), [appSettings, funis]);
+  // Etapas desta tela, em ordem de prioridade (ver useImplementationStages):
+  //  1. funil de Implementação da Ordem de Serviço (pode haver vários funis) — a etapa de cada
+  //     implementação é a da OS vinculada, então aqui e no quadro da OS é o mesmo dado;
+  //  2. funil de Implementação do Pipeline, espelhado via `leads.stageId` (ver handleWinStageDrop);
+  //  3. status manual de 4 opções, quando nenhum dos dois está configurado (stages = []).
+  const etapas = useImplementationStages();
+  const implementacaoStages = etapas.stages;
 
   const getColumnId = (impl: any): string => {
     if (implementacaoStages.length === 0) return impl.status;
-    const info = getImplementationStageInfo(impl, leads as any[], implementacaoStages);
+    const info = etapas.getInfo(impl);
     return info?.stage.id ?? implementacaoStages[0].id;
   };
 
@@ -120,10 +120,10 @@ export default function Implementacoes() {
   const moverStatus = async (impl: any, cliente: any, nextColumnId: string) => {
     if (getColumnId(impl) === nextColumnId) return;
 
-    // Funil espelhado do Pipeline e essa implementação tem lead vinculado:
-    // arrastar move a ETAPA do lead (mesmo dado que o Kanban do Pipeline usa).
-    if (implementacaoStages.length > 0 && impl.lead_id) {
-      const { isLast } = await moveImplementationStage(impl, cliente, nextColumnId, implementacaoStages, {
+    // Funil da OS (ou espelhado do Pipeline, com lead vinculado): arrastar move a ETAPA —
+    // da OS, ou do lead (mesmo dado que o Kanban do Pipeline usa).
+    if (implementacaoStages.length > 0 && etapas.canMove(impl)) {
+      const { isLast } = await etapas.move(impl, cliente, nextColumnId, {
         updateLead, updateImplementation, updateClienteBase,
       });
       if (isLast && !impl.linked_tenant_id && tenantReadiness(impl.data || {}).ready) {
@@ -156,8 +156,9 @@ export default function Implementacoes() {
 
   const linhasBusca = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return linhas.filter((l) => !q || (l.cliente?.name || "").toLowerCase().includes(q) || (l.impl.responsavel || "").toLowerCase().includes(q));
-  }, [linhas, busca]);
+    return linhas.filter((l) => etapas.pertence(l.impl) && (!q || (l.cliente?.name || "").toLowerCase().includes(q) || (l.impl.responsavel || "").toLowerCase().includes(q)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhas, busca, etapas.funilId, etapas.origem, etapas.funis]);
 
   const iniciar = async (cliente: any, lead?: any) => {
     // Trava síncrona (o estado só atualiza no próximo render — um duplo clique passaria).
@@ -247,7 +248,22 @@ export default function Implementacoes() {
               </button>
             ))}
           </div>
-          {implementacaoStages.length > 0 && (
+          {etapas.origem === "os" && etapas.funis.length > 1 && (
+            <select
+              value={etapas.funilId ?? ""}
+              onChange={(e) => etapas.setFunilId(e.target.value)}
+              title="Funil de Implementação (configurado na Ordem de Serviço)"
+              className="h-8 px-3 rounded-[var(--radius-control)] text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] cursor-pointer"
+            >
+              {etapas.funis.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+            </select>
+          )}
+          {etapas.origem === "os" && (
+            <Link to="/app/configuracoes/os/funis" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" title={`As colunas são as etapas do funil "${etapas.nomeFunil}" do departamento ${etapas.nomeDepartamento} na Ordem de Serviço — mover um card aqui também move a OS.`}>
+              <Workflow className="w-3 h-3" /> Funil da Ordem de Serviço
+            </Link>
+          )}
+          {etapas.origem === "crm" && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" title="As colunas acima são as mesmas etapas do funil de Implementação no Pipeline — mover um card aqui também move lá.">
               <Workflow className="w-3 h-3" /> Espelhado do Pipeline
             </span>
@@ -337,7 +353,7 @@ export default function Implementacoes() {
                     <td className="px-6 py-3.5">
                       <span className={cn("inline-flex px-2.5 py-1 rounded-lg text-[10px] font-bold border", IMPLEMENTATION_STATUS_TONE[impl.status as ImplementationStatus])}>{impl.status}</span>
                       {(() => {
-                        const info = implementacaoStages.length > 0 ? getImplementationStageInfo(impl, leads as any[], implementacaoStages) : null;
+                        const info = implementacaoStages.length > 0 ? etapas.getInfo(impl) : null;
                         return info ? <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{info.stage.name}</p> : null;
                       })()}
                     </td>

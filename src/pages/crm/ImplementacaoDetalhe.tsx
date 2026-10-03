@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FileText, Trash2, ClipboardList, ArrowLeft, Check, Loader2, PartyPopper, Link2, Copy, RefreshCw, Gauge, ListChecks, CalendarClock, Building2, StickyNote, FormInput } from "lucide-react";
 import { toast } from "sonner";
@@ -24,7 +24,7 @@ import {
   IMPLEMENTATION_SECTIONS, IMPLEMENTATION_STATUSES, IMPLEMENTATION_STATUS_TONE, computeProgress,
   type ImplData, type ImplementationStatus,
 } from "../../lib/implementationForm";
-import { getImplementacaoStages, getImplementationStageInfo, moveImplementationStage } from "../../lib/implementationStage";
+import { useImplementationStages } from "../os/hooks/useImplementationStages";
 
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]";
@@ -33,17 +33,18 @@ export default function ImplementacaoDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { implementations, clienteBase, leads, funis, appSettings, updateImplementation, deleteImplementation, updateClienteBase, updateLead } = useData();
+  const { implementations, clienteBase, updateImplementation, deleteImplementation, updateClienteBase, updateLead } = useData();
   const { user } = useAuth();
 
   const impl = (implementations as any[]).find((i) => i.id === id);
   const cliente = impl ? (clienteBase as any[]).find((c) => c.id === impl.cliente_id) : null;
 
-  // Mesmo funil espelhado da lista (ver Implementacoes.tsx) — quando resolve
-  // (tenant com funil configurado + esta implementação tem lead vinculado
-  // nele), o status de 4 opções abaixo dá lugar à etapa real do funil.
-  const implementacaoStages = useMemo(() => getImplementacaoStages(appSettings, funis), [appSettings, funis]);
-  const stageInfo = impl ? getImplementationStageInfo(impl, leads as any[], implementacaoStages) : null;
+  // Mesma fonte de etapas da lista (ver Implementacoes.tsx / useImplementationStages) — quando
+  // resolve (funil da Ordem de Serviço, ou funil do Pipeline com lead vinculado), o status de 4
+  // opções abaixo dá lugar à etapa real do funil desta implementação.
+  const etapas = useImplementationStages();
+  const implementacaoStages = impl ? etapas.stagesDe(impl) : [];
+  const stageInfo = impl ? etapas.getInfo(impl) : null;
 
   const [data, setData] = useState<ImplData>({});
   const [createdHere, setCreatedHere] = useState(false);
@@ -167,7 +168,7 @@ export default function ImplementacaoDetalhe() {
   // Mesma ação, mas movendo a ETAPA do lead vinculado (funil espelhado do
   // Pipeline) em vez do status manual — usada quando `stageInfo` resolve.
   const changeStage = async (nextStageId: string) => {
-    const { isLast } = await moveImplementationStage(impl, cliente, nextStageId, implementacaoStages, {
+    const { isLast } = await etapas.move(impl, cliente, nextStageId, {
       updateLead, updateImplementation, updateClienteBase,
     });
     if (isLast && user?.isMaster && !impl.linked_tenant_id && readiness.ready) {
@@ -224,7 +225,7 @@ export default function ImplementacaoDetalhe() {
             <select
               value={stageInfo.stage.id}
               onChange={(e) => changeStage(e.target.value)}
-              title="Etapa no funil de Implementação (espelhado do Pipeline)"
+              title={etapas.origem === "os" ? `Etapa no funil "${etapas.nomeFunil}" da Ordem de Serviço` : "Etapa no funil de Implementação (espelhado do Pipeline)"}
               className={cn("h-9 px-3 rounded-[var(--radius-control)] text-xs font-bold border cursor-pointer bg-transparent", IMPLEMENTATION_STATUS_TONE[status])}
             >
               {implementacaoStages.map((s) => <option key={s.id} value={s.id} className="text-[var(--color-text-primary)] bg-[var(--color-surface-elevated)]">{s.name}</option>)}
@@ -299,7 +300,7 @@ export default function ImplementacaoDetalhe() {
               <Button
                 size="sm"
                 onClick={() => stageInfo
-                  ? changeStage(implementacaoStages[implementacaoStages.length - 1].id)
+                  ? changeStage(etapas.conclusaoStageId(impl) ?? implementacaoStages[implementacaoStages.length - 1].id)
                   : changeStatus("Concluída")}
                 className="h-8 px-3 text-xs font-medium"
               >

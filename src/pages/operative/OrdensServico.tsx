@@ -48,7 +48,20 @@ export default function OrdensServico() {
   const depsAtivos = useMemo(() => os.departamentos.filter(d => d.ativo), [os.departamentos]);
   const depPorId = useMemo(() => new Map(os.departamentos.map(d => [d.id, d])), [os.departamentos]);
   const depAtual = depsAtivos.find(d => d.id === params.get("dep"));
-  const funilAtual = depAtual ? os.funilPadraoDe(depAtual.id) : undefined;
+  // Um departamento pode ter vários funis: a aba mostra o escolhido (?funil=), senão o padrão.
+  const funisDoDep = useMemo(
+    () => (depAtual ? os.funis.filter(f => f.departamentoId === depAtual.id && f.ativo).sort((a, b) => Number(b.padrao) - Number(a.padrao)) : []),
+    [depAtual, os.funis],
+  );
+  const funilAtual = depAtual ? funisDoDep.find(f => f.id === params.get("funil")) ?? os.funilPadraoDe(depAtual.id) : undefined;
+  const irParaDep = (id: string | null) =>
+    setParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete("funil");
+      if (id === null) next.delete("dep");
+      else next.set("dep", id);
+      return next;
+    });
   const selecionada = os.ordens.find(o => o.id === selecionadaId) ?? null;
 
   const kpis = useMemo(() => {
@@ -171,7 +184,7 @@ export default function OrdensServico() {
                 const ativa = t.id === TODOS ? !depAtual : depAtual?.id === t.id;
                 return (
                   <button
-                    key={t.id} type="button" onClick={() => setParam("dep", t.id === TODOS ? null : t.id)}
+                    key={t.id} type="button" onClick={() => irParaDep(t.id === TODOS ? null : t.id)}
                     className={cn("shrink-0 flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all", ativa ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
                   >
                     {t.nome}
@@ -194,6 +207,25 @@ export default function OrdensServico() {
             ))}
           </div>
         </div>
+
+        {vista === "kanban" && funisDoDep.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Funil</span>
+            {funisDoDep.map(f => {
+              const ativo = funilAtual?.id === f.id;
+              const total = os.ordens.filter(o => o.funilId === f.id && osEmAberto(o, os.etapaDaOrdem(o))).length;
+              return (
+                <button
+                  key={f.id} type="button" onClick={() => setParam("funil", f.id)}
+                  className={cn("flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border cursor-pointer transition-all", ativo ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/30 text-[var(--color-primary-blue)]" : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
+                >
+                  {f.nome}{f.padrao ? " ★" : ""}
+                  <span className="text-[10px] opacity-70">{total}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {os.loading ? (
           <p className="text-xs text-[var(--color-text-faint)] flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Carregando…</p>
@@ -274,6 +306,8 @@ export default function OrdensServico() {
         onClose={() => setNovaOpen(false)}
         departamentos={depsAtivos}
         departamentoInicial={depAtual?.id}
+        funis={os.funis}
+        funilInicial={funilAtual?.id}
         onSave={async p => {
           const criada = await os.addOrdem(p);
           if (criada) setNovaOpen(false);
@@ -285,12 +319,15 @@ export default function OrdensServico() {
         ordem={selecionada}
         departamento={selecionada?.departamentoId ? depPorId.get(selecionada.departamentoId) : undefined}
         etapas={selecionada?.funilId ? os.funis.find(f => f.id === selecionada.funilId)?.etapas ?? [] : []}
+        funisDoDepartamento={selecionada?.departamentoId ? os.funis.filter(f => f.departamentoId === selecionada.departamentoId && (f.ativo || f.id === selecionada.funilId)) : []}
+        onTrocarFunil={os.trocarFunilDaOrdem}
         onClose={() => setSelecionadaId(null)}
         onUpdate={os.updateOrdem}
         onMover={os.moverOrdem}
         onCancelar={cancelar}
         onExcluir={excluirRascunho}
         onAbrirCompleta={o => navigate(`/app/ordens-servico/${o.id}`)}
+        onAbrirOrigem={o => o.origemTipo === "implementation" && o.origemId && navigate(`/app/crm/implementacoes/${o.origemId}`)}
       />
     </PageContainer>
   );
