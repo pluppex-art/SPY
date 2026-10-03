@@ -206,9 +206,11 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
               <div><p className="text-[9px] font-bold uppercase text-[var(--color-text-faint)]">Etapa atual</p><Badge variant="secondary">{stageNames[selecionado.stageId] || "—"}</Badge></div>
               <div><p className="text-[9px] font-bold uppercase text-[var(--color-text-faint)]">Último contato</p><p className="text-xs font-bold text-[var(--color-text-primary)]">{selecionado.timeIdle ? `há ${selecionado.timeIdle}d` : "—"}</p></div>
             </div>
-            <div className="p-4 space-y-2.5 border-b border-[var(--color-border-subtle)]">
-              <p className="text-[10px] font-black uppercase text-[var(--color-primary-blue)] flex items-center gap-1.5"><Sparkles className="w-3 h-3" /> Aurora recomenda</p>
-              <p className="text-xs font-bold text-[var(--color-text-primary)]">{recomendacaoDe(selecionado._sit.label)}</p>
+            <div className="p-4 border-b border-[var(--color-border-subtle)]">
+              <div className="rounded-xl bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 text-white p-3.5 space-y-1.5">
+                <p className="text-[10px] font-black uppercase flex items-center gap-1.5"><Sparkles className="w-3 h-3" /> Aurora recomenda</p>
+                <p className="text-xs font-bold">{recomendacaoDe(selecionado._sit.label)}</p>
+              </div>
             </div>
             <div className="p-4 space-y-2">
               <p className="text-[10px] font-black uppercase text-[var(--color-text-faint)]">Por que esta oportunidade é prioritária?</p>
