@@ -268,6 +268,39 @@ async function getValidAccessToken(supabaseService: SupabaseClient, tenantId: st
   return { token, connection: { ...connection, access_token: token } };
 }
 
+class GoogleApiError extends Error {}
+
+// A API do Google pagina em 250 por página (nextPageToken) — as duas rotas
+// abaixo (/events e /sync) faziam UMA chamada só e ignoravam nextPageToken,
+// então qualquer tenant com mais de 250 eventos na janela perdia o resto em
+// silêncio (nenhum erro, só um corte invisível). Mesma classe de bug já
+// corrigida na listagem de entradas da Max Data — paginar até esgotar.
+async function fetchAllGoogleEvents(token: string, calendarId: string, timeMin: string, timeMax: string): Promise<any[]> {
+  const events: any[] = [];
+  let pageToken: string | undefined;
+  const MAX_PAGES = 40; // teto de segurança — 10 mil eventos numa janela já seria um caso extremo
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+    url.searchParams.set("timeMin", timeMin);
+    url.searchParams.set("timeMax", timeMax);
+    url.searchParams.set("singleEvents", "true");
+    url.searchParams.set("orderBy", "startTime");
+    url.searchParams.set("maxResults", "250");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+    const gRes = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
+    if (!gRes.ok) {
+      const body = await gRes.json().catch(() => ({}));
+      throw new GoogleApiError((body as any)?.error?.message || "Falha ao buscar eventos do Google Calendar.");
+    }
+    const data = await gRes.json();
+    events.push(...(data.items || []));
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+  }
+  return events;
+}
+
 function mapGoogleEventToReuniao(event: any, closerFallback: string) {
   const startISO = event.start?.dateTime
     ? new Date(event.start.dateTime).toISOString()
@@ -544,25 +577,13 @@ export function createGoogleCalendarRouter({ requireUser, supabaseService }: Goo
       const { token, connection } = await getValidAccessToken(supabaseService!, tenantResult.tenantId, req.user.id);
       const timeMin = (req.query.timeMin as string) || new Date(Date.now() - 30 * 86400000).toISOString();
       const timeMax = (req.query.timeMax as string) || new Date(Date.now() + 90 * 86400000).toISOString();
-      const maxResults = Math.min(Number(req.query.maxResults) || 250, 250);
 
-      const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(connection.calendar_id || "primary")}/events`);
-      url.searchParams.set("timeMin", timeMin);
-      url.searchParams.set("timeMax", timeMax);
-      url.searchParams.set("singleEvents", "true");
-      url.searchParams.set("orderBy", "startTime");
-      url.searchParams.set("maxResults", String(maxResults));
-
-      const gRes = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
-      if (!gRes.ok) {
-        const body = await gRes.json().catch(() => ({}));
-        return res.status(502).json({ error: (body as any)?.error?.message || "Falha ao buscar eventos do Google Calendar." });
-      }
-      const data = await gRes.json();
-      res.json({ events: data.items || [] });
+      const events = await fetchAllGoogleEvents(token, connection.calendar_id || "primary", timeMin, timeMax);
+      res.json({ events });
     } catch (err) {
       if (err instanceof NotConnectedError) return res.status(404).json({ error: "google_calendar_not_connected" });
       if (err instanceof ReauthRequiredError) return res.status(409).json({ error: "google_calendar_reauth_required" });
+      if (err instanceof GoogleApiError) return res.status(502).json({ error: err.message });
       console.error("[google-calendar] /events falhou:", (err as any)?.message);
       res.status(500).json({ error: "Erro ao listar eventos do Google Calendar." });
     }
@@ -650,19 +671,7 @@ export function createGoogleCalendarRouter({ requireUser, supabaseService }: Goo
       const timeMin = (req.body?.timeMin as string) || new Date(Date.now() - 30 * 86400000).toISOString();
       const timeMax = (req.body?.timeMax as string) || new Date(Date.now() + 90 * 86400000).toISOString();
 
-      const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(connection.calendar_id || "primary")}/events`);
-      url.searchParams.set("timeMin", timeMin);
-      url.searchParams.set("timeMax", timeMax);
-      url.searchParams.set("singleEvents", "true");
-      url.searchParams.set("orderBy", "startTime");
-      url.searchParams.set("maxResults", "250");
-
-      const gRes = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
-      if (!gRes.ok) {
-        const body = await gRes.json().catch(() => ({}));
-        return res.status(502).json({ error: (body as any)?.error?.message || "Falha ao buscar eventos do Google Calendar." });
-      }
-      const events = ((await gRes.json()).items || []) as any[];
+      const events = await fetchAllGoogleEvents(token, connection.calendar_id || "primary", timeMin, timeMax);
 
       // req.supabase (escopado com o JWT do chamador) — todo write aqui
       // respeita a RLS de reunioes (has_tenant_access), então mesmo um bug
@@ -722,10 +731,14 @@ export function createGoogleCalendarRouter({ requireUser, supabaseService }: Goo
         details: { imported, updated },
       });
 
-      res.json({ imported, updated });
+      res.json({ imported, updated, totalFetched: events.length });
     } catch (err) {
       if (err instanceof NotConnectedError) return res.status(404).json({ error: "google_calendar_not_connected" });
       if (err instanceof ReauthRequiredError) return res.status(409).json({ error: "google_calendar_reauth_required" });
+      if (err instanceof GoogleApiError) {
+        await logAudit(supabaseService!, { tenantId, actor: req.user.id, action: "google_calendar.sync_failed", details: { message: err.message } });
+        return res.status(502).json({ error: err.message });
+      }
       console.error("[google-calendar] /sync falhou:", (err as any)?.message);
       await logAudit(supabaseService!, { tenantId, actor: req.user.id, action: "google_calendar.sync_failed", details: { message: (err as any)?.message } });
       res.status(500).json({ error: "Erro ao sincronizar com o Google Calendar." });
