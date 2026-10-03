@@ -163,22 +163,29 @@ export default function CentralReceita() {
         />
       ) : (
       <>
-      {/* Navegação pras outras 5 telas da suíte de Receita */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Sub-navegação da Central de Receita (as outras 5 telas da suíte) —
+          deliberadamente mais leve que DashboardActionsTabs acima (sem
+          caixa/borda própria, só links inline) pra não parecer uma SEGUNDA
+          fileira de abas do mesmo nível; ela é escopada a esta aba
+          ("Central de Receita"), não uma irmã de Comercial/Marketing/etc. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 -mt-2">
+        <span className="text-[9px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">Explorar nesta seção</span>
         {[
           { to: "/app/dashboard/mapa-receita", label: "Mapa da Receita", icon: MapIcon },
           { to: "/app/dashboard/oportunidades", label: "Oportunidades", icon: Target },
           { to: "/app/dashboard/vazamentos", label: "Vazamentos de Receita", icon: AlertTriangle },
           { to: "/app/dashboard/aurora", label: "Inteligência Aurora", icon: Brain },
           { to: "/app/dashboard/previsao", label: "Previsão & Decisão", icon: LineChart },
-        ].map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:border-[var(--color-primary-blue)]/40 transition-colors"
-          >
-            <item.icon className="w-3.5 h-3.5" /> {item.label}
-          </Link>
+        ].map((item, i, arr) => (
+          <span key={item.to} className="flex items-center gap-3">
+            <Link
+              to={item.to}
+              className="flex items-center gap-1 text-[11px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] transition-colors"
+            >
+              <item.icon className="w-3 h-3" /> {item.label}
+            </Link>
+            {i < arr.length - 1 && <span className="text-[var(--color-border-default)] text-[10px]">•</span>}
+          </span>
         ))}
       </div>
 
