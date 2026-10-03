@@ -199,13 +199,13 @@ export default function CentralReceita() {
       </div>
 
       {/* Aurora recomenda */}
-      <Card className="p-6 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-white">
+      <Card className="p-6 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-[#fff]">
         <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><Sparkles className="w-5 h-5" /></div>
+            <div className="w-10 h-10 rounded-xl bg-[rgba(255,255,255,0.15)] flex items-center justify-center shrink-0"><Sparkles className="w-5 h-5" /></div>
             <div>
               <p className="text-sm font-black">Aurora recomenda hoje</p>
-              <p className="text-xs text-white/80 max-w-xl">
+              <p className="text-xs text-[#fff]/80 max-w-xl">
                 Encontrei {auroraAcoes.length} ação{auroraAcoes.length === 1 ? "" : "ões"} prioritária{auroraAcoes.length === 1 ? "" : "s"} que podem impactar sua receita em até {formatCurrency(impactoTotal)}.
               </p>
             </div>
@@ -215,17 +215,17 @@ export default function CentralReceita() {
           </Button>
         </div>
         {auroraAcoes.length === 0 ? (
-          <p className="text-xs text-white/70 italic">Nenhum sinal prioritário agora — pipeline em dia.</p>
+          <p className="text-xs text-[#fff]/70 italic">Nenhum sinal prioritário agora — pipeline em dia.</p>
         ) : (
           <div className="space-y-2">
             {auroraAcoes.map((a, i) => {
               const Icon = AURORA_ICONS[a.icon];
               return (
-                <div key={i} className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-2.5">
-                  <Icon className="w-4 h-4 shrink-0 text-white/80" />
+                <div key={i} className="flex items-center gap-3 bg-[rgba(255,255,255,0.1)] rounded-xl px-4 py-2.5">
+                  <Icon className="w-4 h-4 shrink-0 text-[#fff]/80" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold truncate">{a.titulo}</p>
-                    <p className="text-[10px] text-white/70">{a.subtitulo}</p>
+                    <p className="text-[10px] text-[#fff]/70">{a.subtitulo}</p>
                   </div>
                   <span className="text-xs font-black font-mono shrink-0">{formatCurrency(a.valor)}</span>
                   <Button size="sm" onClick={() => navigate(a.target)} className="shrink-0 h-7 px-3 text-[10px] font-bold !bg-white !text-[var(--color-primary-blue)] hover:!brightness-95">

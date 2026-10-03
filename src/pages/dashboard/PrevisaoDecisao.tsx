@@ -174,23 +174,23 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
           )}
         </Card>
 
-        <Card className="lg:col-span-5 p-5 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-white">
+        <Card className="lg:col-span-5 p-5 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-[#fff]">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2"><Sparkles className="w-4 h-4" /><h3 className="text-xs font-black uppercase tracking-wider">Aurora Recomenda</h3></div>
-            <Badge variant="secondary" className="!bg-white/15 !text-white !border-white/20">{auroraAcoes.length}</Badge>
+            <Badge variant="secondary" className="!bg-[rgba(255,255,255,0.15)] !text-[#fff] !border-[rgba(255,255,255,0.2)]">{auroraAcoes.length}</Badge>
           </div>
           {auroraAcoes.length === 0 ? (
-            <p className="text-xs text-white/70 italic">Nenhum sinal prioritário agora.</p>
+            <p className="text-xs text-[#fff]/70 italic">Nenhum sinal prioritário agora.</p>
           ) : (
             <div className="space-y-2">
               {auroraAcoes.map((a, i) => {
                 const Icon = AURORA_ICONS[a.icon];
                 return (
-                  <div key={i} className="flex items-center gap-2.5 bg-white/10 rounded-xl px-3.5 py-2.5">
-                    <Icon className="w-3.5 h-3.5 shrink-0 text-white/80" />
+                  <div key={i} className="flex items-center gap-2.5 bg-[rgba(255,255,255,0.1)] rounded-xl px-3.5 py-2.5">
+                    <Icon className="w-3.5 h-3.5 shrink-0 text-[#fff]/80" />
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] font-bold truncate">{a.titulo}</p>
-                      <span className="text-[10px] text-white/70">{formatCurrency(a.valor)}</span>
+                      <span className="text-[10px] text-[#fff]/70">{formatCurrency(a.valor)}</span>
                     </div>
                     <Button size="sm" onClick={() => navigate(a.target)} className="shrink-0 h-6 px-2 text-[9px] font-bold !bg-white !text-[var(--color-primary-blue)] hover:!brightness-95">Executar</Button>
                   </div>

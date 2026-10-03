@@ -144,7 +144,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
               <button
                 key={t.id}
                 onClick={() => setAba(t.id)}
-                className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-all ${aba === t.id ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)]"}`}
+                className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-all ${aba === t.id ? "bg-[var(--color-primary-blue)] !text-[#fff]" : "text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)]"}`}
               >
                 {t.label} ({t.count})
               </button>

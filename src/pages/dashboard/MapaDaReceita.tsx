@@ -95,7 +95,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
             <button
               key={a.id}
               onClick={() => setSubAba(a.id)}
-              className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${subAba === a.id ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+              className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${subAba === a.id ? "bg-[var(--color-primary-blue)] !text-[#fff]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
             >
               {a.label}
             </button>
@@ -362,15 +362,15 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           </div>
         </Card>
 
-        <Card className="lg:col-span-3 p-5 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-white">
+        <Card className="lg:col-span-3 p-5 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-[#fff]">
           <div className="flex items-center gap-2 mb-3"><Sparkles className="w-4 h-4" /><h3 className="text-xs font-black uppercase tracking-wider">Insights da Aurora</h3></div>
           {insights.length === 0 ? (
-            <p className="text-xs text-white/70 italic">Ainda não há dado suficiente pra identificar padrões.</p>
+            <p className="text-xs text-[#fff]/70 italic">Ainda não há dado suficiente pra identificar padrões.</p>
           ) : (
             <div className="space-y-2.5">
               {insights.map((ins, i) => (
-                <div key={i} className="flex items-start gap-2.5 bg-white/10 rounded-xl px-3.5 py-2.5">
-                  <ins.icon className="w-3.5 h-3.5 shrink-0 mt-0.5 text-white/80" />
+                <div key={i} className="flex items-start gap-2.5 bg-[rgba(255,255,255,0.1)] rounded-xl px-3.5 py-2.5">
+                  <ins.icon className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#fff]/80" />
                   <p className="text-xs leading-relaxed">{ins.texto}</p>
                 </div>
               ))}

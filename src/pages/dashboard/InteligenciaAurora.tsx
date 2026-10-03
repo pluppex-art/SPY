@@ -129,21 +129,21 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-8 p-6 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-white">
+        <Card className="lg:col-span-8 p-6 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-[#fff]">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><Brain className="w-5 h-5" /></div>
+            <div className="w-10 h-10 rounded-xl bg-[rgba(255,255,255,0.15)] flex items-center justify-center shrink-0"><Brain className="w-5 h-5" /></div>
             <div>
               <p className="text-sm font-black">Aurora</p>
-              <p className="text-xs text-white/80">Sua inteligência de receita</p>
+              <p className="text-xs text-[#fff]/80">Sua inteligência de receita</p>
             </div>
           </div>
           <p className="text-sm leading-relaxed mb-4">
             Identifiquei <strong>{insights.length} padrão(ões)</strong> na sua operação e <strong>{auroraAcoes.length} ação(ões) prioritária(s)</strong> que podem impactar sua receita em até <strong>{formatCurrency(impactoTotal)}</strong>.
           </p>
           <div className="flex flex-wrap gap-3">
-            <div className="bg-white/10 rounded-xl px-4 py-2.5"><p className="text-lg font-black font-mono">{insights.length}</p><p className="text-[9px] uppercase font-bold text-white/70">Padrões identificados</p></div>
-            <div className="bg-white/10 rounded-xl px-4 py-2.5"><p className="text-lg font-black font-mono">{auroraAcoes.length}</p><p className="text-[9px] uppercase font-bold text-white/70">Ações sinalizadas</p></div>
-            <div className="bg-white/10 rounded-xl px-4 py-2.5"><p className="text-lg font-black font-mono">{formatCurrency(impactoTotal)}</p><p className="text-[9px] uppercase font-bold text-white/70">Impacto potencial</p></div>
+            <div className="bg-[rgba(255,255,255,0.1)] rounded-xl px-4 py-2.5"><p className="text-lg font-black font-mono">{insights.length}</p><p className="text-[9px] uppercase font-bold text-[#fff]/70">Padrões identificados</p></div>
+            <div className="bg-[rgba(255,255,255,0.1)] rounded-xl px-4 py-2.5"><p className="text-lg font-black font-mono">{auroraAcoes.length}</p><p className="text-[9px] uppercase font-bold text-[#fff]/70">Ações sinalizadas</p></div>
+            <div className="bg-[rgba(255,255,255,0.1)] rounded-xl px-4 py-2.5"><p className="text-lg font-black font-mono">{formatCurrency(impactoTotal)}</p><p className="text-[9px] uppercase font-bold text-[#fff]/70">Impacto potencial</p></div>
           </div>
         </Card>
 
@@ -191,7 +191,7 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
               <button
                 key={v}
                 onClick={() => setAba(v)}
-                className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 ${aba === v ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+                className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 ${aba === v ? "bg-[var(--color-primary-blue)] !text-[#fff]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
               >
                 <Icon className="w-3 h-3" /> {label}
               </button>

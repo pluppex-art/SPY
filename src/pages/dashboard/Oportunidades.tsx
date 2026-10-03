@@ -130,7 +130,7 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
                 <button
                   key={t.id}
                   onClick={() => setFiltro(t.id)}
-                  className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${filtro === t.id ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+                  className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${filtro === t.id ? "bg-[var(--color-primary-blue)] !text-[#fff]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
                 >
                   {t.label} ({t.count})
                 </button>
@@ -190,14 +190,14 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
 
         {selecionado && (
           <Card className="w-full lg:w-[320px] shrink-0 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-            <div className="p-4 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 text-white flex items-start justify-between gap-2">
+            <div className="p-4 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 text-[#fff] flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-sm font-black truncate">{selecionado.company || selecionado.name}</p>
-                <p className="text-[10px] text-white/60 flex items-center gap-1 mt-0.5"><Building2 className="w-3 h-3" /> {stageNames[selecionado.stageId] || "Oportunidade"}</p>
+                <p className="text-[10px] text-[#fff]/60 flex items-center gap-1 mt-0.5"><Building2 className="w-3 h-3" /> {stageNames[selecionado.stageId] || "Oportunidade"}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {selecionado._prioritaria && <Badge variant="destructive">Alta prioridade</Badge>}
-                <button onClick={() => setSelecionadoId(null)} className="text-white/60 hover:text-white"><X className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setSelecionadoId(null)} className="text-[#fff]/60 hover:text-[#fff]"><X className="w-3.5 h-3.5" /></button>
               </div>
             </div>
             <div className="p-4 grid grid-cols-2 gap-3 border-b border-[var(--color-border-subtle)]">
@@ -207,7 +207,7 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
               <div><p className="text-[9px] font-bold uppercase text-[var(--color-text-faint)]">Último contato</p><p className="text-xs font-bold text-[var(--color-text-primary)]">{selecionado.timeIdle ? `há ${selecionado.timeIdle}d` : "—"}</p></div>
             </div>
             <div className="p-4 border-b border-[var(--color-border-subtle)]">
-              <div className="rounded-xl bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 text-white p-3.5 space-y-1.5">
+              <div className="rounded-xl bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 text-[#fff] p-3.5 space-y-1.5">
                 <p className="text-[10px] font-black uppercase flex items-center gap-1.5"><Sparkles className="w-3 h-3" /> Aurora recomenda</p>
                 <p className="text-xs font-bold">{recomendacaoDe(selecionado._sit.label)}</p>
               </div>
