@@ -66,23 +66,21 @@ export function useLoginTheme(): LoginTheme {
 
     async function initThemeDiscovery() {
       try {
-        // 1. Busca todos os tenants ativos no Supabase
-        const { data } = await supabase
-          .from("tenants")
-          .select("id, name, primary_color")
-          .eq("status", "Active")
-          .order("name");
-
-        if (cancelled) return;
-
-        const loadedTenants: TenantOption[] = (data || []).map((t: any) => ({
-          id: t.id,
-          name: t.name,
-          primaryColor: t.primary_color || DEFAULT_BRAND_COLOR,
-        }));
-
+        // A lista de tenants NÃO é mais lida do banco com a chave pública (isso deixava qualquer
+        // visitante enumerar os clientes). A descoberta de tema passa pelo servidor, que só responde
+        // por correspondência exata de host/nome (ver GET /api/auth/tenant-theme).
+        const loadedTenants: TenantOption[] = [];
         setTenants(loadedTenants);
         activeTenantsRef.current = loadedTenants;
+
+        const fetchThemeFromServer = async (qs: string) => {
+          try {
+            const res = await fetch(`/api/auth/tenant-theme?${qs}`);
+            if (!res.ok) return null;
+            const json = await res.json();
+            return json?.primaryColor ? json : null;
+          } catch { return null; }
+        };
 
         if (typeof window === "undefined") return;
 
@@ -102,34 +100,22 @@ export function useLoginTheme(): LoginTheme {
           return;
         }
 
-        if (queryTarget && loadedTenants.length > 0) {
-          const match = loadedTenants.find(
-            (t) =>
-              t.name.toLowerCase().includes(queryTarget) ||
-              t.id.toLowerCase() === queryTarget
-          );
-          if (match) {
-            setPrimaryColor(match.primaryColor);
-            setTenantName(match.name);
-            applyThemeColor(match.primaryColor, match.name);
-            return;
-          }
+        const applyFromServer = (json: any) => {
+          if (cancelled) return;
+          setPrimaryColor(json.primaryColor);
+          setTenantName(json.tenantName || "");
+          applyThemeColor(json.primaryColor, json.tenantName);
+        };
+
+        if (queryTarget) {
+          const json = await fetchThemeFromServer(`tenant=${encodeURIComponent(queryTarget)}`);
+          if (json) { applyFromServer(json); return; }
         }
 
-        // 3. Verifica se o hostname atual corresponde a algum tenant (ex: axis-crm.pluppex.com.br -> pluppex)
-        const hostTokens = extractHostTokens(window.location.hostname);
-        if (hostTokens.length > 0 && loadedTenants.length > 0) {
-          for (const token of hostTokens) {
-            const match = loadedTenants.find((t) =>
-              t.name.toLowerCase().includes(token)
-            );
-            if (match) {
-              setPrimaryColor(match.primaryColor);
-              setTenantName(match.name);
-              applyThemeColor(match.primaryColor, match.name);
-              return;
-            }
-          }
+        // Hostname atual corresponde a algum tenant? (ex.: pluppex.axis-crm... -> pluppex)
+        if (extractHostTokens(window.location.hostname).length > 0) {
+          const json = await fetchThemeFromServer(`host=${encodeURIComponent(window.location.hostname)}`);
+          if (json) { applyFromServer(json); return; }
         }
 
       } catch (err) {
