@@ -43,7 +43,7 @@ export function kommoConnFromConfig(cfg: any): { conn: KommoConn } | { error: st
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function kommoGet(conn: KommoConn, path: string, params: Record<string, string | string[]> = {}): Promise<any | null> {
+export async function kommoGet(conn: KommoConn, path: string, params: Record<string, string | string[]> = {}): Promise<any | null> {
   const url = new URL(`https://${conn.subdomain}.kommo.com/api/v4${path}`);
   for (const [k, v] of Object.entries(params)) {
     if (Array.isArray(v)) v.forEach((item) => url.searchParams.append(k, item));
@@ -116,10 +116,10 @@ export async function kommoUsers(conn: KommoConn): Promise<Map<number, KommoUser
 }
 
 /** Uma página (250 itens) de uma coleção paginada da Kommo; `hasNext` diz se há mais. */
-export async function kommoPage(conn: KommoConn, path: string, key: string, page: number, params: Record<string, string | string[]> = {}): Promise<{ items: any[]; hasNext: boolean }> {
-  const body = await kommoGet(conn, path, { ...params, page: String(page), limit: "250" });
+export async function kommoPage(conn: KommoConn, path: string, key: string, page: number, params: Record<string, string | string[]> = {}, limit = 250): Promise<{ items: any[]; hasNext: boolean }> {
+  const body = await kommoGet(conn, path, { ...params, page: String(page), limit: String(limit) });
   const items: any[] = body?._embedded?.[key] || [];
-  return { items, hasNext: items.length >= 250 && !!body?._links?.next };
+  return { items, hasNext: items.length >= limit && !!body?._links?.next };
 }
 
 /** Busca entidades por ID em lotes (contatos/empresas) — o filtro por id aceita vários valores. */
@@ -163,4 +163,32 @@ export function kommoFieldByName(entities: any[], re: RegExp): string {
 export async function kommoCatalogs(conn: KommoConn): Promise<{ id: number; name: string; type: string }[]> {
   const body = await kommoGet(conn, "/catalogs", { limit: "250" });
   return ((body?._embedded?.catalogs || []) as any[]).map((c) => ({ id: c.id, name: c.name, type: c.type }));
+}
+
+/** POST na Kommo (usado só para registrar o webhook de atualização ao vivo, quando o usuário pede). */
+export async function kommoPost(conn: KommoConn, path: string, body: unknown): Promise<any> {
+  const wait = lastCallAt + MIN_INTERVAL_MS - Date.now();
+  if (wait > 0) await sleep(wait);
+  lastCallAt = Date.now();
+  let res: Response;
+  try {
+    res = await fetch(`https://${conn.subdomain}.kommo.com/api/v4${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${conn.accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(25_000),
+    });
+  } catch {
+    throw new KommoError("Não foi possível alcançar a Kommo.");
+  }
+  if (res.status === 401) throw new KommoError("Token recusado pela Kommo (401).", 401);
+  if (res.status === 403) throw new KommoError("A Kommo negou a operação (403). A integração precisa de permissão para gerenciar webhooks.", 403);
+  if (!res.ok) throw new KommoError(`A Kommo recusou o pedido (erro ${res.status}).`, res.status);
+  return res.status === 204 ? null : res.json().catch(() => null);
+}
+
+/** Lista os webhooks já registrados na conta (para não duplicar o nosso). */
+export async function kommoWebhooks(conn: KommoConn): Promise<{ id: number; destination: string }[]> {
+  const body = await kommoGet(conn, "/webhooks");
+  return ((body?._embedded?.webhooks || []) as any[]).map((w) => ({ id: w.id, destination: String(w.destination || "") }));
 }

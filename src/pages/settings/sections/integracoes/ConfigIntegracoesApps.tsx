@@ -207,9 +207,29 @@ function CatalogIntegrationModal({
   const style = CATALOG_CATEGORY_STYLE[def.category];
   const Icon = style.icon;
   const [progress, setProgress] = useState("");
-  const [busy, setBusy] = useState<"test" | "import" | null>(null);
+  const [busy, setBusy] = useState<"test" | "import" | "live" | null>(null);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const missing = catalogMissingRequired(def, values);
+
+  // Atualização ao vivo: a Kommo avisa o SPY (webhook) a cada mudança, depois da importação completa.
+  const enableLive = async () => {
+    if (missing.length > 0) { toast.error(`Preencha: ${missing.join(", ")}`); return; }
+    setBusy("live"); setResult(null);
+    try {
+      const res = await apiFetch(`/api/integrations/kommo/webhook${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ register: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setResult({ ok: true, text: data.alreadyRegistered ? "A atualização ao vivo já estava ligada: cada mudança na Kommo chega ao SPY." : "Atualização ao vivo ligada: cada mudança na Kommo chega ao SPY." });
+        onChange({ liveAt: new Date().toISOString() });
+      } else {
+        setResult({ ok: false, text: `${data?.error || "Não foi possível ligar."}${data?.url ? ` Cadastre manualmente em Kommo → Configurações → Webhooks este endereço: ${data.url}` : ""}` });
+      }
+    } catch (e: any) {
+      setResult({ ok: false, text: e?.message || "Falha de rede." });
+    } finally { setBusy(null); }
+  };
 
   const callKommo = async (action: "test" | "import") => {
     if (missing.length > 0) { toast.error(`Preencha: ${missing.join(", ")}`); return; }
@@ -249,24 +269,37 @@ function CatalogIntegrationModal({
           for (const a of data.skippedSamples || []) if (amostras.length < 5) amostras.push(a);
           cursor = data.done ? null : data.nextCursor;
         }
-        // Etapas complementares: produtos, empresas (Clientes), notas (histórico) e tarefas.
-        const extras: Record<string, number> = {};
+        // Etapas complementares — cada uma devolve quanto a Kommo entregou ("vistos") e quanto foi gravado ("saved").
+        const rotulos: Record<string, string> = {
+          produtos: "produtos", tags: "tags", empresas: "empresas (Clientes)", contatos: "contatos",
+          entrada: "leads da caixa de entrada", notas: "notas e ligações", tarefas: "tarefas", historico: "mudanças de etapa",
+        };
+        const conf: Record<string, { vistos: number; saved: number; detalhe: Record<string, number> }> = {};
         const avisos: string[] = [];
-        const rotulos: Record<string, string> = { produtos: "produtos", empresas: "empresas/clientes", notas: "notas", tarefas: "tarefas" };
-        for (const step of ["produtos", "empresas", "notas", "tarefas"]) {
+        for (const step of Object.keys(rotulos)) {
           let c: number | null = 1;
-          extras[step] = 0;
+          conf[step] = { vistos: 0, saved: 0, detalhe: {} };
           while (c) {
-            setProgress(`Importando ${rotulos[step]}… ${extras[step]} até agora`);
+            setProgress(`Importando ${rotulos[step]}… ${conf[step].saved} até agora`);
             const r: Response = await apiFetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ step, cursor: c }) });
             const d: any = await r.json().catch(() => ({}));
             if (!r.ok) { avisos.push(`${rotulos[step]}: ${d?.error || "falhou"}`); break; }
-            extras[step] += d.saved || 0;
+            conf[step].vistos += d.vistos || 0;
+            conf[step].saved += d.saved || 0;
+            for (const [k, v] of Object.entries<number>(d.detalhe || {})) conf[step].detalhe[k] = (conf[step].detalhe[k] || 0) + v;
             if (d.warning) avisos.push(d.warning);
             c = d.done ? null : d.nextCursor;
           }
         }
-        const text = `${created + updated} leads sincronizados (${created} novos, ${updated} atualizados) em ${funis} funil(is).${skipped ? ` ${skipped} ignorados (funil arquivado).` : ""}${cadastro ? ` Vendedores: ${cadastro.created.length} cadastrados, ${cadastro.existing} já existiam, ${cadastro.colaboradores} no RH (Colaboradores)${cadastro.skipped.length ? `, ${cadastro.skipped.length} não cadastrados (${cadastro.skipped.map((s: any) => `${s.name}: ${s.reason}`).join("; ")})` : ""}. Eles entram pelo "Esqueci minha senha".` : vendedores.length ? ` Vendedores: ${vendedores.join(", ")}.` : ""}${truncated ? " Limite de segurança atingido; importe de novo para continuar." : ""}\nPor funil (Kommo → SPY): ${Object.values(porFunil).map((f) => `${f.nome} ${f.vistos} → ${f.salvos}`).join(" · ")}.${amostras.length ? ` Não importados: ${amostras.join("; ")}.` : ""}\nTambém: ${Object.entries(extras).map(([k, v]) => `${v} ${rotulos[k]}`).join(", ")}.${avisos.length ? ` Avisos: ${avisos.join("; ")}.` : ""}`;
+        const leadsVistos = Object.values(porFunil).reduce((n, f) => n + f.vistos, 0);
+        const confLinhas = [
+          `leads ${leadsVistos} → ${created + updated}`,
+          ...Object.entries(conf).map(([k, v]) => {
+            const det = Object.entries(v.detalhe).map(([dk, dv]) => `${dv} ${dk}`).join(", ");
+            return `${rotulos[k]} ${v.vistos} → ${v.saved}${det ? ` (${det})` : ""}`;
+          }),
+        ];
+        const text = `${created + updated} leads sincronizados (${created} novos, ${updated} atualizados) em ${funis} funil(is).${skipped ? ` ${skipped} ignorados (funil arquivado).` : ""}${cadastro ? ` Vendedores: ${cadastro.created.length} cadastrados, ${cadastro.existing} já existiam, ${cadastro.colaboradores} no RH (Colaboradores)${cadastro.skipped.length ? `, ${cadastro.skipped.length} não cadastrados (${cadastro.skipped.map((s: any) => `${s.name}: ${s.reason}`).join("; ")})` : ""}. Eles entram pelo "Esqueci minha senha".` : vendedores.length ? ` Vendedores: ${vendedores.join(", ")}.` : ""}${truncated ? " Limite de segurança atingido; importe de novo para continuar." : ""}\nPor funil (Kommo → SPY): ${Object.values(porFunil).map((f) => `${f.nome} ${f.vistos} → ${f.salvos}`).join(" · ")}.${amostras.length ? ` Não importados: ${amostras.join("; ")}.` : ""}\nConferência (Kommo → SPY): ${confLinhas.join(" · ")}.${avisos.length ? `\nAvisos: ${avisos.join("; ")}.` : ""}`;
         setResult({ ok: true, text });
         onChange({ connected: true, lastImportAt: new Date().toISOString(), lastImportSummary: text });
         toast.success("Kommo sincronizada com o SPY.");
@@ -340,6 +373,10 @@ function CatalogIntegrationModal({
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => callKommo("test")} disabled={!!busy}>{busy === "test" ? "Testando…" : "Testar conexão"}</Button>
               <Button onClick={() => callKommo("import")} disabled={!!busy}>{busy === "import" ? (progress || "Importando…") : `Importar da ${def.name}`}</Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={enableLive} disabled={!!busy}>{busy === "live" ? "Ligando…" : "Ligar atualização ao vivo"}</Button>
+              <span className="text-[11px] text-[var(--color-text-muted)]">{values.liveAt ? `Ligada em ${new Date(values.liveAt).toLocaleString("pt-BR")}` : "Depois da importação, mantém o SPY igual à Kommo a cada mudança."}</span>
             </div>
             {result && <Alert variant={result.ok ? "success" : "danger"} title={result.ok ? "Tudo certo" : "Não deu certo"}>{result.text}</Alert>}
             {!result && values.lastImportAt && (

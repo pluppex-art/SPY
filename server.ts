@@ -16,6 +16,7 @@ import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
 import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { registerKommoRoutes } from "./server/kommoSync.js";
+import { registerKommoWebhookRoutes } from "./server/kommoWebhook.js";
 import { buildEmpresaDados, tenantReadiness } from "./src/lib/implementationTenant.js";
 import { registerTableComparisonExportRoutes } from "./server/tableComparisonExport.js";
 import { registerTableComparisonResearchRoutes } from "./server/tableComparisonResearch.js";
@@ -2829,6 +2830,9 @@ app.post("/api/integrations/maxdata/test", requireUser, async (req: any, res) =>
 
 const kommoLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
 registerKommoRoutes(app, { requireUser, resolveRequestedTenantId, limiter: kommoLimiter, supabaseService });
+// Webhook público da Kommo: uma rajada de eventos é normal (mudanças em massa), então o teto é bem maior.
+const kommoWebhookLimiter = rateLimit({ windowMs: 60_000, limit: 600, standardHeaders: true, legacyHeaders: false });
+registerKommoWebhookRoutes(app, { requireUser, resolveRequestedTenantId, supabaseService, limiter: kommoWebhookLimiter });
 
 app.get("/api/varejo/maxdata/entries", requireUser, async (req: any, res) => {
   const tenantId = await resolveRequestedTenantId(req, res);
