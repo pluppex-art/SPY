@@ -9,6 +9,16 @@ const SPYLandingPage = lazy(() => import("./pages/lp/SPYLandingPage"));
 // pedido explícito do usuário. O Dashboard.tsx antigo continua no repo (não
 // apagado) só não está mais roteado aqui — reversível se precisar.
 const Dashboard = lazy(() => import("./pages/dashboard/CentralReceita"));
+// As outras 5 telas da suíte "Central de Receita" (pedido do usuário: Entender
+// → Encontrar → Priorizar → Recuperar → Aprender → Decidir), cada uma com sua
+// própria rota — ver RevenueBreadcrumb.tsx pra navegação entre elas.
+const MapaDaReceita = lazy(() => import("./pages/dashboard/MapaDaReceita"));
+// Alias pra não colidir com ./pages/crm/Oportunidades (tabela simples de leads,
+// já existente) — esta é a versão priorizada/acionável da suíte de Receita.
+const ReceitaOportunidades = lazy(() => import("./pages/dashboard/Oportunidades"));
+const VazamentosReceita = lazy(() => import("./pages/dashboard/VazamentosReceita"));
+const InteligenciaAurora = lazy(() => import("./pages/dashboard/InteligenciaAurora"));
+const PrevisaoDecisao = lazy(() => import("./pages/dashboard/PrevisaoDecisao"));
 const PerformanceIA = lazy(() => import("./pages/dashboard/PerformanceIA"));
 const PainelGeral = lazy(() => import("./pages/clinica/PainelGeral"));
 const AgendaMedica = lazy(() => import("./pages/clinica/AgendaMedica"));
@@ -244,6 +254,11 @@ function AppContent() {
         }>
           <Route index element={<Navigate to="/app/dashboard" />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="dashboard/mapa-receita" element={<MapaDaReceita />} />
+          <Route path="dashboard/oportunidades" element={<ReceitaOportunidades />} />
+          <Route path="dashboard/vazamentos" element={<VazamentosReceita />} />
+          <Route path="dashboard/aurora" element={<InteligenciaAurora />} />
+          <Route path="dashboard/previsao" element={<PrevisaoDecisao />} />
           <Route path="leads" element={<Navigate to="/app/crm/pipeline" replace />} />
           <Route path="pipeline" element={<Navigate to="/app/crm/pipeline" replace />} />
           <Route path="clientes" element={<Navigate to="/app/crm/clientes" replace />} />

@@ -1,12 +1,12 @@
 import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line,
   PieChart, Pie, Cell,
 } from "recharts";
 import {
   DollarSign, Workflow, AlertTriangle, RefreshCw, Sparkles, TrendingUp, TrendingDown,
-  Flame, FileWarning, UserX, PieChart as PieChartIcon,
+  Flame, FileWarning, UserX, PieChart as PieChartIcon, Map as MapIcon, Target, Brain, LineChart,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -20,6 +20,10 @@ import { useDashboard } from "./useDashboard";
 import { DashboardActionsTabs } from "./components/DashboardActionsTabs";
 import { DashboardTabContent } from "./components/DashboardTabContent";
 import { DashboardGoalAlerts } from "./components/DashboardGoalAlerts";
+import {
+  diasDesde, situacaoDe, recomendacaoDe, computeVazamentos, buildAuroraAcoes,
+  type AuroraAcaoIcon,
+} from "./revenueInsights";
 
 // Paleta neutra pro donut de origem (um por fatia) — a ÚNICA cor "de marca"
 // é a primeira (a fatia maior, mesma regra já usada nos outros gráficos
@@ -28,29 +32,7 @@ const ORIGEM_PALETTE = [
   "var(--color-primary-blue)", "var(--color-text-muted)", "#14b8a6", "#f59e0b", "#64748b", "#94a3b8",
 ];
 
-const diasDesde = (iso?: string | null): number => {
-  if (!iso) return 0;
-  const t = new Date(iso).getTime();
-  if (!Number.isFinite(t)) return 0;
-  return Math.max(0, Math.round((Date.now() - t) / 86400000));
-};
-
-function situacaoDe(l: any): { label: string; tone: "destructive" | "warning" | "success" | "neutral" } {
-  const idle = Number(l.timeIdle) || 0;
-  if (idle > 10) return { label: "Estagnada", tone: "destructive" };
-  if (idle > 5) return { label: "Em risco", tone: "warning" };
-  if ((l.scoreIA ?? 0) > 80) return { label: "Quente", tone: "success" };
-  return { label: "Em andamento", tone: "neutral" };
-}
-
-function recomendacaoDe(situacaoLabel: string): string {
-  switch (situacaoLabel) {
-    case "Estagnada": return "Intervenção imediata";
-    case "Em risco": return "Retomar contato";
-    case "Quente": return "Acelerar fechamento";
-    default: return "Novo follow-up";
-  }
-}
+const AURORA_ICONS: Record<AuroraAcaoIcon, typeof Flame> = { flame: Flame, sparkles: Sparkles, userx: UserX, filewarning: FileWarning };
 
 export default function CentralReceita() {
   const { user } = useAuth();
@@ -108,39 +90,9 @@ export default function CentralReceita() {
   );
 
   // ── Aurora: ações priorizadas por impacto real em R$ (regra, não IA ao vivo) ──
-  const auroraAcoes = useMemo(() => {
-    const acoes: { icon: typeof Flame; titulo: string; subtitulo: string; valor: number; onClick: () => void }[] = [];
-    const topParado = [...leadsAbertos]
-      .filter((l: any) => (Number(l.timeIdle) || 0) > 5 && parseCurrencyBR(l.value) > 0)
-      .sort((a: any, b: any) => parseCurrencyBR(b.value) - parseCurrencyBR(a.value))[0];
-    if (topParado) {
-      acoes.push({
-        icon: Flame, titulo: `Retomar negociação com ${topParado.company || topParado.name}`,
-        subtitulo: `Último contato há ${topParado.timeIdle} dias`, valor: parseCurrencyBR(topParado.value),
-        onClick: () => navigate(`/app/crm/pipeline?leadId=${topParado.id}`),
-      });
-    }
-    if (oportunidadesRecuperaveis.length > 0) {
-      acoes.push({
-        icon: Sparkles, titulo: `Apresentar proposta para ${oportunidadesRecuperaveis.length} lead${oportunidadesRecuperaveis.length > 1 ? "s" : ""} de alta intenção`,
-        subtitulo: "Sinal de compra identificado", valor: recuperavelValue, onClick: () => navigate("/app/crm/pipeline"),
-      });
-    }
-    if (contratosEmRisco.length > 0) {
-      const top = [...contratosEmRisco].sort((a, b) => parseCurrencyBR(b.mrr) - parseCurrencyBR(a.mrr))[0];
-      acoes.push({
-        icon: UserX, titulo: `Evitar perda: ${top.client}`,
-        subtitulo: "Sinal de inadimplência", valor: parseCurrencyBR(top.mrr), onClick: () => navigate("/app/financeiro/contratos"),
-      });
-    }
-    if (propostasSemFollowUp.length > 0) {
-      acoes.push({
-        icon: FileWarning, titulo: `${propostasSemFollowUp.length} proposta${propostasSemFollowUp.length > 1 ? "s" : ""} sem follow-up`,
-        subtitulo: "Enviadas há mais de 5 dias", valor: propostasSemFollowUpValue, onClick: () => navigate("/app/crm/propostas"),
-      });
-    }
-    return acoes.slice(0, 5);
-  }, [leadsAbertos, oportunidadesRecuperaveis, recuperavelValue, contratosEmRisco, propostasSemFollowUp, propostasSemFollowUpValue, navigate]);
+  const auroraAcoes = useMemo(() => buildAuroraAcoes({
+    leadsAbertos, oportunidadesRecuperaveis, recuperavelValue, contratosEmRisco, propostasSemFollowUp, propostasSemFollowUpValue,
+  }), [leadsAbertos, oportunidadesRecuperaveis, recuperavelValue, contratosEmRisco, propostasSemFollowUp, propostasSemFollowUpValue]);
 
   const impactoTotal = auroraAcoes.reduce((s, a) => s + a.valor, 0);
 
@@ -166,17 +118,9 @@ export default function CentralReceita() {
   }, [leadsAbertos]);
 
   // ── Receita em risco, agrupada por motivo ────────────────────────────────
-  const vazamentos = useMemo(() => {
-    const churnValue = contratosEmRisco.reduce((s, c) => s + parseCurrencyBR(c.mrr), 0);
-    const paradasValue = oportunidadesParadas.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0);
-    const quentesValue = leadsQuentesParados.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0);
-    return [
-      { motivo: "Propostas sem follow-up", valor: propostasSemFollowUpValue, qtd: propostasSemFollowUp.length },
-      { motivo: "Leads quentes sem contato", valor: quentesValue, qtd: leadsQuentesParados.length },
-      { motivo: "Oportunidades paradas (+30d)", valor: paradasValue, qtd: oportunidadesParadas.length },
-      { motivo: "Clientes com risco de churn", valor: churnValue, qtd: contratosEmRisco.length },
-    ].filter((v) => v.qtd > 0).sort((a, b) => b.valor - a.valor);
-  }, [contratosEmRisco, oportunidadesParadas, leadsQuentesParados, propostasSemFollowUpValue, propostasSemFollowUp.length]);
+  const vazamentos = useMemo(() => computeVazamentos({
+    contratosEmRisco, oportunidadesParadas, leadsQuentesParados, propostasSemFollowUp, propostasSemFollowUpValue,
+  }), [contratosEmRisco, oportunidadesParadas, leadsQuentesParados, propostasSemFollowUpValue, propostasSemFollowUp]);
 
   const totalRevenue = serverSummary?.totalRevenue ?? 0;
   const vendasTrend = trendPct("vendas");
@@ -219,6 +163,25 @@ export default function CentralReceita() {
         />
       ) : (
       <>
+      {/* Navegação pras outras 5 telas da suíte de Receita */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { to: "/app/dashboard/mapa-receita", label: "Mapa da Receita", icon: MapIcon },
+          { to: "/app/dashboard/oportunidades", label: "Oportunidades", icon: Target },
+          { to: "/app/dashboard/vazamentos", label: "Vazamentos de Receita", icon: AlertTriangle },
+          { to: "/app/dashboard/aurora", label: "Inteligência Aurora", icon: Brain },
+          { to: "/app/dashboard/previsao", label: "Previsão & Decisão", icon: LineChart },
+        ].map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:border-[var(--color-primary-blue)]/40 transition-colors"
+          >
+            <item.icon className="w-3.5 h-3.5" /> {item.label}
+          </Link>
+        ))}
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
@@ -259,25 +222,30 @@ export default function CentralReceita() {
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="!bg-white/15 !text-white !border-white/20">{auroraAcoes.length}</Badge>
+          <Button size="sm" onClick={() => navigate("/app/dashboard/previsao")} className="shrink-0 h-7 px-3 text-[10px] font-bold !bg-white !text-[var(--color-primary-blue)] hover:!brightness-95">
+            Ver todas as ações →
+          </Button>
         </div>
         {auroraAcoes.length === 0 ? (
           <p className="text-xs text-white/70 italic">Nenhum sinal prioritário agora — pipeline em dia.</p>
         ) : (
           <div className="space-y-2">
-            {auroraAcoes.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-2.5">
-                <a.icon className="w-4 h-4 shrink-0 text-white/80" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold truncate">{a.titulo}</p>
-                  <p className="text-[10px] text-white/70">{a.subtitulo}</p>
+            {auroraAcoes.map((a, i) => {
+              const Icon = AURORA_ICONS[a.icon];
+              return (
+                <div key={i} className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-2.5">
+                  <Icon className="w-4 h-4 shrink-0 text-white/80" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold truncate">{a.titulo}</p>
+                    <p className="text-[10px] text-white/70">{a.subtitulo}</p>
+                  </div>
+                  <span className="text-xs font-black font-mono shrink-0">{formatCurrency(a.valor)}</span>
+                  <Button size="sm" onClick={() => navigate(a.target)} className="shrink-0 h-7 px-3 text-[10px] font-bold !bg-white !text-[var(--color-primary-blue)] hover:!brightness-95">
+                    Ver ação
+                  </Button>
                 </div>
-                <span className="text-xs font-black font-mono shrink-0">{formatCurrency(a.valor)}</span>
-                <Button size="sm" onClick={a.onClick} className="shrink-0 h-7 px-3 text-[10px] font-bold !bg-white !text-[var(--color-primary-blue)] hover:!brightness-95">
-                  Ver ação
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
@@ -363,7 +331,10 @@ export default function CentralReceita() {
         <Card className="lg:col-span-3 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
             <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Oportunidades Prioritárias</h3>
-            <Badge variant="secondary">{oportunidadesPrioritarias.length}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">{oportunidadesPrioritarias.length}</Badge>
+              <Button variant="outline" size="sm" onClick={() => navigate("/app/dashboard/oportunidades")} className="h-7 px-2.5 text-[10px] font-bold">Ver todas</Button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
@@ -393,7 +364,7 @@ export default function CentralReceita() {
         <Card className="lg:col-span-2 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
             <h3 className="text-xs font-black text-danger uppercase tracking-wider flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Receita em Risco</h3>
-            <span className="text-xs font-black text-danger font-mono">{formatCurrency(receitaEmRisco + vazamentos.reduce((s, v) => s + v.valor, 0))}</span>
+            <Button variant="outline" size="sm" onClick={() => navigate("/app/dashboard/vazamentos")} className="h-7 px-2.5 text-[10px] font-bold">Ver todas</Button>
           </div>
           <div className="divide-y divide-[var(--color-border-subtle)]">
             {vazamentos.map((v) => (
