@@ -223,6 +223,13 @@ function extractJSON(raw: string): any {
   return JSON.parse(text.slice(start, end + 1));
 }
 
+// Valor interpolado em filtro .or() do PostgREST: vírgula, parênteses, aspas e curingas
+// alteram a sintaxe do filtro (injeção de filtro). O nome vem de argumento de tool de IA,
+// ou seja, controlável por prompt — remove tudo que não é texto comum.
+function pgrstSafe(v: string): string {
+  return v.replace(/[,()*%\\"'`:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+}
+
 // ── Express App ────────────────────────────────────────────────────────────
 
 const app = express();
@@ -3873,7 +3880,7 @@ async function runAuroraTool(name: string, args: any, supabaseClient: any, tenan
 
     const { data: leadMatches, error: leadErr } = await scoped(
       supabaseClient.from("leads").select('id, name, company, "customFields"').is("deleted_at", null)
-        .or(`name.ilike.%${leadNome}%,company.ilike.%${leadNome}%`)
+        .or(`name.ilike.%${pgrstSafe(leadNome)}%,company.ilike.%${pgrstSafe(leadNome)}%`)
     ).limit(5);
     if (leadErr) return { error: leadErr.message };
     if (!leadMatches || leadMatches.length === 0) {
