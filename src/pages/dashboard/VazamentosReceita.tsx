@@ -4,13 +4,10 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { AlertTriangle, FileWarning, Flame, Workflow, UserX } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
-import { useDashboard } from "./useDashboard";
-import { RevenueBreadcrumb } from "./components/RevenueBreadcrumb";
-import { diasDesde, computeVazamentos } from "./revenueInsights";
+import { diasDesde, computeVazamentos, type DashboardData } from "./revenueInsights";
 
 const MOTIVO_PALETTE: Record<string, string> = {
   "Propostas sem follow-up": "#ef4444",
@@ -21,9 +18,9 @@ const MOTIVO_PALETTE: Record<string, string> = {
 
 type Aba = "propostas" | "leads" | "paradas" | "churn";
 
-export default function VazamentosReceita() {
+export default function VazamentosReceita({ dashboard }: { dashboard: DashboardData }) {
   const { contracts, proposals } = useData();
-  const { leads, dateFrom, setDateFrom, dateTo, setDateTo } = useDashboard();
+  const { leads } = dashboard;
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
   const [aba, setAba] = useState<Aba>("propostas");
@@ -55,16 +52,10 @@ export default function VazamentosReceita() {
   ];
 
   return (
-    <div className="max-w-[1700px] mx-auto px-4 sm:px-6 py-6 space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <RevenueBreadcrumb current="Vazamentos de Receita" />
-          <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
-            Vazamentos de Receita <span className="w-2 h-2 rounded-full bg-danger" />
-          </h1>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">Encontre e recupere receita que está sendo perdida na sua operação.</p>
-        </div>
-        <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-black text-[var(--color-text-primary)]">Vazamentos de Receita</h2>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Encontre e recupere receita que está sendo perdida na sua operação.</p>
       </div>
 
       <Card className="p-5 bg-danger/5 border border-danger/20">

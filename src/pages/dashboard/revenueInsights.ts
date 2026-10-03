@@ -8,6 +8,13 @@
 import { parseCurrencyBR } from "../../lib/utils";
 import { buildStagesForFunil } from "../../lib/funilStages";
 import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
+import type { useDashboard } from "./useDashboard";
+
+/** Shape devolvido por useDashboard() — as 5 telas da suíte de Receita
+ * recebem isso via prop (ver CentralReceita.tsx) em vez de chamar o hook de
+ * novo, pra todas compartilharem o MESMO filtro de período (dateFrom/dateTo)
+ * já que agora vivem como abas da mesma página, não rotas separadas. */
+export type DashboardData = ReturnType<typeof useDashboard>;
 
 export function diasDesde(iso?: string | null): number {
   if (!iso) return 0;

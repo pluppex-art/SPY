@@ -4,20 +4,17 @@ import {
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
-import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
-import { useDashboard } from "./useDashboard";
-import { RevenueBreadcrumb } from "./components/RevenueBreadcrumb";
-import { computeChannelRevenue, computeProductRevenue, buildAuroraAcoes } from "./revenueInsights";
+import { computeChannelRevenue, computeProductRevenue, buildAuroraAcoes, type DashboardData } from "./revenueInsights";
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 type Aba = "clientes" | "vendas" | "marketing" | "produtos";
 
-export default function InteligenciaAurora() {
+export default function InteligenciaAurora({ dashboard }: { dashboard: DashboardData }) {
   const { contracts, proposals, proposalItems, products, leadActivities } = useData();
-  const { leads, salesRanking, dateFrom, setDateFrom, dateTo, setDateTo } = useDashboard();
+  const { leads, salesRanking } = dashboard;
   const { formatCurrency } = useLocalization();
   const [aba, setAba] = useState<Aba>("clientes");
 
@@ -125,16 +122,10 @@ export default function InteligenciaAurora() {
   };
 
   return (
-    <div className="max-w-[1700px] mx-auto px-4 sm:px-6 py-6 space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <RevenueBreadcrumb current="Inteligência Aurora" />
-          <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
-            Inteligência Aurora <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)]" />
-          </h1>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">O que a Aurora identifica na sua operação, a partir dos seus dados reais.</p>
-        </div>
-        <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-black text-[var(--color-text-primary)]">Inteligência Aurora</h2>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">O que a Aurora identifica na sua operação, a partir dos seus dados reais.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

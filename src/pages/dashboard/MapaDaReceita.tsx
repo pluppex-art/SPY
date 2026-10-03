@@ -8,21 +8,18 @@ import {
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
-import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
-import { useDashboard } from "./useDashboard";
-import { RevenueBreadcrumb } from "./components/RevenueBreadcrumb";
-import { computeChannelRevenue, computeProductRevenue, computeSegmentRevenue } from "./revenueInsights";
+import { computeChannelRevenue, computeProductRevenue, computeSegmentRevenue, type DashboardData } from "./revenueInsights";
 
 const SEGMENT_PALETTE = [
   "var(--color-primary-blue)", "#14b8a6", "#f59e0b", "#64748b", "#ec4899", "#94a3b8",
 ];
 
-export default function MapaDaReceita() {
+export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData }) {
   const { contracts, proposals, proposalItems, products, clienteBase } = useData();
-  const { leads, totalRevenue, faturamentoContratado, salesRanking, dateFrom, setDateFrom, dateTo, setDateTo } = useDashboard();
+  const { leads, totalRevenue, faturamentoContratado, salesRanking } = dashboard;
   const { formatCurrency } = useLocalization();
 
   const oportunidades = useMemo(() => (leads as any[]).filter((l) => parseCurrencyBR(l.value) > 0), [leads]);
@@ -73,16 +70,10 @@ export default function MapaDaReceita() {
   }, [canais, segmentos, produtos, salesRanking, formatCurrency]);
 
   return (
-    <div className="max-w-[1700px] mx-auto px-4 sm:px-6 py-6 space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <RevenueBreadcrumb current="Mapa da Receita" />
-          <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
-            Mapa da Receita <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)]" />
-          </h1>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">Veja como sua empresa ganha dinheiro, de onde vem a receita e onde estão as maiores oportunidades.</p>
-        </div>
-        <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-black text-[var(--color-text-primary)]">Mapa da Receita</h2>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Veja como sua empresa ganha dinheiro, de onde vem a receita e onde estão as maiores oportunidades.</p>
       </div>
 
       {/* Fluxo da Receita */}

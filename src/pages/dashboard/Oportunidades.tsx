@@ -4,19 +4,20 @@ import { Flame, Workflow, ListChecks, Percent, Search } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
-import { useDashboard } from "./useDashboard";
-import { RevenueBreadcrumb } from "./components/RevenueBreadcrumb";
-import { situacaoDe, recomendacaoDe, getComercialFunilStageNames } from "./revenueInsights";
+import { situacaoDe, recomendacaoDe, getComercialFunilStageNames, type DashboardData } from "./revenueInsights";
 
 type Filtro = "todas" | "prioritarias" | "risco" | "semContato" | "recuperaveis";
 
-export default function Oportunidades() {
+// Conteúdo da aba "Oportunidades" da Central de Receita — não confundir com
+// ./pages/crm/Oportunidades.tsx (tabela simples de leads, página própria do
+// módulo CRM); esta é a versão priorizada/acionável (situação + recomendação
+// por lead), renderizada como aba desta página, não uma rota separada.
+export default function Oportunidades({ dashboard }: { dashboard: DashboardData }) {
   const { funis, leadActivities } = useData();
-  const { leads, dateFrom, setDateFrom, dateTo, setDateTo } = useDashboard();
+  const { leads } = dashboard;
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState<Filtro>("todas");
@@ -71,16 +72,10 @@ export default function Oportunidades() {
   ];
 
   return (
-    <div className="max-w-[1700px] mx-auto px-4 sm:px-6 py-6 space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <RevenueBreadcrumb current="Oportunidades" />
-          <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
-            Oportunidades <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)]" />
-          </h1>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">Encontre, priorize e trabalhe as oportunidades que realmente podem gerar receita.</p>
-        </div>
-        <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-black text-[var(--color-text-primary)]">Oportunidades</h2>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Encontre, priorize e trabalhe as oportunidades que realmente podem gerar receita.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
