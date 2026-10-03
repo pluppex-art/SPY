@@ -11,7 +11,7 @@ export function DashboardActionsTabs(props: {
   return (
     <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] p-1 w-fit gap-1 shadow-sm">
       {[
-        { id: "executivo" as const, label: "Estratégico", icon: Gauge },
+        { id: "executivo" as const, label: "Central de Receita", icon: Gauge },
         { id: "comercial" as const, label: "Comercial", icon: Zap },
         { id: "marketing" as const, label: "Marketing", icon: Megaphone },
         { id: "sucesso" as const, label: "Retenção", icon: HeartHandshake },

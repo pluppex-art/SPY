@@ -11,11 +11,15 @@ import {
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import { useDashboard } from "./useDashboard";
+import { DashboardActionsTabs } from "./components/DashboardActionsTabs";
+import { DashboardTabContent } from "./components/DashboardTabContent";
+import { DashboardGoalAlerts } from "./components/DashboardGoalAlerts";
 
 // Paleta neutra pro donut de origem (um por fatia) — a ÚNICA cor "de marca"
 // é a primeira (a fatia maior, mesma regra já usada nos outros gráficos
@@ -51,7 +55,11 @@ function recomendacaoDe(situacaoLabel: string): string {
 export default function CentralReceita() {
   const { user } = useAuth();
   const { proposals } = useData();
-  const { leads, contracts, performanceData, funnelData, serverSummary } = useDashboard();
+  const {
+    leads, contracts, performanceData, funnelData, serverSummary,
+    activeTab, setActiveTab, squads, recentActivities, salesRanking, goalAlerts,
+    dateFrom, setDateFrom, dateTo, setDateTo,
+  } = useDashboard();
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
 
@@ -186,8 +194,31 @@ export default function CentralReceita() {
           </h1>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">Aqui está o panorama da sua receita, o que importa agora e as ações recomendadas pela Aurora.</p>
         </div>
+        <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
       </div>
 
+      {/* Transita entre esta visão (nova) e as telas que já existiam (Comercial/
+          Marketing/Retenção/BI, ver DashboardTabContent) — substituir o Dashboard
+          não podia deixar essas 4 telas inalcançáveis. */}
+      <DashboardActionsTabs activeTab={activeTab as any} onTabChange={setActiveTab as any} />
+
+      <DashboardGoalAlerts goalAlerts={goalAlerts} />
+
+      {activeTab !== "executivo" ? (
+        <DashboardTabContent
+          activeTab={activeTab as any}
+          performanceData={performanceData}
+          squads={squads}
+          contracts={contracts}
+          salesRanking={salesRanking}
+          funnelData={funnelData}
+          recentActivities={recentActivities}
+          serverSummary={serverSummary}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+        />
+      ) : (
+      <>
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
@@ -376,6 +407,8 @@ export default function CentralReceita() {
           </div>
         </Card>
       </div>
+      </>
+      )}
     </div>
   );
 }
