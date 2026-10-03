@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { MessageSquarePlus, Loader2, Users, Check, X, Trash2, AlertTriangle, Sparkles } from "lucide-react";
+import { MessageSquarePlus, Loader2, Users, Check, X, Trash2, AlertTriangle, Sparkles, Workflow } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { useMessageTriggers, type MessageTrigger } from "../../hooks/useMessageTriggers";
+import { AutomationsMapModal } from "./AutomationsMapModal";
 
 // Central de Automações — o tenant descreve em texto livre quem quer contatar (ex: "mandar
 // mensagem pra quem não tem contato há 2 meses"), a Júlia (via n8n) interpreta e monta a lista
@@ -111,6 +112,7 @@ export default function MarketingAutomacoes() {
   const { triggers, loading, criar, aprovar, rejeitar, remover } = useMessageTriggers();
   const [descricao, setDescricao] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
 
   const handleSubmit = async () => {
     if (!descricao.trim()) { toast.error("Descreva o que você quer que aconteça."); return; }
@@ -130,7 +132,13 @@ export default function MarketingAutomacoes() {
     <PageContainer
       title="Central de Automações S.P.Y."
       description="Descreva quem você quer contatar em texto livre — a Júlia entende, monta a lista e a mensagem, e só envia depois que você aprovar."
+      actions={
+        <Button variant="outline" onClick={() => setMapOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5">
+          <Workflow className="w-3.5 h-3.5" /> Mapa de Automações
+        </Button>
+      }
     >
+      <AutomationsMapModal isOpen={mapOpen} onClose={() => setMapOpen(false)} />
       <div className="space-y-8 pb-20">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
