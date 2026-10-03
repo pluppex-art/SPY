@@ -4779,6 +4779,64 @@ app.post("/api/whatsapp/instances/:id/connect", requireUser, async (req: any, re
   }
 });
 
+// Backfill — o webhook (ver POST /api/whatsapp/webhook/:instanceId) só grava
+// mensagens que chegam DEPOIS da instância conectada ao SPY; conversas e
+// histórico que já existiam na sessão do WhatsApp antes disso nunca entravam.
+// Mesmo padrão de dedupe do webhook (upsert contato por telefone, mensagem
+// por wa_message_id) — rodar de novo não duplica o que já tem id estável.
+// Provider não testado contra WAHA real (ver aviso em whatsappProvider.ts);
+// mensagens sem id retornado pelo WAHA podem duplicar numa 2ª execução.
+app.post("/api/whatsapp/instances/:id/backfill", requireUser, async (req: any, res) => {
+  const { id } = req.params;
+  const { data: inst, error } = await req.supabase.from("whatsapp_instances").select("*").eq("id", id).maybeSingle();
+  if (error || !inst) return res.status(404).json({ error: "Instância não encontrada" });
+  if (inst.status !== "CONNECTED") return res.status(409).json({ error: "Conecte a instância antes de importar o histórico." });
+
+  const provider = getWhatsAppProvider();
+  const MESSAGES_PER_CHAT = 200;
+  try {
+    const chats = await provider.listChats(id);
+    let contatosImportados = 0, mensagensImportadas = 0, mensagensExistentes = 0;
+    const erros: string[] = [];
+
+    for (const chat of chats) {
+      try {
+        const messages = await provider.getChatMessages(id, chat.chatId, MESSAGES_PER_CHAT);
+        if (messages.length === 0) continue;
+
+        const last = messages.reduce((a, b) => (a.timestamp > b.timestamp ? a : b));
+        const { data: contact, error: contactErr } = await req.supabase
+          .from("chat_contacts")
+          .upsert(
+            { tenant_id: inst.tenant_id, whatsapp_instance_id: inst.id, phone: chat.phone, name: chat.name || chat.phone, last_message: last.text, last_message_at: new Date(last.timestamp * 1000).toISOString() },
+            { onConflict: "whatsapp_instance_id,phone" }
+          )
+          .select().maybeSingle();
+        if (contactErr || !contact) { erros.push(chat.phone); continue; }
+        contatosImportados++;
+
+        for (const m of messages) {
+          const { error: msgErr } = await req.supabase.from("chat_messages").insert({
+            tenant_id: inst.tenant_id, contact_id: contact.id, whatsapp_instance_id: inst.id,
+            text: m.text, sender: m.fromMe ? "human" : "contact", status: m.fromMe ? "sent" : "received",
+            wa_message_id: m.id || null, created_at: new Date(m.timestamp * 1000).toISOString(),
+          });
+          if (msgErr) { if (msgErr.code === "23505") mensagensExistentes++; continue; }
+          mensagensImportadas++;
+        }
+      } catch {
+        erros.push(chat.phone);
+      }
+    }
+
+    console.info("[whatsapp-backfill]", JSON.stringify({ tenant: inst.tenant_id, instance: id, chats: chats.length, contatosImportados, mensagensImportadas, mensagensExistentes, erros: erros.length }));
+    res.json({ chats: chats.length, contatosImportados, mensagensImportadas, mensagensExistentes, erros: erros.length });
+  } catch (err: any) {
+    console.error(`[whatsapp/instances/backfill] provider=${provider.name}`, err?.message);
+    res.status(502).json({ error: `Falha ao importar histórico (${provider.name}): ${err?.message || "erro desconhecido"}` });
+  }
+});
+
 app.delete("/api/whatsapp/instances/:id", requireUser, async (req: any, res) => {
   const { id } = req.params;
   // Posse primeiro: só a instância visível ao chamador (RLS) chega ao gateway WAHA compartilhado.

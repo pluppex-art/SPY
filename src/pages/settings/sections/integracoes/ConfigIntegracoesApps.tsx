@@ -725,6 +725,19 @@ export function ConfigIntegracoesApps() {
       .finally(() => setConnectingInstanceId(null));
   };
 
+  const [backfillingInstanceId, setBackfillingInstanceId] = useState<string | null>(null);
+  const handleBackfillInstance = (id: string) => {
+    setBackfillingInstanceId(id);
+    apiFetch(`/api/whatsapp/instances/${id}/backfill`, { method: "POST" })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Erro ao importar histórico.");
+        toast.success(`Histórico importado: ${data.contatosImportados} conversas, ${data.mensagensImportadas} mensagens novas (${data.mensagensExistentes} já existiam)${data.erros ? `, ${data.erros} com erro` : ""}.`);
+      })
+      .catch((err: any) => toast.error(err?.message || "Erro ao importar histórico."))
+      .finally(() => setBackfillingInstanceId(null));
+  };
+
   // Built-in list of catalog integrations
   const allIntegrations = useMemo(() => {
     const list = [
@@ -1605,9 +1618,19 @@ export function ConfigIntegracoesApps() {
                     </div>
                     <div className="text-[var(--color-text-muted)] flex items-center justify-between">
                       🌐 Status: <span className={inst.status === "CONNECTED" ? "text-success font-bold" : "text-warning font-bold"}>{inst.status}</span>
-                      {inst.status !== "CONNECTED" && (
+                      {inst.status !== "CONNECTED" ? (
                         <Button size="sm" onClick={() => handleConnectInstance(inst.id)} loading={connectingInstanceId === inst.id} className="h-7 text-[10px] px-2.5">
                           Conectar
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm" variant="outline"
+                          onClick={() => handleBackfillInstance(inst.id)}
+                          loading={backfillingInstanceId === inst.id}
+                          title="Importa as conversas e mensagens que já existiam no WhatsApp antes de conectar aqui — o que chega depois de conectado já entra sozinho."
+                          className="h-7 text-[10px] px-2.5"
+                        >
+                          Importar histórico
                         </Button>
                       )}
                     </div>

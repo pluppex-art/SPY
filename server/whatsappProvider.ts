@@ -42,6 +42,20 @@ export interface ProviderConnectResult {
   phone?: string;
 }
 
+export interface ProviderChat {
+  chatId: string; // ex.: 5511999999999@c.us
+  phone: string;
+  name: string;
+}
+
+export interface ProviderMessage {
+  id?: string;
+  phone: string;
+  text: string;
+  fromMe: boolean;
+  timestamp: number; // epoch segundos
+}
+
 export interface WhatsAppProvider {
   readonly name: WhatsAppProviderName;
   createInstance(instanceName: string, webhookUrl: string): Promise<ProviderInstanceResult>;
@@ -49,6 +63,12 @@ export interface WhatsAppProvider {
   getConnectionState(providerInstanceId: string): Promise<ProviderConnectResult>;
   deleteInstance(providerInstanceId: string): Promise<void>;
   sendTextMessage(providerInstanceId: string, phone: string, text: string): Promise<{ id: string }>;
+  /** Backfill: conversas já existentes na sessão antes de conectar ao SPY (o
+   * webhook só vê mensagens que chegam DEPOIS de conectado). Provider que não
+   * suporta (ex.: Simulador) devolve lista vazia — nunca lança. */
+  listChats(providerInstanceId: string): Promise<ProviderChat[]>;
+  /** Histórico de uma conversa, mais recentes primeiro, até `limit`. */
+  getChatMessages(providerInstanceId: string, chatId: string, limit: number): Promise<ProviderMessage[]>;
 }
 
 // ── Config ───────────────────────────────────────────────────────────────
@@ -105,6 +125,14 @@ export class SimulatorProvider implements WhatsAppProvider {
 
   async sendTextMessage(_providerInstanceId: string, _phone: string, _text: string): Promise<{ id: string }> {
     return { id: "sim_msg_" + Math.random().toString(36).substring(2, 9) };
+  }
+
+  async listChats(): Promise<ProviderChat[]> {
+    return []; // Simulador não tem histórico de verdade pra trazer.
+  }
+
+  async getChatMessages(): Promise<ProviderMessage[]> {
+    return [];
   }
 }
 
@@ -176,6 +204,48 @@ export class WAHAProvider implements WhatsAppProvider {
       { headers: this.headers(), timeout: 20000 }
     );
     return { id: data?.id?._serialized || data?.id || "waha_msg_" + Date.now() };
+  }
+
+  // Backfill — não testado contra servidor real (mesmo aviso do topo do
+  // arquivo). Endpoints documentados publicamente pelo WAHA:
+  //  - GET /api/{session}/chats                                  → lista de conversas
+  //  - GET /api/{session}/chats/{chatId}/messages?limit=N         → histórico de uma conversa
+  async listChats(providerInstanceId: string): Promise<ProviderChat[]> {
+    const { data } = await axios.get(
+      `${WAHA_API_URL}/api/${encodeURIComponent(providerInstanceId)}/chats`,
+      { headers: this.headers(), timeout: 30000 }
+    );
+    const list: any[] = Array.isArray(data) ? data : [];
+    return list
+      .map((c) => {
+        const rawId: string = c?.id?._serialized || c?.id || "";
+        if (!rawId.endsWith("@c.us")) return null; // ignora grupos (@g.us) — mesmo escopo do webhook, que só trata 1:1.
+        const phone = rawId.replace(/@c\.us$/, "");
+        if (!phone) return null;
+        return { chatId: rawId, phone, name: c?.name || c?.formattedTitle || phone };
+      })
+      .filter((c): c is ProviderChat => c !== null);
+  }
+
+  async getChatMessages(providerInstanceId: string, chatId: string, limit: number): Promise<ProviderMessage[]> {
+    const { data } = await axios.get(
+      `${WAHA_API_URL}/api/${encodeURIComponent(providerInstanceId)}/chats/${encodeURIComponent(chatId)}/messages`,
+      { headers: this.headers(), timeout: 30000, params: { limit, downloadMedia: false } }
+    );
+    const list: any[] = Array.isArray(data) ? data : [];
+    return list
+      .map((m): ProviderMessage | null => {
+        const rawFrom: string = m?.fromMe ? (m?.to || chatId) : (m?.from || chatId);
+        const phone = String(rawFrom).replace(/@c\.us$/, "").replace(/@s\.whatsapp\.net$/, "");
+        const text: string = m?.body || m?.text || "";
+        if (!phone || !text) return null;
+        return {
+          id: m?.id?._serialized || m?.id || undefined,
+          phone, text, fromMe: !!m?.fromMe,
+          timestamp: Number(m?.timestamp) || Math.floor(Date.now() / 1000),
+        };
+      })
+      .filter((m): m is ProviderMessage => m !== null);
   }
 }
 
