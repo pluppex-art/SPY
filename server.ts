@@ -2362,6 +2362,17 @@ app.post("/api/v1/finance-entries", requireApiKey, async (req, res) => {
     : (value ?? 0);
   const id = `tnp_fat_${externalId}`;
 
+  // Valor zero só faz sentido pra RETRATAR um lançamento que já existe (ex.: reserva paga que foi
+  // cancelada/reembolsada depois). Se nunca houve lançamento, não cria uma linha de R$ 0 (ruído no financeiro).
+  if (rawValue <= 0) {
+    const { data: existente } = await supabaseService.from("finance_entries").select("id")
+      .eq("tenant_id", tenantId).eq("id", id).limit(1).maybeSingle();
+    if (!existente) {
+      logApiKeyUsage(req, 200);
+      return res.status(200).json({ success: true, skipped: true, reason: "Valor zero e nenhum lançamento anterior para retratar." });
+    }
+  }
+
   const { error } = await supabaseService.from("finance_entries").upsert({
     id, tenant_id: tenantId, description, value: rawValue,
     date: date || new Date().toISOString().split("T")[0],
@@ -2375,6 +2386,164 @@ app.post("/api/v1/finance-entries", requireApiKey, async (req, res) => {
   }
   logApiKeyUsage(req, 201);
   return res.status(201).json({ success: true });
+});
+
+// Resolve o lead de um contato (telefone primeiro, e-mail como fallback) — mesma regra dos demais
+// endpoints /api/v1 (duas queries .eq() em vez de um .or() concatenado, ver POST /api/v1/leads).
+async function findLeadByContact(tenantId: string, phone: string, email: string): Promise<any | null> {
+  if (!supabaseService) return null;
+  if (phone) {
+    const { data } = await supabaseService.from("leads").select("id, name, clientId, email")
+      .eq("tenant_id", tenantId).eq("phone", phone).limit(1).maybeSingle();
+    if (data) return data;
+  }
+  if (email) {
+    const { data } = await supabaseService.from("leads").select("id, name, clientId, email")
+      .eq("tenant_id", tenantId).eq("email", email).limit(1).maybeSingle();
+    if (data) return data;
+  }
+  return null;
+}
+
+// Cadastra (ou completa) um cliente na Base de Clientes a partir de uma fonte externa — o que o Spy faz
+// no navegador quando um lead é ganho, mas feito no servidor pra integrações (que nunca abrem o Spy).
+// Acha o cliente por documento → telefone → e-mail; se existe, só PREENCHE o que está em branco (nunca
+// sobrescreve dado que alguém já ajustou à mão); se não, cria. Depois liga os leads do contato a ele.
+app.post("/api/v1/clients", requireApiKey, async (req, res) => {
+  const {
+    name = "", phone = "", email = "", documento = "", tipoPessoa = null,
+    cep = "", logradouro = "", numero = "", bairro = "", complemento = "", city = "", state = "",
+    industry = "", status = "Ativo",
+  } = req.body;
+
+  if (!String(name).trim()) { logApiKeyUsage(req, 400); return res.status(400).json({ error: "O campo 'name' é obrigatório." }); }
+  if (!phone && !email && !documento) { logApiKeyUsage(req, 400); return res.status(400).json({ error: "Informe ao menos 'phone', 'email' ou 'documento'." }); }
+  if (!supabaseService) { logApiKeyUsage(req, 503); return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." }); }
+
+  const tenantId = (req as any).tenantId;
+  const normalizedPhone = phone ? String(phone).replace(/\D/g, "") : "";
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : "";
+  const doc = documento ? String(documento).trim() : "";
+
+  let existing: any = null;
+  for (const [col, val] of [["documento", doc], ["phone", normalizedPhone], ["email", normalizedEmail]] as [string, string][]) {
+    if (existing || !val) continue;
+    const { data } = await supabaseService.from("clientes").select("*").eq("tenant_id", tenantId).eq(col, val).limit(1).maybeSingle();
+    existing = data;
+  }
+
+  const incoming: Record<string, any> = {
+    phone: normalizedPhone || null, email: normalizedEmail || null, documento: doc || null,
+    tipo_pessoa: tipoPessoa === "PF" || tipoPessoa === "PJ" ? tipoPessoa : null,
+    cep: cep || null, logradouro: logradouro || null, numero: numero || null, bairro: bairro || null,
+    complemento: complemento || null, city: city || null, state: state || null,
+  };
+
+  let clienteId: string;
+  let created = false;
+  if (existing) {
+    clienteId = existing.id;
+    const patch: Record<string, any> = {};
+    for (const [k, v] of Object.entries(incoming)) if (v && !existing[k]) patch[k] = v;
+    if (Object.keys(patch).length > 0) {
+      const { error } = await supabaseService.from("clientes").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", existing.id);
+      if (error) { console.error("[API v1] Erro ao completar cliente:", error.message); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao atualizar cliente." }); }
+    }
+  } else {
+    const { data, error } = await supabaseService.from("clientes").insert({
+      name: String(name).trim(), ...incoming, status, tenant_id: tenantId,
+      ...(industry ? { industry } : {}),
+    }).select("id").maybeSingle();
+    if (error || !data) { console.error("[API v1] Erro ao criar cliente:", error?.message); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao criar cliente." }); }
+    clienteId = data.id;
+    created = true;
+  }
+
+  // Liga os leads desse contato ao cliente — só os que ainda não apontam pra nenhum cliente de verdade.
+  const orfaos = (id: any) => !id || id === FORM_CLIENT_ID;
+  let linked = 0;
+  for (const [col, val] of [["phone", normalizedPhone], ["email", normalizedEmail]] as [string, string][]) {
+    if (!val) continue;
+    const { data: leadsDoContato } = await supabaseService.from("leads").select("id, clientId").eq("tenant_id", tenantId).eq(col, val);
+    const ids = (leadsDoContato || []).filter((l: any) => orfaos(l.clientId)).map((l: any) => l.id);
+    if (ids.length > 0) {
+      const { error } = await supabaseService.from("leads").update({ clientId: clienteId, clientName: String(name).trim() }).in("id", ids);
+      if (!error) linked += ids.length;
+    }
+  }
+  logApiKeyUsage(req, created ? 201 : 200);
+  return res.status(created ? 201 : 200).json({ success: true, id: clienteId, created, leadsLinked: linked });
+});
+
+// Compromisso na Agenda (reunioes) vindo de fonte externa SEM exigir lead — ex.: reserva de quem não deixou
+// telefone nem e-mail (não dá pra criar lead sem contato, mas o compromisso existe e precisa estar na
+// agenda). Se o contato resolve para um lead, liga a ele; senão guarda um leadId sintético "ext:<externalId>".
+// Upsert por externalId, então reenviar atualiza em vez de duplicar. Mesmo id usado por
+// syncReuniaoFromReservation (reservation.id), então os dois caminhos nunca duplicam o mesmo compromisso.
+app.post("/api/v1/meetings", requireApiKey, async (req, res) => {
+  const {
+    externalId = "", title = "", scheduledAt = "", date = "", time = "", durationMinutes = 60,
+    status = "Agendada", notes = "", name = "", email = "", phone = "", company = "",
+  } = req.body;
+
+  if (!externalId) { logApiKeyUsage(req, 400); return res.status(400).json({ error: "O campo 'externalId' é obrigatório." }); }
+  if (!title) { logApiKeyUsage(req, 400); return res.status(400).json({ error: "O campo 'title' é obrigatório." }); }
+  const when = scheduledAt || (date ? `${date}T${String(time || "00:00:00").slice(0, 8)}` : "");
+  if (!when) { logApiKeyUsage(req, 400); return res.status(400).json({ error: "Informe 'scheduledAt' ou 'date'." }); }
+  if (!supabaseService) { logApiKeyUsage(req, 503); return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." }); }
+
+  const tenantId = (req as any).tenantId;
+  const normalizedPhone = phone ? String(phone).replace(/\D/g, "") : "";
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : "";
+  const lead = await findLeadByContact(tenantId, normalizedPhone, normalizedEmail);
+  const statusOk = ["Agendada", "Concluída", "Cancelada"].includes(status) ? status : "Agendada";
+
+  const { error } = await supabaseService.from("reunioes").upsert({
+    id: String(externalId),
+    leadId: lead?.id ?? `ext:${externalId}`,
+    leadName: lead?.name ?? (String(name).trim() || "Cliente"),
+    leadEmail: normalizedEmail || lead?.email || "",
+    companyName: company || "",
+    closerName: "", closerEmail: "",
+    scheduledAt: when,
+    durationMinutes: Math.max(15, Math.round(Number(durationMinutes) || 60)),
+    status: statusOk, pauta: title, relatorio: notes || null,
+    tenant_id: tenantId,
+  }, { onConflict: "id" });
+  if (error) { console.error("[API v1] Erro ao salvar compromisso:", error.message); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao salvar compromisso." }); }
+  logApiKeyUsage(req, 201);
+  return res.status(201).json({ success: true, linkedToLead: !!lead });
+});
+
+// Cadastra/atualiza um produto do catálogo a partir de fonte externa (ex.: itens da loja de um sistema de
+// agendamento). Chave = sku (se não vier, `ext-<externalId>`), por tenant — reenviar atualiza em vez de duplicar.
+app.post("/api/v1/products", requireApiKey, async (req, res) => {
+  const {
+    externalId = "", sku = "", name = "", price = 0, cost = 0, category = "", type = "Produto",
+    description = "", active = true, imageUrl = "",
+  } = req.body;
+
+  if (!String(name).trim()) { logApiKeyUsage(req, 400); return res.status(400).json({ error: "O campo 'name' é obrigatório." }); }
+  const chave = String(sku || (externalId ? `ext-${externalId}` : "")).trim();
+  if (!chave) { logApiKeyUsage(req, 400); return res.status(400).json({ error: "Informe 'sku' ou 'externalId'." }); }
+  if (!supabaseService) { logApiKeyUsage(req, 503); return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." }); }
+
+  const tenantId = (req as any).tenantId;
+  const num = (v: any) => (typeof v === "string" ? parseFloat(v.replace(/[^\d.,]/g, "").replace(",", ".")) || 0 : Number(v) || 0);
+
+  const { data: existente } = await supabaseService.from("products").select("id, type_attributes")
+    .eq("tenant_id", tenantId).eq("sku", chave).limit(1).maybeSingle();
+  const campos = {
+    name: String(name).trim(), sku: chave, price: num(price), cost: num(cost), category: category || null,
+    type, description: description || null, active: !!active,
+    type_attributes: { ...(existente?.type_attributes || {}), ...(imageUrl ? { imageUrl } : {}), origin: "external" },
+  };
+  const { data, error } = existente
+    ? await supabaseService.from("products").update(campos).eq("id", existente.id).select("id").maybeSingle()
+    : await supabaseService.from("products").insert({ ...campos, tenant_id: tenantId }).select("id").maybeSingle();
+  if (error) { console.error("[API v1] Erro ao salvar produto:", error.message); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao salvar produto." }); }
+  logApiKeyUsage(req, existente ? 200 : 201);
+  return res.status(existente ? 200 : 201).json({ success: true, id: data?.id ?? existente?.id, created: !existente });
 });
 
 // ── Captação pública do site de marketing (InteractiveForm.tsx, /f/:niche) ──
