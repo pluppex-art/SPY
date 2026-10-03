@@ -16,6 +16,8 @@ import {
   type OsItem, type OsStatus,
 } from "../../lib/ordemServico";
 import { cn } from "../../lib/utils";
+import { ClientePicker } from "../os/components/ClientePicker";
+import { dadosDoCliente } from "../os/clienteOs";
 
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] disabled:opacity-60";
@@ -77,6 +79,7 @@ export default function OrdemServicoDetalhe() {
       const t = osTotals(validos, num(os.valor_desconto));
       const header = {
         prioridade: os.prioridade, titulo: os.titulo || "", descricao: os.descricao || null,
+        campos: os.campos ?? {},
         cliente_nome: os.cliente_nome || null, cliente_documento: os.cliente_documento || null, cliente_telefone: os.cliente_telefone || null,
         cliente_email: os.cliente_email || null, cliente_endereco: os.cliente_endereco || null, local_execucao: os.local_execucao || null,
         responsavel: os.responsavel || null, data_abertura: os.data_abertura || null, data_prevista: os.data_prevista || null,
@@ -210,6 +213,21 @@ export default function OrdemServicoDetalhe() {
           {/* Cliente */}
           <Card className="p-5 space-y-3">
             <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Cliente</h3>
+            <div>
+              <label className={labelCls}>Escolher da Base de Clientes</label>
+              <ClientePicker
+                clienteId={os.campos?.cliente_id}
+                disabled={locked}
+                mostrarDados={false}
+                placeholder="Buscar cliente para preencher os dados…"
+                onSelect={(c) => {
+                  // Preenche nome, CPF/CNPJ, telefone, e-mail, endereço e local de execução com o cadastro do cliente.
+                  if (c) Object.entries(dadosDoCliente(c)).forEach(([k, v]) => setField(k, v ?? ""));
+                  const { cliente_id: _anterior, ...resto } = os.campos ?? {};
+                  setField("campos", c ? { ...resto, cliente_id: c.id } : resto);
+                }}
+              />
+            </div>
             <div><label className={labelCls}>Nome / Razão social</label><input className={inputCls} disabled={locked} value={os.cliente_nome || ""} onChange={(e) => setField("cliente_nome", e.target.value)} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={labelCls}>CPF / CNPJ</label><input className={inputCls} disabled={locked} value={os.cliente_documento || ""} onChange={(e) => setField("cliente_documento", e.target.value)} /></div>

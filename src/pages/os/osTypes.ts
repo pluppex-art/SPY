@@ -59,6 +59,8 @@ export interface OrdemServico {
   campos: Record<string, string>;
   origemTipo: string | null;
   origemId: string | null;
+  /** Cliente da Base de Clientes ao qual a OS está ligada (campos.cliente_id). */
+  clienteId: string | null;
   createdAt: string;
 }
 
@@ -71,6 +73,7 @@ export const OS_PRIORIDADES: { id: OsPrioridade; label: string; style: string }[
 
 export const OS_ORIGEM_LABEL: Record<string, string> = {
   implementation: "Implementação",
+  lead: "Negócio ganho",
 };
 
 const STATUS_ENCERRADOS: OsStatus[] = ["Concluída", "Faturada", "Cancelada"];

@@ -20,6 +20,7 @@ import {
   statusDaEtapa,
 } from "../osTypes";
 import { rowToDepartamento, rowToFunil, rowToOrdem } from "../osMappers";
+import { dadosDoCliente } from "../clienteOs";
 import { OS_NEXT, isOsLocked } from "../../../lib/ordemServico";
 
 export interface NovaOrdemPayload {
@@ -30,6 +31,9 @@ export interface NovaOrdemPayload {
   funilId?: string;
   prioridade: OsPrioridade;
   responsavelNome?: string;
+  /** Cliente da Base de Clientes: grava nome, documento, telefone, e-mail e endereço dele na OS. */
+  cliente?: any;
+  /** Texto livre, quando não há cliente cadastrado. */
   clienteNome?: string;
   prazo?: string | null;
   campos?: Record<string, string>;
@@ -359,9 +363,9 @@ export function useOS() {
         solicitante_nome: user?.name || null,
         created_by: user?.id ?? null,
         responsavel: p.responsavelNome || null,
-        cliente_nome: p.clienteNome || null,
+        ...(p.cliente ? dadosDoCliente(p.cliente) : { cliente_nome: p.clienteNome || null }),
         data_prevista: p.prazo || null,
-        campos: p.campos ?? {},
+        campos: { ...(p.campos ?? {}), ...(p.cliente?.id ? { cliente_id: p.cliente.id } : {}) },
       })
       .select()
       .single();

@@ -37,6 +37,7 @@ export const rowToOrdem = (r: any): OrdemServico => ({
   campos: r.campos && typeof r.campos === "object" ? r.campos : {},
   origemTipo: r.origem_tipo ?? null,
   origemId: r.origem_id ?? null,
+  clienteId: (r.campos && typeof r.campos === "object" && r.campos.cliente_id) || null,
   createdAt: r.created_at,
 });
 

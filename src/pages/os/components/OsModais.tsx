@@ -4,6 +4,7 @@ import { Button } from "../../../components/ui/button";
 import { OS_STATUS_TONE, isOsLocked, osCode } from "../../../lib/ordemServico";
 import { cn } from "../../../lib/utils";
 import type { NovaOrdemPayload, OrdemPatch } from "../hooks/useOS";
+import { ClientePicker } from "./ClientePicker";
 import { OS_ORIGEM_LABEL, OS_PRIORIDADES, type OrdemServico, type OsDepartamento, type OsEtapa, type OsFunil, type OsPrioridade } from "../osTypes";
 
 const inputCls =
@@ -28,6 +29,7 @@ export function NovaOsModal({
   const [prioridade, setPrioridade] = useState<OsPrioridade>("Normal");
   const [responsavelNome, setResponsavelNome] = useState("");
   const [clienteNome, setClienteNome] = useState("");
+  const [clienteSel, setClienteSel] = useState<any | null>(null);
   const [prazo, setPrazo] = useState("");
   const [salvando, setSalvando] = useState(false);
 
@@ -51,13 +53,14 @@ export function NovaOsModal({
       funilId: funilSelecionado,
       prioridade,
       responsavelNome: responsavelNome.trim(),
-      clienteNome: clienteNome.trim(),
+      cliente: clienteSel ?? undefined,
+      clienteNome: clienteSel ? undefined : clienteNome.trim(),
       prazo: prazo || null,
     });
     setSalvando(false);
     if (!ok) return;
     setTitulo(""); setDescricao(""); setDepartamentoId(""); setFunilId(""); setPrioridade("Normal");
-    setResponsavelNome(""); setClienteNome(""); setPrazo("");
+    setResponsavelNome(""); setClienteNome(""); setClienteSel(null); setPrazo("");
   };
 
   return (
@@ -75,6 +78,17 @@ export function NovaOsModal({
       }
     >
       <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Cliente</label>
+          <ClientePicker
+            clienteId={clienteSel?.id}
+            onSelect={c => {
+              setClienteSel(c);
+              // O título já sugere o cliente, se ainda estiver vazio.
+              if (c && !titulo.trim()) setTitulo(`Implementação — ${c.name}`);
+            }}
+          />
+        </div>
         <div>
           <label className={labelCls}>Título</label>
           <input autoFocus value={titulo} onChange={e => setTitulo(e.target.value)} className={inputCls} placeholder="O que precisa ser feito?" />
@@ -113,10 +127,12 @@ export function NovaOsModal({
             <input type="date" value={prazo} onChange={e => setPrazo(e.target.value)} className={inputCls} />
           </div>
         </div>
-        <div>
-          <label className={labelCls}>Cliente / projeto</label>
-          <input value={clienteNome} onChange={e => setClienteNome(e.target.value)} className={inputCls} />
-        </div>
+        {!clienteSel && (
+          <div>
+            <label className={labelCls}>Ou projeto / cliente sem cadastro</label>
+            <input value={clienteNome} onChange={e => setClienteNome(e.target.value)} className={inputCls} />
+          </div>
+        )}
       </div>
     </Modal>
   );

@@ -4,7 +4,8 @@ import { useLocalization } from "../../../contexts/LocalizationContext";
 import { supabase } from "../../../lib/supabase";
 import { toast } from "sonner";
 import { calculateLeadScore } from "../../../lib/leadScore";
-import { startImplementationForClient } from "../../../lib/implementationAutoStart";
+import { aoGanharNegocio } from "../../../lib/implementationAutoStart";
+import { useAuth } from "../../../contexts/AuthContext";
 import { getStageId } from "../../../lib/funilStages";
 import { WIN_FUNIL_CONFIG_KEY } from "../../../lib/implementationStage";
 
@@ -27,6 +28,7 @@ function buildStages(funis: any[], isSDR: boolean) {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useLeadDetails(lead: any, onClose: () => void) {
+  const { activeTenantId } = useAuth();
   const { leadActivities, addLeadActivity, updateLead, deleteLead, customLeadFields, products, addProduct, turmas, addTurma, funis, students, addStudent, proposals, appSettings, clienteBase, addImplementation, updateClienteBase } = useData();
   const { formatCurrency } = useLocalization();
 
@@ -284,18 +286,19 @@ export function useLeadDetails(lead: any, onClose: () => void) {
       toast.success(`Lead ${leadName} convertido para Cliente Fechado!`);
     }
 
-    // Mesma conexão com a página de Implementações usada no drag-and-drop do
-    // Kanban (ver handleWinStageDrop em usePipeline.ts) — sem isso, convertido
-    // por aqui não disparava o auto-start, só o drop no board.
+    // Mesma conexão com Implementações + Ordem de Serviço usada no drag-and-drop do Kanban (ver
+    // handleWinStageDrop em usePipeline.ts) — sem isso, convertido por aqui não gerava a implementação/OS.
     const cliente = lead?.clientId ? (clienteBase as any[]).find((c: any) => c.id === lead.clientId) : null;
     if (cliente) {
-      startImplementationForClient(cliente, lead, { supabase, addImplementation, updateClienteBase })
+      aoGanharNegocio(cliente, lead, {
+        supabase, addImplementation, updateClienteBase, produtos: products as any[], tenantId: activeTenantId, legacy: !!targetFunil,
+      })
         .then((result) => {
-          if (result && !result.alreadyExisted) {
-            toast.success(`Implementação iniciada automaticamente para "${cliente.name}".`);
-          }
+          if (!result) return;
+          if (result.implementacaoCriada) toast.success(`Implementação iniciada automaticamente para "${cliente.name}".`);
+          if (result.ordem === "criada") toast.success(`Ordem de serviço gerada em Implementação para "${cliente.name}".`);
         })
-        .catch((err) => console.error("[LeadDetails] Falha ao auto-iniciar implementação:", err));
+        .catch((err) => console.error("[LeadDetails] Falha ao gerar implementação/OS ao ganhar:", err));
     }
     setAlterationLogs(prev => [
       { id: Date.now().toString(), author: seller || "Sistema", desc: "Lead convertido em Cliente Ativo", time: "Agora" },

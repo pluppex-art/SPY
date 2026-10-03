@@ -17,6 +17,7 @@ import {
 import { startImplementationForClient } from "../../lib/implementationAutoStart";
 import { tenantReadiness } from "../../lib/implementationTenant";
 import { useImplementationStages } from "../os/hooks/useImplementationStages";
+import { ClientePicker } from "../os/components/ClientePicker";
 
 const FILTROS = ["Todas", ...IMPLEMENTATION_STATUSES] as const;
 
@@ -28,7 +29,7 @@ const LEGACY_STATUS_DOT: Record<ImplementationStatus, string> = {
 };
 
 export default function Implementacoes() {
-  const { implementations, clienteBase, leads, addImplementation, updateImplementation, updateClienteBase, updateLead } = useData();
+  const { implementations, clienteBase, leads, products, addImplementation, updateImplementation, updateClienteBase, updateLead } = useData();
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState<(typeof FILTROS)[number]>("Todas");
   const [busca, setBusca] = useState("");
@@ -166,7 +167,7 @@ export default function Implementacoes() {
     iniciandoRef.current = true;
     setIniciando(cliente.id);
     try {
-      const result = await startImplementationForClient(cliente, lead, { supabase, addImplementation, updateClienteBase });
+      const result = await startImplementationForClient(cliente, lead, { supabase, addImplementation, updateClienteBase, produtos: products as any[] });
       if (result?.id) navigate(`/app/crm/implementacoes/${result.id}`);
     } finally {
       iniciandoRef.current = false;
@@ -212,14 +213,15 @@ export default function Implementacoes() {
             {clientesLivres.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
                 <span className="text-[11px] text-[var(--color-text-muted)]">Iniciar para outro cliente:</span>
-                <select
-                  value={outroClienteId}
-                  onChange={(e) => setOutroClienteId(e.target.value)}
-                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-1.5 text-xs cursor-pointer max-w-[260px]"
-                >
-                  <option value="">Selecione…</option>
-                  {clientesLivres.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <div className="w-[280px]">
+                  <ClientePicker
+                    clienteId={outroClienteId}
+                    excluirIds={comImplementacao}
+                    mostrarDados={false}
+                    placeholder="Buscar cliente…"
+                    onSelect={(c) => setOutroClienteId(c?.id ?? "")}
+                  />
+                </div>
                 <Button
                   size="sm" variant="outline" disabled={!outroClienteId || iniciando === outroClienteId}
                   onClick={() => { const c = clientePorId.get(outroClienteId); if (c) iniciar(c); }}
@@ -309,14 +311,15 @@ export default function Implementacoes() {
             {clientesLivres.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] text-[var(--color-text-muted)]">Iniciar para outro cliente:</span>
-                <select
-                  value={outroClienteId}
-                  onChange={(e) => setOutroClienteId(e.target.value)}
-                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-1.5 text-xs cursor-pointer max-w-[260px]"
-                >
-                  <option value="">Selecione…</option>
-                  {clientesLivres.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <div className="w-[280px]">
+                  <ClientePicker
+                    clienteId={outroClienteId}
+                    excluirIds={comImplementacao}
+                    mostrarDados={false}
+                    placeholder="Buscar cliente…"
+                    onSelect={(c) => setOutroClienteId(c?.id ?? "")}
+                  />
+                </div>
                 <Button
                   size="sm" variant="outline" disabled={!outroClienteId || iniciando === outroClienteId}
                   onClick={() => { const c = clientePorId.get(outroClienteId); if (c) iniciar(c); }}

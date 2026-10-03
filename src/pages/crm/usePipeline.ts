@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
 import { parseCurrencyBR } from "../../lib/utils";
 import { supabase } from "../../lib/supabase";
-import { startImplementationForClient } from "../../lib/implementationAutoStart";
+import { aoGanharNegocio } from "../../lib/implementationAutoStart";
 import { getStageId, buildStagesForFunil } from "../../lib/funilStages";
 import { WIN_FUNIL_CONFIG_KEY } from "../../lib/implementationStage";
 
@@ -26,7 +26,7 @@ export function usePipeline() {
   const [webhookModalLead, setWebhookModalLead] = useState<any>(null);
   const [webhookUrl, setWebhookUrl] = useState("");
   const { leads, updateLead, tasks, addTask, products, clienteBase, funis: dataFunis, colaboradores, appSettings, addImplementation, updateClienteBase } = useData();
-  const { user } = useAuth();
+  const { user, activeTenantId } = useAuth();
   const { formatCurrency } = useLocalization();
 
   const [clientFilter, setClientFilter] = useState("Todos");
@@ -370,39 +370,34 @@ export function usePipeline() {
     setOpenDropdownId(null);
   };
 
-  // Promoção automática pra outro funil quando um negócio é ganho — genérico
-  // (não amarrado a nenhum tenant/funil específico no código): um tenant
-  // configura em app_settings (key "axis_win_funil_config", valor
-  // { [funilIdDeOrigem]: funilIdDeDestino }) qual funil recebe automaticamente
-  // os negócios ganhos de qual funil comercial. Sem config pra aquele funil,
-  // não faz nada (comportamento de hoje, intacto).
+  // Ao ganhar um negócio (soltar no Ganho do Kanban):
+  //  1. Se o tenant configurou a promoção automática (app_settings "axis_win_funil_config", valor
+  //     { [funilIdDeOrigem]: funilIdDeDestino }), o lead vai pro funil de destino — comportamento legado.
+  //  2. Se o tenant usa o departamento "Implementação" da Ordem de Serviço (ou a promoção acima), inicia a
+  //     implementação do cliente e gera a OS do que precisa ser feito, com o produto vendido e os dados do
+  //     cliente (ver aoGanharNegocio). Só roda quando o lead já tem cliente vinculado (clientId); sem isso o
+  //     cliente aparece em "Aguardando início" nas Implementações. Quem não usa nada disso: nada acontece.
   const handleWinStageDrop = (leadId: string, stage: any) => {
     const config = appSettings[WIN_FUNIL_CONFIG_KEY] as Record<string, string> | undefined;
     const targetFunilId = stage?.funilId ? config?.[stage.funilId] : undefined;
-    if (!targetFunilId) return;
-    const targetFunil = funisConfig.find((f: any) => f.id === targetFunilId);
-    if (!targetFunil) return;
-    const targetStageId = getStageId(targetFunilId, 0);
-    updateLead(leadId, { stageId: targetStageId });
-    toast.success(`Negócio ganho! Movido automaticamente para "${targetFunil.nome}".`);
+    const targetFunil = targetFunilId ? funisConfig.find((f: any) => f.id === targetFunilId) : undefined;
+    if (targetFunil) {
+      updateLead(leadId, { stageId: getStageId(targetFunilId!, 0) });
+      toast.success(`Negócio ganho! Movido automaticamente para "${targetFunil.nome}".`);
+    }
 
-    // Conecta com a página de Implementações (/app/crm/implementacoes): em vez
-    // de esperar alguém clicar "Iniciar implementação" manualmente lá, já cria
-    // a implementação de verdade no mesmo instante — mesma lógica daquele
-    // botão (ver startImplementationForClient), só que disparada automática.
-    // Só roda quando o lead já tem um cliente vinculado (clientId) — sem isso,
-    // o cliente simplesmente aparece em "Aguardando início" como hoje.
     const lead = (leads as any[]).find((l: any) => l.id === leadId);
     const cliente = lead?.clientId ? (clienteBase as any[]).find((c: any) => c.id === lead.clientId) : null;
-    if (cliente) {
-      startImplementationForClient(cliente, lead, { supabase, addImplementation, updateClienteBase })
-        .then((result) => {
-          if (result && !result.alreadyExisted) {
-            toast.success(`Implementação iniciada automaticamente para "${cliente.name}".`);
-          }
-        })
-        .catch((err) => console.error("[Pipeline] Falha ao auto-iniciar implementação:", err));
-    }
+    if (!cliente) return;
+    aoGanharNegocio(cliente, lead, {
+      supabase, addImplementation, updateClienteBase, produtos: products as any[], tenantId: activeTenantId, legacy: !!targetFunil,
+    })
+      .then((result) => {
+        if (!result) return;
+        if (result.implementacaoCriada) toast.success(`Implementação iniciada automaticamente para "${cliente.name}".`);
+        if (result.ordem === "criada") toast.success(`Ordem de serviço gerada em Implementação para "${cliente.name}".`);
+      })
+      .catch((err) => console.error("[Pipeline] Falha ao gerar implementação/OS ao ganhar:", err));
   };
 
   const handleTransferToComercial = (e: any, lead: any) => {

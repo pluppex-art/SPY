@@ -17,8 +17,11 @@ import {
   etapaConclusao,
   etapaParaImplementacao,
   funilPadrao,
+  descricaoDoNegocio,
   inserirOrdens,
-  montarOrdemDeImplementacao,
+  itensDosProdutos,
+  montarOrdem,
+  ORIGEM_IMPLEMENTACAO,
   type FonteOsImplementacao,
 } from "../implementationOs";
 import { statusDaEtapa, type OsFunil } from "../osTypes";
@@ -51,7 +54,7 @@ const stagesDoFunil = (f?: OsFunil | null): FunilStage[] =>
  * Nada muda para quem não configurou o departamento na OS.
  */
 export function useImplementationStages() {
-  const { implementations, clienteBase, leads, funis: funisCrm, appSettings } = useData();
+  const { implementations, clienteBase, leads, products, funis: funisCrm, appSettings } = useData();
   const { activeTenantId, user } = useAuth();
 
   const [fonte, setFonte] = useState<FonteOsImplementacao | null>(null);
@@ -90,15 +93,21 @@ export function useImplementationStages() {
     const linhas = faltam.flatMap(impl => {
       const nomeCrm = getImplementationStageInfo(impl, leads as any[], crmStages)?.stage.name;
       const etapa = etapaParaImplementacao(funil.etapas, impl, nomeCrm);
-      return etapa
-        ? [montarOrdemDeImplementacao({
-            tenantId: activeTenantId, departamento: fonte.departamento, funil, etapa, impl,
-            clienteNome: clientePorId.get(impl.cliente_id)?.name, userId: user?.id,
-          })]
-        : [];
+      if (!etapa) return [];
+      // Mesmo conteúdo da OS gerada ao ganhar: cliente com os dados dele, produto vendido como item.
+      const cliente = clientePorId.get(impl.cliente_id);
+      const lead = (leads as any[]).find(l => l.id === impl.lead_id);
+      return [{
+        row: montarOrdem({
+          tenantId: activeTenantId, departamento: fonte.departamento, funil, etapa, impl, cliente, userId: user?.id,
+          origem: { tipo: ORIGEM_IMPLEMENTACAO, id: impl.id },
+          descricao: descricaoDoNegocio(lead, products as any[]),
+        }),
+        itens: itensDosProdutos(lead, products as any[]),
+      }];
     });
     inserirOrdens(supabase, linhas).finally(async () => { criando.current = false; await recarregar(); });
-  }, [fonte, implementations, clienteBase, leads, crmStages, ordemPorImpl, activeTenantId, user?.id, recarregar]);
+  }, [fonte, implementations, clienteBase, leads, products, crmStages, ordemPorImpl, activeTenantId, user?.id, recarregar]);
 
   const funilDe = useCallback(
     (impl: any): OsFunil | null => {
