@@ -2840,7 +2840,19 @@ app.get("/api/varejo/maxdata/entries", requireUser, async (req: any, res) => {
   const conn = await loadMaxdataConn(req, res, tenantId, "estoque");
   if (!conn) return;
   try {
-    const { docs } = maxExtractDocs<MaxEntry>(await maxdataGet(conn, "/entry"));
+    // A lista de items (/entry/:id/items, logo abaixo) já paginava; esta
+    // (/entry) não — ficava restrita à página 1 do Max, então "total" mentia
+    // (mostrava só o que cabia na 1ª página) e entradas mais antigas que a
+    // página 1 nunca apareciam pra importar. Mesmo padrão de paginação já
+    // usado ali, com teto de segurança (MAX_PAGES) igual ao resto do código.
+    const MAX_PAGES = 50;
+    const first = maxExtractDocs<MaxEntry>(await maxdataGet(conn, "/entry"));
+    const docs: MaxEntry[] = [...first.docs];
+    let truncated = false;
+    for (let page = 2; page <= first.pages; page++) {
+      if (page > MAX_PAGES) { truncated = true; break; }
+      docs.push(...maxExtractDocs<MaxEntry>(await maxdataGet(conn, `/entry?page=${page}`)).docs);
+    }
     const ids = docs.map((d) => String(d.id));
     const { data: jaImportadas } = ids.length
       ? await req.supabase.from("notas_entrada").select("externo_id, id").eq("tenant_id", tenantId).eq("externo_sistema", "maxdata").neq("status", "Cancelada").in("externo_id", ids)
@@ -2852,7 +2864,10 @@ app.get("/api/varejo/maxdata/entries", requireUser, async (req: any, res) => {
       fornecedorNome: d.fornecedorNome ?? null, totalnf: d.totalnf ?? 0, status: d.status ?? null,
       conferida: !!d.data_conferencia, notaId: importadas.get(String(d.id)) ?? null,
     }));
-    return res.json({ entries, total: docs.length });
+    // Confere contagem: quantas a Max reporta vs. quantas já estão no SPY —
+    // sem isso não dá pra saber se a importação está "em dia" ou atrasada.
+    console.info("[maxdata-entries]", JSON.stringify({ tenant: tenantId, totalNaMax: docs.length, jaImportadas: importadas.size, pendentes: docs.length - importadas.size, truncated }));
+    return res.json({ entries, total: docs.length, importadas: importadas.size, pendentes: docs.length - importadas.size, truncated });
   } catch (e: any) {
     return res.status(maxErrorStatus(e)).json({ error: e?.message || "Falha ao ler as entradas da Max Data." });
   }

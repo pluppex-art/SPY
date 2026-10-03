@@ -40,6 +40,8 @@ export default function NotasEntrada() {
   const [maxError, setMaxError] = useState<string | null>(null);
   const [maxEntries, setMaxEntries] = useState<any[]>([]);
   const [maxTotal, setMaxTotal] = useState(0);
+  const [maxPendentes, setMaxPendentes] = useState(0);
+  const [maxTruncated, setMaxTruncated] = useState(false);
   const [maxBusca, setMaxBusca] = useState("");
   const [maxSel, setMaxSel] = useState<Set<number>>(new Set());
   const [maxImportando, setMaxImportando] = useState(false);
@@ -146,6 +148,8 @@ export default function NotasEntrada() {
       if (!res.ok) { setMaxError(body?.error || "Não foi possível ler as entradas da Max Data."); setMaxEntries([]); return; }
       setMaxEntries(body.entries || []);
       setMaxTotal(body.total || 0);
+      setMaxPendentes(body.pendentes || 0);
+      setMaxTruncated(!!body.truncated);
     } catch {
       setMaxError("Falha ao contatar o servidor.");
     } finally {
@@ -280,7 +284,10 @@ export default function NotasEntrada() {
             <>
               <div className="flex items-center justify-between gap-3">
                 <input value={maxBusca} onChange={(e) => setMaxBusca(e.target.value)} placeholder="Buscar número ou fornecedor…" className="w-64 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-                <span className="text-[11px] text-[var(--color-text-faint)]">Mostrando as {maxEntries.length} mais recentes de {maxTotal}</span>
+                <span className="text-[11px] text-[var(--color-text-faint)]">
+                  Mostrando as {maxEntries.length} mais recentes de {maxTotal} · {maxPendentes} pendente{maxPendentes === 1 ? "" : "s"}
+                  {maxTruncated && <span className="text-warning"> · mais de {maxTotal} na Max, lista parcial</span>}
+                </span>
               </div>
               <div className="max-h-[50vh] overflow-y-auto border border-[var(--color-border-subtle)] rounded-[var(--radius-control)]">
                 <table className="w-full text-xs text-left">
