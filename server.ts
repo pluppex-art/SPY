@@ -7,7 +7,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID, timingSafeEqual } from "crypto";
+import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
 import { createSaas, aiContext } from "./server/saas.js";
@@ -159,6 +159,35 @@ for (const pair of rawApiKeyPairs) {
   }
 }
 console.log(`[API Keys] ${apiKeyTenantMap.size} chave(s) válida(s) carregada(s) para /api/v1/leads.`);
+
+// Camada self-service (tabela api_keys — ver Configurações > Integrações):
+// cada tenant gera/revoga a própria chave sem precisar editar SPY_API_KEYS e
+// redeployar (o mapa acima continua funcionando, como legado). Nunca guarda a
+// chave em texto puro — só o hash. Cache curto (TTL) pra não bater no banco a
+// cada chamada de /api/v1/*; revogar uma chave pode levar até esse TTL pra
+// parar de valer (contrapartida aceitável — mesmo tipo de delay que qualquer
+// cache de gateway de API teria).
+const API_KEY_CACHE_TTL_MS = 60_000;
+const dbApiKeyCache = new Map<string, { result: { id: string; tenantId: string } | null; expiresAt: number }>();
+
+function hashApiKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
+
+async function resolveDbApiKey(key: string): Promise<{ id: string; tenantId: string } | null> {
+  const cached = dbApiKeyCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.result;
+  if (!supabaseService) return null;
+  const { data } = await supabaseService
+    .from("api_keys")
+    .select("id, tenant_id")
+    .eq("key_hash", hashApiKey(key))
+    .is("revoked_at", null)
+    .maybeSingle();
+  const result = data ? { id: data.id, tenantId: data.tenant_id } : null;
+  dbApiKeyCache.set(key, { result, expiresAt: Date.now() + API_KEY_CACHE_TTL_MS });
+  return result;
+}
 
 const FORM_CLIENT_ID = process.env.SPY_FORM_CLIENT_ID || process.env.AXIS_FORM_CLIENT_ID || "";
 
@@ -348,22 +377,38 @@ app.use("/api/whatsapp", whatsappLimiter);
 app.use("/api/google-calendar", googleCalendarLimiter);
 app.use("/api/public/lead-capture", publicLeadLimiter);
 
-function requireApiKey(req: express.Request, res: express.Response, next: express.NextFunction) {
-  if (apiKeyTenantMap.size === 0) {
-    logApiKeyUsage(req, 503);
-    return res.status(503).json({ error: "Nenhuma API Key configurada. Defina SPY_API_KEYS no formato chave:tenantId no .env." });
-  }
+async function requireApiKey(req: express.Request, res: express.Response, next: express.NextFunction) {
   const key = req.headers["x-api-key"] as string | undefined;
-  const tenantId = key ? apiKeyTenantMap.get(key) : undefined;
-  if (!key || !tenantId) {
-    // tenantId ainda não existe no req aqui — logApiKeyUsage grava tenant_id
-    // null neste caso (tentativa com chave inválida/ausente, não atribuível
-    // a nenhum tenant real).
+  if (!key) {
     logApiKeyUsage(req, 401);
     return res.status(401).json({ error: "API Key inválida ou ausente." });
   }
-  (req as any).tenantId = tenantId;
-  next();
+
+  // Camada legada (env var) primeiro — zero custo, mantém quem já usa SPY_API_KEYS.
+  const envTenantId = apiKeyTenantMap.get(key);
+  if (envTenantId) {
+    (req as any).tenantId = envTenantId;
+    (req as any).apiKeyId = null;
+    return next();
+  }
+
+  try {
+    const resolved = await resolveDbApiKey(key);
+    if (!resolved) {
+      logApiKeyUsage(req, 401);
+      return res.status(401).json({ error: "API Key inválida ou ausente." });
+    }
+    (req as any).tenantId = resolved.tenantId;
+    (req as any).apiKeyId = resolved.id;
+    // Não bloqueia a resposta — o próprio cache acima já limita isso a
+    // no máximo 1 escrita por minuto por chave, mesmo sob uso intenso.
+    supabaseService?.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", resolved.id).then(() => {});
+    next();
+  } catch (err: any) {
+    console.error("[requireApiKey]", err?.message);
+    logApiKeyUsage(req, 500);
+    res.status(500).json({ error: "Erro ao validar API Key." });
+  }
 }
 
 /**
@@ -2369,6 +2414,20 @@ app.post("/api/v1/lead-activities", requireApiKey, async (req, res) => {
   return res.status(201).json({ success: true });
 });
 
+app.get("/api/v1/lead-activities", requireApiKey, async (req, res) => {
+  if (!supabaseService) { logApiKeyUsage(req, 503); return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." }); }
+  const { leadId, type, limit = "100", offset = "0" } = req.query as Record<string, string>;
+  let query = supabaseService.from("lead_activities").select("*").eq("tenant_id", (req as any).tenantId)
+    .order("date", { ascending: false })
+    .limit(parseInt(limit)).range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+  if (leadId) query = query.eq("lead_id", leadId);
+  if (type) query = query.eq("type", type);
+  const { data, error } = await query;
+  if (error) { console.error("[API v1] Erro ao buscar lead_activities:", error.message); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao buscar atividades." }); }
+  logApiKeyUsage(req, 200);
+  return res.json({ success: true, count: data?.length ?? 0, activities: data ?? [] });
+});
+
 // Cria/atualiza um lançamento financeiro a partir de uma fonte externa (ex.:
 // fechamento mensal do to-na-pista-boliche). Upsert de verdade (não ignora
 // conflito) porque um mês já lançado pode ser revisado depois — o valor mais
@@ -2413,6 +2472,20 @@ app.post("/api/v1/finance-entries", requireApiKey, async (req, res) => {
   }
   logApiKeyUsage(req, 201);
   return res.status(201).json({ success: true });
+});
+
+app.get("/api/v1/finance-entries", requireApiKey, async (req, res) => {
+  if (!supabaseService) { logApiKeyUsage(req, 503); return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." }); }
+  const { status, type, limit = "100", offset = "0" } = req.query as Record<string, string>;
+  let query = supabaseService.from("finance_entries").select("*").eq("tenant_id", (req as any).tenantId)
+    .order("date", { ascending: false })
+    .limit(parseInt(limit)).range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+  if (status) query = query.eq("status", status);
+  if (type) query = query.eq("type", type);
+  const { data, error } = await query;
+  if (error) { console.error("[API v1] Erro ao buscar finance_entries:", error.message); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao buscar lançamentos." }); }
+  logApiKeyUsage(req, 200);
+  return res.json({ success: true, count: data?.length ?? 0, entries: data ?? [] });
 });
 
 // Resolve o lead de um contato (telefone primeiro, e-mail como fallback) — mesma regra dos demais
@@ -2502,6 +2575,19 @@ app.post("/api/v1/clients", requireApiKey, async (req, res) => {
   return res.status(created ? 201 : 200).json({ success: true, id: clienteId, created, leadsLinked: linked });
 });
 
+app.get("/api/v1/clients", requireApiKey, async (req, res) => {
+  if (!supabaseService) { logApiKeyUsage(req, 503); return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." }); }
+  const { status, limit = "100", offset = "0" } = req.query as Record<string, string>;
+  let query = supabaseService.from("clientes").select("*").eq("tenant_id", (req as any).tenantId)
+    .order("created_at", { ascending: false })
+    .limit(parseInt(limit)).range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+  if (status) query = query.eq("status", status);
+  const { data, error } = await query;
+  if (error) { console.error("[API v1] Erro ao buscar clientes:", error.message); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao buscar clientes." }); }
+  logApiKeyUsage(req, 200);
+  return res.json({ success: true, count: data?.length ?? 0, clients: data ?? [] });
+});
+
 // Compromisso na Agenda (reunioes) vindo de fonte externa SEM exigir lead — ex.: reserva de quem não deixou
 // telefone nem e-mail (não dá pra criar lead sem contato, mas o compromisso existe e precisa estar na
 // agenda). Se o contato resolve para um lead, liga a ele; senão guarda um leadId sintético "ext:<externalId>".
@@ -2542,6 +2628,19 @@ app.post("/api/v1/meetings", requireApiKey, async (req, res) => {
   return res.status(201).json({ success: true, linkedToLead: !!lead });
 });
 
+app.get("/api/v1/meetings", requireApiKey, async (req, res) => {
+  if (!supabaseService) { logApiKeyUsage(req, 503); return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." }); }
+  const { status, limit = "100", offset = "0" } = req.query as Record<string, string>;
+  let query = supabaseService.from("reunioes").select("*").eq("tenant_id", (req as any).tenantId)
+    .order("scheduledAt", { ascending: false })
+    .limit(parseInt(limit)).range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+  if (status) query = query.eq("status", status);
+  const { data, error } = await query;
+  if (error) { console.error("[API v1] Erro ao buscar reunioes:", error.message); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao buscar compromissos." }); }
+  logApiKeyUsage(req, 200);
+  return res.json({ success: true, count: data?.length ?? 0, meetings: data ?? [] });
+});
+
 // Cadastra/atualiza um produto do catálogo a partir de fonte externa (ex.: itens da loja de um sistema de
 // agendamento). Chave = sku (se não vier, `ext-<externalId>`), por tenant — reenviar atualiza em vez de duplicar.
 app.post("/api/v1/products", requireApiKey, async (req, res) => {
@@ -2571,6 +2670,19 @@ app.post("/api/v1/products", requireApiKey, async (req, res) => {
   if (error) { console.error("[API v1] Erro ao salvar produto:", error.message); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao salvar produto." }); }
   logApiKeyUsage(req, existente ? 200 : 201);
   return res.status(existente ? 200 : 201).json({ success: true, id: data?.id ?? existente?.id, created: !existente });
+});
+
+app.get("/api/v1/products", requireApiKey, async (req, res) => {
+  if (!supabaseService) { logApiKeyUsage(req, 503); return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." }); }
+  const { active, limit = "100", offset = "0" } = req.query as Record<string, string>;
+  let query = supabaseService.from("products").select("*").eq("tenant_id", (req as any).tenantId).is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(parseInt(limit)).range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+  if (active !== undefined) query = query.eq("active", active === "true");
+  const { data, error } = await query;
+  if (error) { console.error("[API v1] Erro ao buscar products:", error.message); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao buscar produtos." }); }
+  logApiKeyUsage(req, 200);
+  return res.json({ success: true, count: data?.length ?? 0, products: data ?? [] });
 });
 
 // ── Captação pública do site de marketing (InteractiveForm.tsx, /f/:niche) ──
@@ -5299,6 +5411,50 @@ app.post("/api/integrations/external/:id/test", requireUser, requireTenantAdmin,
   } catch (err: any) {
     res.json({ ok: false, status: null, error: err?.code === "ECONNABORTED" ? "Tempo de resposta esgotado (timeout)." : (err?.message || "Falha ao conectar ao endpoint.") });
   }
+});
+
+// ── API Keys self-service (/api/v1/*) ───────────────────────────────────────
+// Antes, conectar um app novo (próprio ou de um cliente) exigia editar
+// SPY_API_KEYS no .env do servidor e redeployar. Agora qualquer admin da
+// empresa gera/revoga a própria chave aqui, na hora — ver requireApiKey acima
+// pra como a chave é validada depois (hash, nunca texto puro).
+app.get("/api/settings/api-keys", requireUser, requireTenantAdmin, async (req: any, res) => {
+  if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
+  const { data, error } = await supabaseService
+    .from("api_keys")
+    .select("id, name, key_prefix, created_at, last_used_at, revoked_at")
+    .eq("tenant_id", req.tenantId)
+    .order("created_at", { ascending: false });
+  if (error) { console.error("[api-keys GET]", error.message); return res.status(500).json({ error: "Falha ao listar chaves." }); }
+  res.json({ keys: data || [] });
+});
+
+app.post("/api/settings/api-keys", requireUser, requireTenantAdmin, async (req: any, res) => {
+  if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
+  const name = String(req.body?.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Dê um nome pra identificar essa chave (ex.: nome do app)." });
+
+  const rawKey = "spy_" + randomBytes(24).toString("hex");
+  const { data, error } = await supabaseService
+    .from("api_keys")
+    .insert({ tenant_id: req.tenantId, name, key_hash: hashApiKey(rawKey), key_prefix: rawKey.slice(0, 12), created_by: req.user.id })
+    .select("id, name, key_prefix, created_at")
+    .maybeSingle();
+  if (error || !data) { console.error("[api-keys POST]", error?.message); return res.status(500).json({ error: "Falha ao criar a chave." }); }
+
+  // "key" só vem nesta resposta — a tabela nunca guarda o valor puro, então
+  // não tem como mostrar de novo depois (mesma regra do NovoTenantModal).
+  res.status(201).json({ ...data, key: rawKey });
+});
+
+app.delete("/api/settings/api-keys/:id", requireUser, requireTenantAdmin, async (req: any, res) => {
+  if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
+  const { error } = await supabaseService
+    .from("api_keys")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", req.params.id).eq("tenant_id", req.tenantId);
+  if (error) { console.error("[api-keys DELETE]", error.message); return res.status(500).json({ error: "Falha ao revogar a chave." }); }
+  res.json({ success: true });
 });
 
 app.post("/api/integrations/smtp-test", requireUser, async (req: any, res) => {

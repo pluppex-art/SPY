@@ -1,16 +1,44 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { FormField } from "../../components/ui/form-field";
 import { Badge } from "../../components/ui/badge";
 import { EmptyState } from "../../components/ui/empty-state";
-import { Plug, X, Send, RefreshCw, ShieldAlert } from "lucide-react";
+import { Plug, X, Send, RefreshCw, ShieldAlert, KeyRound, Copy, Code2 } from "lucide-react";
 import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useExternalIntegrations, type ExternalIntegrationInput } from "../../hooks/useExternalIntegrations";
+import { apiFetch } from "../../lib/apiClient";
 
-const EVENT_OPTIONS = ["Novo Lead Criado", "Negócio Ganho", "Negócio Perdido", "Nova Tarefa SDR"];
+interface ApiKeyRow {
+  id: string;
+  name: string;
+  key_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}
+
+const API_ENDPOINTS: { method: "GET" | "POST"; path: string; note: string }[] = [
+  { method: "POST", path: "/api/v1/leads", note: "Cria ou atualiza um lead (dedup por telefone/e-mail)" },
+  { method: "GET", path: "/api/v1/leads", note: "Lista leads (?seller=&status=&limit=&offset=)" },
+  { method: "POST", path: "/api/v1/lead-activities", note: "Registra uma atividade no histórico de um lead" },
+  { method: "GET", path: "/api/v1/lead-activities", note: "Lista atividades (?leadId=&type=)" },
+  { method: "POST", path: "/api/v1/finance-entries", note: "Cria/atualiza um lançamento financeiro" },
+  { method: "GET", path: "/api/v1/finance-entries", note: "Lista lançamentos (?status=&type=)" },
+  { method: "POST", path: "/api/v1/clients", note: "Cadastra/completa um cliente na Base de Clientes" },
+  { method: "GET", path: "/api/v1/clients", note: "Lista clientes (?status=)" },
+  { method: "POST", path: "/api/v1/meetings", note: "Cria/atualiza um compromisso na Agenda" },
+  { method: "GET", path: "/api/v1/meetings", note: "Lista compromissos (?status=)" },
+  { method: "POST", path: "/api/v1/products", note: "Cadastra/atualiza um produto do catálogo" },
+  { method: "GET", path: "/api/v1/products", note: "Lista produtos (?active=)" },
+];
+
+const EVENT_OPTIONS = [
+  "Novo Lead Criado", "Negócio Ganho", "Negócio Perdido", "Nova Tarefa SDR",
+  "Tarefa Concluída", "Proposta Aceita", "Pagamento Recebido", "Contrato Assinado", "Implementação Concluída",
+];
 
 const AUTH_TYPE_LABELS: Record<string, string> = {
   none: "Sem autenticação",
@@ -32,6 +60,62 @@ export function ConfigConectoresExternos() {
   });
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; status: number | null; error?: string; latencyMs?: number }>>({});
+
+  // ── Chaves de API (/api/v1/*) — self-service, sem precisar editar .env ────
+  const [apiKeys, setApiKeys] = useState<ApiKeyRow[]>([]);
+  const [apiKeysLoading, setApiKeysLoading] = useState(true);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+
+  const fetchApiKeys = () => {
+    apiFetch("/api/settings/api-keys")
+      .then((res) => res.json())
+      .then((data) => setApiKeys(data.keys || []))
+      .catch(() => {})
+      .finally(() => setApiKeysLoading(false));
+  };
+  useEffect(() => { fetchApiKeys(); }, []);
+
+  const handleCreateKey = async () => {
+    if (!newKeyName.trim()) { toast.error("Dê um nome pra identificar a chave (ex.: nome do app)."); return; }
+    setCreatingKey(true);
+    try {
+      const res = await apiFetch("/api/settings/api-keys", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newKeyName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Erro ao criar chave.");
+      setRevealedKey(data.key);
+      setNewKeyName("");
+      fetchApiKeys();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao criar chave.");
+    } finally {
+      setCreatingKey(false);
+    }
+  };
+
+  const handleRevokeKey = async (id: string, name: string) => {
+    if (!(await confirmDialog({ title: "Revogar chave", description: `Revogar a chave "${name}"? Qualquer app usando ela para de funcionar imediatamente.` }))) return;
+    setRevokingId(id);
+    try {
+      const res = await apiFetch(`/api/settings/api-keys/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json())?.error || "Erro ao revogar chave.");
+      toast.success("Chave revogada.");
+      fetchApiKeys();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao revogar chave.");
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
+  const copyText = async (text: string, okMsg: string) => {
+    try { await navigator.clipboard.writeText(text); toast.success(okMsg); } catch { toast.error("Não foi possível copiar."); }
+  };
 
   const isUrlValid = form.base_url === "" || form.base_url.startsWith("https://");
 
@@ -105,6 +189,56 @@ export function ConfigConectoresExternos() {
         </p>
       </div>
 
+      <Card className="p-6 space-y-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <div>
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2"><KeyRound className="w-4 h-4 text-[var(--color-primary-blue)]" /> Chaves de API</h3>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            Pra qualquer app (seu ou de um cliente) mandar ou puxar dados do SPY direto pela API (<code className="font-mono">/api/v1/*</code>, ver referência abaixo) —
+            sem precisar de ninguém mexer em configuração do servidor pra cada app novo.
+          </p>
+        </div>
+
+        {revealedKey && (
+          <div className="rounded-[var(--radius-control)] border border-success/30 bg-success/5 p-4 space-y-2">
+            <p className="text-xs font-bold text-success">Chave criada — copie agora, ela não aparece de novo:</p>
+            <div className="flex gap-2">
+              <code className="flex-1 text-xs font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 overflow-x-auto">{revealedKey}</code>
+              <Button size="sm" onClick={() => copyText(revealedKey, "Chave copiada.")} className="shrink-0 gap-1.5"><Copy className="w-3.5 h-3.5" /> Copiar</Button>
+            </div>
+            <button type="button" onClick={() => setRevealedKey(null)} className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer">Fechar</button>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Input value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} placeholder="Nome da chave (ex.: App do cliente X)" className="text-xs" />
+          <Button onClick={handleCreateKey} loading={creatingKey} className="shrink-0 text-xs font-bold">Gerar chave</Button>
+        </div>
+
+        <div className="space-y-2">
+          {apiKeysLoading ? (
+            <div className="text-center py-4 text-[var(--color-text-faint)] text-xs">Carregando...</div>
+          ) : apiKeys.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-faint)] py-2">Nenhuma chave criada ainda.</p>
+          ) : (
+            apiKeys.map((k) => (
+              <div key={k.id} className="flex items-center justify-between gap-3 bg-[var(--color-surface-sunken)] px-3.5 py-2.5 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] text-xs">
+                <div className="min-w-0">
+                  <p className="font-bold text-[var(--color-text-primary)] truncate">{k.name}</p>
+                  <p className="font-mono text-[10px] text-[var(--color-text-faint)]">{k.key_prefix}… · criada {new Date(k.created_at).toLocaleDateString("pt-BR")}{k.last_used_at ? ` · último uso ${new Date(k.last_used_at).toLocaleDateString("pt-BR")}` : " · nunca usada"}</p>
+                </div>
+                {k.revoked_at ? (
+                  <Badge variant="neutral">Revogada</Badge>
+                ) : (
+                  <button onClick={() => handleRevokeKey(k.id, k.name)} disabled={revokingId === k.id} className="text-[var(--color-text-faint)] hover:text-danger p-1 transition-colors shrink-0" title="Revogar chave">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
+
       <Card className="p-4 bg-warning/5 border border-warning/20 flex gap-3">
         <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <p className="text-xs text-[var(--color-text-muted)]">
@@ -115,7 +249,7 @@ export function ConfigConectoresExternos() {
       </Card>
 
       <Card className="p-6 space-y-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Novo Conector</h3>
+        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Novo Conector (webhook de saída)</h3>
         <div className="grid md:grid-cols-2 gap-4">
           <FormField label="Nome do sistema" required>
             <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Ex.: ERP interno da empresa" />
@@ -240,6 +374,51 @@ export function ConfigConectoresExternos() {
             })
           )}
         </div>
+      </Card>
+
+      <Card className="p-6 space-y-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2"><Code2 className="w-4 h-4 text-[var(--color-primary-blue)]" /> Referência da API</h3>
+        <p className="text-xs text-[var(--color-text-muted)]">
+          Toda chamada leva a chave no header <code className="font-mono bg-[var(--color-surface-sunken)] px-1 py-0.5 rounded">x-api-key</code>. O tenant é sempre resolvido pela chave — nunca enviado no corpo da requisição.
+        </p>
+        <div className="rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] overflow-hidden">
+          <table className="w-full text-xs text-left">
+            <thead className="bg-[var(--color-surface-sunken)] text-[10px] uppercase font-semibold text-[var(--color-text-muted)]">
+              <tr><th className="px-3 py-2">Método</th><th className="px-3 py-2">Endpoint</th><th className="px-3 py-2">O que faz</th></tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--color-border-subtle)]">
+              {API_ENDPOINTS.map((e) => (
+                <tr key={`${e.method}-${e.path}`}>
+                  <td className="px-3 py-2"><Badge variant={e.method === "GET" ? "secondary" : "success"} className="font-mono">{e.method}</Badge></td>
+                  <td className="px-3 py-2 font-mono text-[var(--color-text-primary)]">{e.path}</td>
+                  <td className="px-3 py-2 text-[var(--color-text-muted)]">{e.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-[var(--color-text-primary)]">Exemplo — criar um lead</span>
+            <button
+              type="button"
+              onClick={() => copyText(
+                `curl -X POST https://www.spycrm.com.br/api/v1/leads \\\n  -H "x-api-key: SUA_CHAVE" \\\n  -H "Content-Type: application/json" \\\n  -d '{"name": "Maria Silva", "email": "maria@exemplo.com", "phone": "11999998888", "value": 997}'`,
+                "Exemplo copiado."
+              )}
+              className="text-[11px] text-[var(--color-primary-blue)] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Copy className="w-3 h-3" /> Copiar
+            </button>
+          </div>
+          <pre className="text-[11px] font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3 overflow-x-auto text-[var(--color-text-muted)]">{`curl -X POST https://www.spycrm.com.br/api/v1/leads \\
+  -H "x-api-key: SUA_CHAVE" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name": "Maria Silva", "email": "maria@exemplo.com", "phone": "11999998888", "value": 997}'`}</pre>
+        </div>
+        <p className="text-[11px] text-[var(--color-text-faint)]">
+          Pra ser avisado automaticamente quando algo acontece no SPY (lead criado, negócio ganho, tarefa concluída, pagamento recebido, etc.), cadastre um Conector Externo acima com os eventos que te interessam.
+        </p>
       </Card>
     </div>
   );
