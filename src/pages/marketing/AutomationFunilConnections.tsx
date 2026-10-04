@@ -164,6 +164,8 @@ export function AutomationFunilConnections() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [abaSidebar, setAbaSidebar] = useState<"componentes" | "propriedades">("componentes");
   const [busca, setBusca] = useState("");
+  const [leadTesteId, setLeadTesteId] = useState<string | null>(null);
+  const [buscaLead, setBuscaLead] = useState("");
 
   // Qualquer funil ativo do CRM pode ser origem — antes só entrava "comercial",
   // deixando o funil de SDR de fora sem motivo real (o gatilho no banco,
@@ -208,6 +210,21 @@ export function AutomationFunilConnections() {
     if (execucoes.length === 0) return null;
     return Math.round((execucoes.filter((e) => e.status === "sucesso").length / execucoes.length) * 1000) / 10;
   }, [execucoes]);
+
+  // Leads reais pro "Testar Fluxo" — prioriza quem já está na etapa que dispara a
+  // conexão selecionada (caso mais útil de testar), senão qualquer lead por nome.
+  // (Hook precisa ficar antes do `return` de "sem funil/departamento" mais abaixo —
+  // nunca chamar hook depois de um return condicional.)
+  const leadsParaTeste = useMemo(() => {
+    const selecionada = rows.find((r) => r.id === selectedId) ?? null;
+    const q = buscaLead.trim().toLowerCase();
+    const todos = (leads as any[]).filter((l) => !q || (l.name || "").toLowerCase().includes(q) || (l.company || "").toLowerCase().includes(q));
+    if (selecionada?.gatilho_tipo === "funil_etapa") {
+      const stageIdAlvo = `${selecionada.gatilho_funil_id}-${selecionada.gatilho_etapa_idx}`;
+      todos.sort((a, b) => (b.stageId === stageIdAlvo ? 1 : 0) - (a.stageId === stageIdAlvo ? 1 : 0));
+    }
+    return todos.slice(0, 30);
+  }, [leads, buscaLead, rows, selectedId]);
 
   const handleDelete = useCallback(async (row: ConnectionRow) => {
     if (!(await confirmDialog({ title: "Remover conexão", description: `Remover "${row.nome}"? Essa ação não pode ser desfeita.` }))) return;
@@ -402,6 +419,7 @@ export function AutomationFunilConnections() {
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
   const selectedAcoes = acoes.filter((a) => a.connection_id === selectedId);
+  const leadTeste = (leads as any[]).find((l) => l.id === leadTesteId) ?? null;
   const paletaFiltrada = PALETA.filter((p) => !busca.trim() || p.nome.toLowerCase().includes(busca.trim().toLowerCase()));
 
   return (
@@ -514,10 +532,33 @@ export function AutomationFunilConnections() {
                     <p className="text-[9px] font-black uppercase text-[var(--color-text-faint)] mb-1.5">Ações {selectedAcoes.length === 0 && <span className="normal-case font-semibold">(nenhuma — cria só a OS, como sempre)</span>}</p>
                     <div className="space-y-2">
                       {selectedAcoes.map((acao) => (
-                        <AcaoCard key={acao.id} acao={acao} onRemove={removerAcao} onSaveConfig={salvarConfigAcao} />
+                        <AcaoCard key={acao.id} acao={acao} funisOrigem={funisOrigem} onRemove={removerAcao} onSaveConfig={salvarConfigAcao} />
                       ))}
                     </div>
                     <p className="text-[9px] text-[var(--color-text-faint)] mt-2">Use a aba "Componentes" pra adicionar mais ações a essa conexão.</p>
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] font-black uppercase text-[var(--color-text-faint)] mb-1.5">Testar Fluxo</p>
+                    <div className="relative mb-1.5">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--color-text-faint)]" />
+                      <input
+                        value={buscaLead} onChange={(e) => setBuscaLead(e.target.value)}
+                        placeholder="Buscar lead pra simular..."
+                        className="w-full pl-7 pr-2 py-1.5 text-[11px] rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] focus:outline-none focus:border-[var(--color-primary-blue)]/50"
+                      />
+                    </div>
+                    <select
+                      value={leadTesteId ?? ""} onChange={(e) => setLeadTesteId(e.target.value || null)}
+                      className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] mb-1.5"
+                    >
+                      <option value="">Escolha um lead...</option>
+                      {leadsParaTeste.map((l: any) => <option key={l.id} value={l.id}>{l.company || l.name}</option>)}
+                    </select>
+                    <TestarFluxoPanel
+                      connection={selected} itens={selectedAcoes} lead={leadTeste}
+                      departamentosAtivos={departamentosAtivos} funisOrigem={funisOrigem} activeTenantId={activeTenantId}
+                    />
                   </div>
                 </div>
               )}
@@ -621,20 +662,43 @@ function CondicaoEditor({ connection, onSave }: { connection: ConnectionRow; onS
   );
 }
 
-const ACAO_CAMPO_PRINCIPAL: Partial<Record<AcaoTipo, { chave: string; label: string; placeholder: string }>> = {
+const ACAO_CAMPO_PRINCIPAL: Partial<Record<AcaoTipo, { chave: string; label: string; placeholder: string; textarea?: boolean }>> = {
   tarefa: { chave: "titulo", label: "Título da tarefa", placeholder: "Ex.: Ligar pro cliente" },
   notificar: { chave: "titulo", label: "Título da notificação", placeholder: "Ex.: Novo lead quente" },
-  mensagem: { chave: "texto", label: "Texto da mensagem (WhatsApp)", placeholder: "Ex.: Olá! Vi que você..." },
+  mensagem: { chave: "texto", label: "Texto da mensagem (WhatsApp)", placeholder: "Ex.: Olá! Vi que você...", textarea: true },
 };
 
-function AcaoCard({ acao, onRemove, onSaveConfig }: {
+function AcaoCard({ acao, funisOrigem, onRemove, onSaveConfig }: {
   acao: AcaoRow;
+  funisOrigem: any[];
   onRemove: (id: string) => void;
   onSaveConfig: (id: string, config: Record<string, any>) => void;
 }) {
   const Icon = ACAO_ICON[acao.tipo];
   const campoPrincipal = ACAO_CAMPO_PRINCIPAL[acao.tipo];
   const [valor, setValor] = useState(campoPrincipal ? (acao.config?.[campoPrincipal.chave] ?? "") : "");
+  const [chave, setChave] = useState(acao.config?.chave ?? "");
+  const [valorCrm, setValorCrm] = useState(acao.config?.valor ?? "");
+  const [funilDestinoId, setFunilDestinoId] = useState(acao.config?.funil_destino_id ?? "");
+  const [etapaIdx, setEtapaIdx] = useState(acao.config?.etapa_idx ?? "");
+
+  const funilDestino = funisOrigem.find((f) => f.id === funilDestinoId);
+  const etapasDestino: string[] = funilDestino ? (funilDestino.etapasConfig?.map((e: any) => e.nome) ?? funilDestino.etapas ?? []) : [];
+
+  const salvarMoverFunil = (novoFunilId: string, novoEtapaIdx: string) => {
+    const funil = funisOrigem.find((f) => f.id === novoFunilId);
+    if (!funil || novoEtapaIdx === "") {
+      onSaveConfig(acao.id, { ...acao.config, funil_destino_id: novoFunilId, etapa_idx: novoEtapaIdx });
+      return;
+    }
+    onSaveConfig(acao.id, {
+      ...acao.config,
+      funil_destino_id: novoFunilId,
+      etapa_idx: novoEtapaIdx,
+      pipeline_id: funil.tipo === "sdr_ia" ? "sdr" : "comercial",
+      etapa_id: `${funil.id}-${novoEtapaIdx}`,
+    });
+  };
 
   return (
     <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-2.5">
@@ -642,16 +706,175 @@ function AcaoCard({ acao, onRemove, onSaveConfig }: {
         <span className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--color-text-primary)]"><Icon className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> {ACAO_LABEL[acao.tipo]}</span>
         <button type="button" onClick={() => onRemove(acao.id)} className="text-[var(--color-text-faint)] hover:text-danger"><X className="w-3 h-3" /></button>
       </div>
-      {campoPrincipal ? (
-        <input
-          value={valor}
-          onChange={(e) => setValor(e.target.value)}
-          onBlur={() => onSaveConfig(acao.id, { ...acao.config, [campoPrincipal.chave]: valor })}
-          placeholder={campoPrincipal.placeholder}
-          className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)]"
-        />
-      ) : (
+
+      {campoPrincipal && (
+        campoPrincipal.textarea ? (
+          <textarea
+            value={valor} rows={2}
+            onChange={(e) => setValor(e.target.value)}
+            onBlur={() => onSaveConfig(acao.id, { ...acao.config, [campoPrincipal.chave]: valor })}
+            placeholder={campoPrincipal.placeholder}
+            className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] resize-y"
+          />
+        ) : (
+          <input
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            onBlur={() => onSaveConfig(acao.id, { ...acao.config, [campoPrincipal.chave]: valor })}
+            placeholder={campoPrincipal.placeholder}
+            className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)]"
+          />
+        )
+      )}
+
+      {acao.tipo === "crm_update" && (
+        <div className="flex gap-1.5">
+          <input value={chave} onChange={(e) => setChave(e.target.value)} onBlur={() => onSaveConfig(acao.id, { ...acao.config, chave, valor: valorCrm })} placeholder="campo" className="w-1/2 text-[11px] px-2 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)]" />
+          <input value={valorCrm} onChange={(e) => setValorCrm(e.target.value)} onBlur={() => onSaveConfig(acao.id, { ...acao.config, chave, valor: valorCrm })} placeholder="valor" className="w-1/2 text-[11px] px-2 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)]" />
+        </div>
+      )}
+
+      {acao.tipo === "mover_funil" && (
+        <div className="space-y-1.5">
+          <select value={funilDestinoId} onChange={(e) => { setFunilDestinoId(e.target.value); setEtapaIdx(""); salvarMoverFunil(e.target.value, ""); }} className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)]">
+            <option value="">Funil de destino...</option>
+            {funisOrigem.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+          </select>
+          {funilDestino && (
+            <select value={etapaIdx} onChange={(e) => { setEtapaIdx(e.target.value); salvarMoverFunil(funilDestinoId, e.target.value); }} className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)]">
+              <option value="">Etapa de destino...</option>
+              {etapasDestino.map((nome, idx) => <option key={idx} value={idx}>{nome}</option>)}
+            </select>
+          )}
+        </div>
+      )}
+
+      {(acao.tipo === "criar_os" || acao.tipo === "api_call") && (
         <p className="text-[10px] text-[var(--color-text-muted)]">{resumoAcao(acao.tipo, acao.config)}</p>
+      )}
+    </div>
+  );
+}
+
+// ─── Testar Fluxo: simulação no navegador, sem nenhum efeito real (nenhuma
+// mensagem sai, nenhuma tarefa/OS/notificação é criada) — só lê dados reais
+// (lead escolhido, instância de WhatsApp conectada, integrações externas
+// ativas) pra mostrar com precisão o que ACONTECERIA se a conexão rodasse
+// agora pra aquele lead. Espelha a mesma lógica de avaliar_condicao_automacao
+// e executar_automacao_connection do banco, só que sem gravar nada. ──────────
+interface ResultadoTesteItem { tipo: AcaoTipo; texto: string; aviso?: string }
+interface ResultadoTeste { condicaoPassou: boolean; condicaoTexto: string; itens: ResultadoTesteItem[] }
+
+function avaliarCondicaoCliente(condicao: CondicaoConfig | null, lead: any): { passou: boolean; texto: string } {
+  if (!condicao || !condicao.campo) return { passou: true, texto: "Sem condição — a sequência sempre roda." };
+  const campoInfo = CONDICAO_CAMPOS.find((c) => c.id === condicao.campo);
+  const labelCampo = campoInfo?.label ?? condicao.campo;
+  const labelOperador = [...CONDICAO_OPERADORES_NUMERO, ...CONDICAO_OPERADORES_TEXTO].find((o) => o.id === condicao.operador)?.label ?? condicao.operador;
+  const descricao = `${labelCampo} ${labelOperador} ${condicao.valor}`;
+  if (condicao.campo === "origem") {
+    const atual = String(lead?.source ?? "").toLowerCase();
+    const alvo = condicao.valor.toLowerCase();
+    const passou = condicao.operador === "contem" ? atual.includes(alvo) : atual === alvo;
+    return { passou, texto: `${descricao} — origem do lead é "${lead?.source ?? "—"}".` };
+  }
+  const atualMap: Record<string, number> = { scoreIA: Number(lead?.scoreIA ?? 0), timeIdle: Number(lead?.timeIdle ?? 0), valor: Number(lead?.value ?? 0) };
+  const atual = atualMap[condicao.campo] ?? 0;
+  const alvoNum = Number(condicao.valor);
+  const passou = Number.isNaN(alvoNum) ? true : condicao.operador === "maior" ? atual > alvoNum : condicao.operador === "menor" ? atual < alvoNum : atual === alvoNum;
+  return { passou, texto: `${descricao} — valor atual do lead é ${atual}.` };
+}
+
+function TestarFluxoPanel({ connection, itens, lead, departamentosAtivos, funisOrigem, activeTenantId }: {
+  connection: ConnectionRow;
+  itens: AcaoRow[];
+  lead: any | null;
+  departamentosAtivos: any[];
+  funisOrigem: any[];
+  activeTenantId: string | null;
+}) {
+  const [rodando, setRodando] = useState(false);
+  const [resultado, setResultado] = useState<ResultadoTeste | null>(null);
+
+  const rodar = useCallback(async () => {
+    if (!lead) { toast.error("Escolha um lead pra simular o teste."); return; }
+    setRodando(true);
+    const condicaoResult = avaliarCondicaoCliente(connection.condicao, lead);
+    const acoesParaRodar = itens.length > 0 ? itens : [{ id: "default", connection_id: connection.id, ordem: 0, tipo: "criar_os" as AcaoTipo, config: {} }];
+
+    // Checagens reais e read-only (não alteram nada) pra avisar quando uma ação
+    // configurada não teria como funcionar agora (sem instância de WhatsApp
+    // conectada, por exemplo) — sem isso o teste "passaria" mesmo quando a
+    // automação real falharia silenciosamente.
+    let temInstanciaWhatsapp = false;
+    let qtdIntegracoesApi = 0;
+    if (supabase && activeTenantId) {
+      const [{ count: instCount }, { count: intCount }] = await Promise.all([
+        supabase.from("whatsapp_instances").select("id", { count: "exact", head: true }).eq("tenant_id", activeTenantId).eq("status", "CONNECTED"),
+        supabase.from("external_integrations").select("id", { count: "exact", head: true }).eq("tenant_id", activeTenantId).eq("active", true).contains("sync_events", [`Automação: ${connection.nome}`]),
+      ]);
+      temInstanciaWhatsapp = (instCount ?? 0) > 0;
+      qtdIntegracoesApi = intCount ?? 0;
+    }
+
+    const itensResultado: ResultadoTesteItem[] = condicaoResult.passou
+      ? acoesParaRodar.map((acao) => {
+          const dep = departamentosAtivos.find((d) => d.id === (acao.config?.departamento_id || connection.os_departamento_id));
+          switch (acao.tipo) {
+            case "criar_os":
+              return { tipo: acao.tipo, texto: `Criaria uma Ordem de Serviço em "${dep?.nome ?? "—"}" pra ${lead.company || lead.name}.` };
+            case "tarefa":
+              return acao.config?.titulo
+                ? { tipo: acao.tipo, texto: `Criaria a tarefa "${acao.config.titulo}" vinculada a ${lead.name}.` }
+                : { tipo: acao.tipo, texto: "Criaria uma tarefa.", aviso: "Sem título definido — defina antes de ativar." };
+            case "notificar":
+              return { tipo: acao.tipo, texto: acao.config?.titulo ? `Notificaria a equipe: "${acao.config.titulo}"` : "Notificaria toda a equipe." };
+            case "crm_update":
+              return acao.config?.chave
+                ? { tipo: acao.tipo, texto: `Gravaria "${acao.config.chave}" = "${acao.config.valor || ""}" no cadastro de ${lead.name}.` }
+                : { tipo: acao.tipo, texto: "Atualizaria um campo do lead.", aviso: "Sem campo definido — defina antes de ativar." };
+            case "mover_funil": {
+              const funil = funisOrigem.find((f) => f.id === acao.config?.funil_destino_id);
+              const etapaNome = funil && acao.config?.etapa_idx !== undefined ? (funil.etapasConfig?.map((e: any) => e.nome) ?? funil.etapas ?? [])[Number(acao.config.etapa_idx)] : null;
+              return funil && etapaNome
+                ? { tipo: acao.tipo, texto: `Moveria ${lead.name} para "${funil.nome}" → "${etapaNome}".` }
+                : { tipo: acao.tipo, texto: "Moveria o lead de funil.", aviso: "Sem funil/etapa de destino — defina antes de ativar." };
+            }
+            case "mensagem":
+              return temInstanciaWhatsapp
+                ? { tipo: acao.tipo, texto: `Enviaria por WhatsApp pro telefone de ${lead.name}: "${acao.config?.texto || "(sem texto)"}"`, aviso: !lead.phone ? "Esse lead não tem telefone cadastrado — não enviaria nada." : undefined }
+                : { tipo: acao.tipo, texto: `Tentaria enviar: "${acao.config?.texto || "(sem texto)"}"`, aviso: "Nenhuma instância de WhatsApp conectada agora — a mensagem falharia." };
+            case "api_call":
+              return qtdIntegracoesApi > 0
+                ? { tipo: acao.tipo, texto: `Dispararia ${qtdIntegracoesApi} integração(ões) externa(s) escutando este evento.` }
+                : { tipo: acao.tipo, texto: "Dispararia o evento genérico de automação.", aviso: "Nenhuma integração externa está configurada pra escutar esse evento ainda (Configurações › Integrações)." };
+            default:
+              return { tipo: acao.tipo, texto: resumoAcao(acao.tipo, acao.config) };
+          }
+        })
+      : [];
+
+    setResultado({ condicaoPassou: condicaoResult.passou, condicaoTexto: condicaoResult.texto, itens: itensResultado });
+    setRodando(false);
+  }, [connection, itens, lead, departamentosAtivos, funisOrigem, activeTenantId]);
+
+  return (
+    <div className="rounded-xl border border-[var(--color-primary-blue)]/25 bg-[var(--color-primary-blue)]/5 p-2.5 space-y-2">
+      <Button size="sm" variant="outline" onClick={rodar} disabled={rodando || !lead} className="h-7 w-full text-[10px] font-bold">
+        {rodando ? <Loader2 className="w-3 h-3 animate-spin" /> : "Testar fluxo com esse lead"}
+      </Button>
+      {resultado && (
+        <div className="space-y-1.5">
+          <p className={cn("text-[10px] font-bold flex items-start gap-1", resultado.condicaoPassou ? "text-success" : "text-danger")}>
+            {resultado.condicaoPassou ? "✓" : "✗"} <span className="font-normal">{resultado.condicaoTexto}</span>
+          </p>
+          {resultado.condicaoPassou && resultado.itens.map((item, i) => (
+            <div key={i} className="text-[10px] pl-3 border-l-2 border-[var(--color-border-subtle)]">
+              <p className="text-[var(--color-text-primary)]">{item.texto}</p>
+              {item.aviso && <p className="text-warning mt-0.5">⚠ {item.aviso}</p>}
+            </div>
+          ))}
+          <p className="text-[9px] text-[var(--color-text-faint)] italic pt-1">Simulação — nada foi enviado ou criado de verdade.</p>
+        </div>
       )}
     </div>
   );
