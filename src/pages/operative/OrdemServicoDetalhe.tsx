@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Plus, Printer, Save, Trash2, Wallet, Package } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Printer, Save, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
@@ -22,8 +22,6 @@ import { dadosDoCliente } from "../os/clienteOs";
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] disabled:opacity-60";
 const labelCls = "text-[10px] font-bold uppercase text-[var(--color-text-muted)] mb-1 block";
-
-const FORMAS_PAGAMENTO = ["", "Pix", "Dinheiro", "Cartão de Crédito", "Cartão de Débito", "Boleto Bancário", "Transferência / TED"];
 
 const emptyItem = (tipo: OsItem["tipo"]): OsItem => ({ tipo, descricao: "", unidade: tipo === "Serviço" ? "serv" : "un", quantidade: 1, valor_unitario: 0, product_id: null });
 
@@ -167,7 +165,12 @@ export default function OrdemServicoDetalhe() {
     );
   }
 
-  const proximos = OS_NEXT[os.status as OsStatus] || [];
+  // "Faturada" tirada da lista visível de próximos passos — a tela não lida mais com
+  // valores (pedido do usuário), e cobrança sem valor não faz sentido. O único outro
+  // lugar que levaria a "Faturada" é o Kanban por status, que já bloqueia isso (useOS.ts
+  // moverStatus: "Para faturar, abra a OS e use 'Gerar cobrança'"), então tirar o botão
+  // daqui desliga a função por completo, sem precisar mexer na máquina de estados.
+  const proximos = (OS_NEXT[os.status as OsStatus] || []).filter(s => s !== "Faturada");
 
   return (
     <PageContainer
@@ -202,8 +205,7 @@ export default function OrdemServicoDetalhe() {
                 key={s} variant={i === 0 && s !== "Cancelada" ? "default" : "outline"} onClick={() => mudarStatus(s)} disabled={salvando}
                 className="h-9 px-4 text-xs font-medium gap-1.5"
               >
-                {s === "Faturada" && <Wallet className="w-3.5 h-3.5" />}
-                {s === "Aberta" ? "Emitir / Abrir OS" : s === "Em execução" ? "Iniciar execução" : s === "Concluída" ? "Concluir serviço" : s === "Faturada" ? "Gerar cobrança (Faturar)" : s === "Rascunho" ? "Reabrir como rascunho" : "Cancelar OS"}
+                {s === "Aberta" ? "Emitir / Abrir OS" : s === "Em execução" ? "Iniciar execução" : s === "Concluída" ? "Concluir serviço" : s === "Rascunho" ? "Reabrir como rascunho" : "Cancelar OS"}
               </Button>
             ))}
             {os.status === "Rascunho" && (
@@ -276,11 +278,11 @@ export default function OrdemServicoDetalhe() {
             <p className="text-xs text-[var(--color-text-faint)] py-4 text-center">Nenhum item. Adicione os serviços e materiais que compõem esta ordem.</p>
           ) : (
             <div className="space-y-2">
-              <div className="hidden md:grid grid-cols-[90px_1.6fr_60px_80px_110px_110px_32px] gap-2 text-[10px] font-bold uppercase text-[var(--color-text-muted)] px-1">
-                <span>Tipo</span><span>Descrição</span><span>Un.</span><span className="text-right">Qtd</span><span className="text-right">Valor unit.</span><span className="text-right">Total</span><span />
+              <div className="hidden md:grid grid-cols-[90px_1.6fr_60px_80px_32px] gap-2 text-[10px] font-bold uppercase text-[var(--color-text-muted)] px-1">
+                <span>Tipo</span><span>Descrição</span><span>Un.</span><span className="text-right">Qtd</span><span />
               </div>
               {items.map((it, idx) => (
-                <div key={idx} className="grid grid-cols-2 md:grid-cols-[90px_1.6fr_60px_80px_110px_110px_32px] gap-2 items-center bg-[var(--color-surface-sunken)]/60 rounded-lg p-2">
+                <div key={idx} className="grid grid-cols-2 md:grid-cols-[90px_1.6fr_60px_80px_32px] gap-2 items-center bg-[var(--color-surface-sunken)]/60 rounded-lg p-2">
                   <select className={inputCls} disabled={locked} value={it.tipo} onChange={(e) => setItem(idx, { tipo: e.target.value as OsItem["tipo"] })}>
                     <option>Serviço</option><option>Material</option>
                   </select>
@@ -289,14 +291,12 @@ export default function OrdemServicoDetalhe() {
                     {!locked && (products as any[]).length > 0 && (
                       <select className={cn(inputCls, "!py-1 !text-[10px]")} value={it.product_id || ""} onChange={(e) => pickProduct(idx, e.target.value)}>
                         <option value="">Preencher a partir do catálogo…</option>
-                        {(products as any[]).filter((p) => p.active !== false).map((p) => <option key={p.id} value={p.id}>{p.name} — {formatCurrency(Number(p.price) || 0)}</option>)}
+                        {(products as any[]).filter((p) => p.active !== false).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                     )}
                   </div>
                   <input className={inputCls} disabled={locked} value={it.unidade} onChange={(e) => setItem(idx, { unidade: e.target.value })} />
                   <input type="number" min={0} step="any" className={cn(inputCls, "text-right")} disabled={locked} value={it.quantidade} onChange={(e) => setItem(idx, { quantidade: num(e.target.value) })} />
-                  <input type="number" min={0} step="0.01" className={cn(inputCls, "text-right")} disabled={locked} value={it.valor_unitario} onChange={(e) => setItem(idx, { valor_unitario: num(e.target.value) })} />
-                  <span className="text-xs font-mono font-bold text-right text-[var(--color-text-primary)]">{formatCurrency(itemTotal(it))}</span>
                   {!locked ? (
                     <button type="button" onClick={() => removeItem(idx)} title="Remover item" className="p-1.5 text-[var(--color-text-faint)] hover:text-rose-500"><Trash2 className="w-3.5 h-3.5" /></button>
                   ) : <span />}
@@ -306,37 +306,12 @@ export default function OrdemServicoDetalhe() {
           )}
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Condições */}
-          <Card className="p-5 space-y-3">
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Condições</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className={labelCls}>Forma de pagamento</label>
-                <select className={inputCls} disabled={locked} value={os.forma_pagamento || ""} onChange={(e) => setField("forma_pagamento", e.target.value)}>
-                  {FORMAS_PAGAMENTO.map((f) => <option key={f} value={f}>{f || "Selecione…"}</option>)}
-                </select>
-              </div>
-              <div><label className={labelCls}>Condições de pagamento</label><input className={inputCls} disabled={locked} value={os.condicoes_pagamento || ""} onChange={(e) => setField("condicoes_pagamento", e.target.value)} placeholder="Ex.: 50% na entrada, 50% na entrega" /></div>
-            </div>
-            <div><label className={labelCls}>Garantia</label><input className={inputCls} disabled={locked} value={os.garantia || ""} onChange={(e) => setField("garantia", e.target.value)} placeholder="Ex.: 90 dias sobre o serviço" /></div>
-            <div><label className={labelCls}>Observações</label><textarea rows={3} className={inputCls} disabled={locked} value={os.observacoes || ""} onChange={(e) => setField("observacoes", e.target.value)} /></div>
-          </Card>
-
-          {/* Totais */}
-          <Card className="p-5 space-y-2.5 self-start">
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Totais</h3>
-            <div className="flex justify-between text-xs"><span className="text-[var(--color-text-muted)]">Serviços</span><span className="font-mono">{formatCurrency(totals.servicos)}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[var(--color-text-muted)]">Materiais</span><span className="font-mono">{formatCurrency(totals.materiais)}</span></div>
-            <div className="flex justify-between items-center text-xs gap-3">
-              <span className="text-[var(--color-text-muted)]">Desconto (R$)</span>
-              <input type="number" min={0} step="0.01" disabled={locked} value={os.valor_desconto ?? 0} onChange={(e) => setField("valor_desconto", num(e.target.value))} className={cn(inputCls, "!w-28 text-right")} />
-            </div>
-            <div className="flex justify-between items-baseline pt-3 border-t border-[var(--color-border-default)]">
-              <span className="text-xs font-bold uppercase">Total</span>
-              <span className="text-xl font-black font-mono text-emerald-600">{formatCurrency(totals.total)}</span>
-            </div>
-          </Card>
-        </div>
+        {/* Condições */}
+        <Card className="p-5 space-y-3">
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Condições</h3>
+          <div><label className={labelCls}>Garantia</label><input className={inputCls} disabled={locked} value={os.garantia || ""} onChange={(e) => setField("garantia", e.target.value)} placeholder="Ex.: 90 dias sobre o serviço" /></div>
+          <div><label className={labelCls}>Observações</label><textarea rows={3} className={inputCls} disabled={locked} value={os.observacoes || ""} onChange={(e) => setField("observacoes", e.target.value)} /></div>
+        </Card>
       </div>
     </PageContainer>
   );

@@ -17,7 +17,7 @@ import { cn } from "../../lib/utils";
 import { useOS } from "../os/hooks/useOS";
 import { OS_STATUS_COLUNAS, osEmAberto, type OrdemServico } from "../os/osTypes";
 import { OsBoard, PrioridadeBadge, prazoInfo, type OsBoardColuna } from "../os/components/OsBoard";
-import { DetalheOsModal, NovaOsModal } from "../os/components/OsModais";
+import { NovaOsModal } from "../os/components/OsModais";
 import { IniciarImplementacao } from "../os/components/IniciarImplementacao";
 import { ehDepartamentoImplementacao } from "../os/implementationOs";
 
@@ -45,7 +45,6 @@ export default function OrdensServico() {
   const [busca, setBusca] = useState("");
   const [criando, setCriando] = useState(false);
   const [novaOpen, setNovaOpen] = useState(false);
-  const [selecionadaId, setSelecionadaId] = useState<string | null>(null);
 
   const depsAtivos = useMemo(() => os.departamentos.filter(d => d.ativo), [os.departamentos]);
   const depPorId = useMemo(() => new Map(os.departamentos.map(d => [d.id, d])), [os.departamentos]);
@@ -64,7 +63,6 @@ export default function OrdensServico() {
       else next.set("dep", id);
       return next;
     });
-  const selecionada = os.ordens.find(o => o.id === selecionadaId) ?? null;
 
   const kpis = useMemo(() => {
     const mes = new Date().toISOString().slice(0, 7);
@@ -120,20 +118,10 @@ export default function OrdensServico() {
     await os.moverStatus(o.id, colunaId as OsStatus);
   };
 
-  // Mesma confirmação do Kanban (`mover` acima), mas resolvendo o funil pela PRÓPRIA
-  // ordem (não pelo funil da aba atual) — o modal de detalhe pode abrir uma OS de
-  // qualquer departamento/funil, não só o selecionado na tela. Sem isso, o <select>
-  // de etapa dentro do modal (OsModais.tsx) cancelava a OS direto, sem aviso.
   const moverEtapaComConfirmacao = async (ordemId: string, etapaId: string, etapasDoFunil: typeof os.funis[number]["etapas"]) => {
     const etapa = etapasDoFunil.find(e => e.id === etapaId);
     if (etapa?.tipo === "cancelada" && !(await confirmDialog({ description: "Cancelar esta ordem de serviço?" }))) return;
     await os.moverOrdem(ordemId, etapaId);
-  };
-
-  const moverDaModal = async (ordemId: string, etapaId: string) => {
-    const ordem = os.ordens.find(o => o.id === ordemId);
-    const funil = ordem?.funilId ? os.funis.find(f => f.id === ordem.funilId) : undefined;
-    await moverEtapaComConfirmacao(ordemId, etapaId, funil?.etapas ?? []);
   };
 
   // Sem departamentos: mantém o fluxo de sempre (rascunho em branco → tela completa).
@@ -150,17 +138,6 @@ export default function OrdensServico() {
     setCriando(false);
     if (error || !data) { toast.error("Não foi possível criar a ordem de serviço."); return; }
     navigate(`/app/ordens-servico/${data.id}`);
-  };
-
-  const excluirRascunho = async (o: OrdemServico) => {
-    if (!(await confirmDialog({ description: `Excluir o rascunho ${osCode(o.numero)}?` }))) return;
-    setSelecionadaId(null);
-    await os.deleteOrdem(o.id);
-  };
-
-  const cancelar = async (o: OrdemServico) => {
-    if (!(await confirmDialog({ description: `Cancelar a ${osCode(o.numero)}?` }))) return;
-    await os.cancelarOrdem(o.id);
   };
 
   const hoje = new Date().toISOString().slice(0, 10);
@@ -253,7 +230,7 @@ export default function OrdensServico() {
             ordens={cartoes}
             colunaDe={o => (doFunil ? o.etapaId : o.status)}
             departamentoNome={doFunil ? undefined : o => (o.departamentoId ? depPorId.get(o.departamentoId)?.nome : undefined)}
-            onOpen={o => setSelecionadaId(o.id)}
+            onOpen={o => navigate(`/app/ordens-servico/${o.id}`)}
             onMover={mover}
           />
         ) : (
@@ -333,20 +310,6 @@ export default function OrdensServico() {
         }}
       />
 
-      <DetalheOsModal
-        ordem={selecionada}
-        departamento={selecionada?.departamentoId ? depPorId.get(selecionada.departamentoId) : undefined}
-        etapas={selecionada?.funilId ? os.funis.find(f => f.id === selecionada.funilId)?.etapas ?? [] : []}
-        funisDoDepartamento={selecionada?.departamentoId ? os.funis.filter(f => f.departamentoId === selecionada.departamentoId && (f.ativo || f.id === selecionada.funilId)) : []}
-        onTrocarFunil={os.trocarFunilDaOrdem}
-        onClose={() => setSelecionadaId(null)}
-        onUpdate={os.updateOrdem}
-        onMover={moverDaModal}
-        onCancelar={cancelar}
-        onExcluir={excluirRascunho}
-        onAbrirCompleta={o => navigate(`/app/ordens-servico/${o.id}`)}
-        onAbrirOrigem={o => o.origemTipo === "implementation" && o.origemId && navigate(`/app/crm/implementacoes/${o.origemId}`)}
-      />
     </PageContainer>
   );
 }
