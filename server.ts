@@ -5184,6 +5184,57 @@ app.post("/api/whatsapp/messages/send", requireUser, async (req: any, res) => {
   res.json({ success: true, message: mapChatMessageRow(inserted) });
 });
 
+// Chamada interna (trigger do banco -> aqui), não por um usuário logado — é a única ação da
+// automação de funil/OS (ver migration automation_connection_multistep) que precisa de uma
+// chamada de rede de verdade (as outras são insert/update puro no Postgres). Autenticada pelo
+// segredo compartilhado guardado no Supabase Vault (automation_internal_secret), lido tanto daqui
+// quanto de dentro da função SQL — nenhum segredo novo em variável de ambiente.
+app.post("/api/automations/enviar-mensagem", async (req, res) => {
+  if (!supabaseService) return res.status(503).json({ error: "Serviço indisponível." });
+  const authHeader = String(req.headers.authorization || "");
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  const { data: expectedRaw } = await supabaseService.rpc("get_automation_internal_secret" as any);
+  const expected = String(expectedRaw || "");
+  const tokenBuf = Buffer.from(token);
+  const expectedBuf = Buffer.from(expected);
+  const valido = expected.length > 0 && tokenBuf.length === expectedBuf.length && timingSafeEqual(tokenBuf, expectedBuf);
+  if (!valido) return res.status(401).json({ error: "Não autorizado." });
+
+  const { tenantId, leadId, telefone, texto } = req.body || {};
+  if (!tenantId || !telefone || !texto) return res.status(400).json({ error: "tenantId, telefone e texto são obrigatórios." });
+
+  const provider = getWhatsAppProvider();
+  if (provider.name === "waha") {
+    const { data: inst } = await supabaseService.from("whatsapp_instances").select("id").eq("tenant_id", tenantId).eq("status", "CONNECTED").limit(1).maybeSingle();
+    if (!inst) return res.status(409).json({ error: "Nenhuma instância WhatsApp conectada pra esse tenant." });
+    try {
+      await provider.sendTextMessage(inst.id, telefone, texto);
+    } catch (err: any) {
+      console.error("[automations/enviar-mensagem] waha", err?.message);
+      return res.status(502).json({ error: `Falha ao enviar via WAHA: ${err?.message || "erro desconhecido"}` });
+    }
+    // Registro no histórico de conversa é best-effort — a mensagem já foi enviada de verdade
+    // mesmo se isso falhar, então um erro aqui não deve virar um 500 pro chamador (o trigger
+    // já não está mais esperando resposta nesse ponto de qualquer forma).
+    try {
+      const { data: contato } = await supabaseService.from("chat_contacts").select("id").eq("whatsapp_instance_id", inst.id).eq("phone", telefone).maybeSingle();
+      let contatoId = contato?.id;
+      if (!contatoId) {
+        const { data: novo } = await supabaseService.from("chat_contacts").insert({ tenant_id: tenantId, whatsapp_instance_id: inst.id, phone: telefone, name: telefone, last_message: texto, last_message_at: new Date().toISOString() }).select("id").maybeSingle();
+        contatoId = novo?.id;
+      } else {
+        await supabaseService.from("chat_contacts").update({ last_message: texto, last_message_at: new Date().toISOString() }).eq("id", contatoId);
+      }
+      if (contatoId) {
+        await supabaseService.from("chat_messages").insert({ tenant_id: tenantId, contact_id: contatoId, whatsapp_instance_id: inst.id, text: texto, sender: "ai", status: "sent" });
+      }
+    } catch (e: any) {
+      console.error("[automations/enviar-mensagem] histórico", e?.message);
+    }
+  }
+  res.json({ success: true, leadId });
+});
+
 app.post("/api/whatsapp/copilot/analyze", requireUser, async (req: any, res) => {
   const { contactId } = req.body;
   if (!contactId) return res.status(400).json({ error: "contactId é obrigatório" });
