@@ -51,7 +51,7 @@ function FunilNode({ data }: NodeProps) {
             <span className="truncate">{nomeEtapa}</span>
             <Handle
               type="source" id={`etapa:${idx}`} position={Position.Right}
-              style={{ top: HEADER_H + idx * ROW_H + ROW_H / 2 - 12 }}
+              style={{ top: "50%", transform: "translateY(-50%)" }}
               className="!bg-[var(--color-primary-blue)] !w-2.5 !h-2.5 !border-2 !border-[var(--color-surface-elevated)]"
             />
           </div>
@@ -71,12 +71,12 @@ function CategoriasNode({ data }: NodeProps) {
         <span className="text-[11px] font-bold text-[var(--color-text-primary)]">Proposta aceita com…</span>
       </div>
       <div>
-        {categorias.map((cat, idx) => (
+        {categorias.map((cat) => (
           <div key={cat} className="relative px-3 flex items-center text-[10px] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
             <span className="truncate">{cat}</span>
             <Handle
               type="source" id={`cat:${cat}`} position={Position.Right}
-              style={{ top: HEADER_H + idx * ROW_H + ROW_H / 2 - 12 }}
+              style={{ top: "50%", transform: "translateY(-50%)" }}
               className="!bg-warning !w-2.5 !h-2.5 !border-2 !border-[var(--color-surface-elevated)]"
             />
           </div>
