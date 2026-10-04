@@ -113,13 +113,27 @@ export default function OrdensServico() {
 
   const mover = async (o: OrdemServico, colunaId: string) => {
     if (doFunil) {
-      const etapa = funilAtual!.etapas.find(e => e.id === colunaId);
-      if (etapa?.tipo === "cancelada" && !(await confirmDialog({ description: "Cancelar esta ordem de serviço?" }))) return;
-      await os.moverOrdem(o.id, colunaId);
+      await moverEtapaComConfirmacao(o.id, colunaId, funilAtual!.etapas);
       return;
     }
     if (colunaId === "Cancelada" && !(await confirmDialog({ description: "Cancelar esta ordem de serviço?" }))) return;
     await os.moverStatus(o.id, colunaId as OsStatus);
+  };
+
+  // Mesma confirmação do Kanban (`mover` acima), mas resolvendo o funil pela PRÓPRIA
+  // ordem (não pelo funil da aba atual) — o modal de detalhe pode abrir uma OS de
+  // qualquer departamento/funil, não só o selecionado na tela. Sem isso, o <select>
+  // de etapa dentro do modal (OsModais.tsx) cancelava a OS direto, sem aviso.
+  const moverEtapaComConfirmacao = async (ordemId: string, etapaId: string, etapasDoFunil: typeof os.funis[number]["etapas"]) => {
+    const etapa = etapasDoFunil.find(e => e.id === etapaId);
+    if (etapa?.tipo === "cancelada" && !(await confirmDialog({ description: "Cancelar esta ordem de serviço?" }))) return;
+    await os.moverOrdem(ordemId, etapaId);
+  };
+
+  const moverDaModal = async (ordemId: string, etapaId: string) => {
+    const ordem = os.ordens.find(o => o.id === ordemId);
+    const funil = ordem?.funilId ? os.funis.find(f => f.id === ordem.funilId) : undefined;
+    await moverEtapaComConfirmacao(ordemId, etapaId, funil?.etapas ?? []);
   };
 
   // Sem departamentos: mantém o fluxo de sempre (rascunho em branco → tela completa).
@@ -327,7 +341,7 @@ export default function OrdensServico() {
         onTrocarFunil={os.trocarFunilDaOrdem}
         onClose={() => setSelecionadaId(null)}
         onUpdate={os.updateOrdem}
-        onMover={os.moverOrdem}
+        onMover={moverDaModal}
         onCancelar={cancelar}
         onExcluir={excluirRascunho}
         onAbrirCompleta={o => navigate(`/app/ordens-servico/${o.id}`)}

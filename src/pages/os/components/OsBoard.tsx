@@ -52,10 +52,20 @@ export function OsBoard({ colunas, ordens, colunaDe, departamentoNome, onOpen, o
     if (o) onMover(o, colId);
   };
 
+  // Coluna "órfã": a OS tem uma etapa que não existe mais nesse funil (ex.: outra aba
+  // excluiu a etapa entre o carregamento e o drag, ver useOS.updateFunil) — sem isso
+  // o cartão simplesmente sumia do board, igual ao bug já corrigido no Pipeline do CRM
+  // (ver PipelineKanbanBoard "unmatchedLeads"). Cai na 1ª coluna em vez de desaparecer.
+  const colunaIds = new Set(colunas.map(c => c.id));
+
   return (
     <div className="flex gap-3 overflow-x-auto pb-3 -mx-1 px-1">
-      {colunas.map(col => {
-        const cards = ordens.filter(o => colunaDe(o) === col.id);
+      {colunas.map((col, colIdx) => {
+        const cards = ordens.filter(o => {
+          const alvo = colunaDe(o);
+          if (alvo === col.id) return true;
+          return colIdx === 0 && (alvo === null || !colunaIds.has(alvo));
+        });
         const total = cards.reduce((s, o) => s + o.valorTotal, 0);
         return (
           <div
@@ -86,7 +96,7 @@ export function OsBoard({ colunas, ordens, colunaDe, departamentoNome, onOpen, o
                   <div
                     key={o.id}
                     draggable={!travada}
-                    onDragStart={() => setArrastando(o)}
+                    onDragStart={e => { e.dataTransfer.setData("text/plain", o.id); e.dataTransfer.effectAllowed = "move"; setArrastando(o); }}
                     onDragEnd={() => { setArrastando(null); setAlvo(null); }}
                     onClick={() => onOpen(o)}
                     className={cn(

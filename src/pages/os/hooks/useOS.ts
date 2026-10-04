@@ -92,6 +92,31 @@ export function useOS() {
     reload();
   }, [reload]);
 
+  // Realtime: sem isso, duas abas/usuários no mesmo Kanban de OS nunca se
+  // sincronizavam — uma arrastava um cartão e a outra só via a mudança no
+  // próximo F5. Mesmo padrão de debounce (global-db-changes) já usado pelo
+  // resto do DataContext.tsx, só que auto-contido aqui porque ordens_servico/
+  // os_funis/os_departamentos nunca entraram no canal global (useOS tem seu
+  // próprio estado, fora do DataContext).
+  useEffect(() => {
+    if (!supabase || !tenantId) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedReload = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => reload(), 600);
+    };
+    const channel = supabase
+      .channel(`os-changes-${tenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "ordens_servico", filter: `tenant_id=eq.${tenantId}` }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "os_funis", filter: `tenant_id=eq.${tenantId}` }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "os_departamentos", filter: `tenant_id=eq.${tenantId}` }, debouncedReload)
+      .subscribe();
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, reload]);
+
   const funilPadraoDe = useCallback(
     (departamentoId: string): OsFunil | undefined => {
       const doDep = funis.filter(f => f.departamentoId === departamentoId && f.ativo);

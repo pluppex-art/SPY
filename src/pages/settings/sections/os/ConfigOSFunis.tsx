@@ -14,6 +14,7 @@ import {
   OS_ETAPA_TIPOS,
   OS_TEMPLATES,
   novoIdEtapa,
+  osEmAberto,
   type OsDepartamento,
   type OsEtapa,
   type OsEtapaTipo,
@@ -219,7 +220,10 @@ export function ConfigOSFunis() {
           const f = funilDe(d);
           const aberto = expandedId === d.id;
           const cor = ETAPA_CORES[d.cor] ?? ETAPA_CORES.slate;
-          const qtdOs = os.ordens.filter(o => o.departamentoId === d.id).length;
+          // Mesmo critério "em aberto" da tela principal de Ordens de Serviço (contagem
+          // por aba de departamento) — contar TODAS as OS (incl. concluída/cancelada/
+          // faturada) fazia esse número nunca bater com o da outra tela.
+          const qtdOs = os.ordens.filter(o => o.departamentoId === d.id && osEmAberto(o, os.etapaDaOrdem(o))).length;
 
           return (
             <Card key={d.id} className="bg-[var(--color-surface-elevated)]/80 backdrop-blur-xl border border-[var(--color-border-default)] hover:border-white/15 transition-all">
