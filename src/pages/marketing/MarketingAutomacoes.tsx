@@ -1,31 +1,36 @@
-import { useState } from "react";
-import { MessageSquarePlus, Loader2, Users, Check, X, Trash2, AlertTriangle, Sparkles, Workflow, MessageCircle } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import {
+  ResponsiveContainer, AreaChart, Area, Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, CartesianGrid,
+} from "recharts";
+import {
+  MessageSquarePlus, Loader2, Users, Check, X, Trash2, AlertTriangle, Sparkles, Workflow, MessageCircle,
+  Clock, TrendingUp, TrendingDown, Lightbulb, BookOpen, Send,
+} from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
+import { useData } from "../../contexts/DataContext";
 import { useMessageTriggers, type MessageTrigger } from "../../hooks/useMessageTriggers";
 import { AutomationFunilConnections } from "./AutomationFunilConnections";
+import { GATILHO_TEMPLATES, CANAIS_ENVIO, buildJuliaSuggestions, computeTriggerStats } from "./autoTriggerSuggestions";
 import { cn } from "../../lib/utils";
 
 // Central de Automações — o tenant descreve em texto livre quem quer contatar (ex: "mandar
 // mensagem pra quem não tem contato há 2 meses"), a Júlia (via n8n) interpreta e monta a lista
 // de leads + o texto que mandaria, e NADA é enviado de verdade até você aprovar essa lista e
 // mensagem específicas aqui. Ver useMessageTriggers.ts e server/messageTriggers.ts.
-//
-// Antes desta versão essa tela era uma maquete (fluxos ficavam só no estado local do app,
-// "Testar disparo" só incrementava um contador falso) — substituída pela versão real porque é
-// exatamente o mesmo conceito (gatilho -> ação de mensagem), só que agora conectada de ponta a
-// ponta: banco (tenant_message_triggers), interpretação por IA e envio real pela Júlia.
 
-const STATUS_LABEL: Record<MessageTrigger["status"], { label: string; className: string }> = {
-  pendente_interpretacao: { label: "Analisando...", className: "bg-white/5 text-slate-400 border-white/10" },
-  aguardando_confirmacao: { label: "Aguardando sua aprovação", className: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
-  aprovado: { label: "Aprovado — enviando...", className: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
-  executado: { label: "Enviado", className: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
-  rejeitado: { label: "Rejeitado", className: "bg-white/5 text-slate-500 border-white/10" },
-  erro: { label: "Não foi possível entender", className: "bg-rose-500/15 text-rose-300 border-rose-500/30" },
+const STATUS_LABEL: Record<MessageTrigger["status"], { label: string; tone: "neutral" | "warning" | "info" | "success" | "destructive" }> = {
+  pendente_interpretacao: { label: "Analisando...", tone: "neutral" },
+  aguardando_confirmacao: { label: "Aguardando aprovação", tone: "warning" },
+  aprovado: { label: "Enviando...", tone: "info" },
+  executado: { label: "Enviado", tone: "success" },
+  rejeitado: { label: "Rejeitado", tone: "neutral" },
+  erro: { label: "Não entendido", tone: "destructive" },
 };
 
 function TriggerCard({ trigger, onAprovar, onRejeitar, onRemover }: {
@@ -49,38 +54,36 @@ function TriggerCard({ trigger, onAprovar, onRejeitar, onRemover }: {
   };
 
   return (
-    <Card className="p-5 rounded-2xl border border-white/10 bg-[var(--color-surface-elevated)] space-y-3">
+    <Card className="p-5 space-y-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-white leading-relaxed flex-1">"{trigger.descricao}"</p>
-        <span className={`shrink-0 text-[9px] font-black uppercase tracking-wide px-2 py-1 rounded-full border ${status.className}`}>
-          {status.label}
-        </span>
+        <p className="text-sm text-[var(--color-text-primary)] leading-relaxed flex-1">"{trigger.descricao}"</p>
+        <Badge variant={status.tone} className="shrink-0">{status.label}</Badge>
       </div>
 
       {trigger.status === "pendente_interpretacao" && (
-        <p className="text-xs text-slate-400 flex items-center gap-1.5">
+        <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5">
           <Loader2 className="w-3.5 h-3.5 animate-spin" /> A Júlia está lendo seu pedido e montando a lista...
         </p>
       )}
 
       {trigger.status === "erro" && (
-        <p className="text-xs text-rose-400 flex items-start gap-1.5">
+        <p className="text-xs text-danger flex items-start gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {trigger.erro || "Não foi possível entender esse pedido."}
         </p>
       )}
 
       {(trigger.status === "aguardando_confirmacao" || trigger.status === "aprovado" || trigger.status === "executado") && trigger.resumoInterpretado && (
-        <div className="space-y-2 pt-2 border-t border-white/5">
-          <p className="text-xs text-slate-200">
+        <div className="space-y-2 pt-2 border-t border-[var(--color-border-subtle)]">
+          <p className="text-xs text-[var(--color-text-primary)]">
             <span className="font-bold">Entendi assim:</span> {trigger.resumoInterpretado}
           </p>
-          <p className="text-xs text-slate-400 flex items-center gap-1.5">
+          <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5" /> {trigger.leadsEncontrados.length} contato(s) encontrado(s)
           </p>
           {trigger.mensagemSugerida && (
-            <div className="bg-black/20 border border-white/10 rounded-xl p-2.5">
-              <p className="text-[9px] font-bold uppercase text-slate-500 mb-1">Mensagem que ela mandaria</p>
-              <p className="text-xs text-slate-200 italic">"{trigger.mensagemSugerida}"</p>
+            <div className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl p-2.5">
+              <p className="text-[9px] font-bold uppercase text-[var(--color-text-faint)] mb-1">Mensagem que ela mandaria</p>
+              <p className="text-xs text-[var(--color-text-muted)] italic">"{trigger.mensagemSugerida}"</p>
             </div>
           )}
         </div>
@@ -88,10 +91,10 @@ function TriggerCard({ trigger, onAprovar, onRejeitar, onRemover }: {
 
       {canReview && (
         <div className="flex items-center gap-2 pt-1">
-          <Button onClick={handleAprovar} disabled={busy || trigger.leadsEncontrados.length === 0} className="h-8 px-3 text-[11px] font-bold gap-1.5 bg-purple-600 hover:bg-purple-500 text-white">
+          <Button onClick={handleAprovar} disabled={busy || trigger.leadsEncontrados.length === 0} className="h-8 px-3 text-[11px] font-bold gap-1.5">
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Aprovar e enviar
           </Button>
-          <Button variant="outline" disabled={busy} onClick={async () => { setBusy(true); await onRejeitar(trigger.id); setBusy(false); }} className="h-8 px-3 text-[11px] font-bold gap-1.5 border-white/10 text-slate-300">
+          <Button variant="outline" disabled={busy} onClick={async () => { setBusy(true); await onRejeitar(trigger.id); setBusy(false); }} className="h-8 px-3 text-[11px] font-bold gap-1.5">
             <X className="w-3.5 h-3.5" /> Rejeitar
           </Button>
         </div>
@@ -100,7 +103,7 @@ function TriggerCard({ trigger, onAprovar, onRejeitar, onRemover }: {
       {(trigger.status === "rejeitado" || trigger.status === "erro" || trigger.status === "executado") && (
         <button
           onClick={async () => { if (await confirmDialog({ title: "Remover gatilho", description: "Remover este registro da lista?" })) await onRemover(trigger.id); }}
-          className="text-[10px] font-bold text-slate-500 hover:text-rose-400 flex items-center gap-1"
+          className="text-[10px] font-bold text-[var(--color-text-faint)] hover:text-danger flex items-center gap-1"
         >
           <Trash2 className="w-3 h-3" /> Remover
         </button>
@@ -109,13 +112,56 @@ function TriggerCard({ trigger, onAprovar, onRejeitar, onRemover }: {
   );
 }
 
+function KpiSparkCard(props: {
+  icon: typeof Sparkles; iconClass: string; label: string; value: string | number;
+  deltaLabel: string | null; deltaUp: boolean | null; chartData: { v: number }[]; chartColor: string;
+}) {
+  const { icon: Icon, iconClass, label, value, deltaLabel, deltaUp, chartData } = props;
+  return (
+    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden relative">
+      <div className="flex items-center gap-2 text-[var(--color-text-faint)]">
+        <Icon className={cn("w-4 h-4", iconClass)} />
+        <span className="text-[10px] font-black uppercase tracking-wider">{label}</span>
+      </div>
+      <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{value}</p>
+      {deltaLabel && (
+        <p className={cn("text-[11px] font-bold mt-1 flex items-center gap-1", deltaUp === false ? "text-danger" : "text-success")}>
+          {deltaUp === false ? <TrendingDown className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />} {deltaLabel}
+        </p>
+      )}
+      {chartData.some((d) => d.v > 0) && (
+        <div className="h-8 -mx-1 mt-2 opacity-70">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id={`spark-${label}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={props.chartColor} stopOpacity={0.35} />
+                  <stop offset="95%" stopColor={props.chartColor} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Area type="monotone" dataKey="v" stroke={props.chartColor} strokeWidth={1.5} fill={`url(#spark-${label})`} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 type Aba = "julia" | "funis";
 
 export default function MarketingAutomacoes() {
+  const { leads, proposals, contracts } = useData();
   const { triggers, loading, criar, aprovar, rejeitar, remover } = useMessageTriggers();
   const [descricao, setDescricao] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [aba, setAba] = useState<Aba>("julia");
+  const [tipoSelecionado, setTipoSelecionado] = useState<string | null>(null);
+  const [canalSelecionado, setCanalSelecionado] = useState("whatsapp");
+  const [mostrarExemplos, setMostrarExemplos] = useState(false);
+  const [dateFrom, setDateFrom] = useState<string | null>(null);
+  const [dateTo, setDateTo] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = async () => {
     if (!descricao.trim()) { toast.error("Descreva o que você quer que aconteça."); return; }
@@ -124,12 +170,27 @@ export default function MarketingAutomacoes() {
     setSubmitting(false);
     if (error) { toast.error(error); return; }
     setDescricao("");
+    setTipoSelecionado(null);
     toast.success("Pedido enviado — a Júlia já está analisando.");
   };
 
-  const pendentes = triggers.filter((t) => t.status === "aguardando_confirmacao").length;
-  const enviados = triggers.filter((t) => t.status === "executado").length;
-  const totalContatados = triggers.filter((t) => t.status === "executado").reduce((s, t) => s + t.leadsEncontrados.length, 0);
+  const usarTexto = (texto: string) => {
+    setDescricao(texto);
+    textareaRef.current?.focus();
+    textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const stats = useMemo(() => computeTriggerStats(triggers, dateFrom, dateTo), [triggers, dateFrom, dateTo]);
+  const sugestoes = useMemo(() => buildJuliaSuggestions({ leads, proposals, contracts }), [leads, proposals, contracts]);
+
+  const emAberto = useMemo(
+    () => triggers.filter((t) => t.status === "aguardando_confirmacao" || t.status === "pendente_interpretacao" || t.status === "erro"),
+    [triggers]
+  );
+  const recentes = useMemo(() => triggers.slice(0, 8), [triggers]);
+
+  const sparkContatos = stats.chart.map((d) => ({ v: d.contatos }));
+  const sparkEnviados = stats.chart.map((d) => ({ v: d.enviados }));
 
   return (
     <PageContainer
@@ -137,6 +198,19 @@ export default function MarketingAutomacoes() {
       description={aba === "julia"
         ? "Descreva quem você quer contatar em texto livre — a Júlia entende, monta a lista e a mensagem, e só envia depois que você aprovar."
         : "Conecte etapas do funil comercial (ou categorias de produto vendidas) a departamentos da Operação — monte como você quiser, sem precisar de ninguém mexer em configuração."}
+      actions={
+        aba === "julia" ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
+            <Button variant="outline" onClick={() => setMostrarExemplos((v) => !v)} className="h-9 px-3 text-xs font-bold gap-1.5">
+              <BookOpen className="w-3.5 h-3.5" /> Modelos de gatilho
+            </Button>
+            <Button onClick={() => usarTexto(descricao)} className="h-9 px-4 text-xs font-bold gap-1.5">
+              <MessageSquarePlus className="w-3.5 h-3.5" /> Novo gatilho
+            </Button>
+          </div>
+        ) : undefined
+      }
     >
       <div className="space-y-6 pb-20">
         <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit">
@@ -156,48 +230,148 @@ export default function MarketingAutomacoes() {
         </div>
 
         {aba === "julia" ? (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
-                <Sparkles className="w-5 h-5 text-amber-400 mb-3" />
-                <div className="text-2xl font-black text-white font-mono mb-1">{pendentes}</div>
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Aguardando sua aprovação</div>
+          <div className="space-y-6">
+            {/* KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <KpiSparkCard
+                icon={Sparkles} iconClass="text-warning" label="Aguardando sua aprovação" value={stats.aguardando}
+                deltaLabel={stats.aguardandoDeltaSemana !== 0 ? `${stats.aguardandoDeltaSemana > 0 ? "+" : ""}${stats.aguardandoDeltaSemana} vs semana passada` : null}
+                deltaUp={stats.aguardandoDeltaSemana >= 0} chartData={sparkEnviados} chartColor="#f59e0b"
+              />
+              <KpiSparkCard
+                icon={Check} iconClass="text-success" label="Gatilhos já enviados" value={stats.enviados}
+                deltaLabel={stats.enviadosDeltaPct !== null ? `${stats.enviadosDeltaPct >= 0 ? "+" : ""}${stats.enviadosDeltaPct}% vs mês anterior` : null}
+                deltaUp={stats.enviadosDeltaPct === null ? null : stats.enviadosDeltaPct >= 0} chartData={sparkEnviados} chartColor="#10b981"
+              />
+              <KpiSparkCard
+                icon={Users} iconClass="text-[var(--color-primary-blue)]" label="Contatos alcançados" value={stats.contatos}
+                deltaLabel={stats.contatosDeltaPct !== null ? `${stats.contatosDeltaPct >= 0 ? "+" : ""}${stats.contatosDeltaPct}% vs mês anterior` : null}
+                deltaUp={stats.contatosDeltaPct === null ? null : stats.contatosDeltaPct >= 0} chartData={sparkContatos} chartColor="var(--color-primary-blue)"
+              />
+              <KpiSparkCard
+                icon={Check} iconClass="text-info" label="Taxa de aprovação da Júlia" value={stats.taxaAprovacao !== null ? `${stats.taxaAprovacao}%` : "—"}
+                deltaLabel={null} deltaUp={null} chartData={sparkEnviados} chartColor="#0ea5e9"
+              />
+            </div>
+
+            {/* Novo gatilho + Sugestões */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-3">
+                <label className="text-[11px] font-black uppercase text-[var(--color-text-primary)] tracking-wider flex items-center gap-1.5">
+                  <MessageSquarePlus className="w-4 h-4 text-[var(--color-primary-blue)]" /> Novo gatilho
+                </label>
+                <textarea
+                  ref={textareaRef}
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value.slice(0, 500))}
+                  placeholder='Ex: "Quero mandar mensagem pra todo mundo que ficou parado há mais de 30 dias"'
+                  rows={3}
+                  maxLength={500}
+                  className="w-full text-sm bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl p-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-primary-blue)]/50 resize-y"
+                />
+                <p className="text-[10px] text-[var(--color-text-faint)] text-right -mt-2">{descricao.length}/500</p>
+
+                <div>
+                  <p className="text-[9px] font-black uppercase text-[var(--color-text-faint)] mb-1.5">Tipo de gatilho</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {GATILHO_TEMPLATES.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => { setTipoSelecionado(t.id); if (t.texto) setDescricao(t.texto); else textareaRef.current?.focus(); }}
+                        className={cn(
+                          "px-2.5 py-1.5 text-[11px] font-bold rounded-lg border transition-all",
+                          tipoSelecionado === t.id
+                            ? "bg-[var(--color-primary-blue)] text-[#fff] border-transparent"
+                            : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                        )}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[9px] font-black uppercase text-[var(--color-text-faint)] mb-1.5">Canal de envio</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {CANAIS_ENVIO.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        disabled={!c.disponivel}
+                        onClick={() => c.disponivel && setCanalSelecionado(c.id)}
+                        title={c.disponivel ? undefined : "Em breve"}
+                        className={cn(
+                          "px-2.5 py-1.5 text-[11px] font-bold rounded-lg border transition-all",
+                          !c.disponivel ? "opacity-40 cursor-not-allowed border-[var(--color-border-subtle)] text-[var(--color-text-faint)]"
+                            : canalSelecionado === c.id ? "bg-[var(--color-primary-blue)] text-[#fff] border-transparent"
+                            : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                        )}
+                      >
+                        {c.label}{!c.disponivel && " · em breve"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <Button onClick={handleSubmit} disabled={submitting} className="h-9 px-4 text-xs font-bold gap-1.5">
+                    {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Pedir pra Júlia entender
+                  </Button>
+                  <Button variant="outline" onClick={() => setMostrarExemplos((v) => !v)} className="h-9 px-3 text-xs font-bold gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5" /> Ver exemplos de gatilhos
+                  </Button>
+                </div>
+
+                {mostrarExemplos && (
+                  <div className="rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] p-3 space-y-1.5">
+                    {GATILHO_TEMPLATES.filter((t) => t.texto).map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => usarTexto(t.texto)}
+                        className="w-full text-left text-xs text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] px-2 py-1.5 rounded-lg hover:bg-[var(--color-surface-elevated)] transition-colors"
+                      >
+                        "{t.texto}"
+                      </button>
+                    ))}
+                  </div>
+                )}
               </Card>
-              <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
-                <Check className="w-5 h-5 text-emerald-400 mb-3" />
-                <div className="text-2xl font-black text-emerald-400 font-mono mb-1">{enviados}</div>
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Gatilhos já enviados</div>
-              </Card>
-              <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
-                <Users className="w-5 h-5 text-indigo-400 mb-3" />
-                <div className="text-2xl font-black text-white font-mono mb-1">{totalContatados}</div>
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Contatos alcançados</div>
+
+              <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+                <div className="flex items-center gap-2 mb-1">
+                  <Lightbulb className="w-4 h-4 text-[var(--color-primary-blue)]" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">Sugestões da Júlia</h3>
+                </div>
+                <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Com base nos seus dados reais, aqui estão algumas oportunidades:</p>
+                {sugestoes.length === 0 ? (
+                  <p className="text-xs text-[var(--color-text-faint)] italic py-4 text-center">Nenhum sinal prioritário agora — pipeline em dia.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {sugestoes.map((s) => (
+                      <div key={s.id} className="flex items-center gap-3 bg-[var(--color-surface-sunken)] rounded-xl px-3.5 py-2.5">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{s.titulo}</p>
+                          <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">{s.subtitulo}</p>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => usarTexto(s.texto)} className="shrink-0 h-7 px-2.5 text-[10px] font-bold">
+                          Usar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Card>
             </div>
 
-            <Card className="p-5 rounded-2xl bg-[var(--color-surface-elevated)] border border-white/10 space-y-3">
-              <label className="text-[11px] font-black uppercase text-white tracking-wider flex items-center gap-1.5">
-                <MessageSquarePlus className="w-4 h-4 text-purple-400" /> Novo gatilho
-              </label>
-              <textarea
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                placeholder='Ex: "Quero mandar mensagem pra todo mundo que ficou parado há mais de 30 dias"'
-                rows={3}
-                className="w-full text-sm bg-black/20 border border-white/10 rounded-xl p-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500/50 resize-y"
-              />
-              <Button onClick={handleSubmit} disabled={submitting} className="h-9 px-4 text-xs font-bold gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white">
-                {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Pedir pra Júlia entender
-              </Button>
-            </Card>
-
-            <div className="space-y-3">
-              {loading ? (
-                <p className="text-xs text-slate-500">Carregando...</p>
-              ) : triggers.length === 0 ? (
-                <p className="text-xs text-slate-500 italic p-4 text-center">Nenhum gatilho ainda — descreva um acima pra começar.</p>
-              ) : (
-                triggers.map((t) => (
+            {/* Gatilhos aguardando ação (ficam como cards completos — é onde a aprovação acontece) */}
+            {emAberto.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] flex items-center gap-1.5">
+                  <Send className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Precisam da sua atenção
+                </h3>
+                {emAberto.map((t) => (
                   <TriggerCard
                     key={t.id}
                     trigger={t}
@@ -205,8 +379,78 @@ export default function MarketingAutomacoes() {
                     onRejeitar={async (id) => { await rejeitar(id); }}
                     onRemover={remover}
                   />
-                ))
-              )}
+                ))}
+              </div>
+            )}
+
+            {/* Gatilhos recentes + Desempenho + Resultados gerais */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <Card className="lg:col-span-5 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+                <div className="p-4 border-b border-[var(--color-border-subtle)]">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">Gatilhos recentes</h3>
+                </div>
+                {loading ? (
+                  <p className="text-xs text-[var(--color-text-faint)] p-4 flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Carregando...</p>
+                ) : recentes.length === 0 ? (
+                  <p className="text-xs text-[var(--color-text-faint)] italic p-6 text-center">Nenhum gatilho ainda — descreva um acima pra começar.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
+                        <tr><th className="px-4 py-2">Gatilho</th><th className="px-4 py-2">Contatos</th><th className="px-4 py-2">Status</th><th className="px-4 py-2">Data</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--color-border-subtle)]">
+                        {recentes.map((t) => (
+                          <tr key={t.id}>
+                            <td className="px-4 py-2.5 font-semibold text-[var(--color-text-primary)] truncate max-w-[160px]" title={t.descricao}>{t.descricao}</td>
+                            <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{t.leadsEncontrados.length}</td>
+                            <td className="px-4 py-2.5"><Badge variant={STATUS_LABEL[t.status].tone}>{STATUS_LABEL[t.status].label}</Badge></td>
+                            <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{new Date(t.createdAt).toLocaleDateString("pt-BR")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+
+              <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+                <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-4 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Desempenho das automações</h3>
+                <div className="h-[200px] w-full -mx-2">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={180}>
+                    <ComposedChart data={stats.chart} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.15)" vertical={false} />
+                      <XAxis dataKey="name" stroke="var(--color-text-faint)" fontSize={9} tickLine={false} axisLine={false} interval={2} />
+                      <YAxis stroke="var(--color-text-faint)" fontSize={9} tickLine={false} axisLine={false} width={24} allowDecimals={false} />
+                      <Tooltip contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: 12, fontSize: 11 }} />
+                      <Bar dataKey="contatos" name="Contatos alcançados" fill="var(--color-primary-blue)" radius={[3, 3, 0, 0]} />
+                      <Line type="monotone" dataKey="enviados" name="Gatilhos enviados" stroke="#10b981" strokeWidth={2} dot={false} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              <Card className="lg:col-span-3 p-5 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-[#fff]">
+                <h3 className="text-xs font-black uppercase tracking-wider mb-4">Resultados gerais</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-lg font-black font-mono">{stats.contatos}</p>
+                    <p className="text-[9px] uppercase font-bold text-[#fff]/70">Contatos alcançados</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-black font-mono">{stats.enviados}</p>
+                    <p className="text-[9px] uppercase font-bold text-[#fff]/70">Gatilhos enviados</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-black font-mono">{stats.aguardando}</p>
+                    <p className="text-[9px] uppercase font-bold text-[#fff]/70">Aguardando aprovação</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-black font-mono">{stats.taxaAprovacao !== null ? `${stats.taxaAprovacao}%` : "—"}</p>
+                    <p className="text-[9px] uppercase font-bold text-[#fff]/70">Taxa de aprovação</p>
+                  </div>
+                </div>
+              </Card>
             </div>
           </div>
         ) : (
