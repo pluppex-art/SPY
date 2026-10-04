@@ -282,11 +282,20 @@ html:not(.dark) [class*="bg-slate-900/"] {
 }
 
 /* Borders & Dividers */
-html:not(.dark) [class*="border-white/"],
+/* :not([class*="bg-[var(--color-primary-blue)]"]):not([class*="from-[var(--color-primary-blue)]"])
+   em toda essa seção e na de Texto/Fundos abaixo: o retrofit original pegava
+   (sem querer) texto/borda/fundo branco LEGÍTIMO sobre um painel que usa de
+   propósito a cor de marca do tenant como fundo (abas ativas, cards "Aurora",
+   botões em destaque) — achado real em produção (Central de Receita e aba
+   ativa de Propostas ficavam com letra preta sobre roxo no modo claro). A
+   exceção só isenta elementos que também têm a cor de marca no próprio
+   fundo; texto branco solto sobre fundo claro (o bug original que esse
+   retrofit existe pra corrigir) continua escurecido normalmente. */
+html:not(.dark) [class*="border-white/"]:not([class*="bg-[var(--color-primary-blue)]"]):not([class*="from-[var(--color-primary-blue)]"]),
 html:not(.dark) [class*="border-slate-800"],
-html:not(.dark) [class*="border-white/5"],
-html:not(.dark) [class*="border-white/10"],
-html:not(.dark) [class*="border-white/20"] {
+html:not(.dark) [class*="border-white/5"]:not([class*="bg-[var(--color-primary-blue)]"]):not([class*="from-[var(--color-primary-blue)]"]),
+html:not(.dark) [class*="border-white/10"]:not([class*="bg-[var(--color-primary-blue)]"]):not([class*="from-[var(--color-primary-blue)]"]),
+html:not(.dark) [class*="border-white/20"]:not([class*="bg-[var(--color-primary-blue)]"]):not([class*="from-[var(--color-primary-blue)]"]) {
   border-color: #E2E8F0 !important;
 }
 
@@ -296,10 +305,10 @@ html:not(.dark) [class*="text-slate-500"] {
   color: #64748B !important; /* Legibilidade perfeita */
 }
 
-html:not(.dark) [class*="text-white"],
-html:not(.dark) [class*="text-[#F8FAFC]"],
-html:not(.dark) [class*="text-slate-200"],
-html:not(.dark) [class*="text-slate-300"] {
+html:not(.dark) [class*="text-white"]:not([class*="bg-[var(--color-primary-blue)]"]):not([class*="from-[var(--color-primary-blue)]"]),
+html:not(.dark) [class*="text-[#F8FAFC]"]:not([class*="bg-[var(--color-primary-blue)]"]):not([class*="from-[var(--color-primary-blue)]"]),
+html:not(.dark) [class*="text-slate-200"]:not([class*="bg-[var(--color-primary-blue)]"]):not([class*="from-[var(--color-primary-blue)]"]),
+html:not(.dark) [class*="text-slate-300"]:not([class*="bg-[var(--color-primary-blue)]"]):not([class*="from-[var(--color-primary-blue)]"]) {
   color: #0F172A !important; /* Texto principal super escuro */
 }
 
