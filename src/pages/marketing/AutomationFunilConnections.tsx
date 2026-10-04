@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ReactFlow, Background, Controls, Handle, Position, EdgeLabelRenderer, getBezierPath,
-  type Node, type Edge, type NodeProps, type EdgeProps, type Connection,
+  ReactFlow, Background, Controls, MiniMap, Panel, Handle, Position, EdgeLabelRenderer, getBezierPath,
+  useNodesState, type Node, type Edge, type NodeProps, type EdgeProps, type Connection,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Workflow, Tag, Building2, X, Loader2 } from "lucide-react";
+import { Workflow, Tag, Building2, X, Loader2, LayoutGrid, Info } from "lucide-react";
 import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useData } from "../../contexts/DataContext";
@@ -33,12 +33,17 @@ const HEADER_H = 40;
 
 // ── Nó: funil do CRM, uma linha (e um handle de saída) por etapa ───────────
 function FunilNode({ data }: NodeProps) {
-  const { nome, etapas } = data as unknown as { nome: string; etapas: string[] };
+  const { nome, etapas, tipo } = data as unknown as { nome: string; etapas: string[]; tipo?: string };
   return (
     <div className="rounded-xl border-2 border-[var(--color-primary-blue)]/30 bg-[var(--color-surface-elevated)] shadow-md w-60 overflow-hidden">
       <div className="px-3 py-2 bg-[var(--color-primary-blue)]/10 border-b border-[var(--color-primary-blue)]/20 flex items-center gap-1.5">
         <Workflow className="w-3.5 h-3.5 text-[var(--color-primary-blue)] shrink-0" />
-        <span className="text-[11px] font-bold text-[var(--color-text-primary)] truncate">{nome}</span>
+        <span className="text-[11px] font-bold text-[var(--color-text-primary)] truncate flex-1">{nome}</span>
+        {tipo && (
+          <span className="shrink-0 text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]">
+            {tipo === "sdr_ia" ? "SDR" : "Comercial"}
+          </span>
+        )}
       </div>
       <div>
         {etapas.map((nomeEtapa, idx) => (
@@ -135,7 +140,10 @@ export function AutomationFunilConnections() {
   const [rows, setRows] = useState<ConnectionRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const comercialFunis = useMemo(() => (funis as any[]).filter((f) => f.tipo === "comercial" && f.ativo !== false), [funis]);
+  // Qualquer funil ativo do CRM pode ser origem — antes só entrava "comercial",
+  // deixando o funil de SDR de fora sem motivo real (o gatilho no banco,
+  // trg_automacao_lead_etapa, já casa por stageId genérico, não por tipo).
+  const funisOrigem = useMemo(() => (funis as any[]).filter((f) => f.ativo !== false), [funis]);
   const categorias = useMemo(
     () => [...new Set((products as any[]).map((p) => p.category).filter(Boolean))].sort(),
     [products]
@@ -159,37 +167,64 @@ export function AutomationFunilConnections() {
     toast.success("Conexão removida.");
   }, []);
 
-  // ─── Monta nós ──────────────────────────────────────────────────────────
-  const nodes: Node[] = useMemo(() => {
+  // ─── Monta nós (posição calculada pela ALTURA real de cada um — não um
+  // espaçamento fixo) ─────────────────────────────────────────────────────
+  // Achado real (print do usuário): com espaçamento fixo de 260px, um funil
+  // com mais de ~8 etapas (40 + 8*28 = 264px) já é mais alto que isso e o
+  // próximo nó (categorias, ou o funil seguinte) nascia sobreposto em cima
+  // dele. Agora cada nó empilha a partir do Y real = fim do anterior.
+  const computedNodes: Node[] = useMemo(() => {
     const out: Node[] = [];
-    comercialFunis.forEach((f, i) => {
+    let y = 0;
+    funisOrigem.forEach((f) => {
       const stageNames = funilStageNames(f);
       out.push({
         id: `funil:${f.id}`, type: "funil",
-        position: { x: 0, y: i * 260 },
-        data: { nome: f.nome, etapas: stageNames },
+        position: { x: 0, y },
+        data: { nome: f.nome, etapas: stageNames, tipo: f.tipo },
         draggable: true,
       });
+      y += HEADER_H + stageNames.length * ROW_H + 24;
     });
     if (categorias.length > 0) {
       out.push({
         id: "categorias", type: "categorias",
-        position: { x: 0, y: comercialFunis.length * 260 + 40 },
+        position: { x: 0, y },
         data: { categorias },
         draggable: true,
       });
+      y += HEADER_H + categorias.length * ROW_H + 24;
     }
     departamentosAtivos.forEach((d, i) => {
       const qtd = rows.filter((r) => r.os_departamento_id === d.id).length;
       out.push({
         id: `dep:${d.id}`, type: "departamento",
-        position: { x: 520, y: i * 90 },
+        position: { x: 560, y: i * 90 },
         data: { nome: d.nome, qtd },
         draggable: true,
       });
     });
     return out;
-  }, [comercialFunis, categorias, departamentosAtivos, rows]);
+  }, [funisOrigem, categorias, departamentosAtivos, rows]);
+
+  // Estado "de verdade" dos nós (React Flow precisa disso pra arrastar um nó
+  // e ele FICAR onde foi solto — sem isso, qualquer recálculo de `rows`
+  // (criar/pausar/remover uma conexão) descartava a posição arrastada e o
+  // nó voltava pro lugar calculado, parecendo um bug de arrastar "não
+  // funciona"). Um nó já existente mantém a posição atual; só ganha posição
+  // nova (a calculada) na primeira vez que aparece.
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(computedNodes);
+  useEffect(() => {
+    setNodes((prev) => {
+      const porId = new Map(prev.map((n) => [n.id, n]));
+      return computedNodes.map((n) => {
+        const existente = porId.get(n.id);
+        return existente ? { ...n, position: existente.position } : n;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [computedNodes]);
+  const reorganizar = useCallback(() => setNodes(computedNodes), [computedNodes, setNodes]);
 
   // ─── Monta arestas a partir das conexões salvas ────────────────────────
   const edges: Edge[] = useMemo(() => {
@@ -218,7 +253,7 @@ export function AutomationFunilConnections() {
       payload = { nome: `${cat} → ${dep.nome}`, gatilho_tipo: "produto_categoria", gatilho_categoria: cat, os_departamento_id: dep.id };
     } else {
       const funilId = conn.source.replace(/^funil:/, "");
-      const funil = comercialFunis.find((f) => f.id === funilId);
+      const funil = funisOrigem.find((f) => f.id === funilId);
       const idx = Number(conn.sourceHandle.replace(/^etapa:/, ""));
       const etapaNome = funil ? funilStageNames(funil)[idx] : String(idx);
       payload = { nome: `${etapaNome} → ${dep.nome}`, gatilho_tipo: "funil_etapa", gatilho_funil_id: funilId, gatilho_etapa_idx: idx, os_departamento_id: dep.id };
@@ -230,7 +265,7 @@ export function AutomationFunilConnections() {
     if (error || !data) { toast.error("Não foi possível criar a conexão."); return; }
     setRows((prev) => [data as ConnectionRow, ...prev]);
     toast.success(`Conectado: ${payload.nome}`);
-  }, [activeTenantId, departamentosAtivos, comercialFunis]);
+  }, [activeTenantId, departamentosAtivos, funisOrigem]);
 
   const onEdgeClick = useCallback((_e: React.MouseEvent, edge: Edge) => {
     const row = rows.find((r) => r.id === edge.id);
@@ -245,11 +280,14 @@ export function AutomationFunilConnections() {
     return <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-faint)]" /></div>;
   }
 
-  if (comercialFunis.length === 0 || departamentosAtivos.length === 0) {
+  const conexoesAtivas = rows.filter((r) => r.ativo).length;
+  const conexoesPausadas = rows.length - conexoesAtivas;
+
+  if (funisOrigem.length === 0 || departamentosAtivos.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--color-border-default)] p-10 text-center text-xs text-[var(--color-text-faint)]">
-        {comercialFunis.length === 0
-          ? "Nenhum funil comercial encontrado no CRM."
+        {funisOrigem.length === 0
+          ? "Nenhum funil encontrado no CRM."
           : "Nenhum departamento ativo na Operação — crie um em Configurações › Operação › Funis."}
       </div>
     );
@@ -257,18 +295,29 @@ export function AutomationFunilConnections() {
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-[var(--color-text-muted)]">
-        Arraste uma linha de uma etapa (ou categoria) até um departamento pra criar a conexão. Clique numa linha pra pausar/reativar; no "×" no meio dela pra remover.
-      </p>
-      <div style={{ height: "65vh" }} className="w-full rounded-2xl overflow-hidden border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] text-[var(--color-text-muted)]">
+          Arraste uma linha de uma etapa (ou categoria) até um departamento pra criar a conexão. Clique numa linha pra pausar/reativar; no "×" no meio dela pra remover.
+        </p>
+        <div className="flex items-center gap-1.5 shrink-0 text-[10px] font-semibold">
+          <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-success/10 text-success"><span className="w-1.5 h-1.5 rounded-full bg-success" /> {conexoesAtivas} ativa{conexoesAtivas === 1 ? "" : "s"}</span>
+          {conexoesPausadas > 0 && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--color-surface-sunken)] text-[var(--color-text-faint)]"><span className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-faint)]" /> {conexoesPausadas} pausada{conexoesPausadas === 1 ? "" : "s"}</span>
+          )}
+        </div>
+      </div>
+      <div style={{ height: "68vh" }} className="w-full rounded-2xl overflow-hidden border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]">
         <ReactFlow
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          onNodesChange={onNodesChange}
           onConnect={onConnect}
           onEdgeClick={onEdgeClick}
           defaultEdgeOptions={{ type: "conexao" }}
+          minZoom={0.2}
+          maxZoom={1.5}
           fitView
           proOptions={{ hideAttribution: true }}
         >
@@ -281,6 +330,28 @@ export function AutomationFunilConnections() {
           </svg>
           <Background />
           <Controls showInteractive={false} />
+          <MiniMap
+            pannable zoomable
+            nodeColor={(n) => (n.type === "funil" ? "#2563EB" : n.type === "categorias" ? "#f59e0b" : "#10b981")}
+            maskColor="rgba(0,0,0,0.06)"
+            style={{ backgroundColor: "var(--color-surface-elevated)" }}
+          />
+          <Panel position="top-right" className="flex flex-col items-end gap-2">
+            <button
+              type="button"
+              onClick={reorganizar}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-[10px] font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shadow-sm"
+              title="Reorganizar os nós no layout automático"
+            >
+              <LayoutGrid className="w-3 h-3" /> Reorganizar
+            </button>
+            <div className="flex flex-col gap-1 px-2.5 py-2 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] shadow-sm text-[9px] text-[var(--color-text-muted)]">
+              <span className="flex items-center gap-1.5 font-bold text-[var(--color-text-faint)] uppercase tracking-wide"><Info className="w-2.5 h-2.5" /> Legenda</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)]" /> Funil do CRM (etapa)</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-warning" /> Categoria de produto</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-success" /> Departamento (OS)</span>
+            </div>
+          </Panel>
         </ReactFlow>
       </div>
     </div>
