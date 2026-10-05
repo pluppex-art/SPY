@@ -8,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 import { useLocalization } from "../contexts/LocalizationContext";
 import { useData } from "../contexts/DataContext";
 import { normalizeText } from "../lib/utils";
-import { Modal } from "./ui/modal";
 
 const NAV_ACTIONS = [
   { name: "Dashboard Principal", icon: LayoutDashboard, path: "/app/dashboard", category: "Navegação" },
@@ -31,6 +30,12 @@ export function CommandPalette() {
   const { t } = useLocalization();
   const { leads, clienteBase, proposals, contracts, products } = useData();
   const inputRef = useRef<HTMLInputElement>(null);
+  // Pedido explícito do usuário: isso é um DROPDOWN ancorado embaixo da
+  // barra (mesmo padrão do sino de notificações em Topbar.tsx), não um
+  // modal central com fundo escuro — por isso usa o mesmo par
+  // ref-no-container + "clique fora fecha" daquele componente, em vez do
+  // <Modal> genérico.
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -47,18 +52,24 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  // Relatado pelo usuário: "não consigo escrever" no campo. O `autoFocus` do
-  // <input> sozinho é pouco confiável aqui — o conteúdo entra via
-  // createPortal(document.body) DENTRO de um AnimatePresence, então o input
-  // ainda nem existe no DOM no instante em que o React processaria
-  // autoFocus; algo que já tinha foco (ex.: o próprio botão que abriu o
-  // modal) continua retendo o foco do teclado, e as teclas digitadas não
-  // chegam a lugar nenhum. Foca explicitamente DEPOIS que `isOpen` vira
-  // true e o portal já montou.
   useEffect(() => {
     if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    // Foco explícito no campo ao abrir — mais confiável que depender só do
+    // `autoFocus` do <input>, que pode perder a corrida contra o elemento
+    // que disparou o clique de abertura.
     const raf = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+      cancelAnimationFrame(raf);
+    };
   }, [isOpen]);
 
   const term = normalizeText(search.trim());
@@ -119,10 +130,10 @@ export function CommandPalette() {
   const itemLabelClass = "text-sm font-bold text-[var(--color-text-muted)] group-hover:text-[var(--color-text-primary)] transition-colors truncate";
 
   return (
-    <>
+    <div ref={containerRef} className="relative w-full sm:w-[34rem]">
       <button
-        onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2.5 w-full sm:w-[34rem] px-4 py-2.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-border-default)] transition-all text-sm font-medium"
+        onClick={() => setIsOpen((open) => !open)}
+        className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-border-default)] transition-all text-sm font-medium"
       >
         <Search className="w-4 h-4 shrink-0" />
         <span className="hidden sm:inline">{t("Buscar clientes, leads, propostas, contratos...")}</span>
@@ -131,29 +142,24 @@ export function CommandPalette() {
         </kbd>
       </button>
 
-      {/* Reaproveita o <Modal> compartilhado (já usado em dezenas de telas,
-          incluindo LeadDetailsModal, sem nenhum relato de "não consigo
-          digitar") em vez do createPortal + Framer Motion manual que esse
-          componente tinha antes — menos lugar pra um bug sutil de foco/
-          portal se esconder. */}
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} maxWidth="max-w-3xl" noPadding>
-        <>
-          <div className="flex items-center gap-3 px-5 py-5 border-b border-[var(--color-border-subtle)] shrink-0">
+      {/* Dropdown ancorado embaixo da barra (mesmo padrão do sino de
+          notificações no Topbar), não um modal central com fundo escuro —
+          pedido explícito do usuário. */}
+      {isOpen && (
+        <div className="absolute left-0 top-full mt-2 w-[95vw] max-w-[42rem] sm:w-[42rem] z-50 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--color-border-subtle)]">
             <Search className="w-5 h-5 text-[var(--color-text-faint)] shrink-0" />
             <input
               ref={inputRef}
               autoFocus
               placeholder={t("Busque por nome de cliente, lead, proposta, contrato...")}
-              className="bg-transparent border-none text-[var(--color-text-primary)] outline-none flex-1 font-medium text-xl placeholder:text-[var(--color-text-faint)]"
+              className="bg-transparent border-none text-[var(--color-text-primary)] outline-none flex-1 font-medium text-lg placeholder:text-[var(--color-text-faint)]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <div className="text-[10px] font-black text-[var(--color-text-faint)] uppercase tracking-widest bg-[var(--color-surface-sunken)] px-2 py-1 rounded-md border border-[var(--color-border-subtle)]">
-              S.P.Y. Command Center
-            </div>
           </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto p-2 scrollbar-none">
+          <div className="max-h-[400px] overflow-y-auto p-2 scrollbar-none">
                 {totalResults > 0 ? (
                   <div className="space-y-4">
                     {leadResults.length > 0 && (
@@ -241,18 +247,16 @@ export function CommandPalette() {
                 )}
               </div>
 
-          <div className="p-4 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/50 flex items-center justify-between shrink-0">
-            <div className="flex gap-4">
-              <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider">
-                <span className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] px-1 rounded text-[var(--color-text-primary)]">ESC</span> {t("Fechar")}
-              </div>
+          <div className="p-3 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/50 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider">
+              <span className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] px-1 rounded text-[var(--color-text-primary)]">ESC</span> {t("Fechar")}
             </div>
             <div className="text-[10px] text-[var(--color-text-faint)] font-bold italic">
               v2.5.0-stable
             </div>
           </div>
-        </>
-      </Modal>
-    </>
+        </div>
+      )}
+    </div>
   );
 }
