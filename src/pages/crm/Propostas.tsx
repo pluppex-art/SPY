@@ -228,10 +228,16 @@ export default function Propostas() {
             search={propostasSearch}
             onSearchChange={setPropostasSearch}
             onUpdateStatus={handleUpdateStatus}
-            onDelete={(id) => {
-              deleteProposal(id);
-              toast.success("Proposta de venda excluída.");
-              setTimeout(refetchPropostas, 300);
+            onDelete={async (id) => {
+              // Achado real: isso disparava o toast de sucesso na hora, sem esperar nem checar
+              // o resultado — a exclusão podia falhar de verdade (ex.: contrato vinculado) e o
+              // usuário via "excluída com sucesso" mesmo com a proposta inteira ainda lá.
+              const ok = await deleteProposal(id);
+              if (ok) {
+                toast.success("Proposta de venda excluída.");
+                refetchPropostas();
+              }
+              return ok;
             }}
             updateProposal={async (id, updates) => {
               await updateProposal(id, updates);

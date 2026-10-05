@@ -74,7 +74,7 @@ interface PropostasTableProps {
   search: string;
   onSearchChange: (v: string) => void;
   onUpdateStatus: (id: string, status: Proposta["status"]) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => void | Promise<boolean>;
   updateProposal?: (id: string, updates: any) => Promise<void> | void;
 }
 
@@ -84,7 +84,7 @@ interface PropostasTableProps {
 export function PropostasTable({ propostas, proposalItems, search, onSearchChange, onUpdateStatus, onDelete, updateProposal }: PropostasTableProps) {
   const [editingProposal, setEditingProposal] = useState<PropostaEditorData | null>(null);
   const [isWordModalOpen, setIsWordModalOpen] = useState(false);
-  const { appSettings } = useData();
+  const { appSettings, contracts } = useData();
   const { activeTenantName } = useAuth();
   const { formatCurrency } = useLocalization();
   const empresaDados = appSettings?.empresa_dados || {};
@@ -299,9 +299,16 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
                         </button>
                         <button
                           onClick={async () => {
+                            // Achado real: proposta Aceita que já gerou contrato não dava pra excluir
+                            // (FK contracts.proposal_id bloqueava, e o usuário só via um erro genérico
+                            // sem entender por quê). Agora avisa de antemão que o contrato — e a receita
+                            // vinculada a ele — também será removido, em vez de falhar sem explicação.
+                            const contratoVinculado = (contracts as any[])?.find((c: any) => c.proposalId === item.id);
                             if (await confirmDialog({
                               title: "Excluir proposta",
-                              description: `Excluir a proposta "${item.titulo}" (${item.cliente})? Essa ação não pode ser desfeita.`,
+                              description: contratoVinculado
+                                ? `Essa proposta já gerou o contrato de "${contratoVinculado.client}". Excluir a proposta também vai excluir esse contrato e os lançamentos financeiros ligados a ele. Essa ação não pode ser desfeita.`
+                                : `Excluir a proposta "${item.titulo}" (${item.cliente})? Essa ação não pode ser desfeita.`,
                               confirmText: "Excluir",
                             })) onDelete(item.id);
                           }}

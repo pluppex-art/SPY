@@ -2086,7 +2086,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) {
         console.error("Supabase add contract failed:", error.message);
-        toast.error(`Erro ao registrar contrato: ${friendlyError(error)}`);
+        // Corrida real (achado 2026-10-05): a reconciliação em segundo plano
+        // (syncAcceptedProposal) decide "essa proposta já tem contrato?" olhando só o
+        // array `contracts` em memória — se esse array ainda não tinha o contrato (ex.:
+        // uma exclusão de proposta recém-revertida, ou outra aba criando o contrato no
+        // mesmo instante), ela tentava inserir de novo e batia na constraint única
+        // contracts_proposal_id_unique. Nesse caso específico o sistema já está correto
+        // (o contrato existe) — desfaz só o otimista duplicado e busca o real, em vez de
+        // assustar o usuário com um "erro" que na verdade não é um erro de verdade.
+        const duplicadoPorProposta = (error as any).code === "23505" && /contracts_proposal_id_unique/.test(error.message || "");
+        setContracts(prev => prev.filter(c => c.id !== newContract.id));
+        if (duplicadoPorProposta && contract.proposalId) {
+          const { data: real } = await supabase.from('contracts').select('*').eq('proposal_id', contract.proposalId).maybeSingle();
+          if (real) setContracts(prev => [...prev, rowToContract(real)]);
+          if (!options.silent) toast.message('Essa proposta já tem um contrato vinculado.');
+        } else if (!options.silent) {
+          toast.error(`Erro ao registrar contrato: ${friendlyError(error)}`);
+        }
       }
     }
   };
@@ -2555,37 +2571,39 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // (já limpa sozinho); o resto precisa de limpeza explícita aqui.
   const deleteProposal = async (id: string) => {
     const prop = (proposals || []).find((p: any) => p.id === id);
+
+    // Achado real (print do usuário, 2026-10-05): isso rodava DEPOIS de tentar
+    // apagar a proposta — mas `contracts.proposal_id` tem FK sem CASCADE, então
+    // apagar a proposta enquanto o contrato ainda existe sempre falhava com 409
+    // ("violates foreign key constraint contracts_proposal_id_fkey"), e essa
+    // limpeza (que apagaria o contrato) nunca rodava porque dependia do sucesso
+    // que ela mesma deveria ter viabilizado. Precisa tirar o que bloqueia a FK
+    // ANTES de tentar apagar a proposta, não depois.
+    const linkedEntryIds = (financeEntries as any[])
+      .filter((f: any) => f.proposal_id === id)
+      .map((f: any) => f.id);
+    if (linkedEntryIds.length > 0 && supabase) {
+      const { error } = await supabase.from('finance_entries').delete().in('id', linkedEntryIds);
+      if (error) console.error('[Supabase] delete finance_entries by proposal_id error:', error.message);
+    }
+
+    const linkedContractIds = (contracts as any[])
+      .filter((c: any) => c.proposalId === id)
+      .map((c: any) => c.id);
+    if (linkedContractIds.length > 0 && supabase) {
+      const { error } = await supabase.from('contracts').delete().in('id', linkedContractIds);
+      if (error) {
+        console.error('[Supabase] delete contracts by proposal_id error:', error.message);
+        toast.error(`Não foi possível excluir o contrato vinculado: ${friendlyError(error)}`);
+        return false; // Contrato ainda existe -> apagar a proposta só voltaria a falhar na FK.
+      }
+    }
+
     const ok = await proposalCrud.del(id);
     if (ok) {
       setProposalItems(prev => prev.filter((pi: any) => pi.proposal_id !== id));
-
-      // Lançamentos financeiros gerados a partir desta proposta (recorrência/
-      // parcelamento do AddProdutoLeadModal, contrato/implantação do aceite) —
-      // sem proposal_id não dava pra saber quais eram, então ficavam "receita
-      // fantasma" a receber por um negócio que não existe mais.
-      const linkedEntryIds = (financeEntries as any[])
-        .filter((f: any) => f.proposal_id === id)
-        .map((f: any) => f.id);
-      if (linkedEntryIds.length > 0) {
-        setFinanceEntries(prev => prev.filter((f: any) => !linkedEntryIds.includes(f.id)));
-        if (supabase) {
-          const { error } = await supabase.from('finance_entries').delete().in('id', linkedEntryIds);
-          if (error) console.error('[Supabase] delete finance_entries by proposal_id error:', error.message);
-        }
-      }
-
-      // Contrato auto-gerado ao aceitar esta proposta (syncAcceptedProposal) —
-      // só existe por causa dela, então some junto.
-      const linkedContractIds = (contracts as any[])
-        .filter((c: any) => c.proposalId === id)
-        .map((c: any) => c.id);
-      if (linkedContractIds.length > 0) {
-        setContracts(prev => prev.filter((c: any) => !linkedContractIds.includes(c.id)));
-        if (supabase) {
-          const { error } = await supabase.from('contracts').delete().in('id', linkedContractIds);
-          if (error) console.error('[Supabase] delete contracts by proposal_id error:', error.message);
-        }
-      }
+      if (linkedEntryIds.length > 0) setFinanceEntries(prev => prev.filter((f: any) => !linkedEntryIds.includes(f.id)));
+      if (linkedContractIds.length > 0) setContracts(prev => prev.filter((c: any) => !linkedContractIds.includes(c.id)));
 
       if (prop?.lead_id) {
         const snapshot = proposalsRef.current.filter((p: any) => p.id !== id);

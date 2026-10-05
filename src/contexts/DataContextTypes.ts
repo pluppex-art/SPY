@@ -321,7 +321,7 @@ export interface DataContextType {
   setProposals: (v: any[]) => void;
   addProposal: (p: any) => void;
   updateProposal: (id: string, updates: any) => void;
-  deleteProposal: (id: string) => void;
+  deleteProposal: (id: string) => Promise<boolean>;
   proposalItems: any[];
   createProposalWithItems: (payload: {
     titulo: string;
