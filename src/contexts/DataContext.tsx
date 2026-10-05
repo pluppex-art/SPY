@@ -779,6 +779,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (data) setNichos(data);
   };
 
+  const fetchLeadActivities = async () => {
+    if (!supabase || !tenantId) return;
+    const { data } = await fetchAllRowsForTenant('lead_activities', tenantId);
+    if (data) setLeadActivities(normalizeActivities(data));
+  };
+
+  // Mesma lógica do carregamento inicial (ver loadAll abaixo) — extraída pra
+  // ser reaproveitada pelo refetch de realtime também, sem duplicar o merge
+  // global+tenant/derivação de globalWebhooks/customLeadFields/etc em dois
+  // lugares que puderiam divergir com o tempo.
+  const fetchAppSettings = async () => {
+    if (!supabase || !tenantId) return;
+    const { data } = await dbLimit(() => supabase.from('app_settings').select('*').or(`tenant_id.eq.${tenantId},tenant_id.is.null`));
+    if (!data) return;
+    const settingsMap: Record<string, any> = {};
+    const orderedSettings = [...data].sort((a: any, b: any) =>
+      (a.tenant_id === null ? 0 : 1) - (b.tenant_id === null ? 0 : 1)
+    );
+    orderedSettings.forEach((setting: any) => {
+      settingsMap[setting.key] = setting.value;
+      switch (setting.key) {
+        case 'globalWebhooks': setGlobalWebhooks(setting.value); break;
+        case 'customLeadFields': setCustomLeadFields(setting.value); break;
+        case 'leadScoreTriggers': setLeadScoreTriggers(setting.value); break;
+      }
+    });
+    const sidebarModules = settingsMap['spy_sidebar_modules'] ?? settingsMap['axis_sidebar_modules'];
+    if (sidebarModules !== undefined) setSidebarModulesState(sidebarModules);
+    setAppSettings(settingsMap);
+    setAppSettingsLoaded(true);
+  };
+
   const addFunil = async (f: any) => {
     const newFunil = { ...f, id: f.id || crypto.randomUUID() };
     setFunis(prev => [...prev, newFunil]);
@@ -969,6 +1001,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'education_content' }, () => debouncedRefetch('education_content', () => fetchTableData('education_content', setEducationContent)))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'indicacoes' }, () => debouncedRefetch('indicacoes', () => fetchTableData('indicacoes', setIndicacoes as any)))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'aurora_agents' }, () => debouncedRefetch('aurora_agents', () => fetchTableData('aurora_agents', setAuroraAgents as any)))
+        // Faltavam no canal: timeline de atividade do lead (outra aba/usuário
+        // registrando uma nota/ligação não aparecia ao vivo), config do tenant
+        // (app_settings) e o sino de notificações — achado real: notificação
+        // criada por uma automação/outro usuário só aparecia depois de recarregar.
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_activities' }, () => debouncedRefetch('lead_activities', fetchLeadActivities))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, () => debouncedRefetch('app_settings', fetchAppSettings))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
+          if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId) {
+            toast.info((payload.new as any).title, { description: (payload.new as any).description || 'Nova notificação' });
+          }
+          applyRealtimeUpsert(setNotifications, payload, (r) => r as Notification, tenantId);
+        })
         .subscribe();
     }
 
