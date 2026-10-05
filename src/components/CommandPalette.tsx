@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   Search, Command, LayoutDashboard, Users,
@@ -31,6 +31,7 @@ export function CommandPalette() {
   const navigate = useNavigate();
   const { t } = useLocalization();
   const { leads, clienteBase, proposals, contracts, products } = useData();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -46,6 +47,20 @@ export function CommandPalette() {
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
   }, []);
+
+  // Relatado pelo usuário: "não consigo escrever" no campo. O `autoFocus` do
+  // <input> sozinho é pouco confiável aqui — o conteúdo entra via
+  // createPortal(document.body) DENTRO de um AnimatePresence, então o input
+  // ainda nem existe no DOM no instante em que o React processaria
+  // autoFocus; algo que já tinha foco (ex.: o próprio botão que abriu o
+  // modal) continua retendo o foco do teclado, e as teclas digitadas não
+  // chegam a lugar nenhum. Foca explicitamente DEPOIS que `isOpen` vira
+  // true e o portal já montou.
+  useEffect(() => {
+    if (!isOpen) return;
+    const raf = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
+  }, [isOpen]);
 
   const term = normalizeText(search.trim());
 
@@ -108,7 +123,7 @@ export function CommandPalette() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2.5 w-full sm:w-[28rem] px-3.5 py-1.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-border-default)] transition-all text-sm font-medium"
+        className="flex items-center gap-2.5 w-full sm:w-[34rem] px-4 py-2.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-border-default)] transition-all text-sm font-medium"
       >
         <Search className="w-4 h-4 shrink-0" />
         <span className="hidden sm:inline">{t("Buscar clientes, leads, propostas, contratos...")}</span>
@@ -132,14 +147,15 @@ export function CommandPalette() {
               initial={{ opacity: 0, scale: 0.95, y: -20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -20 }}
-              className="relative w-full max-w-2xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl overflow-hidden"
+              className="relative w-full max-w-3xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl overflow-hidden"
             >
-              <div className="flex items-center gap-3 px-4 py-4 border-b border-[var(--color-border-subtle)]">
-                <Search className="w-5 h-5 text-[var(--color-text-faint)]" />
+              <div className="flex items-center gap-3 px-5 py-5 border-b border-[var(--color-border-subtle)]">
+                <Search className="w-5 h-5 text-[var(--color-text-faint)] shrink-0" />
                 <input
+                  ref={inputRef}
                   autoFocus
                   placeholder={t("Busque por nome de cliente, lead, proposta, contrato...")}
-                  className="bg-transparent border-none text-[var(--color-text-primary)] outline-none flex-1 font-medium text-lg placeholder:text-[var(--color-text-faint)]"
+                  className="bg-transparent border-none text-[var(--color-text-primary)] outline-none flex-1 font-medium text-xl placeholder:text-[var(--color-text-faint)]"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
