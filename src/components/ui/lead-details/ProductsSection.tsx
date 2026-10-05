@@ -10,6 +10,7 @@ import { useLocalization } from "../../../contexts/LocalizationContext";
 import { handleDownloadPdf } from "../../../pages/crm/utils/proposalPdf";
 import { PropostaEditorWordModal, PropostaEditorData } from "../modals/crm/PropostaEditorWordModal";
 import { AddProdutoLeadModal } from "../modals/crm/AddProdutoLeadModal";
+import { NovaPropostaWizard } from "../modals/crm/NovaPropostaWizard";
 import { cn } from "../../../lib/utils";
 
 interface ProductsSectionProps {
@@ -42,6 +43,7 @@ export function ProductsSection({
   const { formatCurrency } = useLocalization();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [prefillProductId, setPrefillProductId] = useState<string | undefined>(undefined);
   const [prefillProductIds, setPrefillProductIds] = useState<string[] | undefined>(undefined);
   // Clique único num produto do catálogo = vender agora (abre o modal já configurado); clique
@@ -128,14 +130,11 @@ export function ProductsSection({
   };
 
   // "Criar Proposta" a partir dos Produtos de Interesse: os N produtos marcados entram de uma
-  // vez no carrinho do modal (ver initialProductIds em AddProdutoLeadModal), já somados numa
+  // vez na Composição do novo fluxo de 6 etapas (NovaPropostaWizard), já somados numa
   // proposta só — nunca uma proposta por produto.
   const openAddModalBulk = () => {
     if (produtosInteresse.length === 0) return;
-    setPrefillProductId(undefined);
-    setPrefillProductIds(interesseIds);
-    setEditingExistingProposal(false);
-    setIsAddModalOpen(true);
+    setIsWizardOpen(true);
   };
 
   const existingProposal = useMemo(() => {
@@ -451,6 +450,18 @@ export function ProductsSection({
         initialProductIds={prefillProductIds}
         existingProposal={editingExistingProposal && existingProposal ? { id: existingProposal.id, titulo: existingProposal.titulo, status: existingProposal.status, valor: existingProposal.valor } : null}
         existingItems={editingExistingProposal ? existingProposalItems : []}
+        leadId={leadId}
+        leadName={leadName}
+        companyName={companyName}
+        seller={seller}
+        onDone={handleAddProdutoDone}
+      />
+
+      <NovaPropostaWizard
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        availableProducts={availableProducts}
+        initialProductIds={interesseIds}
         leadId={leadId}
         leadName={leadName}
         companyName={companyName}

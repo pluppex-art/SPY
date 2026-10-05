@@ -2459,6 +2459,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     conteudoTexto?: string | null;
     linkPdf?: string | null;
     itens?: Array<{ productId?: string | null; descricao: string; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null; frequency?: string | null }>;
+    // Campos do novo fluxo "Nova Proposta Comercial" (6 etapas) — todos
+    // opcionais, nenhum caminho antigo de criação de proposta precisa deles.
+    probabilidade?: number | null;
+    previsaoFechamento?: string | null;
+    objetivo?: string | null;
+    origem?: string | null;
+    condicoes?: Record<string, any> | null;
+    pagamento?: Record<string, any> | null;
+    equipeInterna?: Array<{ id: string; nome: string }> | null;
+    tags?: string[] | null;
   }) => {
     const proposalId = crypto.randomUUID();
     // Traz o decisor do lead vinculado (Lead Details -> Contato/Decisor +
@@ -2481,6 +2491,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link_pdf: payload.linkPdf || null,
       decisor_nome: linkedLeadForDecisor?.name || null,
       decisor_cargo: linkedLeadForDecisor?.customFields?.currentRole || null,
+      probabilidade: payload.probabilidade ?? null,
+      previsao_fechamento: payload.previsaoFechamento || null,
+      objetivo: payload.objetivo || null,
+      origem: payload.origem || null,
+      condicoes: payload.condicoes || null,
+      pagamento: payload.pagamento || null,
+      equipe_interna: payload.equipeInterna || null,
+      tags: payload.tags || null,
     });
     for (const item of payload.itens || []) {
       await proposalItemCrud.add({

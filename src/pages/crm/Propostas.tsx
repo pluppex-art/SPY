@@ -9,8 +9,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { toast } from "sonner";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
-import { CriarPropostaModal } from "../../components/ui/modals/crm/CriarPropostaModal";
-import { NovaPropostaRapidaModal } from "../../components/ui/modals/crm/NovaPropostaRapidaModal";
+import { NovaPropostaWizard } from "../../components/ui/modals/crm/NovaPropostaWizard";
 import { PropostasKPIs } from "./components/Propostas/PropostasKPIs";
 import { PropostasTable } from "./components/Propostas/PropostasTable";
 import { ContractsKPIs } from "./components/Contracts/ContractsKPIs";
@@ -27,12 +26,12 @@ export default function Propostas() {
     proposals: propostas,
     updateProposal,
     deleteProposal,
-    createProposalWithItems,
     syncAcceptedProposal,
     contracts,
     updateContract,
     deleteContract,
     appSettings,
+    products,
   } = useData();
   const { user, activeTenantName } = useAuth();
 
@@ -45,7 +44,6 @@ export default function Propostas() {
   const [editDate, setEditDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
   const [contractSearch, setContractSearch] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPropostaModalOpen, setIsPropostaModalOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
@@ -77,24 +75,6 @@ export default function Propostas() {
     if (!dateFrom && !dateTo) return contracts;
     return (contracts as any[]).filter((c) => inRange(toIsoBR(c.date), dateFrom, dateTo));
   }, [contracts, dateFrom, dateTo]);
-
-  const handleCreatePropostaNew = async (data: any) => {
-    await createProposalWithItems({
-      titulo: data.titulo,
-      cliente: data.cliente,
-      valor: parseFloat(data.valor) || 0,
-      validade: data.dataValidade || null,
-      status: "Enviada",
-      vendedor: user?.name || "Sistema S.P.Y.",
-      itens: data.itens?.filter((i: any) => i.descricao?.trim()) || [],
-      tipo: data.tipo,
-      conteudoTexto: data.conteudoTexto,
-      linkPdf: data.linkPdf,
-    });
-    toast.success("✨ Proposta criada com sucesso! Pronta para envio.");
-    setIsPropostaModalOpen(false);
-    refetchPropostas();
-  };
 
   // Sincronização de contrato/fatura + reconciliação de propostas "Aceita" sem
   // contrato correspondente (ou com contrato desatualizado) agora é global —
@@ -274,31 +254,12 @@ export default function Propostas() {
         </div>
       )}
 
-      <NovaPropostaRapidaModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={async ({ cliente, titulo, valor, vencimento, vendedor }) => {
-          const today = new Date();
-          const valDate = vencimento || new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-          await createProposalWithItems({
-            titulo, cliente,
-            valor: parseFloat(valor.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0,
-            validade: valDate,
-            status: "Aberta",
-            vendedor,
-          });
-          toast.success("Proposta comercial criada com sucesso!");
-          setIsModalOpen(false);
-          refetchPropostas();
-        }}
-      />
-
-      <CriarPropostaModal
+      <NovaPropostaWizard
         isOpen={isPropostaModalOpen}
         onClose={() => setIsPropostaModalOpen(false)}
-        onSave={handleCreatePropostaNew}
-        title="Criar Proposta S.P.Y."
-        submitText="Gerar Proposta"
+        availableProducts={products || []}
+        seller={user?.name || "Consultor S.P.Y."}
+        onDone={() => refetchPropostas()}
       />
 
       <Modal
