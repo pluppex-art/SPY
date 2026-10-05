@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Loader2, Zap, Wrench, ChevronUp, ChevronDown,
+  Loader2, Zap, ChevronUp, ChevronDown,
   Receipt, Percent, DollarSign, Layers, TrendingUp, TrendingDown,
   CreditCard, Banknote, QrCode, FileText, Calendar, ArrowRightLeft,
   Repeat, CalendarClock, Info, Plus, Trash2, ShoppingCart,
@@ -251,7 +251,6 @@ export function AddProdutoLeadModal({
         .map((p: any) => {
           const isRecurringItem = !!(p.recurrence || p.typeAttributes?.isRecurring || p.type === "Assinatura" || p.category === "Software");
           const itemDurationMonths = isRecurringItem ? (p.contractMonths || p.typeAttributes?.contractMonths || 12) : null;
-          const itemImplFee = p.implementationFee || p.typeAttributes?.implementationFee || (p.category === "Implantação" ? Number(p.price) || 0 : 0);
           const itemUnitPrice = Number(p.price) || 0;
           const sale = calculateSale({
             unitPrice: itemUnitPrice,
@@ -260,7 +259,7 @@ export function AddProdutoLeadModal({
             frequency: "mensal",
             customCycleMonths: 1,
             durationMonths: itemDurationMonths,
-            setupFee: itemImplFee,
+            setupFee: 0,
             discountType: "none",
             discountValue: 0,
             installments: 1,
@@ -269,7 +268,7 @@ export function AddProdutoLeadModal({
           const item: CartItem = {
             key: crypto.randomUUID(), product: p, quantity: 1, isRecurring: isRecurringItem,
             frequency: "mensal", durationMonths: itemDurationMonths, isOpenEnded: sale.isOpenEnded,
-            implFee: itemImplFee, unitPrice: itemUnitPrice, sale,
+            implFee: 0, unitPrice: itemUnitPrice, sale,
             discountType: "none", discountValue: 0,
           };
           return item;
@@ -317,9 +316,18 @@ export function AddProdutoLeadModal({
 
   const customCycleMonths = Math.max(1, parseInt(customCycleMonthsInput, 10) || 1);
 
+  // Pedido explícito do usuário: implantação deixou de ser um mecanismo
+  // especial de taxa dentro da proposta — quem precisar cobrar implantação
+  // agora cadastra ela como PRODUTO normal no catálogo e adiciona ao
+  // carrinho igual a qualquer outro item. Isso só continua existindo aqui
+  // pra não apagar/corromper uma taxa de implantação já gravada numa
+  // proposta ANTIGA (editingGroup) ao editar outra coisa nela — nenhum
+  // item novo (ou carrinho de "Produtos de Interesse" acima) cria taxa de
+  // implantação nova.
   const implementationFeeOverride = implementationFeeInput !== null ? Math.max(0, parseFloat(implementationFeeInput) || 0) : null;
-  const implFee = implementationFeeOverride ?? (hasImplementation === false ? 0 : (product?.implementationFee || product?.typeAttributes?.implementationFee || (product?.category === "Implantação" ? Number(product?.price) || 0 : 0)));
-  const showImplToggle = hasImplementation ?? implFee > 0;
+  const implFee = editingGroup
+    ? (implementationFeeOverride ?? (hasImplementation === false ? 0 : (product?.implementationFee || product?.typeAttributes?.implementationFee || (product?.category === "Implantação" ? Number(product?.price) || 0 : 0))))
+    : 0;
 
   const discountValue = Math.max(0, parseFloat(discountInput) || 0);
   const unitPrice = unitPriceInput !== null ? Math.max(0, parseFloat(unitPriceInput) || 0) : (Number(product?.price) || 0);
@@ -335,12 +343,12 @@ export function AddProdutoLeadModal({
     frequency,
     customCycleMonths,
     durationMonths,
-    setupFee: showImplToggle ? implFee : 0,
+    setupFee: implFee,
     discountType,
     discountValue,
     installments,
     firstDueDate,
-  }), [unitPrice, quantity, isRecurring, frequency, customCycleMonths, durationMonths, showImplToggle, implFee, discountType, discountValue, installments, firstDueDate]);
+  }), [unitPrice, quantity, isRecurring, frequency, customCycleMonths, durationMonths, implFee, discountType, discountValue, installments, firstDueDate]);
 
   // Composição Comercial (visão do vendedor: custo/comissão/margem) — em cima
   // do valor REAL do negócio, nunca do lote de OPEN_ENDED_BATCH_CYCLES ciclos
@@ -395,7 +403,7 @@ export function AddProdutoLeadModal({
       frequency,
       durationMonths,
       isOpenEnded: sale.isOpenEnded,
-      implFee: showImplToggle ? implFee : 0,
+      implFee,
       unitPrice,
       sale,
       discountType,
@@ -551,7 +559,7 @@ export function AddProdutoLeadModal({
             frequency,
             durationMonths,
             isOpenEnded: sale.isOpenEnded,
-            implFee: showImplToggle ? implFee : 0,
+            implFee,
             unitPrice,
             sale,
             discountType,
@@ -784,9 +792,12 @@ export function AddProdutoLeadModal({
     ? `Recorrente · ${freqLabel.toLowerCase()} · ${sale.isOpenEnded ? "sem prazo" : `${durationMonths}m`} · ${formatCurrency(sale.cycleAmount)}/ciclo`
     : `Cobrança única · ${installments === 1 ? "à vista" : `${installments}x`} · ${formatCurrency(sale.totalProjectedAmount)}`;
   const extrasLabel = [
-    showImplToggle && implFee > 0 ? `Implantação ${formatCurrency(implFee)}` : "Sem implantação",
     discountType !== "none" ? "com desconto" : "sem desconto",
-  ].join(" · ");
+    // Só aparece pra proposta ANTIGA que já tinha uma taxa de implantação
+    // gravada — não dá mais pra criar uma nova aqui (ver comentário acima
+    // de `implFee`).
+    implFee > 0 ? `implantação ${formatCurrency(implFee)}` : null,
+  ].filter(Boolean).join(" · ");
   const paymentLabel = `${formaPagamento} · ${firstDueDate.toLocaleDateString("pt-BR")}`;
 
   return (
@@ -1088,28 +1099,14 @@ export function AddProdutoLeadModal({
           {nextBtn("Continuar", () => setStep(3))}
         </StepShell>
 
-        {/* ── ETAPA 3: IMPLANTAÇÃO & DESCONTO ── */}
-        <StepShell n={3} forceOpen={!!editingGroup} title="Implantação & Desconto" icon={Wrench} current={step} step={step} summary={extrasLabel} onOpen={() => setStep(3)}>
-            {/* ── 4. IMPLANTAÇÃO E DESCONTO ── */}
+        {/* ── ETAPA 3: DESCONTO ── */}
+        {/* Implantação deixou de ser um mecanismo especial aqui — quem
+            precisar cobrar implantação cadastra como PRODUTO no catálogo e
+            adiciona ao carrinho como outro item qualquer (ver comentário em
+            `implFee` acima). */}
+        <StepShell n={3} forceOpen={!!editingGroup} title="Desconto" icon={Percent} current={step} step={step} summary={extrasLabel} onOpen={() => setStep(3)}>
             <div className={sectionClass}>
-              <span className={sectionTitleClass}><Wrench className="w-3.5 h-3.5 text-amber-500" /> Implantação & Desconto</span>
-
-              <div className="flex items-center gap-2.5">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={showImplToggle} onChange={(e) => setHasImplementation(e.target.checked)} className="w-3.5 h-3.5 accent-amber-500" />
-                  <span className="text-[11px] font-bold text-[var(--color-text-primary)]">Taxa de Implantação/Setup</span>
-                </label>
-                {showImplToggle && (
-                  <>
-                    <input
-                      type="number" min={0} step={50} value={implementationFeeInput ?? String(implFee)}
-                      onChange={(e) => setImplementationFeeInput(e.target.value)}
-                      className="w-28 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-lg px-2 py-1 text-xs font-mono font-bold text-amber-600"
-                    />
-                    <span className="text-[9px] text-[var(--color-text-faint)] font-bold uppercase">Somente na 1ª cobrança</span>
-                  </>
-                )}
-              </div>
+              <span className={sectionTitleClass}><Percent className="w-3.5 h-3.5 text-amber-500" /> Desconto</span>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
