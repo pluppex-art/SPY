@@ -10,6 +10,7 @@ import { LeadDetailsModalTabs } from "./lead-details/LeadDetailsModal.constants"
 import { ReservasSection } from "./lead-details/ReservasSection";
 import { LeadDetailsTempCfg } from "./lead-details/LeadDetailsModal.constants";
 import { formatLeadValueBRL, leadInterestEstimate, safeParseTimeIdle, safeParseProbability } from "./lead-details/LeadDetailsModal.helpers";
+import { findWonStage } from "../../lib/funilStages";
 import { LeadDetailsModalFooter } from "./lead-details/LeadDetailsModal.Footer";
 import { LeadDetailsModalHero } from "./lead-details/LeadDetailsModalHero";
 
@@ -165,7 +166,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
       return;
     }
     toast.success(`Etapa: ${stg.name}`);
-    if (newStatus === "Fechado" || stg.id === stagesDef[stagesDef.length - 1]?.id) {
+    if (newStatus === "Fechado" || stg.id === findWonStage(stagesDef)?.id) {
       enrollInLinkedTurmas();
     }
   };

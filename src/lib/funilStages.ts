@@ -26,6 +26,19 @@ export interface FunilStage {
   funilId: string;
 }
 
+// Acha a etapa de "ganho" pelo NOME (mesma regra do drag-and-drop no Kanban,
+// ver handleDrop em PipelineKanbanBoard.tsx), nunca pela posição no array —
+// a última etapa de um funil pode ser qualquer coisa (ex.: "Perdido"), então
+// assumir "última = ganho" movia leads marcados como Fechado pro board errado.
+// Cai pra última etapa só se o funil genuinamente não tiver etapa nomeada
+// "ganho"/"fechado" (mesmo fallback de antes, como última opção).
+export function findWonStage<T extends { name: string }>(stages: T[]): T | undefined {
+  return stages.find((s) => {
+    const n = (s.name || "").toLowerCase();
+    return n.includes("ganho") || n.includes("fechado");
+  }) ?? stages[stages.length - 1];
+}
+
 export function buildStagesForFunil(funil: any): FunilStage[] {
   const configs: any[] = funil.etapasConfig ??
     (funil.etapas || []).map((nome: string, i: number) => ({

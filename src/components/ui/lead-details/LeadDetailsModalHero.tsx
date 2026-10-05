@@ -2,6 +2,7 @@ import React from "react";
 import { Trophy, ThumbsDown, X, Brain, ChevronRight, User, Check, CalendarPlus } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { toast } from "sonner";
+import { findWonStage } from "../../../lib/funilStages";
 
 interface LeadDetailsModalHeroProps {
   tc: {
@@ -65,9 +66,9 @@ export function LeadDetailsModalHero({
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
-                const lastStage = stagesDef[stagesDef.length - 1];
+                const wonStage = findWonStage(stagesDef);
                 updateLead(lead.id, {
-                  stageId: lastStage?.id ?? "5",
+                  stageId: wonStage?.id ?? "5",
                   status: "Fechado",
                   scoreIA: 100,
                   score_ia: 100,

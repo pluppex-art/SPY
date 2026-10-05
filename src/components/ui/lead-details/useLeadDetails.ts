@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { calculateLeadScore } from "../../../lib/leadScore";
 import { aoGanharNegocio } from "../../../lib/implementationAutoStart";
 import { useAuth } from "../../../contexts/AuthContext";
-import { getStageId } from "../../../lib/funilStages";
+import { getStageId, findWonStage } from "../../../lib/funilStages";
 import { WIN_FUNIL_CONFIG_KEY } from "../../../lib/implementationStage";
 
 // ─── Stage helpers ────────────────────────────────────────────────────────────
@@ -273,11 +273,11 @@ export function useLeadDetails(lead: any, onClose: () => void) {
   };
 
   const handleConvertLead = () => {
-    const lastStage = stagesDef[stagesDef.length - 1];
-    updateLead(lead.id, { stageId: lastStage?.id ?? "5", status: "Fechado" });
+    const wonStage = findWonStage(stagesDef);
+    updateLead(lead.id, { stageId: wonStage?.id ?? "5", status: "Fechado" });
 
     const winConfig = appSettings[WIN_FUNIL_CONFIG_KEY] as Record<string, string> | undefined;
-    const targetFunilId = lastStage?.funilId ? winConfig?.[lastStage.funilId] : undefined;
+    const targetFunilId = wonStage?.funilId ? winConfig?.[wonStage.funilId] : undefined;
     const targetFunil = targetFunilId ? (funis as any[]).find((f: any) => f.id === targetFunilId) : null;
     if (targetFunil) {
       updateLead(lead.id, { stageId: getStageId(targetFunilId!, 0) });
