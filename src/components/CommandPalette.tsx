@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { useLocalization } from "../contexts/LocalizationContext";
 import { useData } from "../contexts/DataContext";
+import { normalizeText } from "../lib/utils";
 
 const NAV_ACTIONS = [
   { name: "Dashboard Principal", icon: LayoutDashboard, path: "/app/dashboard", category: "Navegação" },
@@ -46,46 +47,46 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  const term = search.trim().toLowerCase();
+  const term = normalizeText(search.trim());
 
   // Busca real sobre os dados já carregados do tenant ativo (useData()) —
   // antes disso eram só 6 atalhos de navegação fixos, sem nenhuma ligação
   // com lead/cliente/proposta/contrato/produto de verdade, então digitar o
   // nome de um cliente aqui nunca encontrava nada.
   const navResults = useMemo(
-    () => (term ? NAV_ACTIONS.filter((a) => a.name.toLowerCase().includes(term)) : NAV_ACTIONS),
+    () => (term ? NAV_ACTIONS.filter((a) => normalizeText(a.name).includes(term)) : NAV_ACTIONS),
     [term]
   );
 
   const leadResults = useMemo(() => {
     if (!term) return [];
     return (leads || [])
-      .filter((l: any) => l.name?.toLowerCase().includes(term) || l.company?.toLowerCase().includes(term))
+      .filter((l: any) => normalizeText(l.name).includes(term) || normalizeText(l.company).includes(term))
       .slice(0, RESULT_LIMIT);
   }, [leads, term]);
 
   const clienteResults = useMemo(() => {
     if (!term) return [];
-    return (clienteBase || []).filter((c: any) => c.name?.toLowerCase().includes(term)).slice(0, RESULT_LIMIT);
+    return (clienteBase || []).filter((c: any) => normalizeText(c.name).includes(term)).slice(0, RESULT_LIMIT);
   }, [clienteBase, term]);
 
   const propostaResults = useMemo(() => {
     if (!term) return [];
     return (proposals || [])
-      .filter((p: any) => p.cliente?.toLowerCase().includes(term) || p.titulo?.toLowerCase().includes(term))
+      .filter((p: any) => normalizeText(p.cliente).includes(term) || normalizeText(p.titulo).includes(term))
       .slice(0, RESULT_LIMIT);
   }, [proposals, term]);
 
   const contratoResults = useMemo(() => {
     if (!term) return [];
     return (contracts || [])
-      .filter((c: any) => c.client?.toLowerCase().includes(term) || c.plan?.toLowerCase().includes(term))
+      .filter((c: any) => normalizeText(c.client).includes(term) || normalizeText(c.plan).includes(term))
       .slice(0, RESULT_LIMIT);
   }, [contracts, term]);
 
   const produtoResults = useMemo(() => {
     if (!term) return [];
-    return (products || []).filter((p: any) => p.name?.toLowerCase().includes(term)).slice(0, RESULT_LIMIT);
+    return (products || []).filter((p: any) => normalizeText(p.name).includes(term)).slice(0, RESULT_LIMIT);
   }, [products, term]);
 
   const totalResults =

@@ -6,6 +6,7 @@ import { ActiveChatArea } from "./messaging/ActiveChatArea";
 import { RightControlDrawer } from "./messaging/RightControlDrawer";
 import { AddActivityDialog } from "./messaging/AddActivityDialog";
 import { InternalChatView } from "./messaging/InternalChatView";
+import { normalizeText } from "../../lib/utils";
 
 type MessagingMode = "whatsapp" | "interno";
 
@@ -56,9 +57,9 @@ export default function Messaging() {
     if (activeTab === "E-mail" && c.channel !== "Email") return false;
 
     if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase().trim();
-      const matchesName = c.name.toLowerCase().includes(query);
-      const matchesTag = c.tags ? c.tags.some(t => t.toLowerCase().includes(query)) : false;
+      const query = normalizeText(searchQuery);
+      const matchesName = normalizeText(c.name).includes(query);
+      const matchesTag = c.tags ? c.tags.some(t => normalizeText(t).includes(query)) : false;
       return matchesName || matchesTag;
     }
     return true;

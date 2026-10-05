@@ -5,6 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Normaliza texto pra comparação/busca: minúsculo + sem acento. Toda busca
+// de usuário (campo de pesquisa de clientes/leads/propostas/etc.) precisa
+// comparar com isso dos dois lados — vendedor digitando sem acento ou em
+// maiúsculo tem que achar "José"/"JOSÉ" normalmente, senão a busca "falha"
+// silenciosamente pro usuário (pedido explícito: interfere no dia a dia de
+// vendedores e clientes).
+export function normalizeText(str: string | null | undefined): string {
+  return (str ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 export function formatCNPJ(value: string) {
   return value
     .replace(/\D/g, '')

@@ -21,6 +21,7 @@ import { PipelineKanbanBoard } from "./components/Pipeline/PipelineKanbanBoard";
 import { PipelineDefaultState } from "./components/Pipeline/PipelineDefaultState";
 import { PipelineEmptySelection } from "./components/Pipeline/PipelineEmptySelection";
 import { isLeadOpen } from "../../lib/leadStatus";
+import { normalizeText } from "../../lib/utils";
 
 type ViewMode = "kanban" | "lista";
 
@@ -158,7 +159,7 @@ export default function Pipeline() {
 
   const listaLeads = useMemo(() =>
     (filteredItemsList as any[])
-      .filter((l: any) => !searchQuery || ["name", "company", "email"].some((k: string) => l[k]?.toLowerCase().includes(searchQuery.toLowerCase())))
+      .filter((l: any) => !searchQuery || ["name", "company", "email"].some((k: string) => normalizeText(l[k]).includes(normalizeText(searchQuery))))
       .filter((l: any) => temperatureFilter === "Todas" || l.temperature === temperatureFilter)
       .sort((a: any, b: any) => sortOrder === "desc" ? (tempOrder[b.temperature] || 0) - (tempOrder[a.temperature] || 0) : (tempOrder[a.temperature] || 0) - (tempOrder[b.temperature] || 0)),
     [filteredItemsList, searchQuery, temperatureFilter, sortOrder]);

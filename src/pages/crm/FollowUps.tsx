@@ -11,6 +11,7 @@ import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import { isLeadOpen } from "../../lib/leadStatus";
+import { normalizeText } from "../../lib/utils";
 
 const PAGE_SIZE = 50;
 
@@ -37,11 +38,11 @@ export default function FollowUps() {
   }, [leads]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = normalizeText(search);
     return followUpList.filter(l =>
-      (l.name ?? "").toLowerCase().includes(q) ||
-      (l.company ?? "").toLowerCase().includes(q) ||
-      (l.seller ?? "").toLowerCase().includes(q)
+      normalizeText(l.name).includes(q) ||
+      normalizeText(l.company).includes(q) ||
+      normalizeText(l.seller).includes(q)
     );
   }, [followUpList, search]);
 

@@ -10,7 +10,7 @@ import { ImplementationProgressBar } from "../../components/implementacao/Implem
 import { ImplementacoesKanban, type KanbanColumnDef } from "../../components/implementacao/ImplementacoesKanban";
 import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
-import { cn } from "../../lib/utils";
+import { cn, normalizeText } from "../../lib/utils";
 import {
   IMPLEMENTATION_STATUSES, IMPLEMENTATION_STATUS_TONE, computeProgress, type ImplementationStatus,
 } from "../../lib/implementationForm";
@@ -105,16 +105,16 @@ export default function Implementacoes() {
   }, [linhas]);
 
   const filtradas = useMemo(() => {
-    const q = busca.trim().toLowerCase();
+    const q = normalizeText(busca.trim());
     return linhas.filter((l) => {
       if (filtro !== "Todas" && l.impl.status !== filtro) return false;
-      return !q || (l.cliente?.name || "").toLowerCase().includes(q) || (l.impl.responsavel || "").toLowerCase().includes(q);
+      return !q || normalizeText(l.cliente?.name).includes(q) || normalizeText(l.impl.responsavel).includes(q);
     });
   }, [linhas, filtro, busca]);
 
   const aguardandoFiltrado = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    return aguardando.filter(({ cliente }) => !q || (cliente.name || "").toLowerCase().includes(q));
+    const q = normalizeText(busca.trim());
+    return aguardando.filter(({ cliente }) => !q || normalizeText(cliente.name).includes(q));
   }, [aguardando, busca]);
 
   // Mesmas regras da tela de detalhe ao mudar de coluna (conclusão finaliza o cliente e vice-versa).
@@ -156,8 +156,8 @@ export default function Implementacoes() {
   };
 
   const linhasBusca = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    return linhas.filter((l) => etapas.pertence(l.impl) && (!q || (l.cliente?.name || "").toLowerCase().includes(q) || (l.impl.responsavel || "").toLowerCase().includes(q)));
+    const q = normalizeText(busca.trim());
+    return linhas.filter((l) => etapas.pertence(l.impl) && (!q || normalizeText(l.cliente?.name).includes(q) || normalizeText(l.impl.responsavel).includes(q)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linhas, busca, etapas.funilId, etapas.origem, etapas.funis]);
 

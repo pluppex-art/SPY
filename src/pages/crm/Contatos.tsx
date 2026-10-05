@@ -11,6 +11,7 @@ import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../contexts/AuthContext";
 import { friendlyError } from "../../lib/friendlyError";
+import { normalizeText } from "../../lib/utils";
 
 type Contato = {
   id: string;
@@ -107,13 +108,13 @@ export default function Contatos() {
   }, [activeTenantId]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = normalizeText(search);
     return contatos.filter((c) => {
       const matchQ =
-        c.nome.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
-        c.telefone.toLowerCase().includes(q) ||
-        c.empresa.toLowerCase().includes(q);
+        normalizeText(c.nome).includes(q) ||
+        normalizeText(c.email).includes(q) ||
+        normalizeText(c.telefone).includes(q) ||
+        normalizeText(c.empresa).includes(q);
       const matchCargo = cargoFilter === "Todos" || c.cargo === cargoFilter;
       return matchQ && matchCargo;
     });

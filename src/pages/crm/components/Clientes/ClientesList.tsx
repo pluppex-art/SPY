@@ -13,6 +13,7 @@ import {
   TableCell,
 } from "../../../../components/ui/table";
 import { Search, Building2, MapPin, Phone, Mail, Trash2, FileText, Users, Pencil } from "lucide-react";
+import { normalizeText } from "../../../../lib/utils";
 
 const PAGE_SIZE = 50;
 
@@ -71,10 +72,10 @@ export function ClientesList({
     if (statusFilter !== "Todos as situações" && c.status !== statusFilter) return false;
     if (sectorFilter !== "Todos os setores" && c.industry !== sectorFilter) return false;
     if (searchQuery) {
-      const term = searchQuery.toLowerCase();
-      return c.name?.toLowerCase().includes(term) ||
-             c.email?.toLowerCase().includes(term) ||
-             c.industry?.toLowerCase().includes(term);
+      const term = normalizeText(searchQuery);
+      return normalizeText(c.name).includes(term) ||
+             normalizeText(c.email).includes(term) ||
+             normalizeText(c.industry).includes(term);
     }
     return true;
   }), [clientes, statusFilter, sectorFilter, searchQuery]);

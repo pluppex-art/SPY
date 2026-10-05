@@ -6,6 +6,9 @@
  * 3. Prioridade e indicadores de fechamento.
  */
 
+import { normalizeText } from "./utils";
+export { normalizeText };
+
 export interface NoteItem {
   id?: string;
   text: string;
@@ -35,14 +38,6 @@ export function parseLeadNotes(notesRaw: any): NoteItem[] {
     }
   }
   return [];
-}
-
-export function normalizeText(str: string): string {
-  return (str || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
 }
 
 /**

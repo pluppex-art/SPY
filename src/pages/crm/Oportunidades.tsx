@@ -13,6 +13,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { NewLeadModal } from "../../components/ui/modals/crm/NewLeadModal";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import { isLeadOpen } from "../../lib/leadStatus";
+import { normalizeText } from "../../lib/utils";
 
 const PAGE_SIZE = 50;
 
@@ -35,13 +36,13 @@ export default function Oportunidades() {
   }, [leads]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = normalizeText(search);
     return oportunidades.filter(op => {
       const matchSearch =
-        (op.name ?? "").toLowerCase().includes(q) ||
-        (op.company ?? "").toLowerCase().includes(q) ||
-        (op.seller ?? "").toLowerCase().includes(q) ||
-        (op.nicho ?? "").toLowerCase().includes(q);
+        normalizeText(op.name).includes(q) ||
+        normalizeText(op.company).includes(q) ||
+        normalizeText(op.seller).includes(q) ||
+        normalizeText(op.nicho).includes(q);
       const matchStage = stageFilter === "Todos" || op.status === stageFilter;
       return matchSearch && matchStage;
     });

@@ -7,7 +7,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
-import { parseCurrencyBR } from "../../lib/utils";
+import { parseCurrencyBR, normalizeText } from "../../lib/utils";
 import { supabase } from "../../lib/supabase";
 import { aoGanharNegocio } from "../../lib/implementationAutoStart";
 import { getStageId, buildStagesForFunil } from "../../lib/funilStages";
@@ -185,16 +185,16 @@ export function usePipeline() {
             Array.isArray(item.productIds) && item.productIds.includes(p.id) &&
             (p.clientName === clientFilter || (clientId && p.clientId === clientId))
           );
-      const q = searchQuery.toLowerCase();
+      const q = normalizeText(searchQuery);
       const matchesSearch  =
-        (item.name     ?? "").toLowerCase().includes(q) ||
-        (item.company  ?? "").toLowerCase().includes(q) ||
-        (item.title    ?? "").toLowerCase().includes(q) ||
-        (item.nicho    ?? "").toLowerCase().includes(q) ||
-        (item.segmento ?? "").toLowerCase().includes(q) ||
-        (item.vertical ?? "").toLowerCase().includes(q) ||
-        (item.origem   ?? "").toLowerCase().includes(q) ||
-        (item.email    ?? "").toLowerCase().includes(q);
+        normalizeText(item.name).includes(q) ||
+        normalizeText(item.company).includes(q) ||
+        normalizeText(item.title).includes(q) ||
+        normalizeText(item.nicho).includes(q) ||
+        normalizeText(item.segmento).includes(q) ||
+        normalizeText(item.vertical).includes(q) ||
+        normalizeText(item.origem).includes(q) ||
+        normalizeText(item.email).includes(q);
       // `date` é a mesma data de cadastro usada no filtro do Dashboard —
       // string 'YYYY-MM-DD', comparável diretamente.
       const matchesDate =

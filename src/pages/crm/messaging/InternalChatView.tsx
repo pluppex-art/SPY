@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useInternalChat, InternalChannel } from "./useInternalChat";
 import { EmojiStickerPicker } from "./EmojiStickerPicker";
+import { normalizeText } from "../../../lib/utils";
 
 const SmileIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" width="24" height="24" className={className} fill="currentColor">
@@ -77,7 +78,7 @@ function InternalSidebar({ channels, activeChannelId, onSelectChannel, onNewDM }
   const tabs = ["Todos", "Canais", "Squads", "Direto"];
 
   const filtered = channels.filter(ch => {
-    const matchSearch = ch.name.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = normalizeText(ch.name).includes(normalizeText(search));
     if (!matchSearch) return false;
     if (activeTab === "Canais" && ch.type !== "geral") return false;
     if (activeTab === "Squads" && ch.type !== "squad") return false;
@@ -461,7 +462,7 @@ export function InternalChatView() {
             </div>
             <div className="max-h-64 overflow-y-auto">
               {otherUsers
-                .filter(u => u.name.toLowerCase().includes(dmSearch.toLowerCase()))
+                .filter(u => normalizeText(u.name).includes(normalizeText(dmSearch)))
                 .map(u => (
                   <button
                     key={u.id}
@@ -478,7 +479,7 @@ export function InternalChatView() {
                   </button>
                 ))
               }
-              {otherUsers.filter(u => u.name.toLowerCase().includes(dmSearch.toLowerCase())).length === 0 && (
+              {otherUsers.filter(u => normalizeText(u.name).includes(normalizeText(dmSearch))).length === 0 && (
                 <p className="px-4 py-6 text-sm text-slate-600 text-center">Nenhum usuário encontrado</p>
               )}
             </div>

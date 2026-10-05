@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { Reuniao } from "../../contexts/DataContextTypes";
 import { googleSignIn, getAccessToken, logout as googleLogout, initAuth, SCOPES_CALENDAR } from "../../lib/firebase";
 import { supabase } from "../../lib/supabase";
+import { normalizeText } from "../../lib/utils";
 
 // Só https e hosts do Google Meet chegam ao window.open (meetLink vem de eventos do Google Calendar,
 // que convidados externos podem escrever). Evita esquemas como javascript:.
@@ -102,13 +103,13 @@ export default function AgendaCRM() {
     return all.filter((r) => {
       const matchesStatus = statusFilter === "Todos" || r.status === statusFilter;
       const matchesCloser = selectedCloser === "Todos" || r.closerName === selectedCloser;
-      const q = search.toLowerCase();
+      const q = normalizeText(search);
       const matchesSearch =
         !q ||
-        (r.leadName || "").toLowerCase().includes(q) ||
-        (r.companyName || "").toLowerCase().includes(q) ||
-        (r.closerName || "").toLowerCase().includes(q) ||
-        (r.pauta || "").toLowerCase().includes(q);
+        normalizeText(r.leadName).includes(q) ||
+        normalizeText(r.companyName).includes(q) ||
+        normalizeText(r.closerName).includes(q) ||
+        normalizeText(r.pauta).includes(q);
 
       return matchesStatus && matchesCloser && matchesSearch;
     });

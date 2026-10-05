@@ -13,6 +13,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { friendlyError } from "../../lib/friendlyError";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
 import { useData } from "../../contexts/DataContext";
+import { normalizeText } from "../../lib/utils";
 
 export default function Empresas() {
   const { activeTenantId } = useAuth();
@@ -60,12 +61,12 @@ export default function Empresas() {
   }, [activeTenantId]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = normalizeText(search);
     return empresas.filter(e =>
-      (e.name ?? "").toLowerCase().includes(q) ||
-      (e.industry ?? "").toLowerCase().includes(q) ||
-      (e.city ?? "").toLowerCase().includes(q) ||
-      (e.documento ?? "").toLowerCase().includes(q)
+      normalizeText(e.name).includes(q) ||
+      normalizeText(e.industry).includes(q) ||
+      normalizeText(e.city).includes(q) ||
+      normalizeText(e.documento).includes(q)
     );
   }, [empresas, search]);
 

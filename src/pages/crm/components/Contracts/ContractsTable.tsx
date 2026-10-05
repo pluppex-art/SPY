@@ -14,6 +14,7 @@ import {
 } from "../../../../components/ui/table";
 import { FileText, Search, Edit2, Trash2, Download } from "lucide-react";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
+import { normalizeText } from "../../../../lib/utils";
 
 interface Contract {
   id: string;
@@ -51,9 +52,10 @@ const PAGE_SIZE = 50;
 
 export function ContractsTable({ contracts, searchQuery, onSearchChange, onDelete, onEdit, onDownloadPdf }: ContractsTableProps) {
   const { formatCurrency } = useLocalization();
+  const q = normalizeText(searchQuery);
   const filtered = contracts.filter(c =>
-    c.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.plan.toLowerCase().includes(searchQuery.toLowerCase())
+    normalizeText(c.client).includes(q) ||
+    normalizeText(c.plan).includes(q)
   );
 
   // Mesmo componente de paginação da Base de Clientes (ClientesList.tsx) —

@@ -9,6 +9,7 @@ import { Card } from "../../components/ui/card";
 import { Pagination } from "../../components/ui/Pagination";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
+import { normalizeText } from "../../lib/utils";
 
 const PAGE_SIZE = 50;
 
@@ -51,13 +52,13 @@ export default function Atividades() {
   }, [leads]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = normalizeText(search);
     return activities.filter(a => {
       const matchSearch =
-        a.leadName.toLowerCase().includes(q) ||
-        (a.leadCompany ?? "").toLowerCase().includes(q) ||
-        a.content.toLowerCase().includes(q) ||
-        a.user.toLowerCase().includes(q);
+        normalizeText(a.leadName).includes(q) ||
+        normalizeText(a.leadCompany).includes(q) ||
+        normalizeText(a.content).includes(q) ||
+        normalizeText(a.user).includes(q);
       const matchType = typeFilter === "Todos" || a.type === typeFilter;
       return matchSearch && matchType;
     });
