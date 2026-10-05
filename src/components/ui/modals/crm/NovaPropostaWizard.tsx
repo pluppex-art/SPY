@@ -22,6 +22,9 @@ interface ComposicaoItem {
   isRecurring: boolean;
   quantidade: number;
   valorUnitario: number;
+  /** Desconto em R$ nesta linha (subtraído do total do item) — além do
+   * desconto geral da proposta, pedido explícito do usuário. */
+  descontoItem: number;
 }
 
 /** Cliente/empresa escolhido na etapa Contexto — pode vir da Base de Clientes
@@ -171,6 +174,7 @@ export function NovaPropostaWizard({
         isRecurring: !!(p.is_recurring || p.recurring_period || p.category === "Software"),
         quantidade: 1,
         valorUnitario: Number(p.price) || 0,
+        descontoItem: 0,
       }));
     setItems(seedItems);
     setDescontoTipo("valor");
@@ -223,8 +227,11 @@ export function NovaPropostaWizard({
     return [...fromClientes, ...fromLeads].slice(0, 8);
   }, [clienteBase, leads, clienteSearch]);
 
-  const recurringTotal = items.filter((i) => i.isRecurring).reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);
-  const oneTimeTotal = items.filter((i) => !i.isRecurring).reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);
+  // Desconto por item (pedido explícito do usuário, além do desconto geral
+  // da proposta abaixo) já sai subtraído aqui — nunca deixa a linha negativa.
+  const itemLineTotal = (i: ComposicaoItem) => Math.max(0, i.quantidade * i.valorUnitario - (i.descontoItem || 0));
+  const recurringTotal = items.filter((i) => i.isRecurring).reduce((s, i) => s + itemLineTotal(i), 0);
+  const oneTimeTotal = items.filter((i) => !i.isRecurring).reduce((s, i) => s + itemLineTotal(i), 0);
   const subtotal = recurringTotal + oneTimeTotal;
   const descontoCalc = descontoTipo === "percentual"
     ? subtotal * (Math.max(0, Number(descontoValor) || 0) / 100)
@@ -263,7 +270,7 @@ export function NovaPropostaWizard({
   const addItem = () => {
     setItems((prev) => [...prev, {
       key: crypto.randomUUID(), productId: null, nome: "", tipo: "Personalizado",
-      isRecurring: false, quantidade: 1, valorUnitario: 0,
+      isRecurring: false, quantidade: 1, valorUnitario: 0, descontoItem: 0,
     }]);
   };
   const updateItem = (key: string, patch: Partial<ComposicaoItem>) => {
@@ -305,11 +312,17 @@ export function NovaPropostaWizard({
       leadId: leadId || null,
       tipo: "itens" as const,
       conteudoTexto: null,
+      // `precoUnitario` já sai com o desconto do item embutido (dividido pela
+      // quantidade) — proposal_items não tem coluna própria de desconto, e
+      // syncAcceptedProposal (gera o contrato quando a proposta é aceita)
+      // recalcula tudo a partir de preco_unitario × quantidade, nunca de
+      // `proposals.valor`. Sem embutir aqui, o desconto do item se perderia
+      // na hora de aceitar a proposta.
       itens: items.map((i) => ({
         productId: i.productId,
         descricao: i.nome,
         quantidade: i.quantidade,
-        precoUnitario: i.valorUnitario,
+        precoUnitario: i.quantidade > 0 ? itemLineTotal(i) / i.quantidade : i.valorUnitario,
         billingType: i.isRecurring ? ("recurring" as const) : ("one_time" as const),
         contractMonths: i.isRecurring ? prazoContratoMeses : null,
         frequency: i.isRecurring ? "mensal" : null,
@@ -448,7 +461,7 @@ export function NovaPropostaWizard({
           {step === 2 && (
             <StepComposicao
               items={items} addItem={addItem} updateItem={updateItem} removeItem={removeItem}
-              selectItemProduct={selectItemProduct}
+              selectItemProduct={selectItemProduct} itemLineTotal={itemLineTotal}
               availableProducts={availableProducts}
               descontoTipo={descontoTipo} setDescontoTipo={setDescontoTipo}
               descontoValor={descontoValor} setDescontoValor={setDescontoValor}
@@ -712,7 +725,7 @@ function StepContexto(props: any) {
 
 function StepComposicao(props: any) {
   const {
-    items, addItem, updateItem, removeItem, selectItemProduct, availableProducts,
+    items, addItem, updateItem, removeItem, selectItemProduct, itemLineTotal, availableProducts,
     descontoTipo, setDescontoTipo, descontoValor, setDescontoValor,
     observacoes, setObservacoes, recurringTotal, oneTimeTotal, descontoCalc, totalProposta, formatCurrency,
   } = props;
@@ -730,6 +743,7 @@ function StepComposicao(props: any) {
                   <th className="px-1 pb-2">Cobrança</th>
                   <th className="px-1 pb-2 text-center">Qtd.</th>
                   <th className="px-1 pb-2 text-right">Valor unit.</th>
+                  <th className="px-1 pb-2 text-right">Desconto</th>
                   <th className="px-1 pb-2 text-right">Total</th>
                   <th className="px-1 pb-2"></th>
                 </tr>
@@ -767,8 +781,17 @@ function StepComposicao(props: any) {
                     <td className="px-1 py-2 w-28">
                       <input type="number" min={0} value={item.valorUnitario} onChange={(e) => updateItem(item.key, { valorUnitario: Math.max(0, parseFloat(e.target.value) || 0) })} className="w-full text-right bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-md px-1.5 py-1 text-xs font-mono" />
                     </td>
+                    <td className="px-1 py-2 w-24">
+                      <input
+                        type="number" min={0} max={item.quantidade * item.valorUnitario}
+                        value={item.descontoItem || 0}
+                        onChange={(e) => updateItem(item.key, { descontoItem: Math.max(0, parseFloat(e.target.value) || 0) })}
+                        className="w-full text-right bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-md px-1.5 py-1 text-xs font-mono text-success"
+                        title="Desconto em R$ só nesta linha"
+                      />
+                    </td>
                     <td className="px-1 py-2 text-right font-mono font-bold whitespace-nowrap">
-                      {formatCurrency(item.quantidade * item.valorUnitario)}{item.isRecurring && <span className="text-[9px] text-[var(--color-text-faint)]">/mês</span>}
+                      {formatCurrency(itemLineTotal(item))}{item.isRecurring && <span className="text-[9px] text-[var(--color-text-faint)]">/mês</span>}
                     </td>
                     <td className="px-1 py-2">
                       <button onClick={() => removeItem(item.key)} className="p-1 rounded-md hover:bg-danger/10 text-[var(--color-text-faint)] hover:text-danger"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -787,7 +810,7 @@ function StepComposicao(props: any) {
         </SectionCard>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <SectionCard icon={BarChart3} title="Desconto" desc="Aplique um desconto sobre o valor total (opcional).">
+          <SectionCard icon={BarChart3} title="Desconto geral" desc="Sobre o total da proposta (opcional) — além do desconto que cada item já pode ter na tabela acima.">
             <div className="grid grid-cols-2 gap-2">
               <select value={descontoTipo} onChange={(e) => setDescontoTipo(e.target.value as any)} className={inputCls}>
                 <option value="valor">Valor (R$)</option>
@@ -1055,7 +1078,7 @@ function StepRevisao(props: any) {
             {items.map((item: ComposicaoItem) => (
               <div key={item.key} className="flex items-center justify-between py-1.5 text-xs">
                 <span className="font-semibold text-[var(--color-text-primary)]">{item.nome} <span className="text-[var(--color-text-faint)] font-normal">× {item.quantidade}</span></span>
-                <span className="font-mono font-bold">{formatCurrency(item.quantidade * item.valorUnitario)}{item.isRecurring && "/mês"}</span>
+                <span className="font-mono font-bold">{formatCurrency(Math.max(0, item.quantidade * item.valorUnitario - (item.descontoItem || 0)))}{item.isRecurring && "/mês"}</span>
               </div>
             ))}
           </div>
