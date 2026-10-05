@@ -202,6 +202,7 @@ import { LocalizationProvider } from "./contexts/LocalizationContext";
 import { Toaster } from "sonner";
 const InteractiveForm = lazy(() => import("./pages/common/InteractiveForm").then(m => ({ default: m.InteractiveForm })));
 import { ConfirmDialogHost } from "./components/ui/confirm-dialog";
+import { useBuildVersionCheck } from "./hooks/useBuildVersionCheck";
 
 function AppContent() {
   const location = useLocation();
@@ -217,6 +218,8 @@ function AppContent() {
       requestNotificationPermission();
     }
   }, [isAppRoute]);
+
+  useBuildVersionCheck();
 
   return (
     <>

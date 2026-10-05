@@ -8,6 +8,7 @@ import { aoGanharNegocio } from "../../../lib/implementationAutoStart";
 import { useAuth } from "../../../contexts/AuthContext";
 import { getStageId, findWonStage } from "../../../lib/funilStages";
 import { WIN_FUNIL_CONFIG_KEY } from "../../../lib/implementationStage";
+import { statusFromStageName } from "../../../lib/leadStatus";
 
 // ─── Stage helpers ────────────────────────────────────────────────────────────
 
@@ -16,10 +17,15 @@ function buildStages(funis: any[], isSDR: boolean) {
     (f: any) => f.ativo !== false && (isSDR ? f.tipo === "sdr_ia" : f.tipo === "comercial")
   );
   if (!funil) return [];
+  // Status pelo NOME da etapa (statusFromStageName), nunca pela posição —
+  // antes, a ÚLTIMA etapa do array virava "Fechado" só por estar por último,
+  // então criar uma etapa nova DEPOIS de "Ganho" (ex.: um "Onboarding" de
+  // pós-venda) fazia essa etapa nova roubar o rótulo "Fechado" da etapa
+  // "Ganho" de verdade, que passava a cair no genérico "Em Negociação".
   return (funil.etapas as string[]).map((name, idx) => ({
     id: getStageId(funil.id, idx),
     name,
-    status: idx === 0 ? "Novo" : idx === funil.etapas.length - 1 ? "Fechado" : "Em Negociação",
+    status: idx === 0 ? "Novo" : statusFromStageName(name) !== "Em Aberto" ? statusFromStageName(name) : "Em Negociação",
     funilId: funil.id,
   }));
 }
