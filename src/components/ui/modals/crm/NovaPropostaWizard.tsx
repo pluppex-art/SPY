@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  X, Check, Building2, Target, Package2, ListChecks, Calendar, CreditCard,
-  ClipboardCheck, Search, Plus, Trash2, Pencil, Sparkles, Puzzle, BarChart3,
+  X, Check, Building2, Target, ListChecks, Calendar, CreditCard,
+  ClipboardCheck, Search, Plus, Trash2, Pencil, BarChart3,
   FileText, Banknote, QrCode, Landmark, Save, Link2, Send, Tag as TagIcon,
   Users as UsersIcon,
 } from "lucide-react";
@@ -38,11 +38,10 @@ interface SelectedEntity {
 
 const STEP_DEFS = [
   { n: 1, title: "Contexto", desc: "Cliente e oportunidade", icon: Building2 },
-  { n: 2, title: "Solução", desc: "Produtos e serviços", icon: Puzzle },
-  { n: 3, title: "Composição", desc: "Itens e valores", icon: ListChecks },
-  { n: 4, title: "Condições", desc: "Prazos e validade", icon: Calendar },
-  { n: 5, title: "Pagamento", desc: "Cobrança e recorrência", icon: CreditCard },
-  { n: 6, title: "Revisão", desc: "Conferir e enviar", icon: ClipboardCheck },
+  { n: 2, title: "Composição", desc: "Itens e valores", icon: ListChecks },
+  { n: 3, title: "Condições", desc: "Prazos e validade", icon: Calendar },
+  { n: 4, title: "Pagamento", desc: "Cobrança e recorrência", icon: CreditCard },
+  { n: 5, title: "Revisão", desc: "Conferir e enviar", icon: ClipboardCheck },
 ] as const;
 
 const PAYMENT_METHOD_OPTIONS = [
@@ -102,7 +101,6 @@ export function NovaPropostaWizard({
   const [equipeInterna, setEquipeInterna] = useState<{ id: string; nome: string }[]>([]);
 
   // ── Etapa 2: Solução ────────────────────────────────────────────────────────
-  const [selectedCategoria, setSelectedCategoria] = useState<string | null>(null);
 
   // ── Etapa 3: Composição ─────────────────────────────────────────────────────
   const [items, setItems] = useState<ComposicaoItem[]>([]);
@@ -225,16 +223,6 @@ export function NovaPropostaWizard({
     return [...fromClientes, ...fromLeads].slice(0, 8);
   }, [clienteBase, leads, clienteSearch]);
 
-  const categorias = useMemo(() => {
-    const map = new Map<string, any[]>();
-    for (const p of availableProducts) {
-      const cat = p.category || "Geral";
-      if (!map.has(cat)) map.set(cat, []);
-      map.get(cat)!.push(p);
-    }
-    return Array.from(map.entries()).map(([nome, produtos]) => ({ nome, produtos }));
-  }, [availableProducts]);
-
   const recurringTotal = items.filter((i) => i.isRecurring).reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);
   const oneTimeTotal = items.filter((i) => !i.isRecurring).reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);
   const subtotal = recurringTotal + oneTimeTotal;
@@ -260,21 +248,21 @@ export function NovaPropostaWizard({
 
   const canAdvance = (fromStep: number): boolean => {
     if (fromStep === 1) return !!(selectedEntity || clienteSearch) && tituloProposta.trim().length > 0;
-    if (fromStep === 3) return items.length > 0;
+    if (fromStep === 2) return items.length > 0 && items.every((i) => !!i.productId);
     return true;
   };
 
   const goNext = () => {
     if (!canAdvance(step)) {
-      toast.error("Preencha os campos obrigatórios desta etapa antes de continuar.");
+      toast.error(step === 2 ? "Selecione um produto do catálogo pra cada item antes de continuar." : "Preencha os campos obrigatórios desta etapa antes de continuar.");
       return;
     }
-    setStep((s) => Math.min(6, s + 1));
+    setStep((s) => Math.min(5, s + 1));
   };
 
   const addItem = () => {
     setItems((prev) => [...prev, {
-      key: crypto.randomUUID(), productId: null, nome: "Novo item", tipo: "Personalizado",
+      key: crypto.randomUUID(), productId: null, nome: "", tipo: "Personalizado",
       isRecurring: false, quantidade: 1, valorUnitario: 0,
     }]);
   };
@@ -282,6 +270,21 @@ export function NovaPropostaWizard({
     setItems((prev) => prev.map((i) => i.key === key ? { ...i, ...patch } : i));
   };
   const removeItem = (key: string) => setItems((prev) => prev.filter((i) => i.key !== key));
+  // Pedido explícito do usuário: o item da Composição sempre vem do
+  // catálogo — nunca um nome digitado à mão. Selecionar o produto já
+  // preenche tipo/recorrência/valor com o que está cadastrado (ajustável
+  // depois, ex.: preço negociado diferente do catálogo).
+  const selectItemProduct = (key: string, productId: string) => {
+    const p = availableProducts.find((pr: any) => pr.id === productId);
+    if (!p) return;
+    updateItem(key, {
+      productId: p.id,
+      nome: p.name,
+      tipo: (p.is_recurring || p.category === "Software") ? "Software" : "Serviço",
+      isRecurring: !!(p.is_recurring || p.recurring_period || p.category === "Software"),
+      valorUnitario: Number(p.price) || 0,
+    });
+  };
 
   const toggleCondicao = (opt: string) => {
     setCondicoesAdicionais((prev) => prev.includes(opt) ? prev.filter((o) => o !== opt) : [...prev, opt]);
@@ -369,10 +372,10 @@ export function NovaPropostaWizard({
                 Propostas <span className="mx-1">›</span> Nova proposta
               </p>
               <h2 className="text-xl font-black text-[var(--color-text-primary)]">
-                {step === 6 ? "Revisar e enviar proposta" : "Nova Proposta Comercial"}
+                {step === 5 ? "Revisar e enviar proposta" : "Nova Proposta Comercial"}
               </h2>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                {step === 6 ? "Confira todas as informações antes de enviar para o cliente." : "Crie uma proposta comercial completa para o seu cliente."}
+                {step === 5 ? "Confira todas as informações antes de enviar para o cliente." : "Crie uma proposta comercial completa para o seu cliente."}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -443,21 +446,9 @@ export function NovaPropostaWizard({
             />
           )}
           {step === 2 && (
-            <StepSolucao
-              categorias={categorias} selectedCategoria={selectedCategoria} setSelectedCategoria={setSelectedCategoria}
-              onAdoptCategoria={(produtos) => {
-                setItems(produtos.map((p: any) => ({
-                  key: crypto.randomUUID(), productId: p.id, nome: p.name,
-                  tipo: (p.is_recurring || p.category === "Software") ? "Software" : "Serviço",
-                  isRecurring: !!(p.is_recurring || p.recurring_period || p.category === "Software"),
-                  quantidade: 1, valorUnitario: Number(p.price) || 0,
-                })));
-              }}
-            />
-          )}
-          {step === 3 && (
             <StepComposicao
               items={items} addItem={addItem} updateItem={updateItem} removeItem={removeItem}
+              selectItemProduct={selectItemProduct}
               availableProducts={availableProducts}
               descontoTipo={descontoTipo} setDescontoTipo={setDescontoTipo}
               descontoValor={descontoValor} setDescontoValor={setDescontoValor}
@@ -466,7 +457,7 @@ export function NovaPropostaWizard({
               formatCurrency={formatCurrency}
             />
           )}
-          {step === 4 && (
+          {step === 3 && (
             <StepCondicoes
               validadeDias={validadeDias} setValidadeDias={setValidadeDias}
               prazoImplantacao={prazoImplantacao} setPrazoImplantacao={setPrazoImplantacao}
@@ -477,7 +468,7 @@ export function NovaPropostaWizard({
               condicoesAdicionais={condicoesAdicionais} toggleCondicao={toggleCondicao}
             />
           )}
-          {step === 5 && (
+          {step === 4 && (
             <StepPagamento
               formaPagamento={formaPagamento} setFormaPagamento={setFormaPagamento}
               metodosPagamento={metodosPagamento} toggleMetodo={toggleMetodo}
@@ -499,7 +490,7 @@ export function NovaPropostaWizard({
               formatCurrency={formatCurrency}
             />
           )}
-          {step === 6 && (
+          {step === 5 && (
             <StepRevisao
               cliente={selectedEntity} clienteSearch={clienteSearch} companyName={companyName}
               tituloProposta={tituloProposta} previsaoFechamento={previsaoFechamento} probabilidade={probabilidade} valorEstimado={valorEstimado}
@@ -522,7 +513,7 @@ export function NovaPropostaWizard({
             ← Voltar
           </Button>
           <div className="flex items-center gap-2">
-            {step === 6 ? (
+            {step === 5 ? (
               <>
                 <Button variant="outline" className="h-9 px-4 text-xs gap-1.5" disabled={saving} onClick={() => handleSave("Rascunho")}>
                   <Save className="w-3.5 h-3.5" /> Salvar como rascunho
@@ -717,57 +708,11 @@ function StepContexto(props: any) {
   );
 }
 
-// ─── Etapa 2: Solução ───────────────────────────────────────────────────────
-
-function StepSolucao({ categorias, selectedCategoria, setSelectedCategoria, onAdoptCategoria }: any) {
-  return (
-    <div className="p-6 space-y-4">
-      <SectionCard icon={Sparkles} title="Escolha a solução comercial" desc="Agrupamos seu catálogo por categoria — você pode ajustar os itens na próxima etapa.">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {categorias.map((cat: any) => (
-            <button
-              key={cat.nome}
-              onClick={() => { setSelectedCategoria(cat.nome); onAdoptCategoria(cat.produtos); }}
-              className={cn(
-                "text-left p-4 rounded-2xl border-2 transition-all",
-                selectedCategoria === cat.nome ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/5" : "border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] hover:border-[var(--color-primary-blue)]/40",
-              )}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-9 h-9 rounded-xl bg-[var(--color-primary-blue)]/10 flex items-center justify-center text-[var(--color-primary-blue)]"><Package2 className="w-[18px] h-[18px]" /></div>
-                {selectedCategoria === cat.nome && <Check className="w-4 h-4 text-[var(--color-primary-blue)]" />}
-              </div>
-              <p className="text-sm font-black text-[var(--color-text-primary)]">{cat.nome}</p>
-              <p className="text-[10px] text-[var(--color-text-muted)] mt-1">{cat.produtos.length} produto{cat.produtos.length !== 1 ? "s" : ""} no catálogo</p>
-              <ul className="mt-2 space-y-1">
-                {cat.produtos.slice(0, 3).map((p: any) => (
-                  <li key={p.id} className="text-[10px] text-[var(--color-text-muted)] flex items-center gap-1"><Check className="w-2.5 h-2.5 text-success shrink-0" /> {p.name}</li>
-                ))}
-              </ul>
-            </button>
-          ))}
-          <button
-            onClick={() => { setSelectedCategoria("custom"); onAdoptCategoria([]); }}
-            className={cn(
-              "text-left p-4 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 text-center",
-              selectedCategoria === "custom" ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/5" : "border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40",
-            )}
-          >
-            <Puzzle className="w-6 h-6 text-[var(--color-text-faint)]" />
-            <p className="text-xs font-bold text-[var(--color-text-primary)]">Montar solução personalizada</p>
-            <p className="text-[10px] text-[var(--color-text-muted)]">Combine itens livremente na próxima etapa</p>
-          </button>
-        </div>
-      </SectionCard>
-    </div>
-  );
-}
-
-// ─── Etapa 3: Composição ────────────────────────────────────────────────────
+// ─── Etapa 2: Composição ────────────────────────────────────────────────────
 
 function StepComposicao(props: any) {
   const {
-    items, addItem, updateItem, removeItem, availableProducts,
+    items, addItem, updateItem, removeItem, selectItemProduct, availableProducts,
     descontoTipo, setDescontoTipo, descontoValor, setDescontoValor,
     observacoes, setObservacoes, recurringTotal, oneTimeTotal, descontoCalc, totalProposta, formatCurrency,
   } = props;
@@ -792,13 +737,23 @@ function StepComposicao(props: any) {
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
                 {items.map((item: ComposicaoItem) => (
                   <tr key={item.key}>
-                    <td className="px-1 py-2 min-w-[160px]">
-                      <input value={item.nome} onChange={(e) => updateItem(item.key, { nome: e.target.value })} className="w-full bg-transparent text-xs font-bold text-[var(--color-text-primary)] outline-none" />
+                    <td className="px-1 py-2 min-w-[200px]">
+                      <select
+                        value={item.productId ?? ""}
+                        onChange={(e) => selectItemProduct(item.key, e.target.value)}
+                        className={cn(
+                          "w-full bg-[var(--color-surface-sunken)] border rounded-md px-1.5 py-1.5 text-xs font-bold text-[var(--color-text-primary)]",
+                          item.productId ? "border-[var(--color-border-default)]" : "border-danger/40",
+                        )}
+                      >
+                        <option value="" disabled>Selecione um produto...</option>
+                        {availableProducts.map((p: any) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-1 py-2">
-                      <select value={item.tipo} onChange={(e) => updateItem(item.key, { tipo: e.target.value as any })} className="text-[10px] font-bold bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-md px-1.5 py-1">
-                        {["Software", "Serviço", "Módulo", "Personalizado"].map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
+                      <span className="text-[10px] font-bold text-[var(--color-text-muted)]">{item.tipo}</span>
                     </td>
                     <td className="px-1 py-2">
                       <select value={item.isRecurring ? "recorrente" : "unica"} onChange={(e) => updateItem(item.key, { isRecurring: e.target.value === "recorrente" })} className="text-[10px] font-bold bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-md px-1.5 py-1">
@@ -826,13 +781,8 @@ function StepComposicao(props: any) {
           <button onClick={addItem} className="w-full mt-2 py-2.5 rounded-xl border border-dashed border-[var(--color-border-default)] text-[11px] font-bold text-[var(--color-text-muted)] hover:border-[var(--color-primary-blue)] hover:text-[var(--color-primary-blue)] flex items-center justify-center gap-1.5">
             <Plus className="w-3.5 h-3.5" /> Adicionar item
           </button>
-          {availableProducts.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase self-center mr-1">Do catálogo:</span>
-              {availableProducts.slice(0, 6).map((p: any) => (
-                <button key={p.id} onClick={() => updateItem("__new__", {})} className="hidden" />
-              ))}
-            </div>
+          {availableProducts.length === 0 && (
+            <p className="mt-2 text-[10px] text-danger font-semibold">Nenhum produto cadastrado no catálogo — cadastre em Produtos antes de montar a proposta.</p>
           )}
         </SectionCard>
 
@@ -865,7 +815,7 @@ function StepComposicao(props: any) {
   );
 }
 
-// ─── Etapa 4: Condições ─────────────────────────────────────────────────────
+// ─── Etapa 3: Condições ─────────────────────────────────────────────────────
 
 function StepCondicoes(props: any) {
   const {
@@ -936,7 +886,7 @@ function StepCondicoes(props: any) {
   );
 }
 
-// ─── Etapa 5: Pagamento ─────────────────────────────────────────────────────
+// ─── Etapa 4: Pagamento ─────────────────────────────────────────────────────
 
 function StepPagamento(props: any) {
   const {
@@ -1073,7 +1023,7 @@ function StepPagamento(props: any) {
   );
 }
 
-// ─── Etapa 6: Revisão ───────────────────────────────────────────────────────
+// ─── Etapa 5: Revisão ───────────────────────────────────────────────────────
 
 function StepRevisao(props: any) {
   const {
@@ -1100,7 +1050,7 @@ function StepRevisao(props: any) {
           </div>
         </SectionCard>
 
-        <SectionCard icon={ListChecks} title="Itens da proposta" onEdit={() => setStep(3)}>
+        <SectionCard icon={ListChecks} title="Itens da proposta" onEdit={() => setStep(2)}>
           <div className="divide-y divide-[var(--color-border-subtle)]">
             {items.map((item: ComposicaoItem) => (
               <div key={item.key} className="flex items-center justify-between py-1.5 text-xs">
@@ -1112,14 +1062,14 @@ function StepRevisao(props: any) {
         </SectionCard>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <SectionCard icon={Calendar} title="Condições comerciais" onEdit={() => setStep(4)}>
+          <SectionCard icon={Calendar} title="Condições comerciais" onEdit={() => setStep(3)}>
             <SummaryRow label="Validade" value={`${validadeDias} dias`} />
             <SummaryRow label="Implantação" value={prazoImplantacao} />
             <SummaryRow label="Contrato" value={`${prazoContratoMeses} meses`} />
             <SummaryRow label="Renovação automática" value={renovacaoAutomatica ? "Sim" : "Não"} />
             <SummaryRow label="Reajuste" value={reajusteIndice === "Nenhum" ? "Nenhum" : `${reajusteIndice} (${reajustePeriodicidade})`} />
           </SectionCard>
-          <SectionCard icon={CreditCard} title="Pagamento" onEdit={() => setStep(5)}>
+          <SectionCard icon={CreditCard} title="Pagamento" onEdit={() => setStep(4)}>
             <SummaryRow label="Forma de pagamento" value={formaPagamentoLabel} />
             {formaPagamento !== "unico" && (
               <>
