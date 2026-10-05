@@ -383,7 +383,9 @@ export function ProductsSection({
               return (
                 <div
                   key={prod.id}
-                  className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] hover:border-[var(--color-primary-blue)]/50 hover:bg-[var(--color-primary-blue)]/5 transition-all flex items-center justify-between gap-2"
+                  onDoubleClick={() => toggleInteresse(prod.id)}
+                  title="Duplo clique: marcar/desmarcar como produto de interesse"
+                  className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] hover:border-[var(--color-primary-blue)]/50 hover:bg-[var(--color-primary-blue)]/5 transition-all flex items-center justify-between gap-2 cursor-pointer select-none"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{prod.name}</p>
