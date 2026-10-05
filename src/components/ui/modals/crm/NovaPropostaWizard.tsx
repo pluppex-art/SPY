@@ -24,6 +24,18 @@ interface ComposicaoItem {
   valorUnitario: number;
 }
 
+/** Cliente/empresa escolhido na etapa Contexto — pode vir da Base de Clientes
+ * (cadastro formal) ou de um lead do Pipeline que ainda não foi formalizado
+ * como cliente. Os dois contam como "já cadastrado no sistema". */
+interface SelectedEntity {
+  source: "cliente" | "lead";
+  id: string;
+  name: string;
+  documento?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
 const STEP_DEFS = [
   { n: 1, title: "Contexto", desc: "Cliente e oportunidade", icon: Building2 },
   { n: 2, title: "Solução", desc: "Produtos e serviços", icon: Puzzle },
@@ -73,7 +85,12 @@ export function NovaPropostaWizard({
 
   // ── Etapa 1: Contexto ──────────────────────────────────────────────────────
   const [clienteSearch, setClienteSearch] = useState("");
-  const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
+  // Pedido explícito do usuário: a busca de cliente PRECISA puxar quem já
+  // está cadastrado no sistema — incluindo quem só existe como lead no
+  // Pipeline, nunca formalizado como "cliente" — não só a Base de Clientes.
+  // Cadastro formal continua OPCIONAL: sem nenhum resultado, segue com o
+  // texto digitado mesmo assim.
+  const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [tituloProposta, setTituloProposta] = useState("");
   const [valorEstimado, setValorEstimado] = useState("0");
   const [probabilidade, setProbabilidade] = useState(50);
@@ -123,9 +140,18 @@ export function NovaPropostaWizard({
     if (!isOpen) return;
     setStep(1);
     const lead = leadId ? (leads || []).find((l: any) => l.id === leadId) : null;
+    // Prioriza o cadastro formal (clienteBase) quando existe um pra esse
+    // nome; sem isso, o próprio lead do Pipeline já conta como "cadastrado"
+    // — nunca força abrir a etapa sem puxar o que já existe.
     const matchedCliente = (clienteBase as any[]).find((c: any) =>
       companyName && normalizeText(c.name) === normalizeText(companyName));
-    setSelectedClienteId(matchedCliente?.id || null);
+    if (matchedCliente) {
+      setSelectedEntity({ source: "cliente", id: matchedCliente.id, name: matchedCliente.name, documento: matchedCliente.documento, email: matchedCliente.email, phone: matchedCliente.phone });
+    } else if (lead) {
+      setSelectedEntity({ source: "lead", id: lead.id, name: lead.company || lead.name, documento: lead.cnpj, email: lead.email, phone: lead.phone });
+    } else {
+      setSelectedEntity(null);
+    }
     setClienteSearch("");
     setTituloProposta(companyName ? `Implementação S.P.Y. — ${companyName}` : "");
     setValorEstimado(String(lead?.value ? parseCurrencyValue(lead.value) : 0));
@@ -177,13 +203,27 @@ export function NovaPropostaWizard({
 
   // ── Dados derivados ──────────────────────────────────────────────────────────
 
-  const selectedCliente = (clienteBase as any[]).find((c: any) => c.id === selectedClienteId);
-
+  // Busca unificada: Base de Clientes (cadastro formal) + leads do Pipeline
+  // que ainda não viraram cliente — os dois contam como "já cadastrado no
+  // sistema", pedido explícito do usuário. Cliente formal vem primeiro
+  // quando o mesmo nome existe nos dois (é o registro mais completo).
   const clienteResults = useMemo(() => {
     const q = normalizeText(clienteSearch);
-    if (!q) return [];
-    return (clienteBase as any[]).filter((c: any) => normalizeText(c.name).includes(q)).slice(0, 8);
-  }, [clienteBase, clienteSearch]);
+    if (!q) return [] as SelectedEntity[];
+    const fromClientes: SelectedEntity[] = (clienteBase as any[])
+      .filter((c: any) => normalizeText(c.name).includes(q))
+      .slice(0, 6)
+      .map((c: any) => ({ source: "cliente", id: c.id, name: c.name, documento: c.documento, email: c.email, phone: c.phone }));
+    const clienteNames = new Set(fromClientes.map((c) => normalizeText(c.name)));
+    const fromLeads: SelectedEntity[] = (leads as any[])
+      .filter((l: any) => {
+        const nome = l.company || l.name;
+        return nome && !clienteNames.has(normalizeText(nome)) && (normalizeText(l.company || "").includes(q) || normalizeText(l.name || "").includes(q) || normalizeText(l.cnpj || "").includes(q));
+      })
+      .slice(0, 6)
+      .map((l: any) => ({ source: "lead", id: l.id, name: l.company || l.name, documento: l.cnpj, email: l.email, phone: l.phone }));
+    return [...fromClientes, ...fromLeads].slice(0, 8);
+  }, [clienteBase, leads, clienteSearch]);
 
   const categorias = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -219,7 +259,7 @@ export function NovaPropostaWizard({
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   const canAdvance = (fromStep: number): boolean => {
-    if (fromStep === 1) return !!(selectedCliente || clienteSearch) && tituloProposta.trim().length > 0;
+    if (fromStep === 1) return !!(selectedEntity || clienteSearch) && tituloProposta.trim().length > 0;
     if (fromStep === 3) return items.length > 0;
     return true;
   };
@@ -251,7 +291,7 @@ export function NovaPropostaWizard({
   };
 
   const buildPayload = (status: "Rascunho" | "Enviada") => {
-    const clientName = selectedCliente?.name || clienteSearch.trim() || companyName || "Cliente";
+    const clientName = selectedEntity?.name || clienteSearch.trim() || companyName || "Cliente";
     return {
       titulo: tituloProposta.trim() || `Proposta Comercial — ${clientName}`,
       cliente: clientName,
@@ -390,8 +430,8 @@ export function NovaPropostaWizard({
           {step === 1 && (
             <StepContexto
               clienteSearch={clienteSearch} setClienteSearch={setClienteSearch}
-              clienteResults={clienteResults} selectedCliente={selectedCliente}
-              setSelectedClienteId={setSelectedClienteId}
+              clienteResults={clienteResults} selectedEntity={selectedEntity}
+              setSelectedEntity={setSelectedEntity}
               tituloProposta={tituloProposta} setTituloProposta={setTituloProposta}
               valorEstimado={valorEstimado} setValorEstimado={setValorEstimado}
               probabilidade={probabilidade} setProbabilidade={setProbabilidade}
@@ -461,7 +501,7 @@ export function NovaPropostaWizard({
           )}
           {step === 6 && (
             <StepRevisao
-              cliente={selectedCliente} clienteSearch={clienteSearch} companyName={companyName}
+              cliente={selectedEntity} clienteSearch={clienteSearch} companyName={companyName}
               tituloProposta={tituloProposta} previsaoFechamento={previsaoFechamento} probabilidade={probabilidade} valorEstimado={valorEstimado}
               items={items} recurringTotal={recurringTotal} oneTimeTotal={oneTimeTotal} descontoCalc={descontoCalc} totalProposta={totalProposta}
               validadeDias={validadeDias} prazoImplantacao={prazoImplantacao} prazoContratoMeses={prazoContratoMeses}
@@ -520,7 +560,7 @@ function parseCurrencyValue(v: any): number {
 
 function StepContexto(props: any) {
   const {
-    clienteSearch, setClienteSearch, clienteResults, selectedCliente, setSelectedClienteId,
+    clienteSearch, setClienteSearch, clienteResults, selectedEntity, setSelectedEntity,
     tituloProposta, setTituloProposta, valorEstimado, setValorEstimado,
     probabilidade, setProbabilidade, origem, setOrigem,
     previsaoFechamento, setPrevisaoFechamento, objetivo, setObjetivo,
@@ -531,18 +571,26 @@ function StepContexto(props: any) {
     <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
         <SectionCard icon={Building2} title="Dados do cliente" desc="Escolha um cliente existente ou cadastre um novo.">
-          {selectedCliente ? (
+          {selectedEntity ? (
             <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)]">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center text-[var(--color-primary-blue)] shrink-0">
                   <Building2 className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{selectedCliente.name}</p>
-                  <p className="text-[10px] text-[var(--color-text-muted)] truncate">{selectedCliente.documento || "Sem documento"}</p>
+                  <p className="text-xs font-bold text-[var(--color-text-primary)] truncate flex items-center gap-1.5">
+                    {selectedEntity.name}
+                    <span className={cn(
+                      "text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0",
+                      selectedEntity.source === "cliente" ? "bg-success/10 text-success" : "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]",
+                    )}>
+                      {selectedEntity.source === "cliente" ? "Cliente" : "Lead no Pipeline"}
+                    </span>
+                  </p>
+                  <p className="text-[10px] text-[var(--color-text-muted)] truncate">{selectedEntity.documento || "Sem documento"}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedClienteId(null)} className="text-[10px] font-bold text-[var(--color-primary-blue)] shrink-0">Alterar</button>
+              <button onClick={() => setSelectedEntity(null)} className="text-[10px] font-bold text-[var(--color-primary-blue)] shrink-0">Alterar</button>
             </div>
           ) : (
             <div className="relative">
@@ -553,14 +601,25 @@ function StepContexto(props: any) {
                 placeholder="Digite o nome, CNPJ, e-mail ou telefone..."
                 className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl pl-9 pr-3 py-2.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
               />
-              {clienteResults.length > 0 && (
+              {clienteSearch.trim() && (
                 <div className="mt-1.5 border border-[var(--color-border-subtle)] rounded-xl overflow-hidden divide-y divide-[var(--color-border-subtle)]">
-                  {clienteResults.map((c: any) => (
-                    <button key={c.id} onClick={() => setSelectedClienteId(c.id)} className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--color-surface-sunken)] bg-[var(--color-surface-elevated)]">
+                  {clienteResults.length > 0 ? clienteResults.map((c: SelectedEntity) => (
+                    <button key={`${c.source}-${c.id}`} onClick={() => setSelectedEntity(c)} className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--color-surface-sunken)] bg-[var(--color-surface-elevated)]">
                       <Building2 className="w-3.5 h-3.5 text-[var(--color-text-faint)] shrink-0" />
-                      <span className="text-xs font-semibold text-[var(--color-text-primary)] truncate">{c.name}</span>
+                      <span className="text-xs font-semibold text-[var(--color-text-primary)] truncate flex-1">{c.name}</span>
+                      <span className={cn(
+                        "text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0",
+                        c.source === "cliente" ? "bg-success/10 text-success" : "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]",
+                      )}>
+                        {c.source === "cliente" ? "Cliente" : "Lead no Pipeline"}
+                      </span>
                     </button>
-                  ))}
+                  )) : (
+                    <div className="px-3 py-3 bg-[var(--color-surface-elevated)]">
+                      <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">Nenhum cadastro encontrado para "{clienteSearch}".</p>
+                      <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Pode continuar com esse nome mesmo assim — o cadastro na Base de Clientes não é obrigatório pra criar a proposta.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -646,7 +705,7 @@ function StepContexto(props: any) {
 
       <div>
         <SectionCard icon={FileText} title="Resumo do contexto" desc="Verifique se as informações estão corretas." sticky>
-          <SummaryRow label="Cliente" value={selectedCliente?.name || clienteSearch || "—"} />
+          <SummaryRow label="Cliente" value={selectedEntity?.name || clienteSearch || "—"} />
           <SummaryRow label="Título" value={tituloProposta || "—"} />
           <SummaryRow label="Valor estimado" value={formatCurrencyBR(Number(valorEstimado) || 0)} />
           <SummaryRow label="Probabilidade" value={`${probabilidade}%`} />
