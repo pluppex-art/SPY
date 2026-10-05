@@ -5,7 +5,7 @@ import {
   Flame, MoreVertical, Calendar, FileText,
   History, ArrowRight, FileDown, Activity,
   Zap, Package, Globe, MapPin, Users, CalendarClock,
-  TrendingUp, Clock, UserCheck, Layers,
+  TrendingUp, Clock, Layers,
 } from 'lucide-react';
 import { cn, parseCurrencyBR } from '../../../../lib/utils';
 import { leadInterestEstimate } from '../../../../components/ui/lead-details/LeadDetailsModal.helpers';
@@ -184,11 +184,6 @@ export function LeadCard({
     (s.membros || []).some((m: string) => m === item.seller || m === item.sellerId)
   ) ?? null;
 
-  const clientName: string | null =
-    item.clientName ||
-    linkedProducts.find((p: any) => p.clientName)?.clientName ||
-    null;
-
   const createdLabel = formatCreatedAt(item.created_at ?? item.createdAt);
   const source = item.source as string | undefined;
   const SourceIcon = source ? (SOURCE_ICON[source] ?? Globe) : null;
@@ -328,14 +323,11 @@ export function LeadCard({
           )}
         </div>
 
-        {/* Pills row: stage + source */}
+        {/* Pills row: source + reservas — a etapa já está implícita na coluna
+            do Kanban onde o card está, e o cliente já aparece no título logo
+            acima; repetir os dois aqui só duplicava informação (pedido
+            explícito do usuário). */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {stageName && (
-            <span className={cn("inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border", NEUTRAL_BADGE)}>
-              <Zap className="w-2.5 h-2.5" />
-              {stageName}
-            </span>
-          )}
           {source && SourceIcon && (
             <span className="inline-flex items-center gap-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
               <SourceIcon className="w-2.5 h-2.5" />
@@ -365,14 +357,10 @@ export function LeadCard({
           <span className={`text-[9px] font-bold tabular-nums ${SCORE_TEXT(score)}`}>{score}%</span>
         </div>
 
-        {/* Tags + squad + product */}
-        {(tags.length > 0 || leadSquad || productTags.length > 0 || clientName) && (
+        {/* Tags + squad + product — clientName some daqui: já é o título do
+            card (pedido explícito do usuário, duplicava a mesma info). */}
+        {(tags.length > 0 || leadSquad || productTags.length > 0) && (
           <div className="flex flex-wrap gap-1">
-            {clientName && (
-              <span className={cn("inline-flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide", NEUTRAL_BADGE)}>
-                <UserCheck className="w-2.5 h-2.5" /> {clientName}
-              </span>
-            )}
             {leadSquad && (
               <span
                 className="inline-flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide"
