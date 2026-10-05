@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
+import { Card } from "../../components/ui/card";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 
 import { PipelineTopActions } from "./components/Pipeline/PipelineTopActions";
 
@@ -31,6 +33,11 @@ export default function Pipeline() {
   const navigate = useNavigate();
   const { user, updatePreferences, activeTenantId } = useAuth();
   const [view, setView] = useState<ViewMode>("kanban");
+  // Pedido explícito do usuário: KPIs + barra de filtros viram um único card
+  // que abre/fecha, e o estado (aberto ou fechado) continua do jeito que a
+  // pessoa deixou depois de recarregar a página — mesmo padrão já usado pra
+  // lembrar a view (Kanban/Lista) abaixo, salvo em users.preferences.
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   useEffect(() => {
     const saved = user?.preferences?.pipelineView;
@@ -40,9 +47,20 @@ export default function Pipeline() {
     else if (defaultCrmView === "kanban") setView("kanban");
   }, [user?.preferences]);
 
+  useEffect(() => {
+    const saved = user?.preferences?.pipelineFiltersOpen;
+    if (typeof saved === "boolean") setFiltersOpen(saved);
+  }, [user?.preferences]);
+
   const handleSetView = (v: ViewMode) => {
     setView(v);
     updatePreferences({ pipelineView: v });
+  };
+
+  const handleToggleFilters = () => {
+    const next = !filtersOpen;
+    setFiltersOpen(next);
+    updatePreferences({ pipelineFiltersOpen: next });
   };
 
   const [minimizedColumns, setMinimizedColumns] = useState<Set<string>>(new Set());
@@ -179,31 +197,49 @@ export default function Pipeline() {
       }
     >
       <div className="flex flex-col space-y-4 flex-1 min-h-0">
-        <PipelineKPIs total={kpis.total} hot={kpis.hot} closed={kpis.closed} winRate={winRate} formattedTotalValue={formattedTotalValue} />
+        <Card className="overflow-hidden">
+          <button
+            type="button"
+            onClick={handleToggleFilters}
+            className="w-full flex items-center justify-between gap-2 px-4 py-3 border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors"
+          >
+            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+              KPIs & Filtros
+            </span>
+            <ChevronDown className={`w-4 h-4 text-[var(--color-text-muted)] transition-transform ${filtersOpen ? "rotate-180" : ""}`} />
+          </button>
 
-        {/* Achado real (pedido do usuário): esta barra só existia dentro da
-            visão Kanban — quem trabalha em visão de Lista (comum pra tenant
-            com muitos leads, ex.: Fora da Curva com 14 mil+) não tinha NENHUM
-            filtro de funil/empresa/cidade/cliente disponível, só o mini-filtro
-            próprio da Lista (busca + vendedor). Agora é compartilhada pelas
-            duas visões — os filtros (inclusive o de funil, que já afeta
-            `filteredItemsList`, a mesma lista usada pelas duas) funcionam
-            igual nos dois lugares. */}
-        <PipelineFilterBar
-          comercialFunis={comercialFunis} sdrFunis={sdrFunis}
-          currentPipeline={currentPipeline} setCurrentPipeline={switchPipeline as any}
-          selectedFunilId={selectedFunilId} setSelectedFunilId={setSelectedFunilId}
-          searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-          companyFilter={companyFilter} setCompanyFilter={setCompanyFilter}
-          companiesList={companiesList}
-          cityFilter={cityFilter} setCityFilter={setCityFilter} citiesList={citiesList}
-          clientFilter={clientFilter}
-          setClientFilter={setClientFilter} clientsList={clientsList}
-          sellerFilter={sellerFilter} setSellerFilter={setSellerFilter}
-          sellers={sellers}
-          dateFrom={dateFrom} setDateFrom={setDateFrom}
-          dateTo={dateTo} setDateTo={setDateTo}
-        />
+          {filtersOpen && (
+            <div className="flex flex-col gap-4 px-4 pb-4">
+              <PipelineKPIs total={kpis.total} hot={kpis.hot} closed={kpis.closed} winRate={winRate} formattedTotalValue={formattedTotalValue} />
+
+              {/* Achado real (pedido do usuário): esta barra só existia dentro da
+                  visão Kanban — quem trabalha em visão de Lista (comum pra tenant
+                  com muitos leads, ex.: Fora da Curva com 14 mil+) não tinha NENHUM
+                  filtro de funil/empresa/cidade/cliente disponível, só o mini-filtro
+                  próprio da Lista (busca + vendedor). Agora é compartilhada pelas
+                  duas visões — os filtros (inclusive o de funil, que já afeta
+                  `filteredItemsList`, a mesma lista usada pelas duas) funcionam
+                  igual nos dois lugares. */}
+              <PipelineFilterBar
+                comercialFunis={comercialFunis} sdrFunis={sdrFunis}
+                currentPipeline={currentPipeline} setCurrentPipeline={switchPipeline as any}
+                selectedFunilId={selectedFunilId} setSelectedFunilId={setSelectedFunilId}
+                searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+                companyFilter={companyFilter} setCompanyFilter={setCompanyFilter}
+                companiesList={companiesList}
+                cityFilter={cityFilter} setCityFilter={setCityFilter} citiesList={citiesList}
+                clientFilter={clientFilter}
+                setClientFilter={setClientFilter} clientsList={clientsList}
+                sellerFilter={sellerFilter} setSellerFilter={setSellerFilter}
+                sellers={sellers}
+                dateFrom={dateFrom} setDateFrom={setDateFrom}
+                dateTo={dateTo} setDateTo={setDateTo}
+              />
+            </div>
+          )}
+        </Card>
 
         {view === "kanban" && (
           <>
