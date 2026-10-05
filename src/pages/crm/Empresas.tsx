@@ -12,9 +12,11 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../contexts/AuthContext";
 import { friendlyError } from "../../lib/friendlyError";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
+import { useData } from "../../contexts/DataContext";
 
 export default function Empresas() {
   const { activeTenantId } = useAuth();
+  const { deleteClienteBase } = useData();
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -104,12 +106,8 @@ export default function Empresas() {
       description: `Tem certeza que deseja remover ${name}?`,
     }))) return;
 
-    if (!supabase) return;
-    const { error } = await supabase.from("clientes").delete().eq("id", id);
-    if (error) {
-      toast.error(`Erro ao excluir: ${friendlyError(error)}`);
-      return;
-    }
+    const ok = await deleteClienteBase(id);
+    if (!ok) return;
     toast.success("Empresa removida com sucesso!");
     setEmpresas(prev => prev.filter(e => e.id !== id));
   };
