@@ -2705,6 +2705,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const financeAttachmentCrud = createCrudHelper('finance_attachments', setFinanceAttachments);
   const clienteBaseCrud = createCrudHelper('clientes', setClienteBase);
 
+  // Achado real (print do usuário, 2026-10-05): excluir um cliente da Base de
+  // Clientes (ou de Financeiro > Contatos — as duas telas chamam isto) falhava
+  // com um 409 cru de "finance_entries_contato_id_fkey" sempre que esse
+  // cliente tinha algum lançamento financeiro vinculado. Diferente do caso da
+  // proposta/contrato (onde o contrato só existe POR CAUSA da proposta, então
+  // apagar os dois juntos faz sentido), um lançamento financeiro é um registro
+  // de dinheiro de verdade (recebido/pago) que não deveria sumir só porque
+  // alguém excluiu o cadastro do contato — por isso aqui a resposta certa é
+  // BLOQUEAR com uma mensagem específica (quantos lançamentos, e que precisa
+  // resolver isso primeiro), em vez de cascatear a exclusão como no caso da
+  // proposta. Checa ANTES de tentar (evita o round-trip pro erro 409 cru).
+  const deleteClienteBase = async (id: string) => {
+    const vinculados = (financeEntries as any[]).filter((f: any) => f.contato_id === id).length;
+    if (vinculados > 0) {
+      toast.error(
+        `Este cliente tem ${vinculados} lançamento${vinculados === 1 ? '' : 's'} financeiro${vinculados === 1 ? '' : 's'} vinculado${vinculados === 1 ? '' : 's'} — não é possível excluir. Edite ou remova ${vinculados === 1 ? 'esse lançamento' : 'esses lançamentos'} em Financeiro antes.`
+      );
+      return false;
+    }
+    return clienteBaseCrud.del(id);
+  };
+
   // Diff campo a campo pro log de auditoria — só entram os campos que de
   // fato mudaram, e nunca os de controle interno (id/tenant/filial/created_at).
   const buildFinanceAuditDiff = (before: any, after: any): Record<string, { old: any; new: any }> => {
@@ -3200,7 +3222,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       deleteFinanceAttachment: financeAttachmentCrud.del,
       addClienteBase: clienteBaseCrud.add,
       updateClienteBase: clienteBaseCrud.update,
-      deleteClienteBase: clienteBaseCrud.del,
+      deleteClienteBase,
       financeCommissionEntries,
       addFinanceCommissionEntry: financeCommissionEntryCrud.add,
       updateFinanceCommissionEntry: financeCommissionEntryCrud.update,

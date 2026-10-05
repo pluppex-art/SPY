@@ -155,8 +155,11 @@ export default function FinanceiroContatos() {
   const handleDelete = async (c: Contato) => {
     if (emUso.has(c.id)) { toast.error("Este contato tem lançamentos vinculados e não pode ser excluído."); return; }
     if (!(await confirmDialog({ title: "Excluir contato", description: `Excluir "${c.name}"? Essa ação não pode ser desfeita.` }))) return;
-    await deleteClienteBase(c.id);
-    toast.success("Contato excluído.");
+    // Mesmo bug já corrigido em Propostas.tsx: toast de sucesso disparava mesmo
+    // quando a exclusão falhava de verdade (deleteClienteBase já mostra seu
+    // próprio toast de erro quando retorna false, então só confirma aqui).
+    const ok = await deleteClienteBase(c.id);
+    if (ok) toast.success("Contato excluído.");
   };
 
   return (
