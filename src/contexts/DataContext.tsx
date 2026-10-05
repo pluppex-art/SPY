@@ -2980,6 +2980,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
+    // BUG real (achado em produção 2026-10-05, print do usuário: console
+    // inundado de "duplicate key value violates unique constraint
+    // contracts_proposal_id_unique" em loop): a trava `reconciledProposalIdsRef`
+    // acima só cobria o ramo "contrato já existe" (backfill/update), nunca o
+    // ramo "criar contrato novo" logo abaixo — então, se o insert de
+    // addContract falhasse por QUALQUER motivo (inclusive a própria correção
+    // de 23505 feita ali, que chama setContracts e com isso re-dispara este
+    // efeito de reconciliação, que depende de `contracts`), nada impedia a
+    // MESMA proposta de ser tentada de novo na re-execução seguinte — e como
+    // a falha sempre disparava outro setContracts, virava um loop sem fim.
+    // Mesma trava "uma vez por sessão" do outro ramo, agora cobrindo os dois.
+    if (reconciledProposalIdsRef.current.has(prop.id)) return false;
+    reconciledProposalIdsRef.current.add(prop.id);
+
     const signedDate = new Date();
     const endDate = contractMonths
       ? new Date(signedDate.getFullYear(), signedDate.getMonth() + contractMonths, signedDate.getDate()).toLocaleDateString("pt-BR")
