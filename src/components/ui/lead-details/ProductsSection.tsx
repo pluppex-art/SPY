@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "../card";
 import { Button } from "../button";
 import { Badge } from "../badge";
@@ -46,11 +46,6 @@ export function ProductsSection({
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [prefillProductId, setPrefillProductId] = useState<string | undefined>(undefined);
   const [prefillProductIds, setPrefillProductIds] = useState<string[] | undefined>(undefined);
-  // Clique único num produto do catálogo = vender agora (abre o modal já configurado); clique
-  // duplo = marcar como interesse (mesma ação do botão "+" abaixo, ver toggleInteresse). O
-  // browser sempre dispara 2 cliques antes do dblclick — sem esse pequeno debounce, um duplo
-  // clique abriria o modal de venda E marcaria interesse ao mesmo tempo, os dois juntos.
-  const clickTimerRef = useRef<Record<string, number>>({});
   // true = o modal acrescenta itens na proposta existente (lápis ao lado do status).
   const [editingExistingProposal, setEditingExistingProposal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -101,19 +96,6 @@ export function ProductsSection({
       return acc;
     }, { recorrente: 0, pontual: 0 });
   }, [produtosInteresse]);
-
-  const handleProductRowClick = (productId: string) => {
-    if (clickTimerRef.current[productId]) {
-      window.clearTimeout(clickTimerRef.current[productId]);
-      delete clickTimerRef.current[productId];
-      toggleInteresse(productId);
-      return;
-    }
-    clickTimerRef.current[productId] = window.setTimeout(() => {
-      delete clickTimerRef.current[productId];
-      openAddModal(productId);
-    }, 250);
-  };
 
   const filteredProducts = useMemo(() => {
     const term = searchTerm.toLowerCase();
@@ -403,17 +385,12 @@ export function ProductsSection({
                   key={prod.id}
                   className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] hover:border-[var(--color-primary-blue)]/50 hover:bg-[var(--color-primary-blue)]/5 transition-all flex items-center justify-between gap-2"
                 >
-                  <button
-                    type="button"
-                    onClick={() => handleProductRowClick(prod.id)}
-                    className="min-w-0 flex-1 text-left cursor-pointer"
-                    title="Clique: vender agora (cria proposta real) · Duplo clique: marcar como interesse"
-                  >
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{prod.name}</p>
                     <span className="text-[9px] text-[var(--color-text-faint)] uppercase font-semibold">
                       {prod.category} {prod.recurrence && "• Recorrente"}
                     </span>
-                  </button>
+                  </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="text-xs font-mono font-black text-[var(--color-primary-blue)]">{formatCurrency(Number(prod.price) || 0)}</span>
                     <button
