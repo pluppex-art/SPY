@@ -8,6 +8,7 @@ import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import { computeChannelRevenue, computeProductRevenue, buildAuroraAcoes, type DashboardData } from "./revenueInsights";
+import { isLeadOpen } from "../../lib/leadStatus";
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 type Aba = "clientes" | "vendas" | "marketing" | "produtos";
@@ -18,7 +19,7 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
   const { formatCurrency } = useLocalization();
   const [aba, setAba] = useState<Aba>("clientes");
 
-  const leadsAbertos = useMemo(() => (leads as any[]).filter((l) => l.status !== "Fechado" && l.status !== "Perdido"), [leads]);
+  const leadsAbertos = useMemo(() => (leads as any[]).filter((l) => isLeadOpen(l.status)), [leads]);
   const contratosEmRisco = useMemo(() => (contracts as any[]).filter((c) => c.status === "Inadimplente"), [contracts]);
   const oportunidadesRecuperaveis = useMemo(
     () => leadsAbertos.filter((l: any) => (l.scoreIA ?? 0) > 70 && (Number(l.timeIdle) || 0) > 3 && parseCurrencyBR(l.value) > 0),

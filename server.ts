@@ -28,6 +28,7 @@ import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
 import { extractDocs as maxExtractDocs, mapMaxEntryToNota, type MaxEntry, type MaxEntryItem } from "./src/lib/maxdataEntry.js";
 import { findProductForItem, defaultQtdEstoque } from "./src/lib/notaEntrada.js";
+import { isLeadOpen, isLeadLost } from "./src/lib/leadStatus.js";
 import {
   INTEGRATION_DEFS, INTEGRATION_SETTING_KEYS, getIntegrationDef as implGetIntegrationDef, maskedView as implMaskedView,
   validateIntegrationValues as implValidateIntegrationValues, applyIntegrationUpdate as implApplyIntegrationUpdate,
@@ -562,13 +563,14 @@ app.get("/api/dashboard/summary", requireUser, async (req: any, res) => {
     const leadsAll = await fetchAllRowsPaginated(sb, "leads", 'status,value,"scoreIA"', (q) => q.eq("tenant_id", tenantId)) as { status: string; value: number | null; scoreIA: number | null }[];
     const leadsTotal = leadsAll.length;
     const leadsWon = leadsAll.filter((l) => l.status === "Fechado").length;
-    const leadsOpenRows = leadsAll.filter((l) => l.status !== "Fechado" && l.status !== "Perdido");
+    const leadsOpenRows = leadsAll.filter((l) => isLeadOpen(l.status));
     const conversionRate = leadsTotal > 0 ? Math.round((leadsWon / leadsTotal) * 1000) / 10 : 0;
-    // "Ativo" = não perdido (Fechado conta como ativo — cliente convertido).
-    // Igual a src/lib/revenueMetrics.ts:getActiveLeadsCount — diferente de
-    // leadsOpenRows, que segue excluindo Fechado pro valor de pipeline em
-    // aberto/leads quentes abaixo (esses continuam sendo "ainda não fechados").
-    const activeLeadsCount = leadsAll.filter((l) => l.status !== "Perdido").length;
+    // "Ativo" = não perdido/desqualificado (Fechado conta como ativo —
+    // cliente convertido). Igual a src/lib/revenueMetrics.ts:getActiveLeadsCount
+    // — diferente de leadsOpenRows, que segue excluindo Fechado pro valor de
+    // pipeline em aberto/leads quentes abaixo (esses continuam sendo "ainda
+    // não fechados").
+    const activeLeadsCount = leadsAll.filter((l) => !isLeadLost(l.status)).length;
     const valorPipelineAberto = leadsOpenRows.reduce((s, l) => s + (Number(l.value) || 0), 0);
     const leadsQuentes = leadsOpenRows.filter((l) => (l.scoreIA ?? 0) > 80).length;
 

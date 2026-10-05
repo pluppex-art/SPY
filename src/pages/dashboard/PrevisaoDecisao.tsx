@@ -13,6 +13,7 @@ import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import { computeProductRevenue, buildAuroraAcoes, type AuroraAcaoIcon, type DashboardData } from "./revenueInsights";
+import { isLeadOpen } from "../../lib/leadStatus";
 
 const AURORA_ICONS: Record<AuroraAcaoIcon, typeof Flame> = { flame: Flame, sparkles: Sparkles, userx: UserX, filewarning: FileWarning };
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -26,7 +27,7 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
   const [simRecuperar, setSimRecuperar] = useState(5);
   const [simNovosLeads, setSimNovosLeads] = useState(50);
 
-  const leadsAbertos = useMemo(() => (leads as any[]).filter((l) => l.status !== "Fechado" && l.status !== "Perdido"), [leads]);
+  const leadsAbertos = useMemo(() => (leads as any[]).filter((l) => isLeadOpen(l.status)), [leads]);
   const vendas = useMemo(() => (leads as any[]).filter((l) => l.status === "Fechado"), [leads]);
   const contratosEmRisco = useMemo(() => (contracts as any[]).filter((c) => c.status === "Inadimplente"), [contracts]);
   const receitaEmRisco = contratosEmRisco.reduce((s, c) => s + parseCurrencyBR(c.mrr), 0);

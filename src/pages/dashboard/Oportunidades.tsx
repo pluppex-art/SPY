@@ -8,6 +8,7 @@ import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import { situacaoDe, recomendacaoDe, getComercialFunilStageNames, type DashboardData } from "./revenueInsights";
+import { isLeadOpen } from "../../lib/leadStatus";
 
 function intencaoDe(scoreIA: number | undefined): { label: string; tone: "success" | "warning" | "neutral" } {
   const s = scoreIA ?? 0;
@@ -42,7 +43,7 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
 
   const stageNames = useMemo(() => getComercialFunilStageNames(funis), [funis]);
 
-  const leadsAbertos = useMemo(() => (leads as any[]).filter((l) => l.status !== "Fechado" && l.status !== "Perdido"), [leads]);
+  const leadsAbertos = useMemo(() => (leads as any[]).filter((l) => isLeadOpen(l.status)), [leads]);
 
   const atividadesPorLead = useMemo(() => {
     const map = new Map<string, number>();

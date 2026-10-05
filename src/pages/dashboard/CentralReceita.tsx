@@ -16,6 +16,7 @@ import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
+import { isLeadOpen } from "../../lib/leadStatus";
 import { useDashboard } from "./useDashboard";
 import { DashboardGoalAlerts } from "./components/DashboardGoalAlerts";
 import { RevenueTabs, type RevenueTabId } from "./components/RevenueTabs";
@@ -58,7 +59,7 @@ export default function CentralReceita() {
   const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
   const primeiroNome = (user?.name || "").split(" ")[0] || "";
 
-  const leadsAbertos = useMemo(() => leads.filter((l: any) => l.status !== "Fechado" && l.status !== "Perdido"), [leads]);
+  const leadsAbertos = useMemo(() => leads.filter((l: any) => isLeadOpen(l.status)), [leads]);
   const pipelineValue = serverSummary?.valorPipelineAberto ?? leadsAbertos.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0);
   const pipelineCount = leadsAbertos.length;
 

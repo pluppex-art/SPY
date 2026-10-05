@@ -10,6 +10,7 @@ import { Pagination } from "../../components/ui/Pagination";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
+import { isLeadOpen } from "../../lib/leadStatus";
 
 const PAGE_SIZE = 50;
 
@@ -21,7 +22,7 @@ export default function FollowUps() {
   // Computes leads needing follow-up (e.g. status open, sorted by last interaction or temperature)
   const followUpList = useMemo(() => {
     return (leads as any[])
-      .filter(l => l.status !== "Fechado" && l.status !== "Perdido")
+      .filter(l => isLeadOpen(l.status))
       .map(l => {
         // Calculate days since last update or creation
         const lastDate = new Date(l.updated_at || l.created_at || new Date());

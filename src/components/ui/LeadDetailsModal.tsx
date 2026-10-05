@@ -11,6 +11,7 @@ import { ReservasSection } from "./lead-details/ReservasSection";
 import { LeadDetailsTempCfg } from "./lead-details/LeadDetailsModal.constants";
 import { formatLeadValueBRL, leadInterestEstimate, safeParseTimeIdle, safeParseProbability } from "./lead-details/LeadDetailsModal.helpers";
 import { findWonStage } from "../../lib/funilStages";
+import { statusFromStageName } from "../../lib/leadStatus";
 import { LeadDetailsModalFooter } from "./lead-details/LeadDetailsModal.Footer";
 import { LeadDetailsModalHero } from "./lead-details/LeadDetailsModalHero";
 
@@ -146,7 +147,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
 
   const moveToStage = (stg: any) => {
     setCurrentStageId(stg.id);
-    const newStatus = stg.status || ((stg.name || "").toLowerCase().includes("ganho") || (stg.name || "").toLowerCase().includes("fechado") ? "Fechado" : (stg.name || "").toLowerCase().includes("perdid") ? "Perdido" : "Em Aberto");
+    const newStatus = statusFromStageName(stg.name);
     updateLead(lead.id, { stageId: stg.id, status: newStatus });
 
     // Recalcular Score IA do Lead considerando a nova etapa e anotações

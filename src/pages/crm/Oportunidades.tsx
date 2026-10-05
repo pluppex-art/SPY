@@ -12,6 +12,7 @@ import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { NewLeadModal } from "../../components/ui/modals/crm/NewLeadModal";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
+import { isLeadOpen } from "../../lib/leadStatus";
 
 const PAGE_SIZE = 50;
 
@@ -88,7 +89,7 @@ export default function Oportunidades() {
         {[
           { icon: DollarSign, label: "Pipeline Total", val: formatCurrency(totalPipeline), color: "text-blue-500" },
           { icon: TrendingUp, label: "Ganhos / Fechados", val: formatCurrency(totalWon), color: "text-emerald-500" },
-          { icon: Clock, label: "Oportunidades Abertas", val: oportunidades.filter(o => o.status !== "Fechado" && o.status !== "Perdido").length, color: "text-amber-500" },
+          { icon: Clock, label: "Oportunidades Abertas", val: oportunidades.filter(o => isLeadOpen(o.status)).length, color: "text-amber-500" },
           { icon: CheckCircle2, label: "Taxa de Sucesso", val: oportunidades.length > 0 ? `${Math.round((closedWon.length / oportunidades.length) * 100)}%` : "0%", color: "text-indigo-500" },
         ].map((k, i) => (
           <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">

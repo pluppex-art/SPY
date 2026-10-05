@@ -20,6 +20,7 @@ import { PipelineFilterBar } from "./components/Pipeline/PipelineFilterBar";
 import { PipelineKanbanBoard } from "./components/Pipeline/PipelineKanbanBoard";
 import { PipelineDefaultState } from "./components/Pipeline/PipelineDefaultState";
 import { PipelineEmptySelection } from "./components/Pipeline/PipelineEmptySelection";
+import { isLeadOpen } from "../../lib/leadStatus";
 
 type ViewMode = "kanban" | "lista";
 
@@ -149,8 +150,8 @@ export default function Pipeline() {
   const noPipelineConfigured = comercialFunis.length === 0 && sdrFunis.length === 0;
 
   const kpis = useMemo(() => ({
-    // Em aberto: ganhos, perdidos e cancelados saem da contagem (continuam nas colunas finais e no Win Rate).
-    total: filteredItemsList.filter((l: any) => l.status !== "Fechado" && l.status !== "Perdido" && l.status !== "Cancelado").length,
+    // Em aberto: ganhos, perdidos, desqualificados e cancelados saem da contagem (continuam nas colunas finais e no Win Rate).
+    total: filteredItemsList.filter((l: any) => isLeadOpen(l.status) && l.status !== "Cancelado").length,
     hot: filteredItemsList.filter((l: any) => l.priority === "Alta").length,
     closed: filteredItemsList.filter((l: any) => l.status === "Fechado").length,
   }), [filteredItemsList]);

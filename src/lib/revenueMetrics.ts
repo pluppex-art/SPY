@@ -1,4 +1,5 @@
 import { parseCurrencyBR } from "./utils";
+import { isLeadLost } from "./leadStatus";
 
 /**
  * Fonte única de verdade pras métricas financeiras/comerciais usadas em todos
@@ -104,11 +105,12 @@ export function getChurnRate(contracts: ContractLike[], opts?: { months?: number
 }
 
 const isWon = (l: LeadLike) => l.status === "Fechado";
-const isOpen = (l: LeadLike) => l.status !== "Fechado" && l.status !== "Perdido";
-// "Ativo" = ainda não marcado como perdido (inclui Fechado — cliente convertido
-// continua contando como ativo). Diferente de isOpen: pipeline em aberto/hot
-// leads continuam sem contar Fechado, só essa contagem de leads muda.
-const isNotLost = (l: LeadLike) => l.status !== "Perdido";
+const isOpen = (l: LeadLike) => l.status !== "Fechado" && !isLeadLost(l.status);
+// "Ativo" = ainda não marcado como perdido/desqualificado (inclui Fechado —
+// cliente convertido continua contando como ativo). Diferente de isOpen:
+// pipeline em aberto/hot leads continuam sem contar Fechado, só essa
+// contagem de leads muda.
+const isNotLost = (l: LeadLike) => !isLeadLost(l.status);
 
 /** Valor real de um lead (para agrupamentos por vendedor/produto/etc.):
  * `value` gravado é a fonte de verdade (soma de todas as propostas aceitas,

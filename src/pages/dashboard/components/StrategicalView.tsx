@@ -10,6 +10,7 @@ import { useLocalization } from '../../../contexts/LocalizationContext';
 import { parseCurrencyBR, formatPercentage } from '../../../lib/utils';
 import { parseEntryDate } from '../../finance/lib/financeDates';
 import { getMRR, getLeadRealValue } from '../../../lib/revenueMetrics';
+import { isLeadOpen } from '../../../lib/leadStatus';
 import type { DashboardSummary } from '../useDashboard';
 import { RecentActivityFeed, type FeedActivity } from './StrategicalWidgets/RecentActivityFeed';
 import { SalesFunnelWidget, type FunnelStepData } from './StrategicalWidgets/SalesFunnelWidget';
@@ -46,7 +47,7 @@ export function StrategicalView({
 }: StrategicalViewProps) {
   const { leads, financeEntries, clienteBase, proposals, reunioes, tasks, products } = useData();
   const { formatCurrency } = useLocalization();
-  const leadsAbertos = leads.filter(l => l.status !== 'Fechado' && l.status !== 'Perdido');
+  const leadsAbertos = leads.filter(l => isLeadOpen(l.status));
   // Cada métrica abaixo prefere o valor cacheado de GET /api/dashboard/summary
   // (ver useDashboard.ts) quando disponível — mesma fórmula, só calculada no
   // servidor sobre a base inteira do tenant em vez do array já em memória.

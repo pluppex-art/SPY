@@ -8,6 +8,7 @@ import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import { diasDesde, computeVazamentos, type DashboardData } from "./revenueInsights";
+import { isLeadOpen } from "../../lib/leadStatus";
 
 const MOTIVO_PALETTE: Record<string, string> = {
   "Propostas sem follow-up": "#ef4444",
@@ -25,7 +26,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
   const navigate = useNavigate();
   const [aba, setAba] = useState<Aba>("propostas");
 
-  const leadsAbertos = useMemo(() => (leads as any[]).filter((l) => l.status !== "Fechado" && l.status !== "Perdido"), [leads]);
+  const leadsAbertos = useMemo(() => (leads as any[]).filter((l) => isLeadOpen(l.status)), [leads]);
   const contratosEmRisco = useMemo(() => (contracts as any[]).filter((c) => c.status === "Inadimplente"), [contracts]);
   const propostasSemFollowUp = useMemo(
     () => (proposals as any[] || []).filter((p) => p.status === "Enviada" && diasDesde(p.created_at) > 5),

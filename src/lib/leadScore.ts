@@ -92,9 +92,9 @@ export function calculateLeadScore(
   if (normStatus.includes("ganho") || normStatus.includes("fechado") || normStage.includes("ganho") || normStage.includes("fechado") || normStage.includes("venda realizada")) {
     stageScore = 96;
     reasons.push("Etapa de Fechamento / Venda Ganha (+96 pts base)");
-  } else if (normStatus.includes("perdido") || normStage.includes("perdido") || normStage.includes("desist")) {
+  } else if (normStatus.includes("perdido") || normStatus.includes("desqualific") || normStage.includes("perdido") || normStage.includes("desqualific") || normStage.includes("desist")) {
     stageScore = 12;
-    reasons.push("Etapa marcada como Perdido / Desistência (12 pts base)");
+    reasons.push("Etapa marcada como Perdido / Desqualificado / Desistência (12 pts base)");
   } else if (normStage.includes("negocia") || normStage.includes("proposta") || normStage.includes("contrato") || normStage.includes("fechamento")) {
     stageScore = 80;
     reasons.push("Etapa avançada de Proposta / Negociação (+80 pts base)");

@@ -17,6 +17,7 @@ import { useOS } from "../os/hooks/useOS";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
+import { isLeadOpen } from "../../lib/leadStatus";
 import {
   PALETA, CATEGORIAS_ORDEM, ACAO_LABEL, ACAO_ICON, resumoAcao,
   CONDICAO_CAMPOS, CONDICAO_OPERADORES_NUMERO, CONDICAO_OPERADORES_TEXTO,
@@ -193,7 +194,7 @@ export function AutomationFunilConnections() {
 
   // ─── KPIs (todos reais: dado já carregado no app, ou contado nas tabelas
   // novas da migration automation_connection_multistep) ───────────────────
-  const leadsNoFunil = useMemo(() => (leads as any[]).filter((l) => l.status !== "Fechado" && l.status !== "Perdido").length, [leads]);
+  const leadsNoFunil = useMemo(() => (leads as any[]).filter((l) => isLeadOpen(l.status)).length, [leads]);
   const osCriadasPorAutomacao = useMemo(
     () => (ordensOS as any[]).filter((o) => o.origemTipo === "lead_stage" || o.origemTipo === "proposal_categoria").length,
     [ordensOS]

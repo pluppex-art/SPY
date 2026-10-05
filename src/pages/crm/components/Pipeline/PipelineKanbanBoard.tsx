@@ -8,6 +8,7 @@ import { useLocalization } from "../../../../contexts/LocalizationContext";
 
 import { parseCurrencyBR } from "../../../../lib/utils";
 import { calculateLeadScore, normalizeText } from "../../../../lib/leadScore";
+import { statusFromStageName } from "../../../../lib/leadStatus";
 
 interface PipelineKanbanBoardProps {
   activePipelineStages: any[];
@@ -104,9 +105,8 @@ export function PipelineKanbanBoard({
     const leadId = e.dataTransfer.getData("text/plain") || draggedLeadId;
     if (leadId) {
       const targetLead = filteredItemsList.find((l: any) => l.id === leadId);
-      const isWon = stage.name?.toLowerCase().includes("ganho") || stage.name?.toLowerCase().includes("fechado");
-      const isLost = stage.name?.toLowerCase().includes("perdid");
-      const newStatus = isWon ? "Fechado" : isLost ? "Perdido" : "Em Aberto";
+      const newStatus = statusFromStageName(stage.name);
+      const isWon = newStatus === "Fechado";
 
       // Recalcular Score IA do Lead considerando a nova etapa e as notas existentes do cliente
       const scoreCalculation = calculateLeadScore(

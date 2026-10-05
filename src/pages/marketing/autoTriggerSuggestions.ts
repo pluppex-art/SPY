@@ -7,6 +7,7 @@
 // equivalente real mais próximo foi usado no lugar.
 
 import { parseCurrencyBR } from "../../lib/utils";
+import { isLeadOpen } from "../../lib/leadStatus";
 import type { MessageTrigger } from "../../hooks/useMessageTriggers";
 
 export interface GatilhoTemplate { id: string; label: string; texto: string }
@@ -40,7 +41,7 @@ export function buildJuliaSuggestions(params: {
   contracts: any[];
 }): JuliaSuggestion[] {
   const { leads, proposals, contracts } = params;
-  const leadsAbertos = (leads || []).filter((l: any) => l.status !== "Fechado" && l.status !== "Perdido");
+  const leadsAbertos = (leads || []).filter((l: any) => isLeadOpen(l.status));
   const out: JuliaSuggestion[] = [];
 
   const quentesSemRetorno = leadsAbertos.filter((l: any) => (l.scoreIA ?? 0) > 70 && (Number(l.timeIdle) || 0) > 3);

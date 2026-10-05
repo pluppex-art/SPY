@@ -12,6 +12,7 @@ import { supabase } from "../../lib/supabase";
 import { aoGanharNegocio } from "../../lib/implementationAutoStart";
 import { getStageId, buildStagesForFunil } from "../../lib/funilStages";
 import { WIN_FUNIL_CONFIG_KEY } from "../../lib/implementationStage";
+import { isLeadOpen } from "../../lib/leadStatus";
 
 export function usePipeline() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -231,7 +232,7 @@ export function usePipeline() {
   );
 
   const hotLeadsCount = filteredItemsList.filter((l: any) =>
-    (l.temperature === 'quente' || (l.scoreIA ?? 0) >= 80) && l.status !== 'Fechado' && l.status !== 'Perdido'
+    (l.temperature === 'quente' || (l.scoreIA ?? 0) >= 80) && isLeadOpen(l.status)
   ).length;
 
   // "Total de Ganhos" — soma só dos leads Fechados (mesmo filtro do card
