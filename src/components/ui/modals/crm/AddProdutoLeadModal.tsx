@@ -154,17 +154,23 @@ function StepShell({
 
 /**
  * Substitui o antigo "Mini PDV" embutido inline no Lead Detalhes — mesmos campos de lá
- * (recorrência/vigência, implantação, desconto, composição comercial, forma de pagamento,
- * parcelas, cadastro rápido de produto novo), só que dentro de um modal em vez de ocupar a
- * aba inteira. A aba Produtos (ProductsSection.tsx) agora só lista os produtos — quem quer
- * vender abre esse modal, que continua fechando a venda de verdade: cria a proposta com o
- * item, lança o(s) valor(es) a receber no financeiro, acumula no lead e marca como Fechado.
+ * (recorrência/vigência, desconto, composição comercial, forma de pagamento, parcelas,
+ * cadastro rápido de produto novo), só que dentro de um modal em vez de ocupar a aba
+ * inteira. A aba Produtos (ProductsSection.tsx) agora só lista os produtos — quem quer
+ * propor abre esse modal.
+ *
+ * Pedido explícito do usuário (2026-10-05): este modal só CRIA a proposta (status
+ * "Enviada") — não fecha negócio, não lança financeiro e não marca o lead como
+ * Fechado/Ganho sozinho. Isso só acontece quando a proposta é de fato aceita pelo
+ * cliente (botão "Aceitar" em Propostas → status "Aceita" → syncAcceptedProposal em
+ * DataContext.tsx, que cria o contrato + lançamento no financeiro). Forma de pagamento/
+ * parcelas/vencimento aqui ainda são só PRÉVIA do cronograma de cobrança (sale.paymentSchedule)
+ * — não persistem em lugar nenhum ainda; isso é um próximo passo (campos de Condições/
+ * Pagamento na própria proposta).
  *
  * Auditoria 2026-09-23 (bug real em produção): recorrência estava sendo tratada como
  * parcelamento — "R$997/mês por 12 meses" virava "1x à vista de R$11.964". Recorrência e
- * parcelamento agora são conceitos SEPARADOS (ver src/lib/saleCalculator.ts): recorrente
- * gera N lançamentos financeiros de R$997 cada (um por ciclo, ligados por
- * recurring_group_id), nunca 1 lançamento do total do contrato.
+ * parcelamento são conceitos SEPARADOS (ver src/lib/saleCalculator.ts).
  */
 export function AddProdutoLeadModal({
   isOpen,
@@ -180,7 +186,7 @@ export function AddProdutoLeadModal({
   existingItems = [],
   onDone,
 }: AddProdutoLeadModalProps) {
-  const { createProposalWithItems, replaceProposalItems, financeEntries, deleteFinanceEntry, addFinanceEntry, updateLead, addNotification, leads, resolveFinanceCategoryId } = useData();
+  const { createProposalWithItems, replaceProposalItems, financeEntries, updateLead, addNotification, leads } = useData();
   const { formatCurrency } = useLocalization();
 
   const [productId, setProductId] = useState("");
@@ -583,12 +589,6 @@ export function AddProdutoLeadModal({
         return;
       }
       const clientName = companyName || leadName || "Cliente";
-      // Vínculos reais que dá pra derivar sem inventar nada: category_id (o
-      // DRE lê o id, não só o texto livre `category`) e o contato (cliente já
-      // vinculado a este lead, se existir) — nunca um centro de custo/conta
-      // bancária adivinhados.
-      const vendasCategoryId = await resolveFinanceCategoryId("Vendas / Serviços", "Receita");
-      const contatoId = leadId ? (leads || []).find((l: any) => l.id === leadId)?.clientId || null : null;
 
       // Todos os produtos entram como itens de UMA proposta só (nunca uma proposta por
       // produto — era isso que fazia "adicionar produto" de novo apagar/esconder o
@@ -656,120 +656,36 @@ export function AddProdutoLeadModal({
         });
       }
 
-      const isInstantPayment = formaPagamento === "Dinheiro" || formaPagamento === "Pix" || formaPagamento === "Cartão de Débito";
-
-      // Um grupo de cobrança (recurring_group_id / installment_group_id) POR PRODUTO —
-      // nunca misturando ciclos de produtos diferentes no mesmo grupo.
-      let paidSkipped = 0;
-      for (const ci of allItems) {
-        if (ci.replaceItemIds) {
-          // Produto editado: refaz as cobranças dele só se ainda não há nenhuma paga — nunca
-          // apaga dinheiro já recebido.
-          if (!ci.replaceEntryIds || ci.replaceEntryIds.length === 0) continue;
-          if (ci.replacePaid) { paidSkipped++; continue; }
-          for (const eid of ci.replaceEntryIds) await deleteFinanceEntry(eid);
-        }
-        const groupId = crypto.randomUUID();
-        if (ci.isRecurring) {
-          // Recorrente: um lançamento POR CICLO, cada um com o valor do ciclo (nunca o
-          // total do contrato numa cobrança só) — ligados por recurring_group_id, mesma
-          // convenção já usada em NovaOperacaoModal.tsx/GenericFinanceiroList.tsx.
-          for (let i = 0; i < ci.sale.paymentSchedule.length; i++) {
-            const cycle = ci.sale.paymentSchedule[i];
-            const isFirst = i === 0;
-            await addFinanceEntry({
-              description: `Assinatura — ${clientName} | ${ci.product.name} | Ciclo ${cycle.cycleNumber}/${ci.sale.numberOfCycles}${isFirst && ci.sale.setupAmount > 0 ? " (inclui implantação)" : ""}`,
-              category: "Vendas / Serviços",
-              category_id: vendasCategoryId,
-              contato_id: contatoId,
-              value: cycle.amount,
-              type: "Receber",
-              status: isFirst && isInstantPayment ? "Pago" : "A Vencer",
-              date: cycle.dueDate.toISOString().slice(0, 10),
-              is_recurring: true,
-              recurring_frequency: ci.frequency,
-              recurring_group_id: groupId,
-              payment_method: formaPagamento,
-              notes: ci.isOpenEnded
-                ? "Recorrência contínua (sem prazo definido) — lote inicial de ciclos gerado agora; os próximos ciclos precisam ser gerados manualmente ou por uma automação futura."
-                : (detalhesPagamento || null),
-              proposal_id: proposalId,
-            }, { silent: !isFirst });
-          }
-        } else {
-          // Cobrança única (com ou sem parcelamento): divide o MESMO total em N parcelas —
-          // nunca multiplica o valor pelas parcelas. installment_group_id só quando há
-          // mais de 1 parcela de verdade.
-          for (let i = 0; i < ci.sale.paymentSchedule.length; i++) {
-            const cycle = ci.sale.paymentSchedule[i];
-            const isFirst = i === 0;
-            await addFinanceEntry({
-              description: `Venda — ${clientName} | ${ci.product.name}${ci.sale.numberOfCycles > 1 ? ` (parcela ${cycle.cycleNumber}/${ci.sale.numberOfCycles})` : ""}`,
-              category: "Vendas / Serviços",
-              category_id: vendasCategoryId,
-              contato_id: contatoId,
-              value: cycle.amount,
-              type: "Receber",
-              status: isFirst && isInstantPayment ? "Pago" : "A Vencer",
-              date: cycle.dueDate.toISOString().slice(0, 10),
-              ...(ci.sale.numberOfCycles > 1 ? { installment_group_id: groupId, installment_number: cycle.cycleNumber, installment_total: ci.sale.numberOfCycles } : {}),
-              payment_method: formaPagamento,
-              notes: detalhesPagamento || null,
-              proposal_id: proposalId,
-            }, { silent: !isFirst });
-          }
-        }
-      }
-
-      // `value` NÃO é setado aqui — createProposalWithItems (acima) já recalculou
-      // o valor do lead como soma de TODAS as propostas dele (única fonte de
-      // verdade, ver DataContext.tsx); sobrescrever de novo aqui reintroduziria a
-      // mesma inconsistência que motivou centralizar esse cálculo.
-      if (leadId) {
+      // Pedido explícito do usuário: criar/enviar uma proposta NUNCA mais fecha
+      // o negócio sozinha — antes, este mesmo clique já lançava o financeiro
+      // inteiro (linha por ciclo/parcela) E marcava o lead como "Fechado"
+      // (Ganho), mesmo a proposta só tendo sido ENVIADA, nunca aceita pelo
+      // cliente. O caminho certo pra isso já existe: marcar a proposta como
+      // "Aceita" (botão na tela de Propostas) dispara syncAcceptedProposal,
+      // que cria o contrato + lançamento no financeiro de verdade — sem
+      // depender deste modal nem duplicar essa lógica aqui. Editar itens de
+      // uma proposta já aceita (replaceItemIds) também não mexe mais no
+      // financeiro já lançado por aquele fluxo.
+      if (leadId && !existingProposal?.id) {
         const currentLead = (leads || []).find((l: any) => l.id === leadId);
         const newProductIds = allItems.map((ci) => ci.product.id);
         const accumulatedProductIds = [...new Set([...(currentLead?.productIds || []), ...newProductIds])];
-        const anyRecurring = allItems.some((ci) => ci.isRecurring);
-        await updateLead(leadId, {
-          productIds: accumulatedProductIds,
-          status: "Fechado",
-          scoreIA: 100,
-          temperature: "quente",
-          customFields: {
-            ...(existingProposal?.id ? (currentLead?.customFields || {}) : {}),
-            tags: ["Venda", formaPagamento, `${allItems.length} produto${allItems.length > 1 ? "s" : ""}`],
-            billingType: anyRecurring ? "recurring" : "one_time",
-            totalProjectedAmount: totalValor,
-            formaPagamento,
-            dataPagamento: firstDueDateInput,
-            detalhesPagamento,
-          },
-        });
+        await updateLead(leadId, { productIds: accumulatedProductIds });
       }
 
       const productNames = allItems.map((ci) => ci.product.name).join(", ");
-      const resumoMsg = allItems.length > 1
-        ? `${allItems.length} produtos — valor do negócio ${formatCurrency(totalValor)}`
-        : (allItems[0].isRecurring
-          ? (allItems[0].sale.isOpenEnded
-              ? `${formatCurrency(allItems[0].sale.cycleAmount)}/${FREQUENCY_LABELS[allItems[0].frequency].toLowerCase()} — 1ª cobrança ${formatCurrency(allItems[0].sale.firstChargeAmount)}, sem prazo (lote inicial de ${allItems[0].sale.numberOfCycles} ciclos)`
-              : `${formatCurrency(allItems[0].sale.cycleAmount)}/${FREQUENCY_LABELS[allItems[0].frequency].toLowerCase()} — 1ª cobrança ${formatCurrency(allItems[0].sale.firstChargeAmount)}, ${allItems[0].sale.numberOfCycles} ciclos, total previsto ${formatCurrency(allItems[0].sale.totalProjectedAmount)}`)
-          : `${formatCurrency(allItems[0].sale.firstChargeAmount)}${allItems[0].sale.numberOfCycles > 1 ? ` (1ª de ${allItems[0].sale.numberOfCycles}x)` : ""} via ${formaPagamento}`);
 
       addNotification({
-        title: `🎉 ${existingProposal?.id ? "Proposta Atualizada" : "Venda Concluída"}: ${clientName}`,
-        description: `${productNames} — ${resumoMsg}`,
+        title: `📄 ${existingProposal?.id ? "Proposta Atualizada" : "Proposta Criada"}: ${clientName}`,
+        description: `${productNames} — valor total ${formatCurrency(totalValor)}`,
         type: "success",
         link_url: "/app/crm/propostas",
       });
 
-      if (paidSkipped > 0) {
-        toast.warning(`${paidSkipped} produto${paidSkipped > 1 ? "s" : ""} editado${paidSkipped > 1 ? "s" : ""} já ${paidSkipped > 1 ? "têm" : "tem"} cobrança paga — o financeiro dele${paidSkipped > 1 ? "s" : ""} não foi alterado.`);
-      }
-      toast.success("⚡ Venda concluída e automatizada!", {
-        description: `${existingProposal?.id ? "Proposta atualizada com" : "Proposta criada com"} ${allItems.length} item${allItems.length > 1 ? "s" : ""}, financeiro lançado e lead atualizado.`,
+      toast.success(existingProposal?.id ? "Proposta atualizada!" : "Proposta criada!", {
+        description: `${allItems.length} item${allItems.length > 1 ? "s" : ""} — aceite pelo cliente pra gerar contrato e financeiro.`,
       });
-      onDone?.(`⚡ ${productNames} — ${resumoMsg}: ${existingProposal?.id ? "adicionado à proposta existente" : "proposta gerada"}, financeiro lançado e lead atualizado.`);
+      onDone?.(`📄 ${productNames} — ${existingProposal?.id ? "proposta atualizada" : "proposta criada"} (${formatCurrency(totalValor)}).`);
       onClose();
     } catch (err: any) {
       toast.error("Erro ao processar a venda: " + err?.message);
@@ -1315,7 +1231,7 @@ export function AddProdutoLeadModal({
               className="h-9 px-5 text-xs font-bold gap-1.5"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-              {saving ? "Processando..." : (existingProposal?.id ? "Salvar na Proposta" : "Concluir Venda & Automatizar Tudo")}
+              {saving ? "Processando..." : (existingProposal?.id ? "Salvar na Proposta" : "Criar Proposta")}
             </Button>
           </div>
         </div>
