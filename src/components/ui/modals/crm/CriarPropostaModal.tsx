@@ -383,7 +383,7 @@ export function CriarPropostaModal({
                                     <input
                                         type="number"
                                         value={item.quantidade}
-                                        onChange={(e) => handleItemChange(index, "quantidade", parseInt(e.target.value))}
+                                        onChange={(e) => handleItemChange(index, "quantidade", parseInt(e.target.value) || 0)}
                                         min="1"
                                         className={`${inputBaseClass} text-xs text-center`}
                                     />
@@ -392,7 +392,7 @@ export function CriarPropostaModal({
                                     <input
                                         type="number"
                                         value={item.precoUnitario}
-                                        onChange={(e) => handleItemChange(index, "precoUnitario", parseFloat(e.target.value))}
+                                        onChange={(e) => handleItemChange(index, "precoUnitario", parseFloat(e.target.value) || 0)}
                                         step="0.01"
                                         placeholder="0.00"
                                         className={`${inputBaseClass} text-xs`}
