@@ -256,9 +256,6 @@ export function usePipeline() {
   const formattedTotalValue = formatCurrency(totalValueSum);
 
   const totalLeadsCount = filteredItemsList.length;
-  const lastStageId = activePipelineStages.length > 0
-    ? activePipelineStages[activePipelineStages.length - 1].id
-    : null;
 
   const firstComercialStageId = useMemo(() => {
     const f = comercialFunis[0];
@@ -271,8 +268,11 @@ export function usePipeline() {
     if (!f) return "sdr-1";
     return getStageId(f.id, 0);
   }, [sdrFunis]);
-  const closedWonCount  = filteredItemsList.filter(
-    (l: any) => (lastStageId && l.stageId === lastStageId) || l.status === "Fechado"
+  // Ganho é definido só pelo status real ("Fechado"), nunca pela posição da
+  // etapa no funil — a última coluna pode ser qualquer coisa (ex.: "Perdido"),
+  // dependendo de como o usuário organizou o Kanban.
+  const closedWonCount = filteredItemsList.filter(
+    (l: any) => l.status === "Fechado"
   ).length;
   const winRate = totalLeadsCount > 0 ? Math.round((closedWonCount / totalLeadsCount) * 100) : 0;
 
