@@ -1,15 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { createPortal } from "react-dom";
 import {
   Search, Command, LayoutDashboard, Users,
   FileText, Zap, Settings, Briefcase,
   GraduationCap, UserSquare2, FileSignature, Package,
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { useLocalization } from "../contexts/LocalizationContext";
 import { useData } from "../contexts/DataContext";
 import { normalizeText } from "../lib/utils";
+import { Modal } from "./ui/modal";
 
 const NAV_ACTIONS = [
   { name: "Dashboard Principal", icon: LayoutDashboard, path: "/app/dashboard", category: "Navegação" },
@@ -132,39 +131,29 @@ export function CommandPalette() {
         </kbd>
       </button>
 
-      <AnimatePresence>
-        {isOpen && createPortal(
-          <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] px-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      {/* Reaproveita o <Modal> compartilhado (já usado em dezenas de telas,
+          incluindo LeadDetailsModal, sem nenhum relato de "não consigo
+          digitar") em vez do createPortal + Framer Motion manual que esse
+          componente tinha antes — menos lugar pra um bug sutil de foco/
+          portal se esconder. */}
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} maxWidth="max-w-3xl" noPadding>
+        <>
+          <div className="flex items-center gap-3 px-5 py-5 border-b border-[var(--color-border-subtle)] shrink-0">
+            <Search className="w-5 h-5 text-[var(--color-text-faint)] shrink-0" />
+            <input
+              ref={inputRef}
+              autoFocus
+              placeholder={t("Busque por nome de cliente, lead, proposta, contrato...")}
+              className="bg-transparent border-none text-[var(--color-text-primary)] outline-none flex-1 font-medium text-xl placeholder:text-[var(--color-text-faint)]"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
+            <div className="text-[10px] font-black text-[var(--color-text-faint)] uppercase tracking-widest bg-[var(--color-surface-sunken)] px-2 py-1 rounded-md border border-[var(--color-border-subtle)]">
+              S.P.Y. Command Center
+            </div>
+          </div>
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -20 }}
-              className="relative w-full max-w-3xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl overflow-hidden"
-            >
-              <div className="flex items-center gap-3 px-5 py-5 border-b border-[var(--color-border-subtle)]">
-                <Search className="w-5 h-5 text-[var(--color-text-faint)] shrink-0" />
-                <input
-                  ref={inputRef}
-                  autoFocus
-                  placeholder={t("Busque por nome de cliente, lead, proposta, contrato...")}
-                  className="bg-transparent border-none text-[var(--color-text-primary)] outline-none flex-1 font-medium text-xl placeholder:text-[var(--color-text-faint)]"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                <div className="text-[10px] font-black text-[var(--color-text-faint)] uppercase tracking-widest bg-[var(--color-surface-sunken)] px-2 py-1 rounded-md border border-[var(--color-border-subtle)]">
-                  S.P.Y. Command Center
-                </div>
-              </div>
-
-              <div className="max-h-[400px] overflow-y-auto p-2 scrollbar-none">
+              <div className="flex-1 min-h-0 overflow-y-auto p-2 scrollbar-none">
                 {totalResults > 0 ? (
                   <div className="space-y-4">
                     {leadResults.length > 0 && (
@@ -252,21 +241,18 @@ export function CommandPalette() {
                 )}
               </div>
 
-              <div className="p-4 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/50 flex items-center justify-between">
-                <div className="flex gap-4">
-                  <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider">
-                    <span className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] px-1 rounded text-[var(--color-text-primary)]">ESC</span> {t("Fechar")}
-                  </div>
-                </div>
-                <div className="text-[10px] text-[var(--color-text-faint)] font-bold italic">
-                  v2.5.0-stable
-                </div>
+          <div className="p-4 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/50 flex items-center justify-between shrink-0">
+            <div className="flex gap-4">
+              <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider">
+                <span className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] px-1 rounded text-[var(--color-text-primary)]">ESC</span> {t("Fechar")}
               </div>
-            </motion.div>
-          </div>,
-          document.body
-        )}
-      </AnimatePresence>
+            </div>
+            <div className="text-[10px] text-[var(--color-text-faint)] font-bold italic">
+              v2.5.0-stable
+            </div>
+          </div>
+        </>
+      </Modal>
     </>
   );
 }
