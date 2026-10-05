@@ -20,11 +20,16 @@ interface ComposicaoItem {
   nome: string;
   tipo: "Software" | "Serviço" | "Módulo" | "Personalizado";
   isRecurring: boolean;
-  quantidade: number;
-  valorUnitario: number;
+  // Guardados como texto BRUTO (não um número já clampado a cada tecla) —
+  // pedido explícito do usuário: precisa dar pra apagar o campo inteiro e
+  // digitar o valor novo, sem o campo "voltar" sozinho pra 0/1 no meio do
+  // caminho. Convertidos com Number(...)||0 só na hora de somar/salvar
+  // (ver itemLineTotal/buildPayload).
+  quantidade: string;
+  valorUnitario: string;
   /** Desconto em R$ nesta linha (subtraído do total do item) — além do
    * desconto geral da proposta, pedido explícito do usuário. */
-  descontoItem: number;
+  descontoItem: string;
 }
 
 /** Cliente/empresa escolhido na etapa Contexto — pode vir da Base de Clientes
@@ -128,7 +133,7 @@ export function NovaPropostaWizard({
   const [entradaValorInput, setEntradaValorInput] = useState("0");
   const [dataVencimentoEntrada, setDataVencimentoEntrada] = useState(() => new Date().toISOString().slice(0, 10));
   const [diaFixoVencimento, setDiaFixoVencimento] = useState(true);
-  const [diaDoMes, setDiaDoMes] = useState(new Date().getDate());
+  const [diaDoMes, setDiaDoMes] = useState(String(new Date().getDate()));
   const [primeiroVencimentoParcela, setPrimeiroVencimentoParcela] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 10);
   });
@@ -161,7 +166,6 @@ export function NovaPropostaWizard({
     setObjetivo("");
     setTags([]);
     setEquipeInterna(seller ? [{ id: "seller", nome: seller }] : []);
-    setSelectedCategoria(null);
 
     const seedItems: ComposicaoItem[] = (initialProductIds || [])
       .map((pid) => availableProducts.find((p: any) => p.id === pid))
@@ -172,9 +176,9 @@ export function NovaPropostaWizard({
         nome: p.name,
         tipo: (p.category === "Software" || p.is_recurring) ? "Software" : "Serviço",
         isRecurring: !!(p.is_recurring || p.recurring_period || p.category === "Software"),
-        quantidade: 1,
-        valorUnitario: Number(p.price) || 0,
-        descontoItem: 0,
+        quantidade: "1",
+        valorUnitario: String(Number(p.price) || 0),
+        descontoItem: "0",
       }));
     setItems(seedItems);
     setDescontoTipo("valor");
@@ -195,7 +199,7 @@ export function NovaPropostaWizard({
     setEntradaPercentInput("26.8");
     setDataVencimentoEntrada(new Date().toISOString().slice(0, 10));
     setDiaFixoVencimento(true);
-    setDiaDoMes(new Date().getDate());
+    setDiaDoMes(String(new Date().getDate()));
     const d = new Date(); d.setMonth(d.getMonth() + 1);
     setPrimeiroVencimentoParcela(d.toISOString().slice(0, 10));
     setObservacoesPagamento("");
@@ -229,7 +233,8 @@ export function NovaPropostaWizard({
 
   // Desconto por item (pedido explícito do usuário, além do desconto geral
   // da proposta abaixo) já sai subtraído aqui — nunca deixa a linha negativa.
-  const itemLineTotal = (i: ComposicaoItem) => Math.max(0, i.quantidade * i.valorUnitario - (i.descontoItem || 0));
+  const itemQty = (i: ComposicaoItem) => Math.max(0, Number(i.quantidade) || 0);
+  const itemLineTotal = (i: ComposicaoItem) => Math.max(0, itemQty(i) * (Number(i.valorUnitario) || 0) - (Number(i.descontoItem) || 0));
   const recurringTotal = items.filter((i) => i.isRecurring).reduce((s, i) => s + itemLineTotal(i), 0);
   const oneTimeTotal = items.filter((i) => !i.isRecurring).reduce((s, i) => s + itemLineTotal(i), 0);
   const subtotal = recurringTotal + oneTimeTotal;
@@ -270,7 +275,7 @@ export function NovaPropostaWizard({
   const addItem = () => {
     setItems((prev) => [...prev, {
       key: crypto.randomUUID(), productId: null, nome: "", tipo: "Personalizado",
-      isRecurring: false, quantidade: 1, valorUnitario: 0, descontoItem: 0,
+      isRecurring: false, quantidade: "1", valorUnitario: "0", descontoItem: "0",
     }]);
   };
   const updateItem = (key: string, patch: Partial<ComposicaoItem>) => {
@@ -289,7 +294,7 @@ export function NovaPropostaWizard({
       nome: p.name,
       tipo: (p.is_recurring || p.category === "Software") ? "Software" : "Serviço",
       isRecurring: !!(p.is_recurring || p.recurring_period || p.category === "Software"),
-      valorUnitario: Number(p.price) || 0,
+      valorUnitario: String(Number(p.price) || 0),
     });
   };
 
@@ -318,15 +323,18 @@ export function NovaPropostaWizard({
       // recalcula tudo a partir de preco_unitario × quantidade, nunca de
       // `proposals.valor`. Sem embutir aqui, o desconto do item se perderia
       // na hora de aceitar a proposta.
-      itens: items.map((i) => ({
-        productId: i.productId,
-        descricao: i.nome,
-        quantidade: i.quantidade,
-        precoUnitario: i.quantidade > 0 ? itemLineTotal(i) / i.quantidade : i.valorUnitario,
-        billingType: i.isRecurring ? ("recurring" as const) : ("one_time" as const),
-        contractMonths: i.isRecurring ? prazoContratoMeses : null,
-        frequency: i.isRecurring ? "mensal" : null,
-      })),
+      itens: items.map((i) => {
+        const qty = itemQty(i) || 1;
+        return {
+          productId: i.productId,
+          descricao: i.nome,
+          quantidade: qty,
+          precoUnitario: itemLineTotal(i) / qty,
+          billingType: i.isRecurring ? ("recurring" as const) : ("one_time" as const),
+          contractMonths: i.isRecurring ? prazoContratoMeses : null,
+          frequency: i.isRecurring ? "mensal" : null,
+        };
+      }),
       probabilidade,
       previsaoFechamento,
       objetivo: objetivo || null,
@@ -636,7 +644,7 @@ function StepContexto(props: any) {
               <input value={tituloProposta} onChange={(e) => setTituloProposta(e.target.value)} className={inputCls} placeholder="Ex.: Implementação S.P.Y. CRM + Aurora" />
             </Field>
             <Field label="Valor estimado">
-              <input type="number" min={0} value={valorEstimado} onChange={(e) => setValorEstimado(e.target.value)} className={inputCls} />
+              <input inputMode="decimal" value={valorEstimado} onChange={(e) => setValorEstimado(e.target.value)} className={inputCls} />
             </Field>
             <Field label="Probabilidade">
               <select value={probabilidade} onChange={(e) => setProbabilidade(Number(e.target.value))} className={inputCls}>
@@ -776,16 +784,16 @@ function StepComposicao(props: any) {
                       </select>
                     </td>
                     <td className="px-1 py-2 w-16">
-                      <input type="number" min={1} value={item.quantidade} onChange={(e) => updateItem(item.key, { quantidade: Math.max(1, parseInt(e.target.value) || 1) })} className="w-full text-center bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-md px-1 py-1 text-xs" />
+                      <input inputMode="numeric" value={item.quantidade} onChange={(e) => updateItem(item.key, { quantidade: e.target.value })} className="w-full text-center bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-md px-1 py-1 text-xs" />
                     </td>
                     <td className="px-1 py-2 w-28">
-                      <input type="number" min={0} value={item.valorUnitario} onChange={(e) => updateItem(item.key, { valorUnitario: Math.max(0, parseFloat(e.target.value) || 0) })} className="w-full text-right bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-md px-1.5 py-1 text-xs font-mono" />
+                      <input inputMode="decimal" value={item.valorUnitario} onChange={(e) => updateItem(item.key, { valorUnitario: e.target.value })} className="w-full text-right bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-md px-1.5 py-1 text-xs font-mono" />
                     </td>
                     <td className="px-1 py-2 w-24">
                       <input
-                        type="number" min={0} max={item.quantidade * item.valorUnitario}
-                        value={item.descontoItem || 0}
-                        onChange={(e) => updateItem(item.key, { descontoItem: Math.max(0, parseFloat(e.target.value) || 0) })}
+                        inputMode="decimal"
+                        value={item.descontoItem}
+                        onChange={(e) => updateItem(item.key, { descontoItem: e.target.value })}
                         className="w-full text-right bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-md px-1.5 py-1 text-xs font-mono text-success"
                         title="Desconto em R$ só nesta linha"
                       />
@@ -816,7 +824,7 @@ function StepComposicao(props: any) {
                 <option value="valor">Valor (R$)</option>
                 <option value="percentual">Percentual (%)</option>
               </select>
-              <input type="number" min={0} value={descontoValor} onChange={(e) => setDescontoValor(e.target.value)} className={inputCls} />
+              <input inputMode="decimal" value={descontoValor} onChange={(e) => setDescontoValor(e.target.value)} className={inputCls} />
             </div>
           </SectionCard>
           <SectionCard icon={FileText} title="Observações" desc="Condições especiais, escopo, etc. (opcional).">
@@ -972,7 +980,7 @@ function StepPagamento(props: any) {
                   <Field label="Entrada (valor inicial)">
                     <div className="flex items-center gap-2">
                       <input
-                        type="number" min={0} disabled={entradaAuto}
+                        inputMode="decimal" disabled={entradaAuto}
                         value={entradaAuto ? entradaValor.toFixed(2) : entradaValorInput}
                         onChange={(e) => setEntradaValorInput(e.target.value)}
                         className={cn(inputCls, "disabled:opacity-60")}
@@ -1003,7 +1011,7 @@ function StepPagamento(props: any) {
                 </Field>
                 <Field label="Dia do mês">
                   <div className="flex items-center gap-2">
-                    <input type="number" min={1} max={31} value={diaDoMes} disabled={!diaFixoVencimento} onChange={(e) => setDiaDoMes(Math.min(31, Math.max(1, parseInt(e.target.value) || 1)))} className={cn(inputCls, "disabled:opacity-60")} />
+                    <input inputMode="numeric" value={diaDoMes} disabled={!diaFixoVencimento} onChange={(e) => setDiaDoMes(e.target.value)} className={cn(inputCls, "disabled:opacity-60")} />
                     <label className="flex items-center gap-1.5 text-[9px] font-bold text-[var(--color-text-muted)] shrink-0 whitespace-nowrap">
                       <Toggle checked={diaFixoVencimento} onChange={setDiaFixoVencimento} /> Dia fixo
                     </label>
@@ -1021,7 +1029,7 @@ function StepPagamento(props: any) {
                 <option value="valor">Valor fixo (R$)</option>
                 <option value="percentual">Percentual (%)</option>
               </select>
-              <input type="number" min={0} value={descontoValor} onChange={(e) => setDescontoValor(e.target.value)} className={inputCls} />
+              <input inputMode="decimal" value={descontoValor} onChange={(e) => setDescontoValor(e.target.value)} className={inputCls} />
             </div>
           </SectionCard>
           <SectionCard icon={FileText} title="Observações de pagamento" desc="Opcional.">
@@ -1078,7 +1086,7 @@ function StepRevisao(props: any) {
             {items.map((item: ComposicaoItem) => (
               <div key={item.key} className="flex items-center justify-between py-1.5 text-xs">
                 <span className="font-semibold text-[var(--color-text-primary)]">{item.nome} <span className="text-[var(--color-text-faint)] font-normal">× {item.quantidade}</span></span>
-                <span className="font-mono font-bold">{formatCurrency(Math.max(0, item.quantidade * item.valorUnitario - (item.descontoItem || 0)))}{item.isRecurring && "/mês"}</span>
+                <span className="font-mono font-bold">{formatCurrency(Math.max(0, (Number(item.quantidade) || 0) * (Number(item.valorUnitario) || 0) - (Number(item.descontoItem) || 0)))}{item.isRecurring && "/mês"}</span>
               </div>
             ))}
           </div>
