@@ -102,7 +102,7 @@ export default function Atividades() {
         </Button>
       }
     >
-      <KpiFilterCard
+      <KpiFilterCard className="mb-4"
         id="crmAtividades"
         activeCount={activeCount}
         onClear={clearFilters}

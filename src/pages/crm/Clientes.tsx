@@ -241,7 +241,7 @@ export default function Clientes() {
     >
       {/* Card "KPIs & Filtros" compartilhado. Os KPIs de Clientes mantêm drill-down e sparkline
           (ClientesKPIs), agora dentro do card e calculados sobre a lista filtrada. */}
-      <KpiFilterCard id="crmClientes" activeCount={activeCount} onClear={clearFilters}>
+      <KpiFilterCard className="mb-4" id="crmClientes" activeCount={activeCount} onClear={clearFilters}>
         <ClientesKPIs {...kpis} clientes={clientesFiltrados} />
         <FilterBar>
           <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por cliente, documento, responsável, e-mail ou telefone..." />

@@ -177,7 +177,7 @@ export default function FinanceiroCentrosCusto() {
         </div>
       }
     >
-      <KpiFilterCard
+      <KpiFilterCard className="mb-4"
         id="finCentrosCusto"
         kpis={[
           { label: "Orçamento Total", value: `R$ ${totalOrcado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "primary" },

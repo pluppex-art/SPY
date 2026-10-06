@@ -241,7 +241,7 @@ export default function Radar() {
 
   return (
     <PageContainer breadcrumb={[{ label: "Radar" }]} title="Radar" subtitle="Negócios em aberto que esfriaram — retome antes de perder.">
-      <KpiFilterCard id="crmRadar" activeCount={activeCount} onClear={limparFiltros}>
+      <KpiFilterCard className="mb-4" id="crmRadar" activeCount={activeCount} onClear={limparFiltros}>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {(["critico", "alto", "atencao"] as Risk[]).map((k) => (
           <Card key={k} onClick={() => toggleRiskFiltro(k)} className={`p-4 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${riskFiltro === k ? "ring-2 ring-[var(--color-primary-blue)]" : ""}`}>

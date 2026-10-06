@@ -198,7 +198,7 @@ export default function Captacoes() {
         </div>
       }
     >
-      <KpiFilterCard
+      <KpiFilterCard className="mb-4"
         id="imobCaptacoes"
         kpis={[
           { label: "Captações", value: filtered.length, icon: ClipboardList, tone: "primary" },

@@ -67,7 +67,7 @@ export default function FollowUps() {
       title="Central de Follow-ups"
       description="Identifique oportunidades paradas, agende retomadas e garanta que nenhum lead fique sem resposta."
     >
-      <KpiFilterCard
+      <KpiFilterCard className="mb-4"
         id="crmFollowUps"
         activeCount={activeCount}
         onClear={clearFilters}

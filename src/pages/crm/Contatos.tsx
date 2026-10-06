@@ -195,7 +195,7 @@ export default function Contatos() {
         </Button>
       }
     >
-      <KpiFilterCard
+      <KpiFilterCard className="mb-4"
         id="crmContatos"
         activeCount={activeCount}
         onClear={clearFilters}

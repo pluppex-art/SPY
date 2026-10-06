@@ -94,7 +94,7 @@ export default function Oportunidades() {
         </div>
       }
     >
-      <KpiFilterCard
+      <KpiFilterCard className="mb-4"
         id="crmOportunidades"
         activeCount={activeCount}
         onClear={clearFilters}

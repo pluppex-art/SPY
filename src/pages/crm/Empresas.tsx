@@ -135,7 +135,7 @@ export default function Empresas() {
         </Button>
       }
     >
-      <KpiFilterCard
+      <KpiFilterCard className="mb-4"
         id="crmEmpresas"
         activeCount={activeCount}
         onClear={clearFilters}
