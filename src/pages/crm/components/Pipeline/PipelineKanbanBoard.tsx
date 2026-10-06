@@ -9,6 +9,7 @@ import { useLocalization } from "../../../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../../../lib/utils";
 import { calculateLeadScore, normalizeText } from "../../../../lib/leadScore";
 import { statusFromStageName } from "../../../../lib/leadStatus";
+import { useFillViewportHeight } from "../../../../hooks/useFillViewportHeight";
 
 interface PipelineKanbanBoardProps {
   activePipelineStages: any[];
@@ -179,8 +180,10 @@ export function PipelineKanbanBoard({
       return kb > ka ? 1 : kb < ka ? -1 : 0;
     });
 
+  const { ref: fillRef, height: fillHeight } = useFillViewportHeight<HTMLDivElement>(320);
+
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4 h-[calc(100vh-250px)] min-h-[500px] scrollbar-none select-none items-stretch">
+    <div ref={fillRef} style={{ height: fillHeight }} className="flex gap-3 overflow-x-auto pb-4 min-h-[320px] scrollbar-none select-none items-stretch">
       {activePipelineStages.map((stage, stageIdx) => {
         const isMinimized = minimizedColumns.has(stage.id);
         const rawStageLeads = filteredItemsList.filter((l: any) => matchesStage(l, stage));

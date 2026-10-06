@@ -3,6 +3,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard } from "../../components/ui/kpi-filter-card";
 import { PipelineKpiCards, type PipelineKpi } from "./components/Pipeline/PipelineKpiCards";
 import { parseCurrencyBR } from "../../lib/utils";
+import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
 import { Users, Flame, CheckCircle2, Target, BarChart3 } from "lucide-react";
 
 import { PipelineTopActions } from "./components/Pipeline/PipelineTopActions";
@@ -151,6 +152,8 @@ export default function Pipeline() {
     setIsModalOpen(true);
   };
 
+  const { ref: listaRef, height: listaHeight } = useFillViewportHeight<HTMLDivElement>(320);
+
   const noPipelineConfigured = comercialFunis.length === 0 && sdrFunis.length === 0;
 
   const kpis = useMemo(() => ({
@@ -276,6 +279,7 @@ export default function Pipeline() {
         )}
 
         {view === "lista" && (
+          <div ref={listaRef} style={{ height: listaHeight }} className="overflow-y-auto space-y-4 pr-1">
           <PipelineListaView
             listaLeads={listaLeads}
             temperatureFilter={temperatureFilter} setTemperatureFilter={setTemperatureFilter}
@@ -283,6 +287,7 @@ export default function Pipeline() {
             setSelectedLead={setSelectedLead} updateLead={updateLead}
             sellers={sellers}
           />
+          </div>
         )}
       </div>
 
