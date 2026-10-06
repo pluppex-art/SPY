@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Repeat2, Users, TrendingDown, Percent, Layers } from "lucide-react";
@@ -6,6 +6,8 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { StatCell, StatCellRow } from "./components/StatCell";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { contractDrillColumns } from "../../components/ui/drillColumns";
 import {
   getMRR,
   getLostMRR,
@@ -36,6 +38,9 @@ export default function FinanceiroMRR() {
   }, [contracts]);
 
   const projection = useMemo(() => getRevenueProjection(contracts), [contracts]);
+  const canceladosRows = useMemo(() => (contracts as any[]).filter((c) => c.status === "Cancelado"), [contracts]);
+  const [drillCanceladosOpen, setDrillCanceladosOpen] = useState(false);
+  const canceladoColumns = contractDrillColumns(formatCurrency, "mrr");
 
   return (
     <PageContainer
@@ -52,7 +57,7 @@ export default function FinanceiroMRR() {
         </StatCellRow>
         <StatCellRow>
           <StatCell label="Contratos Ativos" value={contratosAtivos} icon={Layers} />
-          <StatCell label="MRR Perdido (Cancelados)" value={formatCurrency(lostMrr)} icon={TrendingDown} tone={lostMrr > 0 ? "danger" : "neutral"} />
+          <StatCell label="MRR Perdido (Cancelados)" value={formatCurrency(lostMrr)} icon={TrendingDown} tone={lostMrr > 0 ? "danger" : "neutral"} onClick={() => setDrillCanceladosOpen(true)} />
           <StatCell label="Taxa de Churn (Geral)" value={`${churnRate.toFixed(1)}%`} icon={TrendingDown} tone={churnRate > 0 ? "warning" : "neutral"} />
           <StatCell label="Receita Recorrente / Cliente" value={formatCurrency(ticketMedio)} icon={Percent} />
         </StatCellRow>
@@ -134,6 +139,15 @@ export default function FinanceiroMRR() {
           </div>
         </Card>
       </div>
+
+      <DrillDownPanel
+        isOpen={drillCanceladosOpen}
+        onClose={() => setDrillCanceladosOpen(false)}
+        title="MRR Perdido (Cancelados)"
+        subtitle={`${canceladosRows.length} contrato${canceladosRows.length === 1 ? "" : "s"} cancelado${canceladosRows.length === 1 ? "" : "s"}`}
+        rows={canceladosRows}
+        columns={canceladoColumns}
+      />
     </PageContainer>
   );
 }

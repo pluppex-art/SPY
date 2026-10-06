@@ -10,6 +10,8 @@ import { parseEntryDate } from "./lib/financeDates";
 import { StatCell, StatCellRow } from "./components/StatCell";
 import { getRevenueProjection } from "../../lib/revenueMetrics";
 import { cn } from "../../lib/utils";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 const HORIZONTES = [7, 15, 30, 60, 90] as const;
 
@@ -29,9 +31,11 @@ export default function FinanceiroProjecao() {
       .filter(f => f.dueDate && f.dueDate >= now && f.dueDate <= fim);
   }, [financeEntries, horizonte]);
 
-  const { totalReceber, totalPagar, saldoProjetado, grupos } = useMemo(() => {
-    const totalReceber = previstos.filter(f => f.type === "Receber").reduce((s, f) => s + f.value, 0);
-    const totalPagar = previstos.filter(f => f.type === "Pagar").reduce((s, f) => s + f.value, 0);
+  const { totalReceber, totalPagar, saldoProjetado, grupos, receberRows, pagarRows } = useMemo(() => {
+    const receberRows = previstos.filter(f => f.type === "Receber");
+    const pagarRows = previstos.filter(f => f.type === "Pagar");
+    const totalReceber = receberRows.reduce((s, f) => s + f.value, 0);
+    const totalPagar = pagarRows.reduce((s, f) => s + f.value, 0);
 
     // Horizontes até 30 dias mostram dia a dia; acima disso, agrupado por
     // semana — uma tabela com 90 linhas diárias deixaria de ser legível.
@@ -62,8 +66,11 @@ export default function FinanceiroProjecao() {
       return { ...g, saldoDia: g.receber - g.pagar, acumulado };
     });
 
-    return { totalReceber, totalPagar, saldoProjetado: totalReceber - totalPagar, grupos };
+    return { totalReceber, totalPagar, saldoProjetado: totalReceber - totalPagar, grupos, receberRows, pagarRows };
   }, [previstos, horizonte]);
+
+  const [drillKey, setDrillKey] = useState<"receber" | "pagar" | null>(null);
+  const entryColumns = financeEntryDrillColumns(formatCurrency);
 
   const mrrProjection = useMemo(() => getRevenueProjection(contracts), [contracts]);
 
@@ -90,8 +97,8 @@ export default function FinanceiroProjecao() {
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <StatCellRow>
-          <StatCell label={`Recebimentos Previstos (${horizonte}d)`} value={formatCurrency(totalReceber)} icon={ArrowUpRight} tone="success" />
-          <StatCell label={`Pagamentos Previstos (${horizonte}d)`} value={formatCurrency(totalPagar)} icon={ArrowDownRight} tone="danger" />
+          <StatCell label={`Recebimentos Previstos (${horizonte}d)`} value={formatCurrency(totalReceber)} icon={ArrowUpRight} tone="success" onClick={() => setDrillKey("receber")} />
+          <StatCell label={`Pagamentos Previstos (${horizonte}d)`} value={formatCurrency(totalPagar)} icon={ArrowDownRight} tone="danger" onClick={() => setDrillKey("pagar")} />
           <StatCell label="Saldo Projetado do Período" value={formatCurrency(saldoProjetado)} icon={Scale} tone={saldoProjetado < 0 ? "danger" : "neutral"} />
         </StatCellRow>
 
@@ -176,6 +183,14 @@ export default function FinanceiroProjecao() {
           )}
         </Card>
       </div>
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey === "receber" ? `Recebimentos Previstos (${horizonte}d)` : drillKey === "pagar" ? `Pagamentos Previstos (${horizonte}d)` : undefined}
+        rows={drillKey === "receber" ? receberRows : drillKey === "pagar" ? pagarRows : []}
+        columns={entryColumns}
+      />
     </PageContainer>
   );
 }

@@ -12,6 +12,8 @@ import { StatCell, StatCellRow } from "./components/StatCell";
 import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { cn } from "../../lib/utils";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { transferDrillColumns } from "../../components/ui/drillColumns";
 
 function toLocalISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -90,12 +92,14 @@ export default function FinanceiroTransferencias() {
     const inicioStr = toLocalISODate(dataInicio);
     const fimStr = toLocalISODate(dataFim);
     const transfers = financeTransfers as any[];
-    const totalPeriodo = transfers
-      .filter(t => t.pago && t.data_pagamento >= inicioStr && t.data_pagamento <= fimStr)
-      .reduce((s, t) => s + t.valor, 0);
+    const periodoRows = transfers.filter(t => t.pago && t.data_pagamento >= inicioStr && t.data_pagamento <= fimStr);
+    const totalPeriodo = periodoRows.reduce((s, t) => s + t.valor, 0);
     const pendentes = transfers.filter(t => !t.pago);
-    return { totalPeriodo, totalPendente: pendentes.reduce((s, t) => s + t.valor, 0), countPendentes: pendentes.length, count: transfers.length };
+    return { totalPeriodo, periodoRows, totalPendente: pendentes.reduce((s, t) => s + t.valor, 0), pendentesRows: pendentes, countPendentes: pendentes.length, count: transfers.length };
   }, [financeTransfers, dataInicio, dataFim]);
+
+  const [drillKey, setDrillKey] = useState<"periodo" | "pendentes" | "todas" | null>(null);
+  const transferColumns = transferDrillColumns(formatCurrency, contaNome);
 
   return (
     <PageContainer
@@ -112,9 +116,9 @@ export default function FinanceiroTransferencias() {
         <FinanceiroFilterBar />
         {ordenadas.length > 0 && (
           <StatCellRow>
-            <StatCell label={`Transferido (${periodoLabel})`} value={formatCurrency(kpis.totalPeriodo)} icon={Repeat} hint="Já concluídas" />
-            <StatCell label="Pendentes" value={formatCurrency(kpis.totalPendente)} icon={Clock} tone={kpis.countPendentes > 0 ? "warning" : "neutral"} hint={`${kpis.countPendentes} transferência(s)`} />
-            <StatCell label="Total de Transferências" value={kpis.count} icon={Layers} />
+            <StatCell label={`Transferido (${periodoLabel})`} value={formatCurrency(kpis.totalPeriodo)} icon={Repeat} hint="Já concluídas" onClick={() => setDrillKey("periodo")} />
+            <StatCell label="Pendentes" value={formatCurrency(kpis.totalPendente)} icon={Clock} tone={kpis.countPendentes > 0 ? "warning" : "neutral"} hint={`${kpis.countPendentes} transferência(s)`} onClick={() => setDrillKey("pendentes")} />
+            <StatCell label="Total de Transferências" value={kpis.count} icon={Layers} onClick={() => setDrillKey("todas")} />
           </StatCellRow>
         )}
 
@@ -220,6 +224,14 @@ export default function FinanceiroTransferencias() {
           </div>
         </form>
       </Modal>
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey === "periodo" ? `Transferido (${periodoLabel})` : drillKey === "pendentes" ? "Pendentes" : drillKey === "todas" ? "Total de Transferências" : undefined}
+        rows={drillKey === "periodo" ? kpis.periodoRows : drillKey === "pendentes" ? kpis.pendentesRows : drillKey === "todas" ? (financeTransfers as any[]) : []}
+        columns={transferColumns}
+      />
     </PageContainer>
   );
 }
