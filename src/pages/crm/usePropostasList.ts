@@ -102,7 +102,7 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
 
   const fetchKpis = async () => {
     if (!supabase || !tenantId) return;
-    const projection = "id,valor,status,created_at";
+    const projection = "id,valor,status,created_at,cliente,titulo";
     let filteredQuery = supabase.from("proposals").select(projection).eq("tenant_id", tenantId);
     if (dateFrom) filteredQuery = filteredQuery.gte("created_at", dateFrom);
     if (dateTo) filteredQuery = filteredQuery.lte("created_at", `${dateTo}T23:59:59`);
@@ -128,11 +128,15 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
   const kpis = useMemo(() => {
     const convertidasMesBase = kpiAllRows.filter((p) => p.status === "Aceita" && isThisMonth(p.created_at));
     const aceitasFiltered = kpiFilteredRows.filter((p) => p.status === "Aceita");
+    const aguardandoAceiteRows = kpiFilteredRows.filter((p) => p.status === "Enviada");
     return {
-      aguardandoAceite: kpiFilteredRows.filter((p) => p.status === "Enviada").reduce((acc, c) => acc + (Number(c.valor) || 0), 0),
+      aguardandoAceite: aguardandoAceiteRows.reduce((acc, c) => acc + (Number(c.valor) || 0), 0),
+      aguardandoAceiteRows,
       convertidasMes: convertidasMesBase.reduce((acc, c) => acc + (Number(c.valor) || 0), 0),
+      convertidasMesRows: convertidasMesBase,
       taxaConversao: kpiFilteredRows.length > 0 ? Math.round((aceitasFiltered.length / kpiFilteredRows.length) * 100) : 0,
       propostasAtivas: kpiFilteredRows.length,
+      propostasAtivasRows: kpiFilteredRows,
     };
   }, [kpiFilteredRows, kpiAllRows]);
 
