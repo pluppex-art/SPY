@@ -38,8 +38,8 @@ const STATUS_CHIP: Record<string, { cls: string; icon: typeof CheckCircle2; labe
 
 const initials = (name: string) => (name || "?").split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?";
 
-const FIELD = "h-[52px] rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] px-3.5 flex flex-col justify-center";
-const SELECT = "h-10 px-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40 cursor-pointer";
+const FIELD = "h-10 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] px-3 flex items-center gap-2";
+const SELECT = "h-9 px-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40 cursor-pointer";
 
 /**
  * Busca global — ignora QUALQUER período selecionado em outras telas (varre
@@ -221,17 +221,17 @@ export default function FinanceiroBuscaGlobal() {
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {kpis.map((k) => (
-            <div key={k.label} className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <span className={cn("w-8 h-8 rounded-lg flex items-center justify-center", k.tile)}><k.icon className="w-4 h-4" /></span>
-                <span className="text-[11px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">{k.label}</span>
+            <div key={k.label} className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] p-3 shadow-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className={cn("w-6 h-6 rounded-md flex items-center justify-center", k.tile)}><k.icon className="w-3.5 h-3.5" /></span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] truncate">{k.label}</span>
               </div>
               <div className="flex items-end justify-between gap-2">
                 <div className="min-w-0">
-                  <p className={cn("text-2xl font-black tabular-nums tracking-tight", k.danger ? "text-rose-500" : "text-[var(--color-text-primary)]")}>{k.value}</p>
-                  <span className={cn("inline-block mt-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full", k.chipCls)}>{k.chip}</span>
+                  <p className={cn("text-lg font-black tabular-nums tracking-tight whitespace-nowrap", k.danger ? "text-rose-500" : "text-[var(--color-text-primary)]")}>{k.value}</p>
+                  <span className={cn("inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap", k.chipCls)}>{k.chip}</span>
                 </div>
-                <div className="w-24 h-10 shrink-0" style={{ color: k.color }}>
+                <div className="w-16 h-7 shrink-0" style={{ color: k.color }}>
                   <Sparkline data={k.data} className="w-full h-full" />
                 </div>
               </div>
@@ -240,31 +240,31 @@ export default function FinanceiroBuscaGlobal() {
         </div>
 
         {/* Busca e filtros principais */}
-        <Card className="p-3 rounded-2xl">
-          <div className="flex flex-col xl:flex-row gap-3">
+        <Card className="p-2.5 rounded-xl">
+          <div className="flex flex-col xl:flex-row gap-2">
             <div className="relative flex-1 min-w-[240px]">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
               <input
                 type="text"
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
                 placeholder="Buscar por descrição, categoria, contato ou palavra-chave..."
-                className="w-full h-[52px] pl-10 pr-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40"
+                className="w-full h-10 pl-9 pr-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40"
               />
             </div>
             <label className={cn(FIELD, "w-full xl:w-44")}>
-              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Valor de</span>
-              <span className="flex items-center gap-1.5 text-sm"><span className="font-bold text-[var(--color-text-muted)]">R$</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] whitespace-nowrap">Valor de</span>
+              <span className="flex items-center gap-1 text-xs min-w-0"><span className="font-bold text-[var(--color-text-muted)]">R$</span>
                 <input type="number" min="0" value={valorMin} onChange={(e) => setValorMin(e.target.value)} placeholder="0,00" className="w-full bg-transparent font-mono text-[var(--color-text-primary)] focus:outline-none" />
               </span>
             </label>
-            <label className={cn(FIELD, "w-full xl:w-44")}>
-              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Até</span>
-              <span className="flex items-center gap-1.5 text-sm"><span className="font-bold text-[var(--color-text-muted)]">R$</span>
+            <label className={cn(FIELD, "w-full xl:w-40")}>
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] whitespace-nowrap">Até</span>
+              <span className="flex items-center gap-1 text-xs min-w-0"><span className="font-bold text-[var(--color-text-muted)]">R$</span>
                 <input type="number" min="0" value={valorMax} onChange={(e) => setValorMax(e.target.value)} placeholder="0,00" className="w-full bg-transparent font-mono text-[var(--color-text-primary)] focus:outline-none" />
               </span>
             </label>
-            <DateRangeFilter dateFrom={dataDe || null} setDateFrom={(v) => setDataDe(v ?? "")} dateTo={dataAte || null} setDateTo={(v) => setDataAte(v ?? "")} className="h-[52px] rounded-xl" />
+            <DateRangeFilter dateFrom={dataDe || null} setDateFrom={(v) => setDataDe(v ?? "")} dateTo={dataAte || null} setDateTo={(v) => setDataAte(v ?? "")} className="!h-10 !rounded-xl" />
           </div>
         </Card>
 
@@ -276,14 +276,14 @@ export default function FinanceiroBuscaGlobal() {
               type="button"
               onClick={() => setAba(t.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all cursor-pointer",
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer",
                 aba === t.id
                   ? "bg-[var(--color-primary-blue)] text-white border-transparent shadow-sm"
                   : "bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-[var(--color-text-primary)]"
               )}
             >
-              <t.icon className="w-4 h-4" /> {t.label}
-              <span className={cn("min-w-6 text-center text-[11px] font-black px-1.5 py-0.5 rounded-full", aba === t.id ? "bg-white text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]")}>{t.count}</span>
+              <t.icon className="w-3.5 h-3.5" /> {t.label}
+              <span className={cn("min-w-5 text-center text-[10px] font-black px-1.5 py-0.5 rounded-full", aba === t.id ? "bg-white text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]")}>{t.count}</span>
             </button>
           ))}
           {activeCount > 0 && (
@@ -294,19 +294,19 @@ export default function FinanceiroBuscaGlobal() {
         </div>
 
         {aba === "movimentacoes" && (
-          <Card className="rounded-2xl overflow-hidden">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-5">
+          <Card className="rounded-xl overflow-hidden">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4">
               <div>
-                <h3 className="text-base font-black text-[var(--color-text-primary)]">
+                <h3 className="text-sm font-black text-[var(--color-text-primary)]">
                   {resultadosMovimentacoes.length} {resultadosMovimentacoes.length === 1 ? "movimentação encontrada" : "movimentações encontradas"}
                 </h3>
-                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
                   {activeCount > 0 ? "Resultado dos filtros aplicados ao histórico completo." : "Mostrando todas as movimentações do histórico."}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-2 h-10 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-3">
-                  <ArrowUpDown className="w-4 h-4 text-[var(--color-text-muted)]" />
+                <label className="flex items-center gap-2 h-9 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-3">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
                   <span className="flex flex-col">
                     <span className="text-[9px] text-[var(--color-text-faint)] leading-none">Ordenar por</span>
                     <select value={ordem} onChange={(e) => setOrdem(e.target.value as Ordem)} className="bg-transparent text-xs font-bold text-[var(--color-text-primary)] focus:outline-none cursor-pointer">
@@ -314,8 +314,8 @@ export default function FinanceiroBuscaGlobal() {
                     </select>
                   </span>
                 </label>
-                <Button variant="outline" onClick={() => setShowMais((v) => !v)} className={cn("h-10 gap-2 text-xs font-bold", (showMais || tipoF || statusF || categoriaF || contaF) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}>
-                  <Filter className="w-4 h-4" /> Mais filtros
+                <Button variant="outline" onClick={() => setShowMais((v) => !v)} className={cn("h-9 gap-1.5 text-xs font-bold", (showMais || tipoF || statusF || categoriaF || contaF) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}>
+                  <Filter className="w-3.5 h-3.5" /> Mais filtros
                 </Button>
               </div>
             </div>
@@ -428,7 +428,7 @@ export default function FinanceiroBuscaGlobal() {
         )}
 
         {aba === "contatos" && (
-          <Card className="rounded-2xl overflow-hidden">
+          <Card className="rounded-xl overflow-hidden">
             {resultadosContatos.length === 0 ? <p className="text-xs text-[var(--color-text-faint)] p-8 text-center">Nenhum contato encontrado.</p> : (
               <div className="divide-y divide-[var(--color-border-subtle)]">
                 {resultadosContatos.map((c) => (
@@ -449,7 +449,7 @@ export default function FinanceiroBuscaGlobal() {
         )}
 
         {aba === "centros" && (
-          <Card className="rounded-2xl overflow-hidden">
+          <Card className="rounded-xl overflow-hidden">
             {resultadosCentros.length === 0 ? <p className="text-xs text-[var(--color-text-faint)] p-8 text-center">Nenhum centro de custo encontrado.</p> : (
               <div className="divide-y divide-[var(--color-border-subtle)]">
                 {resultadosCentros.map((c: any) => (
