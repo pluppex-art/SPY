@@ -11,6 +11,7 @@ import { useData } from "../../../../contexts/DataContext";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
 import { cn, normalizeText } from "../../../../lib/utils";
 import { toast } from "sonner";
+import { confirmDialog } from "../../confirm-dialog";
 
 // ─── Tipos locais ───────────────────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ interface NovaPropostaWizardProps {
     objetivo?: string | null; origem?: string | null;
     condicoes?: Record<string, any> | null; pagamento?: Record<string, any> | null;
     equipe_interna?: { id: string; nome: string }[] | null; tags?: string[] | null;
+    view_token?: string | null; view_count?: number | null;
   } | null;
   existingItems?: any[];
   onDone?: (summary: string) => void;
@@ -96,7 +98,7 @@ export function NovaPropostaWizard({
   isOpen, onClose, leadId, leadName, companyName, seller, availableProducts,
   initialProductIds, existingProposal, existingItems, onDone,
 }: NovaPropostaWizardProps) {
-  const { clienteBase, colaboradores, leads, createProposalWithItems, updateProposal, replaceProposalItems, updateLead } = useData();
+  const { clienteBase, colaboradores, leads, contracts, createProposalWithItems, updateProposal, replaceProposalItems, deleteProposal, updateLead } = useData();
   const { formatCurrency } = useLocalization();
 
   const [step, setStep] = useState(1);
@@ -470,6 +472,35 @@ export function NovaPropostaWizard({
     }
   };
 
+  // Pedido explícito do usuário: lixeira pra excluir a proposta direto do
+  // wizard de edição, sempre com confirmação — mesmo aviso já usado em
+  // PropostasTable.tsx sobre contrato/financeiro vinculado, pra não deixar
+  // o usuário excluir às cegas uma proposta que já gerou receita de verdade.
+  const handleDeleteProposal = async () => {
+    if (!existingProposal) return;
+    const contratoVinculado = (contracts as any[])?.find((c: any) => c.proposalId === existingProposal.id);
+    const ok = await confirmDialog({
+      title: "Excluir proposta",
+      description: contratoVinculado
+        ? `Essa proposta já gerou o contrato de "${contratoVinculado.client}". Excluir a proposta também vai excluir esse contrato e os lançamentos financeiros ligados a ele. Essa ação não pode ser desfeita.`
+        : `Excluir a proposta "${existingProposal.titulo || tituloProposta}"? Essa ação não pode ser desfeita.`,
+      confirmText: "Excluir",
+    });
+    if (!ok) return;
+    setSaving(true);
+    try {
+      const deleted = await deleteProposal(existingProposal.id);
+      if (deleted) {
+        toast.success("Proposta excluída.");
+        onClose();
+      }
+    } catch (err: any) {
+      toast.error("Erro ao excluir proposta: " + (err?.message || "tente novamente."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -501,6 +532,16 @@ export function NovaPropostaWizard({
               <Button variant="outline" className="h-9 px-3 text-xs gap-1.5" onClick={() => handleSave(existingProposal ? "Enviada" : "Rascunho")} disabled={saving}>
                 <Save className="w-3.5 h-3.5" /> {existingProposal ? "Salvar alterações" : "Salvar como rascunho"}
               </Button>
+              {existingProposal && (
+                <button
+                  onClick={handleDeleteProposal}
+                  disabled={saving}
+                  title="Excluir proposta"
+                  className="p-2 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-danger/10 hover:border-danger/30 text-[var(--color-text-faint)] hover:text-danger transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
               <button onClick={onClose} className="p-2 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
                 <X className="w-4 h-4" />
               </button>
@@ -634,7 +675,18 @@ export function NovaPropostaWizard({
                     <Save className="w-3.5 h-3.5" /> Salvar como rascunho
                   </Button>
                 )}
-                <Button variant="outline" className="h-9 px-4 text-xs gap-1.5" disabled>
+                <Button
+                  variant="outline"
+                  className="h-9 px-4 text-xs gap-1.5"
+                  disabled={!existingProposal?.view_token}
+                  title={!existingProposal ? "Salve a proposta primeiro pra gerar o link" : undefined}
+                  onClick={() => {
+                    if (!existingProposal?.view_token) return;
+                    const url = `${window.location.origin}/proposta/${existingProposal.view_token}`;
+                    navigator.clipboard.writeText(url);
+                    toast.success("Link público copiado! Envie para o cliente acompanhar a proposta.");
+                  }}
+                >
                   <Link2 className="w-3.5 h-3.5" /> Compartilhar link
                 </Button>
                 <Button
