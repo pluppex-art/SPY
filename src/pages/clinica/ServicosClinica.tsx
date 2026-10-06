@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  Activity, Plus, Search, DollarSign, Clock,
+  Activity, Plus, DollarSign, Clock, Stethoscope,
   CheckCircle2, ShieldAlert, Trash2, X, Download
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -143,10 +144,20 @@ export default function ServicosClinica() {
     toast.success("Tabela de procedimentos exportada com sucesso!");
   };
 
+  const [espFilter, setEspFilter] = useState("");
+  const [convenioFilter, setConvenioFilter] = useState("");
+  const splitConvenios = (c: string) => c.split(",").map(x => x.trim()).filter(Boolean);
+  const especialidadeOptions = Array.from(new Set(servicos.map(s => s.especialidade).filter(Boolean))).sort();
+  const convenioOptions = Array.from(new Set(servicos.flatMap(s => splitConvenios(s.convenios)))).sort();
+  const activeFilters = (search ? 1 : 0) + (espFilter ? 1 : 0) + (convenioFilter ? 1 : 0);
+  const clearFilters = () => { setSearch(""); setEspFilter(""); setConvenioFilter(""); };
+
   const filtered = servicos.filter(s => (
-    s.nome.toLowerCase().includes(search.toLowerCase()) ||
+    (!espFilter || s.especialidade === espFilter) &&
+    (!convenioFilter || splitConvenios(s.convenios).includes(convenioFilter)) &&
+    (s.nome.toLowerCase().includes(search.toLowerCase()) ||
     s.especialidade.toLowerCase().includes(search.toLowerCase()) ||
-    s.convenios.toLowerCase().includes(search.toLowerCase())
+    s.convenios.toLowerCase().includes(search.toLowerCase()))
   ));
 
   return (
@@ -168,39 +179,24 @@ export default function ServicosClinica() {
         </div>
       }
     >
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Procedimentos Ativos</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{servicos.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Ticket Médio de Procedimentos</span>
-          <div className="text-2xl font-black text-emerald-500 font-mono">
-            R$ {(servicos.length > 0 ? servicos.reduce((s, x) => s + x.valorParticular, 0) / servicos.length : 0).toFixed(2)}
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Convênios Credenciados</span>
-          <div className="text-2xl font-black text-blue-500">
-            {new Set(servicos.flatMap(s => s.convenios.split(",").map(c => c.trim()).filter(Boolean))).size} operadoras
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por procedimento ou especialidade..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-      </div>
+      <KpiFilterCard
+        id="clinicaServicos"
+        className="mb-4"
+        kpis={[
+          { label: "Procedimentos", value: filtered.length, icon: Activity, tone: "primary" },
+          { label: "Ticket Médio", value: `R$ ${(filtered.length > 0 ? filtered.reduce((sum, x) => sum + x.valorParticular, 0) / filtered.length : 0).toFixed(2)}`, icon: DollarSign, tone: "success" },
+          { label: "Especialidades", value: new Set(filtered.map(s => s.especialidade).filter(Boolean)).size, icon: Stethoscope, tone: "accent" },
+          { label: "Convênios Credenciados", value: new Set(filtered.flatMap(s => splitConvenios(s.convenios))).size, icon: CheckCircle2, tone: "info" },
+        ]}
+        activeCount={activeFilters}
+        onClear={clearFilters}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por procedimento ou especialidade..." />
+          <FilterSelect icon={Stethoscope} value={espFilter} onChange={setEspFilter} options={especialidadeOptions} allLabel="Todas as especialidades" />
+          <FilterSelect icon={CheckCircle2} value={convenioFilter} onChange={setConvenioFilter} options={convenioOptions} allLabel="Todos os convênios" />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Table */}
       <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs overflow-hidden">

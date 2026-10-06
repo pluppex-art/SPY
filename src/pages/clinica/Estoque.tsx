@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Package, Box, Plus, Search,
+  Package, Box, Plus, Tag,
   Truck, ShieldAlert, Zap,
   BarChart3, RefreshCw, X, Check, Download
 } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { PageContainer } from "../../components/PageContainer";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { useEstoque } from './hooks/useEstoque';
 import { toast } from 'sonner';
@@ -26,9 +27,18 @@ export default function EstoqueClinico() {
   const [itemMinQty, setItemMinQty] = useState('');
   const [itemPrice, setItemPrice] = useState('');
 
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const categoryOptions = Array.from(new Set(stockItems.map(i => i.category))).sort();
+  const statusOptions = Array.from(new Set(stockItems.map(i => i.status)));
+  const activeFilters = (searchTerm ? 1 : 0) + (categoryFilter ? 1 : 0) + (statusFilter ? 1 : 0);
+  const clearFilters = () => { setSearchTerm(''); setCategoryFilter(''); setStatusFilter(''); };
+
   const filteredItems = stockItems.filter(i =>
-    i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    i.category.toLowerCase().includes(searchTerm.toLowerCase())
+    (!categoryFilter || i.category === categoryFilter) &&
+    (!statusFilter || i.status === statusFilter) &&
+    (i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    i.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const parsePrice = (p: string) => {
@@ -36,9 +46,9 @@ export default function EstoqueClinico() {
     return isNaN(n) ? 0 : n;
   };
 
-  const stockValue = stockItems.reduce((sum, i) => sum + i.qty * parsePrice(i.price), 0);
+  const stockValue = filteredItems.reduce((sum, i) => sum + i.qty * parsePrice(i.price), 0);
   const stockValueFmt = formatCurrency(stockValue);
-  const categoryCount = new Set(stockItems.map(i => i.category)).size;
+  const categoryCount = new Set(filteredItems.map(i => i.category)).size;
 
   const mostCriticalItems = [...stockItems]
     .filter(i => i.status === 'Crítico' || i.status === 'Alerta')
@@ -123,23 +133,23 @@ export default function EstoqueClinico() {
     >
       <div className="space-y-6 max-w-[1700px] mx-auto pb-12">
         
-        {/* Inventory Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Itens Cadastrados", value: stockItems.length.toString(), icon: Box, color: "text-[var(--color-primary-blue)]" },
-            { label: "Alertas de Reposição", value: stockItems.filter(i => i.status === 'Crítico' || i.status === 'Alerta').length.toString(), icon: ShieldAlert, color: "text-amber-500" },
-            { label: "Valor em Estoque", value: stockValueFmt, icon: BarChart3, color: "text-emerald-500" },
-            { label: "Categorias Cadastradas", value: categoryCount.toString(), icon: Truck, color: "text-purple-500" },
-          ].map((stat, i) => (
-            <Card key={i} className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">{stat.label}</span>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
-              </div>
-              <div className="text-2xl font-black font-mono text-[var(--color-text-primary)]">{stat.value}</div>
-            </Card>
-          ))}
-        </div>
+        <KpiFilterCard
+          id="clinicaEstoque"
+          kpis={[
+            { label: "Itens Cadastrados", value: filteredItems.length, icon: Box, tone: "primary" },
+            { label: "Alertas de Reposição", value: filteredItems.filter(i => i.status === 'Crítico' || i.status === 'Alerta').length, icon: ShieldAlert, tone: "warning" },
+            { label: "Valor em Estoque", value: stockValueFmt, icon: BarChart3, tone: "success" },
+            { label: "Categorias", value: categoryCount, icon: Truck, tone: "accent" },
+          ]}
+          activeCount={activeFilters}
+          onClear={clearFilters}
+        >
+          <FilterBar>
+            <FilterSearch value={searchTerm} onChange={setSearchTerm} placeholder="Filtrar material..." />
+            <FilterSelect icon={Tag} value={categoryFilter} onChange={setCategoryFilter} options={categoryOptions} allLabel="Todas as categorias" />
+            <FilterSelect icon={ShieldAlert} value={statusFilter} onChange={setStatusFilter} options={statusOptions} allLabel="Todos os status" />
+          </FilterBar>
+        </KpiFilterCard>
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Detailed Inventory Table */}
@@ -148,16 +158,6 @@ export default function EstoqueClinico() {
               <h3 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
                 <Package className="w-4 h-4 text-[var(--color-primary-blue)]" /> Lista de Insumos Clínicos
               </h3>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-                <input 
-                  type="text" 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Filtrar material..." 
-                  className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] py-1.5 pl-9 pr-3 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-                />
-              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">

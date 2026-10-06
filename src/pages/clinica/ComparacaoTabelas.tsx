@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, Clock, FileSpreadsheet, GitCompare, Loader2, Plus, Search, AlertTriangle, ListChecks, Upload } from "lucide-react";
+import { CheckCircle2, Clock, FileSpreadsheet, GitCompare, Loader2, Plus, AlertTriangle, Building2, ListChecks, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { EmptyState } from "../../components/ui/empty-state";
-import { StatCell, StatCellRow } from "../finance/components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/apiClient";
@@ -49,6 +49,8 @@ export default function ComparacaoTabelas() {
 
   const [lista, setLista] = useState<any[] | null>(null);
   const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("");
+  const [parceiroFiltro, setParceiroFiltro] = useState("");
   const [baseCount, setBaseCount] = useState<number | null>(null);
 
   // Wizard
@@ -77,20 +79,28 @@ export default function ComparacaoTabelas() {
 
   const mapped = useMemo(() => (table ? mapComparisonRows(table, mapping) : null), [table, mapping]);
 
+  const filtrada = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return (lista || []).filter((c) =>
+      (!statusFiltro || c.status === statusFiltro) &&
+      (!parceiroFiltro || c.parceiro === parceiroFiltro) &&
+      (!q || (c.parceiro || "").toLowerCase().includes(q) || (c.arquivo_nome || "").toLowerCase().includes(q)));
+  }, [lista, busca, statusFiltro, parceiroFiltro]);
+
   const kpis = useMemo(() => {
-    const l = lista || [];
+    const l = filtrada;
     return {
       total: l.length,
       pendentes: l.filter((c) => c.status === "aguardando_revisao").length,
       itens: l.reduce((s, c) => s + (c.total || 0), 0),
       revisao: l.reduce((s, c) => s + (c.qtd_revisao || 0) + (c.qtd_nao_identificado || 0), 0),
     };
-  }, [lista]);
+  }, [filtrada]);
 
-  const filtrada = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    return (lista || []).filter((c) => !q || (c.parceiro || "").toLowerCase().includes(q) || (c.arquivo_nome || "").toLowerCase().includes(q));
-  }, [lista, busca]);
+  const statusOpcoes = useMemo(() => Array.from(new Set((lista || []).map((c) => c.status).filter(Boolean))).map((st) => ({ value: st as string, label: COMPARISON_STATUS_LABEL[st as string] || (st as string) })), [lista]);
+  const parceiroOpcoes = useMemo(() => Array.from(new Set((lista || []).map((c) => c.parceiro).filter(Boolean))).sort() as string[], [lista]);
+  const filtrosAtivos = (busca ? 1 : 0) + (statusFiltro ? 1 : 0) + (parceiroFiltro ? 1 : 0);
+  const limparFiltros = () => { setBusca(""); setStatusFiltro(""); setParceiroFiltro(""); };
 
   const abrir = () => {
     setParceiro(""); setTable(null); setMapping({}); setProcessando(false); setStage(0); setOpen(true);
@@ -152,17 +162,23 @@ export default function ComparacaoTabelas() {
             <span>A base de exames está vazia. Cadastre ou importe a base em <strong>Clínica & Saúde › Base de Exames</strong> antes de comparar.</span>
           </div>
         )}
-        <StatCellRow>
-          <StatCell label="Comparações" value={kpis.total} icon={GitCompare} />
-          <StatCell label="Aguardando revisão" value={kpis.pendentes} icon={Clock} tone={kpis.pendentes > 0 ? "warning" : "neutral"} />
-          <StatCell label="Itens analisados" value={kpis.itens.toLocaleString("pt-BR")} icon={ListChecks} />
-          <StatCell label="Itens a revisar" value={kpis.revisao.toLocaleString("pt-BR")} icon={AlertTriangle} tone={kpis.revisao > 0 ? "warning" : "neutral"} />
-        </StatCellRow>
-
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-          <input type="text" placeholder="Buscar parceiro ou arquivo…" value={busca} onChange={(e) => setBusca(e.target.value)} className={cn(inputCls, "pl-9")} />
-        </div>
+        <KpiFilterCard
+          id="clinicaComparacaoTabelas"
+          kpis={[
+            { label: "Comparações", value: kpis.total, icon: GitCompare, tone: "primary" },
+            { label: "Aguardando revisão", value: kpis.pendentes, icon: Clock, tone: kpis.pendentes > 0 ? "warning" : "neutral" },
+            { label: "Itens analisados", value: kpis.itens.toLocaleString("pt-BR"), icon: ListChecks, tone: "info" },
+            { label: "Itens a revisar", value: kpis.revisao.toLocaleString("pt-BR"), icon: AlertTriangle, tone: kpis.revisao > 0 ? "warning" : "neutral" },
+          ]}
+          activeCount={filtrosAtivos}
+          onClear={limparFiltros}
+        >
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar parceiro ou arquivo…" />
+            <FilterSelect icon={Clock} value={statusFiltro} onChange={setStatusFiltro} options={statusOpcoes} allLabel="Todos os status" />
+            <FilterSelect icon={Building2} value={parceiroFiltro} onChange={setParceiroFiltro} options={parceiroOpcoes} allLabel="Todos os parceiros" />
+          </FilterBar>
+        </KpiFilterCard>
 
         {lista === null ? (
           <p className="text-xs text-[var(--color-text-faint)] flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Carregando…</p>

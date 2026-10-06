@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Users, Search, Plus, FileText, Activity, Pill, Inbox,
+  Users, Plus, ShieldCheck, FileText, Activity, Pill, Inbox,
   Stethoscope, ClipboardList, FlaskConical, X, Trash2
 } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { EmptyState } from "../../components/ui/empty-state";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { PageContainer } from "../../components/PageContainer";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
@@ -136,9 +137,18 @@ export default function ProntuariosDashboard() {
     else setProntuarios([]);
   }, [selectedPacienteId]);
 
-  const filteredPatients = pacientes.filter(p => p.nome.toLowerCase().includes(searchTerm.toLowerCase()));
+  const [convenioFilter, setConvenioFilter] = useState('');
+  const [alergiaFilter, setAlergiaFilter] = useState('');
+  const convenioOptions = useMemo(() => Array.from(new Set(pacientes.map(p => p.convenio).filter(Boolean))).sort(), [pacientes]);
+  const activeFilters = (searchTerm ? 1 : 0) + (convenioFilter ? 1 : 0) + (alergiaFilter ? 1 : 0);
+  const clearFilters = () => { setSearchTerm(''); setConvenioFilter(''); setAlergiaFilter(''); };
+  const filteredPatients = pacientes.filter(p =>
+    p.nome.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (!convenioFilter || p.convenio === convenioFilter) &&
+    (!alergiaFilter || (alergiaFilter === 'com' ? !!p.alergias?.trim() : !p.alergias?.trim()))
+  );
   const selectedPaciente = pacientes.find(p => p.id === selectedPacienteId);
-  const totalPatients = pacientes.length;
+  const totalPatients = filteredPatients.length;
 
   const handleSaveEntrada = async (form: any) => {
     if (!supabase || !selectedPacienteId || !activeTenantId) return;
@@ -176,40 +186,31 @@ export default function ProntuariosDashboard() {
 
       <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Total de Pacientes", value: totalPatients.toString(), icon: Activity, color: "text-[var(--color-primary-blue)]" },
-            { label: "Entradas neste Prontuário", value: prontuarios.length.toString(), icon: ClipboardList, color: "text-emerald-500" },
-            { label: "Prescrições Emitidas", value: prescricoesEmitidas.toString(), icon: Pill, color: "text-amber-500" },
-            { label: "Exames Solicitados", value: examesEmProntuario.toString(), icon: FlaskConical, color: "text-purple-500" },
-          ].map((stat, i) => (
-            <Card key={i} className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">{stat.label}</span>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
-              </div>
-              <div className="text-2xl font-black font-mono text-[var(--color-text-primary)]">{stat.value}</div>
-            </Card>
-          ))}
-        </div>
+        <KpiFilterCard
+          id="clinicaProntuarios"
+          kpis={[
+            { label: "Total de Pacientes", value: totalPatients, icon: Activity, tone: "primary" },
+            { label: "Entradas neste Prontuário", value: prontuarios.length, icon: ClipboardList, tone: "success" },
+            { label: "Prescrições Emitidas", value: prescricoesEmitidas, icon: Pill, tone: "warning" },
+            { label: "Exames Solicitados", value: examesEmProntuario, icon: FlaskConical, tone: "accent" },
+          ]}
+          activeCount={activeFilters}
+          onClear={clearFilters}
+        >
+          <FilterBar>
+            <FilterSearch value={searchTerm} onChange={setSearchTerm} placeholder="Pesquisar paciente..." />
+            <FilterSelect icon={ShieldCheck} value={convenioFilter} onChange={setConvenioFilter} options={convenioOptions} allLabel="Todos os convênios" />
+            <FilterSelect icon={Pill} value={alergiaFilter} onChange={setAlergiaFilter} options={[{ value: 'com', label: 'Com alergias' }, { value: 'sem', label: 'Sem alergias' }]} allLabel="Alergias: todas" />
+          </FilterBar>
+        </KpiFilterCard>
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Patient List */}
           <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden shadow-sm h-fit">
             <div className="p-4 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]">
-              <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2 mb-3">
+              <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
                 <Users className="w-4 h-4 text-[var(--color-primary-blue)]" /> Base de Pacientes
               </h3>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-                <input
-                  type="text"
-                  placeholder="Pesquisar paciente..."
-                  className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] py-1.5 pl-9 pr-3 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
             </div>
 
             {loading ? (

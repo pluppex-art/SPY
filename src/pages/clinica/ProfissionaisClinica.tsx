@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  Stethoscope, Plus, Search, Calendar, Phone,
+  Stethoscope, Plus, Calendar, Users, Award as AwardIcon, Phone,
   Mail, Award, Clock, Trash2, X, Download
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -59,6 +60,7 @@ export default function ProfissionaisClinica() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
+  const [espFilter, setEspFilter] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -160,7 +162,12 @@ export default function ProfissionaisClinica() {
     toast.success("Corpo clínico exportado com sucesso!");
   };
 
+  const especialidadeOptions = Array.from(new Set(profissionais.map(p => p.especialidade).filter(Boolean))).sort();
+  const activeFilters = (search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (espFilter ? 1 : 0);
+  const clearFilters = () => { setSearch(""); setFilterStatus("Todos"); setEspFilter(""); };
+
   const filtered = profissionais.filter(d => {
+    if (espFilter && d.especialidade !== espFilter) return false;
     const matchSearch = (
       d.nome.toLowerCase().includes(search.toLowerCase()) ||
       d.crm.toLowerCase().includes(search.toLowerCase()) ||
@@ -189,55 +196,24 @@ export default function ProfissionaisClinica() {
         </div>
       }
     >
-      {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Especialistas Cadastrados</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{profissionais.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Profissionais Ativos Hoje</span>
-          <div className="text-2xl font-black text-emerald-500">
-            {profissionais.filter(p => p.status === "Ativo").length}
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Consultas este Mês</span>
-          <div className="text-2xl font-black text-blue-500 font-mono">
-            {profissionais.reduce((s, p) => s + p.atendimentosMes, 0)}
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por nome, CRM/CRO ou especialidade..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Ativo", "Férias / Licença", "Inativo"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-[var(--color-primary-blue)] text-white"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KpiFilterCard
+        id="clinicaProfissionais"
+        className="mb-4"
+        kpis={[
+          { label: "Especialistas", value: filtered.length, icon: Stethoscope, tone: "primary" },
+          { label: "Ativos", value: filtered.filter(p => p.status === "Ativo").length, icon: Users, tone: "success" },
+          { label: "Especialidades", value: new Set(filtered.map(p => p.especialidade).filter(Boolean)).size, icon: AwardIcon, tone: "accent" },
+          { label: "Consultas este Mês", value: filtered.reduce((sum, p) => sum + p.atendimentosMes, 0), icon: Calendar, tone: "info" },
+        ]}
+        activeCount={activeFilters}
+        onClear={clearFilters}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por nome, CRM/CRO ou especialidade..." />
+          <FilterSelect icon={Award} value={espFilter} onChange={setEspFilter} options={especialidadeOptions} allLabel="Todas as especialidades" />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" allLabel="Todos" options={["Ativo", "Férias / Licença", "Inativo"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* List */}
       <div className="space-y-3">

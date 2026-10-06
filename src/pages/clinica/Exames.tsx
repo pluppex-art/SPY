@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  FileText, Search, FlaskConical,
+  FileText, FlaskConical, Building2,
   Clock, CheckCircle2, AlertCircle, Download,
   Eye, Plus, X, Check, Pencil
 } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { PageContainer } from "../../components/PageContainer";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { useExames } from './hooks/useExames';
 import { toast } from 'sonner';
@@ -28,10 +29,19 @@ export default function Exames() {
   const [labName, setLabName] = useState('Lab Vértice Central');
   const [examDate, setExamDate] = useState(new Date().toLocaleDateString('pt-BR'));
 
-  const filteredExames = examList.filter(e => 
-    e.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const [statusFilter, setStatusFilter] = useState('');
+  const [labFilter, setLabFilter] = useState('');
+  const statusOptions = Array.from(new Set(examList.map(e => e.status).filter(Boolean)));
+  const labOptions = Array.from(new Set(examList.map(e => e.lab).filter(Boolean))).sort();
+  const activeFilters = (searchTerm ? 1 : 0) + (statusFilter ? 1 : 0) + (labFilter ? 1 : 0);
+  const clearFilters = () => { setSearchTerm(''); setStatusFilter(''); setLabFilter(''); };
+
+  const filteredExames = examList.filter(e =>
+    (!statusFilter || e.status === statusFilter) &&
+    (!labFilter || e.lab === labFilter) &&
+    (e.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.exam.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.lab.toLowerCase().includes(searchTerm.toLowerCase())
+    e.lab.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleCreateExame = (e: React.FormEvent) => {
@@ -94,23 +104,23 @@ export default function Exames() {
     >
       <div className="space-y-6 max-w-[1700px] mx-auto pb-12">
         
-        {/* Status Hub */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Pedidos Hoje", value: examList.length.toString(), icon: FlaskConical, color: "text-[var(--color-primary-blue)]" },
-            { label: "Resultados Prontos", value: examList.filter(e => e.status === 'Finalizado').length.toString(), icon: CheckCircle2, color: "text-emerald-500" },
-            { label: "Em Análise", value: examList.filter(e => e.status === 'Em Análise').length.toString(), icon: Clock, color: "text-amber-500" },
-            { label: "Aguardando Coleta", value: examList.filter(e => e.status === 'Aguardando Coleta').length.toString(), icon: AlertCircle, color: "text-purple-500" },
-          ].map((stat, i) => (
-            <Card key={i} className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">{stat.label}</span>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
-              </div>
-              <div className="text-2xl font-black font-mono text-[var(--color-text-primary)]">{stat.value}</div>
-            </Card>
-          ))}
-        </div>
+        <KpiFilterCard
+          id="clinicaExames"
+          kpis={[
+            { label: "Pedidos", value: filteredExames.length, icon: FlaskConical, tone: "primary" },
+            { label: "Resultados Prontos", value: filteredExames.filter(e => e.status === 'Finalizado').length, icon: CheckCircle2, tone: "success" },
+            { label: "Em Análise", value: filteredExames.filter(e => e.status === 'Em Análise').length, icon: Clock, tone: "warning" },
+            { label: "Aguardando Coleta", value: filteredExames.filter(e => e.status === 'Aguardando Coleta').length, icon: AlertCircle, tone: "accent" },
+          ]}
+          activeCount={activeFilters}
+          onClear={clearFilters}
+        >
+          <FilterBar>
+            <FilterSearch value={searchTerm} onChange={setSearchTerm} placeholder="Buscar exame ou paciente..." />
+            <FilterSelect icon={Clock} value={statusFilter} onChange={setStatusFilter} options={statusOptions} allLabel="Todos os status" />
+            <FilterSelect icon={Building2} value={labFilter} onChange={setLabFilter} options={labOptions} allLabel="Todos os laboratórios" />
+          </FilterBar>
+        </KpiFilterCard>
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Exams Table */}
@@ -119,16 +129,6 @@ export default function Exames() {
               <h3 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
                 <FileText className="w-4 h-4 text-[var(--color-primary-blue)]" /> Histórico de Pedidos
               </h3>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-                <input 
-                  type="text" 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar exame ou paciente..." 
-                  className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] py-1.5 pl-9 pr-3 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-                />
-              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">

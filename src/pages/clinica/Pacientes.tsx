@@ -7,6 +7,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { EmptyState } from "../../components/ui/empty-state";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { PageContainer } from "../../components/PageContainer";
 import { motion, AnimatePresence } from "motion/react";
 import { useData } from "../../contexts/DataContext";
@@ -172,19 +173,28 @@ export default function Pacientes() {
     return map;
   }, [appointments]);
 
+  const [convenioFilter, setConvenioFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const convenioOptions = useMemo(() => Array.from(new Set(pacientes.map(p => p.convenio).filter(Boolean))).sort(), [pacientes]);
+  const statusOptions = useMemo(() => Array.from(new Set(pacientes.map(p => p.status).filter(Boolean))).sort(), [pacientes]);
+  const activeFilters = (searchTerm ? 1 : 0) + (convenioFilter ? 1 : 0) + (statusFilter ? 1 : 0);
+  const clearFilters = () => { setSearchTerm(''); setConvenioFilter(''); setStatusFilter(''); };
+
   const filteredPatients = pacientes.filter(p =>
-    p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (!convenioFilter || p.convenio === convenioFilter) &&
+    (!statusFilter || p.status === statusFilter) &&
+    (p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.telefone.includes(searchTerm) ||
-    p.cpf.includes(searchTerm)
+    p.cpf.includes(searchTerm))
   );
 
-  const totalPatients = pacientes.length;
+  const totalPatients = filteredPatients.length;
   const currentMonth = new Date().toISOString().substring(0, 7);
-  const newThisMonth = pacientes.filter(p => p.created_at && p.created_at.startsWith(currentMonth)).length;
+  const newThisMonth = filteredPatients.filter(p => p.created_at && p.created_at.startsWith(currentMonth)).length;
   const today = new Date().toISOString().split('T')[0];
   const consultsToday = appointments.filter(a => a.date === today).length;
   const comConvenio = totalPatients > 0
-    ? Math.round((pacientes.filter(p => p.convenio && p.convenio !== 'Particular').length / totalPatients) * 100)
+    ? Math.round((filteredPatients.filter(p => p.convenio && p.convenio !== 'Particular').length / totalPatients) * 100)
     : 0;
 
   const handleSave = async (form: any) => {
@@ -248,37 +258,23 @@ export default function Pacientes() {
         {showForm && <PacienteFormModal onClose={() => setShowForm(false)} onSave={handleSave} />}
         {editPaciente && <PacienteFormModal onClose={() => setEditPaciente(null)} onSave={handleEdit} initial={editPaciente} />}
 
-        {/* Top Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Total de Pacientes', value: totalPatients.toString(), icon: Users, color: 'text-[var(--color-primary-blue)]' },
-            { label: 'Novos neste Mês', value: `+${newThisMonth}`, icon: UserPlus, color: 'text-emerald-500' },
-            { label: 'Com Convênio', value: `${comConvenio}%`, icon: ShieldCheck, color: 'text-purple-500' },
-            { label: 'Consultas Hoje', value: consultsToday.toString(), icon: Clock, color: 'text-amber-500' },
-          ].map((stat, i) => (
-            <Card key={i} className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">{stat.label}</span>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
-              </div>
-              <div className="text-2xl font-black font-mono text-[var(--color-text-primary)]">{stat.value}</div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Filter & Search */}
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-faint)]" />
-            <input
-              type="text"
-              placeholder="Buscar por nome, telefone ou CPF do paciente..."
-              className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] py-2 pl-10 pr-4 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] transition-all"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </Card>
+        <KpiFilterCard
+          id="clinicaPacientes"
+          kpis={[
+            { label: 'Total de Pacientes', value: totalPatients, icon: Users, tone: 'primary' },
+            { label: 'Novos neste Mês', value: `+${newThisMonth}`, icon: UserPlus, tone: 'success' },
+            { label: 'Com Convênio', value: `${comConvenio}%`, icon: ShieldCheck, tone: 'accent' },
+            { label: 'Consultas Hoje', value: consultsToday, icon: Clock, tone: 'warning' },
+          ]}
+          activeCount={activeFilters}
+          onClear={clearFilters}
+        >
+          <FilterBar>
+            <FilterSearch value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nome, telefone ou CPF do paciente..." />
+            <FilterSelect icon={ShieldCheck} value={convenioFilter} onChange={setConvenioFilter} options={convenioOptions} allLabel="Todos os convênios" />
+            <FilterSelect icon={Users} value={statusFilter} onChange={setStatusFilter} options={statusOptions} allLabel="Todos os status" />
+          </FilterBar>
+        </KpiFilterCard>
 
         {/* Patients Grid */}
         {loading ? (

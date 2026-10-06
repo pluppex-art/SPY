@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileUp, FlaskConical, Loader2, Pencil, Plus, Search, Trash2, Wallet, Layers, CheckCircle2 } from "lucide-react";
+import { FileUp, FlaskConical, Loader2, Pencil, Plus, Trash2, Tag, Wallet, Layers, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
@@ -7,7 +7,7 @@ import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { EmptyState } from "../../components/ui/empty-state";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
-import { StatCell, StatCellRow } from "../finance/components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
@@ -36,6 +36,8 @@ export default function BaseExames() {
 
   const [exames, setExames] = useState<any[] | null>(null);
   const [busca, setBusca] = useState("");
+  const [categoriaFiltro, setCategoriaFiltro] = useState("");
+  const [situacaoFiltro, setSituacaoFiltro] = useState("");
   const [form, setForm] = useState<typeof EMPTY | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -61,19 +63,25 @@ export default function BaseExames() {
     const q = normalizeName(busca);
     const raw = busca.trim().toLowerCase();
     return (exames || []).filter((e) =>
-      !raw || normalizeName(e.nome).includes(q) || (e.codigo_interno || "").toLowerCase().includes(raw) || (e.codigo_externo || "").toLowerCase().includes(raw)
-      || (e.nomes_alternativos || []).some((a: string) => a.toLowerCase().includes(raw)));
-  }, [exames, busca]);
+      (!categoriaFiltro || e.categoria === categoriaFiltro) &&
+      (!situacaoFiltro || (situacaoFiltro === "ativo" ? e.ativo : !e.ativo)) &&
+      (!raw || normalizeName(e.nome).includes(q) || (e.codigo_interno || "").toLowerCase().includes(raw) || (e.codigo_externo || "").toLowerCase().includes(raw)
+      || (e.nomes_alternativos || []).some((a: string) => a.toLowerCase().includes(raw))));
+  }, [exames, busca, categoriaFiltro, situacaoFiltro]);
+
+  const categorias = useMemo(() => Array.from(new Set((exames || []).map((e) => e.categoria).filter(Boolean))).sort() as string[], [exames]);
+  const filtrosAtivos = (busca ? 1 : 0) + (categoriaFiltro ? 1 : 0) + (situacaoFiltro ? 1 : 0);
+  const limparFiltros = () => { setBusca(""); setCategoriaFiltro(""); setSituacaoFiltro(""); };
 
   const kpis = useMemo(() => {
-    const list = exames || [];
+    const list = filtrados;
     return {
       total: list.length,
       ativos: list.filter((e) => e.ativo).length,
       comAlias: list.filter((e) => (e.nomes_alternativos || []).length > 0).length,
       semPreco: list.filter((e) => e.ativo && e.valor == null && e.custo == null).length,
     };
-  }, [exames]);
+  }, [filtrados]);
 
   const salvar = async () => {
     if (!supabase || !activeTenantId || !form) return;
@@ -181,17 +189,23 @@ export default function BaseExames() {
       }
     >
       <div className="space-y-5 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label="Exames na base" value={kpis.total} icon={FlaskConical} />
-          <StatCell label="Ativos" value={kpis.ativos} icon={CheckCircle2} tone="success" />
-          <StatCell label="Com sinônimos" value={kpis.comAlias} icon={Layers} hint="Ajudam a comparação" />
-          <StatCell label="Sem preço/custo" value={kpis.semPreco} icon={Wallet} tone={kpis.semPreco > 0 ? "warning" : "neutral"} hint="Sem base para calcular margem" />
-        </StatCellRow>
-
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-          <input type="text" placeholder="Buscar nome, código ou sinônimo…" value={busca} onChange={(e) => setBusca(e.target.value)} className={cn(inputCls, "pl-9")} />
-        </div>
+        <KpiFilterCard
+          id="clinicaBaseExames"
+          kpis={[
+            { label: "Exames na base", value: kpis.total, icon: FlaskConical, tone: "primary" },
+            { label: "Ativos", value: kpis.ativos, icon: CheckCircle2, tone: "success" },
+            { label: "Com sinônimos", value: kpis.comAlias, icon: Layers, tone: "info", hint: "Ajudam a comparação" },
+            { label: "Sem preço/custo", value: kpis.semPreco, icon: Wallet, tone: kpis.semPreco > 0 ? "warning" : "neutral", hint: "Sem base para calcular margem" },
+          ]}
+          activeCount={filtrosAtivos}
+          onClear={limparFiltros}
+        >
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar nome, código ou sinônimo…" />
+            <FilterSelect icon={Tag} value={categoriaFiltro} onChange={setCategoriaFiltro} options={categorias} allLabel="Todas as categorias" />
+            <FilterSelect icon={CheckCircle2} value={situacaoFiltro} onChange={setSituacaoFiltro} options={[{ value: "ativo", label: "Ativos" }, { value: "inativo", label: "Inativos" }]} allLabel="Todas as situações" />
+          </FilterBar>
+        </KpiFilterCard>
 
         {exames === null ? (
           <p className="text-xs text-[var(--color-text-faint)] flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Carregando…</p>

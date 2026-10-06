@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Stethoscope, MapPin, CheckCircle2, AlertCircle, Activity, MoreVertical, RefreshCw, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Stethoscope, MapPin, CheckCircle2, AlertCircle, Activity, Users, Clock, MoreVertical, RefreshCw, CalendarDays } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { AgendaSidebar } from "./components/AgendaMedica/AgendaSidebar";
 import { AgendaDetailPanel } from "./components/AgendaMedica/AgendaDetailPanel";
 import { BookingModal } from "./components/BookingModal";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
 const hourlySlots = [
@@ -52,7 +53,28 @@ export default function AgendaClinica() {
     if (doctors.length > 0 && selectedDrs.length === 0) setSelectedDrs(doctors.map(d => d.id));
   }, [doctors]);
 
-  const filteredAppointments = useMemo(() => appointments.filter(apt => selectedDrs.includes(apt.drId)), [selectedDrs, appointments]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const statusOptions = useMemo(() => Array.from(new Set(appointments.map((a: any) => a.status).filter(Boolean))) as string[], [appointments]);
+  const typeOptions = useMemo(() => Array.from(new Set(appointments.map((a: any) => a.type).filter(Boolean))) as string[], [appointments]);
+  const activeFilters = (search ? 1 : 0) + (statusFilter ? 1 : 0) + (typeFilter ? 1 : 0);
+  const clearFilters = () => { setSearch(''); setStatusFilter(''); setTypeFilter(''); };
+  const filteredAppointments = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return appointments.filter(apt =>
+      selectedDrs.includes(apt.drId) &&
+      (!statusFilter || apt.status === statusFilter) &&
+      (!typeFilter || apt.type === typeFilter) &&
+      (!q || `${apt.patient} ${apt.drName} ${apt.room}`.toLowerCase().includes(q))
+    );
+  }, [selectedDrs, appointments, search, statusFilter, typeFilter]);
+  const aptKpis = useMemo(() => ({
+    total: filteredAppointments.length,
+    confirmed: filteredAppointments.filter(a => a.status === 'Confirmado').length,
+    waiting: filteredAppointments.filter(a => a.status === 'Aguardando' || a.status === 'Atrasado').length,
+    done: filteredAppointments.filter(a => a.status === 'Finalizado').length,
+  }), [filteredAppointments]);
   const selectedApt = appointments.find(a => a.id === selectedAptId);
 
   const handleSyncCalendar = async () => {
@@ -128,6 +150,24 @@ export default function AgendaClinica() {
         </div>
       }
     >
+      <KpiFilterCard
+        id="clinicaAgenda"
+        className="mb-4"
+        kpis={[
+          { label: "Agendamentos", value: aptKpis.total, icon: CalendarDays, tone: "primary" },
+          { label: "Confirmados", value: aptKpis.confirmed, icon: CheckCircle2, tone: "success" },
+          { label: "Aguardando/Atrasados", value: aptKpis.waiting, icon: Clock, tone: "warning" },
+          { label: "Finalizados", value: aptKpis.done, icon: Users, tone: "info" },
+        ]}
+        activeCount={activeFilters}
+        onClear={clearFilters}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar paciente, médico ou sala..." />
+          <FilterSelect icon={Activity} value={statusFilter} onChange={setStatusFilter} options={statusOptions} allLabel="Todos os status" />
+          <FilterSelect icon={Stethoscope} value={typeFilter} onChange={setTypeFilter} options={typeOptions} allLabel="Todos os tipos" />
+        </FilterBar>
+      </KpiFilterCard>
       <div className="grid lg:grid-cols-4 gap-6 max-w-[1700px] mx-auto pb-10">
         <AgendaSidebar
           doctors={doctors}

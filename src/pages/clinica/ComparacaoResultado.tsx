@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Check, Sparkles, ChevronLeft, ChevronRight, GitCompare, Loader2, Percent, Search, TrendingDown, Wallet, X, Replace, Layers } from "lucide-react";
+import { ArrowLeft, Check, Sparkles, ChevronLeft, ChevronRight, GitCompare, Loader2, Percent, ArrowUpDown, TrendingDown, Wallet, X, Replace, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { EmptyState } from "../../components/ui/empty-state";
-import { StatCell, StatCellRow } from "../finance/components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
@@ -197,27 +197,38 @@ export default function ComparacaoResultado() {
           </div>
         </Card>
 
-        <StatCellRow>
-          <StatCell label="Valor da tabela (parceiro)" value={formatCurrency(Number(comp.valor_total_parceiro) || 0)} icon={Wallet} />
-          <StatCell label="Custo (itens correspondidos)" value={formatCurrency(Number(comp.custo_total) || 0)} icon={Layers} />
-          <StatCell label="Diferença total" value={formatCurrency(Number(comp.diferenca_total) || 0)} icon={TrendingDown} tone={(Number(comp.diferenca_total) || 0) > 0 ? "warning" : "success"} hint="Parceiro − base, só itens correspondidos" />
-          <StatCell label="Margem geral" value={resumo.margem === null ? "—" : `${resumo.margem}%`} icon={Percent} tone={resumo.margem !== null && resumo.margem < 0 ? "danger" : "neutral"} />
-        </StatCellRow>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] flex-wrap">
-            {FILTROS.map((f) => (
-              <button key={f.id} type="button" onClick={() => setFiltro(f.id)} className={cn("px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all", filtro === f.id ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}>{f.label}</button>
-            ))}
-          </div>
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-            <input type="text" placeholder="Buscar exame ou código…" value={busca} onChange={(e) => setBusca(e.target.value)} className={cn(inputCls, "pl-9")} />
-          </div>
-          <select value={ordem} onChange={(e) => setOrdem(e.target.value as Ordem)} className={cn(inputCls, "!w-auto")}>
-            <option value="linha">Ordem da planilha</option><option value="maior_diferenca">Maior diferença (parceiro mais caro)</option><option value="maior_impacto">Maior desconto do parceiro</option>
-          </select>
-        </div>
+        <KpiFilterCard
+          id="clinicaComparacaoResultado"
+          kpis={[
+            { label: "Valor da tabela (parceiro)", value: formatCurrency(Number(comp.valor_total_parceiro) || 0), icon: Wallet, tone: "primary" },
+            { label: "Custo (itens correspondidos)", value: formatCurrency(Number(comp.custo_total) || 0), icon: Layers, tone: "info" },
+            { label: "Diferença total", value: formatCurrency(Number(comp.diferenca_total) || 0), icon: TrendingDown, tone: (Number(comp.diferenca_total) || 0) > 0 ? "warning" : "success", hint: "Parceiro − base, só itens correspondidos" },
+            { label: "Margem geral", value: resumo.margem === null ? "—" : `${resumo.margem}%`, icon: Percent, tone: resumo.margem !== null && resumo.margem < 0 ? "danger" : "neutral" },
+          ]}
+          activeCount={(filtro !== "todos" ? 1 : 0) + (busca ? 1 : 0) + (ordem !== "linha" ? 1 : 0)}
+          onClear={() => { setFiltro("todos"); setBusca(""); setOrdem("linha"); }}
+        >
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar exame ou código…" />
+            <FilterSelect
+              icon={ArrowUpDown}
+              value={ordem}
+              onChange={(v) => setOrdem(v as Ordem)}
+              options={[
+                { value: "linha", label: "Ordem da planilha" },
+                { value: "maior_diferenca", label: "Maior diferença (parceiro mais caro)" },
+                { value: "maior_impacto", label: "Maior desconto do parceiro" },
+              ]}
+            />
+            <FilterChips
+              value={filtro}
+              onChange={(v) => setFiltro(v as Filtro)}
+              allValue="todos"
+              allLabel="Todos"
+              options={FILTROS.filter((f) => f.id !== "todos").map((f) => ({ value: f.id, label: f.label }))}
+            />
+          </FilterBar>
+        </KpiFilterCard>
 
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
