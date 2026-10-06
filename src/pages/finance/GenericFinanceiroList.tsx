@@ -10,7 +10,7 @@ import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { Switch } from "../../components/ui/switch";
 import React, { useEffect, useMemo, useState } from "react";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid, AreaChart, Area } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid, AreaChart, Area, Legend } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -128,6 +128,19 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     () => (statusFilter === "Pago" ? getMonthlyRealizedSeries(financeEntries as any[], type, mesesGrafico) : []),
     [financeEntries, type, statusFilter, mesesGrafico]
   );
+  // Contas a Pagar/Receber: valor por mês de vencimento e por status (status atual de cada título).
+  const statusMonthly = useMemo(() => {
+    if (statusFilter === "Pago") return [];
+    const now = new Date();
+    const doTipo = (financeEntries as any[]).filter((e: any) => e.type === type);
+    const NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    return Array.from({ length: mesesGrafico }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (mesesGrafico - 1 - i), 1);
+      const y = d.getFullYear(), m = d.getMonth();
+      const soma = (st: string) => doTipo.filter((e: any) => e.status === st && isInMonth(e.date, y, m)).reduce((acc: number, e: any) => acc + e.value, 0);
+      return { label: NAMES[m], Pago: soma("Pago"), "A Vencer": soma("A Vencer"), Atrasado: soma("Atrasado"), Pendente: soma("Pendente") };
+    });
+  }, [financeEntries, type, statusFilter, mesesGrafico]);
   // Série fixa de 6 meses pros cards (independe do período escolhido pro gráfico).
   const monthlySeries6 = useMemo(
     () => (statusFilter === "Pago" ? getMonthlyRealizedSeries(financeEntries as any[], type, 6) : []),
@@ -582,25 +595,36 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     <>
 {kpis.kind === "pipeline" ? (
         <>
-          {statusBreakdown.length > 0 && (
-            <Card className="p-4">
-              <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-bold text-[var(--color-text-primary)] flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {type === "Pagar" ? "Pagamentos" : "Recebimentos"} por Status
               </h3>
-              <div className="h-36 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={statusBreakdown} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="status" type="category" stroke="var(--color-text-muted)" fontSize={11} width={70} tickLine={false} axisLine={false} />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                      {statusBreakdown.map((entry, index) => <Cell key={index} fill={entry.fill} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-          )}
+              <label className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-xs font-bold text-[var(--color-text-primary)]">
+                <Calendar className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                <select value={mesesGrafico} onChange={(e) => setMesesGrafico(Number(e.target.value))} className="bg-transparent focus:outline-none cursor-pointer font-bold">
+                  <option value={3}>Últimos 3 meses</option>
+                  <option value={6}>Últimos 6 meses</option>
+                  <option value={12}>Últimos 12 meses</option>
+                </select>
+              </label>
+            </div>
+            <div className="h-56 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={statusMonthly} margin={{ top: 8, right: 16, left: 0, bottom: 0 }} barGap={2}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
+                  <XAxis dataKey="label" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={48} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="Pago" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={14} />
+                  <Bar dataKey="A Vencer" fill="#f59e0b" radius={[3, 3, 0, 0]} maxBarSize={14} />
+                  <Bar dataKey="Atrasado" fill="#f43f5e" radius={[3, 3, 0, 0]} maxBarSize={14} />
+                  <Bar dataKey="Pendente" fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={14} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
         </>
       ) : (
         <>
@@ -638,7 +662,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: title }]}
       actions={
         <div className="flex items-center gap-2">
-          {statusFilter === "Pago" && (
+          {(
             <label className="hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-xs font-bold text-[var(--color-text-primary)]">
               <Calendar className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
               Período:
@@ -686,13 +710,18 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 {k.hideDelta ? <span /> : k.delta === null ? (
                   <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right leading-tight">Sem base<br />p/ comparação</span>
                 ) : (
-                  <span className={`text-xs font-bold flex items-center gap-0.5 tabular-nums ${deltaColor}`}>{up ? "+" : ""}{k.delta.toFixed(1)}% <DIcon className="w-3.5 h-3.5" /></span>
+                  <span className="flex flex-col items-end gap-0.5">
+                    <span className={`text-xs font-bold flex items-center gap-0.5 tabular-nums px-2 py-0.5 rounded-md ${flat || good === null ? "bg-[var(--color-surface-sunken)]" : good ? "bg-emerald-500/10" : "bg-rose-500/10"} ${deltaColor}`}>
+                      <DIcon className="w-3 h-3" /> {up ? "+" : ""}{k.delta.toFixed(1)}%
+                    </span>
+                    <span className="text-[9px] text-[var(--color-text-faint)]">vs. mês anterior</span>
+                  </span>
                 )}
               </div>
               <div className={`text-2xl font-display font-black mb-1 italic whitespace-nowrap ${k.danger ? "text-rose-500" : "text-[var(--color-text-primary)]"}`}>{k.value}</div>
               <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</div>
               <div className="flex items-center justify-between mt-1 gap-2">
-                <span className="text-[10px] text-[var(--color-text-faint)] font-medium">{k.hint ?? (k.delta !== null ? "vs. mês anterior" : "")}</span>
+                <span className="text-[10px] text-[var(--color-text-faint)] font-medium">{k.hint ?? ""}</span>
                 {k.series.length >= 2 && <Sparkline data={k.series} className={`w-16 h-5 shrink-0 ${sparkColor}`} />}
               </div>
             </Card>
@@ -845,7 +874,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                     </td>
                     <td className="px-3 py-3 text-[var(--color-text-muted)]">{item.counterparty || "—"}</td>
                     <td className="px-3 py-3 text-[var(--color-text-muted)]">{item.payment_method || "—"}</td>
-                    <td className="px-3 py-3 text-[var(--color-text-muted)] font-mono">{item.date}</td>
+                    <td className="px-3 py-3 text-[var(--color-text-muted)] font-mono whitespace-nowrap">{parseEntryDate(item.date)?.toLocaleDateString("pt-BR") ?? item.date}</td>
                     <td className="px-3 py-3">
                       <span
                         title="Para alterar o status, use o lápis (editar)"
