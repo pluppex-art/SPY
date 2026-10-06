@@ -9,6 +9,8 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseEntryDate, daysBetween } from "./lib/financeDates";
 import { StatCell, StatCellRow } from "./components/StatCell";
 import { apiFetch } from "../../lib/apiClient";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 interface InadimplenciaServerSummary {
   vencidosCount: number; totalVencido: number; clientesUnicos: number; atrasoMedio: number;
@@ -80,10 +82,16 @@ export default function FinanceiroInadimplencia() {
       .map(([cliente, v]) => ({ cliente, ...v }))
       .sort((a, b) => b.valor - a.valor);
 
-    return { vencidosCount: vencidos.length, totalVencido, clientesUnicos, atrasoMedio, buckets, porCliente };
+    return { vencidosCount: vencidos.length, totalVencido, clientesUnicos, atrasoMedio, buckets, porCliente, vencidos };
   }, [financeEntries]);
 
   const { vencidosCount, totalVencido, clientesUnicos, atrasoMedio, buckets, porCliente } = serverSummary ?? clientSide;
+  // Lista real pro drill-down vem sempre do cálculo client-side (nunca do
+  // serverSummary, que só traz os números já agregados, sem os registros).
+  const { vencidos } = clientSide;
+
+  const [drillOpen, setDrillOpen] = useState(false);
+  const entryColumns = financeEntryDrillColumns(formatCurrency);
 
   const maxBucketValue = Math.max(1, ...buckets.map(b => b.value));
 
@@ -95,8 +103,8 @@ export default function FinanceiroInadimplencia() {
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <StatCellRow>
-          <StatCell label="Total Vencido" value={formatCurrency(totalVencido)} icon={AlertTriangle} tone={totalVencido > 0 ? "danger" : "neutral"} />
-          <StatCell label="Cobranças Vencidas" value={vencidosCount} icon={Receipt} />
+          <StatCell label="Total Vencido" value={formatCurrency(totalVencido)} icon={AlertTriangle} tone={totalVencido > 0 ? "danger" : "neutral"} onClick={() => setDrillOpen(true)} />
+          <StatCell label="Cobranças Vencidas" value={vencidosCount} icon={Receipt} onClick={() => setDrillOpen(true)} />
           <StatCell label="Clientes Inadimplentes" value={clientesUnicos} icon={Users} />
           <StatCell label="Atraso Médio" value={`${atrasoMedio.toFixed(0)} dias`} icon={Clock} />
         </StatCellRow>
@@ -165,6 +173,15 @@ export default function FinanceiroInadimplencia() {
           </div>
         </Card>
       </div>
+
+      <DrillDownPanel
+        isOpen={drillOpen}
+        onClose={() => setDrillOpen(false)}
+        title="Cobranças Vencidas"
+        subtitle={`${vencidos.length} cobrança${vencidos.length === 1 ? "" : "s"} · ${formatCurrency(totalVencido)}`}
+        rows={vencidos}
+        columns={entryColumns}
+      />
     </PageContainer>
   );
 }

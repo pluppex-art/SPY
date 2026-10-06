@@ -13,6 +13,8 @@ import { parseEntryDate } from "./lib/financeDates";
 import { isPago, round2, type FinanceEntryLike } from "./lib/financeEngine";
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/apiClient";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 const PERIODOS = [30, 60, 90] as const;
 
@@ -34,7 +36,7 @@ export default function FinanceiroFluxoCaixa() {
   const { formatCurrency } = useLocalization();
   const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number]>(30);
 
-  const { totalEntradas: clientTotalEntradas, totalSaidas: clientTotalSaidas, saldoLiquido: clientSaldoLiquido, fluxoDiario: clientFluxoDiario, rangeStart, rangeEnd } = useMemo(() => {
+  const { totalEntradas: clientTotalEntradas, totalSaidas: clientTotalSaidas, saldoLiquido: clientSaldoLiquido, fluxoDiario: clientFluxoDiario, rangeStart, rangeEnd, rowsEntradas, rowsSaidas } = useMemo(() => {
     const hoje = new Date(); hoje.setHours(23, 59, 59, 999);
     const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - periodo); inicio.setHours(0, 0, 0, 0);
 
@@ -63,12 +65,15 @@ export default function FinanceiroFluxoCaixa() {
       };
     });
 
-    const totalEntradas = doPeriodo.filter(e => e.type === "Receber").reduce((s, e) => s + e.value, 0);
-    const totalSaidas = doPeriodo.filter(e => e.type === "Pagar").reduce((s, e) => s + e.value, 0);
+    const rowsEntradas = doPeriodo.filter(e => e.type === "Receber");
+    const rowsSaidas = doPeriodo.filter(e => e.type === "Pagar");
+    const totalEntradas = rowsEntradas.reduce((s, e) => s + e.value, 0);
+    const totalSaidas = rowsSaidas.reduce((s, e) => s + e.value, 0);
 
     return {
       totalEntradas, totalSaidas, saldoLiquido: round2(totalEntradas - totalSaidas), fluxoDiario,
       rangeStart: toLocalISODate(inicio), rangeEnd: toLocalISODate(hoje),
+      rowsEntradas, rowsSaidas,
     };
   }, [financeEntries, periodo]);
 
@@ -92,6 +97,9 @@ export default function FinanceiroFluxoCaixa() {
   const saldoLiquido = serverSummary?.saldoLiquido ?? clientSaldoLiquido;
   const fluxoDiario = serverSummary?.fluxoDiario ?? clientFluxoDiario;
 
+  const [drillKey, setDrillKey] = useState<"entradas" | "saidas" | null>(null);
+  const entryColumns = financeEntryDrillColumns(formatCurrency);
+
   const handleExport = () => {
     downloadCsv(`fluxo_de_caixa_${periodo}d_${Date.now()}.csv`, ["Data", "Entradas", "Saídas", "Saldo do Dia", "Acumulado"], fluxoDiario.map(d => [d.dataCompleta, d.entradas, d.saidas, d.saldoDia, d.acumulado]));
   };
@@ -114,8 +122,8 @@ export default function FinanceiroFluxoCaixa() {
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <StatCellRow>
-          <StatCell label={`Entradas (${periodo}d)`} value={formatCurrency(totalEntradas)} icon={ArrowUpRight} tone="success" hint="Só o que já foi pago" />
-          <StatCell label={`Saídas (${periodo}d)`} value={formatCurrency(totalSaidas)} icon={ArrowDownRight} tone="danger" hint="Só o que já foi pago" />
+          <StatCell label={`Entradas (${periodo}d)`} value={formatCurrency(totalEntradas)} icon={ArrowUpRight} tone="success" hint="Só o que já foi pago" onClick={() => setDrillKey("entradas")} />
+          <StatCell label={`Saídas (${periodo}d)`} value={formatCurrency(totalSaidas)} icon={ArrowDownRight} tone="danger" hint="Só o que já foi pago" onClick={() => setDrillKey("saidas")} />
           <StatCell label="Saldo Líquido do Período" value={formatCurrency(saldoLiquido)} icon={Scale} tone={saldoLiquido < 0 ? "danger" : "neutral"} />
         </StatCellRow>
 
@@ -172,6 +180,14 @@ export default function FinanceiroFluxoCaixa() {
           </table>
         </Card>
       </div>
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey === "entradas" ? `Entradas (${periodo}d)` : drillKey === "saidas" ? `Saídas (${periodo}d)` : undefined}
+        rows={drillKey === "entradas" ? rowsEntradas : drillKey === "saidas" ? rowsSaidas : []}
+        columns={entryColumns}
+      />
     </PageContainer>
   );
 }
