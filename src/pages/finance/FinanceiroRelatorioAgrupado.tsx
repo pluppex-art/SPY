@@ -11,6 +11,8 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { downloadCsv } from "../../lib/csvExport";
 import { parseEntryDate } from "./lib/financeDates";
 import { dreTipoDe, categoriesById, type FinanceEntryLike, type FinanceCategoryLike } from "./lib/financeEngine";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 type Dimension = "description" | "day" | "dreTipo" | "category" | "tags" | "centroCusto" | "counterparty";
 type Periodo = "mes" | "trimestre" | "ano" | "tudo" | "personalizado";
@@ -100,46 +102,46 @@ export default function FinanceiroRelatorioAgrupado() {
       return isInPeriodo(parseEntryDate(e.date), periodo, now, { inicio: customInicio, fim: customFim });
     });
 
-    const grupos = new Map<string, { label: string; valor: number; qtd: number }>();
-    const addTo = (key: string, label: string, valor: number) => {
-      const cur = grupos.get(key) || { label, valor: 0, qtd: 0 };
-      cur.valor += valor; cur.qtd += 1;
+    const grupos = new Map<string, { label: string; valor: number; qtd: number; rows: any[] }>();
+    const addTo = (key: string, label: string, valor: number, entry: any) => {
+      const cur = grupos.get(key) || { label, valor: 0, qtd: 0, rows: [] as any[] };
+      cur.valor += valor; cur.qtd += 1; cur.rows.push(entry);
       grupos.set(key, cur);
     };
 
     for (const e of base) {
       switch (config.dimension) {
         case "description":
-          addTo(e.description || "Sem descrição", e.description || "Sem descrição", e.value);
+          addTo(e.description || "Sem descrição", e.description || "Sem descrição", e.value, e);
           break;
         case "day": {
           const d = parseEntryDate(e.date);
           const key = d ? d.toISOString().slice(0, 10) : "sem-data";
           const label = d ? d.toLocaleDateString("pt-BR") : "Sem data";
-          addTo(key, label, e.value);
+          addTo(key, label, e.value, e);
           break;
         }
         case "dreTipo": {
           const tipo = dreTipoDe(e, catMap);
-          addTo(tipo, DRE_TIPO_LABEL[tipo] || tipo, e.value);
+          addTo(tipo, DRE_TIPO_LABEL[tipo] || tipo, e.value, e);
           break;
         }
         case "category":
-          addTo(e.category || "Sem categoria", e.category || "Sem categoria", e.value);
+          addTo(e.category || "Sem categoria", e.category || "Sem categoria", e.value, e);
           break;
         case "tags": {
           const tags: string[] = Array.isArray(e.tags) ? e.tags : [];
-          if (tags.length === 0) addTo("__sem_tag__", "Sem tag", e.value);
-          else tags.forEach(t => addTo(t, t, e.value));
+          if (tags.length === 0) addTo("__sem_tag__", "Sem tag", e.value, e);
+          else tags.forEach(t => addTo(t, t, e.value, e));
           break;
         }
         case "centroCusto": {
           const nome = e.centro_custo_id ? centroCustoMap.get(e.centro_custo_id) : null;
-          addTo(nome || "__sem_cc__", nome || "Sem centro de custo", e.value);
+          addTo(nome || "__sem_cc__", nome || "Sem centro de custo", e.value, e);
           break;
         }
         case "counterparty":
-          addTo(e.counterparty || "__sem_cp__", e.counterparty || (config.type === "Pagar" ? "Sem fornecedor" : "Sem cliente"), e.value);
+          addTo(e.counterparty || "__sem_cp__", e.counterparty || (config.type === "Pagar" ? "Sem fornecedor" : "Sem cliente"), e.value, e);
           break;
       }
     }
@@ -157,6 +159,9 @@ export default function FinanceiroRelatorioAgrupado() {
   const qtdTotal = linhasFiltradas.reduce((s, l) => s + l.qtd, 0);
   const media = qtdTotal > 0 ? total / qtdTotal : 0;
   const corBarra = config?.type === "Pagar" ? "var(--color-danger)" : "var(--color-success)";
+
+  const [drillGrupo, setDrillGrupo] = useState<{ label: string; rows: any[] } | null>(null);
+  const entryColumns = financeEntryDrillColumns(formatCurrency);
 
   const chartData = useMemo(() => {
     const top = linhasFiltradas.slice(0, 8).map(l => ({ name: l.label, valor: l.valor }));
@@ -230,7 +235,13 @@ export default function FinanceiroRelatorioAgrupado() {
           <StatCell label="Total" value={formatCurrency(total)} icon={TrendingUp} tone={config.type === "Pagar" ? "danger" : "success"} />
           <StatCell label="Lançamentos" value={qtdTotal} icon={Hash} />
           <StatCell label="Média por Lançamento" value={formatCurrency(media)} icon={Layers} />
-          <StatCell label={`Maior ${config.groupLabel}`} value={linhasFiltradas[0] ? formatCurrency(linhasFiltradas[0].valor) : "—"} hint={linhasFiltradas[0]?.label} icon={Crown} />
+          <StatCell
+            label={`Maior ${config.groupLabel}`}
+            value={linhasFiltradas[0] ? formatCurrency(linhasFiltradas[0].valor) : "—"}
+            hint={linhasFiltradas[0]?.label}
+            icon={Crown}
+            onClick={linhasFiltradas[0] ? () => setDrillGrupo({ label: linhasFiltradas[0].label, rows: linhasFiltradas[0].rows }) : undefined}
+          />
         </StatCellRow>
 
         {chartData.length > 0 && (
@@ -266,7 +277,7 @@ export default function FinanceiroRelatorioAgrupado() {
               {linhasFiltradas.length === 0 ? (
                 <tr><td colSpan={4} className="px-6 py-10 text-center text-[var(--color-text-faint)]">Nenhum lançamento encontrado para os filtros selecionados.</td></tr>
               ) : linhasFiltradas.map(l => (
-                <tr key={l.label} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors">
+                <tr key={l.label} onClick={() => setDrillGrupo({ label: l.label, rows: l.rows })} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors cursor-pointer">
                   <td className="px-6 py-3 font-medium text-[var(--color-text-primary)]">{l.label}</td>
                   <td className="px-6 py-3 text-right tabular-nums text-[var(--color-text-muted)]">{l.qtd}</td>
                   <td className="px-6 py-3 text-right tabular-nums font-semibold text-[var(--color-text-primary)]">{formatCurrency(l.valor)}</td>
@@ -287,6 +298,15 @@ export default function FinanceiroRelatorioAgrupado() {
           </table>
         </Card>
       </div>
+
+      <DrillDownPanel
+        isOpen={drillGrupo !== null}
+        onClose={() => setDrillGrupo(null)}
+        title={drillGrupo?.label}
+        subtitle={drillGrupo ? `${drillGrupo.rows.length} lançamento${drillGrupo.rows.length === 1 ? "" : "s"}` : undefined}
+        rows={drillGrupo?.rows || []}
+        columns={entryColumns}
+      />
     </PageContainer>
   );
 }

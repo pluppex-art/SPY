@@ -11,6 +11,8 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { downloadCsv } from "../../lib/csvExport";
 import { parseEntryDate } from "./lib/financeDates";
 import { apiFetch } from "../../lib/apiClient";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 const JANELAS = [6, 12, 24] as const;
@@ -45,6 +47,23 @@ export default function FinanceiroPerformanceMensal() {
     return { receitaTotal, despesaTotal, resultadoTotal: receitaTotal - despesaTotal, melhorMes };
   }, [clientMeses]);
 
+  // Mesma janela de `clientMeses`, só que como um único filtro combinado
+  // sobre `financeEntries` (em vez de concatenar mês a mês) — fonte real
+  // pro drill-down de Receitas/Despesas, sempre client-side (nunca o
+  // serverSummary, que só traz os totais já agregados).
+  const { receitaRows, despesaRows } = useMemo(() => {
+    const now = new Date();
+    const inicio = new Date(now.getFullYear(), now.getMonth() - (janela - 1), 1);
+    const doJanela = financeEntries.filter(e => {
+      const ed = parseEntryDate(e.date);
+      return ed && ed >= inicio && ed <= now && e.status === "Pago";
+    });
+    return {
+      receitaRows: doJanela.filter(e => e.type === "Receber"),
+      despesaRows: doJanela.filter(e => e.type === "Pagar"),
+    };
+  }, [financeEntries, janela]);
+
   // GET /api/finance/performance-mensal-summary faz a mesma soma por mês no
   // servidor (regime de caixa), cacheada 60s no Redis-SPY. Cálculo
   // client-side acima continua como fallback.
@@ -65,6 +84,9 @@ export default function FinanceiroPerformanceMensal() {
 
   const handleExport = () => downloadCsv(`performance_mensal_${Date.now()}.csv`, ["Mês", "Receitas", "Despesas", "Resultado"], meses.map(m => [m.label, m.receita, m.despesa, m.resultado]));
 
+  const [drillKey, setDrillKey] = useState<"receitas" | "despesas" | null>(null);
+  const entryColumns = financeEntryDrillColumns(formatCurrency);
+
   return (
     <PageContainer
       title="Performance Mensal"
@@ -84,8 +106,8 @@ export default function FinanceiroPerformanceMensal() {
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <StatCellRow>
-          <StatCell label={`Receitas (${janela}m)`} value={formatCurrency(receitaTotal)} icon={TrendingUp} tone="success" />
-          <StatCell label={`Despesas (${janela}m)`} value={formatCurrency(despesaTotal)} icon={TrendingDown} tone="danger" />
+          <StatCell label={`Receitas (${janela}m)`} value={formatCurrency(receitaTotal)} icon={TrendingUp} tone="success" onClick={() => setDrillKey("receitas")} />
+          <StatCell label={`Despesas (${janela}m)`} value={formatCurrency(despesaTotal)} icon={TrendingDown} tone="danger" onClick={() => setDrillKey("despesas")} />
           <StatCell label={`Resultado (${janela}m)`} value={formatCurrency(resultadoTotal)} icon={Scale} tone={resultadoTotal < 0 ? "danger" : "neutral"} />
           <StatCell label="Melhor Mês" value={melhorMes ? formatCurrency(melhorMes.resultado) : "—"} hint={melhorMes?.label} icon={Award} />
         </StatCellRow>
@@ -124,6 +146,14 @@ export default function FinanceiroPerformanceMensal() {
           </table>
         </Card>
       </div>
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey === "receitas" ? `Receitas (${janela}m)` : drillKey === "despesas" ? `Despesas (${janela}m)` : undefined}
+        rows={drillKey === "receitas" ? receitaRows : drillKey === "despesas" ? despesaRows : []}
+        columns={entryColumns}
+      />
     </PageContainer>
   );
 }
