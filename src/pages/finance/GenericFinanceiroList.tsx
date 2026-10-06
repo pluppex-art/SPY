@@ -24,6 +24,8 @@ import { Pagination } from "../../components/ui/Pagination";
 import { type Frequencia, addPeriodo, splitInstallments } from "../../lib/saleCalculator";
 import { StatCell, StatCellRow } from "./components/StatCell";
 import { isInMonth, pctDelta, getMonthlyRealizedSeries } from "./lib/financeEngine";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 type RepeatMode = "none" | "recorrente" | "parcelado";
 
@@ -83,6 +85,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       const prevRef = new Date(y, m - 1, 1);
       const py = prevRef.getFullYear(), pm = prevRef.getMonth();
       const pagos = entriesDoTipo.filter((e: any) => e.status === "Pago");
+      const rowsMesAtual = pagos.filter((e: any) => isInMonth(e.date, y, m));
       const sumMes = (yy: number, mm: number) => pagos.filter((e: any) => isInMonth(e.date, yy, mm)).reduce((s: number, e: any) => s + e.value, 0);
       const totalMes = sumMes(y, m);
       const totalMesAnterior = sumMes(py, pm);
@@ -91,16 +94,22 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         kind: "realizado" as const,
         totalMes, deltaPct: pctDelta(totalMes, totalMesAnterior),
         totalGeral, ticketMedio: pagos.length > 0 ? totalGeral / pagos.length : 0, count: pagos.length,
+        rowsMesAtual, rowsGeral: pagos,
       };
     }
-    const sumStatus = (status: string) => entriesDoTipo.filter((e: any) => e.status === status).reduce((s: number, e: any) => s + e.value, 0);
-    const countStatus = (status: string) => entriesDoTipo.filter((e: any) => e.status === status).length;
+    const filterStatus = (status: string) => entriesDoTipo.filter((e: any) => e.status === status);
+    const sumStatus = (status: string) => filterStatus(status).reduce((s: number, e: any) => s + e.value, 0);
+    const countStatus = (status: string) => filterStatus(status).length;
     return {
       kind: "pipeline" as const,
       pago: sumStatus("Pago"), aVencer: sumStatus("A Vencer"), atrasado: sumStatus("Atrasado"), pendente: sumStatus("Pendente"),
       countPago: countStatus("Pago"), countAVencer: countStatus("A Vencer"), countAtrasado: countStatus("Atrasado"), countPendente: countStatus("Pendente"),
+      rowsPago: filterStatus("Pago"), rowsAVencer: filterStatus("A Vencer"), rowsAtrasado: filterStatus("Atrasado"), rowsPendente: filterStatus("Pendente"),
     };
   }, [financeEntries, type, statusFilter]);
+
+  const [drillKey, setDrillKey] = useState<string | null>(null);
+  const drillColumns = financeEntryDrillColumns(formatCurrency);
 
   const STATUS_CHART_COLORS: Record<string, string> = { Pago: "var(--color-success)", "A Vencer": "var(--color-text-muted)", Atrasado: "var(--color-danger)", Pendente: "var(--color-warning)" };
   const statusBreakdown = useMemo(() => {
@@ -510,10 +519,10 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       {kpis.kind === "pipeline" ? (
         <>
           <StatCellRow>
-            <StatCell label="Pago" value={formatCurrency(kpis.pago)} icon={CheckCircle2} tone="success" hint={`${kpis.countPago} lançamento(s)`} />
-            <StatCell label="A Vencer" value={formatCurrency(kpis.aVencer)} icon={Clock} tone="neutral" hint={`${kpis.countAVencer} lançamento(s)`} />
-            <StatCell label="Atrasado" value={formatCurrency(kpis.atrasado)} icon={AlertTriangle} tone={kpis.atrasado > 0 ? "danger" : "neutral"} hint={`${kpis.countAtrasado} lançamento(s)`} />
-            <StatCell label="Pendente" value={formatCurrency(kpis.pendente)} icon={HourglassIcon} tone={kpis.pendente > 0 ? "warning" : "neutral"} hint={`${kpis.countPendente} lançamento(s)`} />
+            <StatCell label="Pago" value={formatCurrency(kpis.pago)} icon={CheckCircle2} tone="success" hint={`${kpis.countPago} lançamento(s)`} onClick={() => setDrillKey("pago")} />
+            <StatCell label="A Vencer" value={formatCurrency(kpis.aVencer)} icon={Clock} tone="neutral" hint={`${kpis.countAVencer} lançamento(s)`} onClick={() => setDrillKey("aVencer")} />
+            <StatCell label="Atrasado" value={formatCurrency(kpis.atrasado)} icon={AlertTriangle} tone={kpis.atrasado > 0 ? "danger" : "neutral"} hint={`${kpis.countAtrasado} lançamento(s)`} onClick={() => setDrillKey("atrasado")} />
+            <StatCell label="Pendente" value={formatCurrency(kpis.pendente)} icon={HourglassIcon} tone={kpis.pendente > 0 ? "warning" : "neutral"} hint={`${kpis.countPendente} lançamento(s)`} onClick={() => setDrillKey("pendente")} />
           </StatCellRow>
           {statusBreakdown.length > 0 && (
             <Card className="p-4">
@@ -538,7 +547,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       ) : (
         <>
           <StatCellRow>
-            <StatCell label={type === "Pagar" ? "Gasto no Mês" : "Recebido no Mês"} value={formatCurrency(kpis.totalMes)} icon={type === "Pagar" ? TrendingDown : TrendingUp} tone={type === "Pagar" ? (kpis.totalMes > 0 ? "danger" : "neutral") : "success"} />
+            <StatCell label={type === "Pagar" ? "Gasto no Mês" : "Recebido no Mês"} value={formatCurrency(kpis.totalMes)} icon={type === "Pagar" ? TrendingDown : TrendingUp} tone={type === "Pagar" ? (kpis.totalMes > 0 ? "danger" : "neutral") : "success"} onClick={() => setDrillKey("mes")} />
             <StatCell
               label="Vs. Mês Anterior"
               value={kpis.deltaPct === null ? "—" : `${kpis.deltaPct > 0 ? "+" : ""}${kpis.deltaPct}%`}
@@ -546,7 +555,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               tone={kpis.deltaPct === null ? "neutral" : (type === "Pagar" ? kpis.deltaPct <= 0 : kpis.deltaPct >= 0) ? "success" : "danger"}
             />
             <StatCell label="Ticket Médio" value={formatCurrency(kpis.ticketMedio)} icon={DollarSign} />
-            <StatCell label="Total Geral (Histórico)" value={formatCurrency(kpis.totalGeral)} icon={Layers} hint={`${kpis.count} lançamento(s)`} />
+            <StatCell label="Total Geral (Histórico)" value={formatCurrency(kpis.totalGeral)} icon={Layers} hint={`${kpis.count} lançamento(s)`} onClick={() => setDrillKey("geral")} />
           </StatCellRow>
           <Card className="p-4">
             <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
@@ -1402,6 +1411,22 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         onConfirm={handleConfirmRateio}
       />
       </div>
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={
+          kpis.kind === "pipeline"
+            ? (drillKey === "pago" ? "Pago" : drillKey === "aVencer" ? "A Vencer" : drillKey === "atrasado" ? "Atrasado" : drillKey === "pendente" ? "Pendente" : undefined)
+            : (drillKey === "mes" ? (type === "Pagar" ? "Gasto no Mês" : "Recebido no Mês") : drillKey === "geral" ? "Total Geral (Histórico)" : undefined)
+        }
+        rows={
+          kpis.kind === "pipeline"
+            ? (drillKey === "pago" ? kpis.rowsPago : drillKey === "aVencer" ? kpis.rowsAVencer : drillKey === "atrasado" ? kpis.rowsAtrasado : drillKey === "pendente" ? kpis.rowsPendente : [])
+            : (drillKey === "mes" ? kpis.rowsMesAtual : drillKey === "geral" ? kpis.rowsGeral : [])
+        }
+        columns={drillColumns}
+      />
     </PageContainer>
   );
 }
