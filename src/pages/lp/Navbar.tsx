@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Logo } from "../../components/ui/Logo";
 import { useLpTheme } from "./theme/LpThemeContext";
@@ -81,6 +82,9 @@ export function Navbar({ onCtaClick }: { onCtaClick: () => void }) {
               {l.label}
             </button>
           ))}
+          <Link to="/privacidade" className="text-[13px] font-medium text-slate-500 hover:text-slate-900 transition-colors">
+            Privacidade
+          </Link>
         </div>
 
         {/* Right side: picker + CTAs */}
@@ -127,6 +131,9 @@ export function Navbar({ onCtaClick }: { onCtaClick: () => void }) {
               {l.label}
             </button>
           ))}
+          <Link to="/privacidade" onClick={() => setMobileOpen(false)} className="block w-full text-left text-sm font-medium text-slate-600 py-1.5">
+            Privacidade
+          </Link>
           <button
             onClick={() => { setMobileOpen(false); onCtaClick(); }}
             className={`w-full mt-3 px-5 py-3 rounded-xl text-sm font-bold ${theme.ctaClass}`}

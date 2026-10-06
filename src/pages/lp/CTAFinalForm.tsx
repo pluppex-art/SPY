@@ -31,11 +31,12 @@ export const CTAFinalFormSection = forwardRef<HTMLDivElement>(function CTAFinalF
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, boolean>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setData((d) => ({ ...d, [field]: e.target.value }));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const nextErrors: Partial<Record<keyof FormState, boolean>> = {};
     if (!data.nome.trim()) nextErrors.nome = true;
@@ -46,12 +47,36 @@ export const CTAFinalFormSection = forwardRef<HTMLDivElement>(function CTAFinalF
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
-    // Sem backend neste momento — validação client-side + estado local de sucesso.
-    // Arquitetura pronta para, futuramente, trocar este setTimeout por uma chamada real.
-    setTimeout(() => {
-      setSubmitting(false);
+    setSubmitError(null);
+    try {
+      // Endpoint público (sem login) que grava o contato como lead novo.
+      // Os campos extras do formulário viajam no resumo, que vira a observação do lead.
+      const summary = [
+        `Empresa: ${data.empresa.trim()}`,
+        data.volumeLeads ? `Leads por mês: ${data.volumeLeads}` : null,
+        data.desafio.trim() ? `Principal desafio: ${data.desafio.trim()}` : null,
+      ].filter(Boolean).join("\n");
+      const res = await fetch("/api/public/lead-capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          niche: "Landing page S.P.Y.",
+          name: data.nome.trim(),
+          phone: data.whatsapp.trim(),
+          email: data.email.trim(),
+          summary,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Não foi possível enviar agora.");
+      }
       setSubmitted(true);
-    }, 900);
+    } catch (err: any) {
+      setSubmitError(err?.message || "Não foi possível enviar agora. Tente novamente em instantes.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -140,6 +165,12 @@ export const CTAFinalFormSection = forwardRef<HTMLDivElement>(function CTAFinalF
                       <label className={labelClass} style={labelStyle}>Principal desafio comercial</label>
                       <input value={data.desafio} onChange={set("desafio")} className={inputClass} placeholder="Ex: leads esfriando, follow-up manual..." />
                     </div>
+
+                    {submitError && (
+                      <p role="alert" className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
+                        {submitError}
+                      </p>
+                    )}
 
                     <button
                       type="submit"
