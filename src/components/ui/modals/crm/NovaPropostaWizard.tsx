@@ -78,14 +78,25 @@ interface NovaPropostaWizardProps {
   availableProducts: any[];
   /** Produtos de Interesse já selecionados no lead — pré-carrega a Composição. */
   initialProductIds?: string[];
+  /** Modo edição: a proposta já existente que este envio vai atualizar (em
+   * vez de criar uma nova) — mesmo modal, pedido explícito do usuário pra
+   * unificar "criar" e "editar" numa única experiência mais completa. */
+  existingProposal?: {
+    id: string; titulo?: string; valor?: number; status?: string;
+    probabilidade?: number | null; previsao_fechamento?: string | null;
+    objetivo?: string | null; origem?: string | null;
+    condicoes?: Record<string, any> | null; pagamento?: Record<string, any> | null;
+    equipe_interna?: { id: string; nome: string }[] | null; tags?: string[] | null;
+  } | null;
+  existingItems?: any[];
   onDone?: (summary: string) => void;
 }
 
 export function NovaPropostaWizard({
   isOpen, onClose, leadId, leadName, companyName, seller, availableProducts,
-  initialProductIds, onDone,
+  initialProductIds, existingProposal, existingItems, onDone,
 }: NovaPropostaWizardProps) {
-  const { clienteBase, colaboradores, leads, createProposalWithItems, updateLead } = useData();
+  const { clienteBase, colaboradores, leads, createProposalWithItems, updateProposal, replaceProposalItems, updateLead } = useData();
   const { formatCurrency } = useLocalization();
 
   const [step, setStep] = useState(1);
@@ -167,19 +178,37 @@ export function NovaPropostaWizard({
     setTags([]);
     setEquipeInterna(seller ? [{ id: "seller", nome: seller }] : []);
 
-    const seedItems: ComposicaoItem[] = (initialProductIds || [])
-      .map((pid) => availableProducts.find((p: any) => p.id === pid))
-      .filter(Boolean)
-      .map((p: any) => ({
-        key: crypto.randomUUID(),
-        productId: p.id,
-        nome: p.name,
-        tipo: (p.category === "Software" || p.is_recurring) ? "Software" : "Serviço",
-        isRecurring: !!(p.is_recurring || p.recurring_period || p.category === "Software"),
-        quantidade: "1",
-        valorUnitario: String(Number(p.price) || 0),
-        descontoItem: "0",
-      }));
+    // Modo edição: os itens vêm da proposta já existente (proposal_items),
+    // não dos Produtos de Interesse — cada linha salva já tem productId
+    // (inclusive a linha de implantação antiga, que aponta pro mesmo
+    // produto da linha principal, ver AddProdutoLeadModal legado).
+    const seedItems: ComposicaoItem[] = existingProposal && existingItems
+      ? existingItems.map((it: any) => {
+          const p = availableProducts.find((pr: any) => pr.id === it.product_id);
+          return {
+            key: crypto.randomUUID(),
+            productId: it.product_id || null,
+            nome: it.product_name || p?.name || "",
+            tipo: (p?.category === "Software" || p?.is_recurring) ? "Software" : "Serviço",
+            isRecurring: it.billing_type !== "one_time",
+            quantidade: String(Number(it.quantidade) || 1),
+            valorUnitario: String(Number(it.preco_unitario) || 0),
+            descontoItem: "0",
+          };
+        })
+      : (initialProductIds || [])
+          .map((pid) => availableProducts.find((p: any) => p.id === pid))
+          .filter(Boolean)
+          .map((p: any) => ({
+            key: crypto.randomUUID(),
+            productId: p.id,
+            nome: p.name,
+            tipo: (p.category === "Software" || p.is_recurring) ? "Software" : "Serviço",
+            isRecurring: !!(p.is_recurring || p.recurring_period || p.category === "Software"),
+            quantidade: "1",
+            valorUnitario: String(Number(p.price) || 0),
+            descontoItem: "0",
+          }));
     setItems(seedItems);
     setDescontoTipo("valor");
     setDescontoValor("0");
@@ -203,6 +232,41 @@ export function NovaPropostaWizard({
     const d = new Date(); d.setMonth(d.getMonth() + 1);
     setPrimeiroVencimentoParcela(d.toISOString().slice(0, 10));
     setObservacoesPagamento("");
+
+    // Sobrescreve com o que já estava salvo na proposta (modo edição) — por
+    // cima dos padrões acima, só os campos que de fato existem no registro.
+    if (existingProposal) {
+      if (existingProposal.titulo) setTituloProposta(existingProposal.titulo);
+      if (typeof existingProposal.probabilidade === "number") setProbabilidade(existingProposal.probabilidade);
+      if (existingProposal.previsao_fechamento) setPrevisaoFechamento(existingProposal.previsao_fechamento);
+      if (existingProposal.objetivo) setObjetivo(existingProposal.objetivo);
+      if (existingProposal.origem) setOrigem(existingProposal.origem);
+      if (existingProposal.equipe_interna?.length) setEquipeInterna(existingProposal.equipe_interna);
+      if (existingProposal.tags?.length) setTags(existingProposal.tags);
+      const c = existingProposal.condicoes;
+      if (c) {
+        if (c.prazoImplantacao) setPrazoImplantacao(c.prazoImplantacao);
+        if (c.prazoContratoMeses) setPrazoContratoMeses(c.prazoContratoMeses);
+        if (typeof c.renovacaoAutomatica === "boolean") setRenovacaoAutomatica(c.renovacaoAutomatica);
+        if (c.reajusteIndice) setReajusteIndice(c.reajusteIndice);
+        if (c.reajustePeriodicidade) setReajustePeriodicidade(c.reajustePeriodicidade);
+        if (Array.isArray(c.adicionais)) setCondicoesAdicionais(c.adicionais);
+      }
+      const pg = existingProposal.pagamento;
+      if (pg) {
+        if (pg.formaPagamento) setFormaPagamento(pg.formaPagamento);
+        if (Array.isArray(pg.metodos)) setMetodosPagamento(pg.metodos);
+        if (typeof pg.valorEntrada === "number") { setEntradaAuto(false); setEntradaValorInput(String(pg.valorEntrada)); }
+        if (pg.dataVencimentoEntrada) setDataVencimentoEntrada(pg.dataVencimentoEntrada);
+        if (typeof pg.parcelasRecorrentes === "number") setPrazoContratoMeses(pg.parcelasRecorrentes);
+        if (typeof pg.diaFixoVencimento === "boolean") setDiaFixoVencimento(pg.diaFixoVencimento);
+        if (pg.diaDoMes) setDiaDoMes(String(pg.diaDoMes));
+        if (pg.primeiroVencimentoParcela) setPrimeiroVencimentoParcela(pg.primeiroVencimentoParcela);
+        if (pg.descontoTipo) setDescontoTipo(pg.descontoTipo);
+        if (typeof pg.descontoValor === "number") setDescontoValor(String(pg.descontoValor));
+        if (pg.observacoes) setObservacoesPagamento(pg.observacoes);
+      }
+    }
     setSaving(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -362,15 +426,39 @@ export function NovaPropostaWizard({
     setSaving(true);
     try {
       const payload = buildPayload(status);
-      await createProposalWithItems(payload);
+      if (existingProposal) {
+        // Edição: atualiza os campos da proposta já existente e troca TODOS
+        // os itens antigos pelos novos de uma vez (delta 0 — updateProposal
+        // já grava o valor final direto, replaceProposalItems não precisa
+        // recalcular por cima).
+        await updateProposal(existingProposal.id, {
+          titulo: payload.titulo,
+          cliente: payload.cliente,
+          valor: payload.valor,
+          validade: payload.validade,
+          status: existingProposal.status === "Aceita" ? existingProposal.status : status,
+          vendedor: payload.vendedor,
+          probabilidade: payload.probabilidade,
+          previsao_fechamento: payload.previsaoFechamento,
+          objetivo: payload.objetivo,
+          origem: payload.origem,
+          condicoes: payload.condicoes,
+          pagamento: payload.pagamento,
+          equipe_interna: payload.equipeInterna,
+          tags: payload.tags,
+        });
+        await replaceProposalItems(existingProposal.id, (existingItems || []).map((it: any) => it.id), payload.itens, 0);
+      } else {
+        await createProposalWithItems(payload);
+      }
       if (leadId) {
         const currentLead = (leads || []).find((l: any) => l.id === leadId);
         const newProductIds = items.map((i) => i.productId).filter((id): id is string => !!id);
         const merged = [...new Set([...(currentLead?.productIds || []), ...newProductIds])];
         await updateLead(leadId, { productIds: merged });
       }
-      toast.success(status === "Rascunho" ? "Proposta salva como rascunho!" : "Proposta enviada ao cliente!");
-      onDone?.(`📄 ${payload.titulo} — ${formatCurrency(totalProposta)} (${status === "Rascunho" ? "rascunho" : "enviada"}).`);
+      toast.success(existingProposal ? "Proposta atualizada!" : (status === "Rascunho" ? "Proposta salva como rascunho!" : "Proposta enviada ao cliente!"));
+      onDone?.(`📄 ${payload.titulo} — ${formatCurrency(totalProposta)} (${existingProposal ? "editada" : status === "Rascunho" ? "rascunho" : "enviada"}).`);
       onClose();
     } catch (err: any) {
       toast.error("Erro ao salvar proposta: " + (err?.message || "tente novamente."));
@@ -390,13 +478,15 @@ export function NovaPropostaWizard({
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[11px] font-bold text-[var(--color-text-faint)] mb-1">
-                Propostas <span className="mx-1">›</span> Nova proposta
+                Propostas <span className="mx-1">›</span> {existingProposal ? "Editar proposta" : "Nova proposta"}
               </p>
               <h2 className="text-xl font-black text-[var(--color-text-primary)]">
-                {step === 5 ? "Revisar e enviar proposta" : "Nova Proposta Comercial"}
+                {step === 5 ? (existingProposal ? "Revisar e salvar proposta" : "Revisar e enviar proposta") : (existingProposal ? "Editar Proposta Comercial" : "Nova Proposta Comercial")}
               </h2>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                {step === 5 ? "Confira todas as informações antes de enviar para o cliente." : "Crie uma proposta comercial completa para o seu cliente."}
+                {step === 5
+                  ? (existingProposal ? "Confira as alterações antes de salvar." : "Confira todas as informações antes de enviar para o cliente.")
+                  : (existingProposal ? "Ajuste as informações desta proposta." : "Crie uma proposta comercial completa para o seu cliente.")}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -405,8 +495,8 @@ export function NovaPropostaWizard({
                   ← Voltar
                 </Button>
               )}
-              <Button variant="outline" className="h-9 px-3 text-xs gap-1.5" onClick={() => handleSave("Rascunho")} disabled={saving}>
-                <Save className="w-3.5 h-3.5" /> Salvar como rascunho
+              <Button variant="outline" className="h-9 px-3 text-xs gap-1.5" onClick={() => handleSave(existingProposal ? "Enviada" : "Rascunho")} disabled={saving}>
+                <Save className="w-3.5 h-3.5" /> {existingProposal ? "Salvar alterações" : "Salvar como rascunho"}
               </Button>
               <button onClick={onClose} className="p-2 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
                 <X className="w-4 h-4" />
@@ -536,9 +626,11 @@ export function NovaPropostaWizard({
           <div className="flex items-center gap-2">
             {step === 5 ? (
               <>
-                <Button variant="outline" className="h-9 px-4 text-xs gap-1.5" disabled={saving} onClick={() => handleSave("Rascunho")}>
-                  <Save className="w-3.5 h-3.5" /> Salvar como rascunho
-                </Button>
+                {!existingProposal && (
+                  <Button variant="outline" className="h-9 px-4 text-xs gap-1.5" disabled={saving} onClick={() => handleSave("Rascunho")}>
+                    <Save className="w-3.5 h-3.5" /> Salvar como rascunho
+                  </Button>
+                )}
                 <Button variant="outline" className="h-9 px-4 text-xs gap-1.5" disabled>
                   <Link2 className="w-3.5 h-3.5" /> Compartilhar link
                 </Button>
@@ -547,7 +639,7 @@ export function NovaPropostaWizard({
                   disabled={saving}
                   onClick={() => handleSave("Enviada")}
                 >
-                  <Send className="w-3.5 h-3.5" /> {saving ? "Enviando..." : "Enviar proposta ao cliente"}
+                  <Send className="w-3.5 h-3.5" /> {saving ? "Salvando..." : (existingProposal ? "Salvar alterações" : "Enviar proposta ao cliente")}
                 </Button>
               </>
             ) : (

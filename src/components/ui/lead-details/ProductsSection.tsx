@@ -44,9 +44,13 @@ export function ProductsSection({
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  // Pedido explícito do usuário: o lápis "editar proposta" passa a abrir o
+  // mesmo wizard de 5 etapas (mais completo), não mais o modal antigo.
+  const [isEditWizardOpen, setIsEditWizardOpen] = useState(false);
   const [prefillProductId, setPrefillProductId] = useState<string | undefined>(undefined);
   const [prefillProductIds, setPrefillProductIds] = useState<string[] | undefined>(undefined);
-  // true = o modal acrescenta itens na proposta existente (lápis ao lado do status).
+  // true = o modal antigo acrescenta itens na proposta existente (fluxo de
+  // produto único, "+ Novo Produto" rápido — não o lápis, ver acima).
   const [editingExistingProposal, setEditingExistingProposal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isWordModalOpen, setIsWordModalOpen] = useState(false);
@@ -215,8 +219,8 @@ export function ProductsSection({
               </Badge>
               <button
                 type="button"
-                onClick={() => openAddModal(undefined, true)}
-                title="Editar proposta: adicionar produtos a esta mesma proposta"
+                onClick={() => setIsEditWizardOpen(true)}
+                title="Editar proposta"
                 className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 transition-colors"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -441,6 +445,19 @@ export function ProductsSection({
         onClose={() => setIsWizardOpen(false)}
         availableProducts={availableProducts}
         initialProductIds={interesseIds}
+        leadId={leadId}
+        leadName={leadName}
+        companyName={companyName}
+        seller={seller}
+        onDone={handleAddProdutoDone}
+      />
+
+      <NovaPropostaWizard
+        isOpen={isEditWizardOpen}
+        onClose={() => setIsEditWizardOpen(false)}
+        availableProducts={availableProducts}
+        existingProposal={existingProposal}
+        existingItems={existingProposalItems}
         leadId={leadId}
         leadName={leadName}
         companyName={companyName}
