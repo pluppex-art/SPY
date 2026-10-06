@@ -2,7 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { StatCell, StatCellRow } from "./components/StatCell";
+import { KpiFilterCard, FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { KpiDrillChips } from "./components/KpiDrillChips";
 import { Download, Printer, TrendingUp, TrendingDown, Scale, Award } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { useData } from "../../contexts/DataContext";
@@ -87,6 +88,13 @@ export default function FinanceiroPerformanceMensal() {
   const [drillKey, setDrillKey] = useState<"receitas" | "despesas" | null>(null);
   const entryColumns = financeEntryDrillColumns(formatCurrency);
 
+  const kpis: KpiItem[] = [
+    { label: `Receitas (${janela}m)`, value: formatCurrency(receitaTotal), icon: TrendingUp, tone: "success" },
+    { label: `Despesas (${janela}m)`, value: formatCurrency(despesaTotal), icon: TrendingDown, tone: "danger" },
+    { label: `Resultado (${janela}m)`, value: formatCurrency(resultadoTotal), icon: Scale, tone: resultadoTotal < 0 ? "danger" : "primary" },
+    { label: "Melhor Mês", value: melhorMes ? formatCurrency(melhorMes.resultado) : "—", icon: Award, tone: "accent", hint: melhorMes?.label },
+  ];
+
   return (
     <PageContainer
       title="Performance Mensal"
@@ -94,23 +102,24 @@ export default function FinanceiroPerformanceMensal() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Relatórios", path: "/app/financeiro/relatorios" }, { label: "Performance Mensal" }]}
       actions={
         <div className="flex items-center gap-2 print:hidden">
-          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-            {JANELAS.map(j => (
-              <Button key={j} size="sm" variant={janela === j ? "default" : "ghost"} onClick={() => setJanela(j)} className="h-7 px-3 text-xs font-medium">{j}m</Button>
-            ))}
-          </div>
           <Button variant="outline" onClick={() => window.print()} className="h-9 px-3 text-xs font-medium"><Printer className="w-3.5 h-3.5" /></Button>
           <Button onClick={handleExport} className="h-9 px-4 text-xs font-medium gap-1.5"><Download className="w-3.5 h-3.5" /> Exportar CSV</Button>
         </div>
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label={`Receitas (${janela}m)`} value={formatCurrency(receitaTotal)} icon={TrendingUp} tone="success" onClick={() => setDrillKey("receitas")} />
-          <StatCell label={`Despesas (${janela}m)`} value={formatCurrency(despesaTotal)} icon={TrendingDown} tone="danger" onClick={() => setDrillKey("despesas")} />
-          <StatCell label={`Resultado (${janela}m)`} value={formatCurrency(resultadoTotal)} icon={Scale} tone={resultadoTotal < 0 ? "danger" : "neutral"} />
-          <StatCell label="Melhor Mês" value={melhorMes ? formatCurrency(melhorMes.resultado) : "—"} hint={melhorMes?.label} icon={Award} />
-        </StatCellRow>
+        <KpiFilterCard id="finPerformanceMensal" kpis={kpis} activeCount={janela !== 12 ? 1 : 0} onClear={() => setJanela(12)}>
+          <FilterBar>
+            <FilterChips
+              value={String(janela)}
+              onChange={(v) => setJanela(Number(v) as (typeof JANELAS)[number])}
+              allValue="12"
+              allLabel="Últimos 12 meses"
+              options={JANELAS.filter(j => j !== 12).map(j => ({ value: String(j), label: `Últimos ${j} meses` }))}
+            />
+          </FilterBar>
+          <KpiDrillChips items={[{ label: "Receitas", onClick: () => setDrillKey("receitas") }, { label: "Despesas", onClick: () => setDrillKey("despesas") }]} />
+        </KpiFilterCard>
 
         <Card className="p-6">
           <div className="h-64 w-full">

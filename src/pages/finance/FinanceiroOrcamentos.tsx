@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
 import { EmptyState } from "../../components/ui/empty-state";
 import { Target, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
@@ -31,6 +32,10 @@ export default function FinanceiroOrcamentos() {
   const [refDate, setRefDate] = useState(() => new Date());
   const mes = monthKey(refDate);
   const mesLabel = `${MONTH_NAMES[refDate.getMonth()]} de ${refDate.getFullYear()}`;
+
+  const [busca, setBusca] = useState("");
+  const [tipoFiltro, setTipoFiltro] = useState("");
+  const mesAtualKey = monthKey(new Date());
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftValue, setDraftValue] = useState("");
@@ -73,13 +78,27 @@ export default function FinanceiroOrcamentos() {
       }))
       .sort((a, b) => b.realizado - a.realizado || b.orcado - a.orcado);
 
-  const despesaRows = rows("Despesa");
-  const receitaRows = rows("Receita");
+  const despesaRowsAll = rows("Despesa");
+  const receitaRowsAll = rows("Receita");
+  const qBusca = busca.trim().toLowerCase();
+  const filtraCategoria = (r: { categoria: any }) => !qBusca || String(r.categoria.nome || "").toLowerCase().includes(qBusca);
+  const despesaRows = despesaRowsAll.filter(filtraCategoria);
+  const receitaRows = receitaRowsAll.filter(filtraCategoria);
 
-  const totalOrcadoDespesa = despesaRows.reduce((s, r) => s + r.orcado, 0);
-  const totalRealizadoDespesa = despesaRows.reduce((s, r) => s + r.realizado, 0);
-  const totalOrcadoReceita = receitaRows.reduce((s, r) => s + r.orcado, 0);
-  const totalRealizadoReceita = receitaRows.reduce((s, r) => s + r.realizado, 0);
+  // Totais do mês sempre sobre todas as categorias (a busca só filtra as linhas exibidas).
+  const totalOrcadoDespesa = despesaRowsAll.reduce((s, r) => s + r.orcado, 0);
+  const totalRealizadoDespesa = despesaRowsAll.reduce((s, r) => s + r.realizado, 0);
+  const totalOrcadoReceita = receitaRowsAll.reduce((s, r) => s + r.orcado, 0);
+  const totalRealizadoReceita = receitaRowsAll.reduce((s, r) => s + r.realizado, 0);
+
+  const kpis: KpiItem[] = [
+    { label: "Despesas — Orçado", value: formatCurrency(totalOrcadoDespesa), icon: Target, tone: "neutral" },
+    { label: "Despesas — Realizado", value: formatCurrency(totalRealizadoDespesa), icon: TrendingDown, tone: totalOrcadoDespesa > 0 && totalRealizadoDespesa > totalOrcadoDespesa ? "danger" : "warning" },
+    { label: "Receitas — Orçado", value: formatCurrency(totalOrcadoReceita), icon: Target, tone: "neutral" },
+    { label: "Receitas — Realizado", value: formatCurrency(totalRealizadoReceita), icon: TrendingUp, tone: "success" },
+  ];
+  const activeCount = (mes !== mesAtualKey ? 1 : 0) + (busca.trim() ? 1 : 0) + (tipoFiltro ? 1 : 0);
+  const limparFiltros = () => { setRefDate(new Date()); setBusca(""); setTipoFiltro(""); };
 
   const startEdit = (categoryId: string, current: number) => {
     setEditingId(categoryId);
@@ -179,17 +198,6 @@ export default function FinanceiroOrcamentos() {
     <PageContainer
       title="Orçamentos"
       description="Planeje um valor por categoria a cada mês e acompanhe o realizado — calculado direto dos lançamentos pagos, nunca digitado à mão."
-      actions={
-        <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 py-1">
-          <button type="button" onClick={() => setRefDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="p-1 rounded hover:bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-xs font-bold text-[var(--color-text-primary)] w-32 text-center capitalize">{mesLabel}</span>
-          <button type="button" onClick={() => setRefDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="p-1 rounded hover:bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]">
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      }
     >
       {categoriasAtivas.length === 0 ? (
         <EmptyState
@@ -199,37 +207,24 @@ export default function FinanceiroOrcamentos() {
         />
       ) : (
         <div className="space-y-5">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-danger/10 flex items-center justify-center shrink-0">
-                <TrendingDown className="w-4 h-4 text-danger" />
+          <KpiFilterCard id="finOrcamentos" kpis={kpis} activeCount={activeCount} onClear={limparFiltros}>
+            <FilterBar>
+              <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 h-[38px]">
+                <button type="button" onClick={() => setRefDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="p-1 rounded hover:bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] cursor-pointer">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-bold text-[var(--color-text-primary)] w-32 text-center capitalize">{mesLabel}</span>
+                <button type="button" onClick={() => setRefDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="p-1 rounded hover:bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] cursor-pointer">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase text-[var(--color-text-faint)] block">Despesas — Orçado x Realizado</span>
-                <span className="text-sm font-mono font-black text-[var(--color-text-primary)]">
-                  {formatCurrency(totalOrcadoDespesa)} <span className="text-[var(--color-text-faint)]">/</span>{" "}
-                  <span className={totalRealizadoDespesa > totalOrcadoDespesa && totalOrcadoDespesa > 0 ? "text-danger" : "text-[var(--color-text-primary)]"}>
-                    {formatCurrency(totalRealizadoDespesa)}
-                  </span>
-                </span>
-              </div>
-            </Card>
-            <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-4 h-4 text-success" />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase text-[var(--color-text-faint)] block">Receitas — Orçado x Realizado</span>
-                <span className="text-sm font-mono font-black text-[var(--color-text-primary)]">
-                  {formatCurrency(totalOrcadoReceita)} <span className="text-[var(--color-text-faint)]">/</span>{" "}
-                  <span className="text-success">{formatCurrency(totalRealizadoReceita)}</span>
-                </span>
-              </div>
-            </Card>
-          </div>
+              <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar categoria..." />
+              <FilterChips value={tipoFiltro} onChange={setTipoFiltro} options={[{ value: "Despesa", label: "Despesas" }, { value: "Receita", label: "Receitas" }]} />
+            </FilterBar>
+          </KpiFilterCard>
 
-          {renderGrupo("Despesas", TrendingDown, despesaRows, totalOrcadoDespesa, totalRealizadoDespesa, "text-danger")}
-          {renderGrupo("Receitas", TrendingUp, receitaRows, totalOrcadoReceita, totalRealizadoReceita, "text-success")}
+          {tipoFiltro !== "Receita" && renderGrupo("Despesas", TrendingDown, despesaRows, totalOrcadoDespesa, totalRealizadoDespesa, "text-danger")}
+          {tipoFiltro !== "Despesa" && renderGrupo("Receitas", TrendingUp, receitaRows, totalOrcadoReceita, totalRealizadoReceita, "text-success")}
 
           <p className="text-[10px] text-[var(--color-text-faint)] flex items-center gap-1.5">
             <Wallet className="w-3 h-3" /> Clique no valor orçado de qualquer categoria pra definir/editar. O realizado é sempre calculado a partir dos lançamentos pagos deste mês — nunca digitado.

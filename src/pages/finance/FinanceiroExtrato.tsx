@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { StatCell, StatCellRow } from "./components/StatCell";
-import { Download, Printer, CheckCircle2, Clock, Wallet, ArrowDownRight, ArrowUpRight, Landmark } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
+import { KpiDrillChips } from "./components/KpiDrillChips";
+import { Download, Printer, CheckCircle2, Clock, Wallet, ArrowDownRight, ArrowUpRight, Landmark, ListOrdered, Building2 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -21,15 +23,20 @@ import { Badge } from "../../components/ui/badge";
  * respeita o toggle: com "só pagos" ligado, o Saldo Final tem que bater
  * com o saldo real da conta (validação obrigatória da especificação).
  */
+const defaultInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); };
+const defaultFim = () => new Date().toISOString().slice(0, 10);
+
 export default function FinanceiroExtrato() {
   const { financeEntries, financeBankAccounts, financeTransfers } = useData();
   const { formatCurrency } = useLocalization();
 
   const contas = (financeBankAccounts as any[]).filter(c => !c.arquivada);
-  const [contaId, setContaId] = useState(() => contas.find(c => c.is_principal)?.id || contas[0]?.id || "");
-  const [dataInicial, setDataInicial] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); });
-  const [dataFinal, setDataFinal] = useState(() => new Date().toISOString().slice(0, 10));
+  const contaPadraoId = contas.find(c => c.is_principal)?.id || contas[0]?.id || "";
+  const [contaId, setContaId] = useState(contaPadraoId);
+  const [dataInicial, setDataInicial] = useState(defaultInicio);
+  const [dataFinal, setDataFinal] = useState(defaultFim);
   const [somentePagos, setSomentePagos] = useState(true);
+  const [busca, setBusca] = useState("");
 
   const conta = contas.find(c => c.id === contaId);
 
@@ -97,8 +104,26 @@ export default function FinanceiroExtrato() {
     return { saldoAnterior, linhas, totalEntradas, totalSaidas, saldoFinal: corrido };
   }, [conta, financeEntries, financeTransfers, dataInicial, dataFinal, somentePagos]);
 
+  // A busca só filtra as linhas exibidas — o saldo corrido e os KPIs continuam os reais do período.
+  const linhasVisiveis = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    if (!q) return linhas;
+    return linhas.filter(l => `${l.descricao || ""} ${l.categoria || ""}`.toLowerCase().includes(q));
+  }, [linhas, busca]);
+
+  const activeCount = (contaId !== contaPadraoId ? 1 : 0) + (dataInicial !== defaultInicio() || dataFinal !== defaultFim() ? 1 : 0) + (!somentePagos ? 1 : 0) + (busca.trim() ? 1 : 0);
+  const limparFiltros = () => { setContaId(contaPadraoId); setDataInicial(defaultInicio()); setDataFinal(defaultFim()); setSomentePagos(true); setBusca(""); };
+
+  const kpis: KpiItem[] = conta ? [
+    { label: "Saldo Anterior", value: formatCurrency(saldoAnterior), icon: Landmark, tone: "neutral" },
+    { label: "Entradas", value: formatCurrency(totalEntradas), icon: ArrowUpRight, tone: "success" },
+    { label: "Saídas", value: formatCurrency(totalSaidas), icon: ArrowDownRight, tone: "danger" },
+    { label: "Saldo Final", value: formatCurrency(saldoFinal), icon: Wallet, tone: saldoFinal < 0 ? "danger" : "primary" },
+    { label: "Movimentações", value: linhas.length, icon: ListOrdered, tone: "info" },
+  ] : [];
+
   const handleExport = () => {
-    downloadCsv(`extrato_${contaId}_${Date.now()}.csv`, ["Data", "Descrição", "Categoria", "Valor", "Saldo Acumulado"], linhas.map(l => [l.data.toLocaleDateString("pt-BR"), l.descricao, l.categoria, l.valor, l.saldoCorrido]));
+    downloadCsv(`extrato_${contaId}_${Date.now()}.csv`, ["Data", "Descrição", "Categoria", "Valor", "Saldo Acumulado"], linhasVisiveis.map(l => [l.data.toLocaleDateString("pt-BR"), l.descricao, l.categoria, l.valor, l.saldoCorrido]));
   };
 
   const chartData = useMemo(() => {
@@ -127,38 +152,33 @@ export default function FinanceiroExtrato() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <div className="flex flex-wrap items-end gap-3 print:hidden">
-          <div>
-            <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mb-1 block">Conta</label>
-            <select value={contaId} onChange={(e) => setContaId(e.target.value)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs cursor-pointer">
-              {contas.length === 0 && <option value="">Nenhuma conta cadastrada</option>}
-              {contas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mb-1 block">De</label>
-            <input type="date" value={dataInicial} onChange={(e) => setDataInicial(e.target.value)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-          </div>
-          <div>
-            <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mb-1 block">Até</label>
-            <input type="date" value={dataFinal} onChange={(e) => setDataFinal(e.target.value)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-          </div>
-          <label className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] cursor-pointer pb-2">
-            <input type="checkbox" checked={somentePagos} onChange={(e) => setSomentePagos(e.target.checked)} /> Somente pagos (saldo real)
-          </label>
-        </div>
+        <KpiFilterCard id="finExtrato" kpis={kpis} activeCount={activeCount} onClear={limparFiltros}>
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar descrição ou categoria..." />
+            <FilterSelect
+              icon={Building2}
+              value={contaId}
+              onChange={setContaId}
+              options={contas.map(c => ({ value: c.id, label: c.nome }))}
+              allLabel={contas.length === 0 ? "Nenhuma conta cadastrada" : undefined}
+              title="Conta"
+            />
+            <DateRangeFilter
+              dateFrom={dataInicial}
+              setDateFrom={(v) => setDataInicial(v ?? defaultInicio())}
+              dateTo={dataFinal}
+              setDateTo={(v) => setDataFinal(v ?? defaultFim())}
+              className="h-[38px]"
+            />
+            <FilterChips value={somentePagos ? "pagos" : "todos"} onChange={(v) => setSomentePagos(v === "pagos")} allValue="pagos" allLabel="Somente pagos" options={[{ value: "todos", label: "Incluir pendentes" }]} />
+          </FilterBar>
+          {conta && <KpiDrillChips items={[{ label: "Entradas", onClick: () => setDrillKey("entradas") }, { label: "Saídas", onClick: () => setDrillKey("saidas") }]} />}
+        </KpiFilterCard>
 
         {!conta ? (
           <Card className="p-12 text-center text-sm text-[var(--color-text-muted)]">Cadastre uma conta bancária para ver o extrato.</Card>
         ) : (
           <>
-            <StatCellRow>
-              <StatCell label="Saldo Anterior" value={formatCurrency(saldoAnterior)} icon={Landmark} />
-              <StatCell label="Entradas" value={formatCurrency(totalEntradas)} icon={ArrowUpRight} tone="success" onClick={() => setDrillKey("entradas")} />
-              <StatCell label="Saídas" value={formatCurrency(totalSaidas)} icon={ArrowDownRight} tone="danger" onClick={() => setDrillKey("saidas")} />
-              <StatCell label="Saldo Final" value={formatCurrency(saldoFinal)} icon={Wallet} tone={saldoFinal < 0 ? "danger" : "neutral"} />
-            </StatCellRow>
-
             {linhas.length > 0 && (
               <Card className="p-6 print:hidden">
                 <h3 className="text-xs font-semibold text-[var(--color-text-primary)] mb-4">Evolução do Saldo</h3>
@@ -203,9 +223,9 @@ export default function FinanceiroExtrato() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                {linhas.length === 0 ? (
+                {linhasVisiveis.length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-10 text-center text-[var(--color-text-faint)]">Nenhuma movimentação no período.</td></tr>
-                ) : linhas.map(l => (
+                ) : linhasVisiveis.map(l => (
                   <tr key={l.id} className="hover:bg-[var(--color-surface-sunken)]/50">
                     <td className="px-4 py-2.5">{l.pago ? <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-success)]" /> : <Clock className="w-3.5 h-3.5 text-[var(--color-danger)]" />}</td>
                     <td className="px-4 py-2.5 font-mono text-[var(--color-text-muted)]">{l.data.toLocaleDateString("pt-BR")}</td>

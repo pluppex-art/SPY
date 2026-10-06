@@ -1,5 +1,7 @@
 import { Card } from "../../components/ui/card";
-import { Download, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Minus, LineChart as LineChartIcon } from "lucide-react";
+import { Download, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Minus, LineChart as LineChartIcon, Wallet, TrendingUp, Percent, ListOrdered } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMemo, useState, useEffect } from "react";
@@ -118,6 +120,18 @@ export default function FinanceiroDRE() {
     );
   };
 
+  const defaultCustomStart = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); };
+  const defaultCustomEnd = () => new Date().toISOString().slice(0, 10);
+  const limparFiltros = () => { setPeriodo("mensal"); setCustomStartDate(defaultCustomStart()); setCustomEndDate(defaultCustomEnd()); };
+
+  const kpis: KpiItem[] = [
+    { label: "Receita Bruta", value: <span className="inline-flex items-baseline gap-2">{fmt(dre.receitaBruta)} <DeltaBadge pct={receitaDeltaPct} /></span>, icon: TrendingUp, tone: "primary", hint: "Receita bruta vs. período anterior" },
+    { label: "Lucro Bruto", value: fmt(dre.lucroBruto), icon: Wallet, tone: dre.lucroBruto < 0 ? "danger" : "info" },
+    { label: "Lucro Líquido", value: <span className="inline-flex items-baseline gap-2">{fmt(dre.lucroLiquido)} <DeltaBadge pct={lucroDeltaPct} /></span>, icon: Wallet, tone: dre.lucroLiquido >= 0 ? "success" : "danger", hint: "Lucro líquido vs. período anterior" },
+    { label: "Margem Líquida", value: `${dre.receitaBruta > 0 ? ((dre.lucroLiquido / dre.receitaBruta) * 100).toFixed(1) : "0"}%`, icon: Percent, tone: dre.lucroLiquido >= 0 ? "accent" : "danger" },
+    { label: "Lançamentos", value: entriesCount, icon: ListOrdered, tone: "neutral", hint: `${entriesPendentesCount} pendente(s) incluído(s) — regime de competência` },
+  ];
+
   const chartData = [
     { name: "Receita Bruta", Valor: Math.max(0, dre.receitaBruta), fill: "var(--color-text-primary)" },
     { name: "Lucro Bruto", Valor: Math.max(0, dre.lucroBruto), fill: "var(--color-success)" },
@@ -157,36 +171,6 @@ export default function FinanceiroDRE() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "DRE Gerencial" }]}
       actions={
         <div className="flex gap-2 flex-wrap items-center">
-          <div className="flex bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] p-0.5 gap-1 h-9">
-            {([
-              { id: "mensal", label: "Mensal" },
-              { id: "trimestral", label: "Trimestral" },
-              { id: "semestral", label: "Semestral" },
-              { id: "anual", label: "Anual" },
-              { id: "personalizado", label: "Personalizado" },
-            ] as { id: Periodo; label: string }[]).map(p => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setPeriodo(p.id)}
-                className={`px-3 text-xs font-medium rounded cursor-pointer transition-all ${
-                  periodo === p.id ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          {periodo === "personalizado" && (
-            <div className="flex items-center gap-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2.5 h-9 text-xs">
-              <span className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase">De:</span>
-              <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="bg-transparent text-xs text-[var(--color-text-primary)] font-mono focus:outline-none" />
-              <span className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase ml-1">Até:</span>
-              <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="bg-transparent text-xs text-[var(--color-text-primary)] font-mono focus:outline-none" />
-            </div>
-          )}
-
           <Button onClick={handleExportXLS} className="h-9 px-4 text-xs font-medium gap-1.5">
             <Download className="w-3.5 h-3.5" /> Exportar
           </Button>
@@ -194,22 +178,31 @@ export default function FinanceiroDRE() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Receita Bruta vs. período anterior</p>
-              <p className="text-lg font-semibold tabular-nums text-[var(--color-text-primary)]">{fmt(dre.receitaBruta)}</p>
-            </div>
-            <DeltaBadge pct={receitaDeltaPct} />
-          </Card>
-          <Card className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Lucro Líquido vs. período anterior</p>
-              <p className={`text-lg font-semibold tabular-nums ${dre.lucroLiquido >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>{fmt(dre.lucroLiquido)}</p>
-            </div>
-            <DeltaBadge pct={lucroDeltaPct} />
-          </Card>
-        </div>
+        <KpiFilterCard id="finDre" kpis={kpis} activeCount={periodo !== "mensal" ? 1 : 0} onClear={limparFiltros}>
+          <FilterBar>
+            <FilterChips
+              value={periodo}
+              onChange={(v) => setPeriodo(v as Periodo)}
+              allValue="mensal"
+              allLabel="Mensal"
+              options={[
+                { value: "trimestral", label: "Trimestral" },
+                { value: "semestral", label: "Semestral" },
+                { value: "anual", label: "Anual" },
+                { value: "personalizado", label: "Personalizado" },
+              ]}
+            />
+            {periodo === "personalizado" && (
+              <DateRangeFilter
+                dateFrom={customStartDate}
+                setDateFrom={(v) => setCustomStartDate(v ?? defaultCustomStart())}
+                dateTo={customEndDate}
+                setDateTo={(v) => setCustomEndDate(v ?? defaultCustomEnd())}
+                className="h-[38px]"
+              />
+            )}
+          </FilterBar>
+        </KpiFilterCard>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Card className="lg:col-span-2 p-6">

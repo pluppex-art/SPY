@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { Repeat2, Users, TrendingDown, Percent, Layers } from "lucide-react";
+import { Repeat2, Users, TrendingDown, Percent, Layers, Package } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
-import { StatCell, StatCellRow } from "./components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { KpiDrillChips } from "./components/KpiDrillChips";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { contractDrillColumns } from "../../components/ui/drillColumns";
 import {
@@ -37,6 +38,22 @@ export default function FinanceiroMRR() {
     };
   }, [contracts]);
 
+  const [busca, setBusca] = useState("");
+  const [plano, setPlano] = useState("");
+  const planos = useMemo(() => Array.from(new Set(ativos.map(c => c.plan).filter(Boolean) as string[])).sort(), [ativos]);
+  const ativosFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return ativos.filter(c => (!plano || c.plan === plano) && (!q || `${c.client || ""} ${c.plan || ""}`.toLowerCase().includes(q)));
+  }, [ativos, busca, plano]);
+
+  const kpis: KpiItem[] = [
+    { label: "MRR Ativo", value: formatCurrency(mrr), icon: Repeat2, tone: "primary", hint: `Ticket médio: ${formatCurrency(ticketMedio)}` },
+    { label: "ARR (12m no ritmo atual)", value: formatCurrency(arr), icon: Layers, tone: "info", hint: "Projetado a 12m no ritmo atual" },
+    { label: "Clientes Ativos", value: clientesAtivos, icon: Users, tone: "success", hint: `${contratosAtivos} contrato(s) ativo(s)` },
+    { label: "MRR Perdido", value: formatCurrency(lostMrr), icon: TrendingDown, tone: lostMrr > 0 ? "danger" : "neutral", hint: "Contratos cancelados" },
+    { label: "Taxa de Churn", value: `${churnRate.toFixed(1)}%`, icon: Percent, tone: churnRate > 0 ? "warning" : "neutral", hint: "Churn geral" },
+  ];
+
   const projection = useMemo(() => getRevenueProjection(contracts), [contracts]);
   const canceladosRows = useMemo(() => (contracts as any[]).filter((c) => c.status === "Cancelado"), [contracts]);
   const [drillCanceladosOpen, setDrillCanceladosOpen] = useState(false);
@@ -49,18 +66,13 @@ export default function FinanceiroMRR() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "MRR & Receita Recorrente" }]}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label="MRR Ativo" value={formatCurrency(mrr)} icon={Repeat2} />
-          <StatCell label="ARR (Projetado a 12m no ritmo atual)" value={formatCurrency(arr)} icon={Layers} />
-          <StatCell label="Clientes Ativos" value={clientesAtivos} icon={Users} />
-          <StatCell label="Ticket Médio" value={formatCurrency(ticketMedio)} icon={Percent} />
-        </StatCellRow>
-        <StatCellRow>
-          <StatCell label="Contratos Ativos" value={contratosAtivos} icon={Layers} />
-          <StatCell label="MRR Perdido (Cancelados)" value={formatCurrency(lostMrr)} icon={TrendingDown} tone={lostMrr > 0 ? "danger" : "neutral"} onClick={() => setDrillCanceladosOpen(true)} />
-          <StatCell label="Taxa de Churn (Geral)" value={`${churnRate.toFixed(1)}%`} icon={TrendingDown} tone={churnRate > 0 ? "warning" : "neutral"} />
-          <StatCell label="Receita Recorrente / Cliente" value={formatCurrency(ticketMedio)} icon={Percent} />
-        </StatCellRow>
+        <KpiFilterCard id="finMrr" kpis={kpis} activeCount={(busca.trim() ? 1 : 0) + (plano ? 1 : 0)} onClear={() => { setBusca(""); setPlano(""); }}>
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar cliente ou plano..." />
+            <FilterSelect icon={Package} value={plano} onChange={setPlano} options={planos} allLabel="Todos os planos" title="Plano" />
+          </FilterBar>
+          <KpiDrillChips items={[{ label: "MRR perdido (cancelados)", onClick: () => setDrillCanceladosOpen(true) }]} />
+        </KpiFilterCard>
 
         <Card className="p-6">
           <div className="flex items-center justify-between mb-1">
@@ -122,11 +134,11 @@ export default function FinanceiroMRR() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                {ativos.length === 0 ? (
+                {ativosFiltrados.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-10 text-center text-[var(--color-text-faint)]">Nenhum contrato ativo.</td>
                   </tr>
-                ) : ativos.map(c => (
+                ) : ativosFiltrados.map(c => (
                   <tr key={c.id} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors">
                     <td className="px-6 py-3.5 font-medium text-[var(--color-text-primary)]">{c.client}</td>
                     <td className="px-6 py-3.5 text-[var(--color-text-muted)]">{c.plan}</td>

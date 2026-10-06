@@ -2,11 +2,12 @@ import { useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  ArrowDownLeft, ArrowUpRight, Search, Download,
+  ArrowDownLeft, ArrowUpRight, Download, ListOrdered,
   CheckCircle2, Clock, AlertTriangle, Scale,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
-import { StatCell, StatCellRow } from "./components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { KpiDrillChips } from "./components/KpiDrillChips";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { downloadCsv } from "../../lib/csvExport";
 import { parseEntryDate } from "./lib/financeDates";
@@ -67,6 +68,13 @@ export default function FinanceiroTransacoes() {
     setDrillLoading(false);
   };
 
+  const kpis: KpiItem[] = [
+    { label: "Entradas (filtro atual)", value: formatCurrency(totalEntradas), icon: ArrowUpRight, tone: "success" },
+    { label: "Saídas (filtro atual)", value: formatCurrency(totalSaidas), icon: ArrowDownLeft, tone: "danger" },
+    { label: "Saldo (filtro atual)", value: formatCurrency(totalEntradas - totalSaidas), icon: Scale, tone: totalEntradas - totalSaidas < 0 ? "danger" : "primary" },
+    { label: "Lançamentos", value: total, icon: ListOrdered, tone: "info" },
+  ];
+
   return (
     <PageContainer
       title="Todas as Movimentações"
@@ -77,31 +85,22 @@ export default function FinanceiroTransacoes() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label="Entradas (filtro atual)" value={formatCurrency(totalEntradas)} icon={ArrowUpRight} tone="success" onClick={() => openDrill("entradas")} />
-          <StatCell label="Saídas (filtro atual)" value={formatCurrency(totalSaidas)} icon={ArrowDownLeft} tone="danger" onClick={() => openDrill("saidas")} />
-          <StatCell label="Saldo (filtro atual)" value={formatCurrency(totalEntradas - totalSaidas)} icon={Scale} tone={totalEntradas - totalSaidas < 0 ? "danger" : "neutral"} />
-          <StatCell label="Lançamentos" value={total} icon={Search} onClick={() => openDrill("total")} />
-        </StatCellRow>
-
-        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between print:hidden">
-          <div className="relative flex-1 w-full max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-            <input
-              type="text"
-              placeholder="Buscar por descrição, categoria ou contraparte..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-10 pr-4 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-            />
-          </div>
-
-          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-            {(["Todos", "Entradas", "Saídas"] as const).map(tp => (
-              <Button key={tp} size="sm" variant={tipoFilter === tp ? "default" : "ghost"} onClick={() => setTipoFilter(tp)} className="h-7 px-3 text-xs font-medium">{tp}</Button>
-            ))}
-          </div>
-        </div>
+        <KpiFilterCard
+          id="finTransacoes"
+          kpis={kpis}
+          activeCount={(search.trim() ? 1 : 0) + (tipoFilter !== "Todos" ? 1 : 0)}
+          onClear={() => { setSearch(""); setTipoFilter("Todos"); }}
+        >
+          <FilterBar>
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por descrição, categoria ou contraparte..." />
+            <FilterChips value={tipoFilter} onChange={(v) => setTipoFilter(v as "Todos" | "Entradas" | "Saídas")} allValue="Todos" allLabel="Todos" options={["Entradas", "Saídas"]} />
+          </FilterBar>
+          <KpiDrillChips items={[
+            { label: "Entradas", onClick: () => openDrill("entradas") },
+            { label: "Saídas", onClick: () => openDrill("saidas") },
+            { label: "Todos os lançamentos", onClick: () => openDrill("total") },
+          ]} />
+        </KpiFilterCard>
 
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">

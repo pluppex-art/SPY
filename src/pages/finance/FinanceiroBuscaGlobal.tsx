@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { Search, Download, CheckCircle2, Clock } from "lucide-react";
+import { Download, CheckCircle2, Clock, ArrowUpRight, ArrowDownRight, Scale, ListOrdered } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterSearch, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { downloadCsv } from "../../lib/csvExport";
@@ -67,6 +69,16 @@ export default function FinanceiroBuscaGlobal() {
   const entradas = resultadosMovimentacoes.filter(e => e.type === "Receber").reduce((s, e) => s + e.value, 0);
   const saidas = resultadosMovimentacoes.filter(e => e.type === "Pagar").reduce((s, e) => s + e.value, 0);
 
+  const CONTROL = "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px]";
+  const activeCount = (texto.trim() ? 1 : 0) + (valorMin || valorMax ? 1 : 0) + (dataDe || dataAte ? 1 : 0);
+  const limparFiltros = () => { setTexto(""); setValorMin(""); setValorMax(""); setDataDe(""); setDataAte(""); };
+  const kpis: KpiItem[] = [
+    { label: "Entradas", value: formatCurrency(entradas), icon: ArrowUpRight, tone: "success", hint: "Soma de pagos e pendentes" },
+    { label: "Saídas", value: formatCurrency(saidas), icon: ArrowDownRight, tone: "danger", hint: "Soma de pagos e pendentes" },
+    { label: "Resultado", value: formatCurrency(entradas - saidas), icon: Scale, tone: entradas - saidas < 0 ? "danger" : "primary" },
+    { label: "Movimentações", value: resultadosMovimentacoes.length, icon: ListOrdered, tone: "info" },
+  ];
+
   const handleExport = () => {
     downloadCsv(`busca_financeira_${Date.now()}.csv`, ["Data", "Tipo", "Descrição", "Contato", "Categoria", "Valor", "Status"], resultadosMovimentacoes.map(e => [e.date, e.type, e.description, e.counterparty || "", e.category, e.value, e.status]));
   };
@@ -78,35 +90,20 @@ export default function FinanceiroBuscaGlobal() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Busca" }]}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <Card className="p-4 space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-faint)]" />
-            <input type="text" placeholder="Buscar por descrição, categoria ou contato..." value={texto} onChange={(e) => setTexto(e.target.value)} className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-10 pr-3 py-2.5 text-sm focus:outline-none" />
-          </div>
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mb-1 block">Valor de</label>
-              <input type="number" value={valorMin} onChange={(e) => setValorMin(e.target.value)} placeholder="0,00" className="w-28 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-mono" />
+        <KpiFilterCard id="finBuscaGlobal" kpis={kpis} activeCount={activeCount} onClear={limparFiltros}>
+          <FilterBar>
+            <FilterSearch value={texto} onChange={setTexto} placeholder="Buscar por descrição, categoria ou contato..." />
+            <div className={CONTROL}>
+              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase">Valor de</span>
+              <input type="number" value={valorMin} onChange={(e) => setValorMin(e.target.value)} placeholder="0,00" className="w-20 bg-transparent text-xs font-mono text-[var(--color-text-primary)] focus:outline-none" />
             </div>
-            <div>
-              <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mb-1 block">Valor até</label>
-              <input type="number" value={valorMax} onChange={(e) => setValorMax(e.target.value)} placeholder="0,00" className="w-28 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs font-mono" />
+            <div className={CONTROL}>
+              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase">até</span>
+              <input type="number" value={valorMax} onChange={(e) => setValorMax(e.target.value)} placeholder="0,00" className="w-20 bg-transparent text-xs font-mono text-[var(--color-text-primary)] focus:outline-none" />
             </div>
-            <div>
-              <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mb-1 block">Data de</label>
-              <input type="date" value={dataDe} onChange={(e) => setDataDe(e.target.value)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs" />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mb-1 block">Data até</label>
-              <input type="date" value={dataAte} onChange={(e) => setDataAte(e.target.value)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs" />
-            </div>
-            {(valorMin || valorMax || dataDe || dataAte || texto) && (
-              <button type="button" onClick={() => { setTexto(""); setValorMin(""); setValorMax(""); setDataDe(""); setDataAte(""); }} className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:underline pb-1.5">
-                Limpar filtros
-              </button>
-            )}
-          </div>
-        </Card>
+            <DateRangeFilter dateFrom={dataDe || null} setDateFrom={(v) => setDataDe(v ?? "")} dateTo={dataAte || null} setDateTo={(v) => setDataAte(v ?? "")} className="h-[38px]" />
+          </FilterBar>
+        </KpiFilterCard>
 
         <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit">
           {([
@@ -120,12 +117,9 @@ export default function FinanceiroBuscaGlobal() {
 
         {aba === "movimentacoes" && (
           <>
-            <Card className="p-4 flex flex-wrap items-center gap-6">
-              <div><p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase">Entradas</p><p className="text-lg font-semibold tabular-nums text-[var(--color-success)]">{formatCurrency(entradas)}</p></div>
-              <div><p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase">Saídas</p><p className="text-lg font-semibold tabular-nums text-[var(--color-danger)]">{formatCurrency(saidas)}</p></div>
-              <div><p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase">Resultado</p><p className={cn("text-lg font-semibold tabular-nums", entradas - saidas < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-text-primary)]")}>{formatCurrency(entradas - saidas)}</p></div>
-              <Button onClick={handleExport} variant="outline" className="h-9 px-4 text-xs font-medium gap-1.5 ml-auto"><Download className="w-3.5 h-3.5" /> Exportar</Button>
-            </Card>
+            <div className="flex justify-end">
+              <Button onClick={handleExport} variant="outline" className="h-9 px-4 text-xs font-medium gap-1.5"><Download className="w-3.5 h-3.5" /> Exportar</Button>
+            </div>
             <Card className="overflow-hidden">
               <table className="w-full text-xs text-left">
                 <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">

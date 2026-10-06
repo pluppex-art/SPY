@@ -2,8 +2,9 @@ import { useMemo, useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { StatCell, StatCellRow } from "./components/StatCell";
-import { ArrowUpRight, ArrowDownRight, Scale, Download, Calendar } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { KpiDrillChips } from "./components/KpiDrillChips";
+import { ArrowUpRight, ArrowDownRight, Scale, Download, Calendar, CalendarDays } from "lucide-react";
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -100,6 +101,13 @@ export default function FinanceiroFluxoCaixa() {
   const [drillKey, setDrillKey] = useState<"entradas" | "saidas" | null>(null);
   const entryColumns = financeEntryDrillColumns(formatCurrency);
 
+  const kpis: KpiItem[] = [
+    { label: `Entradas (${periodo}d)`, value: formatCurrency(totalEntradas), icon: ArrowUpRight, tone: "success", hint: "Só o que já foi pago" },
+    { label: `Saídas (${periodo}d)`, value: formatCurrency(totalSaidas), icon: ArrowDownRight, tone: "danger", hint: "Só o que já foi pago" },
+    { label: "Saldo Líquido do Período", value: formatCurrency(saldoLiquido), icon: Scale, tone: saldoLiquido < 0 ? "danger" : "primary" },
+    { label: "Dias com Movimentação", value: fluxoDiario.length, icon: CalendarDays, tone: "info" },
+  ];
+
   const handleExport = () => {
     downloadCsv(`fluxo_de_caixa_${periodo}d_${Date.now()}.csv`, ["Data", "Entradas", "Saídas", "Saldo do Dia", "Acumulado"], fluxoDiario.map(d => [d.dataCompleta, d.entradas, d.saidas, d.saldoDia, d.acumulado]));
   };
@@ -111,21 +119,23 @@ export default function FinanceiroFluxoCaixa() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Fluxo de Caixa" }]}
       actions={
         <div className="flex items-center gap-2 print:hidden">
-          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-            {PERIODOS.map(p => (
-              <Button key={p} size="sm" variant={periodo === p ? "default" : "ghost"} onClick={() => setPeriodo(p)} className="h-7 px-3 text-xs font-medium">{p}d</Button>
-            ))}
-          </div>
           <Button variant="outline" onClick={handleExport} className="h-9 px-4 text-xs font-medium gap-1.5"><Download className="w-3.5 h-3.5" /> Exportar CSV</Button>
         </div>
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label={`Entradas (${periodo}d)`} value={formatCurrency(totalEntradas)} icon={ArrowUpRight} tone="success" hint="Só o que já foi pago" onClick={() => setDrillKey("entradas")} />
-          <StatCell label={`Saídas (${periodo}d)`} value={formatCurrency(totalSaidas)} icon={ArrowDownRight} tone="danger" hint="Só o que já foi pago" onClick={() => setDrillKey("saidas")} />
-          <StatCell label="Saldo Líquido do Período" value={formatCurrency(saldoLiquido)} icon={Scale} tone={saldoLiquido < 0 ? "danger" : "neutral"} />
-        </StatCellRow>
+        <KpiFilterCard id="finFluxoCaixa" kpis={kpis} activeCount={periodo !== 30 ? 1 : 0} onClear={() => setPeriodo(30)}>
+          <FilterBar>
+            <FilterChips
+              value={String(periodo)}
+              onChange={(v) => setPeriodo(Number(v) as (typeof PERIODOS)[number])}
+              allValue="30"
+              allLabel="Últimos 30 dias"
+              options={PERIODOS.filter(p => p !== 30).map(p => ({ value: String(p), label: `Últimos ${p} dias` }))}
+            />
+          </FilterBar>
+          <KpiDrillChips items={[{ label: "Entradas", onClick: () => setDrillKey("entradas") }, { label: "Saídas", onClick: () => setDrillKey("saidas") }]} />
+        </KpiFilterCard>
 
         {fluxoDiario.length > 0 && (
           <Card className="p-6 print:hidden">

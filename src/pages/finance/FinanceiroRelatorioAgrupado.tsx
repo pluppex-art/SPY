@@ -3,8 +3,10 @@ import { useParams, Link } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { StatCell, StatCellRow } from "./components/StatCell";
-import { Download, Printer, Hash, Layers, TrendingUp, Crown, Search } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
+import { KpiDrillChips } from "./components/KpiDrillChips";
+import { Download, Printer, Hash, Layers, TrendingUp, Crown } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -180,6 +182,18 @@ export default function FinanceiroRelatorioAgrupado() {
     );
   }
 
+  const statusPadrao = statusAtivos.length === STATUSES.length;
+  const activeCount = (periodo !== "mes" ? 1 : 0) + (!statusPadrao ? 1 : 0) + (busca.trim() ? 1 : 0);
+  const limparFiltros = () => { setPeriodo("mes"); setCustomInicio(""); setCustomFim(""); setStatusAtivos([...STATUSES]); setBusca(""); };
+  const maior = linhasFiltradas[0];
+
+  const kpis: KpiItem[] = [
+    { label: "Total", value: formatCurrency(total), icon: TrendingUp, tone: config.type === "Pagar" ? "danger" : "success" },
+    { label: "Lançamentos", value: qtdTotal, icon: Hash, tone: "info" },
+    { label: "Média por Lançamento", value: formatCurrency(media), icon: Layers, tone: "primary" },
+    { label: `Maior ${config.groupLabel}`, value: maior ? formatCurrency(maior.valor) : "—", icon: Crown, tone: "accent", hint: maior?.label },
+  ];
+
   const handleExport = () => {
     downloadCsv(`${slug}_${Date.now()}.csv`, [config.groupLabel, "Quantidade", "Valor", "% do Total"], linhasFiltradas.map(l => [l.label, l.qtd, l.valor, total > 0 ? `${((l.valor / total) * 100).toFixed(1)}%` : "0%"]));
   };
@@ -197,52 +211,33 @@ export default function FinanceiroRelatorioAgrupado() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <div className="flex flex-wrap items-center gap-3 print:hidden">
-          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-            {PERIODOS.map(p => (
-              <Button key={p.id} size="sm" variant={periodo === p.id ? "default" : "ghost"} onClick={() => setPeriodo(p.id)} className="h-7 px-3 text-xs font-medium">{p.label}</Button>
-            ))}
-          </div>
-
-          {periodo === "personalizado" && (
-            <div className="flex items-center gap-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2.5 h-9 text-xs">
-              <span className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase">De:</span>
-              <input type="date" value={customInicio} onChange={(e) => setCustomInicio(e.target.value)} className="bg-transparent text-xs text-[var(--color-text-primary)] font-mono focus:outline-none" />
-              <span className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase ml-1">Até:</span>
-              <input type="date" value={customFim} onChange={(e) => setCustomFim(e.target.value)} className="bg-transparent text-xs text-[var(--color-text-primary)] font-mono focus:outline-none" />
-            </div>
-          )}
-
-          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-            {STATUSES.map(s => (
-              <Button key={s} size="sm" variant={statusAtivos.includes(s) ? "default" : "ghost"} onClick={() => toggleStatus(s)} className="h-7 px-3 text-xs font-medium">{s}</Button>
-            ))}
-          </div>
-
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-            <input
-              type="text"
-              placeholder={`Buscar ${config.groupLabel.toLowerCase()}...`}
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-8 pr-3 h-9 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-primary-blue)] w-48"
+        <KpiFilterCard id="finRelatorioAgrupado" kpis={kpis} activeCount={activeCount} onClear={limparFiltros}>
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder={`Buscar ${config.groupLabel.toLowerCase()}...`} />
+            <FilterChips
+              value={periodo}
+              onChange={(v) => setPeriodo(v as Periodo)}
+              allValue="mes"
+              allLabel="Este Mês"
+              options={PERIODOS.filter(p => p.id !== "mes").map(p => ({ value: p.id, label: p.label }))}
             />
-          </div>
-        </div>
-
-        <StatCellRow>
-          <StatCell label="Total" value={formatCurrency(total)} icon={TrendingUp} tone={config.type === "Pagar" ? "danger" : "success"} />
-          <StatCell label="Lançamentos" value={qtdTotal} icon={Hash} />
-          <StatCell label="Média por Lançamento" value={formatCurrency(media)} icon={Layers} />
-          <StatCell
-            label={`Maior ${config.groupLabel}`}
-            value={linhasFiltradas[0] ? formatCurrency(linhasFiltradas[0].valor) : "—"}
-            hint={linhasFiltradas[0]?.label}
-            icon={Crown}
-            onClick={linhasFiltradas[0] ? () => setDrillGrupo({ label: linhasFiltradas[0].label, rows: linhasFiltradas[0].rows }) : undefined}
-          />
-        </StatCellRow>
+            {periodo === "personalizado" && (
+              <DateRangeFilter
+                dateFrom={customInicio || null}
+                setDateFrom={(v) => setCustomInicio(v ?? "")}
+                dateTo={customFim || null}
+                setDateTo={(v) => setCustomFim(v ?? "")}
+                className="h-[38px]"
+              />
+            )}
+            <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
+              {STATUSES.map(st => (
+                <Button key={st} size="sm" variant={statusAtivos.includes(st) ? "default" : "ghost"} onClick={() => toggleStatus(st)} className="h-7 px-3 text-xs font-medium">{st}</Button>
+              ))}
+            </div>
+          </FilterBar>
+          {maior && <KpiDrillChips items={[{ label: `Maior ${config.groupLabel}`, onClick: () => setDrillGrupo({ label: maior.label, rows: maior.rows }) }]} />}
+        </KpiFilterCard>
 
         {chartData.length > 0 && (
           <Card className="p-6 print:hidden">

@@ -2,7 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { Download, Printer, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { Download, Printer, ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Scale, Landmark } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -110,25 +111,25 @@ export default function FinanceiroPerformanceAnual() {
     ]);
   };
 
-  const Destaque = ({ label, atual, variacao: v, invertido }: { label: string; atual: number; variacao: { pct: number | null; valor: number }; invertido?: boolean }) => {
+  const anoAtual = new Date().getFullYear();
+  const VarBadge = ({ v, invertido }: { v: { pct: number | null; valor: number }; invertido?: boolean }) => {
     const isUp = v.valor > 0;
-    const isFlat = v.pct === null && v.valor === 0;
+    if (v.pct === null && v.valor === 0) return <span className="inline-flex items-center gap-0.5 text-[10px] text-[var(--color-text-faint)]"><Minus className="w-3 h-3" /> Manteve</span>;
     const bom = invertido ? !isUp : isUp;
     return (
-      <div>
-        <p className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-1">{label}</p>
-        <p className="text-2xl font-semibold tabular-nums text-[var(--color-text-primary)]">{formatCurrency(atual)}</p>
-        {isFlat ? (
-          <span className="inline-flex items-center gap-1 text-[11px] text-[var(--color-text-faint)] mt-1"><Minus className="w-3 h-3" /> Manteve</span>
-        ) : (
-          <span className={cn("inline-flex items-center gap-1 text-[11px] font-medium mt-1", bom ? "text-[var(--color-success)]" : "text-[var(--color-warning)]")}>
-            {isUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-            {formatCurrency(Math.abs(v.valor))} {v.pct !== null && `(${Math.abs(v.pct).toFixed(0)}%)`} vs. {ano - 1}
-          </span>
-        )}
-      </div>
+      <span className={cn("inline-flex items-center gap-0.5 text-[10px] font-medium", bom ? "text-[var(--color-success)]" : "text-[var(--color-warning)]")}>
+        {isUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+        {v.pct !== null ? `${Math.abs(v.pct).toFixed(0)}%` : formatCurrency(Math.abs(v.valor))}
+      </span>
     );
   };
+  const resultadoAtual = dadosAno.receitaAtual - dadosAno.despesaAtual;
+  const kpis: KpiItem[] = [
+    { label: "Receita Total", value: <span className="inline-flex items-baseline gap-2">{formatCurrency(dadosAno.receitaAtual)} <VarBadge v={varReceita} /></span>, icon: TrendingUp, tone: "success", hint: `Variação vs. ${ano - 1}` },
+    { label: "Despesa Total", value: <span className="inline-flex items-baseline gap-2">{formatCurrency(dadosAno.despesaAtual)} <VarBadge v={varDespesa} invertido /></span>, icon: TrendingDown, tone: "danger", hint: `Variação vs. ${ano - 1}` },
+    { label: "Resultado", value: formatCurrency(resultadoAtual), icon: Scale, tone: resultadoAtual < 0 ? "danger" : "primary", hint: `Receitas menos despesas pagas em ${ano}` },
+    { label: "Saldo das Contas", value: formatCurrency(saldoTotal), icon: Landmark, tone: saldoTotal < 0 ? "danger" : "info", hint: "Posição atual (independe do ano)" },
+  ];
 
   return (
     <PageContainer
@@ -137,21 +138,17 @@ export default function FinanceiroPerformanceAnual() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Relatórios", path: "/app/financeiro/relatorios" }, { label: "Performance Anual" }]}
       actions={
         <div className="flex items-center gap-2 print:hidden">
-          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-            {[ano - 1, ano].map(y => (
-              <Button key={y} size="sm" variant={ano === y ? "default" : "ghost"} onClick={() => setAno(y)} className="h-7 px-3 text-xs font-medium">{y}</Button>
-            ))}
-          </div>
           <Button variant="outline" onClick={() => window.print()} className="h-9 px-3 text-xs font-medium"><Printer className="w-3.5 h-3.5" /></Button>
           <Button onClick={handleExport} className="h-9 px-4 text-xs font-medium gap-1.5"><Download className="w-3.5 h-3.5" /> Exportar CSV</Button>
         </div>
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <Card className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <Destaque label="Receita Total" atual={dadosAno.receitaAtual} variacao={varReceita} />
-          <Destaque label="Despesa Total" atual={dadosAno.despesaAtual} variacao={varDespesa} invertido />
-        </Card>
+        <KpiFilterCard id="finPerformanceAnual" kpis={kpis} activeCount={ano !== anoAtual ? 1 : 0} onClear={() => setAno(anoAtual)}>
+          <FilterBar>
+            <FilterChips value={String(ano)} onChange={(v) => setAno(Number(v))} allValue={String(anoAtual)} allLabel={String(anoAtual)} options={[String(anoAtual - 1)]} />
+          </FilterBar>
+        </KpiFilterCard>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card className="p-6">

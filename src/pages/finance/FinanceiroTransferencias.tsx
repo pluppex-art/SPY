@@ -4,11 +4,12 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
-import { Plus, ArrowRight, Trash2, CheckCircle2, Clock, Repeat, Layers } from "lucide-react";
+import { Plus, ArrowRight, Trash2, CheckCircle2, Clock, Repeat, Layers, Building2 } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
-import { StatCell, StatCellRow } from "./components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { KpiDrillChips } from "./components/KpiDrillChips";
 import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { cn } from "../../lib/utils";
@@ -22,7 +23,10 @@ function toLocalISODate(d: Date): string {
 export default function FinanceiroTransferencias() {
   const { financeTransfers, addFinanceTransfer, updateFinanceTransfer, deleteFinanceTransfer, financeBankAccounts } = useData();
   const { formatCurrency } = useLocalization();
-  const { dataInicio, dataFim, label: periodoLabel } = useFinanceiroFiltro();
+  const { dataInicio, dataFim, label: periodoLabel, preset, setPreset } = useFinanceiroFiltro();
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("");
+  const [contaFiltro, setContaFiltro] = useState("");
 
   const contasAtivas = useMemo(() => (financeBankAccounts as any[]).filter(c => !c.arquivada), [financeBankAccounts]);
   const contaNome = (id: string) => contasAtivas.find(c => c.id === id)?.nome || (financeBankAccounts as any[]).find(c => c.id === id)?.nome || "—";
@@ -98,6 +102,27 @@ export default function FinanceiroTransferencias() {
     return { totalPeriodo, periodoRows, totalPendente: pendentes.reduce((s, t) => s + t.valor, 0), pendentesRows: pendentes, countPendentes: pendentes.length, count: transfers.length };
   }, [financeTransfers, dataInicio, dataFim]);
 
+  const visiveis = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return ordenadas.filter(t => {
+      if (statusFiltro === "concluida" && !t.pago) return false;
+      if (statusFiltro === "pendente" && t.pago) return false;
+      if (contaFiltro && t.conta_origem_id !== contaFiltro && t.conta_destino_id !== contaFiltro) return false;
+      if (q && !`${t.descricao || ""} ${contaNome(t.conta_origem_id)} ${contaNome(t.conta_destino_id)}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financeTransfers, busca, statusFiltro, contaFiltro, financeBankAccounts]);
+
+  const kpiItems: KpiItem[] = ordenadas.length > 0 ? [
+    { label: `Transferido (${periodoLabel})`, value: formatCurrency(kpis.totalPeriodo), icon: Repeat, tone: "info", hint: "Já concluídas" },
+    { label: "Pendentes", value: formatCurrency(kpis.totalPendente), icon: Clock, tone: kpis.countPendentes > 0 ? "warning" : "neutral", hint: `${kpis.countPendentes} transferência(s)` },
+    { label: "Total de Transferências", value: kpis.count, icon: Layers, tone: "primary" },
+  ] : [];
+
+  const activeCount = (preset !== "mes-atual" ? 1 : 0) + (busca.trim() ? 1 : 0) + (statusFiltro ? 1 : 0) + (contaFiltro ? 1 : 0);
+  const limparFiltros = () => { setPreset("mes-atual"); setBusca(""); setStatusFiltro(""); setContaFiltro(""); };
+
   const [drillKey, setDrillKey] = useState<"periodo" | "pendentes" | "todas" | null>(null);
   const transferColumns = transferDrillColumns(formatCurrency, contaNome);
 
@@ -113,14 +138,21 @@ export default function FinanceiroTransferencias() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <FinanceiroFilterBar />
-        {ordenadas.length > 0 && (
-          <StatCellRow>
-            <StatCell label={`Transferido (${periodoLabel})`} value={formatCurrency(kpis.totalPeriodo)} icon={Repeat} hint="Já concluídas" onClick={() => setDrillKey("periodo")} />
-            <StatCell label="Pendentes" value={formatCurrency(kpis.totalPendente)} icon={Clock} tone={kpis.countPendentes > 0 ? "warning" : "neutral"} hint={`${kpis.countPendentes} transferência(s)`} onClick={() => setDrillKey("pendentes")} />
-            <StatCell label="Total de Transferências" value={kpis.count} icon={Layers} onClick={() => setDrillKey("todas")} />
-          </StatCellRow>
-        )}
+        <KpiFilterCard id="finTransferencias" kpis={kpiItems} activeCount={activeCount} onClear={limparFiltros}>
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar descrição ou conta..." />
+            <FilterSelect icon={Building2} value={contaFiltro} onChange={setContaFiltro} options={contasAtivas.map(c => ({ value: c.id, label: c.nome }))} allLabel="Todas as contas" title="Conta (origem ou destino)" />
+            <FilterChips value={statusFiltro} onChange={setStatusFiltro} options={[{ value: "concluida", label: "Concluídas" }, { value: "pendente", label: "Pendentes" }]} />
+          </FilterBar>
+          <FinanceiroFilterBar />
+          {ordenadas.length > 0 && (
+            <KpiDrillChips items={[
+              { label: "Transferido no período", onClick: () => setDrillKey("periodo") },
+              { label: "Pendentes", onClick: () => setDrillKey("pendentes") },
+              { label: "Todas", onClick: () => setDrillKey("todas") },
+            ]} />
+          )}
+        </KpiFilterCard>
 
         {ordenadas.length === 0 ? (
           <Card className="p-12 text-center">
@@ -141,7 +173,10 @@ export default function FinanceiroTransferencias() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                {ordenadas.map(t => (
+                {visiveis.length === 0 && (
+                  <tr><td colSpan={6} className="px-6 py-10 text-center text-[var(--color-text-faint)]">Nenhuma transferência encontrada para os filtros selecionados.</td></tr>
+                )}
+                {visiveis.map(t => (
                   <tr key={t.id} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors">
                     <td className="px-6 py-3.5 font-mono text-[var(--color-text-muted)]">{new Date(t.data_pagamento + "T12:00:00").toLocaleDateString("pt-BR")}</td>
                     <td className="px-6 py-3.5">

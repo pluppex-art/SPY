@@ -2,12 +2,13 @@ import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { AlertTriangle, Users, Receipt, Clock } from "lucide-react";
+import { AlertTriangle, Users, Receipt, Clock, Hourglass } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseEntryDate, daysBetween } from "./lib/financeDates";
-import { StatCell, StatCellRow } from "./components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { KpiDrillChips } from "./components/KpiDrillChips";
 import { apiFetch } from "../../lib/apiClient";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
@@ -50,15 +51,22 @@ export default function FinanceiroInadimplencia() {
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
+  const [busca, setBusca] = useState("");
+  const [faixa, setFaixa] = useState("");
+  const filtrosAtivos = !!busca.trim() || !!faixa;
+
   const clientSide = useMemo(() => {
     const now = new Date();
+    const q = busca.trim().toLowerCase();
     const vencidos = financeEntries
       .filter(f => f.type === "Receber" && f.status === "Atrasado")
       .map(f => {
         const due = parseEntryDate(f.date);
         const dias = due ? Math.max(0, daysBetween(due, now)) : 0;
         return { ...f, dias };
-      });
+      })
+      .filter(f => !faixa || bucketFor(f.dias).id === faixa)
+      .filter(f => !q || `${f.counterparty || ""} ${f.description || ""}`.toLowerCase().includes(q));
 
     const totalVencido = vencidos.reduce((s, f) => s + f.value, 0);
     const clientesUnicos = new Set(vencidos.map(f => f.counterparty || "Sem cliente identificado")).size;
@@ -83,15 +91,23 @@ export default function FinanceiroInadimplencia() {
       .sort((a, b) => b.valor - a.valor);
 
     return { vencidosCount: vencidos.length, totalVencido, clientesUnicos, atrasoMedio, buckets, porCliente, vencidos };
-  }, [financeEntries]);
+  }, [financeEntries, busca, faixa]);
 
-  const { vencidosCount, totalVencido, clientesUnicos, atrasoMedio, buckets, porCliente } = serverSummary ?? clientSide;
+  // Com filtro ativo o resumo do servidor (que é do total) não vale — usa o cálculo local filtrado.
+  const { vencidosCount, totalVencido, clientesUnicos, atrasoMedio, buckets, porCliente } = (filtrosAtivos ? clientSide : serverSummary ?? clientSide);
   // Lista real pro drill-down vem sempre do cálculo client-side (nunca do
   // serverSummary, que só traz os números já agregados, sem os registros).
   const { vencidos } = clientSide;
 
   const [drillOpen, setDrillOpen] = useState(false);
   const entryColumns = financeEntryDrillColumns(formatCurrency);
+
+  const kpis: KpiItem[] = [
+    { label: "Total Vencido", value: formatCurrency(totalVencido), icon: AlertTriangle, tone: totalVencido > 0 ? "danger" : "neutral" },
+    { label: "Cobranças Vencidas", value: vencidosCount, icon: Receipt, tone: "warning" },
+    { label: "Clientes Inadimplentes", value: clientesUnicos, icon: Users, tone: "info" },
+    { label: "Atraso Médio", value: `${atrasoMedio.toFixed(0)} dias`, icon: Clock, tone: "accent" },
+  ];
 
   const maxBucketValue = Math.max(1, ...buckets.map(b => b.value));
 
@@ -102,12 +118,18 @@ export default function FinanceiroInadimplencia() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Inadimplência" }]}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label="Total Vencido" value={formatCurrency(totalVencido)} icon={AlertTriangle} tone={totalVencido > 0 ? "danger" : "neutral"} onClick={() => setDrillOpen(true)} />
-          <StatCell label="Cobranças Vencidas" value={vencidosCount} icon={Receipt} onClick={() => setDrillOpen(true)} />
-          <StatCell label="Clientes Inadimplentes" value={clientesUnicos} icon={Users} />
-          <StatCell label="Atraso Médio" value={`${atrasoMedio.toFixed(0)} dias`} icon={Clock} />
-        </StatCellRow>
+        <KpiFilterCard
+          id="finInadimplencia"
+          kpis={kpis}
+          activeCount={(busca.trim() ? 1 : 0) + (faixa ? 1 : 0)}
+          onClear={() => { setBusca(""); setFaixa(""); }}
+        >
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar cliente ou descrição..." />
+            <FilterSelect icon={Hourglass} value={faixa} onChange={setFaixa} options={AGING_BUCKETS.map(b => ({ value: b.id, label: b.label }))} allLabel="Todas as faixas de atraso" title="Faixa de atraso" />
+          </FilterBar>
+          <KpiDrillChips items={[{ label: "Cobranças vencidas", onClick: () => setDrillOpen(true) }]} />
+        </KpiFilterCard>
 
         <Card className="p-6">
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">Aging de Recebimento</h3>

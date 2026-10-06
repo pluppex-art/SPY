@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { ArrowUpRight, ArrowDownRight, Scale, Waves } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { KpiDrillChips } from "./components/KpiDrillChips";
+import { ArrowUpRight, ArrowDownRight, Scale, Waves, ListOrdered } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseEntryDate } from "./lib/financeDates";
-import { StatCell, StatCellRow } from "./components/StatCell";
 import { getRevenueProjection } from "../../lib/revenueMetrics";
 import { cn } from "../../lib/utils";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
@@ -72,6 +72,13 @@ export default function FinanceiroProjecao() {
   const [drillKey, setDrillKey] = useState<"receber" | "pagar" | null>(null);
   const entryColumns = financeEntryDrillColumns(formatCurrency);
 
+  const kpis: KpiItem[] = [
+    { label: `Recebimentos Previstos (${horizonte}d)`, value: formatCurrency(totalReceber), icon: ArrowUpRight, tone: "success" },
+    { label: `Pagamentos Previstos (${horizonte}d)`, value: formatCurrency(totalPagar), icon: ArrowDownRight, tone: "danger" },
+    { label: "Saldo Projetado do Período", value: formatCurrency(saldoProjetado), icon: Scale, tone: saldoProjetado < 0 ? "danger" : "primary" },
+    { label: "Lançamentos Previstos", value: previstos.length, icon: ListOrdered, tone: "info" },
+  ];
+
   const mrrProjection = useMemo(() => getRevenueProjection(contracts), [contracts]);
 
   return (
@@ -79,28 +86,20 @@ export default function FinanceiroProjecao() {
       title="Fluxo de Caixa Projetado"
       description="Recebimentos e pagamentos já lançados como 'A Vencer' — projetado nunca se mistura com o que já foi de fato pago ou recebido."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Projeção de Caixa" }]}
-      actions={
-        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-          {HORIZONTES.map(h => (
-            <Button
-              key={h}
-              size="sm"
-              variant={horizonte === h ? "default" : "ghost"}
-              onClick={() => setHorizonte(h)}
-              className="h-7 px-3 text-xs font-medium"
-            >
-              {h}d
-            </Button>
-          ))}
-        </div>
-      }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label={`Recebimentos Previstos (${horizonte}d)`} value={formatCurrency(totalReceber)} icon={ArrowUpRight} tone="success" onClick={() => setDrillKey("receber")} />
-          <StatCell label={`Pagamentos Previstos (${horizonte}d)`} value={formatCurrency(totalPagar)} icon={ArrowDownRight} tone="danger" onClick={() => setDrillKey("pagar")} />
-          <StatCell label="Saldo Projetado do Período" value={formatCurrency(saldoProjetado)} icon={Scale} tone={saldoProjetado < 0 ? "danger" : "neutral"} />
-        </StatCellRow>
+        <KpiFilterCard id="finProjecao" kpis={kpis} activeCount={horizonte !== 30 ? 1 : 0} onClear={() => setHorizonte(30)}>
+          <FilterBar>
+            <FilterChips
+              value={String(horizonte)}
+              onChange={(v) => setHorizonte(Number(v) as (typeof HORIZONTES)[number])}
+              allValue="30"
+              allLabel="Próximos 30 dias"
+              options={HORIZONTES.filter(h => h !== 30).map(h => ({ value: String(h), label: `Próximos ${h} dias` }))}
+            />
+          </FilterBar>
+          <KpiDrillChips items={[{ label: "Recebimentos previstos", onClick: () => setDrillKey("receber") }, { label: "Pagamentos previstos", onClick: () => setDrillKey("pagar") }]} />
+        </KpiFilterCard>
 
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">

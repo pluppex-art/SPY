@@ -1,9 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { FinanceiroKPIs, type FinanceiroKpiCard } from "./components/FinanceiroVisaoGeral/FinanceiroKPIs";
+import { KpiFilterCard, FilterBar, FilterSearch, type KpiItem } from "../../components/ui/kpi-filter-card";
 import {
   PieChart, Waves, LineChart, Repeat2, AlertTriangle, Inbox, TrendingDown,
   TrendingUp, Wallet, Target, ArrowUpRight, Calendar, Users, Truck,
@@ -86,7 +86,8 @@ const EXTRAS: ReportLink[] = [
 export default function FinanceiroRelatorios() {
   const { financeEntries, financeBankAccounts, financeTransfers, financeCategories } = useData();
   const { formatCurrency } = useLocalization();
-  const { dataInicio, dataFim, label: periodoLabel } = useFinanceiroFiltro();
+  const { dataInicio, dataFim, label: periodoLabel, preset, setPreset } = useFinanceiroFiltro();
+  const [busca, setBusca] = useState("");
 
   const catMap = useMemo(() => categoriesById(financeCategories as FinanceCategoryLike[]), [financeCategories]);
   const monthlySeries = useMemo(() => getMonthlyDreSeries(financeEntries as FinanceEntryLike[], catMap, 6), [financeEntries, catMap]);
@@ -126,12 +127,19 @@ export default function FinanceiroRelatorios() {
     };
   }, [financeEntries, financeBankAccounts, financeTransfers, dataInicio, dataFim]);
 
-  const kpiCards: FinanceiroKpiCard[] = [
-    { label: `Receitas (${periodoLabel})`, value: kpis.receitaPeriodo, format: "currency", deltaPct: kpis.receitaDeltaPct, deltaGoodWhenUp: true, icon: TrendingUp, href: "/app/financeiro/receitas" },
-    { label: `Despesas (${periodoLabel})`, value: kpis.despesaPeriodo, format: "currency", deltaPct: kpis.despesaDeltaPct, deltaGoodWhenUp: false, icon: TrendingDown, href: "/app/financeiro/despesas" },
-    { label: `Resultado (${periodoLabel})`, value: kpis.resultadoPeriodo, format: "currency", deltaPct: kpis.resultadoDeltaPct, deltaGoodWhenUp: true, danger: kpis.resultadoPeriodo < 0, icon: Scale, href: "/app/financeiro/dre" },
-    { label: "Saldo em Contas", value: kpis.saldoEmContas, format: "currency", deltaPct: null, deltaGoodWhenUp: null, danger: kpis.saldoEmContas < 0, icon: Wallet, href: "/app/financeiro/bancos" },
+  const deltaTxt = (pct: number | null) => (pct === null ? "" : `${pct > 0 ? "+" : ""}${pct}% vs. período anterior`);
+  const kpiCards: KpiItem[] = [
+    { label: `Receitas (${periodoLabel})`, value: formatCurrency(kpis.receitaPeriodo), icon: TrendingUp, tone: "success", hint: deltaTxt(kpis.receitaDeltaPct) || "Recebido no período" },
+    { label: `Despesas (${periodoLabel})`, value: formatCurrency(kpis.despesaPeriodo), icon: TrendingDown, tone: "danger", hint: deltaTxt(kpis.despesaDeltaPct) || "Pago no período" },
+    { label: `Resultado (${periodoLabel})`, value: formatCurrency(kpis.resultadoPeriodo), icon: Scale, tone: kpis.resultadoPeriodo < 0 ? "danger" : "primary", hint: deltaTxt(kpis.resultadoDeltaPct) || "Receitas menos despesas pagas" },
+    { label: "Saldo em Contas", value: formatCurrency(kpis.saldoEmContas), icon: Wallet, tone: kpis.saldoEmContas < 0 ? "danger" : "info", hint: "Contas bancárias ativas" },
   ];
+
+  const q = busca.trim().toLowerCase();
+  const matches = (r: ReportLink, groupTitle?: string) => !q || r.title.toLowerCase().includes(q) || (groupTitle ?? "").toLowerCase().includes(q);
+  const gruposVisiveis = GROUPS.map(g => ({ ...g, reports: g.reports.filter(r => matches(r, g.title)) })).filter(g => g.reports.length > 0);
+  const extrasVisiveis = EXTRAS.filter(r => matches(r, "Análises & Ferramentas"));
+  const activeCount = (preset !== "mes-atual" ? 1 : 0) + (q ? 1 : 0);
 
   const mesesComMovimento = useMemo(() => monthlySeries.filter(m => m.receitaBruta > 0 || m.despesaTotal > 0).length, [monthlySeries]);
 
@@ -142,8 +150,12 @@ export default function FinanceiroRelatorios() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Central de Relatórios" }]}
     >
       <div className="space-y-8 max-w-[1700px] mx-auto pb-12">
-        <FinanceiroFilterBar />
-        <FinanceiroKPIs cards={kpiCards} />
+        <KpiFilterCard id="finRelatorios" kpis={kpiCards} activeCount={activeCount} onClear={() => { setPreset("mes-atual"); setBusca(""); }}>
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar relatório..." />
+          </FilterBar>
+          <FinanceiroFilterBar />
+        </KpiFilterCard>
 
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -175,7 +187,7 @@ export default function FinanceiroRelatorios() {
           </div>
         </Card>
 
-        {GROUPS.map(group => (
+        {gruposVisiveis.map(group => (
           <div key={group.title}>
             <div className="flex items-center gap-2 mb-3">
               <span className={cn("w-1.5 h-1.5 rounded-full", TONE_DOT[group.tone])} />
@@ -200,13 +212,13 @@ export default function FinanceiroRelatorios() {
           </div>
         ))}
 
-        <div>
+        {extrasVisiveis.length > 0 && <div>
           <div className="flex items-center gap-2 mb-3">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)]" />
             <h3 className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">Análises &amp; Ferramentas</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {EXTRAS.map(report => {
+            {extrasVisiveis.map(report => {
               const Icon = report.icon;
               return (
                 <Link key={report.title} to={report.href}>
@@ -221,7 +233,7 @@ export default function FinanceiroRelatorios() {
               );
             })}
           </div>
-        </div>
+        </div>}
       </div>
     </PageContainer>
   );
