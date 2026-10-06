@@ -693,6 +693,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     productIds: (r.customFields?.productIds?.length ? r.customFields.productIds : r.productIds) || [],
     scoreIA: r.scoreIA ?? r.score_ia ?? 50,
     tags: Array.isArray(r.tags) ? r.tags : (r.customFields?.tags || []),
+    // BUG real (achado 2026-10-05, reportado pelo usuário: badge sempre
+    // "0d" no card do Kanban): `leads.timeIdle` é uma coluna estática
+    // (default 0) que NUNCA é escrita em nenhum fluxo da aplicação — todo
+    // lead fica com timeIdle=0 pra sempre, quebrando silenciosamente os
+    // filtros de "lead parado"/"sem contato" em todo o sistema (Dashboard,
+    // Pipeline, Automações). Calcula ao vivo a partir de `updated_at`
+    // (mantido por trigger no banco a cada UPDATE — já é a mesma fonte de
+    // "última atividade" usada pra ordenar o Kanban) em vez de confiar na
+    // coluna morta.
+    timeIdle: Math.max(0, Math.floor((Date.now() - new Date(r.updated_at || r.created_at || Date.now()).getTime()) / 86400000)),
   });
 
   const mapAppointmentRow = (r: any): Appointment => ({
