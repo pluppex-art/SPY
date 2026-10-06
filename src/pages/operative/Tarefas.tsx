@@ -4,6 +4,7 @@ import { Button } from "../../components/ui/button";
 import { LayoutGrid, List as ListIcon, RefreshCw, Plus } from "lucide-react";
 import { NovaTarefaModal } from "../../components/ui/modals/productivity/NovaTarefaModal";
 import { ConfirmModal } from "../../components/ui/modals/shared/ConfirmModal";
+import { TaskDetailsModal } from "./tarefas/TaskDetailsModal";
 import { NovaPautaModal } from "../../components/ui/modals/productivity/NovaPautaModal";
 
 import { useTarefas } from "./tarefas/useTarefas";
@@ -64,6 +65,7 @@ export default function Tarefas() {
   } = useTarefas();
 
   const [isPautaModalOpen, setIsPautaModalOpen] = useState(false);
+  const [detailTask, setDetailTask] = useState<any | null>(null);
 
   // Modo Lista pagina de verdade no servidor (só ativo quando viewMode ===
   // 'list', pra não disparar uma busca à toa enquanto o usuário está no
@@ -133,7 +135,7 @@ export default function Tarefas() {
         {/* Workload Section */}
         <WorkloadBento
           tasks={tasks}
-          onExpandTask={openEditTaskModal}
+          onExpandTask={setDetailTask}
           googleConnected={!needsAuth}
         />
 
@@ -169,6 +171,7 @@ export default function Tarefas() {
               moveTaskStatus={listMoveTaskStatus}
               openEditTaskModal={openEditTaskModal}
               handleDeleteTask={handleDeleteTask}
+              onOpenDetails={setDetailTask}
             />
             <Pagination
               page={tasksPage}
@@ -198,10 +201,23 @@ export default function Tarefas() {
             handleDeleteTask={handleDeleteTask}
             setSearchQuery={setSearchQuery}
             duplicateTask={duplicateTask}
+            onOpenDetails={setDetailTask}
             getPriorityColor={getPriorityColor}
           />
         )}
       </div>
+
+      <TaskDetailsModal
+        task={detailTask}
+        onClose={() => setDetailTask(null)}
+        columns={columns}
+        onEdit={openEditTaskModal}
+        onDelete={handleDeleteTask}
+        onDuplicate={duplicateTask}
+        onToggle={listToggleTaskStatus}
+        onMove={listMoveTaskStatus}
+        updateTask={listUpdateTask}
+      />
 
       {/* Creation/Edition Modal */}
       <NovaTarefaModal

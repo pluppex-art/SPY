@@ -20,12 +20,13 @@ interface TasksKanbanCardProps {
   handleDeleteTask: (id: string) => void;
   moveTaskStatus: (id: string, newStatus: string) => void;
   duplicateTask: (task: Task) => void;
+  onOpenDetails?: (task: Task) => void;
   columns: KanbanColConfig[];
 }
 
 export function TasksKanbanCard({
   task, draggedTaskId, setDraggedTaskId, setDraggedOverCol, updateTask,
-  openEditTaskModal, toggleTaskStatus, handleDeleteTask, moveTaskStatus, duplicateTask, columns,
+  openEditTaskModal, toggleTaskStatus, handleDeleteTask, moveTaskStatus, duplicateTask, onOpenDetails, columns,
 }: TasksKanbanCardProps) {
   const { colaboradores, leads } = useData();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -57,6 +58,10 @@ export function TasksKanbanCard({
         setTimeout(() => setDraggedTaskId(task.id), 0);
       }}
       onDragEnd={() => { setDraggedTaskId(null); setDraggedOverCol(null); }}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("button, select, a, option")) return;
+        onOpenDetails?.(task);
+      }}
       className={cn(
         "relative rounded-2xl border p-4 pl-5 shadow-sm transition-all cursor-grab active:cursor-grabbing overflow-hidden",
         overdue && !done ? "bg-rose-500/[0.04] border-rose-500/25" : "bg-[var(--color-surface-elevated)] border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/30",

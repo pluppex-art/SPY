@@ -31,6 +31,7 @@ interface TasksListModeProps {
   updateTask: any;
   getPriorityColor: (p: string) => string;
   columns: KanbanColConfig[];
+  onOpenDetails?: (task: Task) => void;
 }
 
 export function TasksListMode({
@@ -41,7 +42,8 @@ export function TasksListMode({
   handleDeleteTask,
   updateTask,
   getPriorityColor,
-  columns
+  columns,
+  onOpenDetails,
 }: TasksListModeProps) {
   const { colaboradores, leads } = useData();
   // `assigned_to` FK pra `users.id`, não `colaboradores.id` — usa `user_id`.
@@ -96,7 +98,10 @@ export function TasksListMode({
                        {t.status}
                      </span>
                   </div>
-                  <h4 className={`text-xs font-bold leading-snug ${t.status === 'Concluída' ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}>
+                  <h4
+                    onClick={() => onOpenDetails?.(t)}
+                    className={`text-xs font-bold leading-snug ${onOpenDetails ? "cursor-pointer hover:text-[var(--color-primary-blue)]" : ""} ${t.status === 'Concluída' ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}
+                  >
                     {t.title}
                   </h4>
                   <p className="text-[11px] text-[var(--color-text-muted)] mt-1 font-medium flex flex-wrap items-center gap-2">

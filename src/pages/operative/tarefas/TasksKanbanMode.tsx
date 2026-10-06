@@ -22,6 +22,7 @@ interface TasksKanbanModeProps {
   handleDeleteTask: (id: string) => void;
   setSearchQuery: (q: string) => void;
   duplicateTask: (task: Task) => void;
+  onOpenDetails?: (task: Task) => void;
   getPriorityColor: (p: string) => string;
 }
 
@@ -42,6 +43,7 @@ export function TasksKanbanMode({
   handleDeleteTask,
   setSearchQuery,
   duplicateTask,
+  onOpenDetails,
   getPriorityColor,
 }: TasksKanbanModeProps) {
   // Colunas como "Concluída" chegam a milhares de tarefas — desenhar todas
@@ -174,6 +176,7 @@ export function TasksKanbanMode({
                         updateTask={updateTask}
                         setSearchQuery={setSearchQuery}
                         duplicateTask={duplicateTask}
+                        onOpenDetails={onOpenDetails}
                         openEditTaskModal={openEditTaskModal}
                         toggleTaskStatus={toggleTaskStatus}
                         handleDeleteTask={handleDeleteTask}
