@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import { DollarSign, Users, Target, TrendingDown, Sun } from 'lucide-react';
 import { useLocalization } from '../../../contexts/LocalizationContext';
+import { leadDrillColumns, contractDrillColumns, isContractAtivo } from '../../../components/ui/drillColumns';
+import { isLeadLost } from '../../../lib/leadStatus';
+import type { DrillColumn } from '../../../components/ui/DrillDownPanel';
 
 export type DashboardStatsCard = {
   label: string;
@@ -19,6 +22,11 @@ export type DashboardStatsCard = {
    * ainda hardcoded '--' em nichos de demonstração) — nesse caso não desenha
    * nada, nunca inventa uma linha. */
   sparkline?: number[];
+  /** Lista real de registros por trás do número — card fica clicável e abre
+   * um drill-down com essa lista (ver QuickStatsGrid.tsx/DrillDownPanel.tsx).
+   * Ausente = card sintético sem lista 1:1 (ex.: "--" hardcoded), nunca fica
+   * clicável sem ter nada real pra mostrar. */
+  drill?: { subtitle: string; rows: any[]; columns: DrillColumn[] };
 };
 
 type PerformancePoint = { name: string; vendas: number; faturamento?: number; leads: number; retention: number };
@@ -49,6 +57,8 @@ export function DashboardStatsByNiche({
   churnRate,
   hasContractsData,
   performanceData,
+  leads,
+  contracts,
 }: {
   tenantNiche: string | undefined;
   /** MRR — só a parcela recorrente (ver revenueMetrics.getMRR). Usado
@@ -72,8 +82,34 @@ export function DashboardStatsByNiche({
    * uma segunda fonte de dado só pra esses cards. Opcional: telas que ainda
    * não passam essa prop continuam funcionando, só sem tendência/sparkline. */
   performanceData?: PerformancePoint[];
+  /** Leads do período selecionado (mesmo array de useDashboard.ts) — fonte do
+   * drill-down dos cards baseados em `leadsLength`/`conversionRate`. Opcional:
+   * sem essa prop os cards continuam funcionando, só sem ficarem clicáveis. */
+  leads?: any[];
+  /** Contratos (snapshot "ativo agora", sem filtro de período — mesma
+   * convenção de getMRR/getFaturamentoContratado) — fonte do drill-down dos
+   * cards de receita/churn. Opcional, mesma regra de `leads` acima. */
+  contracts?: any[];
 }) {
   const { formatCurrency } = useLocalization();
+
+  const leadColumns = useMemo(() => leadDrillColumns(formatCurrency), [formatCurrency]);
+  const contractColumnsTotal = useMemo(() => contractDrillColumns(formatCurrency, "totalValue"), [formatCurrency]);
+  const contractColumnsMrr = useMemo(() => contractDrillColumns(formatCurrency, "mrr"), [formatCurrency]);
+
+  // Mesmas listas reais por trás dos números — um card só fica clicável
+  // quando existe uma lista 1:1 genuína (nunca pra métrica sintética tipo
+  // "--" hardcoded dos nichos de demonstração).
+  const leadsAtivosRows = useMemo(() => (leads || []).filter((l) => !isLeadLost(l.status)), [leads]);
+  const leadsFechadosRows = useMemo(() => (leads || []).filter((l) => l.status === "Fechado"), [leads]);
+  const contratosAtivosRows = useMemo(() => (contracts || []).filter(isContractAtivo), [contracts]);
+  const contratosCanceladosRows = useMemo(() => (contracts || []).filter((c) => c.status === "Cancelado"), [contracts]);
+
+  const drillLeadsAtivos = useMemo(() => (leads ? { subtitle: `${leadsAtivosRows.length} lead${leadsAtivosRows.length === 1 ? "" : "s"} ativo${leadsAtivosRows.length === 1 ? "" : "s"}`, rows: leadsAtivosRows, columns: leadColumns } : undefined), [leads, leadsAtivosRows, leadColumns]);
+  const drillConversao = useMemo(() => (leads ? { subtitle: `${leadsFechadosRows.length} negócio${leadsFechadosRows.length === 1 ? "" : "s"} fechado${leadsFechadosRows.length === 1 ? "" : "s"}`, rows: leadsFechadosRows, columns: leadColumns } : undefined), [leads, leadsFechadosRows, leadColumns]);
+  const drillFaturamento = useMemo(() => (contracts ? { subtitle: `${contratosAtivosRows.length} contrato${contratosAtivosRows.length === 1 ? "" : "s"} ativo${contratosAtivosRows.length === 1 ? "" : "s"}`, rows: contratosAtivosRows, columns: contractColumnsTotal } : undefined), [contracts, contratosAtivosRows, contractColumnsTotal]);
+  const drillMrr = useMemo(() => (contracts ? { subtitle: `${contratosAtivosRows.length} contrato${contratosAtivosRows.length === 1 ? "" : "s"} ativo${contratosAtivosRows.length === 1 ? "" : "s"}`, rows: contratosAtivosRows, columns: contractColumnsMrr } : undefined), [contracts, contratosAtivosRows, contractColumnsMrr]);
+  const drillChurn = useMemo(() => (contracts && hasContractsData ? { subtitle: `${contratosCanceladosRows.length} contrato${contratosCanceladosRows.length === 1 ? "" : "s"} cancelado${contratosCanceladosRows.length === 1 ? "" : "s"}`, rows: contratosCanceladosRows, columns: contractColumnsMrr } : undefined), [contracts, hasContractsData, contratosCanceladosRows, contractColumnsMrr]);
   // 0 contratos/pacientes não é "0% de churn" — é "não dá pra medir ainda".
   // Mostrar "0,0%" nesse caso pareceria uma métrica boa quando na real não
   // existe base nenhuma por trás dela.
@@ -119,6 +155,7 @@ export function DashboardStatsByNiche({
           forecast: '--',
           tooltip: 'Valor total dos contratos ativos (recorrente + venda avulsa de aparelho/upgrade) — diferente de MRR, que conta só a parcela recorrente.',
           sparkline: faturamentoSeries,
+          drill: drillFaturamento,
         },
         {
           label: 'Aparelhos Trade-In',
@@ -129,6 +166,7 @@ export function DashboardStatsByNiche({
           icon: Users,
           forecast: '--',
           sparkline: leadsSeries,
+          drill: drillLeadsAtivos,
         },
         {
           label: 'Ativação SDR',
@@ -139,6 +177,7 @@ export function DashboardStatsByNiche({
           icon: Target,
           forecast: '--',
           sparkline: conversionSeries,
+          drill: drillConversao,
         },
         {
           label: 'Foco Conversão',
@@ -148,6 +187,7 @@ export function DashboardStatsByNiche({
           bg: 'bg-white/5',
           icon: TrendingDown,
           forecast: '--',
+          drill: drillChurn,
         },
       ];
     }
@@ -172,6 +212,7 @@ export function DashboardStatsByNiche({
           icon: Users,
           forecast: '--',
           sparkline: leadsSeries,
+          drill: drillLeadsAtivos,
         },
         {
           label: 'Viabilidade Concluída',
@@ -206,6 +247,7 @@ export function DashboardStatsByNiche({
           forecast: '--',
           tooltip: 'Valor total dos contratos/planos ativos (recorrente + procedimento avulso) — diferente de MRR, que conta só a parcela recorrente.',
           sparkline: faturamentoSeries,
+          drill: drillFaturamento,
         },
         {
           label: 'Consultas Agendadas',
@@ -216,6 +258,7 @@ export function DashboardStatsByNiche({
           icon: Users,
           forecast: '--',
           sparkline: leadsSeries,
+          drill: drillLeadsAtivos,
         },
         {
           label: 'Teleconsultas Ativas',
@@ -234,6 +277,7 @@ export function DashboardStatsByNiche({
           bg: 'bg-white/5',
           icon: TrendingDown,
           forecast: '--',
+          drill: drillChurn,
         },
       ];
     }
@@ -250,6 +294,7 @@ export function DashboardStatsByNiche({
           forecast: '--',
           tooltip: 'Valor Geral de Vendas: total contratado (recorrente + avulso) dos contratos ativos — diferente de MRR, que conta só a parcela recorrente mensal.',
           sparkline: faturamentoSeries,
+          drill: drillFaturamento,
         },
         {
           label: 'Visitas Incorporador',
@@ -260,6 +305,7 @@ export function DashboardStatsByNiche({
           icon: Users,
           forecast: '--',
           sparkline: leadsSeries,
+          drill: drillLeadsAtivos,
         },
         {
           label: 'Crédito Pré-Aprovado',
@@ -270,6 +316,7 @@ export function DashboardStatsByNiche({
           icon: Target,
           forecast: '--',
           sparkline: conversionSeries,
+          drill: drillConversao,
         },
         {
           label: 'Tempo de Campanha',
@@ -304,6 +351,7 @@ export function DashboardStatsByNiche({
         forecast: '--',
         tooltip: 'Valor total contratado (recorrente + avulso/implantação) dos contratos ativos agora — em contratos de mais de 1 mês, é o valor cheio do contrato, não a mensalidade. Para a parcela mensal, veja o card "Receita (MRR)".',
         sparkline: faturamentoSeries,
+        drill: drillFaturamento,
       },
       {
         label: 'Receita (MRR)',
@@ -315,6 +363,7 @@ export function DashboardStatsByNiche({
         forecast: '--',
         tooltip: 'Soma do valor recorrente (mrr) de todos os contratos ativos agora — só a parcela mensal, mesmo em contratos de vários meses. Não muda com o período selecionado, é um saldo do momento atual.',
         sparkline: revenueSeries,
+        drill: drillMrr,
       },
       {
         label: 'Leads Ativos',
@@ -326,6 +375,7 @@ export function DashboardStatsByNiche({
         forecast: '--',
         tooltip: 'Leads criados no período selecionado que ainda não foram marcados como Perdido (inclui os já Fechados).',
         sparkline: leadsSeries,
+        drill: drillLeadsAtivos,
       },
       {
         label: 'Conversão',
@@ -337,6 +387,7 @@ export function DashboardStatsByNiche({
         forecast: '--',
         tooltip: 'Leads com status Fechado ÷ total de leads criados no período selecionado.',
         sparkline: conversionSeries,
+        drill: drillConversao,
       },
       {
         label: 'Taxa Churn',
@@ -347,9 +398,10 @@ export function DashboardStatsByNiche({
         icon: TrendingDown,
         tooltip: 'Contratos cancelados durante o período selecionado ÷ total de contratos existentes nesse intervalo.',
         forecast: '--',
+        drill: drillChurn,
       },
     ];
-  }, [tenantNiche, totalRevenue, faturamento, leadsLength, conversionRate, churnRate, churnValue, formatCurrency, revenueSeries, faturamentoSeries, leadsSeries, conversionSeries]);
+  }, [tenantNiche, totalRevenue, faturamento, leadsLength, conversionRate, churnRate, churnValue, formatCurrency, revenueSeries, faturamentoSeries, leadsSeries, conversionSeries, drillLeadsAtivos, drillConversao, drillFaturamento, drillMrr, drillChurn]);
 
   return stats;
 }

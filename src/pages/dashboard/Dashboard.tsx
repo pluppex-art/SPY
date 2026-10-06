@@ -11,6 +11,7 @@ import { DashboardStatsSection } from "./components/DashboardStatsSection";
 
 export default function Dashboard() {
   const {
+    leads,
     activeLeadsCount,
     activeTab,
     setActiveTab,
@@ -73,6 +74,8 @@ export default function Dashboard() {
           dateFrom={dateFrom}
           dateTo={dateTo}
           performanceData={performanceData}
+          leads={leads}
+          contracts={contracts}
         />
 
 

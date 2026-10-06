@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '../../../components/ui/card';
 import { motion } from 'motion/react';
 import { ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
 import { Sparkline } from '../../../components/ui/sparkline';
+import { DrillDownPanel } from '../../../components/ui/DrillDownPanel';
 
 interface QuickStatsGridProps {
   stats: any[];
@@ -13,12 +14,15 @@ interface QuickStatsGridProps {
 const ICON_COLORS = ["text-[var(--color-primary-blue)]", "text-emerald-500", "text-cyan-500", "text-rose-500"];
 
 export function QuickStatsGrid({ stats, periodoLabel }: QuickStatsGridProps) {
+  const [drillIndex, setDrillIndex] = useState<number | null>(null);
+  const drillStat = drillIndex !== null ? stats[drillIndex] : null;
   // Nicho Master/default agora tem 5 cards (Receita + Receita MRR separados,
   // ver DashboardStatsByNiche.tsx) — em lg:grid-cols-4 isso deixava o 5º card
   // sozinho numa linha nova, esticado. Classe literal (Tailwind JIT não
   // aceita `lg:grid-cols-${n}` dinâmico) — outros nichos continuam com 4.
   const gridColsClass = stats.length >= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4';
   return (
+    <>
     <motion.div
       key="stats-grid"
       initial={{ opacity: 0, y: -20 }}
@@ -33,7 +37,10 @@ export function QuickStatsGrid({ stats, periodoLabel }: QuickStatsGridProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.08 }}
         >
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm">
+          <Card
+            onClick={stat.drill ? () => setDrillIndex(i) : undefined}
+            className={`p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm ${stat.drill ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md" : ""}`}
+          >
             <div className="flex items-center justify-between mb-3">
               <stat.icon className={`w-5 h-5 ${ICON_COLORS[i % ICON_COLORS.length]}`} />
               {/* Achado de UX 2026-09-21: `trend` sem valor real (nichos que ainda
@@ -84,5 +91,14 @@ export function QuickStatsGrid({ stats, periodoLabel }: QuickStatsGridProps) {
         </motion.div>
       ))}
     </motion.div>
+    <DrillDownPanel
+      isOpen={drillStat !== null}
+      onClose={() => setDrillIndex(null)}
+      title={drillStat?.label}
+      subtitle={drillStat?.drill?.subtitle}
+      rows={drillStat?.drill?.rows || []}
+      columns={drillStat?.drill?.columns || []}
+    />
+    </>
   );
 }

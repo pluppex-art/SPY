@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -8,15 +8,13 @@ import {
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
-import { Modal } from "../../components/ui/modal";
+import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
+import { leadDrillColumns, contractDrillColumns, isContractAtivo } from "../../components/ui/drillColumns";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import { computeChannelRevenue, computeProductRevenue, computeSegmentRevenue, type DashboardData } from "./revenueInsights";
 
-const isContractAtivo = (c: any) => c.status !== "Cancelado" && c.status !== "Perdido";
-
-type DrillColumn = { header: string; render: (row: any) => ReactNode; className?: string };
 type DrillKey = "leads" | "oportunidades" | "vendas" | "receita" | "retencao" | "emRisco";
 
 const SEGMENT_PALETTE = [
@@ -62,37 +60,17 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
     ].map((f, i) => ({ ...f, color: FLUXO_COLORS[i % FLUXO_COLORS.length] }));
   }, [leads.length, oportunidades.length, vendas.length, faturamentoContratado, totalRevenue, valorEmRisco, contratosEmRisco.length, formatCurrency]);
 
-  const leadColumns: DrillColumn[] = [
-    { header: "Nome", render: (l) => <span className="font-bold text-[var(--color-text-primary)]">{l.name || "—"}</span> },
-    { header: "Empresa", render: (l) => l.company || "—" },
-    { header: "Status", render: (l) => <Badge variant="secondary">{l.status || "—"}</Badge> },
-    { header: "Origem", render: (l) => l.source || "—" },
-    { header: "Vendedor", render: (l) => l.seller || "—" },
-    { header: "Valor", render: (l) => <span className="font-mono">{formatCurrency(parseCurrencyBR(l.value))}</span>, className: "text-right" },
-  ];
-
-  const contractColumns = (valueField: "totalValue" | "mrr"): DrillColumn[] => [
-    { header: "Cliente", render: (c) => <span className="font-bold text-[var(--color-text-primary)]">{c.client || "—"}</span> },
-    { header: "Plano", render: (c) => c.plan || "—" },
-    { header: "Status", render: (c) => <Badge variant="secondary">{c.status || "—"}</Badge> },
-    {
-      header: valueField === "mrr" ? "MRR" : "Valor Total",
-      render: (c) => {
-        const mrrValue = parseCurrencyBR(c.mrr);
-        const total = c.totalValue !== undefined && c.totalValue !== null ? Number(c.totalValue) : mrrValue;
-        return <span className="font-mono">{formatCurrency(valueField === "mrr" ? mrrValue : Math.max(total, mrrValue))}</span>;
-      },
-      className: "text-right",
-    },
-  ];
+  const leadColumns = leadDrillColumns(formatCurrency);
+  const contractColumnsTotal = contractDrillColumns(formatCurrency, "totalValue");
+  const contractColumnsMrr = contractDrillColumns(formatCurrency, "mrr");
 
   const drillConfig: Record<DrillKey, { title: string; subtitle: string; rows: any[]; columns: DrillColumn[] }> = {
     leads: { title: "Leads", subtitle: `${leads.length} lead${leads.length === 1 ? "" : "s"} no total`, rows: leads as any[], columns: leadColumns },
     oportunidades: { title: "Oportunidades", subtitle: `${oportunidades.length} lead${oportunidades.length === 1 ? "" : "s"} com valor atribuído`, rows: oportunidades, columns: leadColumns },
     vendas: { title: "Vendas", subtitle: `${vendas.length} negócio${vendas.length === 1 ? "" : "s"} fechado${vendas.length === 1 ? "" : "s"}`, rows: vendas, columns: leadColumns },
-    receita: { title: "Receita", subtitle: `${contratosAtivos.length} contrato${contratosAtivos.length === 1 ? "" : "s"} ativo${contratosAtivos.length === 1 ? "" : "s"} · ${formatCurrency(faturamentoContratado)}`, rows: contratosAtivos, columns: contractColumns("totalValue") },
-    retencao: { title: "Retenção (MRR)", subtitle: `${contratosAtivos.length} contrato${contratosAtivos.length === 1 ? "" : "s"} ativo${contratosAtivos.length === 1 ? "" : "s"} · ${formatCurrency(totalRevenue)}/mês`, rows: contratosAtivos, columns: contractColumns("mrr") },
-    emRisco: { title: "Em Risco", subtitle: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"} inadimplente${contratosEmRisco.length === 1 ? "" : "s"}`, rows: contratosEmRisco, columns: contractColumns("mrr") },
+    receita: { title: "Receita", subtitle: `${contratosAtivos.length} contrato${contratosAtivos.length === 1 ? "" : "s"} ativo${contratosAtivos.length === 1 ? "" : "s"} · ${formatCurrency(faturamentoContratado)}`, rows: contratosAtivos, columns: contractColumnsTotal },
+    retencao: { title: "Retenção (MRR)", subtitle: `${contratosAtivos.length} contrato${contratosAtivos.length === 1 ? "" : "s"} ativo${contratosAtivos.length === 1 ? "" : "s"} · ${formatCurrency(totalRevenue)}/mês`, rows: contratosAtivos, columns: contractColumnsMrr },
+    emRisco: { title: "Em Risco", subtitle: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"} inadimplente${contratosEmRisco.length === 1 ? "" : "s"}`, rows: contratosEmRisco, columns: contractColumnsMrr },
   };
 
   const canais = useMemo(() => computeChannelRevenue(leads), [leads]);
@@ -427,45 +405,14 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       </>
       )}
 
-      <Modal
+      <DrillDownPanel
         isOpen={drillKey !== null}
         onClose={() => setDrillKey(null)}
-        position="right"
-        maxWidth="max-w-xl"
-        noPadding
         title={drillKey ? drillConfig[drillKey].title : undefined}
-        description={drillKey ? drillConfig[drillKey].subtitle : undefined}
-      >
-        {drillKey && (
-          <div className="flex-1 overflow-y-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)] sticky top-0">
-                <tr>
-                  {drillConfig[drillKey].columns.map((c) => (
-                    <th key={c.header} className={`px-4 py-2.5 ${c.className || ""}`}>{c.header}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                {drillConfig[drillKey].rows.map((row, i) => (
-                  <tr key={row.id || i} className="hover:bg-[var(--color-surface-sunken)]/60">
-                    {drillConfig[drillKey].columns.map((c) => (
-                      <td key={c.header} className={`px-4 py-2.5 ${c.className || ""}`}>{c.render(row)}</td>
-                    ))}
-                  </tr>
-                ))}
-                {drillConfig[drillKey].rows.length === 0 && (
-                  <tr>
-                    <td colSpan={drillConfig[drillKey].columns.length} className="px-4 py-10 text-center text-[var(--color-text-faint)]">
-                      Nenhum registro ainda.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Modal>
+        subtitle={drillKey ? drillConfig[drillKey].subtitle : undefined}
+        rows={drillKey ? drillConfig[drillKey].rows : []}
+        columns={drillKey ? drillConfig[drillKey].columns : []}
+      />
     </div>
   );
 }

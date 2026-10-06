@@ -12,6 +12,8 @@ export function DashboardStatsSection({
   dateFrom,
   dateTo,
   performanceData,
+  leads,
+  contracts,
 }: {
   tenantNiche: string | undefined;
   totalRevenue: number;
@@ -31,6 +33,9 @@ export function DashboardStatsSection({
    * mini-gráfico de cada KPI (ver DashboardStatsByNiche.tsx). Opcional pra
    * não quebrar outro chamador que ainda não passe essa prop. */
   performanceData?: { name: string; vendas: number; faturamento?: number; leads: number; retention: number }[];
+  /** Arrays reais por trás dos números — ver mesma prop em DashboardStatsByNiche.tsx. */
+  leads?: any[];
+  contracts?: any[];
 }) {
   const stats = DashboardStatsByNiche({
     tenantNiche,
@@ -41,6 +46,8 @@ export function DashboardStatsSection({
     churnRate,
     hasContractsData,
     performanceData,
+    leads,
+    contracts,
   });
 
   const periodoLabel = !dateFrom && !dateTo
