@@ -8,9 +8,9 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Input } from "../../components/ui/input";
 import { EmptyState } from "../../components/ui/empty-state";
-import { NovaReuniaoModal } from "../../components/ui/modals/reunioes/NovaReuniaoModal";
+import { Sparkline } from "../../components/ui/sparkline";
+import { NovaReuniaoModal, TIPO_COMPROMISSO_OPTIONS, type TipoCompromisso } from "../../components/ui/modals/reunioes/NovaReuniaoModal";
 import { ConfirmModal } from "../../components/ui/modals/shared/ConfirmModal";
-import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import {
   CalendarDays,
   Calendar as CalendarIcon,
@@ -26,13 +26,11 @@ import {
   Video,
   Plus,
   Trash2,
-  Phone,
-  MessageSquare,
   RefreshCw,
   Building2,
-  Filter,
   Sparkles,
   ArrowUpRight,
+  ArrowDownRight,
   LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -40,6 +38,21 @@ import { Reuniao } from "../../contexts/DataContextTypes";
 import { googleSignIn, getAccessToken, logout as googleLogout, initAuth, SCOPES_CALENDAR } from "../../lib/firebase";
 import { supabase } from "../../lib/supabase";
 import { normalizeText } from "../../lib/utils";
+
+type TipoFiltro = "Todos" | TipoCompromisso;
+
+/** Mesmas 5 categorias do modal "+ Novo Agendamento" (coluna real `tipo`) —
+ * cor usada nos chips do calendário, nos "Filtros rápidos" da sidebar e na
+ * legenda do rodapé. Histórico migrado sem pauta identificável cai em
+ * "Outros" (ver migration 20261006_reunioes_tipo_convidados.sql). */
+const TIPO_COLORS: Record<TipoCompromisso, { bg: string; text: string; dot: string; border: string }> = {
+  "Reunião":      { bg: "bg-blue-500/10",    text: "text-blue-600 dark:text-blue-400",    dot: "bg-blue-500",    border: "border-blue-500/20" },
+  "Demonstração": { bg: "bg-purple-500/10",  text: "text-purple-600 dark:text-purple-400", dot: "bg-purple-500",  border: "border-purple-500/20" },
+  "Follow-up":    { bg: "bg-amber-500/10",   text: "text-amber-600 dark:text-amber-400",  dot: "bg-amber-500",   border: "border-amber-500/20" },
+  "Fechamento":   { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", dot: "bg-emerald-500", border: "border-emerald-500/20" },
+  "Outros":       { bg: "bg-slate-500/10",   text: "text-slate-600 dark:text-slate-400",  dot: "bg-slate-400",   border: "border-slate-500/20" },
+};
+const getTipoColor = (tipo?: string | null) => TIPO_COLORS[(tipo as TipoCompromisso) || "Outros"] || TIPO_COLORS["Outros"];
 
 // Só https e hosts do Google Meet chegam ao window.open (meetLink vem de eventos do Google Calendar,
 // que convidados externos podem escrever). Evita esquemas como javascript:.
@@ -72,6 +85,7 @@ export default function AgendaCRM() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Todos");
   const [selectedCloser, setSelectedCloser] = useState<string>("Todos");
+  const [tipoFilter, setTipoFilter] = useState<TipoFiltro>("Todos");
   // "Lista Geral de Agendamentos" renderizava TODOS os agendamentos filtrados
   // de uma vez (base tem +4 mil, histórico migrado do to na pista) — muito
   // pesado. Só limita o que é desenhado; contadores continuam usando a lista
@@ -83,8 +97,7 @@ export default function AgendaCRM() {
   const [selectedDayDate, setSelectedDayDate] = useState<Date>(() => new Date());
   const [showNovaReuniao, setShowNovaReuniao] = useState(false);
   const [reuniaoToDelete, setReuniaoToDelete] = useState<string | null>(null);
-  const [selectedLeadForDetails, setSelectedLeadForDetails] = useState<any | null>(null);
-  
+
   // Google Calendar Integration State
   const [isSyncing, setIsSyncing] = useState(false);
   const [googleUserEmail, setGoogleUserEmail] = useState<string | null>(null);
@@ -99,7 +112,10 @@ export default function AgendaCRM() {
     return Array.from(new Set([...fromColab, ...fromReunioes]));
   }, [colaboradores, all]);
 
-  const filteredReunioes = useMemo(() => {
+  // Status/Responsável/busca — aplicados antes do tipo, pra servir de base
+  // às contagens por tipo da sidebar (que precisam mostrar a distribuição
+  // completa, não só a fatia já restrita ao tipo selecionado).
+  const baseFiltered = useMemo(() => {
     return all.filter((r) => {
       const matchesStatus = statusFilter === "Todos" || r.status === statusFilter;
       const matchesCloser = selectedCloser === "Todos" || r.closerName === selectedCloser;
@@ -115,9 +131,14 @@ export default function AgendaCRM() {
     });
   }, [all, statusFilter, selectedCloser, search]);
 
+  const filteredReunioes = useMemo(() => {
+    if (tipoFilter === "Todos") return baseFiltered;
+    return baseFiltered.filter((r) => (r.tipo || "Outros") === tipoFilter);
+  }, [baseFiltered, tipoFilter]);
+
   useEffect(() => {
     setListVisibleCount(LIST_PAGE_SIZE);
-  }, [statusFilter, selectedCloser, search]);
+  }, [statusFilter, selectedCloser, tipoFilter, search]);
 
   const visibleReunioes = useMemo(
     () => filteredReunioes.slice(0, listVisibleCount),
@@ -142,6 +163,66 @@ export default function AgendaCRM() {
   const firstDayOfWeek = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
+  // Base (status/responsável/busca, sem o tipo) restrita ao mês em exibição —
+  // alimenta tanto as contagens do "Filtros rápidos" quanto o rodapé.
+  const monthBaseFiltered = useMemo(() => {
+    return baseFiltered.filter((r) => {
+      const d = new Date(r.scheduledAt);
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
+  }, [baseFiltered, year, month]);
+
+  const tipoCounts = useMemo(() => {
+    const counts: Record<TipoFiltro, number> = { Todos: monthBaseFiltered.length, "Reunião": 0, "Demonstração": 0, "Follow-up": 0, "Fechamento": 0, "Outros": 0 };
+    for (const r of monthBaseFiltered) {
+      const t = (r.tipo || "Outros") as TipoCompromisso;
+      counts[t] = (counts[t] || 0) + 1;
+    }
+    return counts;
+  }, [monthBaseFiltered]);
+
+  // Semana (domingo→sábado) em torno de `currentDate` — visão própria,
+  // diferente da Lista (antes "Semana" caía no mesmo bloco da Lista, sem
+  // nenhum agrupamento por dia real).
+  const weekDays = useMemo(() => {
+    const start = new Date(currentDate);
+    start.setDate(start.getDate() - start.getDay());
+    start.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [currentDate]);
+
+  // Tendência real dos últimos 6 meses (scheduledAt é imutável — não sofre o
+  // problema de status mutante que impede reconstrução histórica em outras
+  // telas desta sessão, ex.: Radar). "Mês atual" aqui é o mês de calendário
+  // vigente (hoje), não o mês navegado na grade — KPI de topo é visão geral,
+  // independente de navegação.
+  const kpiTrend = useMemo(() => {
+    const nowD = new Date();
+    const buckets = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(nowD.getFullYear(), nowD.getMonth() - (5 - i), 1);
+      return { year: d.getFullYear(), month: d.getMonth() };
+    });
+    const inBucket = (r: Reuniao, b: { year: number; month: number }) => {
+      const d = new Date(r.scheduledAt);
+      return d.getFullYear() === b.year && d.getMonth() === b.month;
+    };
+    const totalAgendado = buckets.map((b) => all.filter((r) => inBucket(r, b)).length);
+    const realizadas = buckets.map((b) => all.filter((r) => inBucket(r, b) && r.status === "Concluída").length);
+    const totalAtual = totalAgendado[5];
+    const totalAnterior = totalAgendado[4];
+    const totalDeltaPct = totalAnterior > 0 ? Math.round(((totalAtual - totalAnterior) / totalAnterior) * 100) : null;
+    return { totalAgendado, realizadas, totalAtual, totalDeltaPct };
+  }, [all]);
+
+  const realizadasComNotas = useMemo(
+    () => all.filter((r) => r.status === "Concluída" && (r.relatorio || r.transcricao)).length,
+    [all]
+  );
+
   const handlePrev = () => {
     if (view === "mes") setCurrentDate(new Date(year, month - 1, 1));
     else if (view === "semana") {
@@ -149,9 +230,10 @@ export default function AgendaCRM() {
       d.setDate(d.getDate() - 7);
       setCurrentDate(d);
     } else {
-      const d = new Date(currentDate);
+      const d = new Date(selectedDayDate);
       d.setDate(d.getDate() - 1);
       setCurrentDate(d);
+      setSelectedDayDate(d);
     }
   };
 
@@ -162,15 +244,25 @@ export default function AgendaCRM() {
       d.setDate(d.getDate() + 7);
       setCurrentDate(d);
     } else {
-      const d = new Date(currentDate);
+      const d = new Date(selectedDayDate);
       d.setDate(d.getDate() + 1);
       setCurrentDate(d);
+      setSelectedDayDate(d);
     }
   };
 
   const handleToday = () => {
     setCurrentDate(new Date());
     setSelectedDayDate(new Date());
+  };
+
+  // Navegação do mini-calendário da sidebar — sempre por mês, independente
+  // da view principal (que na "Semana"/"Dia" navega por dia/semana).
+  const goToMonth = (delta: number) => setCurrentDate(new Date(year, month + delta, 1));
+
+  const openDay = (d: Date) => {
+    setSelectedDayDate(d);
+    setView("dia");
   };
 
   // Mesmo mecanismo já usado (e funcionando) por Google Tasks
@@ -210,6 +302,19 @@ export default function AgendaCRM() {
     return hasMeetLink || hasOtherAttendees || hasMeetingKeyword;
   };
 
+  // Mesma heurística de palavra-chave usada no backfill histórico
+  // (migration 20261006_reunioes_tipo_convidados.sql) — aplicada aqui pra
+  // eventos novos importados do Google já nascerem com uma categoria real
+  // em vez de cair sempre em "Outros" por omissão.
+  const classifyTipo = (text: string): TipoCompromisso => {
+    const t = text.toLowerCase();
+    if (/(fechamento|contrato|assinatura|closing|renova)/.test(t)) return "Fechamento";
+    if (/(demonstra|demo)/.test(t)) return "Demonstração";
+    if (/(follow[- ]?up|retorno|acompanhamento|check[- ]?in)/.test(t)) return "Follow-up";
+    if (/(reuni|meeting|alinha|kickoff|kick-off|sync|daily|negocia|proposta|onboarding|apresenta)/.test(t)) return "Reunião";
+    return "Outros";
+  };
+
   const mapGoogleEventToReuniao = (event: any): Omit<Reuniao, "id" | "createdAt"> => {
     const startISO = event.start?.dateTime
       ? new Date(event.start.dateTime).toISOString()
@@ -237,7 +342,8 @@ export default function AgendaCRM() {
       googleEventId: event.id,
       status: event.status === "cancelled" ? "Cancelada" : "Agendada",
       pauta: event.description || (event.summary ? `Evento: ${event.summary}` : "Sincronizado da agenda do Google"),
-    };
+      tipo: classifyTipo(`${event.summary || ""} ${event.description || ""}`),
+    } as Omit<Reuniao, "id" | "createdAt">;
   };
 
   const handleSyncGoogle = async () => {
@@ -383,6 +489,8 @@ export default function AgendaCRM() {
     }
   };
 
+  const isGoogleSourced = (r: Reuniao) => !!r.googleEventId || r.companyName === "Google Calendar";
+
   return (
     <PageContainer
       title="Agenda Comercial CRM"
@@ -446,7 +554,10 @@ export default function AgendaCRM() {
       <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
         {/* Top KPIs Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card
+            onClick={() => openDay(new Date())}
+            className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm cursor-pointer hover:border-[var(--color-primary-blue)]/30 transition-colors"
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
                 Compromissos Hoje
@@ -472,12 +583,24 @@ export default function AgendaCRM() {
                 <Clock className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="text-2xl font-black text-[var(--color-text-primary)] font-mono">
-              {all.filter((r) => r.status === "Agendada").length}
+            <div className="flex items-end justify-between gap-2">
+              <div>
+                <div className="text-2xl font-black text-[var(--color-text-primary)] font-mono">
+                  {kpiTrend.totalAtual}
+                </div>
+                {kpiTrend.totalDeltaPct !== null ? (
+                  <p className={`text-[11px] font-bold mt-1 flex items-center gap-0.5 ${kpiTrend.totalDeltaPct >= 0 ? "text-purple-600 dark:text-purple-400" : "text-rose-500"}`}>
+                    {kpiTrend.totalDeltaPct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                    {Math.abs(kpiTrend.totalDeltaPct)}% vs mês anterior
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold mt-1">Pipeline ativo de conversão</p>
+                )}
+              </div>
+              <div className="text-purple-500/70 dark:text-purple-400/70 pb-1">
+                <Sparkline data={kpiTrend.totalAgendado} className="w-16 h-6" />
+              </div>
             </div>
-            <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold mt-1">
-              Pipeline ativo de conversão
-            </p>
           </Card>
 
           <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
@@ -489,15 +612,25 @@ export default function AgendaCRM() {
                 <CheckCircle2 className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-              {all.filter((r) => r.status === "Concluída").length}
+            <div className="flex items-end justify-between gap-2">
+              <div>
+                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                  {all.filter((r) => r.status === "Concluída").length}
+                </div>
+                <p className="text-[11px] text-[var(--color-text-faint)] mt-1">
+                  {realizadasComNotas} com ata/notas salvas
+                </p>
+              </div>
+              <div className="text-emerald-500/70 dark:text-emerald-400/70 pb-1">
+                <Sparkline data={kpiTrend.realizadas} className="w-16 h-6" />
+              </div>
             </div>
-            <p className="text-[11px] text-[var(--color-text-faint)] mt-1">
-              Histórico com ata e notas salvas
-            </p>
           </Card>
 
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card
+            onClick={() => nextMeeting && openDay(new Date(nextMeeting.scheduledAt))}
+            className={`p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm ${nextMeeting ? "cursor-pointer hover:border-amber-400/40 transition-colors" : ""}`}
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
                 Próximo Alinhamento
@@ -512,7 +645,7 @@ export default function AgendaCRM() {
                   {nextMeeting.leadName || nextMeeting.companyName}
                 </div>
                 <p className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-bold mt-0.5">
-                  {new Date(nextMeeting.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} • {nextMeeting.closerName}
+                  {new Date(nextMeeting.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} • {isGoogleSourced(nextMeeting) ? "Google Calendar" : nextMeeting.closerName}
                 </p>
               </div>
             ) : (
@@ -565,7 +698,11 @@ export default function AgendaCRM() {
               </div>
 
               <span className="text-sm font-black text-[var(--color-text-primary)] ml-2">
-                {MONTH_NAMES[month]} {year}
+                {view === "semana"
+                  ? `${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${MONTH_NAMES[weekDays[6].getMonth()]} ${weekDays[6].getFullYear()}`
+                  : view === "dia"
+                  ? selectedDayDate.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" })
+                  : `${MONTH_NAMES[month]} ${year}`}
               </span>
             </div>
 
@@ -608,6 +745,89 @@ export default function AgendaCRM() {
           </div>
         </Card>
 
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
+        {/* Sidebar: mini-calendário + filtros rápidos por tipo */}
+        <div className="space-y-4">
+          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-black text-[var(--color-text-primary)]">
+                {MONTH_NAMES[month]} {year}
+              </span>
+              <div className="flex items-center gap-0.5">
+                <Button variant="ghost" size="xs" onClick={() => goToMonth(-1)} className="h-6 w-6 p-0">
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </Button>
+                <Button variant="ghost" size="xs" onClick={() => goToMonth(1)} className="h-6 w-6 p-0">
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
+              {DOW.map((d) => (
+                <span key={d} className="text-[9px] font-bold text-[var(--color-text-faint)] py-1">{d[0]}</span>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-0.5">
+              {Array.from({ length: firstDayOfWeek }).map((_, i) => <div key={`m-empty-${i}`} />)}
+              {Array.from({ length: daysInMonth }).map((_, idx) => {
+                const dayNum = idx + 1;
+                const dayStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+                const isToday = dayStr === todayStr;
+                const isSelected = view === "dia" && selectedDayDate.getFullYear() === year && selectedDayDate.getMonth() === month && selectedDayDate.getDate() === dayNum;
+                const tipos = Array.from(new Set(
+                  monthBaseFiltered.filter((r) => r.scheduledAt?.startsWith(dayStr)).map((r) => r.tipo || "Outros")
+                )).slice(0, 3);
+                return (
+                  <button
+                    key={dayNum}
+                    type="button"
+                    onClick={() => openDay(new Date(year, month, dayNum))}
+                    className={`aspect-square rounded-md text-[11px] flex flex-col items-center justify-center gap-0.5 cursor-pointer border-none transition-colors ${
+                      isSelected
+                        ? "bg-[var(--color-primary-blue)] text-white font-bold"
+                        : isToday
+                        ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] font-bold"
+                        : "bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)]"
+                    }`}
+                  >
+                    <span>{dayNum}</span>
+                    {tipos.length > 0 && (
+                      <span className="flex gap-0.5">
+                        {tipos.map((t) => <span key={t} className={`w-1 h-1 rounded-full ${getTipoColor(t).dot}`} />)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+            <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Filtros rápidos</h4>
+            <div className="space-y-1">
+              {(["Todos", ...TIPO_COMPROMISSO_OPTIONS.map((o) => o.id)] as TipoFiltro[]).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTipoFilter(id)}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-bold cursor-pointer border-none transition-colors ${
+                    tipoFilter === id
+                      ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]"
+                      : "bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)]"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${id === "Todos" ? "bg-[var(--color-text-faint)]" : getTipoColor(id).dot}`} />
+                    {id}
+                  </span>
+                  <span className="font-mono text-[11px]">{tipoCounts[id]}</span>
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        <div className="space-y-6 min-w-0">
         {/* View Renderings */}
         {view === "mes" && (
           <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm overflow-hidden">
@@ -658,16 +878,13 @@ export default function AgendaCRM() {
 
                     <div className="space-y-1 mt-1 flex-1 overflow-hidden">
                       {dayMeetings.slice(0, 2).map((r) => {
-                        const isGoogle = !!r.googleEventId || r.companyName === "Google Calendar";
+                        const isGoogle = isGoogleSourced(r);
+                        const c = getTipoColor(r.tipo);
                         return (
                           <div
                             key={r.id}
-                            className={`px-1.5 py-0.5 rounded border text-[10px] font-bold truncate flex items-center gap-1 ${
-                              isGoogle
-                                ? "bg-emerald-600 text-white border-emerald-700 shadow-2xs"
-                                : "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/20"
-                            }`}
-                            title={`${r.leadName || r.companyName} (${new Date(r.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})`}
+                            className={`px-1.5 py-0.5 rounded border text-[10px] font-bold truncate flex items-center gap-1 ${c.bg} ${c.text} ${c.border}`}
+                            title={`${r.tipo || "Outros"} — ${r.leadName || r.companyName} (${new Date(r.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})`}
                           >
                             {isGoogle && <span className="text-[9px]">📅</span>}
                             <span>
@@ -681,6 +898,57 @@ export default function AgendaCRM() {
                           +{dayMeetings.length - 2} mais
                         </span>
                       )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+        {view === "semana" && (
+          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3 mb-4">
+              <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4 text-[var(--color-primary-blue)]" />
+                Semana de {weekDays[0].toLocaleDateString("pt-BR", { day: "numeric", month: "short" })} a {weekDays[6].toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}
+              </h3>
+            </div>
+            <div className="grid grid-cols-7 gap-2">
+              {weekDays.map((d) => {
+                const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                const isToday = dStr === todayStr;
+                const dayEvents = filteredReunioes
+                  .filter((r) => r.scheduledAt?.startsWith(dStr))
+                  .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+                return (
+                  <div
+                    key={dStr}
+                    className={`rounded-lg border p-2 min-h-[220px] flex flex-col gap-1.5 ${
+                      isToday ? "border-[var(--color-primary-blue)]/40 bg-[var(--color-primary-blue)]/5" : "border-[var(--color-border-subtle)]"
+                    }`}
+                  >
+                    <button type="button" onClick={() => openDay(d)} className="text-left bg-transparent border-none cursor-pointer p-0">
+                      <div className="text-[10px] font-black uppercase text-[var(--color-text-faint)]">{DOW[d.getDay()]}</div>
+                      <div className={`text-sm font-black ${isToday ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-primary)]"}`}>{d.getDate()}</div>
+                    </button>
+                    <div className="space-y-1 flex-1 overflow-y-auto">
+                      {dayEvents.length === 0 && <span className="text-[10px] text-[var(--color-text-faint)]">—</span>}
+                      {dayEvents.map((r) => {
+                        const c = getTipoColor(r.tipo);
+                        const hora = new Date(r.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                        return (
+                          <div
+                            key={r.id}
+                            onClick={() => openDay(d)}
+                            title={`${r.tipo || "Outros"} — ${r.leadName || r.companyName} (${hora})`}
+                            className={`px-1.5 py-1 rounded border text-[10px] font-bold truncate cursor-pointer ${c.bg} ${c.text} ${c.border}`}
+                          >
+                            {isGoogleSourced(r) && <span className="text-[9px]">📅 </span>}
+                            {hora} • {r.leadName || r.companyName}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -838,7 +1106,7 @@ export default function AgendaCRM() {
           </div>
         )}
 
-        {(view === "lista" || view === "semana") && (
+        {view === "lista" && (
           <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3 mb-4">
               <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] flex items-center gap-2">
@@ -952,6 +1220,24 @@ export default function AgendaCRM() {
             )}
           </Card>
         )}
+
+        {view !== "lista" && (
+          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-xs font-bold text-[var(--color-text-muted)]">
+              {monthBaseFiltered.length} {monthBaseFiltered.length === 1 ? "compromisso" : "compromissos"} no mês de {MONTH_NAMES[month].toLowerCase()}
+            </p>
+            <div className="flex items-center gap-3 flex-wrap text-[10px] font-bold text-[var(--color-text-faint)]">
+              {TIPO_COMPROMISSO_OPTIONS.map((o) => (
+                <span key={o.id} className="flex items-center gap-1">
+                  <span className={`w-1.5 h-1.5 rounded-full ${getTipoColor(o.id).dot}`} />
+                  {o.label}
+                </span>
+              ))}
+            </div>
+          </Card>
+        )}
+        </div>
+        </div>
       </div>
 
       {/* Modais */}
@@ -974,13 +1260,6 @@ export default function AgendaCRM() {
         message="Tem certeza que deseja cancelar esta reunião comercial da agenda?"
       />
 
-      {selectedLeadForDetails && (
-        <LeadDetailsModal
-          isOpen={!!selectedLeadForDetails}
-          lead={selectedLeadForDetails}
-          onClose={() => setSelectedLeadForDetails(null)}
-        />
-      )}
     </PageContainer>
   );
 }

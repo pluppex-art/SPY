@@ -3,8 +3,8 @@ import { Modal } from "../../modal";
 import { Button } from "../../button";
 import {
   Calendar, Clock, User, FileText, Video,
-  Copy, Building2, Users, Loader2, CheckCircle2, ExternalLink, MessageCircle,
-  MapPin, Plus, X,
+  Copy, Building2, Loader2, CheckCircle2, ExternalLink, MessageCircle,
+  MapPin, Plus, X, Monitor, RefreshCw, Handshake, MoreHorizontal,
 } from "lucide-react";
 import { generateJitsiLink } from "../../JitsiEmbed";
 import { createCalendarEvent } from "../../../../lib/google-calendar";
@@ -14,12 +14,18 @@ import { toast } from "sonner";
 import { cn } from "../../../../lib/utils";
 import { useNavigate } from "react-router-dom";
 
-type MeetingType = "cliente" | "interna" | "equipe";
+/** Mesmas 5 categorias da Agenda Comercial (coluna real `tipo` em
+ * `reunioes`) — ver AgendaCRM.tsx pros filtros/cores que usam esse mesmo
+ * valor. Substitui o antigo seletor Cliente/Interna/Equipe, que nunca foi
+ * persistido (não existe coluna pra isso). */
+export type TipoCompromisso = "Reunião" | "Demonstração" | "Follow-up" | "Fechamento" | "Outros";
 
-const MEETING_TYPES: { id: MeetingType; label: string; desc: string; icon: typeof Video }[] = [
-  { id: "cliente",  label: "Cliente",  desc: "Reunião de vendas ou follow-up com cliente", icon: User     },
-  { id: "interna",  label: "Interna",  desc: "Alinhamento interno da empresa",              icon: Building2 },
-  { id: "equipe",   label: "Equipe",   desc: "Reunião de time, sprint, 1:1",                icon: Users    },
+export const TIPO_COMPROMISSO_OPTIONS: { id: TipoCompromisso; label: string; desc: string; icon: typeof Video }[] = [
+  { id: "Reunião",       label: "Reunião",       desc: "Alinhamento ou reunião comercial",        icon: Video          },
+  { id: "Demonstração",  label: "Demonstração",  desc: "Apresentação/demo do produto",             icon: Monitor        },
+  { id: "Follow-up",     label: "Follow-up",     desc: "Acompanhamento com um lead ou cliente",     icon: RefreshCw      },
+  { id: "Fechamento",    label: "Fechamento",    desc: "Negociação final, contrato ou assinatura", icon: Handshake      },
+  { id: "Outros",        label: "Outros",        desc: "Qualquer outro compromisso",               icon: MoreHorizontal },
 ];
 
 interface NovaReuniaoModalProps {
@@ -32,7 +38,7 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
   const { activeTenantId, user } = useAuth();
   const navigate = useNavigate();
 
-  const [meetingType, setMeetingType] = useState<MeetingType>("cliente");
+  const [tipo, setTipo] = useState<TipoCompromisso>("Reunião");
   const [formato, setFormato]         = useState<"axis" | "presencial">("axis");
   const [localEndereco, setLocalEndereco] = useState("");
   const [title, setTitle]             = useState("");
@@ -103,35 +109,38 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
       const scheduledAt = new Date(`${date}T${time}:00`).toISOString();
 
       const displayTitle = title.trim() || (
-        meetingType === "cliente"
-          ? `Reunião com ${linkedLead?.company || linkedLead?.name || "Cliente"}`
-          : meetingType === "equipe"
-          ? "Reunião de Equipe"
-          : "Reunião Interna"
+        linkedLead
+          ? `${tipo} com ${linkedLead.company || linkedLead.name}`
+          : `${tipo} Interna`
       );
 
       const allAttendees = Array.from(new Set([linkedLead?.email, closerEmail, ...convidados].filter(Boolean))) as string[];
 
-      (addReuniao as any)({
-        id: reuniaoId,
+      const saved = await addReuniao({
+        id:           reuniaoId,
         leadId:       linkedLead?.id   ?? `standalone-${reuniaoId}`,
         clienteId:    linkedLead?.clientId ?? undefined,
-        leadName:     linkedLead?.name  ?? (meetingType === "cliente" ? "Externo" : closerName),
+        leadName:     linkedLead?.name  ?? closerName,
         companyName:  linkedLead?.company ?? displayTitle,
         leadEmail:    linkedLead?.email ?? "",
         closerName,
         closerEmail,
-        convidados:   convidados.length > 0 ? convidados : undefined,
+        convidados,
         scheduledAt,
         durationMinutes: duration,
         meetLink,
         status:  "Agendada",
         pauta:   pauta.trim() || undefined,
-        tipo:    isPresencial ? "presencial" : "online",
-        local:   isPresencial ? localEndereco.trim() : undefined,
-        relatorio: undefined,
-        createdAt: new Date().toISOString(),
-      });
+        tipo,
+      } as any);
+
+      if (!saved) {
+        // addReuniao já mostrou o toast de erro do insert real — não segue
+        // pro fluxo de sucesso (convite Google/WhatsApp) com algo que não
+        // foi salvo.
+        setLoading(false);
+        return;
+      }
 
       let calendarLink: string | undefined;
       if (activeTenantId) {
@@ -179,9 +188,9 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
     const dateStr = new Date(`${date}T${time}:00`).toLocaleDateString("pt-BR");
     const isPresencial = formato === "presencial";
     const displayTitle = title.trim() || (
-      meetingType === "cliente"
-        ? `Reunião com ${linkedLead?.company || linkedLead?.name || "Cliente"}`
-        : meetingType === "equipe" ? "Reunião de Equipe" : "Reunião Interna"
+      linkedLead
+        ? `${tipo} com ${linkedLead.company || linkedLead.name}`
+        : `${tipo} Interna`
     );
     const msg = [
       `Olá! 👋`,
@@ -218,7 +227,7 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
   const reset = () => {
     setTitle(""); setPauta(""); setCloserName(user?.name || "");
     setLinkedLeadId(""); setCreated(null);
-    setMeetingType("cliente"); setFormato("axis"); setLocalEndereco("");
+    setTipo("Reunião"); setFormato("axis"); setLocalEndereco("");
     setConvidados([]); setNovoConvidado("");
     setDate(new Date().toISOString().slice(0, 10));
     setTime("09:00"); setDuration(60);
@@ -318,15 +327,15 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
 
           {/* Tipo */}
           <div className="space-y-1.5">
-            <label className="text-[8px] font-black uppercase tracking-widest text-slate-500">Tipo de Reunião</label>
+            <label className="text-[8px] font-black uppercase tracking-widest text-slate-500">Tipo de Compromisso</label>
             <div className="grid grid-cols-3 gap-2">
-              {MEETING_TYPES.map(({ id, label, icon: Icon }) => (
+              {TIPO_COMPROMISSO_OPTIONS.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
-                  onClick={() => setMeetingType(id)}
+                  onClick={() => setTipo(id)}
                   className={cn(
                     "flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center",
-                    meetingType === id
+                    tipo === id
                       ? "bg-blue-500/15 border-blue-500/30 text-blue-300"
                       : "bg-white/[0.02] border-white/[0.06] text-slate-500 hover:border-white/[0.12] hover:text-slate-300"
                   )}
@@ -345,37 +354,31 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
             </label>
             <input
               type="text"
-              placeholder={
-                meetingType === "cliente" ? "Ex: Apresentação de proposta..." :
-                meetingType === "equipe"  ? "Ex: Sprint Review — Semana 24..." :
-                "Ex: Alinhamento de metas..."
-              }
+              placeholder={`Ex: ${tipo} com o cliente...`}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full bg-[var(--color-surface)] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/40 transition-all"
             />
           </div>
 
-          {/* Vincular lead (só para tipo cliente) */}
-          {meetingType === "cliente" && (
-            <div className="space-y-1.5">
-              <label className="text-[8px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                <User className="w-3 h-3" /> Vincular Lead (opcional)
-              </label>
-              <select
-                value={linkedLeadId}
-                onChange={(e) => setLinkedLeadId(e.target.value)}
-                className="w-full bg-[var(--color-surface)] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500/40 transition-all"
-              >
-                <option value="">— Sem lead vinculado —</option>
-                {(leads as any[]).map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.company || l.name}{l.company && l.name ? ` · ${l.name}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Vincular lead (opcional, qualquer tipo) */}
+          <div className="space-y-1.5">
+            <label className="text-[8px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+              <User className="w-3 h-3" /> Vincular Lead (opcional)
+            </label>
+            <select
+              value={linkedLeadId}
+              onChange={(e) => setLinkedLeadId(e.target.value)}
+              className="w-full bg-[var(--color-surface)] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500/40 transition-all"
+            >
+              <option value="">— Sem lead vinculado —</option>
+              {(leads as any[]).map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.company || l.name}{l.company && l.name ? ` · ${l.name}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Responsável */}
           <div className="space-y-1.5">

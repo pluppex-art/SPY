@@ -2409,6 +2409,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             console.error(`[Supabase] insert ${tableName} error:`, error.message, error.details);
             toast.error(`Erro ao salvar: ${friendlyError(error)}`);
             stateSetter(prev => prev.filter(x => x.id !== stamped.id));
+            // Sinaliza falha pro chamador (ex.: modais que só devem mostrar
+            // "criado com sucesso" depois de confirmar que o insert real deu certo).
+            return undefined;
           }
         }
         return stamped;

@@ -152,6 +152,11 @@ export interface Reuniao {
   notas_closer?: string;
   relatorio_ia?: string;
   createdAt: string;
+  /** Categoria do compromisso — campo real (coluna `tipo`), usada pela Agenda
+   * Comercial pra colorir/filtrar por tipo. Histórico migrado sem pauta
+   * identificável foi classificado como 'Outros' (nunca inventado). */
+  tipo?: 'Reunião' | 'Demonstração' | 'Follow-up' | 'Fechamento' | 'Outros';
+  convidados?: string[];
 }
 
 export interface DataContextType {
@@ -375,7 +380,10 @@ export interface DataContextType {
   clienteBase: any[];
   setClienteBase: (v: any[]) => void;
   reunioes: Reuniao[];
-  addReuniao: (r: Omit<Reuniao, 'id' | 'createdAt'>) => void;
+  /** Resolve pra `undefined` quando o insert real falha (ver createCrudHelper
+   * em DataContext.tsx) — usado pelo modal de criação pra só mostrar a tela
+   * de sucesso depois de confirmar que o agendamento foi salvo de verdade. */
+  addReuniao: (r: Omit<Reuniao, 'id' | 'createdAt'>) => Promise<Reuniao | undefined>;
   updateReuniao: (id: string, updates: Partial<Reuniao>) => void;
   deleteReuniao: (id: string) => void;
   indicacoes: Indicacao[];
