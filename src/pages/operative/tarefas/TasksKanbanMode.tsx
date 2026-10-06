@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { motion } from "motion/react";
 import { Task } from "../../../types";
@@ -48,6 +48,29 @@ export function TasksKanbanMode({
   // de uma vez trava o navegador; mostra em blocos de 30.
   const KANBAN_PAGE = 30;
   const [visible, setVisible] = useState<Record<string, number>>({});
+
+  // Ordem dentro da coluna: concluídas pela mais recente primeiro (uma tarefa
+  // recém-solta aparece no topo, não perdida no meio de milhares); demais por
+  // prazo mais próximo, sem prazo por último.
+  const colTasksIds = useMemo(() => new Set(filteredTasks.map((t) => t.id)), [filteredTasks]);
+  const tasksByCol = useMemo(() => {
+    const out: Record<string, Task[]> = {};
+    for (const col of columns) {
+      const list = filteredTasks.filter((t) => t.status === col.id);
+      list.sort((a, b) => {
+        if (col.id === "Concluída") {
+          const ta = new Date(a.completed_at || a.updated_at || a.created_at || 0).getTime();
+          const tb = new Date(b.completed_at || b.updated_at || b.created_at || 0).getTime();
+          return tb - ta;
+        }
+        const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+        const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+        return da - db;
+      });
+      out[col.id] = list;
+    }
+    return out;
+  }, [columns, filteredTasks]);
   return (
     <div className="space-y-4">
       {/* Mobile Segments Header */}
@@ -89,7 +112,8 @@ export function TasksKanbanMode({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {columns.map(col => {
-          const count = filteredTasks.filter(t => t.status === col.id).length;
+          const colTasks = tasksByCol[col.id] ?? [];
+          const count = colTasks.length;
           const isVisibleOnMobile = mobileActiveCol === col.id;
           const dotColor = KANBAN_COR_DOT[col.cor] ?? '#64748b';
           const dotClass = KANBAN_COR_CLASS[col.cor] ?? 'bg-slate-500';
@@ -116,12 +140,17 @@ export function TasksKanbanMode({
 
               {/* Column Contents */}
               <div
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
                 onDragEnter={(e) => { e.preventDefault(); setDraggedOverCol(col.id); }}
-                onDragLeave={() => { if (draggedOverCol === col.id) setDraggedOverCol(null); }}
+                onDragLeave={(e) => {
+                  // dragleave também dispara ao passar por filhos do container — só limpa ao sair de verdade.
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null) && draggedOverCol === col.id) setDraggedOverCol(null);
+                }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  const taskId = e.dataTransfer.getData("text/plain");
+                  // O id vem do estado do arraste; o dataTransfer pode conter a URL do link do card quando ele é o ponto de pega.
+                  const fromData = e.dataTransfer.getData("text/plain");
+                  const taskId = draggedTaskId ?? (colTasksIds.has(fromData) ? fromData : null);
                   if (taskId) moveTaskStatus(taskId, col.id);
                   setDraggedOverCol(null);
                   setDraggedTaskId(null);
@@ -134,7 +163,7 @@ export function TasksKanbanMode({
               >
                 {count > 0 ? (
                   <>
-                  {filteredTasks.filter(t => t.status === col.id).slice(0, visible[col.id] ?? KANBAN_PAGE).map(task => (
+                  {colTasks.slice(0, visible[col.id] ?? KANBAN_PAGE).map(task => (
                     <div key={task.id}>
                       <TasksKanbanCard
                         task={task}

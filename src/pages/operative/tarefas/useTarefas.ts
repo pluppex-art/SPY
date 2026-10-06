@@ -296,12 +296,16 @@ export function useTarefas() {
 
   const toggleTaskStatus = (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'Concluída' ? 'Em Aberto' : 'Concluída';
-    updateTask(id, { status: newStatus });
+    updateTask(id, { status: newStatus, completed_at: newStatus === 'Concluída' ? new Date().toISOString() : null });
     toast.success(`Tarefa marcada como ${newStatus.toLowerCase()}!`);
   };
 
   const moveTaskStatus = (id: string, newStatus: 'Atrasado' | 'Em Aberto' | 'Concluída') => {
-    updateTask(id, { status: newStatus });
+    const atual = tasks.find(t => t.id === id);
+    if (atual?.status === newStatus) return;
+    // completed_at acompanha o status — alimenta "tempo para concluir" e "concluídas
+    // no período" da tela, e faz a tarefa recém-concluída subir pro topo da coluna.
+    updateTask(id, { status: newStatus, completed_at: newStatus === 'Concluída' ? new Date().toISOString() : null });
     toast.success(`Tarefa movida para ${newStatus}!`);
   };
 

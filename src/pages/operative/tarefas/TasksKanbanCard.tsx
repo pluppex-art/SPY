@@ -50,7 +50,12 @@ export function TasksKanbanCard({
   return (
     <div
       draggable
-      onDragStart={(e) => { e.dataTransfer.setData("text/plain", task.id); setDraggedTaskId(task.id); }}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", task.id);
+        e.dataTransfer.effectAllowed = "move";
+        // Alterar o DOM/estilo do card dentro do próprio dragstart faz o Chrome cancelar o arraste — adia pro próximo tick.
+        setTimeout(() => setDraggedTaskId(task.id), 0);
+      }}
       onDragEnd={() => { setDraggedTaskId(null); setDraggedOverCol(null); }}
       className={cn(
         "relative rounded-2xl border p-4 pl-5 shadow-sm transition-all cursor-grab active:cursor-grabbing overflow-hidden",
@@ -100,7 +105,7 @@ export function TasksKanbanCard({
 
       <div className="mt-1.5">
         {task.lead_id ? (
-          <Link to={`/app/crm/pipeline?leadId=${task.lead_id}`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:underline truncate max-w-full" title="Abrir lead no pipeline">
+          <Link draggable={false} to={`/app/crm/pipeline?leadId=${task.lead_id}`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:underline truncate max-w-full" title="Abrir lead no pipeline">
             {leadLabel} <ExternalLink className="w-2.5 h-2.5 shrink-0" />
           </Link>
         ) : (
