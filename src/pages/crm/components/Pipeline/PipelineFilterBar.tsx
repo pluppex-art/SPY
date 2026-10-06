@@ -38,13 +38,13 @@ interface PipelineFilterBarProps {
   onClear: () => void;
 }
 
-const BOX = "flex items-center gap-2.5 bg-[var(--color-surface-elevated)] px-3.5 rounded-xl border border-[var(--color-border-default)] h-12 min-w-0";
-const SEL = "bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-[13px] font-semibold cursor-pointer w-full truncate";
+const BOX = "flex items-center gap-2 bg-[var(--color-surface-elevated)] px-3 rounded-xl border border-[var(--color-border-default)] h-10 min-w-0";
+const SEL = "bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate";
 
 function Field({ icon: Icon, children, className, tint }: { icon: typeof Search; children: ReactNode; className?: string; tint?: boolean }) {
   return (
     <div className={cn(BOX, tint && "bg-[var(--color-primary-blue)]/[0.07] border-[var(--color-primary-blue)]/30", className)}>
-      <Icon className={cn("w-4 h-4 shrink-0", tint ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)]")} />
+      <Icon className={cn("w-3.5 h-3.5 shrink-0", tint ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)]")} />
       {children}
     </div>
   );
@@ -63,15 +63,15 @@ export function PipelineFilterBar(p: PipelineFilterBarProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[2.2fr_1fr_1fr_1fr_1fr] gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-2">
         <div className={cn(BOX, "md:col-span-2 xl:col-span-1")}>
-          <Search className="w-4 h-4 shrink-0 text-[var(--color-text-muted)]" />
+          <Search className="w-3.5 h-3.5 shrink-0 text-[var(--color-text-muted)]" />
           <input
             type="text"
             placeholder="Buscar por negócios, empresa, contato ou palavra-chave..."
             value={p.searchQuery}
             onChange={(e) => p.setSearchQuery(e.target.value)}
-            className="bg-transparent border-none text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none w-full"
+            className="bg-transparent border-none text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none w-full"
           />
         </div>
         <Field icon={Building2}>
@@ -97,10 +97,10 @@ export function PipelineFilterBar(p: PipelineFilterBarProps) {
         </Field>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1.1fr_1.2fr_1.2fr_1.2fr_auto] gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1.2fr_auto_1fr_1fr_auto] gap-2">
         {hasFunis ? (
           <Field icon={p.currentPipeline === "sdr" ? Zap : Briefcase} tint>
-            <select className={cn(SEL, "uppercase tracking-wide text-[12px] font-bold text-[var(--color-primary-blue)]")} value={funilValue} onChange={(e) => onFunilChange(e.target.value)}>
+            <select className={cn(SEL, "uppercase tracking-wide text-[11px] font-bold text-[var(--color-primary-blue)]")} value={funilValue} onChange={(e) => onFunilChange(e.target.value)}>
               {p.comercialFunis.length > 1 && <option value="comercial:__todos__">Funil comercial — todos</option>}
               {p.comercialFunis.map((f: any) => <option key={f.id} value={`comercial:${f.id}`}>Funil comercial{p.comercialFunis.length > 1 ? ` — ${f.nome}` : `: ${f.nome}`}</option>)}
               {p.sdrFunis.length > 1 && <option value="sdr:__todos__">Funil SDR — todos</option>}
@@ -108,7 +108,7 @@ export function PipelineFilterBar(p: PipelineFilterBarProps) {
             </select>
           </Field>
         ) : <div className="hidden xl:block" />}
-        <DateRangeFilter dateFrom={p.dateFrom} setDateFrom={p.setDateFrom} dateTo={p.dateTo} setDateTo={p.setDateTo} className="!h-12 !rounded-xl" />
+        <DateRangeFilter dateFrom={p.dateFrom} setDateFrom={p.setDateFrom} dateTo={p.dateTo} setDateTo={p.setDateTo} className="!h-10 !rounded-xl" />
         <Field icon={Layers}>
           <select className={SEL} value={p.stageFilter} onChange={(e) => p.setStageFilter(e.target.value)}>
             <option value="Todas">Todas as etapas</option>
@@ -125,13 +125,13 @@ export function PipelineFilterBar(p: PipelineFilterBarProps) {
           onClick={p.onClear}
           disabled={p.activeCount === 0}
           className={cn(
-            "h-12 px-5 rounded-xl border text-[13px] font-bold flex items-center justify-center gap-2 transition-all",
+            "h-10 px-4 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all",
             p.activeCount > 0
               ? "bg-[var(--color-surface-elevated)] border-[var(--color-border-default)] text-[var(--color-text-primary)] hover:border-rose-400 hover:text-rose-500 cursor-pointer"
               : "bg-[var(--color-surface-sunken)] border-transparent text-[var(--color-text-faint)] cursor-not-allowed"
           )}
         >
-          <FilterX className="w-4 h-4" /> Limpar filtros
+          <FilterX className="w-3.5 h-3.5" /> Limpar filtros
         </button>
       </div>
     </div>

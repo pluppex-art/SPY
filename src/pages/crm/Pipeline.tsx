@@ -226,7 +226,7 @@ export default function Pipeline() {
 
         {/* Painel "KPIs & Filtros" (componente compartilhado, estado aberto/fechado salvo em
             users.preferences.pipelineFiltersOpen). */}
-        <KpiFilterCard id="pipeline" activeCount={activeFilterCount} onClear={clearFilters}>
+        <KpiFilterCard id="pipeline" className="!overflow-visible" activeCount={activeFilterCount} onClear={clearFilters}>
           <PipelineFilterBar
             comercialFunis={comercialFunis} sdrFunis={sdrFunis}
             currentPipeline={currentPipeline} setCurrentPipeline={switchPipeline as any}
