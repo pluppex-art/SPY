@@ -92,6 +92,7 @@ export default function SettingsLayout() {
       title: "Integrações",
       icon: Plug,
       items: [
+        { title: "Conexões (Google e outras contas)", path: "/app/configuracoes/integracoes/conexoes" },
         { title: "Central de Aplicativos & Ads", path: "/app/configuracoes/integracoes/apps" },
         { title: "Servidores SMTP (E-mail)", path: "/app/configuracoes/integracoes/smtp" },
         { title: "Integrações automáticas & Logs (Webhooks)", path: "/app/configuracoes/integracoes/webhooks" },

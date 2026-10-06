@@ -18,6 +18,7 @@
 import { Router } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createHmac, timingSafeEqual } from "crypto";
+import { registerGoogleServices, markGoogleIntegrations } from "./integrationsRegistry.js";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
@@ -43,6 +44,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/calendar.readonly",
   "https://www.googleapis.com/auth/meetings.space.created",
+  "https://www.googleapis.com/auth/tasks.readonly",
   "email",
   "profile",
 ].join(" ");
@@ -58,7 +60,7 @@ interface StatePayload {
   exp: number;
 }
 
-interface ConnectionRow {
+export interface ConnectionRow {
   id: string;
   tenant_id: string;
   user_id: string;
@@ -75,8 +77,8 @@ interface ConnectionRow {
   last_sync_at: string | null;
 }
 
-class NotConnectedError extends Error {}
-class ReauthRequiredError extends Error {}
+export class NotConnectedError extends Error {}
+export class ReauthRequiredError extends Error {}
 
 function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
@@ -122,7 +124,7 @@ function sanitizeReturnTo(raw: unknown): string {
 // Nunca loga tokens — só metadados (tenant, ator, ação, contadores/erros de
 // texto). Reaproveita aurora_audit_log (já existe, já tem RLS/grants
 // fechados pra anon/authenticated — ver 20260903_close_open_rls_policies.sql).
-async function logAudit(
+export async function logAudit(
   supabaseService: SupabaseClient,
   params: { tenantId: string; actor: string; action: string; details?: Record<string, unknown> }
 ) {
@@ -143,7 +145,7 @@ async function logAudit(
 // master/parceiro após switchTenant) depois de validar via has_tenant_access
 // (RPC, roda no banco com a sessão real do chamador). Sem o header, ou se a
 // validação falhar, cai no tenant "de casa" do usuário (current_tenant_id).
-async function resolveTenantId(req: any): Promise<{ tenantId: string } | { error: string; status: number }> {
+export async function resolveTenantId(req: any): Promise<{ tenantId: string } | { error: string; status: number }> {
   try {
     const requested = (req.header("x-active-tenant-id") || "").trim();
     let ownTenantId: string | null = null;
@@ -205,6 +207,7 @@ async function refreshAccessToken(
       status: "requires_reauth",
       last_error: "Sem refresh_token — reconexão necessária.",
     }).eq("id", connection.id);
+    await markGoogleIntegrations(supabaseService, connection.tenant_id, connection.user_id, "needs_reauth", "Sem refresh_token — reconexão necessária.");
     throw new ReauthRequiredError();
   }
 
@@ -227,6 +230,7 @@ async function refreshAccessToken(
       last_error: `Falha ao renovar token: ${errCode}`,
       access_token: null,
     }).eq("id", connection.id);
+    await markGoogleIntegrations(supabaseService, connection.tenant_id, connection.user_id, "needs_reauth", `Falha ao renovar token: ${errCode}`);
     await logAudit(supabaseService, {
       tenantId: connection.tenant_id,
       actor: connection.user_id,
@@ -255,7 +259,7 @@ async function refreshAccessToken(
   return tokenData.access_token as string;
 }
 
-async function getValidAccessToken(supabaseService: SupabaseClient, tenantId: string, userId: string): Promise<{ token: string; connection: ConnectionRow }> {
+export async function getValidAccessToken(supabaseService: SupabaseClient, tenantId: string, userId: string): Promise<{ token: string; connection: ConnectionRow }> {
   const connection = await getConnection(supabaseService, tenantId, userId);
   if (!connection || connection.status === "disconnected") throw new NotConnectedError();
   if (connection.status === "requires_reauth") throw new ReauthRequiredError();
@@ -333,9 +337,11 @@ function mapGoogleEventToReuniao(event: any, closerFallback: string) {
 export interface GoogleCalendarRouterDeps {
   requireUser: (req: any, res: any, next: any) => any;
   supabaseService: SupabaseClient | null;
+  /** Chamado (sem bloquear o redirect) depois que a conexão foi salva: dispara a sincronização inicial. */
+  onConnected?: (ctx: { tenantId: string; userId: string; services: string[] }) => Promise<void>;
 }
 
-export function createGoogleCalendarRouter({ requireUser, supabaseService }: GoogleCalendarRouterDeps) {
+export function createGoogleCalendarRouter({ requireUser, supabaseService, onConnected }: GoogleCalendarRouterDeps) {
   const router = Router();
 
   function requireService(res: any): boolean {
@@ -434,11 +440,16 @@ export function createGoogleCalendarRouter({ requireUser, supabaseService }: Goo
       const tokenData = await tokenRes.json();
 
       let googleEmail: string | null = null;
+      let googleAccountId: string | null = null;
       try {
         const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
           headers: { Authorization: `Bearer ${tokenData.access_token}` },
         });
-        if (userInfoRes.ok) googleEmail = (await userInfoRes.json())?.email ?? null;
+        if (userInfoRes.ok) {
+          const info = await userInfoRes.json();
+          googleEmail = info?.email ?? null;
+          googleAccountId = info?.id ? String(info.id) : null;
+        }
       } catch {}
 
       const expiresAt = new Date(Date.now() + (Number(tokenData.expires_in) || 3600) * 1000).toISOString();
@@ -460,7 +471,7 @@ export function createGoogleCalendarRouter({ requireUser, supabaseService }: Goo
         return redirectWithError("missing_refresh_token");
       }
 
-      const { error: upsertError } = await supabaseService!.from("google_calendar_connections").upsert(
+      const { data: savedConnection, error: upsertError } = await supabaseService!.from("google_calendar_connections").upsert(
         {
           tenant_id: payload.tenantId,
           user_id: payload.userId,
@@ -475,7 +486,7 @@ export function createGoogleCalendarRouter({ requireUser, supabaseService }: Goo
           disconnected_at: null,
         },
         { onConflict: "tenant_id,user_id" }
-      );
+      ).select("id").maybeSingle();
 
       if (upsertError) {
         console.error("[google-calendar] falha ao salvar conexão:", upsertError.message);
@@ -488,6 +499,17 @@ export function createGoogleCalendarRouter({ requireUser, supabaseService }: Goo
         action: "google_calendar.connected",
         details: { email: googleEmail },
       });
+
+      // Central de Conexões: registra um serviço por escopo concedido (calendar, tasks) e dispara a
+      // sincronização inicial sem segurar o redirect do usuário.
+      const registeredServices = await registerGoogleServices(supabaseService!, {
+        tenantId: payload.tenantId, userId: payload.userId, email: googleEmail, accountId: googleAccountId,
+        scope: tokenData.scope ?? SCOPES, credentialId: savedConnection?.id ?? null,
+      });
+      if (onConnected && registeredServices.length > 0) {
+        onConnected({ tenantId: payload.tenantId, userId: payload.userId, services: registeredServices })
+          .catch((e: any) => console.error("[google-calendar] sincronização inicial falhou:", e?.message));
+      }
 
       const baseOrigin = SUCCESS_ORIGIN || process.env.APP_URL || "https://axis-crm.pluppex.com.br";
       const url = new URL(sanitizeReturnTo(payload.returnTo), baseOrigin);
@@ -554,6 +576,7 @@ export function createGoogleCalendarRouter({ requireUser, supabaseService }: Goo
           .eq("tenant_id", tenantId)
           .eq("user_id", req.user.id);
 
+        await markGoogleIntegrations(supabaseService, tenantId, req.user.id, "disconnected");
         await logAudit(supabaseService, {
           tenantId,
           actor: req.user.id,

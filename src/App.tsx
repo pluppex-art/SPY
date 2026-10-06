@@ -118,6 +118,7 @@ const ConfigFinanceiroAuditoria = lazy(() => import("./pages/settings/SettingsPa
 const ConfigRodizioLeads = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigRodizioLeads })));
 const ConfigKanbanBoards = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigKanbanBoards })));
 const ConfigIntegracoesWebhooks = lazy(() => import("./pages/settings/ConfigIntegracoesWebhooks").then(m => ({ default: m.ConfigIntegracoesWebhooks })));
+const ConfigConexoes = lazy(() => import("./pages/settings/sections/integracoes/ConfigConexoes").then(m => ({ default: m.ConfigConexoes })));
 const ConfigConectoresExternos = lazy(() => import("./pages/settings/ConfigConectoresExternos").then(m => ({ default: m.ConfigConectoresExternos })));
 const ConfigLinksDinamicos = lazy(() => import("./pages/settings/ConfigLinksDinamicos").then(m => ({ default: m.ConfigLinksDinamicos })));
 const SettingsGenericForm = lazy(() => import("./pages/settings/SettingsGenericForm"));
@@ -534,6 +535,7 @@ function AppContent() {
             <Route path="integracoes/smtp" element={<ConfigIntegracoesSMTP />} />
             <Route path="integracoes/webhooks" element={<ConfigIntegracoesWebhooks />} />
             <Route path="integracoes/sdr-webhooks" element={<ConfigIntegracoesSDR />} />
+            <Route path="integracoes/conexoes" element={<ConfigConexoes />} />
             <Route path="integracoes/conectores-externos" element={<ConfigConectoresExternos />} />
             <Route path="integracoes/links-dinamicos" element={<ConfigLinksDinamicos />} />
 

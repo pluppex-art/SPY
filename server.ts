@@ -10,6 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
+import { createGoogleIntegrationsRouter, makeInitialSync } from "./server/googleIntegrations.js";
 import { createSaas, aiContext } from "./server/saas.js";
 import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./server/whatsappProvider.js";
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
@@ -376,6 +377,7 @@ app.use("/api/lgpd", saas.lgpdRouter);
 app.use("/api/ai", aiLimiter);
 app.use("/api/whatsapp", whatsappLimiter);
 app.use("/api/google-calendar", googleCalendarLimiter);
+app.use("/api/integrations/google", googleCalendarLimiter);
 app.use("/api/public/lead-capture", publicLeadLimiter);
 
 async function requireApiKey(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -5705,7 +5707,10 @@ app.post("/api/integrations/payment-gateway-test", requireUser, async (req: any,
   }
 });
 
-app.use("/api/google-calendar", createGoogleCalendarRouter({ requireUser, supabaseService }));
+// onConnected: ao concluir o login do Google, sincroniza Calendar e Tasks sem segurar o redirect do usuário.
+app.use("/api/google-calendar", createGoogleCalendarRouter({ requireUser, supabaseService, onConnected: makeInitialSync(supabaseService) }));
+// Central de Conexões (Google Calendar + Tasks): estado, calendários, sincronização e histórico.
+app.use("/api/integrations/google", createGoogleIntegrationsRouter({ requireUser, supabaseService }));
 
 // Global error handler — catches any unhandled throws in async routes. Nunca
 // devolve err.message pro cliente (pode conter detalhe de tabela/coluna/constraint
