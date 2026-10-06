@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard } from "../../components/ui/kpi-filter-card";
+import { PipelineKpiCards, type PipelineKpi } from "./components/Pipeline/PipelineKpiCards";
+import { parseCurrencyBR } from "../../lib/utils";
 import { Users, Flame, CheckCircle2, Target, BarChart3 } from "lucide-react";
 
 import { PipelineTopActions } from "./components/Pipeline/PipelineTopActions";
@@ -56,6 +58,7 @@ export default function Pipeline() {
     sellerFilter, setSellerFilter,
     companyFilter, setCompanyFilter,
     cityFilter, setCityFilter, citiesList,
+    stageFilter, setStageFilter, sourceFilter, setSourceFilter, sourcesList,
     searchQuery, setSearchQuery,
     showAnalytics, setShowAnalytics,
     openDropdownId, setOpenDropdownId,
@@ -157,6 +160,46 @@ export default function Pipeline() {
     closed: filteredItemsList.filter((l: any) => l.status === "Fechado").length,
   }), [filteredItemsList]);
 
+  // Séries e variações reais: coorte de leads por mês de cadastro (`date`, YYYY-MM-DD),
+  // olhando o status ATUAL de cada lead (não existe histórico de status por mês).
+  const kpiCards: PipelineKpi[] = useMemo(() => {
+    const now = new Date();
+    const meses = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    });
+    const doMes = (m: string) => (filteredItemsList as any[]).filter((l) => typeof l.date === "string" && l.date.startsWith(m));
+    const abertos = (l: any) => isLeadOpen(l.status) && l.status !== "Cancelado";
+    const valor = (l: any) => parseCurrencyBR(l.value ?? l.valor);
+    const serie = (f: (l: any) => number) => meses.map((m) => doMes(m).reduce((s, l) => s + f(l), 0));
+    const pct = (s: number[]) => (s[4] > 0 ? ((s[5] - s[4]) / s[4]) * 100 : null);
+
+    const sAbertos = serie((l) => (abertos(l) ? 1 : 0));
+    const sAlta = serie((l) => (l.priority === "Alta" ? 1 : 0));
+    const sGanhos = serie((l) => (l.status === "Fechado" ? 1 : 0));
+    const sTotal = serie(() => 1);
+    const sWin = sGanhos.map((g, i) => (sTotal[i] > 0 ? (g / sTotal[i]) * 100 : 0));
+    const sValor = serie((l) => (l.status === "Fechado" ? valor(l) : 0));
+    const winDelta = sTotal[4] > 0 && sTotal[5] > 0 ? sWin[5] - sWin[4] : null;
+
+    return [
+      { label: "Leads em aberto", value: kpis.total, icon: Users, series: sAbertos, delta: pct(sAbertos), deltaUnit: "pct", tone: "orange" },
+      { label: "Alta prioridade", value: kpis.hot, icon: Flame, series: sAlta, delta: pct(sAlta), deltaUnit: "pct", tone: "rose" },
+      { label: "Ganhos", value: kpis.closed, icon: CheckCircle2, series: sGanhos, delta: pct(sGanhos), deltaUnit: "pct", tone: "emerald" },
+      { label: "Win rate", value: `${winRate}%`, icon: Target, series: sWin, delta: winDelta, deltaUnit: "pp", tone: "blue" },
+      { label: "Total de ganhos", value: formattedTotalValue, icon: BarChart3, series: sValor, delta: pct(sValor), deltaUnit: "pct", tone: "violet" },
+    ];
+  }, [filteredItemsList, kpis, winRate, formattedTotalValue]);
+
+  const activeFilterCount =
+    (searchQuery.trim() ? 1 : 0) + (companyFilter !== "Todos" ? 1 : 0) + (cityFilter !== "Todos" ? 1 : 0) +
+    (clientFilter !== "Todos" ? 1 : 0) + (sellerFilter !== "Todos" ? 1 : 0) + (dateFrom || dateTo ? 1 : 0) +
+    (stageFilter !== "Todas" ? 1 : 0) + (sourceFilter !== "Todas" ? 1 : 0);
+  const clearFilters = () => {
+    setSearchQuery(""); setCompanyFilter("Todos"); setCityFilter("Todos"); setClientFilter("Todos");
+    setSellerFilter("Todos"); setDateFrom(null); setDateTo(null); setStageFilter("Todas"); setSourceFilter("Todas");
+  };
+
   const listaLeads = useMemo(() =>
     (filteredItemsList as any[])
       .filter((l: any) => !searchQuery || ["name", "company", "email"].some((k: string) => normalizeText(l[k]).includes(normalizeText(searchQuery))))
@@ -179,33 +222,30 @@ export default function Pipeline() {
       }
     >
       <div className="flex flex-col space-y-4 flex-1 min-h-0">
-        {/* Card "KPIs & Filtros" compartilhado (components/ui/kpi-filter-card) — o mesmo das demais páginas.
-            Estado aberto/fechado salvo em users.preferences (pipelineFiltersOpen). */}
-        <KpiFilterCard
-          id="pipeline"
-          kpis={[
-            { label: "Em aberto", value: kpis.total, icon: Users, tone: "primary" },
-            { label: "Alta Prior.", value: kpis.hot, icon: Flame, tone: "warning" },
-            { label: "Ganhos", value: kpis.closed, icon: CheckCircle2, tone: "success" },
-            { label: "Win Rate", value: `${winRate}%`, icon: Target, tone: "info" },
-            { label: "Total de Ganhos", value: formattedTotalValue, icon: BarChart3, tone: "accent" },
-          ]}
-        >
+        <PipelineKpiCards kpis={kpiCards} />
+
+        {/* Painel "KPIs & Filtros" (componente compartilhado, estado aberto/fechado salvo em
+            users.preferences.pipelineFiltersOpen). */}
+        <KpiFilterCard id="pipeline" activeCount={activeFilterCount} onClear={clearFilters}>
           <PipelineFilterBar
-          comercialFunis={comercialFunis} sdrFunis={sdrFunis}
-          currentPipeline={currentPipeline} setCurrentPipeline={switchPipeline as any}
-          selectedFunilId={selectedFunilId} setSelectedFunilId={setSelectedFunilId}
-          searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-          companyFilter={companyFilter} setCompanyFilter={setCompanyFilter}
-          companiesList={companiesList}
-          cityFilter={cityFilter} setCityFilter={setCityFilter} citiesList={citiesList}
-          clientFilter={clientFilter}
-          setClientFilter={setClientFilter} clientsList={clientsList}
-          sellerFilter={sellerFilter} setSellerFilter={setSellerFilter}
-          sellers={sellers}
-          dateFrom={dateFrom} setDateFrom={setDateFrom}
-          dateTo={dateTo} setDateTo={setDateTo}
-        />
+            comercialFunis={comercialFunis} sdrFunis={sdrFunis}
+            currentPipeline={currentPipeline} setCurrentPipeline={switchPipeline as any}
+            selectedFunilId={selectedFunilId} setSelectedFunilId={setSelectedFunilId}
+            searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+            companyFilter={companyFilter} setCompanyFilter={setCompanyFilter}
+            companiesList={companiesList}
+            cityFilter={cityFilter} setCityFilter={setCityFilter} citiesList={citiesList}
+            clientFilter={clientFilter}
+            setClientFilter={setClientFilter} clientsList={clientsList}
+            sellerFilter={sellerFilter} setSellerFilter={setSellerFilter}
+            sellers={sellers}
+            dateFrom={dateFrom} setDateFrom={setDateFrom}
+            dateTo={dateTo} setDateTo={setDateTo}
+            stageFilter={stageFilter} setStageFilter={setStageFilter}
+            stageOptions={activePipelineStages.map((s: any) => ({ id: s.id, name: s.name }))}
+            sourceFilter={sourceFilter} setSourceFilter={setSourceFilter} sourcesList={sourcesList}
+            activeCount={activeFilterCount} onClear={clearFilters}
+          />
         </KpiFilterCard>
 
         {view === "kanban" && (

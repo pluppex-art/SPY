@@ -20,6 +20,8 @@ export function usePipeline() {
   const [sellerFilter, setSellerFilter] = useState("Todos");
   const [companyFilter, setCompanyFilter] = useState("Todos");
   const [cityFilter, setCityFilter] = useState("Todos");
+  const [stageFilter, setStageFilter] = useState("Todas");
+  const [sourceFilter, setSourceFilter] = useState("Todas");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
@@ -83,6 +85,8 @@ export function usePipeline() {
     setCompanyFilter("Todos");
     setCityFilter("Todos");
     setClientFilter("Todos");
+    setStageFilter("Todas");
+    setSourceFilter("Todas");
     setSearchQuery("");
   };
 
@@ -167,6 +171,17 @@ export function usePipeline() {
     ...Array.from(new Set(pipelineLeads.map((l: any) => l.customFields?.cidade).filter(Boolean))).sort() as string[],
   ], [pipelineLeads]);
 
+  // Etapa selecionada que não existe mais no funil ativo (trocou de funil) volta pra "Todas".
+  useEffect(() => {
+    if (stageFilter !== "Todas" && !activePipelineStages.some((s: any) => s.id === stageFilter)) setStageFilter("Todas");
+  }, [activePipelineStages, stageFilter]);
+
+  // Origens reais (campo `source` do lead) presentes no pipeline atual.
+  const sourcesList = useMemo(() => [
+    "Todas",
+    ...Array.from(new Set(pipelineLeads.map((l: any) => l.source).filter(Boolean))).sort() as string[],
+  ], [pipelineLeads]);
+
   // ─── Filtered leads ───────────────────────────────────────────────────────────
   const filteredItemsList = useMemo(() => leads
     .filter((item: any) => {
@@ -201,7 +216,9 @@ export function usePipeline() {
         (!dateFrom || (item.date && item.date >= dateFrom)) &&
         (!dateTo || (item.date && item.date <= dateTo));
       const matchesFunil = !activeFunilStageIds || activeFunilStageIds.has(item.stageId);
-      return matchesPipeline && matchesFunil && matchesSeller && matchesCompany && matchesCity && matchesClient && matchesSearch && matchesDate;
+      const matchesStage = stageFilter === "Todas" || item.stageId === stageFilter;
+      const matchesSource = sourceFilter === "Todas" || item.source === sourceFilter;
+      return matchesPipeline && matchesFunil && matchesStage && matchesSource && matchesSeller && matchesCompany && matchesCity && matchesClient && matchesSearch && matchesDate;
     })
     // Card sempre no topo de quem teve a atividade mais recente — tanto um lead recém-criado
     // quanto um já existente que só mudou de etapa/status/campo (updated_at é atualizado a cada
@@ -219,7 +236,7 @@ export function usePipeline() {
       if (!db) return 1;
       return db > da ? 1 : db < da ? -1 : 0;
     }),
-  [leads, currentPipeline, activeFunilStageIds, sellerFilter, searchQuery, companyFilter, cityFilter, clientFilter, clientNameToId, products, dateFrom, dateTo]);
+  [leads, currentPipeline, activeFunilStageIds, sellerFilter, searchQuery, companyFilter, cityFilter, clientFilter, clientNameToId, products, dateFrom, dateTo, stageFilter, sourceFilter]);
 
   // ─── Metrics ─────────────────────────────────────────────────────────────────
   const analyticsData = useMemo(() =>
@@ -432,6 +449,7 @@ export function usePipeline() {
     sellerFilter, setSellerFilter,
     companyFilter, setCompanyFilter,
     cityFilter, setCityFilter, citiesList,
+    stageFilter, setStageFilter, sourceFilter, setSourceFilter, sourcesList,
     searchQuery, setSearchQuery,
     showAnalytics, setShowAnalytics,
     openDropdownId, setOpenDropdownId,
