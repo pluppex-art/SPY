@@ -10,7 +10,7 @@ import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { Switch } from "../../components/ui/switch";
 import React, { useEffect, useMemo, useState } from "react";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid, AreaChart, Area } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -123,7 +123,13 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     ].filter(s => s.value > 0);
   }, [kpis]);
 
+  const [mesesGrafico, setMesesGrafico] = useState(6);
   const monthlySeries = useMemo(
+    () => (statusFilter === "Pago" ? getMonthlyRealizedSeries(financeEntries as any[], type, mesesGrafico) : []),
+    [financeEntries, type, statusFilter, mesesGrafico]
+  );
+  // Série fixa de 6 meses pros cards (independe do período escolhido pro gráfico).
+  const monthlySeries6 = useMemo(
     () => (statusFilter === "Pago" ? getMonthlyRealizedSeries(financeEntries as any[], type, 6) : []),
     [financeEntries, type, statusFilter]
   );
@@ -472,6 +478,23 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     setTimeout(refetchEntries, 300);
   };
 
+  // Visão "Por categoria / Por cliente": soma o realizado do histórico por agrupador.
+  const agruparPor = (rows: any[], campo: "category" | "counterparty") => {
+    const mapa = new Map<string, { id: string; nome: string; count: number; total: number }>();
+    for (const r of rows) {
+      const nome = (r[campo] as string) || (campo === "category" ? "Sem categoria" : "Sem identificação");
+      const cur = mapa.get(nome) || { id: nome, nome, count: 0, total: 0 };
+      cur.count++; cur.total += Number(r.value) || 0;
+      mapa.set(nome, cur);
+    }
+    return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
+  };
+  const agrupadoColumns = [
+    { header: "Nome", render: (r: any) => <span className="font-bold text-[var(--color-text-primary)]">{r.nome}</span> },
+    { header: "Lançamentos", render: (r: any) => r.count, className: "text-right" },
+    { header: "Total", render: (r: any) => <span className="font-mono">{formatCurrency(r.total)}</span>, className: "text-right" },
+  ];
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'Pago': return <CheckCircle2 className="w-3 h-3 mr-1" />;
@@ -505,7 +528,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   };
   const deltaSerie = (serie: number[]) => (serie[4] > 0 ? ((serie[5] - serie[4]) / serie[4]) * 100 : null);
 
-  type KpiCard = { label: string; value: string; hint?: string; icon: typeof CheckCircle2; delta: number | null; goodUp: boolean | null; series: number[]; drill?: string; danger?: boolean };
+  type KpiCard = { label: string; value: string; hint?: string; icon: typeof CheckCircle2; delta: number | null; goodUp: boolean | null; series: number[]; drill?: string; danger?: boolean; hideDelta?: boolean };
   const kpiCards: KpiCard[] = kpis.kind === "pipeline"
     ? (() => {
         const sPago = serieStatus("Pago"), sAV = serieStatus("A Vencer"), sAt = serieStatus("Atrasado"), sPe = serieStatus("Pendente");
@@ -516,12 +539,17 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
           { label: "Pendente", value: formatCurrency(kpis.pendente), hint: `${kpis.countPendente} lançamento(s)`, icon: HourglassIcon, delta: deltaSerie(sPe), goodUp: null, series: sPe, drill: "pendente" },
         ];
       })()
-    : [
-        { label: type === "Pagar" ? "Gasto no mês" : "Recebido no mês", value: formatCurrency(kpis.totalMes), icon: type === "Pagar" ? TrendingDown : TrendingUp, delta: kpis.deltaPct, goodUp: type !== "Pagar", series: monthlySeries.map((x: any) => x.value), drill: "mes" },
-        { label: "Ticket médio", value: formatCurrency(kpis.ticketMedio), icon: DollarSign, delta: null, goodUp: null, series: [] },
-        { label: "Total geral (histórico)", value: formatCurrency(kpis.totalGeral), hint: `${kpis.count} lançamento(s)`, icon: Layers, delta: null, goodUp: null, series: [], drill: "geral" },
-        { label: "Lançamentos", value: String(kpis.count), icon: BarChart3, delta: null, goodUp: null, series: [] },
-      ];
+    : (() => {
+        const serie6 = monthlySeries6.map((x: any) => x.value);
+        const atual = serie6[serie6.length - 1] ?? 0;
+        const anterior = serie6[serie6.length - 2] ?? 0;
+        return [
+          { label: type === "Pagar" ? "Gasto no mês" : "Recebido no mês", value: formatCurrency(kpis.totalMes), icon: type === "Pagar" ? TrendingDown : TrendingUp, delta: kpis.deltaPct, goodUp: type !== "Pagar", series: serie6, drill: "mes" },
+          { label: "Vs. mês anterior", value: `${atual - anterior > 0 ? "+" : atual - anterior < 0 ? "−" : ""}${formatCurrency(Math.abs(atual - anterior))}`, hint: `Mês anterior: ${formatCurrency(anterior)}`, icon: type === "Pagar" ? TrendingUp : TrendingDown, delta: kpis.deltaPct, goodUp: type !== "Pagar", series: [], drill: "mes" },
+          { label: "Ticket médio", value: formatCurrency(kpis.ticketMedio), hint: `${kpis.count} lançamento(s) no histórico`, icon: DollarSign, delta: null, goodUp: null, series: [], hideDelta: true },
+          { label: "Total geral (histórico)", value: formatCurrency(kpis.totalGeral), hint: `${kpis.count} lançamento(s)`, icon: Layers, delta: null, goodUp: null, series: [], drill: "geral", hideDelta: true },
+        ];
+      })();
   const ICON_COLORS = ["text-[var(--color-primary-blue)]", "text-emerald-500", "text-cyan-500", "text-rose-500"];
   const filtrosAtivosCount = [filtroBusca, filtroCategoriaId, filtroStatus, filtroContaBancariaId, filtroCentroCustoId, filtroDataInicio, filtroDataFim].filter(Boolean).length;
 
@@ -550,6 +578,59 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     return null;
   };
 
+  const chartsJsx = (
+    <>
+{kpis.kind === "pipeline" ? (
+        <>
+          {statusBreakdown.length > 0 && (
+            <Card className="p-4">
+              <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {type === "Pagar" ? "Pagamentos" : "Recebimentos"} por Status
+              </h3>
+              <div className="h-36 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={statusBreakdown} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="status" type="category" stroke="var(--color-text-muted)" fontSize={11} width={70} tickLine={false} axisLine={false} />
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                      {statusBreakdown.map((entry, index) => <Cell key={index} fill={entry.fill} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+        </>
+      ) : (
+        <>
+          <Card className="p-4">
+            <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {title} — Últimos {mesesGrafico} Meses
+            </h3>
+            <div className="h-48 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={monthlySeries} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id={`grad-${type}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={type === "Pagar" ? "#f43f5e" : "#10b981"} stopOpacity={0.35} />
+                      <stop offset="100%" stopColor={type === "Pagar" ? "#f43f5e" : "#10b981"} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
+                  <XAxis dataKey="label" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={48} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
+                  <Area type="monotone" dataKey="value" name={type === "Pagar" ? "Pago" : "Recebido"} stroke={type === "Pagar" ? "#f43f5e" : "#10b981"} strokeWidth={2} fill={`url(#grad-${type})`} dot={{ r: 3, fill: type === "Pagar" ? "#f43f5e" : "#10b981" }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </>
+      )}
+    </>
+  );
+
   return (
     <PageContainer
       title={title}
@@ -557,6 +638,17 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: title }]}
       actions={
         <div className="flex items-center gap-2">
+          {statusFilter === "Pago" && (
+            <label className="hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-xs font-bold text-[var(--color-text-primary)]">
+              <Calendar className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+              Período:
+              <select value={mesesGrafico} onChange={(e) => setMesesGrafico(Number(e.target.value))} className="bg-transparent focus:outline-none cursor-pointer font-bold">
+                <option value={3}>Últimos 3 meses</option>
+                <option value={6}>Últimos 6 meses</option>
+                <option value={12}>Últimos 12 meses</option>
+              </select>
+            </label>
+          )}
           <Button
             variant="outline"
             onClick={handleExport}
@@ -591,7 +683,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             >
               <div className="flex items-center justify-between mb-3">
                 <Icon className={`w-5 h-5 ${ICON_COLORS[i % ICON_COLORS.length]}`} />
-                {k.delta === null ? (
+                {k.hideDelta ? <span /> : k.delta === null ? (
                   <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right leading-tight">Sem base<br />p/ comparação</span>
                 ) : (
                   <span className={`text-xs font-bold flex items-center gap-0.5 tabular-nums ${deltaColor}`}>{up ? "+" : ""}{k.delta.toFixed(1)}% <DIcon className="w-3.5 h-3.5" /></span>
@@ -651,7 +743,24 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             />
           )}
         </FilterBar>
+        {statusFilter === "Pago" && (
+          <FilterBar>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-faint)]">Detalhar:</span>
+            {[
+              { key: "mes", label: type === "Pagar" ? "Gasto no mês" : "Recebido no mês" },
+              { key: "geral", label: "Total geral" },
+              { key: "categoria", label: "Por categoria" },
+              { key: "contraparte", label: type === "Pagar" ? "Por fornecedor" : "Por cliente" },
+            ].map((d) => (
+              <Button key={d.key} variant="outline" onClick={() => setDrillKey(d.key)} className="h-8 px-3 text-xs font-bold border-[var(--color-border-default)]">
+                {d.label}
+              </Button>
+            ))}
+          </FilterBar>
+        )}
       </KpiFilterCard>
+
+      {kpis.kind === "pipeline" ? null : chartsJsx}
 
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden shadow-sm">
         <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-between">
@@ -886,48 +995,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         </div>
       </div>
 
-      {kpis.kind === "pipeline" ? (
-        <>
-          {statusBreakdown.length > 0 && (
-            <Card className="p-4">
-              <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {type === "Pagar" ? "Pagamentos" : "Recebimentos"} por Status
-              </h3>
-              <div className="h-36 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={statusBreakdown} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="status" type="category" stroke="var(--color-text-muted)" fontSize={11} width={70} tickLine={false} axisLine={false} />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                      {statusBreakdown.map((entry, index) => <Cell key={index} fill={entry.fill} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-          )}
-        </>
-      ) : (
-        <>
-          <Card className="p-4">
-            <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {title} — Últimos 6 Meses
-            </h3>
-            <div className="h-40 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlySeries} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
-                  <XAxis dataKey="label" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
-                  <Bar dataKey="value" name={type === "Pagar" ? "Pago" : "Recebido"} fill={type === "Pagar" ? "var(--color-danger)" : "var(--color-success)"} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-        </>
-      )}
+      {kpis.kind === "pipeline" ? chartsJsx : null}
 
       {/* Creation Modal */}
       <Modal
@@ -1501,16 +1569,19 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         isOpen={drillKey !== null}
         onClose={() => setDrillKey(null)}
         title={
+          drillKey === "categoria" ? "Por categoria" : drillKey === "contraparte" ? (type === "Pagar" ? "Por fornecedor" : "Por cliente") :
           kpis.kind === "pipeline"
             ? (drillKey === "pago" ? "Pago" : drillKey === "aVencer" ? "A Vencer" : drillKey === "atrasado" ? "Atrasado" : drillKey === "pendente" ? "Pendente" : undefined)
             : (drillKey === "mes" ? (type === "Pagar" ? "Gasto no Mês" : "Recebido no Mês") : drillKey === "geral" ? "Total Geral (Histórico)" : undefined)
         }
         rows={
-          kpis.kind === "pipeline"
+          drillKey === "categoria" || drillKey === "contraparte"
+            ? agruparPor(kpis.kind === "realizado" ? kpis.rowsGeral : [], drillKey === "categoria" ? "category" : "counterparty")
+            : kpis.kind === "pipeline"
             ? (drillKey === "pago" ? kpis.rowsPago : drillKey === "aVencer" ? kpis.rowsAVencer : drillKey === "atrasado" ? kpis.rowsAtrasado : drillKey === "pendente" ? kpis.rowsPendente : [])
             : (drillKey === "mes" ? kpis.rowsMesAtual : drillKey === "geral" ? kpis.rowsGeral : [])
         }
-        columns={drillColumns}
+        columns={drillKey === "categoria" || drillKey === "contraparte" ? agrupadoColumns : drillColumns}
       />
     </PageContainer>
   );
