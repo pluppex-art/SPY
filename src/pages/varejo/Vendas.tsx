@@ -10,6 +10,7 @@ import {
   Clock, Percent, Hash, Layers, CheckSquare
 } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -265,6 +266,8 @@ export default function VarejoVendas() {
 
   const [expandedVenda, setExpandedVenda] = useState<string | null>(null);
   const [filtroHistorico, setFiltroHistorico] = useState("");
+  const [filtroHistStatus, setFiltroHistStatus] = useState("");
+  const [filtroHistPagto, setFiltroHistPagto] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -962,6 +965,27 @@ export default function VarejoVendas() {
     (acc, v) => acc + (v.itens?.reduce((sub, it) => sub + it.quantidade, 0) || 0),
     0
   );
+
+  // Histórico de vendas filtrado (aba "Histórico") — alimenta os KPIs e a lista.
+  const historicoFiltrado = historico.filter((v) => {
+    if (filtroHistStatus && v.status !== filtroHistStatus) return false;
+    if (filtroHistPagto && v.forma_pagamento !== filtroHistPagto) return false;
+    if (!filtroHistorico.trim()) return true;
+    const q = filtroHistorico.toLowerCase();
+    return (
+      v.id.toLowerCase().includes(q) ||
+      (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) ||
+      (v.operador && v.operador.toLowerCase().includes(q))
+    );
+  });
+  const histPagas = historicoFiltrado.filter((v) => v.status === "paga");
+  const histFaturamento = histPagas.reduce((s, v) => s + (Number(v.valor_total) || 0), 0);
+  const histTicket = histPagas.length > 0 ? histFaturamento / histPagas.length : 0;
+  const histEstornadas = historicoFiltrado.filter((v) => v.status === "estornada").length;
+  const histPagtoOpts = Array.from(new Set(historico.map((v) => v.forma_pagamento).filter(Boolean) as string[])).sort();
+  const histStatusOpts = Array.from(new Set(historico.map((v) => v.status).filter(Boolean))).sort();
+  const histActiveFilters = (filtroHistorico.trim() ? 1 : 0) + (filtroHistStatus ? 1 : 0) + (filtroHistPagto ? 1 : 0);
+  const limparFiltrosHistorico = () => { setFiltroHistorico(""); setFiltroHistStatus(""); setFiltroHistPagto(""); };
 
   const saldoCaixaCalculado = useMemo(() => {
     let saldo = 0;
@@ -1804,32 +1828,26 @@ export default function VarejoVendas() {
       {/* ABA 2: HISTÓRICO DE VENDAS */}
       {tab === "historico" && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-              <input
-                value={filtroHistorico}
-                onChange={(e) => setFiltroHistorico(e.target.value)}
-                placeholder="Filtrar por ID da venda, cliente ou operador..."
-                className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none"
-              />
-            </div>
-            <div className="text-xs text-[var(--color-text-muted)]">
-              Total de Vendas Registradas: <strong>{historico.length}</strong>
-            </div>
-          </div>
+          <KpiFilterCard
+            id="varejoVendas"
+            activeCount={histActiveFilters}
+            onClear={limparFiltrosHistorico}
+            kpis={[
+              { label: "Vendas", value: historicoFiltrado.length, icon: Receipt, tone: "primary" },
+              { label: "Faturamento", value: formatPrice(histFaturamento), icon: DollarSign, tone: "success", hint: "Somente vendas pagas" },
+              { label: "Ticket médio", value: formatPrice(histTicket), icon: TrendingUp, tone: "info" },
+              { label: "Estornadas", value: histEstornadas, icon: RotateCcw, tone: histEstornadas > 0 ? "danger" : "neutral" },
+            ]}
+          >
+            <FilterBar>
+              <FilterSearch value={filtroHistorico} onChange={setFiltroHistorico} placeholder="Filtrar por ID da venda, cliente ou operador..." />
+              <FilterSelect icon={CreditCard} value={filtroHistPagto} onChange={setFiltroHistPagto} options={histPagtoOpts} allLabel="Todas as formas de pagamento" />
+              <FilterChips value={filtroHistStatus} onChange={setFiltroHistStatus} options={histStatusOpts} />
+            </FilterBar>
+          </KpiFilterCard>
 
           <div className="space-y-3">
-            {historico
-              .filter((v) => {
-                if (!filtroHistorico.trim()) return true;
-                const q = filtroHistorico.toLowerCase();
-                return (
-                  v.id.toLowerCase().includes(q) ||
-                  (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) ||
-                  (v.operador && v.operador.toLowerCase().includes(q))
-                );
-              })
+            {historicoFiltrado
               .map((venda) => {
                 const isExpanded = expandedVenda === venda.id;
                 const isEstornada = venda.status === "estornada";

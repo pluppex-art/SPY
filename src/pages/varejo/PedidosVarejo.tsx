@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  ShoppingBag, Search, DollarSign, CheckCircle2,
-  Clock, Package, ArrowRight, Plus, Trash2, X
+  ShoppingBag, DollarSign, CheckCircle2,
+  Clock, Package, ArrowRight, Plus, Trash2, X, Truck, CreditCard
 } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
@@ -30,7 +31,8 @@ export default function PedidosVarejo() {
   const [pedidos, setPedidos] = useState<PedidoItem[]>([]);
 
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterPagto, setFilterPagto] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -186,11 +188,23 @@ export default function PedidosVarejo() {
       p.itens.toLowerCase().includes(search.toLowerCase()) ||
       p.id.toLowerCase().includes(search.toLowerCase())
     );
-    const matchStatus = filterStatus === "Todos" || p.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchStatus = !filterStatus || p.status === filterStatus;
+    const matchPagto = !filterPagto || p.formaPagto === filterPagto;
+    return matchSearch && matchStatus && matchPagto;
   });
 
-  const faturamentoTotal = pedidos.filter(p => p.status !== "Cancelado").reduce((s, p) => s + p.total, 0);
+  const formasPagto = useMemo(
+    () => Array.from(new Set(pedidos.map(p => p.formaPagto).filter(Boolean))).sort(),
+    [pedidos],
+  );
+  const faturamentoTotal = filtered.filter(p => p.status !== "Cancelado").reduce((s, p) => s + (Number(p.total) || 0), 0);
+  const emAberto = filtered.filter(p => p.status === "Pago / Separando" || p.status === "Em Trânsito / Entrega").length;
+  const concluidos = filtered.filter(p => p.status === "Entregue / Concluído").length;
+  const ticketMedio = filtered.filter(p => p.status !== "Cancelado").length > 0
+    ? faturamentoTotal / filtered.filter(p => p.status !== "Cancelado").length
+    : 0;
+  const activeFilters = (search.trim() ? 1 : 0) + (filterStatus ? 1 : 0) + (filterPagto ? 1 : 0);
+  const limparFiltros = () => { setSearch(""); setFilterStatus(""); setFilterPagto(""); };
 
   return (
     <PageContainer
@@ -210,55 +224,25 @@ export default function PedidosVarejo() {
         </div>
       }
     >
-      {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Pedidos Realizados</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{pedidos.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Faturamento em Pedidos</span>
-          <div className="text-2xl font-black text-emerald-500">
-            R$ {faturamentoTotal.toFixed(2)}
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Em Separação / Envio</span>
-          <div className="text-2xl font-black text-amber-500">
-            {pedidos.filter(p => p.status === "Pago / Separando" || p.status === "Em Trânsito / Entrega").length}
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente, produtos ou pedido..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Pago / Separando", "Em Trânsito / Entrega", "Entregue / Concluído", "Cancelado"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-[var(--color-primary-blue)] text-white font-bold"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KpiFilterCard
+        id="varejoPedidos"
+        className="mb-4"
+        activeCount={activeFilters}
+        onClear={limparFiltros}
+        kpis={[
+          { label: "Pedidos", value: filtered.length, icon: ShoppingBag, tone: "primary" },
+          { label: "Faturamento", value: `R$ ${faturamentoTotal.toFixed(2)}`, icon: DollarSign, tone: "success", hint: "Exclui cancelados" },
+          { label: "Em separação / envio", value: emAberto, icon: Truck, tone: emAberto > 0 ? "warning" : "neutral" },
+          { label: "Concluídos", value: concluidos, icon: CheckCircle2, tone: "info" },
+          { label: "Ticket médio", value: `R$ ${ticketMedio.toFixed(2)}`, icon: Package, tone: "accent" },
+        ]}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por cliente, produtos ou pedido..." />
+          <FilterSelect icon={CreditCard} value={filterPagto} onChange={setFilterPagto} options={formasPagto} allLabel="Todas as formas de pagamento" />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} options={["Pago / Separando", "Em Trânsito / Entrega", "Entregue / Concluído", "Cancelado"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* List */}
       <div className="space-y-3">

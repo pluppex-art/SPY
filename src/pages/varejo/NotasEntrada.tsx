@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FileUp, Plus, Search, FileText, Loader2, CheckCircle2, Clock, Send, Wallet, Database } from "lucide-react";
+import { FileUp, Plus, FileText, Loader2, CheckCircle2, Clock, Send, Wallet, Database, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { EmptyState } from "../../components/ui/empty-state";
-import { StatCell, StatCellRow } from "../finance/components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -18,7 +18,6 @@ import { NOTA_STATUSES, NOTA_STATUS_TONE, defaultQtdEstoque, findProductForItem,
 import { cn } from "../../lib/utils";
 
 const MAX_XML_BYTES = 2 * 1024 * 1024;
-const FILTROS = ["Todas", ...NOTA_STATUSES] as const;
 
 export default function NotasEntrada() {
   const { activeTenantId, user } = useAuth();
@@ -28,7 +27,8 @@ export default function NotasEntrada() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [notas, setNotas] = useState<any[] | null>(null);
-  const [filtro, setFiltro] = useState<(typeof FILTROS)[number]>("Todas");
+  const [filtro, setFiltro] = useState<string>("");
+  const [fornecedorFiltro, setFornecedorFiltro] = useState("");
   const [busca, setBusca] = useState("");
   const [importando, setImportando] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
@@ -59,8 +59,22 @@ export default function NotasEntrada() {
   };
   useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [activeTenantId]);
 
+  const fornecedoresOpts = useMemo(
+    () => Array.from(new Set((notas || []).map((n) => n.fornecedor_nome).filter(Boolean) as string[])).sort((x, y) => x.localeCompare(y)),
+    [notas],
+  );
+
+  const filtradas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return (notas || []).filter((n) => {
+      if (filtro && n.status !== filtro) return false;
+      if (fornecedorFiltro && n.fornecedor_nome !== fornecedorFiltro) return false;
+      return !q || (n.fornecedor_nome || "").toLowerCase().includes(q) || (n.numero || "").toLowerCase().includes(q);
+    });
+  }, [notas, filtro, busca, fornecedorFiltro]);
+
   const kpis = useMemo(() => {
-    const list = notas || [];
+    const list = filtradas;
     const mes = new Date().toISOString().slice(0, 7);
     const doMes = list.filter((n) => n.status === "No estoque" && (n.created_at || "").startsWith(mes));
     return {
@@ -69,15 +83,10 @@ export default function NotasEntrada() {
       noEstoqueMes: doMes.length,
       valorMes: doMes.reduce((s, n) => s + (Number(n.valor_total) || 0), 0),
     };
-  }, [notas]);
+  }, [filtradas]);
 
-  const filtradas = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    return (notas || []).filter((n) => {
-      if (filtro !== "Todas" && n.status !== filtro) return false;
-      return !q || (n.fornecedor_nome || "").toLowerCase().includes(q) || (n.numero || "").toLowerCase().includes(q);
-    });
-  }, [notas, filtro, busca]);
+  const activeFilters = (filtro ? 1 : 0) + (fornecedorFiltro ? 1 : 0) + (busca.trim() ? 1 : 0);
+  const limparFiltros = () => { setFiltro(""); setFornecedorFiltro(""); setBusca(""); };
 
   const handleXml = async (file: File) => {
     if (!supabase || !activeTenantId) return;
@@ -215,27 +224,23 @@ export default function NotasEntrada() {
       }
     >
       <div className="space-y-5 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label="Rascunhos" value={kpis.rascunhos} icon={FileText} hint="Ainda em preparação" />
-          <StatCell label="Em validação" value={kpis.emFluxo} icon={Send} tone={kpis.emFluxo > 0 ? "warning" : "neutral"} hint="Pronta, enviada ou validada" />
-          <StatCell label="No estoque (mês)" value={kpis.noEstoqueMes} icon={CheckCircle2} tone="success" />
-          <StatCell label="Valor no estoque (mês)" value={formatCurrency(kpis.valorMes)} icon={Wallet} />
-        </StatCellRow>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] flex-wrap">
-            {FILTROS.map((f) => (
-              <button
-                key={f} type="button" onClick={() => setFiltro(f)}
-                className={cn("px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all", filtro === f ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
-              >{f}</button>
-            ))}
-          </div>
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-            <input type="text" placeholder="Buscar fornecedor ou número…" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-9 pr-3 py-2 text-xs focus:outline-none" />
-          </div>
-        </div>
+        <KpiFilterCard
+          id="varejoNotasEntrada"
+          activeCount={activeFilters}
+          onClear={limparFiltros}
+          kpis={[
+            { label: "Rascunhos", value: kpis.rascunhos, icon: FileText, tone: "primary", hint: "Ainda em preparação" },
+            { label: "Em validação", value: kpis.emFluxo, icon: Send, tone: kpis.emFluxo > 0 ? "warning" : "neutral", hint: "Pronta, enviada ou validada" },
+            { label: "No estoque (mês)", value: kpis.noEstoqueMes, icon: CheckCircle2, tone: "success" },
+            { label: "Valor no estoque (mês)", value: formatCurrency(kpis.valorMes), icon: Wallet, tone: "info" },
+          ]}
+        >
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar fornecedor ou número…" />
+            <FilterSelect icon={Truck} value={fornecedorFiltro} onChange={setFornecedorFiltro} options={fornecedoresOpts} allLabel="Todos os fornecedores" />
+            <FilterChips value={filtro} onChange={setFiltro} options={[...NOTA_STATUSES]} allLabel="Todas" />
+          </FilterBar>
+        </KpiFilterCard>
 
         {notas === null ? (
           <p className="text-xs text-[var(--color-text-faint)] flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Carregando…</p>

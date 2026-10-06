@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  Truck, Plus, Search, Phone, Mail, MapPin,
-  Building2, DollarSign, Package, Trash2, X
+  Truck, Plus, Phone, Mail, Package, Trash2, Clock
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -58,6 +57,8 @@ export default function FornecedoresVarejo() {
   }, [activeTenantId]);
 
   const [search, setSearch] = useState("");
+  const [categoriaFiltro, setCategoriaFiltro] = useState("");
+  const [prazoFiltro, setPrazoFiltro] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -128,12 +129,32 @@ export default function FornecedoresVarejo() {
     toast.info("Fornecedor removido.");
   };
 
+  const splitCats = (c: string) => c.split(",").map(x => x.trim()).filter(Boolean);
+  const categoriasOpts = useMemo(
+    () => Array.from(new Set(fornecedores.flatMap(f => splitCats(f.categorias)))).sort((a, b) => a.localeCompare(b)),
+    [fornecedores],
+  );
+  const prazosOpts = useMemo(
+    () => Array.from(new Set(fornecedores.map(f => f.prazoEntrega).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [fornecedores],
+  );
+
   const filtered = fornecedores.filter(f => (
-    f.razaoSocial.toLowerCase().includes(search.toLowerCase()) ||
-    f.cnpj.toLowerCase().includes(search.toLowerCase()) ||
-    f.categorias.toLowerCase().includes(search.toLowerCase()) ||
-    f.contato.toLowerCase().includes(search.toLowerCase())
+    (
+      f.razaoSocial.toLowerCase().includes(search.toLowerCase()) ||
+      f.cnpj.toLowerCase().includes(search.toLowerCase()) ||
+      f.categorias.toLowerCase().includes(search.toLowerCase()) ||
+      f.contato.toLowerCase().includes(search.toLowerCase())
+    ) &&
+    (!categoriaFiltro || splitCats(f.categorias).includes(categoriaFiltro)) &&
+    (!prazoFiltro || f.prazoEntrega === prazoFiltro)
   ));
+
+  const comTelefone = filtered.filter(f => f.telefone).length;
+  const comEmail = filtered.filter(f => f.email).length;
+  const linhasDistintas = new Set(filtered.flatMap(f => splitCats(f.categorias))).size;
+  const activeFilters = (search.trim() ? 1 : 0) + (categoriaFiltro ? 1 : 0) + (prazoFiltro ? 1 : 0);
+  const limparFiltros = () => { setSearch(""); setCategoriaFiltro(""); setPrazoFiltro(""); };
 
   return (
     <PageContainer
@@ -145,35 +166,24 @@ export default function FornecedoresVarejo() {
         </Button>
       }
     >
-      {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Fornecedores Cadastrados</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{fornecedores.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Prazo Médio de Reposição</span>
-          <div className="text-2xl font-black text-blue-500">3.5 dias</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Parceiros Homologados</span>
-          <div className="text-2xl font-black text-emerald-500">100%</div>
-        </Card>
-      </div>
-
-      {/* Search Bar */}
-      <div className="mb-4">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar fornecedor, CNPJ ou categoria..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-      </div>
+      <KpiFilterCard
+        id="varejoFornecedores"
+        className="mb-4"
+        activeCount={activeFilters}
+        onClear={limparFiltros}
+        kpis={[
+          { label: "Fornecedores", value: filtered.length, icon: Truck, tone: "primary" },
+          { label: "Com telefone", value: comTelefone, icon: Phone, tone: "success" },
+          { label: "Com e-mail", value: comEmail, icon: Mail, tone: "info" },
+          { label: "Linhas / categorias", value: linhasDistintas, icon: Package, tone: "accent" },
+        ]}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor, CNPJ ou categoria..." />
+          <FilterSelect icon={Package} value={categoriaFiltro} onChange={setCategoriaFiltro} options={categoriasOpts} allLabel="Todas as linhas" />
+          <FilterSelect icon={Clock} value={prazoFiltro} onChange={setPrazoFiltro} options={prazosOpts} allLabel="Todos os prazos" />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* List */}
       <div className="space-y-3">

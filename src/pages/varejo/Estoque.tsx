@@ -7,6 +7,7 @@ import {
   Layers, ArrowUpDown, Download
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { FormField } from "../../components/ui/form-field";
@@ -97,15 +98,42 @@ export default function VarejoEstoque() {
     return ["Todas", ...Array.from(set)];
   }, [products]);
 
+  // Filtragem dos Produtos
+  const filteredProducts = useMemo(() => {
+    return products.filter((p: any) => {
+      if (selectedCategory !== "Todas" && p.category !== selectedCategory) return false;
+
+      const stock = Number(p.currentStock) || 0;
+      const minStock = Number(p.stockMin) || 5;
+
+      if (filterEstoqueStatus === "critico" && stock > 0) return false;
+      if (filterEstoqueStatus === "baixo" && (stock <= 0 || stock > minStock)) return false;
+      if (filterEstoqueStatus === "normal" && stock <= minStock) return false;
+
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        p.name?.toLowerCase().includes(q) ||
+        p.sku?.toLowerCase().includes(q) ||
+        p.category?.toLowerCase().includes(q) ||
+        p.typeAttributes?.barcode?.toLowerCase().includes(q) ||
+        p.typeAttributes?.ean?.toLowerCase().includes(q)
+      );
+    });
+  }, [products, search, selectedCategory, filterEstoqueStatus]);
+
+  const activeFilters = (search.trim() ? 1 : 0) + (selectedCategory !== "Todas" ? 1 : 0) + (filterEstoqueStatus !== "todos" ? 1 : 0);
+  const limparFiltros = () => { setSearch(""); setSelectedCategory("Todas"); setFilterEstoqueStatus("todos"); };
+
   // Cálculos de KPI de Estoque
   const metrics = useMemo(() => {
-    let totalItensCadastrados = products.length;
+    let totalItensCadastrados = filteredProducts.length;
     let unidadesTotais = 0;
     let valorCustoTotal = 0;
     let valorVendaTotal = 0;
     let itensCriticos = 0;
 
-    products.forEach((p: any) => {
+    filteredProducts.forEach((p: any) => {
       const stock = Number(p.currentStock) || 0;
       const cost = Number(p.cost) || 0;
       const price = Number(p.price) || 0;
@@ -130,31 +158,8 @@ export default function VarejoEstoque() {
       margemMedia,
       itensCriticos,
     };
-  }, [products]);
+  }, [filteredProducts]);
 
-  // Filtragem dos Produtos
-  const filteredProducts = useMemo(() => {
-    return products.filter((p: any) => {
-      if (selectedCategory !== "Todas" && p.category !== selectedCategory) return false;
-
-      const stock = Number(p.currentStock) || 0;
-      const minStock = Number(p.stockMin) || 5;
-
-      if (filterEstoqueStatus === "critico" && stock > 0) return false;
-      if (filterEstoqueStatus === "baixo" && (stock <= 0 || stock > minStock)) return false;
-      if (filterEstoqueStatus === "normal" && stock <= minStock) return false;
-
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return (
-        p.name?.toLowerCase().includes(q) ||
-        p.sku?.toLowerCase().includes(q) ||
-        p.category?.toLowerCase().includes(q) ||
-        p.typeAttributes?.barcode?.toLowerCase().includes(q) ||
-        p.typeAttributes?.ean?.toLowerCase().includes(q)
-      );
-    });
-  }, [products, search, selectedCategory, filterEstoqueStatus]);
 
   // Handlers para Ajuste de Estoque
   const handleOpenAjuste = (product: any) => {
@@ -404,85 +409,38 @@ export default function VarejoEstoque() {
         </div>
       </div>
 
-      {/* KPI Cards no Topo */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
-              Total em Estoque
-            </span>
-            <Boxes className="w-4 h-4 text-blue-500" />
-          </div>
-          <div className="text-xl font-black font-mono text-[var(--color-text-primary)]">
-            {metrics.unidadesTotais} <span className="text-xs font-normal text-[var(--color-text-faint)]">un.</span>
-          </div>
-          <p className="text-[10px] text-[var(--color-text-muted)] mt-1">{metrics.totalItensCadastrados} SKUs cadastrados</p>
-        </Card>
-
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
-              Capital Imobilizado
-            </span>
-            <DollarSign className="w-4 h-4 text-slate-400" />
-          </div>
-          <div className="text-xl font-black font-mono text-[var(--color-text-primary)]">
-            {formatPrice(metrics.valorCustoTotal)}
-          </div>
-          <p className="text-[10px] text-[var(--color-text-muted)] mt-1">A preço de custo</p>
-        </Card>
-
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
-              Potencial de Venda
-            </span>
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="text-xl font-black font-mono text-emerald-500">
-            {formatPrice(metrics.valorVendaTotal)}
-          </div>
-          <p className="text-[10px] text-emerald-600/80 font-bold mt-1">
-            +{formatPrice(metrics.lucroPotencial)} lucro proj.
-          </p>
-        </Card>
-
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
-              Margem Bruta Média
-            </span>
-            <Layers className="w-4 h-4 text-violet-500" />
-          </div>
-          <div className="text-xl font-black font-mono text-violet-500">
-            {metrics.margemMedia.toFixed(1)}%
-          </div>
-          <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Markup médio da loja</p>
-        </Card>
-
-        <Card
-          className={`p-4 border shadow-xs ${
-            metrics.itensCriticos > 0
-              ? "bg-red-500/5 border-red-500/20"
-              : "bg-[var(--color-surface-elevated)] border-[var(--color-border-default)]"
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
-              Estoque Crítico
-            </span>
-            <AlertTriangle className={`w-4 h-4 ${metrics.itensCriticos > 0 ? "text-red-500" : "text-slate-400"}`} />
-          </div>
-          <div
-            className={`text-xl font-black font-mono ${
-              metrics.itensCriticos > 0 ? "text-red-500" : "text-[var(--color-text-primary)]"
-            }`}
-          >
-            {metrics.itensCriticos} <span className="text-xs font-normal">itens</span>
-          </div>
-          <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Abaixo do mínimo recomendado</p>
-        </Card>
-      </div>
+      {/* KPIs & Filtros */}
+      <KpiFilterCard
+        id="varejoEstoque"
+        activeCount={activeFilters}
+        onClear={limparFiltros}
+        kpis={[
+          { label: "Total em estoque", value: `${metrics.unidadesTotais} un.`, icon: Boxes, tone: "primary", hint: `${metrics.totalItensCadastrados} SKUs` },
+          { label: "Capital imobilizado", value: formatPrice(metrics.valorCustoTotal), icon: DollarSign, tone: "neutral", hint: "A preço de custo" },
+          { label: "Potencial de venda", value: formatPrice(metrics.valorVendaTotal), icon: TrendingUp, tone: "success", hint: `+${formatPrice(metrics.lucroPotencial)} lucro projetado` },
+          { label: "Margem bruta média", value: `${metrics.margemMedia.toFixed(1)}%`, icon: Layers, tone: "accent" },
+          { label: "Estoque crítico", value: `${metrics.itensCriticos} itens`, icon: AlertTriangle, tone: metrics.itensCriticos > 0 ? "danger" : "neutral", hint: "Abaixo do mínimo recomendado" },
+        ]}
+      >
+        {activeTab === "tabela" && (
+          <FilterBar>
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por produto, SKU, código de barras..." />
+            <FilterSelect icon={Layers} value={selectedCategory} onChange={setSelectedCategory} options={categories.filter(c => c !== "Todas")} allLabel="Todas as categorias" allValue="Todas" />
+            <FilterSelect
+              icon={AlertTriangle}
+              value={filterEstoqueStatus}
+              onChange={(v) => setFilterEstoqueStatus(v as typeof filterEstoqueStatus)}
+              allValue="todos"
+              allLabel="Situação: todas"
+              options={[
+                { value: "critico", label: "Somente esgotados (0 un.)" },
+                { value: "baixo", label: "Estoque baixo (≤ mínimo)" },
+                { value: "normal", label: "Estoque normal" },
+              ]}
+            />
+          </FilterBar>
+        )}
+      </KpiFilterCard>
 
       {/* Tabs */}
       <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit shadow-xs">
@@ -511,48 +469,6 @@ export default function VarejoEstoque() {
       {/* TAB 1: TABELA DE GESTÃO DE ESTOQUE */}
       {activeTab === "tabela" && (
         <div className="space-y-4">
-          {/* Filtros e Busca */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex flex-1 items-center gap-2 max-w-md">
-              <div className="relative flex-1">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar por produto, SKU, código de barras..."
-                  className="pl-9 text-xs h-9"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Filtro de Categoria */}
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl px-3 py-1.5 text-xs font-bold text-[var(--color-text-primary)] h-9"
-              >
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    Categoria: {c}
-                  </option>
-                ))}
-              </select>
-
-              {/* Filtro por Situação de Estoque */}
-              <select
-                value={filterEstoqueStatus}
-                onChange={(e) => setFilterEstoqueStatus(e.target.value as any)}
-                className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl px-3 py-1.5 text-xs font-bold text-[var(--color-text-primary)] h-9"
-              >
-                <option value="todos">Status: Todos</option>
-                <option value="critico">Somente Esgotados (0 un.)</option>
-                <option value="baixo">Estoque Baixo (≤ Mínimo)</option>
-                <option value="normal">Estoque Normal</option>
-              </select>
-            </div>
-          </div>
-
           {/* Tabela de Produtos */}
           {filteredProducts.length === 0 ? (
             <EmptyState

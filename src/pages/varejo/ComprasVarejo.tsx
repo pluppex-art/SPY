@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  ClipboardList, Plus, Search, Truck, DollarSign,
+  ClipboardList, Plus, Truck, DollarSign,
   CheckCircle2, Clock, Package, Trash2, X, Boxes, ArrowDownCircle
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -77,7 +77,8 @@ export default function ComprasVarejo() {
   }, [activeTenantId]);
 
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterFornecedor, setFilterFornecedor] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state para Nova Ordem
@@ -211,9 +212,22 @@ export default function ComprasVarejo() {
       c.itens.toLowerCase().includes(search.toLowerCase()) ||
       c.id.toLowerCase().includes(search.toLowerCase())
     );
-    const matchStatus = filterStatus === "Todos" || c.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchStatus = !filterStatus || c.status === filterStatus;
+    const matchForn = !filterFornecedor || c.fornecedor === filterFornecedor;
+    return matchSearch && matchStatus && matchForn;
   });
+
+  const fornecedoresOpts = useMemo(
+    () => Array.from(new Set(compras.map(c => c.fornecedor).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [compras],
+  );
+  const ativas = filtered.filter(c => c.status !== "Cancelada");
+  const totalReposicao = ativas.reduce((s, c) => s + (Number(c.valor) || 0), 0);
+  const emTransito = filtered.filter(c => c.status === "Em Transporte").length;
+  const aguardando = filtered.filter(c => c.status === "Emitida / Aguardando Fornecedor" || c.status === "Faturada").length;
+  const recebidas = filtered.filter(c => c.status === "Recebido no Estoque").length;
+  const activeFilters = (search.trim() ? 1 : 0) + (filterStatus ? 1 : 0) + (filterFornecedor ? 1 : 0);
+  const limparFiltros = () => { setSearch(""); setFilterStatus(""); setFilterFornecedor(""); };
 
   return (
     <PageContainer
@@ -225,55 +239,25 @@ export default function ComprasVarejo() {
         </Button>
       }
     >
-      {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Ordens de Compra</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{compras.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Total em Reposição</span>
-          <div className="text-2xl font-black text-emerald-500 font-mono">
-            R$ {compras.reduce((s, c) => s + (Number(c.valor) || 0), 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Cargas em Trânsito</span>
-          <div className="text-2xl font-black text-blue-500">
-            {compras.filter(c => c.status === "Em Transporte").length}
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por fornecedor, itens ou código..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Emitida / Aguardando Fornecedor", "Faturada", "Em Transporte", "Recebido no Estoque"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-[var(--color-primary-blue)] text-white"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KpiFilterCard
+        id="varejoCompras"
+        className="mb-4"
+        activeCount={activeFilters}
+        onClear={limparFiltros}
+        kpis={[
+          { label: "Ordens de compra", value: filtered.length, icon: ClipboardList, tone: "primary" },
+          { label: "Total em reposição", value: `R$ ${totalReposicao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "success", hint: "Exclui canceladas" },
+          { label: "Aguardando fornecedor", value: aguardando, icon: Clock, tone: aguardando > 0 ? "warning" : "neutral" },
+          { label: "Cargas em trânsito", value: emTransito, icon: Truck, tone: "info" },
+          { label: "Recebidas", value: recebidas, icon: CheckCircle2, tone: "accent" },
+        ]}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por fornecedor, itens ou código..." />
+          <FilterSelect icon={Truck} value={filterFornecedor} onChange={setFilterFornecedor} options={fornecedoresOpts} allLabel="Todos os fornecedores" />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} options={["Emitida / Aguardando Fornecedor", "Faturada", "Em Transporte", "Recebido no Estoque", "Cancelada"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* List */}
       <div className="space-y-3">
