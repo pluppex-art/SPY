@@ -1,7 +1,9 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Card } from "../../../../components/ui/card";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
 import type { RevenueProjectionResult } from "../../../../lib/revenueMetrics";
+import { DrillDownPanel, type DrillColumn } from "../../../../components/ui/DrillDownPanel";
+import { contractDrillColumns } from "../../../../components/ui/drillColumns";
 
 interface FinanceiroProjecaoReceitaProps {
   mrr: number;
@@ -9,6 +11,12 @@ interface FinanceiroProjecaoReceitaProps {
   clientesAtivos: number;
   churnRate: number;
   projection: RevenueProjectionResult;
+  /** Listas reais por trás de MRR Ativo/Receita Avulsa/Clientes Ativos —
+   * card fica clicável quando presente. Ausente = sem interação (Taxa de
+   * Churn nunca recebe lista, é uma razão sem array 1:1). */
+  mrrRows?: any[];
+  receitaAvulsaRows?: any[];
+  clientesAtivosRows?: any[];
 }
 
 /**
@@ -19,8 +27,21 @@ interface FinanceiroProjecaoReceitaProps {
  * mostra número quando há histórico real o suficiente pra sustentar a conta —
  * REALIZADO e PROJETADO nunca se misturam na mesma linha.
  */
-export function FinanceiroProjecaoReceita({ mrr, receitaAvulsa, clientesAtivos, churnRate, projection }: FinanceiroProjecaoReceitaProps) {
+export function FinanceiroProjecaoReceita({ mrr, receitaAvulsa, clientesAtivos, churnRate, projection, mrrRows, receitaAvulsaRows, clientesAtivosRows }: FinanceiroProjecaoReceitaProps) {
   const { formatCurrency } = useLocalization();
+  const [drillKey, setDrillKey] = useState<"mrr" | "avulsa" | "clientes" | null>(null);
+  const contractColumns = contractDrillColumns(formatCurrency, "mrr");
+  const financeEntryColumns: DrillColumn[] = [
+    { header: "Descrição", render: (f: any) => <span className="font-bold text-[var(--color-text-primary)]">{f.description || f.category || "—"}</span> },
+    { header: "Categoria", render: (f: any) => f.category || "—" },
+    { header: "Data", render: (f: any) => f.date || "—" },
+    { header: "Valor", render: (f: any) => formatCurrency(f.value || 0), className: "text-right" },
+  ];
+  const drillConfig: Record<string, { title: string; rows: any[]; columns: DrillColumn[] }> = {
+    mrr: { title: "MRR Ativo", rows: mrrRows || [], columns: contractColumns },
+    avulsa: { title: "Receita Avulsa (Setup)", rows: receitaAvulsaRows || [], columns: financeEntryColumns },
+    clientes: { title: "Clientes Ativos", rows: clientesAtivosRows || [], columns: contractColumns },
+  };
 
   let projectionSection: ReactNode;
   if (projection.insufficientData) {
@@ -60,18 +81,18 @@ export function FinanceiroProjecaoReceita({ mrr, receitaAvulsa, clientesAtivos, 
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div>
+        <button type="button" onClick={() => mrrRows && setDrillKey("mrr")} className={`text-left ${mrrRows ? "cursor-pointer hover:opacity-80 transition-opacity" : "cursor-default"}`}>
           <p className="text-[11px] text-[var(--color-text-muted)] mb-1">MRR Ativo</p>
           <p className="text-lg font-semibold tabular-nums text-[var(--color-text-primary)]">{formatCurrency(mrr)}</p>
-        </div>
-        <div>
+        </button>
+        <button type="button" onClick={() => receitaAvulsaRows && setDrillKey("avulsa")} className={`text-left ${receitaAvulsaRows ? "cursor-pointer hover:opacity-80 transition-opacity" : "cursor-default"}`}>
           <p className="text-[11px] text-[var(--color-text-muted)] mb-1">Receita Avulsa (Setup)</p>
           <p className="text-lg font-semibold tabular-nums text-[var(--color-text-primary)]">{formatCurrency(receitaAvulsa)}</p>
-        </div>
-        <div>
+        </button>
+        <button type="button" onClick={() => clientesAtivosRows && setDrillKey("clientes")} className={`text-left ${clientesAtivosRows ? "cursor-pointer hover:opacity-80 transition-opacity" : "cursor-default"}`}>
           <p className="text-[11px] text-[var(--color-text-muted)] mb-1">Clientes Ativos</p>
           <p className="text-lg font-semibold tabular-nums text-[var(--color-text-primary)]">{clientesAtivos}</p>
-        </div>
+        </button>
         <div>
           <p className="text-[11px] text-[var(--color-text-muted)] mb-1">Taxa de Churn</p>
           <p className="text-lg font-semibold tabular-nums text-[var(--color-danger)]">{churnRate.toFixed(1)}%</p>
@@ -79,6 +100,14 @@ export function FinanceiroProjecaoReceita({ mrr, receitaAvulsa, clientesAtivos, 
       </div>
 
       {projectionSection}
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey ? drillConfig[drillKey].title : undefined}
+        rows={drillKey ? drillConfig[drillKey].rows : []}
+        columns={drillKey ? drillConfig[drillKey].columns : []}
+      />
     </Card>
   );
 }

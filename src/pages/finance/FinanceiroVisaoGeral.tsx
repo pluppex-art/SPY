@@ -17,6 +17,7 @@ import { FinanceiroAnexosResumo } from "./components/FinanceiroVisaoGeral/Financ
 import { downloadCsv } from "../../lib/csvExport";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { getMRR, getActiveCustomers, getChurnRate, getRevenueProjection } from "../../lib/revenueMetrics";
+import { isContractAtivo } from "../../components/ui/drillColumns";
 import { parseEntryDate } from "./lib/financeDates";
 import { saldoDaConta, transferenciasDaConta, previstoRealizado, comparativoMesAnterior, categoriesById, type FinanceEntryLike, type FinanceCategoryLike } from "./lib/financeEngine";
 import { apiFetch } from "../../lib/apiClient";
@@ -105,17 +106,25 @@ export default function FinanceiroVisaoGeral() {
     return financeEntries.filter(f => isInCiclo(parseEntryDate(f.date), ciclo, now));
   }, [financeEntries, ciclo]);
 
-  const { receita, despesa, mrr, receitaAvulsa, clientesAtivos, churnRate } = useMemo(() => {
+  const { receita, despesa, mrr, receitaAvulsa, clientesAtivos, churnRate, mrrRows, receitaAvulsaRows, clientesAtivosRows } = useMemo(() => {
     const receita = cicloEntries.filter(f => f.type === "Receber" && f.status === "Pago").reduce((s, f) => s + f.value, 0);
     const despesa = cicloEntries.filter(f => f.type === "Pagar"   && f.status === "Pago").reduce((s, f) => s + f.value, 0);
     const mrr = getMRR(contracts);
+    const mrrRows = (contracts as any[]).filter(isContractAtivo);
     // Implantação/Setup é lançado à parte pela reconciliação de propostas
     // (DataContext.tsx syncAcceptedProposal) exatamente pra não entrar no MRR —
     // aqui ela aparece como receita avulsa do período, separada.
-    const receitaAvulsa = cicloEntries.filter(f => f.type === "Receber" && f.status === "Pago" && f.category === "Implantação / Setup").reduce((s, f) => s + f.value, 0);
+    const receitaAvulsaRows = cicloEntries.filter(f => f.type === "Receber" && f.status === "Pago" && f.category === "Implantação / Setup");
+    const receitaAvulsa = receitaAvulsaRows.reduce((s, f) => s + f.value, 0);
     const clientesAtivos = getActiveCustomers(contracts);
+    const seenClients = new Set<string>();
+    const clientesAtivosRows = mrrRows.filter((c: any) => {
+      if (!c.client || seenClients.has(c.client)) return false;
+      seenClients.add(c.client);
+      return true;
+    });
     const churnRate = getChurnRate(contracts);
-    return { receita, despesa, mrr, receitaAvulsa, clientesAtivos, churnRate };
+    return { receita, despesa, mrr, receitaAvulsa, clientesAtivos, churnRate, mrrRows, receitaAvulsaRows, clientesAtivosRows };
   }, [cicloEntries, contracts]);
 
   const revenueProjection = useMemo(() => getRevenueProjection(contracts), [contracts]);
@@ -354,7 +363,7 @@ export default function FinanceiroVisaoGeral() {
             totalBytes={(financeAttachments as any[]).reduce((s, a) => s + (a.tamanho_bytes || 0), 0)}
           />
         </div>
-        <FinanceiroProjecaoReceita mrr={mrr} receitaAvulsa={receitaAvulsa} clientesAtivos={clientesAtivos} churnRate={churnRate} projection={revenueProjection} />
+        <FinanceiroProjecaoReceita mrr={mrr} receitaAvulsa={receitaAvulsa} clientesAtivos={clientesAtivos} churnRate={churnRate} projection={revenueProjection} mrrRows={mrrRows} receitaAvulsaRows={receitaAvulsaRows} clientesAtivosRows={clientesAtivosRows} />
         <FinanceiroBottomPanels upcomingEntries={upcomingEntries} {...operationalInsights} />
       </div>
     </PageContainer>
