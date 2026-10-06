@@ -7,9 +7,6 @@
       "maxDuration": 60
     }
   },
-  "crons": [
-    { "path": "/api/integrations/google/cron", "schedule": "*/30 * * * *" }
-  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
