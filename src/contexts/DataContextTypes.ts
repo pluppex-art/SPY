@@ -157,6 +157,8 @@ export interface Reuniao {
    * identificável foi classificado como 'Outros' (nunca inventado). */
   tipo?: 'Reunião' | 'Demonstração' | 'Follow-up' | 'Fechamento' | 'Outros';
   convidados?: string[];
+  /** Público da reunião (coluna `escopo`): com cliente/lead, interna entre times ou da equipe. Nulo no histórico. */
+  escopo?: 'Cliente' | 'Interna' | 'Equipe' | null;
 }
 
 export interface DataContextType {
