@@ -11,7 +11,7 @@ import { ConfirmModal } from "../../components/ui/modals/shared/ConfirmModal";
 import {
   Video, Calendar, Clock, User, ExternalLink, Copy, LayoutList, CalendarDays,
   ChevronLeft, ChevronRight, CheckCircle2, PlayCircle, Zap, Plus, Trash2, Search,
-  Filter, X, ArrowUpRight, ArrowDownRight, AlertTriangle,
+  Filter, X, ArrowUpRight, ArrowDownRight, AlertTriangle, Pencil,
 } from "lucide-react";
 import { cn, normalizeText } from "../../lib/utils";
 import { toast } from "sonner";
@@ -96,6 +96,7 @@ export default function ReunioesList() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showNovaReuniao, setShowNovaReuniao] = useState(false);
   const [reuniaoToDelete, setReuniaoToDelete] = useState<string | null>(null);
+  const [reuniaoToEdit, setReuniaoToEdit] = useState<Reuniao | null>(null);
 
   const all = reunioes as Reuniao[];
 
@@ -292,6 +293,13 @@ export default function ReunioesList() {
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         )}
+        <button
+          onClick={() => setReuniaoToEdit(r)}
+          className="h-9 w-9 flex items-center justify-center rounded-xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-all cursor-pointer bg-transparent"
+          title="Editar reunião"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
         <button
           onClick={() => setReuniaoToDelete(r.id)}
           className="h-9 w-9 flex items-center justify-center rounded-xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer bg-transparent"
@@ -630,6 +638,7 @@ export default function ReunioesList() {
       </div>
 
       <NovaReuniaoModal isOpen={showNovaReuniao} onClose={() => setShowNovaReuniao(false)} />
+      <NovaReuniaoModal isOpen={reuniaoToEdit !== null} reuniao={reuniaoToEdit} onClose={() => setReuniaoToEdit(null)} />
 
       <ConfirmModal
         isOpen={reuniaoToDelete !== null}

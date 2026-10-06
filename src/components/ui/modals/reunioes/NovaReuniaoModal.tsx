@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
 import {
@@ -13,6 +13,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "../../../../lib/utils";
 import { useNavigate } from "react-router-dom";
+import type { Reuniao } from "../../../../contexts/DataContextTypes";
 
 /** Categorias da Agenda Comercial (coluna real `tipo` em `reunioes`) — ver
  * AgendaCRM.tsx pros filtros/cores que usam esse mesmo valor. */
@@ -58,13 +59,18 @@ const labelCls = "text-[10px] font-black uppercase tracking-widest text-[var(--c
 const initials = (name: string) =>
   name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
 
+const STATUS_OPTIONS: Reuniao["status"][] = ["Agendada", "Em Andamento", "Concluída", "Cancelada"];
+
 interface NovaReuniaoModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Quando informada, o modal abre em modo edição dessa reunião. */
+  reuniao?: Reuniao | null;
 }
 
-export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
-  const { colaboradores, leads, clienteBase, addReuniao } = useData();
+export function NovaReuniaoModal({ isOpen, onClose, reuniao }: NovaReuniaoModalProps) {
+  const { colaboradores, leads, clienteBase, addReuniao, updateReuniao } = useData();
+  const isEdit = !!reuniao;
   const { activeTenantId, user } = useAuth();
   const navigate = useNavigate();
 
@@ -86,6 +92,8 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
   const [showParticipantes, setShowParticipantes] = useState(false);
   const [lembrete, setLembrete] = useState<number | null>(null);
   const [lembretePersonalizado, setLembretePersonalizado] = useState(false);
+  const [status, setStatus] = useState<Reuniao["status"]>("Agendada");
+  const initial = useRef({ title: "", pauta: "", leadId: "" });
 
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<{ id: string; meetLink: string; calendarLink?: string } | null>(null);
@@ -114,6 +122,93 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
     const doCliente = (leads as any[]).filter((l) => l.clientId === cliente.id);
     return doCliente.length > 0 ? doCliente : (leads as any[]);
   }, [leads, cliente]);
+
+  // Preenche o formulário ao abrir em modo edição. O título não tem coluna
+  // própria: vive em companyName, ou na primeira linha da pauta quando um
+  // lead com empresa ocupa companyName (mesma convenção do cadastro).
+  useEffect(() => {
+    if (!isOpen || !reuniao) return;
+    const r = reuniao;
+    const d = new Date(r.scheduledAt);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const lead = (leads as any[]).find((l) => l.id === r.leadId);
+    const leadOcupaEmpresa = !!lead?.company && r.companyName === lead.company;
+    const [primeira, ...resto] = (r.pauta || "").split("\n\n");
+    const t = leadOcupaEmpresa ? primeira || "" : r.companyName || "";
+    const p = leadOcupaEmpresa ? resto.join("\n\n") : r.pauta || "";
+    initial.current = { title: t, pauta: p, leadId: lead ? lead.id : "" };
+    setEscopo((r.escopo as Escopo) || "Cliente");
+    setTipo((r.tipo as TipoCompromisso) || "Outros");
+    setClienteId(r.clienteId || "");
+    setLinkedLeadId(lead ? lead.id : "");
+    setTitle(t);
+    setPauta(p);
+    setCloserName(r.closerName || "");
+    setDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+    setTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    setDuration(r.durationMinutes || 60);
+    setConvidados(r.convidados || []);
+    setStatus(r.status);
+    const l = r.meetLink || "";
+    if (l.startsWith("Presencial")) { setFormato("presencial"); setLocalEndereco(l.replace(/^Presencial:?\s*/, "")); }
+    else if (l.includes("meet.jit.si")) setFormato("axis");
+    else { setFormato("externo"); setLinkExterno(l); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, reuniao]);
+
+  const handleSaveEdit = async () => {
+    if (!reuniao) return;
+    if (!title.trim()) { toast.error("Informe o título da reunião."); return; }
+    if (!closerName.trim()) { toast.error("Selecione o responsável."); return; }
+    if (formato === "presencial" && !localEndereco.trim()) { toast.error("Informe o local ou endereço da reunião presencial."); return; }
+    if (formato === "externo" && !/^https:\/\/\S+$/i.test(linkExterno.trim())) { toast.error("Informe um link externo válido (https://...)."); return; }
+
+    const meetLink = formato === "presencial"
+      ? `Presencial: ${localEndereco.trim()}`
+      : formato === "externo"
+      ? linkExterno.trim()
+      : (reuniao.meetLink || "").includes("meet.jit.si") ? reuniao.meetLink : generateJitsiLink(reuniao.id);
+
+    const updates: Record<string, unknown> = {
+      closerName,
+      closerEmail: closerName === reuniao.closerName ? reuniao.closerEmail : closerEmail,
+      convidados,
+      scheduledAt: new Date(`${date}T${time}:00`).toISOString(),
+      durationMinutes: duration,
+      meetLink,
+      status,
+      tipo,
+      escopo,
+    };
+    if (cliente) updates.clienteId = cliente.id;
+    if (linkedLead && linkedLead.id !== initial.current.leadId) {
+      updates.leadId = linkedLead.id;
+      updates.leadName = linkedLead.name;
+      updates.leadEmail = linkedLead.email || "";
+      if (!updates.clienteId && linkedLead.clientId) updates.clienteId = linkedLead.clientId;
+    }
+    // Título/pauta só são regravados se mudaram — evita reescrever o que
+    // veio de reuniões antigas ou importadas.
+    if (title !== initial.current.title || pauta !== initial.current.pauta || updates.leadId) {
+      const leadFinal = (updates.leadId ? linkedLead : (leads as any[]).find((l) => l.id === reuniao.leadId)) as any;
+      if (leadFinal?.company) {
+        updates.companyName = leadFinal.company;
+        updates.pauta = `${title.trim()}${pauta.trim() ? `\n\n${pauta.trim()}` : ""}`;
+      } else {
+        updates.companyName = title.trim();
+        updates.pauta = pauta.trim() || undefined;
+      }
+    }
+    setLoading(true);
+    try {
+      await updateReuniao(reuniao.id, updates as Partial<Reuniao>);
+      toast.success("Reunião atualizada!");
+      reset();
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleParticipante = (email: string) => {
     if (!email) return;
@@ -303,8 +398,8 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
             <Calendar className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-base font-black text-[var(--color-text-primary)] leading-tight">Nova Reunião</div>
-            <div className="text-xs font-normal text-[var(--color-text-muted)]">Agende uma reunião e mantenha seu time alinhado.</div>
+            <div className="text-base font-black text-[var(--color-text-primary)] leading-tight">{isEdit ? "Editar Reunião" : "Nova Reunião"}</div>
+            <div className="text-xs font-normal text-[var(--color-text-muted)]">{isEdit ? "Atualize os dados, o horário ou o status da reunião." : "Agende uma reunião e mantenha seu time alinhado."}</div>
           </div>
         </div>
       }
@@ -316,12 +411,12 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
               Cancelar
             </Button>
             <Button
-              onClick={handleCreate}
+              onClick={isEdit ? handleSaveEdit : handleCreate}
               disabled={loading}
               className="bg-orange-500 hover:bg-orange-600 text-white font-black h-10 px-6 text-xs gap-2"
             >
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Video className="w-3.5 h-3.5" />}
-              Criar Reunião
+              {isEdit ? "Salvar alterações" : "Criar Reunião"}
             </Button>
           </div>
         ) : (
@@ -594,7 +689,7 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
             <label className={labelCls}><Link2 className="w-3 h-3" /> Local / Link da reunião</label>
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.6fr] gap-3">
               <select value={formato} onChange={(e) => setFormato(e.target.value as Formato)} className={inputCls}>
-                {FORMATO_OPTIONS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                {FORMATO_OPTIONS.filter((f) => !(isEdit && f.id === "meet")).map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
               </select>
               {(formato === "axis" || formato === "meet") && (
                 <input type="text" disabled value="Link gerado automaticamente ao criar" className={cn(inputCls, "opacity-70")} />
@@ -625,6 +720,19 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
             <p className="text-[10px] text-[var(--color-text-faint)] text-right">{pauta.length}/{PAUTA_MAX}</p>
           </div>
 
+          {isEdit && (
+            <div className="space-y-1.5">
+              <label className={labelCls}>Status</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value as Reuniao["status"])} className={inputCls}>
+                {STATUS_OPTIONS.map((st) => <option key={st} value={st}>{st}</option>)}
+              </select>
+              <p className="text-[10px] text-[var(--color-text-faint)]">
+                A edição não altera o evento já enviado ao Google Calendar nem reenvia convites.
+              </p>
+            </div>
+          )}
+
+          {!isEdit && (
           <div className="space-y-1.5">
             <label className={labelCls}>Lembretes</label>
             <div className="flex flex-wrap gap-2">
@@ -675,8 +783,9 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
               </p>
             )}
           </div>
+          )}
 
-          {formato === "axis" && (
+          {formato === "axis" && !isEdit && (
             <div className="flex items-center gap-3 p-3 bg-[var(--color-primary-blue)]/[0.06] border border-[var(--color-primary-blue)]/15 rounded-xl">
               <Video className="w-4 h-4 text-[var(--color-primary-blue)] shrink-0" />
               <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
