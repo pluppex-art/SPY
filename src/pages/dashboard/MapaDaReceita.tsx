@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -8,10 +8,16 @@ import {
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { Modal } from "../../components/ui/modal";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import { computeChannelRevenue, computeProductRevenue, computeSegmentRevenue, type DashboardData } from "./revenueInsights";
+
+const isContractAtivo = (c: any) => c.status !== "Cancelado" && c.status !== "Perdido";
+
+type DrillColumn = { header: string; render: (row: any) => ReactNode; className?: string };
+type DrillKey = "leads" | "oportunidades" | "vendas" | "receita" | "retencao" | "emRisco";
 
 const SEGMENT_PALETTE = [
   "var(--color-primary-blue)", "#14b8a6", "#f59e0b", "#64748b", "#ec4899", "#94a3b8",
@@ -38,20 +44,56 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
 
   const oportunidades = useMemo(() => (leads as any[]).filter((l) => parseCurrencyBR(l.value) > 0), [leads]);
   const vendas = useMemo(() => (leads as any[]).filter((l) => l.status === "Fechado"), [leads]);
+  const contratosAtivos = useMemo(() => (contracts as any[]).filter(isContractAtivo), [contracts]);
   const contratosEmRisco = useMemo(() => (contracts as any[]).filter((c) => c.status === "Inadimplente"), [contracts]);
   const valorEmRisco = contratosEmRisco.reduce((s, c) => s + parseCurrencyBR(c.mrr), 0);
+
+  const [drillKey, setDrillKey] = useState<DrillKey | null>(null);
 
   const fluxo = useMemo(() => {
     const totalLeads = leads.length || 1;
     return [
-      { icon: Users, label: "Leads", value: String(leads.length), sub: null as string | null },
-      { icon: Target, label: "Oportunidades", value: String(oportunidades.length), sub: `${Math.round((oportunidades.length / totalLeads) * 1000) / 10}% de conversão` },
-      { icon: ShoppingCart, label: "Vendas", value: String(vendas.length), sub: `${oportunidades.length > 0 ? Math.round((vendas.length / oportunidades.length) * 1000) / 10 : 0}% de conversão` },
-      { icon: DollarSign, label: "Receita", value: formatCurrency(faturamentoContratado), sub: vendas.length > 0 ? `Ticket médio ${formatCurrency(faturamentoContratado / vendas.length)}` : null },
-      { icon: RefreshCw, label: "Retenção (MRR)", value: formatCurrency(totalRevenue), sub: faturamentoContratado > 0 ? `${Math.round((totalRevenue / faturamentoContratado) * 1000) / 10}% da receita` : null },
-      { icon: AlertTriangle, label: "Em Risco", value: formatCurrency(valorEmRisco), sub: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"}` },
+      { key: "leads" as DrillKey, icon: Users, label: "Leads", value: String(leads.length), sub: null as string | null },
+      { key: "oportunidades" as DrillKey, icon: Target, label: "Oportunidades", value: String(oportunidades.length), sub: `${Math.round((oportunidades.length / totalLeads) * 1000) / 10}% de conversão` },
+      { key: "vendas" as DrillKey, icon: ShoppingCart, label: "Vendas", value: String(vendas.length), sub: `${oportunidades.length > 0 ? Math.round((vendas.length / oportunidades.length) * 1000) / 10 : 0}% de conversão` },
+      { key: "receita" as DrillKey, icon: DollarSign, label: "Receita", value: formatCurrency(faturamentoContratado), sub: vendas.length > 0 ? `Ticket médio ${formatCurrency(faturamentoContratado / vendas.length)}` : null },
+      { key: "retencao" as DrillKey, icon: RefreshCw, label: "Retenção (MRR)", value: formatCurrency(totalRevenue), sub: faturamentoContratado > 0 ? `${Math.round((totalRevenue / faturamentoContratado) * 1000) / 10}% da receita` : null },
+      { key: "emRisco" as DrillKey, icon: AlertTriangle, label: "Em Risco", value: formatCurrency(valorEmRisco), sub: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"}` },
     ].map((f, i) => ({ ...f, color: FLUXO_COLORS[i % FLUXO_COLORS.length] }));
   }, [leads.length, oportunidades.length, vendas.length, faturamentoContratado, totalRevenue, valorEmRisco, contratosEmRisco.length, formatCurrency]);
+
+  const leadColumns: DrillColumn[] = [
+    { header: "Nome", render: (l) => <span className="font-bold text-[var(--color-text-primary)]">{l.name || "—"}</span> },
+    { header: "Empresa", render: (l) => l.company || "—" },
+    { header: "Status", render: (l) => <Badge variant="secondary">{l.status || "—"}</Badge> },
+    { header: "Origem", render: (l) => l.source || "—" },
+    { header: "Vendedor", render: (l) => l.seller || "—" },
+    { header: "Valor", render: (l) => <span className="font-mono">{formatCurrency(parseCurrencyBR(l.value))}</span>, className: "text-right" },
+  ];
+
+  const contractColumns = (valueField: "totalValue" | "mrr"): DrillColumn[] => [
+    { header: "Cliente", render: (c) => <span className="font-bold text-[var(--color-text-primary)]">{c.client || "—"}</span> },
+    { header: "Plano", render: (c) => c.plan || "—" },
+    { header: "Status", render: (c) => <Badge variant="secondary">{c.status || "—"}</Badge> },
+    {
+      header: valueField === "mrr" ? "MRR" : "Valor Total",
+      render: (c) => {
+        const mrrValue = parseCurrencyBR(c.mrr);
+        const total = c.totalValue !== undefined && c.totalValue !== null ? Number(c.totalValue) : mrrValue;
+        return <span className="font-mono">{formatCurrency(valueField === "mrr" ? mrrValue : Math.max(total, mrrValue))}</span>;
+      },
+      className: "text-right",
+    },
+  ];
+
+  const drillConfig: Record<DrillKey, { title: string; subtitle: string; rows: any[]; columns: DrillColumn[] }> = {
+    leads: { title: "Leads", subtitle: `${leads.length} lead${leads.length === 1 ? "" : "s"} no total`, rows: leads as any[], columns: leadColumns },
+    oportunidades: { title: "Oportunidades", subtitle: `${oportunidades.length} lead${oportunidades.length === 1 ? "" : "s"} com valor atribuído`, rows: oportunidades, columns: leadColumns },
+    vendas: { title: "Vendas", subtitle: `${vendas.length} negócio${vendas.length === 1 ? "" : "s"} fechado${vendas.length === 1 ? "" : "s"}`, rows: vendas, columns: leadColumns },
+    receita: { title: "Receita", subtitle: `${contratosAtivos.length} contrato${contratosAtivos.length === 1 ? "" : "s"} ativo${contratosAtivos.length === 1 ? "" : "s"} · ${formatCurrency(faturamentoContratado)}`, rows: contratosAtivos, columns: contractColumns("totalValue") },
+    retencao: { title: "Retenção (MRR)", subtitle: `${contratosAtivos.length} contrato${contratosAtivos.length === 1 ? "" : "s"} ativo${contratosAtivos.length === 1 ? "" : "s"} · ${formatCurrency(totalRevenue)}/mês`, rows: contratosAtivos, columns: contractColumns("mrr") },
+    emRisco: { title: "Em Risco", subtitle: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"} inadimplente${contratosEmRisco.length === 1 ? "" : "s"}`, rows: contratosEmRisco, columns: contractColumns("mrr") },
+  };
 
   const canais = useMemo(() => computeChannelRevenue(leads), [leads]);
   const produtos = useMemo(() => computeProductRevenue(proposals, proposalItems, products), [proposals, proposalItems, products]);
@@ -109,14 +151,18 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
           {fluxo.map((f, i) => (
             <div key={f.label} className="relative">
-              <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-3.5">
+              <button
+                type="button"
+                onClick={() => setDrillKey(f.key)}
+                className="w-full text-left rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-3.5 transition-all hover:border-[var(--color-border-default)] hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+              >
                 <div className="w-8 h-8 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: `${f.color}1a` }}>
                   <f.icon className="w-4 h-4" style={{ color: f.color }} />
                 </div>
                 <p className="text-[9px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{f.label}</p>
                 <p className="text-base font-black text-[var(--color-text-primary)] font-mono mt-0.5 truncate">{f.value}</p>
                 {f.sub && <p className="text-[10px] font-semibold mt-0.5" style={{ color: f.color }}>{f.sub}</p>}
-              </div>
+              </button>
               {i < fluxo.length - 1 && (
                 <ChevronRight className="hidden xl:block absolute top-1/2 -right-3.5 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
               )}
@@ -380,6 +426,46 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       </div>
       </>
       )}
+
+      <Modal
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        position="right"
+        maxWidth="max-w-xl"
+        noPadding
+        title={drillKey ? drillConfig[drillKey].title : undefined}
+        description={drillKey ? drillConfig[drillKey].subtitle : undefined}
+      >
+        {drillKey && (
+          <div className="flex-1 overflow-y-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)] sticky top-0">
+                <tr>
+                  {drillConfig[drillKey].columns.map((c) => (
+                    <th key={c.header} className={`px-4 py-2.5 ${c.className || ""}`}>{c.header}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-border-subtle)]">
+                {drillConfig[drillKey].rows.map((row, i) => (
+                  <tr key={row.id || i} className="hover:bg-[var(--color-surface-sunken)]/60">
+                    {drillConfig[drillKey].columns.map((c) => (
+                      <td key={c.header} className={`px-4 py-2.5 ${c.className || ""}`}>{c.render(row)}</td>
+                    ))}
+                  </tr>
+                ))}
+                {drillConfig[drillKey].rows.length === 0 && (
+                  <tr>
+                    <td colSpan={drillConfig[drillKey].columns.length} className="px-4 py-10 text-center text-[var(--color-text-faint)]">
+                      Nenhum registro ainda.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
