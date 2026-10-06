@@ -594,7 +594,7 @@ export function createGoogleCalendarRouter({ requireUser, supabaseService }: Goo
     const tenantResult = await resolveTenantId(req);
     if ("error" in tenantResult) return res.status(tenantResult.status).json({ error: tenantResult.error });
 
-    const { title, description, location, startISO, endISO, attendeeEmails, skipConferenceData } = req.body || {};
+    const { title, description, location, startISO, endISO, attendeeEmails, skipConferenceData, reminderMinutes } = req.body || {};
     if (!title || !startISO || !endISO) return res.status(400).json({ error: "title, startISO e endISO são obrigatórios." });
 
     try {
@@ -607,6 +607,10 @@ export function createGoogleCalendarRouter({ requireUser, supabaseService }: Goo
         end: { dateTime: endISO, timeZone: "America/Sao_Paulo" },
         attendees: (attendeeEmails || []).filter(Boolean).map((email: string) => ({ email })),
       };
+      const reminder = Number(reminderMinutes);
+      if (Number.isFinite(reminder) && reminder > 0 && reminder <= 40320) {
+        body.reminders = { useDefault: false, overrides: [{ method: "popup", minutes: Math.round(reminder) }, { method: "email", minutes: Math.round(reminder) }] };
+      }
       if (!skipConferenceData) {
         body.conferenceData = { createRequest: { requestId: Math.random().toString(36).slice(2), conferenceSolutionKey: { type: "hangoutsMeet" } } };
       }

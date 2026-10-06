@@ -64,6 +64,8 @@ export async function createCalendarEvent(
     location?: string;
     /** true = Sala S.P.Y. (Jitsi link na descrição, sem criar Google Meet) */
     skipConferenceData?: boolean;
+    /** Minutos antes do início pro Google avisar (popup + e-mail); omitido = padrão do calendário. */
+    reminderMinutes?: number;
   }
 ): Promise<CalendarEvent> {
   const res = await apiFetch("/api/google-calendar/events", {

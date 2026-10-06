@@ -33,11 +33,19 @@ const ESCOPO_OPTIONS: { id: Escopo; desc: string; icon: typeof Video }[] = [
   { id: "Equipe",  desc: "Reunião com membros da equipe",    icon: Users     },
 ];
 
-type Formato = "axis" | "presencial" | "externo";
+type Formato = "axis" | "meet" | "presencial" | "externo";
 const FORMATO_OPTIONS: { id: Formato; label: string }[] = [
   { id: "axis",       label: "Sala S.P.Y. (Jitsi)" },
+  { id: "meet",       label: "Google Meet" },
   { id: "externo",    label: "Link externo (Meet, Zoom...)" },
   { id: "presencial", label: "Presencial" },
+];
+
+const LEMBRETE_OPTIONS: { label: string; minutes: number | null }[] = [
+  { label: "Não lembrar", minutes: null },
+  { label: "30 minutos antes", minutes: 30 },
+  { label: "1 hora antes", minutes: 60 },
+  { label: "1 dia antes", minutes: 1440 },
 ];
 
 const TITLE_MAX = 100;
@@ -76,6 +84,8 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
   const [convidados, setConvidados]   = useState<string[]>([]);
   const [novoConvidado, setNovoConvidado] = useState("");
   const [showParticipantes, setShowParticipantes] = useState(false);
+  const [lembrete, setLembrete] = useState<number | null>(null);
+  const [lembretePersonalizado, setLembretePersonalizado] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<{ id: string; meetLink: string; calendarLink?: string } | null>(null);
@@ -137,14 +147,58 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
     try {
       const reuniaoId = `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
       const isPresencial = formato === "presencial";
-      const meetLink = isPresencial
-        ? `Presencial: ${localEndereco.trim()}`
-        : formato === "externo"
-        ? linkExterno.trim()
-        : generateJitsiLink(reuniaoId);
       const scheduledAt = new Date(`${date}T${time}:00`).toISOString();
       const displayTitle = buildTitleFallback();
       const allAttendees = Array.from(new Set([linkedLead?.email, closerEmail, ...convidados].filter(Boolean))) as string[];
+
+      let meetLink = isPresencial
+        ? `Presencial: ${localEndereco.trim()}`
+        : formato === "externo"
+        ? linkExterno.trim()
+        : formato === "axis"
+        ? generateJitsiLink(reuniaoId)
+        : "";
+
+      const createGoogleEvent = async (link: string) => {
+        const startISO = `${date}T${time}:00`;
+        const endDate = new Date(`${date}T${time}:00`);
+        endDate.setMinutes(endDate.getMinutes() + duration);
+        return createCalendarEvent(activeTenantId!, {
+          title: isPresencial ? `Reunião Presencial — ${displayTitle}` : displayTitle,
+          description: [
+            isPresencial ? "📍 Reunião Presencial" : formato === "axis" ? "🖥️ Sala de vídeo S.P.Y. (Jitsi)" : "🔗 Reunião online",
+            isPresencial ? `🏢 Local: ${localEndereco.trim()}` : link ? `🔗 Acesse: ${link}` : "",
+            formato === "axis" ? "Nenhum app necessário — funciona direto no navegador." : "",
+            closerName ? `👤 Responsável: ${closerName}` : "",
+            convidados.length > 0 ? `👥 Outros Participantes: ${convidados.join(", ")}` : "",
+            pauta ? `\n📋 Pauta:\n${pauta}` : "",
+          ].filter(Boolean).join("\n"),
+          location: isPresencial ? localEndereco.trim() : undefined,
+          startISO,
+          endISO: endDate.toISOString().slice(0, 19),
+          attendeeEmails: allAttendees,
+          skipConferenceData: formato !== "meet",
+          reminderMinutes: lembrete ?? undefined,
+        });
+      };
+
+      let calendarLink: string | undefined;
+      if (formato === "meet") {
+        // O link do Meet só existe depois que o evento é criado no Google —
+        // sem conexão ativa não há como gerar, então aborta em vez de salvar
+        // uma reunião sem link.
+        if (!activeTenantId) { setLoading(false); return; }
+        try {
+          const ev = await createGoogleEvent("");
+          if (!ev.hangoutLink) throw new Error("sem link");
+          meetLink = ev.hangoutLink;
+          calendarLink = ev.htmlLink;
+        } catch {
+          toast.error("Não foi possível gerar o link do Google Meet. Conecte o Google Calendar em Configurações > Integrações ou escolha outro formato.");
+          setLoading(false);
+          return;
+        }
+      }
 
       // `reunioes` não tem coluna de título: o título vai em companyName
       // (convenção já usada pelos eventos do Google) — quando um lead
@@ -176,28 +230,9 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
 
       if (!saved) { setLoading(false); return; }
 
-      let calendarLink: string | undefined;
-      if (activeTenantId) {
+      if (formato !== "meet" && activeTenantId) {
         try {
-          const startISO = `${date}T${time}:00`;
-          const endDate = new Date(`${date}T${time}:00`);
-          endDate.setMinutes(endDate.getMinutes() + duration);
-          const calEvent = await createCalendarEvent(activeTenantId, {
-            title: isPresencial ? `Reunião Presencial — ${displayTitle}` : displayTitle,
-            description: [
-              isPresencial ? "📍 Reunião Presencial" : formato === "externo" ? "🔗 Reunião online" : "🖥️ Sala de vídeo S.P.Y. (Jitsi)",
-              isPresencial ? `🏢 Local: ${localEndereco.trim()}` : `🔗 Acesse: ${meetLink}`,
-              formato === "axis" ? "Nenhum app necessário — funciona direto no navegador." : "",
-              closerName ? `👤 Responsável: ${closerName}` : "",
-              convidados.length > 0 ? `👥 Outros Participantes: ${convidados.join(", ")}` : "",
-              pauta ? `\n📋 Pauta:\n${pauta}` : "",
-            ].filter(Boolean).join("\n"),
-            location: isPresencial ? localEndereco.trim() : undefined,
-            startISO,
-            endISO: endDate.toISOString().slice(0, 19),
-            attendeeEmails: allAttendees,
-            skipConferenceData: true,
-          });
+          const calEvent = await createGoogleEvent(meetLink);
           calendarLink = calEvent.htmlLink;
         } catch {
           // Opcional: sem conexão Google no servidor o agendamento segue valendo
@@ -252,6 +287,7 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
     setDate(new Date().toISOString().slice(0, 10)); setTime("09:00"); setDuration(60);
     setFormato("axis"); setLocalEndereco(""); setLinkExterno("");
     setConvidados([]); setNovoConvidado(""); setShowParticipantes(false);
+    setLembrete(null); setLembretePersonalizado(false);
     setCreated(null);
   };
 
@@ -560,7 +596,7 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
               <select value={formato} onChange={(e) => setFormato(e.target.value as Formato)} className={inputCls}>
                 {FORMATO_OPTIONS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
               </select>
-              {formato === "axis" && (
+              {(formato === "axis" || formato === "meet") && (
                 <input type="text" disabled value="Link gerado automaticamente ao criar" className={cn(inputCls, "opacity-70")} />
               )}
               {formato === "externo" && (
@@ -587,6 +623,57 @@ export function NovaReuniaoModal({ isOpen, onClose }: NovaReuniaoModalProps) {
               className={cn(inputCls, "resize-none")}
             />
             <p className="text-[10px] text-[var(--color-text-faint)] text-right">{pauta.length}/{PAUTA_MAX}</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className={labelCls}>Lembretes</label>
+            <div className="flex flex-wrap gap-2">
+              {LEMBRETE_OPTIONS.map((o) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  onClick={() => { setLembrete(o.minutes); setLembretePersonalizado(false); }}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer",
+                    !lembretePersonalizado && lembrete === o.minutes
+                      ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/50 text-[var(--color-primary-blue)]"
+                      : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-primary-blue)]/30"
+                  )}
+                >
+                  {o.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => { setLembretePersonalizado(true); setLembrete((v) => v ?? 15); }}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer",
+                  lembretePersonalizado
+                    ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/50 text-[var(--color-primary-blue)]"
+                    : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-primary-blue)]/30"
+                )}
+              >
+                Personalizado
+              </button>
+              {lembretePersonalizado && (
+                <span className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+                  <input
+                    type="number"
+                    min={1}
+                    max={40320}
+                    value={lembrete ?? ""}
+                    onChange={(e) => setLembrete(e.target.value ? Math.max(1, Math.min(40320, Number(e.target.value))) : null)}
+                    className={cn(inputCls, "w-20 py-1.5")}
+                  />
+                  minutos antes
+                </span>
+              )}
+            </div>
+            {lembrete !== null && (
+              <p className="text-[10px] text-[var(--color-text-faint)]">
+                O aviso é enviado pelo Google Calendar aos participantes — exige o Google Calendar conectado em Configurações &gt; Integrações.
+              </p>
+            )}
           </div>
 
           {formato === "axis" && (
