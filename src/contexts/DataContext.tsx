@@ -1803,6 +1803,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       if (clientId) {
         updateLead(lead.id, { clientId, clientName });
+        // BUG real (achado 2026-10-06: modal "Contatos, Decisores &
+        // Stakeholders" de "To Na Pista Boliche" vazio mesmo com o lead
+        // "Fabiano Fagundes" — nome/e-mail/telefone reais — já vinculado a
+        // esse cliente): essa modal lê de `cliente_contatos`, uma tabela
+        // separada de `clientes`/`leads`; o nome da PESSOA que fechou o
+        // negócio nunca era propagado pra lá (só o e-mail/telefone da
+        // EMPRESA iam pra `clientes.email`/`clientes.phone` acima). Cria um
+        // contato principal a partir do próprio lead — só quando o cliente
+        // ainda não tem nenhum contato cadastrado, nunca sobrescreve um
+        // cadastro manual já feito.
+        if (lead.name && supabase) {
+          const { count } = await supabase.from('cliente_contatos').select('id', { count: 'exact', head: true }).eq('cliente_id', clientId);
+          if (!count) {
+            const { error: contatoError } = await supabase.from('cliente_contatos').insert({
+              tenant_id: tenantId,
+              cliente_id: clientId,
+              nome: lead.name,
+              email: lead.email || null,
+              telefone: lead.phone || null,
+              principal: true,
+            });
+            if (contatoError) console.error("Erro ao criar contato inicial a partir do lead ganho:", contatoError.message);
+          }
+        }
         addNotification({
           title: "Novo Cliente na Base",
           description: `${clientName} foi adicionado à Base de Clientes a partir do lead ganho "${lead.name}".`,
