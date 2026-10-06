@@ -789,7 +789,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         )}
       </KpiFilterCard>
 
-      {kpis.kind === "pipeline" ? null : chartsJsx}
+      {chartsJsx}
 
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden shadow-sm">
         <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-between">
@@ -1024,7 +1024,6 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         </div>
       </div>
 
-      {kpis.kind === "pipeline" ? chartsJsx : null}
 
       {/* Creation Modal */}
       <Modal
