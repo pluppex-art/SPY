@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
+import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 
 type ImovelRow = {
   id: string; titulo: string; tipo: string; status: string;
@@ -81,6 +82,9 @@ export default function ImobiliarioPainel() {
   const [visitas, setVisitas] = useState<VisitaRow[]>([]);
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [activePie, setActivePie] = useState<number | null>(null);
+  const [drillTitle, setDrillTitle] = useState<string | null>(null);
+  const [drillRows, setDrillRows] = useState<any[]>([]);
+  const [drillColumns, setDrillColumns] = useState<DrillColumn[]>([]);
 
   useEffect(() => {
     if (!supabase || !activeTenantId) return;
@@ -107,15 +111,17 @@ export default function ImobiliarioPainel() {
   }, [activeTenantId]);
 
   // KPIs
-  const disponiveis = imoveis.filter(i => i.status === "Disponível").length;
-  const vendidosMes = (() => {
+  const disponiveisRows = imoveis.filter(i => i.status === "Disponível");
+  const disponiveis = disponiveisRows.length;
+  const vendidosMesRows = (() => {
     const now = new Date();
     return imoveis.filter(i => {
       if (i.status !== "Vendido") return false;
       const d = new Date(i.created_at);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).length;
+    });
   })();
+  const vendidosMes = vendidosMesRows.length;
   const vgvMes = (() => {
     const now = new Date();
     return imoveis.filter(i => {
@@ -124,7 +130,8 @@ export default function ImobiliarioPainel() {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).reduce((s, i) => s + i.valor, 0);
   })();
-  const leadsAtivos = leads.filter(l => l.status === "Ativo").length;
+  const leadsAtivosRows = leads.filter(l => l.status === "Ativo");
+  const leadsAtivos = leadsAtivosRows.length;
   const leadsGanhos = leads.filter(l => l.status === "Ganho").length;
   const conversao = leads.length > 0 ? ((leadsGanhos / leads.length) * 100).toFixed(1) : "0.0";
 
@@ -158,7 +165,7 @@ export default function ImobiliarioPainel() {
   ).map(([name, value]) => ({ name, value, color: TIPO_COLORS[name] ?? "#64748b" }));
 
   // Funil
-  const leadsAtivosAll = leads.filter(l => l.status === "Ativo");
+  const leadsAtivosAll = leadsAtivosRows;
   const maxFunil = leadsAtivosAll.length || 1;
   const funil = ETAPAS.map(etapa => {
     const count = leadsAtivosAll.filter(l => l.etapa === etapa).length;
@@ -197,6 +204,31 @@ export default function ImobiliarioPainel() {
   const fmtVgv = (v: number) =>
     v >= 1e6 ? `R$ ${(v / 1e6).toFixed(1)}M` : v > 0 ? `R$ ${(v / 1e3).toFixed(0)}k` : "—";
 
+  const imovelColumns: DrillColumn[] = [
+    { header: "Título", render: (i: ImovelRow) => <span className="font-bold text-[var(--color-text-primary)]">{i.titulo || "—"}</span> },
+    { header: "Bairro", render: (i: ImovelRow) => i.bairro || "—" },
+    { header: "Tipo", render: (i: ImovelRow) => i.tipo || "—" },
+    { header: "Status", render: (i: ImovelRow) => i.status || "—" },
+    { header: "Valor", render: (i: ImovelRow) => fmtVgv(i.valor || 0), className: "text-right" },
+  ];
+  const leadColumns: DrillColumn[] = [
+    { header: "Etapa", render: (l: LeadRow) => <span className="font-bold text-[var(--color-text-primary)]">{l.etapa || "—"}</span> },
+    { header: "Orçamento", render: (l: LeadRow) => fmtVgv(l.orcamento || 0) },
+    { header: "Status", render: (l: LeadRow) => l.status || "—" },
+  ];
+  const visitaColumns: DrillColumn[] = [
+    { header: "Imóvel", render: (v: VisitaRow) => <span className="font-bold text-[var(--color-text-primary)]">{v.imovel || "—"}</span> },
+    { header: "Cliente", render: (v: VisitaRow) => v.cliente || "—" },
+    { header: "Corretor", render: (v: VisitaRow) => v.corretor || "—" },
+    { header: "Data", render: (v: VisitaRow) => `${v.data} ${v.hora}` },
+    { header: "Status", render: (v: VisitaRow) => v.status || "—" },
+  ];
+  const openDrill = (title: string, rows: any[], columns: DrillColumn[]) => {
+    setDrillTitle(title);
+    setDrillRows(rows);
+    setDrillColumns(columns);
+  };
+
   return (
     <PageContainer
       title="Painel Geral"
@@ -206,11 +238,19 @@ export default function ImobiliarioPainel() {
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          <KPICard icon={Building2} label="Disponíveis" value={String(disponiveis)} sub="no portfólio ativo" color="text-indigo-500" />
-          <KPICard icon={TrendingUp} label="Vendidos Mês" value={String(vendidosMes)} sub="negócios fechados" color="text-emerald-500" />
+          <div onClick={() => openDrill("Disponíveis", disponiveisRows, imovelColumns)} className="cursor-pointer">
+            <KPICard icon={Building2} label="Disponíveis" value={String(disponiveis)} sub="no portfólio ativo" color="text-indigo-500" />
+          </div>
+          <div onClick={() => openDrill("Vendidos Mês", vendidosMesRows, imovelColumns)} className="cursor-pointer">
+            <KPICard icon={TrendingUp} label="Vendidos Mês" value={String(vendidosMes)} sub="negócios fechados" color="text-emerald-500" />
+          </div>
           <KPICard icon={DollarSign} label="VGV Mês" value={fmtVgv(vgvMes)} sub="volume geral de vendas" color="text-blue-500" />
-          <KPICard icon={Columns3} label="Leads Ativos" value={String(leadsAtivos)} sub="no funil de vendas" color="text-cyan-500" />
-          <KPICard icon={Eye} label="Próximas Visitas" value={String(visitas.length)} sub="agendadas" color="text-amber-500" />
+          <div onClick={() => openDrill("Leads Ativos", leadsAtivosRows, leadColumns)} className="cursor-pointer">
+            <KPICard icon={Columns3} label="Leads Ativos" value={String(leadsAtivos)} sub="no funil de vendas" color="text-cyan-500" />
+          </div>
+          <div onClick={() => openDrill("Próximas Visitas", visitas, visitaColumns)} className="cursor-pointer">
+            <KPICard icon={Eye} label="Próximas Visitas" value={String(visitas.length)} sub="agendadas" color="text-amber-500" />
+          </div>
           <KPICard icon={Target} label="Conversão" value={`${conversao}%`} sub="leads → fechamento" color="text-purple-500" />
         </div>
 
@@ -291,13 +331,18 @@ export default function ImobiliarioPainel() {
             )}
             <div className="space-y-2">
               {portfolioTipo.map((t, i) => (
-                <div key={i} className="flex items-center justify-between">
+                <button
+                  type="button"
+                  key={i}
+                  onClick={() => openDrill(t.name, imoveis.filter((im) => im.tipo === t.name), imovelColumns)}
+                  className="w-full flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity text-left"
+                >
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} />
                     <span className="text-[11px] text-slate-400">{t.name}</span>
                   </div>
                   <span className="text-[11px] font-black text-white">{t.value}</span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -315,7 +360,13 @@ export default function ImobiliarioPainel() {
             ) : (
               <div className="space-y-3.5">
                 {funil.map((f, i) => (
-                  <div key={i}>
+                  <button
+                    type="button"
+                    key={i}
+                    onClick={() => f.count > 0 && openDrill(f.etapa, leadsAtivosAll.filter((l) => l.etapa === f.etapa), leadColumns)}
+                    disabled={f.count === 0}
+                    className={`w-full text-left ${f.count > 0 ? "cursor-pointer hover:opacity-80 transition-opacity" : "cursor-default"}`}
+                  >
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[11px] text-slate-400">{f.etapa}</span>
                       <span className="text-[11px] font-black text-white">{f.count}</span>
@@ -323,7 +374,7 @@ export default function ImobiliarioPainel() {
                     <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full ${f.cor} transition-all duration-700`} style={{ width: `${f.pct}%` }} />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -481,7 +532,12 @@ export default function ImobiliarioPainel() {
             ) : (
               <div className="space-y-3">
                 {imoveisBairro.map((b, i) => (
-                  <div key={i}>
+                  <button
+                    type="button"
+                    key={i}
+                    onClick={() => openDrill(b.bairro, imoveis.filter((im) => im.bairro === b.bairro), imovelColumns)}
+                    className="w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
+                  >
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
                         <MapPin className="w-3 h-3 text-slate-500" />
@@ -495,13 +551,22 @@ export default function ImobiliarioPainel() {
                     <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all duration-700" style={{ width: `${b.pct}%` }} />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </div>
         </div>
       </div>
+
+      <DrillDownPanel
+        isOpen={drillTitle !== null}
+        onClose={() => setDrillTitle(null)}
+        title={drillTitle || undefined}
+        subtitle={`${drillRows.length} registro${drillRows.length === 1 ? "" : "s"}`}
+        rows={drillRows}
+        columns={drillColumns}
+      />
     </PageContainer>
   );
 }

@@ -9,6 +9,7 @@ import { Card } from "../../components/ui/card";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 
 type VeiculoSummary = {
   id: string;
@@ -83,6 +84,14 @@ export default function PainelAutomotivo() {
     return () => { cancelled = true; };
   }, [activeTenantId, user]);
 
+  const [drillOpen, setDrillOpen] = useState(false);
+  const veiculoColumns: DrillColumn[] = [
+    { header: "Veículo", render: (v: VeiculoSummary) => <span className="font-bold text-[var(--color-text-primary)]">{v.marca} {v.modelo}</span> },
+    { header: "Ano", render: (v: VeiculoSummary) => v.anoModelo || "—" },
+    { header: "Status", render: (v: VeiculoSummary) => v.status || "—" },
+    { header: "Valor", render: (v: VeiculoSummary) => `R$ ${Number(v.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, className: "text-right" },
+  ];
+
   const kpis = useMemo(() => {
     const disponiveis = veiculos.filter(v => v.status === "Disponível");
     const totalEstoqueValor = veiculos.reduce((s, v) => s + (Number(v.valor) || 0), 0);
@@ -123,7 +132,7 @@ export default function PainelAutomotivo() {
     >
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-blue-500/25 shadow-xs">
+        <Card onClick={() => setDrillOpen(true)} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-blue-500/25 shadow-xs cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Veículos em Pátio</span>
             <Car className="w-4 h-4 text-blue-500" />
@@ -227,6 +236,15 @@ export default function PainelAutomotivo() {
           </div>
         </div>
       </div>
+
+      <DrillDownPanel
+        isOpen={drillOpen}
+        onClose={() => setDrillOpen(false)}
+        title="Veículos em Pátio"
+        subtitle={`${veiculos.length} veículo${veiculos.length === 1 ? "" : "s"}`}
+        rows={veiculos}
+        columns={veiculoColumns}
+      />
     </PageContainer>
   );
 }

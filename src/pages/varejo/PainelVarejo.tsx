@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
+import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 
 interface VendaFinalizada {
   id: string;
@@ -191,6 +192,19 @@ export default function PainelVarejo() {
     };
   }, [vendas, products]);
 
+  const [drillKey, setDrillKey] = useState<"vendas" | "catalogo" | null>(null);
+  const vendaColumns: DrillColumn[] = [
+    { header: "Cliente", render: (v: VendaFinalizada) => <span className="font-bold text-[var(--color-text-primary)]">{v.cliente || "—"}</span> },
+    { header: "Método", render: (v: VendaFinalizada) => v.metodo || "—" },
+    { header: "Itens", render: (v: VendaFinalizada) => (v.itens || []).length },
+    { header: "Total", render: (v: VendaFinalizada) => `R$ ${(Number(v.total) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, className: "text-right" },
+  ];
+  const productColumns: DrillColumn[] = [
+    { header: "Produto", render: (p: any) => <span className="font-bold text-[var(--color-text-primary)]">{p.name || "—"}</span> },
+    { header: "Estoque", render: (p: any) => Number(p.currentStock ?? p.current_stock ?? p.stock) || 0 },
+    { header: "Estoque Mín.", render: (p: any) => Number(p.minStock ?? p.min_stock) || 0 },
+  ];
+
   // Itens com estoque crítico
   const itensCriticos = useMemo(() => {
     return (products || [])
@@ -265,7 +279,7 @@ export default function PainelVarejo() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-emerald-500/20 shadow-xs">
+        <Card onClick={() => setDrillKey("vendas")} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-emerald-500/20 shadow-xs cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Faturamento Hoje</span>
             <DollarSign className="w-4 h-4 text-emerald-500" />
@@ -304,7 +318,7 @@ export default function PainelVarejo() {
           </span>
         </Card>
 
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-purple-500/20 shadow-xs">
+        <Card onClick={() => setDrillKey("catalogo")} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-purple-500/20 shadow-xs cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Catálogo Ativo</span>
             <Boxes className="w-4 h-4 text-purple-500" />
@@ -526,6 +540,14 @@ export default function PainelVarejo() {
           </div>
         </div>
       </div>
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey === "vendas" ? "Faturamento Hoje" : drillKey === "catalogo" ? "Catálogo Ativo" : undefined}
+        rows={drillKey === "vendas" ? (vendas || []).filter((v) => v.status !== "cancelada") : drillKey === "catalogo" ? (products || []) : []}
+        columns={drillKey === "vendas" ? vendaColumns : productColumns}
+      />
     </PageContainer>
   );
 }
