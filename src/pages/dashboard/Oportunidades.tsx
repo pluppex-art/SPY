@@ -104,15 +104,15 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card onClick={() => setFiltro("todas")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Workflow className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Oportunidades Ativas</span></div>
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{classificados.length}</p>
         </Card>
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card onClick={() => setFiltro("todas")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><ListChecks className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Valor no Pipeline</span></div>
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(pipelineValue)}</p>
         </Card>
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-danger/20">
+        <Card onClick={() => setFiltro("prioritarias")} className="p-5 bg-[var(--color-surface-elevated)] border border-danger/20 cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center gap-2 text-danger"><Flame className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Prioritárias</span></div>
           <p className="text-2xl font-black text-danger font-mono mt-2">{prioritarias.length}</p>
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{formatCurrency(prioritarias.reduce((s, l) => s + l._val, 0))}</p>

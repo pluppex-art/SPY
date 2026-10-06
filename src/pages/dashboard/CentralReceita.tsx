@@ -12,6 +12,8 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
+import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
+import { leadDrillColumns, contractDrillColumns } from "../../components/ui/drillColumns";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -135,6 +137,18 @@ export default function CentralReceita() {
   const totalRevenue = serverSummary?.totalRevenue ?? 0;
   const vendasTrend = trendPct("vendas");
 
+  type CentralDrillKey = "receita" | "pipeline" | "emRisco" | "recuperaveis";
+  const [drillKey, setDrillKey] = useState<CentralDrillKey | null>(null);
+  const leadColumns = leadDrillColumns(formatCurrency);
+  const contractColumnsMrr = contractDrillColumns(formatCurrency, "mrr");
+  const contratosAtivos = useMemo(() => (contracts as any[]).filter((c) => c.status !== "Cancelado" && c.status !== "Perdido"), [contracts]);
+  const centralDrillConfig: Record<CentralDrillKey, { title: string; subtitle: string; rows: any[]; columns: DrillColumn[] }> = {
+    receita: { title: "Receita Realizada", subtitle: `${contratosAtivos.length} contrato${contratosAtivos.length === 1 ? "" : "s"} ativo${contratosAtivos.length === 1 ? "" : "s"}`, rows: contratosAtivos, columns: contractColumnsMrr },
+    pipeline: { title: "Pipeline Total", subtitle: `${pipelineCount} oportunidade${pipelineCount === 1 ? "" : "s"} em aberto`, rows: leadsAbertos, columns: leadColumns },
+    emRisco: { title: "Receita em Risco", subtitle: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"} inadimplente${contratosEmRisco.length === 1 ? "" : "s"}`, rows: contratosEmRisco, columns: contractColumnsMrr },
+    recuperaveis: { title: "Oportunidades Recuperáveis", subtitle: `${oportunidadesRecuperaveis.length} lead${oportunidadesRecuperaveis.length === 1 ? "" : "s"} com sinal de intenção, parado${oportunidadesRecuperaveis.length === 1 ? "" : "s"}`, rows: oportunidadesRecuperaveis, columns: leadColumns },
+  };
+
   return (
     <div className="max-w-[1700px] mx-auto px-4 sm:px-6 py-6 space-y-6">
       {/* Cabeçalho */}
@@ -173,7 +187,7 @@ export default function CentralReceita() {
       <>
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card onClick={() => setDrillKey("receita")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><DollarSign className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Receita Realizada</span></div>
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(totalRevenue)}</p>
           {vendasTrend !== null && (
@@ -182,17 +196,17 @@ export default function CentralReceita() {
             </p>
           )}
         </Card>
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card onClick={() => setDrillKey("pipeline")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Workflow className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Pipeline Total</span></div>
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(pipelineValue)}</p>
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{pipelineCount} oportunidade{pipelineCount === 1 ? "" : "s"}</p>
         </Card>
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-danger/20">
+        <Card onClick={() => setDrillKey("emRisco")} className="p-5 bg-[var(--color-surface-elevated)] border border-danger/20 cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center gap-2 text-danger"><AlertTriangle className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Receita em Risco</span></div>
           <p className="text-2xl font-black text-danger font-mono mt-2">{formatCurrency(receitaEmRisco)}</p>
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{receitaEmRiscoCount} contrato{receitaEmRiscoCount === 1 ? "" : "s"}</p>
         </Card>
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-success/20">
+        <Card onClick={() => setDrillKey("recuperaveis")} className="p-5 bg-[var(--color-surface-elevated)] border border-success/20 cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center gap-2 text-success"><RefreshCw className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Oportunidades Recuperáveis</span></div>
           <p className="text-2xl font-black text-success font-mono mt-2">{formatCurrency(recuperavelValue)}</p>
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{oportunidadesRecuperaveis.length} oportunidade{oportunidadesRecuperaveis.length === 1 ? "" : "s"}</p>
@@ -369,6 +383,15 @@ export default function CentralReceita() {
       </div>
       </>
       )}
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey ? centralDrillConfig[drillKey].title : undefined}
+        subtitle={drillKey ? centralDrillConfig[drillKey].subtitle : undefined}
+        rows={drillKey ? centralDrillConfig[drillKey].rows : []}
+        columns={drillKey ? centralDrillConfig[drillKey].columns : []}
+      />
     </div>
   );
 }
