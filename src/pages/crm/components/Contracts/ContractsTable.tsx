@@ -136,7 +136,7 @@ export function ContractsTable({
         />
       ) : (
         <div className="overflow-x-auto">
-        <Table>
+        <Table className="whitespace-nowrap">
           <TableHeader>
             <TableRow>
               <TableHead>Cliente</TableHead>
@@ -166,10 +166,14 @@ export function ContractsTable({
                     <div className="w-7 h-7 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
                       <FileText className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />
                     </div>
-                    {contract.client}
+                    <span className="truncate max-w-[240px]" title={contract.client}>{contract.client}</span>
                   </div>
                 </TableCell>
-                <TableCell><Badge variant="secondary">{contract.plan}</Badge></TableCell>
+                <TableCell>
+                  <Badge variant="secondary" className="max-w-[260px]" title={contract.plan}>
+                    <span className="truncate">{contract.plan}</span>
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-[var(--color-text-muted)] text-xs max-w-[220px] truncate" title={contract.description || undefined}>
                   {contract.description || "—"}
                 </TableCell>
