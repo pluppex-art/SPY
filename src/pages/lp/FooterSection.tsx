@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Logo } from "../../components/ui/Logo";
 import { useLpTheme } from "./theme/LpThemeContext";
 
@@ -16,7 +17,7 @@ export function FooterSection() {
         </div>
 
         <div className="flex items-center gap-6 text-[12px] font-medium text-slate-500">
-          <a href="#" className="hover:text-slate-900 transition-colors">Privacidade</a>
+          <Link to="/privacidade" className="hover:text-slate-900 transition-colors">Privacidade</Link>
           <a href="#" className="hover:text-slate-900 transition-colors">Termos</a>
           <a href="#" className="hover:text-slate-900 transition-colors">Contato</a>
         </div>

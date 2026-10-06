@@ -5,6 +5,7 @@ const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
 // Lazy: página de marketing pública, sem nenhuma dependência do app autenticado — fica no
 // próprio chunk pra quem visita /lp não baixar o bundle inteiro do CRM.
 const SPYLandingPage = lazy(() => import("./pages/lp/SPYLandingPage"));
+const PoliticaPrivacidade = lazy(() => import("./pages/lp/PoliticaPrivacidade"));
 // "Central de Receita" — redesenho do Dashboard principal (/app/dashboard),
 // pedido explícito do usuário. O Dashboard.tsx antigo continua no repo (não
 // apagado) só não está mais roteado aqui — reversível se precisar. As outras
@@ -235,6 +236,14 @@ function AppContent() {
           element={
             <Suspense fallback={<div className="min-h-screen bg-white" />}>
               <SPYLandingPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/privacidade"
+          element={
+            <Suspense fallback={<div className="min-h-screen bg-white" />}>
+              <PoliticaPrivacidade />
             </Suspense>
           }
         />
