@@ -10,7 +10,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
-import { StatCell, StatCellRow } from "./components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { saldoDaConta, transferenciasDaConta, type FinanceEntryLike } from "./lib/financeEngine";
 import { cn } from "../../lib/utils";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
@@ -46,6 +46,8 @@ export default function FinanceiroContasBancarias() {
 
   const contas = financeBankAccounts as ContaBancaria[];
   const [aba, setAba] = useState<"ativas" | "arquivadas" | "todas">("ativas");
+  const [busca, setBusca] = useState("");
+  const [tipoFilter, setTipoFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -74,7 +76,18 @@ export default function FinanceiroContasBancarias() {
 
   const listaAtiva = contas.filter(c => !c.arquivada);
   const listaArquivada = contas.filter(c => c.arquivada);
-  const listaExibida = aba === "ativas" ? listaAtiva : aba === "arquivadas" ? listaArquivada : contas;
+  const listaAba = aba === "ativas" ? listaAtiva : aba === "arquivadas" ? listaArquivada : contas;
+  const tiposUsados = useMemo(
+    () => Array.from(new Set(contas.map(c => c.tipo))).map(t => ({ value: t, label: tipoLabel(t) })),
+    [contas]
+  );
+  const listaExibida = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return listaAba.filter(c =>
+      (!tipoFilter || c.tipo === tipoFilter) &&
+      (!q || c.nome.toLowerCase().includes(q) || tipoLabel(c.tipo).toLowerCase().includes(q))
+    );
+  }, [listaAba, busca, tipoFilter]);
 
   const saldoTotalAtivas = useMemo(() => listaAtiva.reduce((s, c) => s + (saldoPorConta.get(c.id) ?? 0), 0), [listaAtiva, saldoPorConta]);
   const contaPrincipal = useMemo(() => listaAtiva.find(c => c.is_principal) ?? null, [listaAtiva]);
@@ -159,11 +172,34 @@ export default function FinanceiroContasBancarias() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label="Saldo Total (Contas Ativas)" value={formatCurrency(saldoTotalAtivas)} icon={Wallet} tone={saldoTotalAtivas < 0 ? "danger" : "neutral"} />
-          <StatCell label="Contas Ativas" value={listaAtiva.length} icon={Landmark} onClick={() => setDrillContasOpen(true)} />
-          <StatCell label="Conta Principal" value={contaPrincipal ? contaPrincipal.nome : "—"} icon={Star} hint={contaPrincipal ? formatCurrency(saldoPorConta.get(contaPrincipal.id) ?? 0) : undefined} />
-        </StatCellRow>
+        <KpiFilterCard
+          id="finContasBancarias"
+          kpis={[
+            { label: "Saldo Total (Contas Ativas)", value: formatCurrency(saldoTotalAtivas), icon: Wallet, tone: saldoTotalAtivas < 0 ? "danger" : "neutral" },
+            { label: "Contas Ativas", value: listaAtiva.length, icon: Landmark, tone: "primary", hint: "Use o botão \"Ver contas ativas\" para detalhar" },
+            { label: "Conta Principal", value: contaPrincipal ? contaPrincipal.nome : "—", icon: Star, tone: "accent", hint: contaPrincipal ? formatCurrency(saldoPorConta.get(contaPrincipal.id) ?? 0) : undefined },
+          ]}
+          activeCount={(busca ? 1 : 0) + (tipoFilter ? 1 : 0) + (aba !== "ativas" ? 1 : 0)}
+          onClear={() => { setBusca(""); setTipoFilter(""); setAba("ativas"); }}
+        >
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar conta..." />
+            <FilterSelect icon={Landmark} value={tipoFilter} onChange={setTipoFilter} options={tiposUsados} allLabel="Todos os tipos" />
+            <FilterChips
+              value={aba}
+              onChange={v => setAba(v as "ativas" | "arquivadas" | "todas")}
+              allValue="ativas"
+              allLabel={`Ativas (${listaAtiva.length})`}
+              options={[
+                { value: "arquivadas", label: `Arquivadas (${listaArquivada.length})` },
+                { value: "todas", label: `Todas (${contas.length})` },
+              ]}
+            />
+            <Button size="sm" variant="outline" onClick={() => setDrillContasOpen(true)} className="h-[38px] px-3 text-xs font-medium gap-1.5">
+              <Landmark className="w-3.5 h-3.5" /> Ver contas ativas
+            </Button>
+          </FilterBar>
+        </KpiFilterCard>
 
         {chartData.length > 1 && (
           <Card className="p-6">
@@ -184,18 +220,6 @@ export default function FinanceiroContasBancarias() {
             </div>
           </Card>
         )}
-
-        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit">
-          {([
-            { id: "ativas", label: `Ativas (${listaAtiva.length})` },
-            { id: "arquivadas", label: `Arquivadas (${listaArquivada.length})` },
-            { id: "todas", label: `Todas (${contas.length})` },
-          ] as const).map(t => (
-            <Button key={t.id} size="sm" variant={aba === t.id ? "default" : "ghost"} onClick={() => setAba(t.id)} className="h-7 px-3 text-xs font-medium">
-              {t.label}
-            </Button>
-          ))}
-        </div>
 
         {listaExibida.length === 0 ? (
           <Card className="p-12 text-center">

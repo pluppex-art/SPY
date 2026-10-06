@@ -4,13 +4,13 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
-import { Plus, Search, Pencil, Trash2, Users, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
-import { StatCell, StatCellRow } from "./components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { parseEntryDate } from "./lib/financeDates";
@@ -184,11 +184,42 @@ export default function FinanceiroContatos() {
       actions={<Button onClick={openNew} className="h-9 px-4 text-xs font-medium gap-1.5"><Plus className="w-3.5 h-3.5" /> Novo Contato</Button>}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <FinanceiroFilterBar />
-        <StatCellRow>
-          <StatCell label={`Recebido de Clientes (${periodoLabel})`} value={formatCurrency(financeiroKpis.totalRecebido)} icon={TrendingUp} tone="success" hint="Lançamentos pagos, vinculados a um cliente" onClick={() => setDrillKey("recebido")} />
-          <StatCell label={`Pago a Fornecedores (${periodoLabel})`} value={formatCurrency(financeiroKpis.totalPago)} icon={TrendingDown} tone={financeiroKpis.totalPago > 0 ? "danger" : "neutral"} hint="Lançamentos pagos, vinculados a um fornecedor" onClick={() => setDrillKey("pago")} />
-        </StatCellRow>
+        <KpiFilterCard
+          id="finContatos"
+          kpis={[
+            { label: `Recebido de Clientes (${periodoLabel})`, value: formatCurrency(financeiroKpis.totalRecebido), icon: TrendingUp, tone: "success", hint: "Lançamentos pagos, vinculados a um cliente" },
+            { label: `Pago a Fornecedores (${periodoLabel})`, value: formatCurrency(financeiroKpis.totalPago), icon: TrendingDown, tone: financeiroKpis.totalPago > 0 ? "danger" : "neutral", hint: "Lançamentos pagos, vinculados a um fornecedor" },
+            { label: "Contatos", value: contatos.length, icon: Users, tone: "primary" },
+            { label: "Clientes", value: contatos.filter(c => c.tipos?.includes("CLIENTE")).length, icon: Users, tone: "info" },
+            { label: "Fornecedores", value: contatos.filter(c => c.tipos?.includes("FORNECEDOR")).length, icon: Users, tone: "accent" },
+          ]}
+          activeCount={(busca ? 1 : 0) + (aba !== "todos" ? 1 : 0)}
+          onClear={() => { setBusca(""); setAba("todos"); }}
+        >
+          <FilterBar>
+            <FinanceiroFilterBar />
+          </FilterBar>
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar por nome, documento ou e-mail..." />
+            <FilterChips
+              value={aba}
+              onChange={v => setAba(v as "todos" | Tipo)}
+              allValue="todos"
+              allLabel={`Todos (${contatos.length})`}
+              options={[
+                { value: "CLIENTE", label: `Clientes (${contatos.filter(c => c.tipos?.includes("CLIENTE")).length})` },
+                { value: "FORNECEDOR", label: `Fornecedores (${contatos.filter(c => c.tipos?.includes("FORNECEDOR")).length})` },
+                { value: "FUNCIONARIO", label: `Funcionários (${contatos.filter(c => c.tipos?.includes("FUNCIONARIO")).length})` },
+              ]}
+            />
+            <Button size="sm" variant="outline" onClick={() => setDrillKey("recebido")} className="h-[38px] px-3 text-xs font-medium gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5" /> Ver recebido
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setDrillKey("pago")} className="h-[38px] px-3 text-xs font-medium gap-1.5">
+              <TrendingDown className="w-3.5 h-3.5" /> Ver pago
+            </Button>
+          </FilterBar>
+        </KpiFilterCard>
 
         {topContatosChart.length > 0 && (
           <Card className="p-6">
@@ -207,23 +238,6 @@ export default function FinanceiroContatos() {
             </div>
           </Card>
         )}
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-            {([
-              { id: "todos", label: `Todos (${contatos.length})` },
-              { id: "CLIENTE", label: `Clientes (${contatos.filter(c => c.tipos?.includes("CLIENTE")).length})` },
-              { id: "FORNECEDOR", label: `Fornecedores (${contatos.filter(c => c.tipos?.includes("FORNECEDOR")).length})` },
-              { id: "FUNCIONARIO", label: `Funcionários (${contatos.filter(c => c.tipos?.includes("FUNCIONARIO")).length})` },
-            ] as const).map(t => (
-              <Button key={t.id} size="sm" variant={aba === t.id ? "default" : "ghost"} onClick={() => setAba(t.id as any)} className="h-7 px-3 text-xs font-medium">{t.label}</Button>
-            ))}
-          </div>
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-            <input type="text" placeholder="Buscar por nome, documento ou e-mail..." value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-9 pr-3 py-2 text-xs focus:outline-none" />
-          </div>
-        </div>
 
         <Card className="overflow-hidden">
           {filtrados.length === 0 ? (

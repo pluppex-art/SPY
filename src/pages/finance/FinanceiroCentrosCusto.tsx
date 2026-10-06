@@ -2,10 +2,10 @@ import { useState, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  Layers, Plus, Search, DollarSign, Users, TrendingUp,
+  Layers, Plus, DollarSign, Users, TrendingUp,
   Building2, Trash2, Edit2, X, AlertCircle, PieChart, Download
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -28,6 +28,8 @@ export default function FinanceiroCentrosCusto() {
   const centros = financeCentrosCusto as CentroCusto[];
 
   const [search, setSearch] = useState("");
+  const [consumoFilter, setConsumoFilter] = useState("");
+  const [gestorFilter, setGestorFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -105,15 +107,25 @@ export default function FinanceiroCentrosCusto() {
     toast.success("Centro de custo excluído.");
   };
 
+  const gestores = useMemo(() => Array.from(new Set(centros.map(c => c.responsavel).filter(Boolean))).sort(), [centros]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return centros.filter(
-      c =>
+    return centros.filter(c => {
+      const matchBusca =
         c.nome.toLowerCase().includes(q) ||
         c.codigo.toLowerCase().includes(q) ||
-        c.responsavel.toLowerCase().includes(q)
-    );
-  }, [centros, search]);
+        c.responsavel.toLowerCase().includes(q);
+      if (!matchBusca) return false;
+      if (gestorFilter && c.responsavel !== gestorFilter) return false;
+      if (consumoFilter) {
+        const perc = c.orcamento > 0 ? Math.round((c.gasto / c.orcamento) * 100) : 0;
+        const faixa = perc > 90 ? "critico" : perc > 75 ? "atencao" : "ok";
+        if (faixa !== consumoFilter) return false;
+      }
+      return true;
+    });
+  }, [centros, search, gestorFilter, consumoFilter]);
 
   const totalOrcado = centros.reduce((s, c) => s + c.orcamento, 0);
   const totalGasto = centros.reduce((s, c) => s + c.gasto, 0);
@@ -165,63 +177,32 @@ export default function FinanceiroCentrosCusto() {
         </div>
       }
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Orçamento Total</span>
-            <DollarSign className="w-4 h-4 text-[var(--color-primary-blue)]" />
-          </div>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">
-            R$ {totalOrcado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </div>
-        </Card>
-
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-warning/25">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Total Consumido</span>
-            <TrendingUp className="w-4 h-4 text-warning" />
-          </div>
-          <div className="text-2xl font-black text-warning">
-            R$ {totalGasto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </div>
-          <span className="text-[10px] text-[var(--color-text-muted)] block mt-0.5">{percGeral}% do teto global</span>
-        </Card>
-
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-success/25">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Saldo Disponível</span>
-            <DollarSign className="w-4 h-4 text-success" />
-          </div>
-          <div className="text-2xl font-black text-success">
-            R$ {saldoGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </div>
-        </Card>
-
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Unidades de Custo</span>
-            <Layers className="w-4 h-4 text-[var(--color-text-muted)]" />
-          </div>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">
-            {centros.length}
-          </div>
-        </Card>
-      </div>
-
-      {/* Search */}
-      <div className="flex items-center justify-between gap-3 mb-5">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por nome, código ou gestor..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl pl-10 pr-4 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)]"
+      <KpiFilterCard
+        id="finCentrosCusto"
+        kpis={[
+          { label: "Orçamento Total", value: `R$ ${totalOrcado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "primary" },
+          { label: "Total Consumido", value: `R$ ${totalGasto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: TrendingUp, tone: "warning", hint: `${percGeral}% do teto global` },
+          { label: "Saldo Disponível", value: `R$ ${saldoGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "success" },
+          { label: "Unidades de Custo", value: centros.length, icon: Layers, tone: "neutral" },
+        ]}
+        activeCount={(search ? 1 : 0) + (consumoFilter ? 1 : 0) + (gestorFilter ? 1 : 0)}
+        onClear={() => { setSearch(""); setConsumoFilter(""); setGestorFilter(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por nome, código ou gestor..." />
+          <FilterSelect icon={Users} value={gestorFilter} onChange={setGestorFilter} options={gestores} allLabel="Todos os gestores" />
+          <FilterChips
+            value={consumoFilter}
+            onChange={setConsumoFilter}
+            allLabel="Todos"
+            options={[
+              { value: "ok", label: "Até 75%" },
+              { value: "atencao", label: "75–90%" },
+              { value: "critico", label: "Acima de 90%" },
+            ]}
           />
-        </div>
-      </div>
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Grid of Centros de Custo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

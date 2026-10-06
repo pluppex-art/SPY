@@ -3,7 +3,7 @@ import { Card } from "../../components/ui/card";
 import { EmptyState } from "../../components/ui/empty-state";
 import {
   Download, Calendar, CheckCircle2,
-  Clock, AlertTriangle, Plus, Trash2, DollarSign, Pencil, Lock, Repeat, Layers, User, Search, X, HelpCircle,
+  Clock, AlertTriangle, Plus, Trash2, DollarSign, Pencil, Lock, Repeat, Layers, User, Landmark, HelpCircle,
   TrendingUp, TrendingDown, BarChart3, HourglassIcon,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -22,7 +22,7 @@ import { parseEntryDate } from "./lib/financeDates";
 import { useFinanceEntriesList } from "./useFinanceEntriesList";
 import { Pagination } from "../../components/ui/Pagination";
 import { type Frequencia, addPeriodo, splitInstallments } from "../../lib/saleCalculator";
-import { StatCell, StatCellRow } from "./components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
 import { isInMonth, pctDelta, getMonthlyRealizedSeries } from "./lib/financeEngine";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
@@ -225,8 +225,6 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   // qualquer dado — quem só quer ver "o que tenho a receber esse mês" caía
   // direto num formulário de 7 campos. Conta Bancária/Centro de Custo/período
   // agora ficam atrás de "Mais filtros".
-  const [showMoreFiltros, setShowMoreFiltros] = useState(false);
-  const temFiltrosAvancadosAtivos = !!(filtroContaBancariaId || filtroCentroCustoId || filtroDataInicio || filtroDataFim);
 
   const temFiltrosAtivos = !!(filtroBusca || filtroCategoriaId || filtroStatus || filtroContaBancariaId || filtroCentroCustoId || filtroDataInicio || filtroDataFim);
   const limparFiltros = () => {
@@ -467,6 +465,30 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     }
   };
 
+  const kpiItems: KpiItem[] = kpis.kind === "pipeline"
+    ? [
+        { label: "Pago", value: formatCurrency(kpis.pago), icon: CheckCircle2, tone: "success", hint: `${kpis.countPago} lançamento(s)` },
+        { label: "A Vencer", value: formatCurrency(kpis.aVencer), icon: Clock, tone: "neutral", hint: `${kpis.countAVencer} lançamento(s)` },
+        { label: "Atrasado", value: formatCurrency(kpis.atrasado), icon: AlertTriangle, tone: kpis.atrasado > 0 ? "danger" : "neutral", hint: `${kpis.countAtrasado} lançamento(s)` },
+        { label: "Pendente", value: formatCurrency(kpis.pendente), icon: HourglassIcon, tone: kpis.pendente > 0 ? "warning" : "neutral", hint: `${kpis.countPendente} lançamento(s)` },
+      ]
+    : [
+        { label: type === "Pagar" ? "Gasto no Mês" : "Recebido no Mês", value: formatCurrency(kpis.totalMes), icon: type === "Pagar" ? TrendingDown : TrendingUp, tone: type === "Pagar" ? (kpis.totalMes > 0 ? "danger" : "neutral") : "success" },
+        {
+          label: "Vs. Mês Anterior",
+          value: kpis.deltaPct === null ? "—" : `${kpis.deltaPct > 0 ? "+" : ""}${kpis.deltaPct}%`,
+          icon: type === "Pagar" ? TrendingUp : TrendingDown,
+          tone: kpis.deltaPct === null ? "neutral" : (type === "Pagar" ? kpis.deltaPct <= 0 : kpis.deltaPct >= 0) ? "success" : "danger",
+        },
+        { label: "Ticket Médio", value: formatCurrency(kpis.ticketMedio), icon: DollarSign, tone: "info" },
+        { label: "Total Geral (Histórico)", value: formatCurrency(kpis.totalGeral), icon: Layers, tone: "accent", hint: `${kpis.count} lançamento(s)` },
+      ];
+  // Os KPIs eram clicáveis (drill-down); agora o clique vira botões "Detalhar" dentro do card.
+  const drillButtons: { key: string; label: string }[] = kpis.kind === "pipeline"
+    ? [{ key: "pago", label: "Pago" }, { key: "aVencer", label: "A Vencer" }, { key: "atrasado", label: "Atrasado" }, { key: "pendente", label: "Pendente" }]
+    : [{ key: "mes", label: type === "Pagar" ? "Gasto no Mês" : "Recebido no Mês" }, { key: "geral", label: "Total Geral" }];
+  const filtrosAtivosCount = [filtroBusca, filtroCategoriaId, filtroStatus, filtroContaBancariaId, filtroCentroCustoId, filtroDataInicio, filtroDataFim].filter(Boolean).length;
+
   const RepeatBadge = ({ item }: { item: (typeof financeEntries)[number] }) => {
     if (item.is_recurring) {
       return (
@@ -516,14 +538,63 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       }
     >
       <div className="space-y-6">
+      <KpiFilterCard
+        id={`finLista${type}${statusFilter ?? "Todos"}`}
+        kpis={kpiItems}
+        activeCount={filtrosAtivosCount}
+        onClear={limparFiltros}
+      >
+        <FilterBar>
+          <FilterSearch value={filtroBusca} onChange={setFiltroBusca} placeholder="Nome, categoria ou cliente/fornecedor..." />
+          <FilterSelect
+            icon={Layers}
+            value={filtroCategoriaId}
+            onChange={setFiltroCategoriaId}
+            options={categoriasDoTipo.map((c: any) => ({ value: c.id, label: c.nome }))}
+            allLabel="Todas as categorias"
+          />
+          <FilterSelect
+            icon={Landmark}
+            value={filtroContaBancariaId}
+            onChange={setFiltroContaBancariaId}
+            options={contasAtivas.map((c: any) => ({ value: c.id, label: c.nome }))}
+            allLabel="Todas as contas"
+          />
+          <FilterSelect
+            icon={Layers}
+            value={filtroCentroCustoId}
+            onChange={setFiltroCentroCustoId}
+            options={(financeCentrosCusto as any[]).map((c) => ({ value: c.id, label: c.nome }))}
+            allLabel="Todos os centros de custo"
+          />
+          <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px]">
+            <Calendar className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
+            <input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} title="De" className="bg-transparent border-none text-xs text-[var(--color-text-primary)] focus:outline-none" />
+            <span className="text-[10px] text-[var(--color-text-muted)]">até</span>
+            <input type="date" value={filtroDataFim} onChange={(e) => setFiltroDataFim(e.target.value)} title="Até" className="bg-transparent border-none text-xs text-[var(--color-text-primary)] focus:outline-none" />
+          </div>
+          {!statusFilter && (
+            <FilterChips
+              value={filtroStatus}
+              onChange={(v) => setFiltroStatus(v as typeof filtroStatus)}
+              options={["Pago", "A Vencer", "Pendente", "Atrasado"]}
+            />
+          )}
+        </FilterBar>
+        {drillButtons.length > 0 && (
+          <FilterBar>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-faint)]">Detalhar:</span>
+            {drillButtons.map(d => (
+              <Button key={d.key} variant="outline" onClick={() => setDrillKey(d.key)} className="h-8 px-3 text-xs font-bold border-[var(--color-border-default)]">
+                {d.label}
+              </Button>
+            ))}
+          </FilterBar>
+        )}
+      </KpiFilterCard>
+
       {kpis.kind === "pipeline" ? (
         <>
-          <StatCellRow>
-            <StatCell label="Pago" value={formatCurrency(kpis.pago)} icon={CheckCircle2} tone="success" hint={`${kpis.countPago} lançamento(s)`} onClick={() => setDrillKey("pago")} />
-            <StatCell label="A Vencer" value={formatCurrency(kpis.aVencer)} icon={Clock} tone="neutral" hint={`${kpis.countAVencer} lançamento(s)`} onClick={() => setDrillKey("aVencer")} />
-            <StatCell label="Atrasado" value={formatCurrency(kpis.atrasado)} icon={AlertTriangle} tone={kpis.atrasado > 0 ? "danger" : "neutral"} hint={`${kpis.countAtrasado} lançamento(s)`} onClick={() => setDrillKey("atrasado")} />
-            <StatCell label="Pendente" value={formatCurrency(kpis.pendente)} icon={HourglassIcon} tone={kpis.pendente > 0 ? "warning" : "neutral"} hint={`${kpis.countPendente} lançamento(s)`} onClick={() => setDrillKey("pendente")} />
-          </StatCellRow>
           {statusBreakdown.length > 0 && (
             <Card className="p-4">
               <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
@@ -546,17 +617,6 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         </>
       ) : (
         <>
-          <StatCellRow>
-            <StatCell label={type === "Pagar" ? "Gasto no Mês" : "Recebido no Mês"} value={formatCurrency(kpis.totalMes)} icon={type === "Pagar" ? TrendingDown : TrendingUp} tone={type === "Pagar" ? (kpis.totalMes > 0 ? "danger" : "neutral") : "success"} onClick={() => setDrillKey("mes")} />
-            <StatCell
-              label="Vs. Mês Anterior"
-              value={kpis.deltaPct === null ? "—" : `${kpis.deltaPct > 0 ? "+" : ""}${kpis.deltaPct}%`}
-              icon={type === "Pagar" ? TrendingUp : TrendingDown}
-              tone={kpis.deltaPct === null ? "neutral" : (type === "Pagar" ? kpis.deltaPct <= 0 : kpis.deltaPct >= 0) ? "success" : "danger"}
-            />
-            <StatCell label="Ticket Médio" value={formatCurrency(kpis.ticketMedio)} icon={DollarSign} />
-            <StatCell label="Total Geral (Histórico)" value={formatCurrency(kpis.totalGeral)} icon={Layers} hint={`${kpis.count} lançamento(s)`} onClick={() => setDrillKey("geral")} />
-          </StatCellRow>
           <Card className="p-4">
             <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {title} — Últimos 6 Meses
@@ -575,84 +635,6 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
           </Card>
         </>
       )}
-
-      <Card className="p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex-1 min-w-[200px]">
-            <label className="text-[10px] font-bold text-[var(--color-text-muted)] mb-1 block">Buscar</label>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-              <input
-                type="text"
-                placeholder="Nome, categoria ou cliente/fornecedor..."
-                value={filtroBusca}
-                onChange={(e) => setFiltroBusca(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-8 pr-3 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-[10px] font-bold text-[var(--color-text-muted)] mb-1 block">Categoria</label>
-            <select value={filtroCategoriaId} onChange={(e) => setFiltroCategoriaId(e.target.value)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs cursor-pointer">
-              <option value="">Todas</option>
-              {categoriasDoTipo.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </div>
-          {!statusFilter && (
-            <div>
-              <label className="text-[10px] font-bold text-[var(--color-text-muted)] mb-1 block">Status</label>
-              <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value as typeof filtroStatus)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs cursor-pointer">
-                <option value="">Todos</option>
-                <option value="Pago">Pago</option>
-                <option value="A Vencer">A Vencer</option>
-                <option value="Pendente">Pendente</option>
-                <option value="Atrasado">Atrasado</option>
-              </select>
-            </div>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => setShowMoreFiltros((v) => !v)}
-            className="h-9 px-3 text-xs font-bold gap-1.5 border-[var(--color-border-default)]"
-          >
-            {showMoreFiltros ? "Menos filtros" : "Mais filtros"}
-            {!showMoreFiltros && temFiltrosAvancadosAtivos && (
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary-blue)]" />
-            )}
-          </Button>
-          {temFiltrosAtivos && (
-            <Button variant="outline" onClick={limparFiltros} className="h-9 px-3 text-xs font-bold gap-1.5 border-[var(--color-border-default)]">
-              <X className="w-3.5 h-3.5" /> Limpar
-            </Button>
-          )}
-          {showMoreFiltros && (
-            <>
-              <div>
-                <label className="text-[10px] font-bold text-[var(--color-text-muted)] mb-1 block">Conta Bancária</label>
-                <select value={filtroContaBancariaId} onChange={(e) => setFiltroContaBancariaId(e.target.value)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs cursor-pointer">
-                  <option value="">Todas</option>
-                  {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-[var(--color-text-muted)] mb-1 block">Centro de Custo</label>
-                <select value={filtroCentroCustoId} onChange={(e) => setFiltroCentroCustoId(e.target.value)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs cursor-pointer">
-                  <option value="">Todos</option>
-                  {(financeCentrosCusto as any[]).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-[var(--color-text-muted)] mb-1 block">De</label>
-                <input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-[var(--color-text-muted)] mb-1 block">Até</label>
-                <input type="date" value={filtroDataFim} onChange={(e) => setFiltroDataFim(e.target.value)} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-              </div>
-            </>
-          )}
-        </div>
-      </Card>
 
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden shadow-sm">
         <div className="p-4 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-between">

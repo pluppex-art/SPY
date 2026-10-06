@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
@@ -98,6 +99,23 @@ export default function Indicacoes() {
     const code = currentAffiliate ? currentAffiliate.code : "oficial";
     return `${origin}/indicacao?ref=${encodeURIComponent(code)}`;
   }, [currentAffiliate]);
+
+  const [busca, setBusca] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [indicadorFilter, setIndicadorFilter] = useState("");
+  const indicadores = useMemo(
+    () => Array.from(new Set(indicacoes.map(i => i.referrer_name).filter(Boolean))).sort() as string[],
+    [indicacoes]
+  );
+  const indicacoesFiltradas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return indicacoes.filter(i => {
+      if (statusFilter && i.status !== statusFilter) return false;
+      if (indicadorFilter && i.referrer_name !== indicadorFilter) return false;
+      if (!q) return true;
+      return (i.referrer_name || "").toLowerCase().includes(q) || (i.referred_name || "").toLowerCase().includes(q) || (i.referred_contact || "").toLowerCase().includes(q);
+    });
+  }, [indicacoes, busca, statusFilter, indicadorFilter]);
 
   const kpis = useMemo(() => {
     const total = indicacoes.length;
@@ -345,25 +363,23 @@ export default function Indicacoes() {
       }
     >
       <div className="space-y-6">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Total de Indicações</p>
-          <p className="text-xl font-black text-[var(--color-text-primary)]">{kpis.total}</p>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Em Aberto</p>
-          <p className="text-xl font-black text-warning">{kpis.pendentes}</p>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Comissão Paga</p>
-          <p className="text-xl font-black text-success">{currency(kpis.totalPago)}</p>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Comissão a Pagar</p>
-          <p className="text-xl font-black text-[var(--color-text-primary)]">{currency(kpis.totalPendente)}</p>
-        </Card>
-      </div>
+      <KpiFilterCard
+        id="finIndicacoes"
+        kpis={[
+          { label: "Total de Indicações", value: kpis.total, icon: Users, tone: "primary" },
+          { label: "Em Aberto", value: kpis.pendentes, icon: Clock, tone: "warning" },
+          { label: "Comissão Paga", value: currency(kpis.totalPago), icon: CheckCircle2, tone: "success" },
+          { label: "Comissão a Pagar", value: currency(kpis.totalPendente), icon: DollarSign, tone: "info" },
+        ]}
+        activeCount={(busca ? 1 : 0) + (statusFilter ? 1 : 0) + (indicadorFilter ? 1 : 0)}
+        onClear={() => { setBusca(""); setStatusFilter(""); setIndicadorFilter(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar por indicador, indicado ou contato..." />
+          <FilterSelect icon={UserPlus} value={indicadorFilter} onChange={setIndicadorFilter} options={indicadores} allLabel="Todos os indicadores" />
+          <FilterChips value={statusFilter} onChange={setStatusFilter} options={["Pendente", "Aprovada", "Paga", "Cancelada"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {indicacoes.length > 0 && (
         <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
@@ -420,7 +436,7 @@ export default function Indicacoes() {
       {/* Tabela de Indicações */}
       <Card className="p-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm overflow-hidden">
         <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Histórico de Indicações ({indicacoes.length})</h3>
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Histórico de Indicações ({indicacoesFiltradas.length === indicacoes.length ? indicacoes.length : `${indicacoesFiltradas.length} de ${indicacoes.length}`})</h3>
           <span className="text-[10px] text-[var(--color-text-muted)] uppercase font-mono">Clique no status para avançar o fluxo</span>
         </div>
 
@@ -443,7 +459,7 @@ export default function Indicacoes() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)] text-[var(--color-text-primary)] font-medium">
-                {indicacoes.map((item) => (
+                {indicacoesFiltradas.map((item) => (
                   <tr key={item.id} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors">
                     <td className="p-3 font-bold flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center text-[10px] font-bold">

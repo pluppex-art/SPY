@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -99,6 +100,20 @@ export default function FinanceiroConciliacao() {
   const { financeEntries } = useData();
 
   const [extrato, setExtrato] = useState<ExtratoItem[]>([]);
+
+  const [busca, setBusca] = useState("");
+  const [situacaoFilter, setSituacaoFilter] = useState("");
+  const [tipoFilter, setTipoFilter] = useState("");
+  const extratoFiltrado = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return extrato.filter(i => {
+      if (situacaoFilter === "conciliado" && !i.conciliado) return false;
+      if (situacaoFilter === "pendente" && i.conciliado) return false;
+      if (tipoFilter && i.tipo !== tipoFilter) return false;
+      if (!q) return true;
+      return (i.descricao || "").toLowerCase().includes(q) || (i.documento || "").toLowerCase().includes(q) || (i.banco || "").toLowerCase().includes(q);
+    });
+  }, [extrato, busca, situacaoFilter, tipoFilter]);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -266,41 +281,33 @@ export default function FinanceiroConciliacao() {
         </Button>
       }
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-5 bg-[var(--color-surface)] border border-success/25 shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
-              Lançamentos Conciliados
-            </span>
-            <CheckCircle2 className="w-5 h-5 text-success" />
-          </div>
-          <div className="text-2xl font-black text-success">{conciliados}</div>
-          <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Conferidos e sincronizados com extrato</p>
-        </Card>
-
-        <Card className="p-5 bg-[var(--color-surface)] border border-warning/25 shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
-              Pendentes de Match
-            </span>
-            <AlertCircle className="w-5 h-5 text-warning" />
-          </div>
-          <div className="text-2xl font-black text-warning">{pendentes}</div>
-          <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Aguardando conferência ou aceite por IA</p>
-        </Card>
-
-        <Card className="p-5 bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
-              Lançamentos Importados
-            </span>
-            <Building2 className="w-5 h-5 text-[var(--color-primary-blue)]" />
-          </div>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{extrato.length}</div>
-          <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Via upload de extrato CSV/OFX</p>
-        </Card>
-      </div>
+      <KpiFilterCard
+        id="finConciliacao"
+        className="mb-6"
+        kpis={[
+          { label: "Lançamentos Conciliados", value: conciliados, icon: CheckCircle2, tone: "success", hint: "Conferidos e sincronizados com extrato" },
+          { label: "Pendentes de Match", value: pendentes, icon: AlertCircle, tone: "warning", hint: "Aguardando conferência ou aceite por IA" },
+          { label: "Lançamentos Importados", value: extrato.length, icon: Building2, tone: "primary", hint: "Via upload de extrato CSV/OFX" },
+        ]}
+        activeCount={(busca ? 1 : 0) + (situacaoFilter ? 1 : 0) + (tipoFilter ? 1 : 0)}
+        onClear={() => { setBusca(""); setSituacaoFilter(""); setTipoFilter(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar por descrição, documento ou banco..." />
+          <FilterSelect
+            icon={ArrowDownLeft}
+            value={tipoFilter}
+            onChange={setTipoFilter}
+            options={[{ value: "credito", label: "Créditos" }, { value: "debito", label: "Débitos" }]}
+            allLabel="Créditos e débitos"
+          />
+          <FilterChips
+            value={situacaoFilter}
+            onChange={setSituacaoFilter}
+            options={[{ value: "pendente", label: "Pendentes" }, { value: "conciliado", label: "Conciliados" }]}
+          />
+        </FilterBar>
+      </KpiFilterCard>
 
       {statusChartData.length > 0 && (
         <Card className="p-4 bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs mb-6">
@@ -366,7 +373,7 @@ export default function FinanceiroConciliacao() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">
-              {extrato.map(item => (
+              {extratoFiltrado.map(item => (
                 <tr key={item.id} className="hover:bg-[var(--color-surface-sunken)]/40 transition-colors">
                   <td className="px-5 py-3.5 font-mono text-[var(--color-text-muted)]">{item.data}</td>
                   <td className="px-4 py-3.5 font-medium text-[var(--color-text-primary)]">{item.banco}</td>

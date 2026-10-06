@@ -3,11 +3,12 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
   Receipt, Plus, QrCode, Copy, CheckCircle2, Clock,
-  AlertTriangle, Search, ExternalLink, DollarSign, X, Trash2, Check, Download,
+  AlertTriangle, ExternalLink, DollarSign, X, Trash2, Check, Download,
   Send, MessageCircle, Mail
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { Pagination } from "../../components/ui/Pagination";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ export default function FinanceiroCobrancas() {
   const { dataInicio, dataFim, label: periodoLabel } = useFinanceiroFiltro();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
+  const [metodoFilter, setMetodoFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [novaCobranca, setNovaCobranca] = useState({
     cliente: "",
@@ -84,16 +86,17 @@ export default function FinanceiroCobrancas() {
     return cobrancas.filter(c => {
       const matchQ = c.cliente.toLowerCase().includes(q) || c.metodo.toLowerCase().includes(q);
       const matchSt = statusFilter === "Todos" || c.status === statusFilter;
-      return matchQ && matchSt;
+      const matchMet = !metodoFilter || c.metodo === metodoFilter;
+      return matchQ && matchSt && matchMet;
     });
-  }, [cobrancas, search, statusFilter]);
+  }, [cobrancas, search, statusFilter, metodoFilter]);
 
   // Tabela renderizava TODAS as cobranças filtradas de uma vez — com
   // milhares de lançamentos "Receber", trava o navegador. Pagina só a
   // renderização (os dados já estão em memória); exportação CSV continua
   // usando `filtered` completo.
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [search, statusFilter]);
+  useEffect(() => { setPage(0); }, [search, statusFilter, metodoFilter]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
@@ -241,28 +244,28 @@ export default function FinanceiroCobrancas() {
         </div>
       }
     >
-      <div className="mb-4">
-        <FinanceiroFilterBar />
-      </div>
-
-      {/* KPIs — recortadas pelo filtro de período acima (vencimento) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: Receipt, label: `Emitido (${periodoLabel})`, val: formatCurrency(cobrancasKpis.valorTotal), hint: `${cobrancasKpis.count} cobrança(s)`, color: "text-[var(--color-primary-blue)]" },
-          { icon: CheckCircle2, label: "Liquidadas", val: formatCurrency(cobrancasKpis.valorLiquidado), hint: `${cobrancasKpis.countLiquidadas} cobrança(s)`, color: "text-success" },
-          { icon: Clock, label: "Pendentes", val: formatCurrency(cobrancasKpis.valorPendente), hint: `${cobrancasKpis.countPendentes} cobrança(s)`, color: "text-warning" },
-          { icon: QrCode, label: "Cobranças Pix", val: cobrancasKpis.countPix, hint: "por quantidade", color: "text-[var(--color-text-muted)]" },
-        ].map((k, i) => (
-          <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</span>
-              <k.icon className={`w-4 h-4 ${k.color}`} />
-            </div>
-            <p className="text-xl font-black text-[var(--color-text-primary)]">{k.val}</p>
-            <p className="text-[10px] text-[var(--color-text-faint)] mt-0.5">{k.hint}</p>
-          </Card>
-        ))}
-      </div>
+      {/* KPIs recortadas pelo filtro global de período (vencimento); busca/status/método filtram só a tabela */}
+      <KpiFilterCard
+        id="finCobrancas"
+        className="mb-6"
+        kpis={[
+          { icon: Receipt, label: `Emitido (${periodoLabel})`, value: formatCurrency(cobrancasKpis.valorTotal), hint: `${cobrancasKpis.count} cobrança(s)`, tone: "primary" },
+          { icon: CheckCircle2, label: "Liquidadas", value: formatCurrency(cobrancasKpis.valorLiquidado), hint: `${cobrancasKpis.countLiquidadas} cobrança(s)`, tone: "success" },
+          { icon: Clock, label: "Pendentes", value: formatCurrency(cobrancasKpis.valorPendente), hint: `${cobrancasKpis.countPendentes} cobrança(s)`, tone: "warning" },
+          { icon: QrCode, label: "Cobranças Pix", value: cobrancasKpis.countPix, hint: "por quantidade", tone: "neutral" },
+        ]}
+        activeCount={(search ? 1 : 0) + (statusFilter !== "Todos" ? 1 : 0) + (metodoFilter ? 1 : 0)}
+        onClear={() => { setSearch(""); setStatusFilter("Todos"); setMetodoFilter(""); }}
+      >
+        <FilterBar>
+          <FinanceiroFilterBar />
+        </FilterBar>
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar cobrança por cliente ou método..." />
+          <FilterSelect icon={QrCode} value={metodoFilter} onChange={setMetodoFilter} options={["Pix", "Boleto"]} allLabel="Todos os métodos" />
+          <FilterChips value={statusFilter} onChange={setStatusFilter} allValue="Todos" allLabel="Todos" options={["Liquidada", "Pendente"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {(cobrancasKpis.valorLiquidado > 0 || cobrancasKpis.valorPendente > 0) && (
         <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] mb-6">
@@ -291,36 +294,6 @@ export default function FinanceiroCobrancas() {
           </div>
         </Card>
       )}
-
-      {/* Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-5">
-        <div className="relative flex-1 w-full max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar cobrança por cliente ou método..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl pl-10 pr-4 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          {["Todos", "Liquidada", "Pendente"].map(st => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                statusFilter === st
-                  ? "bg-[var(--color-primary-blue)] !text-white border-[var(--color-primary-blue)]"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Table */}
       <div className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl overflow-hidden shadow-xs">
