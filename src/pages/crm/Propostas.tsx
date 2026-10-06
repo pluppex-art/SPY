@@ -19,7 +19,7 @@ import { ContractsTable } from "./components/Contracts/ContractsTable";
 import { Pagination } from "../../components/ui/Pagination";
 import { handleDownloadPdf } from "./utils/proposalPdf";
 import { cn } from "../../lib/utils";
-import { getMRR } from "../../lib/revenueMetrics";
+import { getFaturamentoContratado } from "../../lib/revenueMetrics";
 import { isContractAtivo } from "../../components/ui/drillColumns";
 import type { Contract } from "../../types";
 import { usePropostasList } from "./usePropostasList";
@@ -158,6 +158,21 @@ export default function Propostas() {
     return (contracts as any[]).filter((c) => inRange(toIsoBR(c.date), dateFrom, dateTo));
   }, [contracts, dateFrom, dateTo]);
 
+  // "Responsável" não existe no contrato — vem do vendedor da proposta que
+  // originou ele (contracts.proposalId -> proposals.id), mesmo FK já usado
+  // pra achar "o contrato vinculado a essa proposta" em PropostasTable.tsx,
+  // só no sentido inverso.
+  const contractsEnriquecidos = useMemo(() => {
+    return (filteredContracts as any[]).map((c: any) => ({
+      ...c,
+      responsavel: (propostas as any[]).find((p: any) => p.id === c.proposalId)?.vendedor || null,
+    }));
+  }, [filteredContracts, propostas]);
+
+  const [contractStatusFilter, setContractStatusFilter] = useState("Todos");
+  const [contractPlanFilter, setContractPlanFilter] = useState("Todos");
+  const [contractVendedorFilter, setContractVendedorFilter] = useState("Todos");
+
   // Sincronização de contrato/fatura + reconciliação de propostas "Aceita" sem
   // contrato correspondente (ou com contrato desatualizado) agora é global —
   // vive em DataContext.tsx e roda assim que os dados do tenant carregam, não
@@ -179,7 +194,7 @@ export default function Propostas() {
     toast.success(`Proposta atualizada para: ${newStatus}`);
   };
 
-  const totalMRR = getMRR(filteredContracts || []);
+  const valorContratosAtivos = getFaturamentoContratado(filteredContracts || []);
 
   const handleEditContract = (contract: Contract) => {
     setEditingContract(contract);
@@ -354,16 +369,23 @@ export default function Propostas() {
       ) : activeTab === "contratos" ? (
         <div className="space-y-6">
           <ContractsKPIs
-            totalMRR={totalMRR}
+            valorAtivos={valorContratosAtivos}
             ativos={filteredContracts.filter((c: any) => c.status === "Ativo").length}
             inadimplentes={filteredContracts.filter((c: any) => c.status === "Inadimplente").length}
             mrrRows={filteredContracts.filter(isContractAtivo)}
             ativosRows={filteredContracts.filter((c: any) => c.status === "Ativo")}
             inadimplentesRows={filteredContracts.filter((c: any) => c.status === "Inadimplente")}
+            contracts={filteredContracts as any[]}
           />
 
           <ContractsTable
-            contracts={filteredContracts as any}
+            contracts={contractsEnriquecidos as any}
+            statusFilter={contractStatusFilter}
+            onStatusFilterChange={setContractStatusFilter}
+            planFilter={contractPlanFilter}
+            onPlanFilterChange={setContractPlanFilter}
+            vendedorFilter={contractVendedorFilter}
+            onVendedorFilterChange={setContractVendedorFilter}
             searchQuery={contractSearch}
             onSearchChange={setContractSearch}
             onDelete={(id) => { deleteContract(id); toast.success("Contrato removido."); }}

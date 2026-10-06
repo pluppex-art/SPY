@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { Input } from "../../components/ui/input";
@@ -14,7 +14,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { ContractsKPIs } from "./components/Contracts/ContractsKPIs";
 import { ContractsTable } from "./components/Contracts/ContractsTable";
 import { handleDownloadPdf } from "./utils/proposalPdf";
-import { getMRR } from "../../lib/revenueMetrics";
+import { getFaturamentoContratado } from "../../lib/revenueMetrics";
 import { isContractAtivo } from "../../components/ui/drillColumns";
 import type { Contract } from "../../types";
 
@@ -36,8 +36,21 @@ export default function Contracts() {
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [contractToDelete, setContractToDelete] = useState<string | null>(null);
-  const { contracts, addContract, updateContract, deleteContract, appSettings, clienteBase } = useData();
+  const [statusFilter, setStatusFilter] = useState("Todos");
+  const [planFilter, setPlanFilter] = useState("Todos");
+  const [vendedorFilter, setVendedorFilter] = useState("Todos");
+  const { contracts, addContract, updateContract, deleteContract, appSettings, clienteBase, proposals } = useData();
   const { activeTenantName } = useAuth();
+
+  // "Responsável" não existe no contrato — vem do vendedor da proposta que
+  // originou ele (contracts.proposalId -> proposals.id), mesmo critério
+  // usado na aba "Contratos & Faturas" de Propostas.tsx.
+  const contractsEnriquecidos = useMemo(() => {
+    return (contracts as any[]).map((c: any) => ({
+      ...c,
+      responsavel: (proposals as any[]).find((p: any) => p.id === c.proposalId)?.vendedor || null,
+    }));
+  }, [contracts, proposals]);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ContractFormData>({
     resolver: zodResolver(contractSchema),
@@ -103,7 +116,7 @@ export default function Contracts() {
     );
   };
 
-  const totalMRR = getMRR(contracts);
+  const valorContratosAtivos = getFaturamentoContratado(contracts);
 
   return (
     <div className="space-y-6">
@@ -121,18 +134,25 @@ export default function Contracts() {
       </div>
 
       <ContractsKPIs
-        totalMRR={totalMRR}
+        valorAtivos={valorContratosAtivos}
         ativos={contracts.filter(c => c.status === "Ativo").length}
         inadimplentes={contracts.filter(c => c.status === "Inadimplente").length}
         mrrRows={contracts.filter(isContractAtivo)}
         ativosRows={contracts.filter(c => c.status === "Ativo")}
         inadimplentesRows={contracts.filter(c => c.status === "Inadimplente")}
+        contracts={contracts}
       />
 
       <ContractsTable
-        contracts={contracts}
+        contracts={contractsEnriquecidos}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        planFilter={planFilter}
+        onPlanFilterChange={setPlanFilter}
+        vendedorFilter={vendedorFilter}
+        onVendedorFilterChange={setVendedorFilter}
         onDelete={(id) => setContractToDelete(id)}
         onEdit={handleEditContract}
         onDownloadPdf={handleContractPdf}
