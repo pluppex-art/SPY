@@ -3,7 +3,7 @@ import { Card } from "../card";
 import { Button } from "../button";
 import { Badge } from "../badge";
 import { EmptyState } from "../empty-state";
-import { FileText, Plus, Pencil, Edit3, Check, Package, Search, Tag, X, Info, FilePlus2 } from "lucide-react";
+import { FileText, Plus, Pencil, Edit3, Check, Package, Search, Tag, X, Info, FilePlus2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
@@ -11,6 +11,7 @@ import { handleDownloadPdf } from "../../../pages/crm/utils/proposalPdf";
 import { PropostaEditorWordModal, PropostaEditorData } from "../modals/crm/PropostaEditorWordModal";
 import { AddProdutoLeadModal } from "../modals/crm/AddProdutoLeadModal";
 import { NovaPropostaWizard } from "../modals/crm/NovaPropostaWizard";
+import { confirmDialog } from "../confirm-dialog";
 import { cn } from "../../../lib/utils";
 
 interface ProductsSectionProps {
@@ -38,7 +39,7 @@ export function ProductsSection({
   companyName,
   leadId,
 }: ProductsSectionProps) {
-  const { updateProposal, proposals, proposalItems, appSettings, leads, updateLead } = useData();
+  const { updateProposal, deleteProposal, proposals, proposalItems, contracts, appSettings, leads, updateLead } = useData();
   const empresaDadosBranding = appSettings?.empresa_dados || {};
   const { formatCurrency } = useLocalization();
 
@@ -191,6 +192,24 @@ export function ProductsSection({
     toast.success("PDF da proposta gerado com sucesso!");
   };
 
+  // Pedido explícito do usuário: lixeira direto neste card tambem, não só
+  // dentro do wizard de edição — mesma confirmação/aviso de contrato
+  // vinculado já usado em PropostasTable.tsx e no wizard.
+  const handleDeleteExistingProposal = async () => {
+    if (!existingProposal) return;
+    const contratoVinculado = (contracts as any[])?.find((c: any) => c.proposalId === existingProposal.id);
+    const ok = await confirmDialog({
+      title: "Excluir proposta",
+      description: contratoVinculado
+        ? `Essa proposta já gerou o contrato de "${contratoVinculado.client}". Excluir a proposta também vai excluir esse contrato e os lançamentos financeiros ligados a ele. Essa ação não pode ser desfeita.`
+        : `Excluir a proposta "${existingProposal.titulo}"? Essa ação não pode ser desfeita.`,
+      confirmText: "Excluir",
+    });
+    if (!ok) return;
+    const deleted = await deleteProposal(existingProposal.id);
+    if (deleted) toast.success("Proposta excluída.");
+  };
+
   const handleAddProdutoDone = (summary: string) => {
     setAlterationLogs((prev: any[]) => [
       { id: Date.now().toString(), author: seller || "Sistema", desc: summary, time: "Agora" },
@@ -260,6 +279,14 @@ export function ProductsSection({
               >
                 <FileText className="w-3.5 h-3.5" /> Baixar PDF
               </Button>
+              <button
+                type="button"
+                onClick={handleDeleteExistingProposal}
+                title="Excluir proposta"
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 hover:border-danger/30 transition-colors cursor-pointer shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
