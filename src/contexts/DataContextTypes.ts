@@ -159,6 +159,17 @@ export interface Reuniao {
   convidados?: string[];
   /** Público da reunião (coluna `escopo`): com cliente/lead, interna entre times ou da equipe. Nulo no histórico. */
   escopo?: 'Cliente' | 'Interna' | 'Equipe' | null;
+  /** Insights estruturados gerados pela IA (coluna `insights_ia`); sentimento é estimativa sobre o texto. */
+  insights_ia?: ReuniaoInsights | null;
+}
+
+export interface ReuniaoInsights {
+  resumo: string;
+  pontos_chave: { texto: string; tom: 'positivo' | 'atencao' | 'neutro' }[];
+  proximos_passos: { titulo: string; prazo_dias: number }[];
+  observacoes: string;
+  sentimento: { rotulo: 'Positivo' | 'Neutro' | 'Negativo'; pontuacao: number };
+  gerado_em: string;
 }
 
 export interface DataContextType {

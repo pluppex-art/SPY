@@ -4568,6 +4568,75 @@ Gere um relatório executivo em markdown com:
   }
 });
 
+// Insights estruturados da reunião (resumo, pontos-chave, próximos passos, sentimento) —
+// gerados a partir do que já está salvo (relatório, transcrição, notas) e gravados em
+// reunioes.insights_ia. O sentimento é uma estimativa da IA sobre o texto, não uma medição.
+app.post("/api/ai/reuniao-insights", requireUser, async (req: any, res: any) => {
+  const { reuniaoId } = req.body ?? {};
+  if (!reuniaoId) return res.status(400).json({ error: "reuniaoId é obrigatório." });
+  const hasAI = process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+  if (!hasAI) return res.status(503).json({ error: "Configure uma chave de IA para gerar insights." });
+
+  try {
+    const { data: row, error } = await req.supabase
+      .from("reunioes")
+      .select('relatorio_ia, transcricao, notas_closer, pauta, "leadName", "companyName"')
+      .eq("id", reuniaoId)
+      .maybeSingle();
+    if (error || !row) return res.status(404).json({ error: "Reunião não encontrada." });
+
+    const conteudo = [
+      row.relatorio_ia ? `RELATÓRIO:\n${String(row.relatorio_ia).slice(0, 4000)}` : "",
+      row.transcricao ? `TRANSCRIÇÃO:\n${String(row.transcricao).slice(0, 4000)}` : "",
+      row.notas_closer ? `NOTAS DO CLOSER:\n${String(row.notas_closer).slice(0, 2000)}` : "",
+    ].filter(Boolean).join("\n\n");
+    if (!conteudo) return res.status(400).json({ error: "A reunião ainda não tem relatório, transcrição ou notas para analisar." });
+
+    const raw = await generateAI(`Você é o analista de vendas do S.P.Y. CRM. Com base APENAS no conteúdo abaixo (não invente fatos), responda SOMENTE com um JSON válido, sem markdown, neste formato exato:
+{"resumo": "2 a 3 frases", "pontos_chave": [{"texto": "...", "tom": "positivo|atencao|neutro"}], "proximos_passos": [{"titulo": "...", "prazo_dias": 3}], "observacoes": "1 a 3 frases com a leitura da IA sobre o cliente e a recomendação", "sentimento": {"rotulo": "Positivo|Neutro|Negativo", "pontuacao": 0}}
+Regras: no máximo 5 pontos_chave e 4 proximos_passos; prazo_dias é inteiro entre 1 e 30; pontuacao é inteiro de 0 a 100 (quão positivo foi o cliente na conversa).
+
+Cliente: ${row.leadName ?? "N/A"} | ${row.companyName ?? "N/A"}
+Pauta: ${row.pauta ?? "Não definida"}
+
+${conteudo}`);
+
+    const jsonText = String(raw).replace(/```json|```/g, "").trim();
+    const start = jsonText.indexOf("{");
+    const end = jsonText.lastIndexOf("}");
+    if (start < 0 || end <= start) return res.status(502).json({ error: "A IA não devolveu um formato válido. Tente de novo." });
+    let parsed: any;
+    try { parsed = JSON.parse(jsonText.slice(start, end + 1)); } catch { return res.status(502).json({ error: "A IA não devolveu um formato válido. Tente de novo." }); }
+
+    const tons = ["positivo", "atencao", "neutro"];
+    const rotulos = ["Positivo", "Neutro", "Negativo"];
+    const insights = {
+      resumo: String(parsed.resumo ?? "").slice(0, 600),
+      pontos_chave: (Array.isArray(parsed.pontos_chave) ? parsed.pontos_chave : []).slice(0, 5).map((p: any) => ({
+        texto: String(p?.texto ?? "").slice(0, 200),
+        tom: tons.includes(p?.tom) ? p.tom : "neutro",
+      })).filter((p: any) => p.texto),
+      proximos_passos: (Array.isArray(parsed.proximos_passos) ? parsed.proximos_passos : []).slice(0, 4).map((p: any) => ({
+        titulo: String(p?.titulo ?? "").slice(0, 160),
+        prazo_dias: Math.min(30, Math.max(1, Math.round(Number(p?.prazo_dias) || 3))),
+      })).filter((p: any) => p.titulo),
+      observacoes: String(parsed.observacoes ?? "").slice(0, 500),
+      sentimento: {
+        rotulo: rotulos.includes(parsed?.sentimento?.rotulo) ? parsed.sentimento.rotulo : "Neutro",
+        pontuacao: Math.min(100, Math.max(0, Math.round(Number(parsed?.sentimento?.pontuacao) || 0))),
+      },
+      gerado_em: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await req.supabase.from("reunioes").update({ insights_ia: insights }).eq("id", reuniaoId);
+    if (updateError) console.error("[Insights Reunião] Erro ao salvar:", updateError.message);
+    res.json({ insights });
+  } catch (err: any) {
+    console.error("[Insights Reunião]", err?.message);
+    res.status(500).json({ error: "Erro ao gerar insights." });
+  }
+});
+
 // ── Admin: Gestão de Empresas Parceiras (Master) ──────────────────────────
 
 /**
