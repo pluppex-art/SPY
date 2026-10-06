@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState } from 'react';
 import {
   Server, RefreshCw, Cpu, Clock,
@@ -31,7 +32,17 @@ export default function Ambientes() {
   const [refreshing, setRefreshing] = useState<string | null>(null);
   const [refreshingAll, setRefreshingAll] = useState(false);
 
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterType, setFilterType] = useState('');
   const operacionalCount = environments.filter(e => e.status === 'operacional').length;
+  const typeOpcoes = Array.from(new Set(environments.map(e => e.type).filter(Boolean))).sort();
+  const filteredEnvs = environments.filter(e => {
+    const q = search.toLowerCase();
+    return (!q || e.name.toLowerCase().includes(q) || e.url.toLowerCase().includes(q) || e.region.toLowerCase().includes(q)) &&
+      (!filterStatus || e.status === filterStatus) &&
+      (!filterType || e.type === filterType);
+  });
 
   const handleRefresh = async (id: string) => {
     setRefreshing(id);
@@ -64,14 +75,36 @@ export default function Ambientes() {
         </div>
       }
     >
+      <KpiFilterCard
+        id="devAmbientes"
+        className="mb-6"
+        kpis={[
+          { label: "Ambientes", value: filteredEnvs.length, icon: Server, tone: "primary" },
+          { label: "Operacionais", value: filteredEnvs.filter(e => e.status === 'operacional').length, icon: Wifi, tone: "success" },
+          { label: "Degradados", value: filteredEnvs.filter(e => e.status === 'degradado').length, icon: Cpu, tone: "warning" },
+          { label: "Offline", value: filteredEnvs.filter(e => e.status === 'offline').length, icon: HardDrive, tone: "danger" },
+        ]}
+        activeCount={(search ? 1 : 0) + (filterStatus ? 1 : 0) + (filterType ? 1 : 0)}
+        onClear={() => { setSearch(''); setFilterStatus(''); setFilterType(''); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por nome, URL ou região..." />
+          <FilterSelect icon={Server} value={filterType} onChange={setFilterType} allLabel="Todos os tipos" options={typeOpcoes} />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} options={Object.entries(STATUS_CONFIG).map(([value, c]) => ({ value, label: c.label }))} />
+        </FilterBar>
+      </KpiFilterCard>
+
       <div className="grid md:grid-cols-2 gap-6 pb-10">
         {loading && (
           <p className="col-span-2 text-center text-slate-500 text-xs py-10">Carregando ambientes...</p>
         )}
+        {!loading && environments.length > 0 && filteredEnvs.length === 0 && (
+          <p className="col-span-2 text-center text-slate-500 text-xs py-10">Nenhum ambiente encontrado para este filtro.</p>
+        )}
         {!loading && environments.length === 0 && (
           <p className="col-span-2 text-center text-slate-500 text-xs py-10">Nenhum ambiente cadastrado.</p>
         )}
-        {environments.map(env => {
+        {filteredEnvs.map(env => {
           const cfg = STATUS_CONFIG[env.status];
           const isRefreshing = refreshing === env.id;
 

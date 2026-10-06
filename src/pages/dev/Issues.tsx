@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState } from 'react';
 import { Plus, Search, AlertCircle, CheckCircle2, Circle, Clock, Flame, MessageSquare } from 'lucide-react';
 import { Card } from "../../components/ui/card";
@@ -32,23 +33,26 @@ export default function Issues() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'todos' | IssueStatus>('todos');
   const [filterSeverity, setFilterSeverity] = useState<'todos' | Severity>('todos');
+  const [filterProject, setFilterProject] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleSaveIssue = async (data: NovaIssuePayload) => {
     await addIssue(data);
   };
 
+  const projectOpcoes = Array.from(new Set(issues.map(i => i.project).filter(Boolean))).sort();
   const filtered = issues.filter(issue => {
     const matchSearch = issue.title.toLowerCase().includes(search.toLowerCase()) || issue.labels.some(l => l.includes(search.toLowerCase()));
     const matchStatus = filterStatus === 'todos' || issue.status === filterStatus;
     const matchSeverity = filterSeverity === 'todos' || issue.severity === filterSeverity;
-    return matchSearch && matchStatus && matchSeverity;
+    const matchProject = !filterProject || issue.project === filterProject;
+    return matchSearch && matchStatus && matchSeverity && matchProject;
   });
 
-  const open = issues.filter(i => i.status === 'aberto').length;
-  const inProgress = issues.filter(i => i.status === 'em andamento').length;
-  const critical = issues.filter(i => i.severity === 'crítico').length;
-  const closed = issues.filter(i => i.status === 'fechado').length;
+  const open = filtered.filter(i => i.status === 'aberto').length;
+  const inProgress = filtered.filter(i => i.status === 'em andamento').length;
+  const critical = filtered.filter(i => i.severity === 'crítico').length;
+  const closed = filtered.filter(i => i.status === 'fechado').length;
 
   return (
     <PageContainer
@@ -63,57 +67,24 @@ export default function Issues() {
     >
       <div className="space-y-6 pb-10">
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "Abertos", value: open, icon: Circle, color: "text-blue-500" },
-            { label: "Em Andamento", value: inProgress, icon: AlertCircle, color: "text-amber-500" },
-            { label: "Críticos", value: critical, icon: Flame, color: "text-rose-500" },
-            { label: "Fechados", value: closed, icon: CheckCircle2, color: "text-emerald-500" },
-          ].map((s, i) => (
-            <Card key={i} className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-              <s.icon className={`w-5 h-5 ${s.color} mb-4`} />
-              <div className="text-2xl font-display font-black text-white mb-1 italic">{s.value}</div>
-              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Filtros */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Buscar por título ou label..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50"
-            />
-          </div>
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value as any)}
-            className="bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50"
-          >
-            <option value="todos">Todos os status</option>
-            <option value="aberto">Aberto</option>
-            <option value="em andamento">Em Andamento</option>
-            <option value="em review">Em Review</option>
-            <option value="fechado">Fechado</option>
-          </select>
-          <select
-            value={filterSeverity}
-            onChange={e => setFilterSeverity(e.target.value as any)}
-            className="bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50"
-          >
-            <option value="todos">Todas severidades</option>
-            <option value="crítico">Crítico</option>
-            <option value="alto">Alto</option>
-            <option value="médio">Médio</option>
-            <option value="baixo">Baixo</option>
-          </select>
-        </div>
+        <KpiFilterCard
+          id="devIssues"
+          kpis={[
+            { label: "Abertos", value: open, icon: Circle, tone: "info" },
+            { label: "Em Andamento", value: inProgress, icon: AlertCircle, tone: "warning" },
+            { label: "Críticos", value: critical, icon: Flame, tone: "danger" },
+            { label: "Fechados", value: closed, icon: CheckCircle2, tone: "success" },
+          ]}
+          activeCount={(search ? 1 : 0) + (filterStatus !== 'todos' ? 1 : 0) + (filterSeverity !== 'todos' ? 1 : 0) + (filterProject ? 1 : 0)}
+          onClear={() => { setSearch(''); setFilterStatus('todos'); setFilterSeverity('todos'); setFilterProject(''); }}
+        >
+          <FilterBar>
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por título ou label..." />
+            <FilterSelect icon={Circle} value={filterStatus} onChange={v => setFilterStatus(v as any)} allValue="todos" allLabel="Todos os status" options={[{ value: 'aberto', label: 'Aberto' }, { value: 'em andamento', label: 'Em Andamento' }, { value: 'em review', label: 'Em Review' }, { value: 'fechado', label: 'Fechado' }]} />
+            <FilterSelect icon={Flame} value={filterSeverity} onChange={v => setFilterSeverity(v as any)} allValue="todos" allLabel="Todas severidades" options={[{ value: 'crítico', label: 'Crítico' }, { value: 'alto', label: 'Alto' }, { value: 'médio', label: 'Médio' }, { value: 'baixo', label: 'Baixo' }]} />
+            <FilterSelect icon={AlertCircle} value={filterProject} onChange={setFilterProject} allLabel="Todos os projetos" options={projectOpcoes} />
+          </FilterBar>
+        </KpiFilterCard>
 
         {/* Lista de Issues */}
         <Card className="overflow-hidden">

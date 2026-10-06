@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState } from 'react';
 import { GitBranch, GitFork, Star, Lock, Globe, Plus, Search, Clock, Code2, Archive, CheckCircle2, ExternalLink, Unlink } from 'lucide-react';
 import { Card } from "../../components/ui/card";
@@ -29,6 +30,8 @@ export default function Repositorios() {
   const { repos, addRepo, githubConn, setGithubConn, disconnectGitHub } = useDevRepositorios();
   const [search, setSearch] = useState('');
   const [filterVisibility, setFilterVisibility] = useState<'todos' | 'public' | 'private'>('todos');
+  const [filterLang, setFilterLang] = useState('');
+  const [filterRepoStatus, setFilterRepoStatus] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
 
@@ -40,15 +43,18 @@ export default function Repositorios() {
     setGithubConn({ username, avatar: '', connected_at: new Date().toISOString() });
   };
 
+  const langOpcoes = Array.from(new Set(repos.map(r => r.language).filter(Boolean))).sort();
   const filtered = repos.filter(r => {
     const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) || r.description.toLowerCase().includes(search.toLowerCase());
     const matchVis = filterVisibility === 'todos' || r.visibility === filterVisibility;
-    return matchSearch && matchVis;
+    const matchLang = !filterLang || r.language === filterLang;
+    const matchStatus = !filterRepoStatus || r.status === filterRepoStatus;
+    return matchSearch && matchVis && matchLang && matchStatus;
   });
 
-  const totalStars = repos.reduce((s, r) => s + r.stars, 0);
-  const totalPRs = repos.reduce((s, r) => s + r.openPRs, 0);
-  const activeRepos = repos.filter(r => r.status !== 'arquivado').length;
+  const totalStars = filtered.reduce((s, r) => s + r.stars, 0);
+  const totalPRs = filtered.reduce((s, r) => s + r.openPRs, 0);
+  const activeRepos = filtered.filter(r => r.status !== 'arquivado').length;
   const ghRepos = repos.filter(r => r.fromGitHub).length;
 
   return (
@@ -94,48 +100,24 @@ export default function Repositorios() {
     >
       <div className="space-y-6 pb-10">
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "Repositórios", value: repos.length, icon: Code2, color: "text-indigo-500" },
-            { label: "Ativos", value: activeRepos, icon: CheckCircle2, color: "text-emerald-500" },
-            { label: "Stars Total", value: totalStars, icon: Star, color: "text-amber-500" },
-            { label: "PRs em Aberto", value: totalPRs, icon: GitBranch, color: "text-blue-500" },
-          ].map((s, i) => (
-            <Card key={i} className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-              <s.icon className={`w-5 h-5 ${s.color} mb-4`} />
-              <div className="text-2xl font-display font-black text-white mb-1 italic">{s.value}</div>
-              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Filtros */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Buscar repositório..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50"
-            />
-          </div>
-          <div className="flex gap-2">
-            {(['todos', 'private', 'public'] as const).map(v => (
-              <button
-                key={v}
-                onClick={() => setFilterVisibility(v)}
-                className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border flex items-center gap-1.5 ${filterVisibility === v ? 'bg-blue-600 text-white border-blue-500' : 'bg-white/[0.02] text-slate-400 border-white/5 hover:bg-white/[0.05]'}`}
-              >
-                {v === 'private' && <Lock className="w-3 h-3" />}
-                {v === 'public' && <Globe className="w-3 h-3" />}
-                {v === 'todos' ? 'Todos' : v === 'private' ? 'Privados' : 'Públicos'}
-              </button>
-            ))}
-          </div>
-        </div>
+        <KpiFilterCard
+          id="devRepositorios"
+          kpis={[
+            { label: "Repositórios", value: filtered.length, icon: Code2, tone: "primary" },
+            { label: "Ativos", value: activeRepos, icon: CheckCircle2, tone: "success" },
+            { label: "Stars Total", value: totalStars, icon: Star, tone: "warning" },
+            { label: "PRs em Aberto", value: totalPRs, icon: GitBranch, tone: "info" },
+          ]}
+          activeCount={(search ? 1 : 0) + (filterVisibility !== 'todos' ? 1 : 0) + (filterLang ? 1 : 0) + (filterRepoStatus ? 1 : 0)}
+          onClear={() => { setSearch(''); setFilterVisibility('todos'); setFilterLang(''); setFilterRepoStatus(''); }}
+        >
+          <FilterBar>
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar repositório..." />
+            <FilterSelect icon={Code2} value={filterLang} onChange={setFilterLang} allLabel="Todas as linguagens" options={langOpcoes} />
+            <FilterSelect icon={Archive} value={filterRepoStatus} onChange={setFilterRepoStatus} allLabel="Todos os status" options={[{ value: 'ativo', label: 'Ativo' }, { value: 'em desenvolvimento', label: 'Em desenvolvimento' }, { value: 'arquivado', label: 'Arquivado' }]} />
+            <FilterChips value={filterVisibility} onChange={v => setFilterVisibility(v as any)} allValue="todos" options={[{ value: 'private', label: 'Privados' }, { value: 'public', label: 'Públicos' }]} />
+          </FilterBar>
+        </KpiFilterCard>
 
         {/* Lista */}
         <Card className="bg-[var(--color-surface-elevated)]/80 border-white/5 overflow-hidden">

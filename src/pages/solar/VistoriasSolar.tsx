@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -60,6 +61,7 @@ export default function VistoriasSolar() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterResp, setFilterResp] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -160,6 +162,7 @@ export default function VistoriasSolar() {
     toast.success("Relatório de vistorias exportado com sucesso!");
   };
 
+  const responsaveis = Array.from(new Set(vistorias.map(v => v.responsavel).filter(Boolean))).sort();
   const filtered = vistorias.filter(v => {
     const matchSearch = (
       v.cliente.toLowerCase().includes(search.toLowerCase()) ||
@@ -167,7 +170,8 @@ export default function VistoriasSolar() {
       v.responsavel.toLowerCase().includes(search.toLowerCase())
     );
     const matchStatus = filterStatus === "Todos" || v.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchResp = !filterResp || v.responsavel === filterResp;
+    return matchSearch && matchStatus && matchResp;
   });
 
   return (
@@ -189,55 +193,24 @@ export default function VistoriasSolar() {
         </div>
       }
     >
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Total de Vistorias</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{vistorias.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Aprovadas / Concluídas</span>
-          <div className="text-2xl font-black text-emerald-500">
-            {vistorias.filter(v => v.status === "Concluída / Aprovada").length}
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Agendadas na Fila</span>
-          <div className="text-2xl font-black text-amber-500">
-            {vistorias.filter(v => v.status === "Agendada").length}
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente, endereço ou responsável..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-amber-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Agendada", "Em Andamento", "Concluída / Aprovada", "Reprovada / Ajuste Necessário"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-amber-500 text-white"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KpiFilterCard
+        id="solarVistorias"
+        className="mb-4"
+        kpis={[
+          { label: "Vistorias", value: filtered.length, icon: ClipboardCheck, tone: "primary" },
+          { label: "Aprovadas", value: filtered.filter(v => v.status === "Concluída / Aprovada").length, icon: CheckCircle2, tone: "success" },
+          { label: "Agendadas", value: filtered.filter(v => v.status === "Agendada").length, icon: Calendar, tone: "warning" },
+          { label: "Reprovadas", value: filtered.filter(v => v.status === "Reprovada / Ajuste Necessário").length, icon: AlertTriangle, tone: "danger" },
+        ]}
+        activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterResp ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterResp(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por cliente, endereço ou responsável..." />
+          <FilterSelect icon={Camera} value={filterResp} onChange={setFilterResp} allLabel="Todos os responsáveis" options={responsaveis} />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" options={["Agendada", "Em Andamento", "Concluída / Aprovada", "Reprovada / Ajuste Necessário"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* List */}
       <div className="space-y-3">

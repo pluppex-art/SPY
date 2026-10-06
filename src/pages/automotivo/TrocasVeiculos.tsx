@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -85,6 +86,7 @@ export default function TrocasVeiculos() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterPagamento, setFilterPagamento] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -174,6 +176,7 @@ export default function TrocasVeiculos() {
     toast.success(`Status da troca: ${newStatus}`);
   };
 
+  const filterPagamentoOpcoes = Array.from(new Set(trocas.map(t => t.formaPagamento).filter(Boolean))).sort();
   const filtered = trocas.filter(t => {
     const matchSearch = (
       t.cliente.toLowerCase().includes(search.toLowerCase()) ||
@@ -181,7 +184,8 @@ export default function TrocasVeiculos() {
       t.veiculoSaida.toLowerCase().includes(search.toLowerCase())
     );
     const matchStatus = filterStatus === "Todos" || t.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchExtra = !filterPagamento || t.formaPagamento === filterPagamento;
+    return matchSearch && matchStatus && matchExtra;
   });
 
   return (
@@ -194,53 +198,24 @@ export default function TrocasVeiculos() {
         </Button>
       }
     >
-      {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Total de Trocas em Andamento</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{trocas.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Diferença Financeira em Aberto</span>
-          <div className="text-2xl font-black text-emerald-500">
-            R$ {(trocas.reduce((s, t) => s + t.diferenca, 0) / 1000).toFixed(0)}k
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Captações via Troca</span>
-          <div className="text-2xl font-black text-blue-500">{trocas.length} veículos</div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente ou veículo..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Em Análise", "Aprovado", "Recusado", "Documentação Pendente"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-[var(--color-primary-blue)] text-white"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KpiFilterCard
+        id="autoTrocas"
+        className="mb-4"
+        kpis={[
+          { label: "Trocas", value: filtered.length, icon: ArrowRightLeft, tone: "primary" },
+          { label: "Diferença em Aberto", value: `R$ ${(filtered.reduce((s, t) => s + t.diferenca, 0) / 1000).toFixed(0)}k`, icon: DollarSign, tone: "success" },
+          { label: "Aprovadas", value: filtered.filter(t => t.status === "Aprovado").length, icon: CheckCircle2, tone: "info" },
+          { label: "Doc. Pendente", value: filtered.filter(t => t.status === "Documentação Pendente").length, icon: TrendingUp, tone: "warning" },
+        ]}
+        activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterPagamento ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterPagamento(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por cliente ou veículo..." />
+          <FilterSelect icon={DollarSign} value={filterPagamento} onChange={setFilterPagamento} allLabel="Todas as formas de pagamento" options={filterPagamentoOpcoes} />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" options={["Em Análise", "Aprovado", "Recusado", "Documentação Pendente"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* List */}
       <div className="space-y-3">

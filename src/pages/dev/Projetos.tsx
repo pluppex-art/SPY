@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState } from 'react';
 import { FolderCode, Plus, Search, Clock, MoreHorizontal, Star, Bug } from 'lucide-react';
 import { Card } from "../../components/ui/card";
@@ -35,19 +36,24 @@ export default function Projetos() {
   const { projects, addProject } = useDevProjects();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('Todos');
+  const [filterStack, setFilterStack] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleSaveProjeto = async (data: NovoProjetoPayload) => {
     await addProject(data);
   };
 
-  const statuses = ['Todos', ...Array.from(new Set(projects.map(p => p.status)))];
+  const statuses = Array.from(new Set(projects.map(p => p.status)));
+  const stackOpcoes = Array.from(new Set(projects.flatMap(p => p.stack))).sort();
 
   const filtered = projects.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === 'Todos' || p.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchStack = !filterStack || p.stack.includes(filterStack);
+    return matchSearch && matchStatus && matchStack;
   });
+
+  const avgProgress = filtered.length ? Math.round(filtered.reduce((a, p) => a + p.progress, 0) / filtered.length) : 0;
 
   return (
     <PageContainer
@@ -62,30 +68,23 @@ export default function Projetos() {
     >
       <div className="space-y-6 pb-10">
 
-        {/* Filtros */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Buscar projetos..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {statuses.map(s => (
-              <button
-                key={s}
-                onClick={() => setFilterStatus(s)}
-                className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${filterStatus === s ? 'bg-blue-600 text-white border-blue-500' : 'bg-white/[0.02] text-slate-400 border-white/5 hover:bg-white/[0.05]'}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
+        <KpiFilterCard
+          id="devProjetos"
+          kpis={[
+            { label: "Projetos", value: filtered.length, icon: FolderCode, tone: "primary" },
+            { label: "Em Produção", value: filtered.filter(p => p.status === 'Em Produção').length, icon: Star, tone: "success" },
+            { label: "Issues Abertas", value: filtered.reduce((a, p) => a + (p.openIssues || 0), 0), icon: Bug, tone: "warning" },
+            { label: "Progresso Médio", value: `${avgProgress}%`, icon: Clock, tone: "info" },
+          ]}
+          activeCount={(search ? 1 : 0) + (filterStatus !== 'Todos' ? 1 : 0) + (filterStack ? 1 : 0)}
+          onClear={() => { setSearch(''); setFilterStatus('Todos'); setFilterStack(''); }}
+        >
+          <FilterBar>
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar projetos..." />
+            <FilterSelect icon={FolderCode} value={filterStack} onChange={setFilterStack} allLabel="Todas as stacks" options={stackOpcoes} />
+            <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" options={statuses} />
+          </FilterBar>
+        </KpiFilterCard>
 
         {/* Projetos Grid */}
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">

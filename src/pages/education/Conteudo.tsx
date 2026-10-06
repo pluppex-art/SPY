@@ -1,6 +1,7 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_DOT } from "../../hooks/useKanbanConfig";
-import { Layers, FileSearch, Star, Download, Plus } from "lucide-react";
+import { Layers, FileSearch, Star, Download, Plus, List as ListIcon, LayoutGrid } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
@@ -40,6 +41,8 @@ export default function Conteudo() {
   const content: ContentItem[] = educationContent.map(rowToContent);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterCurso, setFilterCurso] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
 
@@ -69,27 +72,24 @@ export default function Conteudo() {
     handleClose();
   };
 
-  const typeMap: Record<string, string> = { "Vídeo": "Video", "PDF": "PDF", "Quiz": "Quiz" };
+  const typeMap: Record<string, string> = { "Vídeo": "Video", "PDF": "PDF", "Quiz": "Quiz", "Artigo": "Artigo" };
   const filteredContent = content.filter(c => {
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) ||
       c.course.toLowerCase().includes(search.toLowerCase()) ||
       c.module.toLowerCase().includes(search.toLowerCase());
-    if (selectedCategory === "Todos") return matchesSearch;
-    return matchesSearch && c.type === typeMap[selectedCategory];
+    if (!matchesSearch) return false;
+    if (filterStatus && c.status !== filterStatus) return false;
+    if (filterCurso && c.course !== filterCurso) return false;
+    if (selectedCategory === "Todos") return true;
+    return c.type === typeMap[selectedCategory];
   });
+  const cursoOpcoes = Array.from(new Set(content.map(c => c.course).filter(Boolean))).sort();
 
   const columns = readKanbanConfig(appSettings, KANBAN_KEYS.educacao).map(c => ({
     id: c.id as ContentItem["status"],
     label: c.nome,
     dotColor: KANBAN_COR_DOT[c.cor] ?? KANBAN_COR_DOT.slate,
   }));
-
-  const kpiStats = [
-    { label: "Ativos Totais", value: String(content.length), icon: Layers, color: "text-[#06B6D4]", bg: "bg-[#06B6D4]/10" },
-    { label: "Em Revisão", value: String(content.filter(c => c.status === "Em Revisão").length), icon: FileSearch, color: "text-[#06B6D4]", bg: "bg-[#06B6D4]/10" },
-    { label: "Publicados", value: String(content.filter(c => c.status === "Publicado").length), icon: Star, color: "text-[#06B6D4]", bg: "bg-[#06B6D4]/10" },
-    { label: "Em Rascunho", value: String(content.filter(c => c.status === "Rascunho").length), icon: Download, color: "text-[#06B6D4]", bg: "bg-[#06B6D4]/10" },
-  ];
 
   const handleExport = () => {
     if (filteredContent.length === 0) { toast.error("Nenhum material para exportar."); return; }
@@ -119,12 +119,37 @@ export default function Conteudo() {
       }
     >
       <div className="max-w-[1700px] mx-auto space-y-6 pb-10">
-        <ConteudoKPIs stats={kpiStats} />
-        <ConteudoFilters
-          search={search} onSearchChange={setSearch}
-          selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory}
-          viewMode={viewMode} onViewModeChange={setViewMode}
-        />
+        <KpiFilterCard
+          id="eduConteudo"
+          kpis={[
+            { label: "Ativos Totais", value: filteredContent.length, icon: Layers, tone: "primary" },
+            { label: "Em Revisão", value: filteredContent.filter(c => c.status === "Em Revisão").length, icon: FileSearch, tone: "info" },
+            { label: "Publicados", value: filteredContent.filter(c => c.status === "Publicado").length, icon: Star, tone: "success" },
+            { label: "Em Rascunho", value: filteredContent.filter(c => c.status === "Rascunho").length, icon: Download, tone: "warning" },
+          ]}
+          activeCount={(search ? 1 : 0) + (selectedCategory !== "Todos" ? 1 : 0) + (filterStatus ? 1 : 0) + (filterCurso ? 1 : 0)}
+          onClear={() => { setSearch(""); setSelectedCategory("Todos"); setFilterStatus(""); setFilterCurso(""); }}
+        >
+          <FilterBar>
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por título, curso ou módulo..." />
+            <FilterSelect icon={Layers} value={filterStatus} onChange={setFilterStatus} allLabel="Todos os status" options={["Publicado", "Rascunho", "Em Revisão", "Arquivado"]} />
+            <FilterSelect icon={Star} value={filterCurso} onChange={setFilterCurso} allLabel="Todos os cursos" options={cursoOpcoes} />
+            <FilterChips value={selectedCategory} onChange={setSelectedCategory} allValue="Todos" options={["Vídeo", "PDF", "Quiz", "Artigo"]} />
+            <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
+              {([["Table", ListIcon], ["Kanban", LayoutGrid]] as const).map(([mode, Icon]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  title={mode === "Table" ? "Tabela" : "Kanban"}
+                  onClick={() => setViewMode(mode)}
+                  className={`p-1.5 rounded cursor-pointer ${viewMode === mode ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                </button>
+              ))}
+            </div>
+          </FilterBar>
+        </KpiFilterCard>
         {viewMode === "Table" ? (
           <ConteudoTable items={filteredContent} onEdit={handleOpenEdit} />
         ) : (

@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -78,6 +79,7 @@ export default function TestDrives() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterVendedor, setFilterVendedor] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -155,6 +157,7 @@ export default function TestDrives() {
     toast.success(`Status do test-drive: ${newStatus}`);
   };
 
+  const filterVendedorOpcoes = Array.from(new Set(testDrives.map(t => t.vendedor).filter(Boolean))).sort();
   const filtered = testDrives.filter(t => {
     const matchSearch = (
       t.cliente.toLowerCase().includes(search.toLowerCase()) ||
@@ -162,7 +165,8 @@ export default function TestDrives() {
       t.vendedor.toLowerCase().includes(search.toLowerCase())
     );
     const matchStatus = filterStatus === "Todos" || t.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchExtra = !filterVendedor || t.vendedor === filterVendedor;
+    return matchSearch && matchStatus && matchExtra;
   });
 
   return (
@@ -183,55 +187,24 @@ export default function TestDrives() {
         </div>
       }
     >
-      {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Total de Test-Drives</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{testDrives.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Confirmados Esta Semana</span>
-          <div className="text-2xl font-black text-blue-500">
-            {testDrives.filter(t => t.status === "Confirmada" || t.status === "Agendada").length}
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Realizados com Sucesso</span>
-          <div className="text-2xl font-black text-emerald-500">
-            {testDrives.filter(t => t.status === "Realizada").length}
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente, veículo ou vendedor..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Agendada", "Confirmada", "Realizada", "Cancelada"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-[var(--color-primary-blue)] text-white"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KpiFilterCard
+        id="autoTestDrives"
+        className="mb-4"
+        kpis={[
+          { label: "Test-Drives", value: filtered.length, icon: Calendar, tone: "primary" },
+          { label: "Agendados / Confirmados", value: filtered.filter(t => t.status === "Confirmada" || t.status === "Agendada").length, icon: Clock, tone: "info" },
+          { label: "Realizados", value: filtered.filter(t => t.status === "Realizada").length, icon: CheckCircle2, tone: "success" },
+          { label: "Cancelados", value: filtered.filter(t => t.status === "Cancelada").length, icon: User, tone: "danger" },
+        ]}
+        activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterVendedor ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterVendedor(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por cliente, veículo ou vendedor..." />
+          <FilterSelect icon={User} value={filterVendedor} onChange={setFilterVendedor} allLabel="Todos os vendedores" options={filterVendedorOpcoes} />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" options={["Agendada", "Confirmada", "Realizada", "Cancelada"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* List */}
       <div className="space-y-3">

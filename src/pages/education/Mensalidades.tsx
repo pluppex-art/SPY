@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import {
   Wallet, Search, CheckCircle2, AlertTriangle, Clock, DollarSign,
@@ -142,44 +143,22 @@ export default function Mensalidades() {
     >
       <div className="max-w-[1500px] mx-auto space-y-6 pb-12">
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "A Receber (Pendente)", value: totalPendente, icon: Clock, color: "text-amber-500" },
-            { label: "Em Atraso", value: totalAtrasado, icon: AlertTriangle, color: "text-rose-500" },
-            { label: "Recebido neste Mês", value: totalRecebidoMes, icon: DollarSign, color: "text-emerald-500" },
-            { label: "Alunos Inadimplentes", value: countAtrasado.toString(), icon: Wallet, color: "text-[var(--color-primary-blue)]" },
-          ].map((stat, i) => (
-            <Card key={i} className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">{stat.label}</span>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
-              </div>
-              <div className="text-xl font-black font-mono text-[var(--color-text-primary)]">{stat.value}</div>
-            </Card>
-          ))}
-        </div>
-
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-faint)]" />
-              <input
-                type="text"
-                placeholder="Buscar por nome do aluno..."
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] py-2 pl-10 pr-4 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-4 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-            >
-              {STATUS_FILTERS.map(s => <option key={s}>{s}</option>)}
-            </select>
-          </div>
-        </Card>
+        <KpiFilterCard
+          id="eduMensalidades"
+          kpis={[
+            { label: "A Receber (Pendente)", value: totalPendente, icon: Clock, tone: "warning", hint: "Total do tenant (não depende dos filtros)" },
+            { label: "Em Atraso", value: totalAtrasado, icon: AlertTriangle, tone: "danger", hint: "Total do tenant (não depende dos filtros)" },
+            { label: "Recebido neste Mês", value: totalRecebidoMes, icon: DollarSign, tone: "success", hint: "Total do tenant (não depende dos filtros)" },
+            { label: "Alunos Inadimplentes", value: countAtrasado, icon: Wallet, tone: "primary", hint: "Total do tenant (não depende dos filtros)" },
+          ]}
+          activeCount={(searchQuery ? 1 : 0) + (statusFilter !== "Todos" ? 1 : 0)}
+          onClear={() => { setSearchQuery(""); setStatusFilter("Todos"); }}
+        >
+          <FilterBar>
+            <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por nome do aluno..." />
+            <FilterChips value={statusFilter} onChange={setStatusFilter} allValue="Todos" options={STATUS_FILTERS.filter(x => x !== "Todos")} />
+          </FilterBar>
+        </KpiFilterCard>
 
         {loading && mensalidades.length === 0 ? (
           <div className="text-center py-16 text-[var(--color-text-muted)] text-xs font-bold">Carregando mensalidades...</div>

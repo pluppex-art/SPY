@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -185,56 +186,23 @@ export default function HomologacoesSolar() {
         </div>
       }
     >
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Processos em Tramitação</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{protocolos.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Pareceres Emitidos / Aprovados</span>
-          <div className="text-2xl font-black text-emerald-500">
-            {protocolos.filter(p => p.status.includes("Aprovado") || p.status === "Concluído").length}
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Em Análise Técnica</span>
-          <div className="text-2xl font-black text-blue-500">
-            {protocolos.filter(p => p.status === "Em Análise Técnica").length}
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente, concessionária ou protocolo..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-amber-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Em Análise Técnica", "Aprovado / Aguardando Troca de Medidor", "Agendado com Concessionária", "Concluído"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-amber-500 text-white"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
-
+      <KpiFilterCard
+        id="solarHomologacoes"
+        className="mb-4"
+        kpis={[
+          { label: "Processos", value: filtered.length, icon: FileCheck, tone: "primary" },
+          { label: "Aprovados / Concluídos", value: filtered.filter(p => p.status.includes("Aprovado") || p.status === "Concluído").length, icon: CheckCircle2, tone: "success" },
+          { label: "Em Análise Técnica", value: filtered.filter(p => p.status === "Em Análise Técnica").length, icon: Clock, tone: "info" },
+          { label: "Agendados", value: filtered.filter(p => p.status === "Agendado com Concessionária").length, icon: Building2, tone: "warning" },
+        ]}
+        activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus("Todos"); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por cliente, concessionária ou protocolo..." />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" options={["Em Análise Técnica", "Aprovado / Aguardando Troca de Medidor", "Agendado com Concessionária", "Concluído"]} />
+        </FilterBar>
+      </KpiFilterCard>
       {/* List */}
       <div className="space-y-3">
         {filtered.map(p => (

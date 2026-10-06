@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -66,6 +67,7 @@ export default function AvaliacoesVeiculos() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterAvaliador, setFilterAvaliador] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -155,6 +157,7 @@ export default function AvaliacoesVeiculos() {
     toast.success(`Status da avaliação: ${newStatus}`);
   };
 
+  const filterAvaliadorOpcoes = Array.from(new Set(avaliacoes.map(a => a.avaliador).filter(Boolean))).sort();
   const filtered = avaliacoes.filter(a => {
     const matchSearch = (
       a.veiculo.toLowerCase().includes(search.toLowerCase()) ||
@@ -162,7 +165,8 @@ export default function AvaliacoesVeiculos() {
       a.cliente.toLowerCase().includes(search.toLowerCase())
     );
     const matchStatus = filterStatus === "Todos" || a.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchExtra = !filterAvaliador || a.avaliador === filterAvaliador;
+    return matchSearch && matchStatus && matchExtra;
   });
 
   const handleExportCSV = () => {
@@ -208,55 +212,24 @@ export default function AvaliacoesVeiculos() {
         </div>
       }
     >
-      {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Avaliações Totais</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{avaliacoes.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">FIPE Acumulada</span>
-          <div className="text-2xl font-black text-blue-500">
-            R$ {(avaliacoes.reduce((s, a) => s + a.fipe, 0) / 1000).toFixed(0)}k
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Conversão de Compra</span>
-          <div className="text-2xl font-black text-emerald-500">
-            {avaliacoes.length > 0 ? `${Math.round((avaliacoes.filter(a => a.status === "Aprovado").length / avaliacoes.length) * 100)}%` : "0%"}
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por veículo, placa ou cliente..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Em Avaliação", "Proposta Feita", "Aprovado", "Recusado"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-[var(--color-primary-blue)] text-white"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KpiFilterCard
+        id="autoAvaliacoes"
+        className="mb-4"
+        kpis={[
+          { label: "Avaliações", value: filtered.length, icon: CheckSquare, tone: "primary" },
+          { label: "FIPE Acumulada", value: `R$ ${(filtered.reduce((s, a) => s + a.fipe, 0) / 1000).toFixed(0)}k`, icon: DollarSign, tone: "info" },
+          { label: "Aprovadas", value: filtered.filter(a => a.status === "Aprovado").length, icon: CheckCircle2, tone: "success" },
+          { label: "Conversão de Compra", value: filtered.length > 0 ? `${Math.round((filtered.filter(a => a.status === "Aprovado").length / filtered.length) * 100)}%` : "0%", icon: Gauge, tone: "accent" },
+        ]}
+        activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterAvaliador ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterAvaliador(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por veículo, placa ou cliente..." />
+          <FilterSelect icon={Gauge} value={filterAvaliador} onChange={setFilterAvaliador} allLabel="Todos os avaliadores" options={filterAvaliadorOpcoes} />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" options={["Em Avaliação", "Proposta Feita", "Aprovado", "Recusado"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* List */}
       <div className="space-y-3">

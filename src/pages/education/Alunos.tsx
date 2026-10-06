@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useMemo, useEffect } from "react";
 import { Users, BookOpen, Target, Star, Download, UserPlus } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -24,6 +25,8 @@ interface Student {
 
 export default function Alunos() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterCurso, setFilterCurso] = useState("");
   const { students: rawStudents, addStudent, updateStudent, deleteStudent, turmas, ensureNicheModulesLoaded } = useData();
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,18 +43,16 @@ export default function Alunos() {
     };
   }), [rawStudents, turmas]);
 
-  const filteredAlunos = useMemo(() => students.filter(a =>
-    a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.course.toLowerCase().includes(searchTerm.toLowerCase())
-  ), [students, searchTerm]);
+  const statusOpcoes = useMemo(() => Array.from(new Set(students.map(s => s.status).filter(Boolean))).sort(), [students]);
+  const cursoOpcoes = useMemo(() => Array.from(new Set(students.map(s => s.course).filter(Boolean))).sort(), [students]);
 
-  const kpiStats = useMemo(() => [
-    { label: "Total Estudantes", value: students.length.toString(), icon: Users, color: "text-[var(--color-primary-blue)]", bg: "bg-[var(--color-primary-blue)]/10" },
-    { label: "Alunos Ativos", value: students.filter(s => s.status === "Ativo").length.toString(), icon: BookOpen, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    { label: "Média de Progresso", value: `${students.length > 0 ? Math.round(students.reduce((a, b) => a + b.progress, 0) / students.length) : 0}%`, icon: Target, color: "text-purple-500", bg: "bg-purple-500/10" },
-    { label: "Cursos Cadastrados", value: new Set(students.map(s => s.course).filter(Boolean)).size.toString(), icon: Star, color: "text-amber-500", bg: "bg-amber-500/10" },
-  ], [students]);
+  const filteredAlunos = useMemo(() => students.filter(a =>
+    (a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.course.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (!filterStatus || a.status === filterStatus) &&
+    (!filterCurso || a.course === filterCurso)
+  ), [students, searchTerm, filterStatus, filterCurso]);
 
   const handleDelete = async (id: string) => {
     const student = students.find(s => s.id === id);
@@ -121,9 +122,23 @@ export default function Alunos() {
       }
     >
       <div className="space-y-6 max-w-[1700px] mx-auto pb-12">
-        <AlunosKPIs stats={kpiStats} />
-
-        <AlunosFilters searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+        <KpiFilterCard
+          id="eduAlunos"
+          kpis={[
+            { label: "Estudantes", value: filteredAlunos.length, icon: Users, tone: "primary" },
+            { label: "Alunos Ativos", value: filteredAlunos.filter(s => s.status === "Ativo").length, icon: BookOpen, tone: "success" },
+            { label: "Média de Progresso", value: `${filteredAlunos.length > 0 ? Math.round(filteredAlunos.reduce((a, b) => a + b.progress, 0) / filteredAlunos.length) : 0}%`, icon: Target, tone: "accent" },
+            { label: "Cursos", value: new Set(filteredAlunos.map(s => s.course).filter(Boolean)).size, icon: Star, tone: "warning" },
+          ]}
+          activeCount={(searchTerm ? 1 : 0) + (filterStatus ? 1 : 0) + (filterCurso ? 1 : 0)}
+          onClear={() => { setSearchTerm(""); setFilterStatus(""); setFilterCurso(""); }}
+        >
+          <FilterBar>
+            <FilterSearch value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nome, email ou curso..." />
+            <FilterSelect icon={BookOpen} value={filterStatus} onChange={setFilterStatus} allLabel="Todos os status" options={statusOpcoes} />
+            <FilterSelect icon={Star} value={filterCurso} onChange={setFilterCurso} allLabel="Todos os cursos" options={cursoOpcoes} />
+          </FilterBar>
+        </KpiFilterCard>
 
         <AlunosTable
           students={filteredAlunos}

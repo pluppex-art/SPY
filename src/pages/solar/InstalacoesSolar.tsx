@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -58,6 +59,8 @@ export default function InstalacoesSolar() {
   }, [activeTenantId]);
 
   const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterEquipe, setFilterEquipe] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -170,10 +173,14 @@ export default function InstalacoesSolar() {
     toast.success("Relatório de instalações exportado com sucesso!");
   };
 
+  const equipes = Array.from(new Set(instalacoes.map(i => i.equipe).filter(Boolean))).sort();
   const filtered = instalacoes.filter(i => (
-    i.cliente.toLowerCase().includes(search.toLowerCase()) ||
-    i.equipe.toLowerCase().includes(search.toLowerCase())
+    (i.cliente.toLowerCase().includes(search.toLowerCase()) ||
+    i.equipe.toLowerCase().includes(search.toLowerCase())) &&
+    (!filterStatus || i.status === filterStatus) &&
+    (!filterEquipe || i.equipe === filterEquipe)
   ));
+  const progressoMedio = filtered.length ? Math.round(filtered.reduce((a, i) => a + i.progresso, 0) / filtered.length) : 0;
 
   return (
     <PageContainer
@@ -194,19 +201,24 @@ export default function InstalacoesSolar() {
         </div>
       }
     >
-      {/* Search */}
-      <div className="mb-4">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente ou equipe..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-amber-500"
-          />
-        </div>
-      </div>
+      <KpiFilterCard
+        id="solarInstalacoes"
+        className="mb-4"
+        kpis={[
+          { label: "Obras", value: filtered.length, icon: Wrench, tone: "primary" },
+          { label: "Em Execução", value: filtered.filter(i => i.status !== "Obra Concluída").length, icon: Clock, tone: "warning" },
+          { label: "Concluídas", value: filtered.filter(i => i.status === "Obra Concluída").length, icon: CheckCircle2, tone: "success" },
+          { label: "Progresso Médio", value: `${progressoMedio}%`, icon: CheckSquare, tone: "info" },
+        ]}
+        activeCount={(search ? 1 : 0) + (filterStatus ? 1 : 0) + (filterEquipe ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus(""); setFilterEquipe(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por cliente ou equipe..." />
+          <FilterSelect icon={CheckSquare} value={filterStatus} onChange={setFilterStatus} allLabel="Todas as etapas" options={["Fixação de Estrutura", "Passagem de Cabos", "Instalação Inversor", "Em Execução", "Comissionamento", "Obra Concluída"]} />
+          <FilterSelect icon={Users} value={filterEquipe} onChange={setFilterEquipe} allLabel="Todas as equipes" options={equipes} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

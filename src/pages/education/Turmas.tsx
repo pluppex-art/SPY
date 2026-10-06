@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { GraduationCap, Users, BookOpen, CheckCircle2, Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -27,6 +28,9 @@ export default function Turmas() {
   const { turmas: rawTurmas, addTurma, students, ensureNicheModulesLoaded } = useData();
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
   const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterTurno, setFilterTurno] = useState("");
+  const [filterCurso, setFilterCurso] = useState("");
   const [selectedTurma, setSelectedTurma] = useState<Turma | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -63,23 +67,20 @@ export default function Turmas() {
     );
   }
 
-  const turmasAtivas = turmas.filter(t => t.status === "Ativa").length;
-  const vagasDisponiveis = turmas.reduce((acc, t) => acc + Math.max(0, (t.capacity || 0) - (t.students || 0)), 0);
-  const taxaRetencao = students.length === 0
-    ? "—"
-    : `${Math.round((students.filter((s: any) => s.status === "Ativo" || s.ativo === true || !s.status).length / students.length) * 100)}%`;
-
-  const kpiStats = [
-    { label: "Turmas Ativas", value: String(turmasAtivas), icon: GraduationCap, color: "text-[var(--color-primary-blue)]", bg: "bg-[var(--color-primary-blue)]/10" },
-    { label: "Alunos Matriculados", value: students.length.toLocaleString("pt-BR"), icon: Users, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    { label: "Vagas Disponíveis", value: String(vagasDisponiveis), icon: BookOpen, color: "text-purple-500", bg: "bg-purple-500/10" },
-    { label: "Taxa de Retenção", value: taxaRetencao, icon: CheckCircle2, color: "text-amber-500", bg: "bg-amber-500/10" },
-  ];
-
+  const cursoOpcoes = Array.from(new Set(turmas.map(t => t.subject).filter(Boolean))).sort();
   const filteredTurmas = turmas.filter(t =>
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.instructor.toLowerCase().includes(search.toLowerCase())
+    (t.name.toLowerCase().includes(search.toLowerCase()) ||
+    t.instructor.toLowerCase().includes(search.toLowerCase()) ||
+    t.subject.toLowerCase().includes(search.toLowerCase())) &&
+    (!filterStatus || t.status === filterStatus) &&
+    (!filterTurno || t.shift === filterTurno) &&
+    (!filterCurso || t.subject === filterCurso)
   );
+  const turmasAtivas = filteredTurmas.filter(t => t.status === "Ativa").length;
+  const totalAlunos = filteredTurmas.reduce((acc, t) => acc + (t.students || 0), 0);
+  const totalVagas = filteredTurmas.reduce((acc, t) => acc + (t.capacity || 0), 0);
+  const vagasDisponiveis = filteredTurmas.reduce((acc, t) => acc + Math.max(0, (t.capacity || 0) - (t.students || 0)), 0);
+  const ocupacao = totalVagas === 0 ? "—" : `${Math.round((totalAlunos / totalVagas) * 100)}%`;
 
   return (
     <PageContainer
@@ -97,8 +98,24 @@ export default function Turmas() {
       }
     >
       <div className="max-w-[1700px] mx-auto space-y-6 pb-12">
-        <TurmasKPIs stats={kpiStats} />
-        <TurmasFilters search={search} onSearchChange={setSearch} />
+        <KpiFilterCard
+          id="eduTurmas"
+          kpis={[
+            { label: "Turmas Ativas", value: turmasAtivas, icon: GraduationCap, tone: "primary" },
+            { label: "Alunos Matriculados", value: totalAlunos.toLocaleString("pt-BR"), icon: Users, tone: "success" },
+            { label: "Vagas Disponíveis", value: vagasDisponiveis, icon: BookOpen, tone: "accent" },
+            { label: "Ocupação", value: ocupacao, icon: CheckCircle2, tone: "warning" },
+          ]}
+          activeCount={(search ? 1 : 0) + (filterStatus ? 1 : 0) + (filterTurno ? 1 : 0) + (filterCurso ? 1 : 0)}
+          onClear={() => { setSearch(""); setFilterStatus(""); setFilterTurno(""); setFilterCurso(""); }}
+        >
+          <FilterBar>
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por turma, curso ou professor..." />
+            <FilterSelect icon={BookOpen} value={filterCurso} onChange={setFilterCurso} allLabel="Todos os cursos" options={cursoOpcoes} />
+            <FilterSelect icon={Users} value={filterTurno} onChange={setFilterTurno} allLabel="Todos os turnos" options={["Manhã", "Tarde", "Noite"]} />
+            <FilterChips value={filterStatus} onChange={setFilterStatus} options={["Ativa", "Planejamento", "Concluída"]} />
+          </FilterBar>
+        </KpiFilterCard>
         <TurmasGrid turmas={filteredTurmas} onSelect={setSelectedTurma} />
       </div>
 

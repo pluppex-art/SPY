@@ -1,5 +1,6 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from '../../components/ui/kpi-filter-card';
 import { useMemo, useState } from 'react';
-import { Plus, Zap } from 'lucide-react';
+import { Plus, Zap, Layers, Clock, CheckCircle2, FolderCode, Flame, User } from 'lucide-react';
 import { NovaTarefaSprintModal, type TarefaSprintPayload } from './modals/NovaTarefaSprintModal';
 import { DetalharTarefaSprintModal } from './modals/DetalharTarefaSprintModal';
 import { Button } from '../../components/ui/button';
@@ -59,9 +60,31 @@ export default function Sprints() {
 
   const { tasks, addTask, moveTask } = useDevSprints(activeProjectId);
 
+  const [search, setSearch] = useState('');
+  const [filterAssignee, setFilterAssignee] = useState('');
+  const [filterPriority, setFilterPriority] = useState('');
+
+  const assigneeOpcoes = useMemo(() => Array.from(new Set(tasks.map(t => t.assignee).filter(a => a && a !== '-'))).sort() as string[], [tasks]);
+  const priorityOpcoes = useMemo(() => Array.from(new Set(tasks.map(t => t.priority).filter(Boolean))) as string[], [tasks]);
+
   const tasksFiltered = useMemo(() => {
-    return tasks.filter(t => filterColumns[t.column]);
-  }, [tasks, filterColumns]);
+    const q = search.trim().toLowerCase();
+    return tasks.filter(t =>
+      filterColumns[t.column] &&
+      (!q || t.title.toLowerCase().includes(q) || (t.tags || []).some(tag => tag.toLowerCase().includes(q))) &&
+      (!filterAssignee || t.assignee === filterAssignee) &&
+      (!filterPriority || t.priority === filterPriority)
+    );
+  }, [tasks, filterColumns, search, filterAssignee, filterPriority]);
+
+  const etapasOcultas = (Object.keys(filterColumns) as Column[]).filter(c => !filterColumns[c]).length;
+  const clearFilters = () => {
+    setActiveProjectId(null);
+    setSearch('');
+    setFilterAssignee('');
+    setFilterPriority('');
+    setFilterColumns({ backlog: true, todo: true, inprogress: true, review: true, done: true });
+  };
 
   const totalPoints = tasksFiltered.filter(t => t.column === 'done').reduce((s, t) => s + t.points, 0);
   const totalSprintPoints = tasksFiltered.reduce((s, t) => s + t.points, 0);
@@ -111,27 +134,29 @@ export default function Sprints() {
       }
     >
       <div className="pb-10 space-y-4">
-        {/* Filtros */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="flex-1">
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Projeto</label>
-            <select
+        <KpiFilterCard
+          id="devSprints"
+          kpis={[
+            { label: 'Tarefas', value: tasksFiltered.length, icon: Layers, tone: 'primary' },
+            { label: 'Em Andamento', value: tasksFiltered.filter(t => t.column === 'inprogress').length, icon: Clock, tone: 'warning' },
+            { label: 'Concluídas', value: tasksFiltered.filter(t => t.column === 'done').length, icon: CheckCircle2, tone: 'success' },
+            { label: 'Pontos Concluídos', value: `${totalPoints}/${totalSprintPoints}`, icon: Zap, tone: 'info' },
+          ]}
+          activeCount={(activeProjectId ? 1 : 0) + (etapasOcultas > 0 ? 1 : 0) + (search ? 1 : 0) + (filterAssignee ? 1 : 0) + (filterPriority ? 1 : 0)}
+          onClear={clearFilters}
+        >
+          <FilterBar>
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por título ou tag..." />
+            <FilterSelect
+              icon={FolderCode}
               value={activeProjectId ?? ''}
-              onChange={(e) => setActiveProjectId(e.target.value ? e.target.value : null)}
-              className="w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none"
-            >
-              <option value="">Todos os projetos</option>
-              {projects.map(p => (
-                <option key={String(p.id)} value={String(p.id)}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex-1">
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Etapas</label>
-            <div className="flex flex-wrap gap-2">
+              onChange={v => setActiveProjectId(v ? v : null)}
+              allLabel="Todos os projetos"
+              options={projects.map(p => ({ value: String(p.id), label: p.name }))}
+            />
+            <FilterSelect icon={User} value={filterAssignee} onChange={setFilterAssignee} allLabel="Todos os responsáveis" options={assigneeOpcoes} />
+            <FilterSelect icon={Flame} value={filterPriority} onChange={setFilterPriority} allLabel="Todas as prioridades" options={priorityOpcoes} />
+            <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] flex-wrap" title="Etapas visíveis">
               {(Object.keys(filterColumns) as Column[]).map(colId => {
                 const cfg = COLUMNS.find(c => c.id === colId);
                 const label = cfg?.label ?? colId;
@@ -141,10 +166,10 @@ export default function Sprints() {
                     key={colId}
                     type="button"
                     onClick={() => setFilterColumns(prev => ({ ...prev, [colId]: !prev[colId] }))}
-                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
+                    className={`px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all ${
                       checked
-                        ? 'bg-blue-600/15 text-blue-300 border-blue-500/30'
-                        : 'bg-white/[0.02] text-slate-500 border-white/5 hover:bg-white/[0.05]'
+                        ? 'bg-[var(--color-primary-blue)] !text-white'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
                     }`}
                   >
                     {label}
@@ -152,8 +177,8 @@ export default function Sprints() {
                 );
               })}
             </div>
-          </div>
-        </div>
+          </FilterBar>
+        </KpiFilterCard>
 
         {/* Board */}
         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">

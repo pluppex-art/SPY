@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -233,55 +234,23 @@ export default function ConsignacoesVeiculos() {
         </div>
       }
     >
-      {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Veículos Consignados</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{consignacoes.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Valor em Pátio (Consignado)</span>
-          <div className="text-2xl font-black text-purple-500">
-            R$ {(totalEstoque / 1e6).toFixed(2)}M
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Repasses Pendentes</span>
-          <div className="text-2xl font-black text-amber-500">
-            {consignacoes.filter(c => c.status === "Vendido / Repasse Pendente").length}
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por veículo ou proprietário..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "No Pátio", "Em Negociação", "Vendido / Repasse Pendente", "Repassado & Finalizado"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-[var(--color-primary-blue)] text-white"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KpiFilterCard
+        id="autoConsignacoes"
+        className="mb-4"
+        kpis={[
+          { label: "Veículos Consignados", value: filtered.length, icon: Handshake, tone: "primary" },
+          { label: "Valor em Pátio", value: `R$ ${(filtered.reduce((s, c) => s + c.valorPedido, 0) / 1e6).toFixed(2)}M`, icon: DollarSign, tone: "accent" },
+          { label: "Em Negociação", value: filtered.filter(c => c.status === "Em Negociação").length, icon: Clock, tone: "info" },
+          { label: "Repasses Pendentes", value: filtered.filter(c => c.status === "Vendido / Repasse Pendente").length, icon: Clock, tone: "warning" },
+        ]}
+        activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus("Todos"); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por veículo ou consignante..." />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" options={["No Pátio", "Em Negociação", "Vendido / Repasse Pendente", "Repassado & Finalizado"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* List */}
       <div className="space-y-3">

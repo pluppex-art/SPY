@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { Award, Plus, ShieldCheck, RefreshCw, Star, Search, CheckCircle2, XCircle, Download } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -28,6 +29,8 @@ export default function Certificados() {
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
   const certs: Certificate[] = certificates.map(rowToCert);
   const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterCurso, setFilterCurso] = useState("");
   const [isEmitModalOpen, setIsEmitModalOpen] = useState(false);
   const [studentName, setStudentName] = useState("");
   const [courseName, setCourseName] = useState("");
@@ -64,13 +67,6 @@ export default function Certificados() {
     setValidateResult(found ?? "not_found");
   };
 
-  const kpiStats = [
-    { label: "Diplomas Emitidos", value: certs.length.toString(), icon: Award, color: "text-[#06B6D4]", bg: "bg-[#06B6D4]/10" },
-    { label: "Validações Hoje", value: "12", icon: ShieldCheck, color: "text-[#06B6D4]", bg: "bg-[#06B6D4]/10" },
-    { label: "Processamento", value: certs.filter(c => c.status === "Processando").length.toString(), icon: RefreshCw, color: "text-[#06B6D4]", bg: "bg-[#06B6D4]/10" },
-    { label: "Média Acadêmica", value: "9.2", icon: Star, color: "text-[#06B6D4]", bg: "bg-[#06B6D4]/10" },
-  ];
-
   const handleExportCSV = () => {
     if (certs.length === 0) {
       toast.error("Nenhum certificado para exportar");
@@ -91,11 +87,16 @@ export default function Certificados() {
     toast.success("CSV exportado com sucesso!");
   };
 
+  const cursoOpcoes = Array.from(new Set(certs.map(c => c.course).filter(Boolean))).sort();
   const filteredCerts = certs.filter(c =>
-    c.student.toLowerCase().includes(search.toLowerCase()) ||
+    (c.student.toLowerCase().includes(search.toLowerCase()) ||
     c.course.toLowerCase().includes(search.toLowerCase()) ||
-    c.code.toLowerCase().includes(search.toLowerCase())
+    c.code.toLowerCase().includes(search.toLowerCase())) &&
+    (!filterStatus || c.status === filterStatus) &&
+    (!filterCurso || c.course === filterCurso)
   );
+  const notas = filteredCerts.map(c => parseFloat(String(c.grade).replace(",", "."))).filter(n => !Number.isNaN(n));
+  const mediaNotas = notas.length ? (notas.reduce((a, b) => a + b, 0) / notas.length).toFixed(1) : "—";
 
   return (
     <PageContainer
@@ -127,8 +128,24 @@ export default function Certificados() {
       }
     >
       <div className="max-w-[1700px] mx-auto space-y-8 pb-10">
-        <CertificadosKPIs stats={kpiStats} />
-        <CertificadosFilters search={search} onSearchChange={setSearch} />
+        <KpiFilterCard
+          id="eduCertificados"
+          kpis={[
+            { label: "Certificados", value: filteredCerts.length, icon: Award, tone: "primary" },
+            { label: "Emitidos", value: filteredCerts.filter(c => c.status === "Emitido").length, icon: CheckCircle2, tone: "success" },
+            { label: "Processando", value: filteredCerts.filter(c => c.status === "Processando").length, icon: RefreshCw, tone: "info" },
+            { label: "Revogados", value: filteredCerts.filter(c => c.status === "Revogado").length, icon: XCircle, tone: "danger" },
+            { label: "Média Acadêmica", value: mediaNotas, icon: Star, tone: "accent" },
+          ]}
+          activeCount={(search ? 1 : 0) + (filterStatus ? 1 : 0) + (filterCurso ? 1 : 0)}
+          onClear={() => { setSearch(""); setFilterStatus(""); setFilterCurso(""); }}
+        >
+          <FilterBar>
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por aluno, curso ou código..." />
+            <FilterSelect icon={ShieldCheck} value={filterCurso} onChange={setFilterCurso} allLabel="Todos os cursos" options={cursoOpcoes} />
+            <FilterChips value={filterStatus} onChange={setFilterStatus} options={["Emitido", "Processando", "Revogado"]} />
+          </FilterBar>
+        </KpiFilterCard>
         <CertificadosGrid certs={filteredCerts} />
       </div>
 

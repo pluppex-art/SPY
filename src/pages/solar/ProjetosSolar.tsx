@@ -1,3 +1,4 @@
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -66,6 +67,7 @@ export default function ProjetosSolar() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterCidade, setFilterCidade] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -182,6 +184,7 @@ export default function ProjetosSolar() {
     toast.success("Relatório de projetos solares exportado com sucesso!");
   };
 
+  const cidadesFiltro = Array.from(new Set(projetos.map(p => p.cidade).filter(Boolean))).sort();
   const filtered = projetos.filter(p => {
     const matchSearch = (
       p.cliente.toLowerCase().includes(search.toLowerCase()) ||
@@ -189,7 +192,8 @@ export default function ProjetosSolar() {
       p.concessionaria.toLowerCase().includes(search.toLowerCase())
     );
     const matchStatus = filterStatus === "Todos" || p.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchCidade = !filterCidade || p.cidade === filterCidade;
+    return matchSearch && matchStatus && matchCidade;
   });
 
   return (
@@ -217,61 +221,24 @@ export default function ProjetosSolar() {
         </div>
       }
     >
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Total de Projetos</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{projetos.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Capacidade Total</span>
-          <div className="text-2xl font-black text-amber-500 font-mono">
-            {projetos.reduce((s, p) => s + p.potenciaKwp, 0).toFixed(1)} kWp
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Geração Mensal Estimada</span>
-          <div className="text-2xl font-black text-blue-500 font-mono">
-            {projetos.reduce((s, p) => s + p.geracaoMensalKwh, 0).toLocaleString("pt-BR")} kWh
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">VGV em Contratos</span>
-          <div className="text-2xl font-black text-emerald-500 font-mono">
-            R$ {projetos.reduce((s, p) => s + p.valorContrato, 0).toLocaleString("pt-BR")}
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente, cidade ou concessionária..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-amber-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Dimensionamento", "Vistoria Concluída", "Instalação", "Homologação", "Conectado à Rede"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-amber-500 text-white"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
+      <KpiFilterCard
+        id="solarProjetos"
+        className="mb-4"
+        kpis={[
+          { label: "Projetos", value: filtered.length, icon: Sun, tone: "primary" },
+          { label: "Capacidade Total", value: `${filtered.reduce((s, p) => s + p.potenciaKwp, 0).toFixed(1)} kWp`, icon: Zap, tone: "warning" },
+          { label: "Geração Mensal Est.", value: `${filtered.reduce((s, p) => s + p.geracaoMensalKwh, 0).toLocaleString("pt-BR")} kWh`, icon: Clock, tone: "info" },
+          { label: "VGV em Contratos", value: `R$ ${filtered.reduce((s, p) => s + p.valorContrato, 0).toLocaleString("pt-BR")}`, icon: DollarSign, tone: "success" },
+        ]}
+        activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterCidade ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterCidade(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por cliente, cidade ou concessionária..." />
+          <FilterSelect icon={MapPin} value={filterCidade} onChange={setFilterCidade} allLabel="Todas as cidades" options={cidadesFiltro} />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" options={["Dimensionamento", "Vistoria Concluída", "Instalação", "Homologação", "Conectado à Rede"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Project Cards */}
       <div className="space-y-3">
