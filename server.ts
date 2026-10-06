@@ -4767,6 +4767,22 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
       if (linkError) console.error("[tenant-create] Falha ao vincular a implementação:", linkError.message);
     }
 
+    // Agente de Implementação (n8n) — cria a pasta do cliente e duplica os 4 agentes
+    // (Radar/Closer/Júlia/Agente Secreto); se vier telefone (via implementação), também
+    // inicia a conversa de onboarding no WhatsApp. Fire-and-forget: nunca atrasa nem
+    // derruba a resposta real pro admin que provisionou o tenant.
+    fetch("https://automacao-target-n8n.vr4mar.easypanel.host/webhook/spy-agente-implementacao-tenant-criado", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Webhook-Secret": "2d4c3e77d5eadaaa7f32686cdefd3b4cc343baa62fd72da0b6ab565dc0db6f0d" },
+      body: JSON.stringify({
+        tenant_id: tenantData.id,
+        company: tenantName.trim(),
+        email: adminEmail.trim(),
+        phone: impl?.data?.resp_whatsapp || "",
+        implementation_id: impl?.id || "",
+      }),
+    }).catch((e: any) => console.error("[tenant-create] Falha ao notificar agente de implementacao:", e?.message));
+
     res.json({ success: true, tenantId: tenantData.id, ...(impl ? { empresaDadosSalvos, vinculada } : {}) });
   } catch (err: any) {
     console.error("[tenant-create]", err?.message);
