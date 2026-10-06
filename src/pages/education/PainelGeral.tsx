@@ -19,6 +19,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { apiFetch } from "../../lib/apiClient";
+import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 
 const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899'];
 
@@ -70,6 +71,31 @@ export default function PainelGeralEducation() {
     }));
   }, [turmas, students]);
 
+  type EducationDrillKey = "alunos" | "turmas" | "certificados";
+  const [drillKey, setDrillKey] = useState<EducationDrillKey | null>(null);
+  const alunoColumns: DrillColumn[] = [
+    { header: "Nome", render: (s: any) => <span className="font-bold text-[var(--color-text-primary)]">{s.nome || s.name || "—"}</span> },
+    { header: "Email", render: (s: any) => s.email || "—" },
+    { header: "Curso", render: (s: any) => s.course || "—" },
+    { header: "Status", render: (s: any) => <Badge variant="secondary">{s.status || "—"}</Badge> },
+  ];
+  const turmaColumns: DrillColumn[] = [
+    { header: "Turma", render: (t: any) => <span className="font-bold text-[var(--color-text-primary)]">{t.nome || t.name || "—"}</span> },
+    { header: "Curso", render: (t: any) => t.curso || t.subject || "—" },
+    { header: "Status", render: (t: any) => <Badge variant="secondary">{t.status || "—"}</Badge> },
+  ];
+  const certificadoColumns: DrillColumn[] = [
+    { header: "Aluno", render: (c: any) => <span className="font-bold text-[var(--color-text-primary)]">{c.student || "—"}</span> },
+    { header: "Curso", render: (c: any) => c.course || "—" },
+    { header: "Emitido em", render: (c: any) => c.issue_date || "—" },
+    { header: "Código", render: (c: any) => <span className="font-mono text-[10px]">{c.code || "—"}</span> },
+  ];
+  const educationDrillConfig: Record<EducationDrillKey, { title: string; rows: any[]; columns: DrillColumn[] }> = {
+    alunos: { title: "Total de Alunos", rows: students, columns: alunoColumns },
+    turmas: { title: "Turmas Ativas", rows: turmas, columns: turmaColumns },
+    certificados: { title: "Certificados Emitidos", rows: certificates, columns: certificadoColumns },
+  };
+
   // Status de Mensalidades (Pie)
   const mensalidadesStatusData = useMemo(() => {
     if (!serverSummary) return [];
@@ -107,7 +133,7 @@ export default function PainelGeralEducation() {
         
         {/* KPI Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm">
+          <Card onClick={() => setDrillKey("alunos")} className="p-5 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total de Alunos</span>
               <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
@@ -118,7 +144,7 @@ export default function PainelGeralEducation() {
             <p className="text-[11px] text-slate-500 mt-1">Alunos matriculados no sistema</p>
           </Card>
 
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm">
+          <Card onClick={() => setDrillKey("turmas")} className="p-5 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Turmas Ativas</span>
               <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
@@ -140,7 +166,7 @@ export default function PainelGeralEducation() {
             <p className="text-[11px] text-slate-500 mt-1">Parcelas pagas confirmadas</p>
           </Card>
 
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm">
+          <Card onClick={() => setDrillKey("certificados")} className="p-5 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Certificados Emitidos</span>
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
@@ -316,6 +342,14 @@ export default function PainelGeralEducation() {
         </Card>
 
       </div>
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey ? educationDrillConfig[drillKey].title : undefined}
+        rows={drillKey ? educationDrillConfig[drillKey].rows : []}
+        columns={drillKey ? educationDrillConfig[drillKey].columns : []}
+      />
     </PageContainer>
   );
 }

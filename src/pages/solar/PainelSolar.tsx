@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
+import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 
 interface SolarRow {
   id: string;
@@ -114,6 +115,20 @@ export default function PainelSolar() {
       return { status, count };
     });
   }, [rows]);
+
+  const [drillStatus, setDrillStatus] = useState<string | null>(null);
+  const [drillConcessionaria, setDrillConcessionaria] = useState<string | null>(null);
+  const solarColumns: DrillColumn[] = [
+    { header: "Cliente", render: (r: SolarRow) => <span className="font-bold text-[var(--color-text-primary)]">{r.cliente || "—"}</span> },
+    { header: "Cidade", render: (r: SolarRow) => r.cidade || "—" },
+    { header: "Potência", render: (r: SolarRow) => `${r.potenciaKwp || 0} kWp` },
+    { header: "Valor", render: (r: SolarRow) => fmtBRL(r.valorContrato || 0), className: "text-right" },
+  ];
+  const drillRows = drillStatus
+    ? rows.filter((r) => r.status === drillStatus)
+    : drillConcessionaria
+    ? rows.filter((r) => (r.concessionaria || "Outras") === drillConcessionaria)
+    : [];
 
   return (
     <PageContainer
@@ -242,7 +257,13 @@ export default function PainelSolar() {
             {porEstagio.map(({ status, count }) => {
               const pct = rows.length > 0 ? Math.round((count / rows.length) * 100) : 0;
               return (
-                <div key={status} className="space-y-1">
+                <button
+                  type="button"
+                  key={status}
+                  onClick={() => count > 0 && setDrillStatus(status)}
+                  disabled={count === 0}
+                  className={`w-full text-left space-y-1 rounded-lg transition-colors ${count > 0 ? "cursor-pointer hover:bg-[var(--color-surface-sunken)]/60 -mx-1.5 px-1.5 py-0.5" : "cursor-default"}`}
+                >
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-semibold text-[var(--color-text-primary)]">{status}</span>
                     <span className="font-mono text-[var(--color-text-muted)]">
@@ -255,7 +276,7 @@ export default function PainelSolar() {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -273,7 +294,12 @@ export default function PainelSolar() {
 
             <div className="space-y-2.5">
               {Object.entries(kpis.concMap).map(([conc, qtd], i) => (
-                <div key={i} className="p-3 rounded-xl bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] flex items-center justify-between">
+                <button
+                  type="button"
+                  key={i}
+                  onClick={() => setDrillConcessionaria(conc)}
+                  className="w-full p-3 rounded-xl bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] flex items-center justify-between cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors text-left"
+                >
                   <div>
                     <p className="text-xs font-bold text-[var(--color-text-primary)]">{conc}</p>
                     <p className="text-[10px] text-[var(--color-text-muted)]">Padrão regulatório ANEEL</p>
@@ -281,7 +307,7 @@ export default function PainelSolar() {
                   <span className="text-xs font-black font-mono px-2 py-0.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)]">
                     {qtd} {qtd === 1 ? "usina" : "usinas"}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -329,6 +355,15 @@ export default function PainelSolar() {
           ))}
         </div>
       </div>
+
+      <DrillDownPanel
+        isOpen={drillStatus !== null || drillConcessionaria !== null}
+        onClose={() => { setDrillStatus(null); setDrillConcessionaria(null); }}
+        title={drillStatus || drillConcessionaria || undefined}
+        subtitle={`${drillRows.length} projeto${drillRows.length === 1 ? "" : "s"}`}
+        rows={drillRows}
+        columns={solarColumns}
+      />
     </PageContainer>
   );
 }

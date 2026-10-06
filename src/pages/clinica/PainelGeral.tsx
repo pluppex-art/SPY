@@ -12,12 +12,15 @@ import { PainelRanking } from "./components/PainelGeral/PainelRanking";
 import { PainelInsights } from "./components/PainelGeral/PainelInsights";
 import { Plus } from 'lucide-react';
 import { apiFetch } from "../../lib/apiClient";
+import { Badge } from "../../components/ui/badge";
+import type { DrillColumn } from "../../components/ui/DrillDownPanel";
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 type Stat = {
   label: string; value: string; trend: string | null;
   icon: ComponentType<{ className?: string }>; color: string; bg: string;
+  drill?: { subtitle?: string; rows: any[]; columns: DrillColumn[] };
 };
 
 interface PainelGeralServerSummary {
@@ -83,11 +86,21 @@ export default function ClinicasDashboard() {
   const today = new Date().toISOString().split('T')[0];
   const activeToday = appointments.filter(a => a.date === today).slice(0, 4);
 
+  const appointmentColumns: DrillColumn[] = [
+    { header: "Paciente", render: (a: any) => <span className="font-bold text-[var(--color-text-primary)]">{a.patient || "—"}</span> },
+    { header: "Especialista", render: (a: any) => a.drName || "—" },
+    { header: "Data", render: (a: any) => a.date || "—" },
+    { header: "Status", render: (a: any) => <Badge variant="secondary">{a.status || "—"}</Badge> },
+  ];
+  const confirmedRows = appointments.filter(a => a.status === 'Confirmado' || a.status === 'Em Atendimento');
+  const finalizedRows = appointments.filter(a => a.status === 'Finalizado');
+  const lateRows = appointments.filter(a => a.status === 'Atrasado');
+
   const stats: Stat[] = [
-    { label: "Agendamentos (Total)", value: totalAppointments.toString(), trend: null, icon: Calendar, color: "text-slate-400", bg: "bg-white/5" },
-    { label: "Confirmados / Ativos", value: confirmed.toString(), trend: null, icon: TrendingUp, color: "text-slate-400", bg: "bg-white/5" },
-    { label: "Finalizados", value: finalized.toString(), trend: null, icon: Users, color: "text-slate-400", bg: "bg-white/5" },
-    { label: "Atrasados / Em Fila", value: late.toString(), trend: null, icon: Star, color: "text-slate-400", bg: "bg-white/5" },
+    { label: "Agendamentos (Total)", value: totalAppointments.toString(), trend: null, icon: Calendar, color: "text-slate-400", bg: "bg-white/5", drill: { subtitle: `${appointments.length} agendamento${appointments.length === 1 ? "" : "s"}`, rows: appointments, columns: appointmentColumns } },
+    { label: "Confirmados / Ativos", value: confirmed.toString(), trend: null, icon: TrendingUp, color: "text-slate-400", bg: "bg-white/5", drill: { subtitle: `${confirmedRows.length} agendamento${confirmedRows.length === 1 ? "" : "s"}`, rows: confirmedRows, columns: appointmentColumns } },
+    { label: "Finalizados", value: finalized.toString(), trend: null, icon: Users, color: "text-slate-400", bg: "bg-white/5", drill: { subtitle: `${finalizedRows.length} agendamento${finalizedRows.length === 1 ? "" : "s"}`, rows: finalizedRows, columns: appointmentColumns } },
+    { label: "Atrasados / Em Fila", value: late.toString(), trend: null, icon: Star, color: "text-slate-400", bg: "bg-white/5", drill: { subtitle: `${lateRows.length} agendamento${lateRows.length === 1 ? "" : "s"}`, rows: lateRows, columns: appointmentColumns } },
   ];
 
   return (
