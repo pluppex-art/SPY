@@ -211,33 +211,54 @@ async function refreshAccessToken(
     throw new ReauthRequiredError();
   }
 
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID,
-      client_secret: GOOGLE_CLIENT_SECRET,
-      refresh_token: connection.refresh_token,
-      grant_type: "refresh_token",
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const errCode = (body as any)?.error || "refresh_failed";
-    await supabaseService.from("google_calendar_connections").update({
-      status: "requires_reauth",
-      last_error: `Falha ao renovar token: ${errCode}`,
-      access_token: null,
-    }).eq("id", connection.id);
-    await markGoogleIntegrations(supabaseService, connection.tenant_id, connection.user_id, "needs_reauth", `Falha ao renovar token: ${errCode}`);
-    await logAudit(supabaseService, {
-      tenantId: connection.tenant_id,
-      actor: connection.user_id,
-      action: "google_calendar.token_refresh_failed",
-      details: { errCode },
-    });
-    throw new ReauthRequiredError();
+  // Só erro PERMANENTE (refresh token revogado/expirado, client inválido) derruba a conexão.
+  // 5xx, 429 e falha de rede são transitórios: tenta de novo e, se persistir, falha a chamada
+  // sem mexer no status — a próxima tentativa (ou o job agendado) renova normalmente.
+  const PERMANENT = new Set(["invalid_grant", "invalid_client", "unauthorized_client"]);
+  let res: Response | null = null;
+  let lastErr = "network_error";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          refresh_token: connection.refresh_token,
+          grant_type: "refresh_token",
+        }),
+      });
+    } catch (e: any) {
+      res = null;
+      lastErr = String(e?.message ?? "network_error");
+    }
+    if (res?.ok) break;
+    if (res) {
+      const body = await res.clone().json().catch(() => ({}));
+      const code = (body as any)?.error || `http_${res.status}`;
+      lastErr = code;
+      if (PERMANENT.has(code)) {
+        await supabaseService.from("google_calendar_connections").update({
+          status: "requires_reauth",
+          last_error: `Falha ao renovar token: ${code}`,
+          access_token: null,
+        }).eq("id", connection.id);
+        await markGoogleIntegrations(supabaseService, connection.tenant_id, connection.user_id, "needs_reauth", `Falha ao renovar token: ${code}`);
+        await logAudit(supabaseService, {
+          tenantId: connection.tenant_id,
+          actor: connection.user_id,
+          action: "google_calendar.token_refresh_failed",
+          details: { errCode: code },
+        });
+        throw new ReauthRequiredError();
+      }
+    }
+    if (attempt < 2) await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
+  }
+  if (!res || !res.ok) {
+    await supabaseService.from("google_calendar_connections").update({ last_error: `Falha temporária ao renovar token: ${lastErr}` }).eq("id", connection.id);
+    throw new Error(`Falha temporária ao renovar o token do Google (${lastErr}). Tente novamente.`);
   }
 
   const tokenData = await res.json();

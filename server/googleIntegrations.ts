@@ -70,8 +70,43 @@ export function makeInitialSync(supabase: SupabaseClient | null) {
   };
 }
 
+/**
+ * Job agendado (sem usuário logado): para cada conexão Google ativa, renova o token de forma proativa
+ * (mantém o refresh token "vivo" e detecta revogação cedo) e sincroniza Calendar + Tasks.
+ * Processa em lotes limitados e respeita um orçamento de tempo para caber na função serverless.
+ */
+export async function runScheduledGoogleSync(supabase: SupabaseClient, budgetMs = 50_000) {
+  const started = Date.now();
+  const { data: conns } = await supabase.from("google_calendar_connections")
+    .select("tenant_id, user_id, status").neq("status", "disconnected").neq("status", "requires_reauth")
+    .order("updated_at", { ascending: true }).limit(200);
+  const summary = { users: 0, ok: 0, failed: 0, reauth: 0, skippedByBudget: 0 };
+  for (const c of conns ?? []) {
+    if (Date.now() - started > budgetMs) { summary.skippedByBudget++; continue; }
+    summary.users++;
+    try {
+      await getValidAccessToken(supabase, c.tenant_id, c.user_id); // renova se perto de expirar
+      const outcomes = await runGoogleSync(supabase, c.tenant_id, c.user_id, SERVICES, "scheduled");
+      if (outcomes.some(o => o.error === "reauth_required")) summary.reauth++;
+      else if (outcomes.some(o => !o.ok && !o.skipped)) summary.failed++;
+      else summary.ok++;
+    } catch (err: any) {
+      if (err instanceof ReauthRequiredError) summary.reauth++; else summary.failed++;
+    }
+  }
+  return summary;
+}
+
 export function createGoogleIntegrationsRouter({ requireUser, supabaseService }: { requireUser: (req: any, res: any, next: any) => any; supabaseService: SupabaseClient | null }) {
   const router = Router();
+
+  // Chamado pelo agendador (Vercel Cron envia "Authorization: Bearer $CRON_SECRET"). Sem segredo configurado, fica desligado.
+  router.get("/cron", async (req: any, res) => {
+    const secret = process.env.CRON_SECRET;
+    if (!secret || req.headers.authorization !== `Bearer ${secret}`) return res.status(401).json({ error: "unauthorized" });
+    if (!supabaseService) return res.status(503).json({ error: "not_configured" });
+    res.json(await runScheduledGoogleSync(supabaseService));
+  });
 
   const ctx = async (req: any, res: any): Promise<{ tenantId: string; userId: string } | null> => {
     if (!supabaseService) { res.status(503).json({ error: "Integrações não configuradas no servidor." }); return null; }

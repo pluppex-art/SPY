@@ -3,7 +3,9 @@ import { useData } from "../../../contexts/DataContext";
 import { useAuth } from "../../../contexts/AuthContext";
 import { readKanbanConfig, KANBAN_KEYS, KanbanColConfig } from "../../../hooks/useKanbanConfig";
 import { Task } from "../../../types";
-import { initAuth, googleSignIn, getAccessToken } from "../../../lib/firebase";
+import { supabase } from "../../../lib/supabase";
+import { connectGoogleCalendar } from "../../../lib/google-auth";
+import { getGoogleIntegrationsStatus, syncGoogleIntegrations } from "../../../lib/googleIntegrations";
 import { toast } from "sonner";
 
 export function useTarefas() {
@@ -23,14 +25,16 @@ export function useTarefas() {
   const [needsAuth, setNeedsAuth] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Conexão persistente no servidor: "precisa autorizar" só quando não há conta conectada com Tasks
+  // (ou o Google revogou o acesso) — não depende mais de token de 1h no navegador.
   useEffect(() => {
     if (!activeTenantId) return;
-    const unsubscribe = initAuth(
-      activeTenantId,
-      () => setNeedsAuth(false),
-      () => setNeedsAuth(true)
-    );
-    return () => unsubscribe();
+    let alive = true;
+    getGoogleIntegrationsStatus(activeTenantId).then(st => {
+      if (!alive || !st) return;
+      setNeedsAuth(!(st.connected && st.services.tasks.enabled && st.services.tasks.status === "connected"));
+    });
+    return () => { alive = false; };
   }, [activeTenantId]);
 
   /** Nome de exibição do lead vinculado (substitui o antigo campo livre `related`). */
@@ -54,57 +58,42 @@ export function useTarefas() {
   const handleSyncGoogleTasks = async () => {
     if (!activeTenantId) return;
     setIsSyncing(true);
-    let token = await getAccessToken(activeTenantId);
-
     try {
-      if (!token) {
-        const result = await googleSignIn(activeTenantId);
-        if (result) {
-          token = result.accessToken;
-          setNeedsAuth(false);
-        } else {
-          setIsSyncing(false);
-          return;
-        }
+      const st = await getGoogleIntegrationsStatus(activeTenantId);
+      if (!st || !st.connected || !st.services.tasks.enabled || st.services.tasks.status !== "connected") {
+        // Conecta uma vez (redirect ao Google); depois o servidor mantém a conexão e sincroniza sozinho.
+        await connectGoogleCalendar(activeTenantId, window.location.pathname);
+        return;
+      }
+      const [outcome] = await syncGoogleIntegrations(activeTenantId, ["tasks"]);
+      if (!outcome?.ok) {
+        if (outcome?.error === "reauth_required") { setNeedsAuth(true); toast.error("A autorização do Google expirou — reconecte para continuar."); return; }
+        throw new Error(outcome?.error || "falha");
       }
 
-      const listsRes = await fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const listsData = await listsRes.json();
-
+      // Importa para as Tarefas do Spy o que ainda não existe (por id externo gravado na descrição).
+      const { data: gts } = await supabase!.from("google_tasks")
+        .select("external_task_id, title, due_at, status, deleted")
+        .eq("tenant_id", activeTenantId).eq("deleted", false);
       let importedCount = 0;
-
-      if (listsData.items && listsData.items.length > 0) {
-        for (const list of listsData.items) {
-           const tasksRes = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${list.id}/tasks`, {
-             headers: { Authorization: `Bearer ${token}` }
-           });
-           const tasksData = await tasksRes.json();
-
-           if (tasksData.items) {
-             for (const gTask of tasksData.items) {
-               if (!tasks.some(t => t.title === gTask.title)) {
-                 addTask({
-                   title: gTask.title,
-                   description: "Importado do Google Tasks.",
-                   priority: "Média",
-                   due_date: gTask.due ? new Date(gTask.due).toISOString() : undefined,
-                   status: gTask.status === "completed" ? "Concluída" : "Em Aberto",
-                 });
-                 importedCount++;
-               }
-             }
-           }
-        }
+      for (const g of gts ?? []) {
+        if (!g.title) continue;
+        const marker = `[gtask:${g.external_task_id}]`;
+        if (tasks.some(t => t.description?.includes(marker) || t.title === g.title)) continue;
+        addTask({
+          title: g.title,
+          description: `Importado do Google Tasks. ${marker}`,
+          priority: "Média",
+          due_date: g.due_at ?? undefined,
+          status: g.status === "completed" ? "Concluída" : "Em Aberto",
+        });
+        importedCount++;
       }
-
+      setNeedsAuth(false);
       toast.success(`Sincronização concluída: ${importedCount} tarefas importadas.`);
-
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao sincronizar com Google Tasks. Verifique os popups e permissões.");
-      setNeedsAuth(true);
+      toast.error("Erro ao sincronizar com Google Tasks.");
     } finally {
       setIsSyncing(false);
     }
@@ -214,35 +203,9 @@ export function useTarefas() {
   const highPriorityCount = tasks.filter(t => t.priority === 'Alta' && t.status !== 'Concluída').length;
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  const pushTaskToGoogle = async (task: Task) => {
-    if (!activeTenantId) return;
-    const token = await getAccessToken(activeTenantId);
-    if (!token) return;
-
-    try {
-      const listsRes = await fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const listsData = await listsRes.json();
-      if (!listsData.items || listsData.items.length === 0) return;
-
-      const listId = listsData.items[0].id;
-
-      await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title: task.title,
-          due: task.due_date ? new Date(task.due_date).toISOString() : undefined
-        })
-      });
-    } catch (err) {
-      console.error("Failed to push to Google Tasks:", err);
-    }
-  };
+  // O envio Spy → Google Tasks dependia de um token de navegador (1h, sem renovação) e foi desligado.
+  // A conexão persistente do servidor é somente leitura (Google → Spy); escrita exigiria escopo próprio.
+  const pushTaskToGoogle = async (_task: Task) => {};
 
   const handleSaveTask = (data: any) => {
     const rawDate: string | undefined = data.dataInicio || data.data;

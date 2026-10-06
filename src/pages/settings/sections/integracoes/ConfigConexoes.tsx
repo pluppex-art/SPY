@@ -150,7 +150,7 @@ export function ConfigConexoes() {
               <h2 className="text-sm font-black uppercase tracking-wider text-[var(--color-text-primary)]">{group.title}</h2>
               {group.id === "google" && (
                 <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                  {loading ? "Carregando…" : contaConectada ? `Conta: ${google?.email ?? "—"}` : google?.needsReauth ? "A autorização expirou. Reconecte para continuar sincronizando." : "Nenhuma conta Google conectada."}
+                  {loading ? "Carregando…" : contaConectada ? `Conta: ${google?.email ?? "—"} · sincroniza sozinho a cada 30 min, mesmo com você fora do sistema` : google?.needsReauth ? "A autorização expirou. Reconecte para continuar sincronizando." : "Nenhuma conta Google conectada."}
                 </p>
               )}
             </div>
