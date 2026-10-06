@@ -13,6 +13,8 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { StatCell, StatCellRow } from "./components/StatCell";
 import { saldoDaConta, transferenciasDaConta, type FinanceEntryLike } from "./lib/financeEngine";
 import { cn } from "../../lib/utils";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { contaBancariaDrillColumns } from "../../components/ui/drillColumns";
 
 const TIPOS: { id: string; label: string }[] = [
   { id: "CONTA_CORRENTE", label: "Conta Corrente" },
@@ -80,6 +82,9 @@ export default function FinanceiroContasBancarias() {
     () => listaAtiva.map(c => ({ nome: c.nome, saldo: saldoPorConta.get(c.id) ?? 0 })).sort((a, b) => b.saldo - a.saldo),
     [listaAtiva, saldoPorConta]
   );
+
+  const [drillContasOpen, setDrillContasOpen] = useState(false);
+  const contaColumns = contaBancariaDrillColumns(formatCurrency, saldoPorConta);
 
   const resetForm = () => {
     setNome(""); setTipo("CONTA_CORRENTE"); setSaldoInicial(""); setSinal("POSITIVO"); setEditingId(null);
@@ -156,7 +161,7 @@ export default function FinanceiroContasBancarias() {
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <StatCellRow>
           <StatCell label="Saldo Total (Contas Ativas)" value={formatCurrency(saldoTotalAtivas)} icon={Wallet} tone={saldoTotalAtivas < 0 ? "danger" : "neutral"} />
-          <StatCell label="Contas Ativas" value={listaAtiva.length} icon={Landmark} />
+          <StatCell label="Contas Ativas" value={listaAtiva.length} icon={Landmark} onClick={() => setDrillContasOpen(true)} />
           <StatCell label="Conta Principal" value={contaPrincipal ? contaPrincipal.nome : "—"} icon={Star} hint={contaPrincipal ? formatCurrency(saldoPorConta.get(contaPrincipal.id) ?? 0) : undefined} />
         </StatCellRow>
 
@@ -289,6 +294,15 @@ export default function FinanceiroContasBancarias() {
           </div>
         </form>
       </Modal>
+
+      <DrillDownPanel
+        isOpen={drillContasOpen}
+        onClose={() => setDrillContasOpen(false)}
+        title="Contas Ativas"
+        subtitle={`${listaAtiva.length} conta${listaAtiva.length === 1 ? "" : "s"}`}
+        rows={listaAtiva}
+        columns={contaColumns}
+      />
     </PageContainer>
   );
 }

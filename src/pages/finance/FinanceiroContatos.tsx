@@ -14,6 +14,8 @@ import { StatCell, StatCellRow } from "./components/StatCell";
 import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { parseEntryDate } from "./lib/financeDates";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 type Tipo = "CLIENTE" | "FORNECEDOR" | "FUNCIONARIO";
 const TIPO_LABEL: Record<Tipo, string> = { CLIENTE: "Cliente", FORNECEDOR: "Fornecedor", FUNCIONARIO: "Funcionário" };
@@ -86,10 +88,22 @@ export default function FinanceiroContatos() {
   const financeiroKpis = useMemo(() => {
     const clientes = contatos.filter(c => c.tipos?.includes("CLIENTE"));
     const fornecedores = contatos.filter(c => c.tipos?.includes("FORNECEDOR"));
+    const clienteIds = new Set(clientes.map(c => c.id));
+    const fornecedorIds = new Set(fornecedores.map(c => c.id));
     const totalRecebido = clientes.reduce((s, c) => s + (totaisPorContato.get(c.id) || 0), 0);
     const totalPago = fornecedores.reduce((s, c) => s + (totaisPorContato.get(c.id) || 0), 0);
-    return { totalRecebido, totalPago };
-  }, [contatos, totaisPorContato]);
+    const inPeriodoPago = (e: any) => {
+      if (e.status !== "Pago" || !e.contato_id) return false;
+      const d = parseEntryDate(e.date);
+      return !!d && d >= dataInicio && d <= dataFim;
+    };
+    const recebidoRows = (financeEntries as any[]).filter(e => inPeriodoPago(e) && clienteIds.has(e.contato_id));
+    const pagoRows = (financeEntries as any[]).filter(e => inPeriodoPago(e) && fornecedorIds.has(e.contato_id));
+    return { totalRecebido, totalPago, recebidoRows, pagoRows };
+  }, [contatos, totaisPorContato, financeEntries, dataInicio, dataFim]);
+
+  const [drillKey, setDrillKey] = useState<"recebido" | "pago" | null>(null);
+  const entryColumns = financeEntryDrillColumns(formatCurrency);
 
   const topContatosChart = useMemo(() => {
     if (aba !== "CLIENTE" && aba !== "FORNECEDOR") return [];
@@ -172,8 +186,8 @@ export default function FinanceiroContatos() {
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <FinanceiroFilterBar />
         <StatCellRow>
-          <StatCell label={`Recebido de Clientes (${periodoLabel})`} value={formatCurrency(financeiroKpis.totalRecebido)} icon={TrendingUp} tone="success" hint="Lançamentos pagos, vinculados a um cliente" />
-          <StatCell label={`Pago a Fornecedores (${periodoLabel})`} value={formatCurrency(financeiroKpis.totalPago)} icon={TrendingDown} tone={financeiroKpis.totalPago > 0 ? "danger" : "neutral"} hint="Lançamentos pagos, vinculados a um fornecedor" />
+          <StatCell label={`Recebido de Clientes (${periodoLabel})`} value={formatCurrency(financeiroKpis.totalRecebido)} icon={TrendingUp} tone="success" hint="Lançamentos pagos, vinculados a um cliente" onClick={() => setDrillKey("recebido")} />
+          <StatCell label={`Pago a Fornecedores (${periodoLabel})`} value={formatCurrency(financeiroKpis.totalPago)} icon={TrendingDown} tone={financeiroKpis.totalPago > 0 ? "danger" : "neutral"} hint="Lançamentos pagos, vinculados a um fornecedor" onClick={() => setDrillKey("pago")} />
         </StatCellRow>
 
         {topContatosChart.length > 0 && (
@@ -338,6 +352,15 @@ export default function FinanceiroContatos() {
           </div>
         </form>
       </Modal>
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey === "recebido" ? "Recebido de Clientes" : drillKey === "pago" ? "Pago a Fornecedores" : undefined}
+        subtitle={periodoLabel}
+        rows={drillKey === "recebido" ? financeiroKpis.recebidoRows : drillKey === "pago" ? financeiroKpis.pagoRows : []}
+        columns={entryColumns}
+      />
     </PageContainer>
   );
 }

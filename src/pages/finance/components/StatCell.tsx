@@ -8,6 +8,11 @@ interface StatCellProps {
   icon?: LucideIcon;
   tone?: "neutral" | "danger" | "warning" | "success";
   hint?: string;
+  /** Presente = célula clicável, abre o drill-down com a lista real por
+   * trás do número (ver DrillDownPanel.tsx). Ausente = célula estática,
+   * mesmo comportamento de sempre (médias/razões sem lista 1:1 nunca
+   * recebem onClick). */
+  onClick?: () => void;
 }
 
 const TONE_TEXT: Record<NonNullable<StatCellProps["tone"]>, string> = {
@@ -20,9 +25,12 @@ const TONE_TEXT: Record<NonNullable<StatCellProps["tone"]>, string> = {
 /** Célula de estatística neutra reutilizada pelas telas de análise do
  * financeiro (Inadimplência, MRR, Projeção...) — irmã mais simples do
  * FinanceiroKpiCard do dashboard, sem link nem delta. */
-export function StatCell({ label, value, icon: Icon, tone = "neutral", hint }: StatCellProps) {
+export function StatCell({ label, value, icon: Icon, tone = "neutral", hint, onClick }: StatCellProps) {
   return (
-    <div className="p-5">
+    <div
+      onClick={onClick}
+      className={cn("p-5", onClick && "cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors")}
+    >
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">{label}</span>
         {Icon && <Icon className="w-3.5 h-3.5 text-[var(--color-text-faint)]" />}

@@ -11,6 +11,8 @@ import { downloadCsv } from "../../lib/csvExport";
 import { parseEntryDate } from "./lib/financeDates";
 import { saldoDaConta, transferenciasDaConta, type FinanceEntryLike } from "./lib/financeEngine";
 import { cn } from "../../lib/utils";
+import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
+import { Badge } from "../../components/ui/badge";
 
 /**
  * Extrato (saldo corrido) — §6.5. "Saldo Anterior" é sempre regime de
@@ -104,6 +106,14 @@ export default function FinanceiroExtrato() {
     return pontos;
   }, [saldoAnterior, linhas]);
 
+  const [drillKey, setDrillKey] = useState<"entradas" | "saidas" | null>(null);
+  const linhaColumns: DrillColumn[] = [
+    { header: "Data", render: (l: any) => l.data.toLocaleDateString("pt-BR") },
+    { header: "Descrição", render: (l: any) => <span className="font-bold text-[var(--color-text-primary)]">{l.descricao || "—"}</span> },
+    { header: "Categoria", render: (l: any) => l.isTransfer ? <Badge variant="secondary">Transferência</Badge> : (l.categoria || "—") },
+    { header: "Valor", render: (l: any) => <span className="font-mono">{formatCurrency(Math.abs(l.valor))}</span>, className: "text-right" },
+  ];
+
   return (
     <PageContainer
       title="Extrato"
@@ -144,8 +154,8 @@ export default function FinanceiroExtrato() {
           <>
             <StatCellRow>
               <StatCell label="Saldo Anterior" value={formatCurrency(saldoAnterior)} icon={Landmark} />
-              <StatCell label="Entradas" value={formatCurrency(totalEntradas)} icon={ArrowUpRight} tone="success" />
-              <StatCell label="Saídas" value={formatCurrency(totalSaidas)} icon={ArrowDownRight} tone="danger" />
+              <StatCell label="Entradas" value={formatCurrency(totalEntradas)} icon={ArrowUpRight} tone="success" onClick={() => setDrillKey("entradas")} />
+              <StatCell label="Saídas" value={formatCurrency(totalSaidas)} icon={ArrowDownRight} tone="danger" onClick={() => setDrillKey("saidas")} />
               <StatCell label="Saldo Final" value={formatCurrency(saldoFinal)} icon={Wallet} tone={saldoFinal < 0 ? "danger" : "neutral"} />
             </StatCellRow>
 
@@ -219,6 +229,14 @@ export default function FinanceiroExtrato() {
           </Card>
         )}
       </div>
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey === "entradas" ? "Entradas" : drillKey === "saidas" ? "Saídas" : undefined}
+        rows={drillKey === "entradas" ? linhas.filter((l: any) => l.valor > 0) : drillKey === "saidas" ? linhas.filter((l: any) => l.valor < 0) : []}
+        columns={linhaColumns}
+      />
     </PageContainer>
   );
 }
