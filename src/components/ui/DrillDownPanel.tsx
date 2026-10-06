@@ -16,6 +16,7 @@ export function DrillDownPanel<T = any>({
   rows,
   columns,
   emptyLabel = "Nenhum registro ainda.",
+  loading = false,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -24,6 +25,11 @@ export function DrillDownPanel<T = any>({
   rows: T[];
   columns: DrillColumn<T>[];
   emptyLabel?: string;
+  /** true = ainda buscando os registros (ex.: drill-down que depende de uma
+   * busca assíncrona, não de um array já em memória) — mostra "Carregando..."
+   * em vez do estado vazio, pra não parecer que a lista está genuinamente
+   * sem registros enquanto a busca não voltou. */
+  loading?: boolean;
 }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} position="right" maxWidth="max-w-xl" noPadding title={title} description={subtitle}>
@@ -47,7 +53,7 @@ export function DrillDownPanel<T = any>({
             {rows.length === 0 && (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-10 text-center text-[var(--color-text-faint)]">
-                  {emptyLabel}
+                  {loading ? "Carregando..." : emptyLabel}
                 </td>
               </tr>
             )}

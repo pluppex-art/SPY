@@ -13,6 +13,8 @@ import { parseEntryDate } from "./lib/financeDates";
 import { cn } from "../../lib/utils";
 import { useFinanceTransacoesList } from "./useFinanceTransacoesList";
 import { Pagination } from "../../components/ui/Pagination";
+import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
+import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 const STATUS_STYLE: Record<string, { icon: typeof CheckCircle2; className: string }> = {
   Pago: { icon: CheckCircle2, className: "bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/20" },
@@ -47,6 +49,24 @@ export default function FinanceiroTransacoes() {
     );
   };
 
+  // KPIs vêm de uma query própria (totais, sem os registros) e a página
+  // visível é só 50 por vez — nenhum array completo em memória pra drillar
+  // sincronamente. O clique dispara `fetchAllForExport()` (já existe, usada
+  // no CSV) com os mesmos filtros atuais, e o painel mostra "Carregando..."
+  // até a busca voltar.
+  const [drillKey, setDrillKey] = useState<"entradas" | "saidas" | "total" | null>(null);
+  const [drillRows, setDrillRows] = useState<any[]>([]);
+  const [drillLoading, setDrillLoading] = useState(false);
+  const entryColumns = financeEntryDrillColumns(formatCurrency);
+
+  const openDrill = async (key: "entradas" | "saidas" | "total") => {
+    setDrillKey(key);
+    setDrillLoading(true);
+    const all = await fetchAllForExport();
+    setDrillRows(key === "entradas" ? all.filter((t: any) => t.type === "Receber") : key === "saidas" ? all.filter((t: any) => t.type === "Pagar") : all);
+    setDrillLoading(false);
+  };
+
   return (
     <PageContainer
       title="Todas as Movimentações"
@@ -58,10 +78,10 @@ export default function FinanceiroTransacoes() {
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <StatCellRow>
-          <StatCell label="Entradas (filtro atual)" value={formatCurrency(totalEntradas)} icon={ArrowUpRight} tone="success" />
-          <StatCell label="Saídas (filtro atual)" value={formatCurrency(totalSaidas)} icon={ArrowDownLeft} tone="danger" />
+          <StatCell label="Entradas (filtro atual)" value={formatCurrency(totalEntradas)} icon={ArrowUpRight} tone="success" onClick={() => openDrill("entradas")} />
+          <StatCell label="Saídas (filtro atual)" value={formatCurrency(totalSaidas)} icon={ArrowDownLeft} tone="danger" onClick={() => openDrill("saidas")} />
           <StatCell label="Saldo (filtro atual)" value={formatCurrency(totalEntradas - totalSaidas)} icon={Scale} tone={totalEntradas - totalSaidas < 0 ? "danger" : "neutral"} />
-          <StatCell label="Lançamentos" value={total} icon={Search} />
+          <StatCell label="Lançamentos" value={total} icon={Search} onClick={() => openDrill("total")} />
         </StatCellRow>
 
         <div className="flex flex-col sm:flex-row gap-3 items-center justify-between print:hidden">
@@ -143,6 +163,15 @@ export default function FinanceiroTransacoes() {
           itemLabel="lançamento"
         />
       </div>
+
+      <DrillDownPanel
+        isOpen={drillKey !== null}
+        onClose={() => setDrillKey(null)}
+        title={drillKey === "entradas" ? "Entradas (filtro atual)" : drillKey === "saidas" ? "Saídas (filtro atual)" : drillKey === "total" ? "Lançamentos" : undefined}
+        rows={drillRows}
+        columns={entryColumns}
+        loading={drillLoading}
+      />
     </PageContainer>
   );
 }
