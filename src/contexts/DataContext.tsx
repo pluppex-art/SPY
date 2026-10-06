@@ -667,6 +667,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       progress: 100,
       proposalId: r.proposal_id ?? null,
       cancelledAt: r.cancelled_at ?? null,
+      responsavelId: r.responsavel_id ?? null,
+      paymentMethod: r.payment_method ?? null,
+      observacoes: r.observacoes ?? null,
     };
   };
 
@@ -2161,6 +2164,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         end_date: endDate,
         description: contract.description ?? null,
         notes: `Cliente: ${contract.client} | Plano: ${contract.plan}`,
+        responsavel_id: contract.responsavelId ?? null,
+        payment_method: contract.paymentMethod ?? null,
+        observacoes: contract.observacoes ?? null,
       });
       if (error) {
         console.error("Supabase add contract failed:", error.message);
@@ -2221,6 +2227,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         end_date: endDate,
         description: merged.description ?? null,
         notes: `Cliente: ${merged.client} | Plano: ${merged.plan}`,
+        responsavel_id: merged.responsavelId ?? null,
+        payment_method: merged.paymentMethod ?? null,
+        observacoes: merged.observacoes ?? null,
       }).eq('id', id);
       if (error) {
         console.error("Supabase update contract failed:", error.message);

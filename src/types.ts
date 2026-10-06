@@ -202,6 +202,18 @@ export interface Contract {
    * proposta que gerou o contrato) — separado do `plan`, que é o produto do
    * catálogo vendido. */
   description?: string | null;
+  /** Colaborador interno responsável pelo contrato (Colaborador.id) — diferente
+   * de `user_id` (coluna real não usada, aponta pra `users`/login, não pra
+   * colaboradores). */
+  responsavelId?: string | null;
+  /** Um dos valores de NovaPropostaWizard.PAYMENT_METHOD_OPTIONS (Boleto
+   * bancário/PIX/Cartão de crédito/Transferência bancária) — herdado da
+   * proposta de origem quando existe, editável depois daí. */
+  paymentMethod?: string | null;
+  /** Observações livres sobre o contrato (condições especiais, próximos
+   * passos...) — separado de `description` (usado no título) e de `notes`
+   * (reservado pro parsing de cliente/plano em rowToContract). */
+  observacoes?: string | null;
 }
 
 export interface LeadActivity {

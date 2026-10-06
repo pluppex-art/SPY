@@ -3,9 +3,7 @@ import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { Plus, FileText, FileSignature, Workflow, Search, X, Send, Eye as EyeIcon, CheckCircle2, XCircle, FileEdit } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
-import { Modal } from "../../components/ui/modal";
 import { Input } from "../../components/ui/input";
-import { FormField } from "../../components/ui/form-field";
 import { PageContainer } from "../../components/PageContainer";
 import { toast } from "sonner";
 import { useData } from "../../contexts/DataContext";
@@ -16,6 +14,7 @@ import { PropostasKPIs } from "./components/Propostas/PropostasKPIs";
 import { PropostasTable, etapaDe } from "./components/Propostas/PropostasTable";
 import { ContractsKPIs } from "./components/Contracts/ContractsKPIs";
 import { ContractsTable } from "./components/Contracts/ContractsTable";
+import { ContractFormModal, type ContractFormPayload } from "./components/Contracts/ContractFormModal";
 import { Pagination } from "../../components/ui/Pagination";
 import { handleDownloadPdf } from "./utils/proposalPdf";
 import { cn } from "../../lib/utils";
@@ -106,6 +105,9 @@ export default function Propostas() {
     contracts,
     updateContract,
     deleteContract,
+    clienteBase,
+    updateClienteBase,
+    colaboradores,
     appSettings,
     products,
   } = useData();
@@ -113,12 +115,6 @@ export default function Propostas() {
 
   const [activeTab, setActiveTab] = useState<"propostas" | "contratos" | "funil">("propostas");
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
-  const [editClient, setEditClient] = useState("");
-  const [editPlan, setEditPlan] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editMrr, setEditMrr] = useState("");
-  const [editDate, setEditDate] = useState("");
-  const [editEndDate, setEditEndDate] = useState("");
   const [contractSearch, setContractSearch] = useState("");
   const [isPropostaModalOpen, setIsPropostaModalOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState<string | null>(null);
@@ -158,16 +154,18 @@ export default function Propostas() {
     return (contracts as any[]).filter((c) => inRange(toIsoBR(c.date), dateFrom, dateTo));
   }, [contracts, dateFrom, dateTo]);
 
-  // "Responsável" não existe no contrato — vem do vendedor da proposta que
-  // originou ele (contracts.proposalId -> proposals.id), mesmo FK já usado
-  // pra achar "o contrato vinculado a essa proposta" em PropostasTable.tsx,
-  // só no sentido inverso.
+  // "Responsável" na tabela usa o colaborador gravado direto no contrato
+  // (campo real, editável) — cai pro vendedor da proposta de origem só como
+  // fallback pra contratos antigos sem responsável definido ainda.
   const contractsEnriquecidos = useMemo(() => {
-    return (filteredContracts as any[]).map((c: any) => ({
-      ...c,
-      responsavel: (propostas as any[]).find((p: any) => p.id === c.proposalId)?.vendedor || null,
-    }));
-  }, [filteredContracts, propostas]);
+    return (filteredContracts as any[]).map((c: any) => {
+      const colaborador = (colaboradores as any[]).find((col: any) => col.id === c.responsavelId);
+      return {
+        ...c,
+        responsavel: colaborador?.nome || (propostas as any[]).find((p: any) => p.id === c.proposalId)?.vendedor || null,
+      };
+    });
+  }, [filteredContracts, colaboradores, propostas]);
 
   const [contractStatusFilter, setContractStatusFilter] = useState("Todos");
   const [contractPlanFilter, setContractPlanFilter] = useState("Todos");
@@ -198,20 +196,19 @@ export default function Propostas() {
 
   const handleEditContract = (contract: Contract) => {
     setEditingContract(contract);
-    setEditClient(contract.client);
-    setEditPlan(contract.plan);
-    setEditDescription(contract.description || "");
-    setEditMrr(String(typeof contract.mrr === "number" ? contract.mrr : contract.mrr).replace(/[^\d,.-]/g, ""));
-    setEditDate(contract.date || "");
-    setEditEndDate(contract.endDate || "");
   };
 
-  const handleSaveEditContract = () => {
+  const handleSaveEditContract = async (payload: ContractFormPayload) => {
     if (!editingContract) return;
-    const cleanValue = parseFloat(editMrr.replace(/[^0-9,.]/g, "").replace(",", "."));
-    const formattedValue = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 }).format(isNaN(cleanValue) ? 0 : cleanValue);
-    updateContract(editingContract.id, { client: editClient, plan: editPlan, description: editDescription || null, mrr: formattedValue, date: editDate, endDate: editEndDate || null });
+    const { clienteIndustry, ...contractFields } = payload;
+    await updateContract(editingContract.id, contractFields);
     toast.success("Contrato atualizado com sucesso!");
+    // Setor do Cliente vive em `clientes.industry`, não no contrato — só
+    // grava quando mudou de verdade (mesma regra de Contracts.tsx).
+    const clienteAlvo = (clienteBase as any[]).find((c: any) => c.name === payload.client);
+    if (clienteAlvo && clienteIndustry && clienteAlvo.industry !== clienteIndustry) {
+      await updateClienteBase(clienteAlvo.id, { industry: clienteIndustry });
+    }
     setEditingContract(null);
   };
 
@@ -405,46 +402,14 @@ export default function Propostas() {
         onDone={() => refetchPropostas()}
       />
 
-      <Modal
+      <ContractFormModal
         isOpen={!!editingContract}
         onClose={() => setEditingContract(null)}
-        title="Editar Contrato"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setEditingContract(null)}>Cancelar</Button>
-            <Button onClick={handleSaveEditContract}>Salvar Alterações</Button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <FormField label="Cliente">
-            <Input value={editClient} onChange={(e) => setEditClient(e.target.value)} />
-          </FormField>
-          <FormField label="Plano Acordado">
-            <Input value={editPlan} onChange={(e) => setEditPlan(e.target.value)} />
-          </FormField>
-          <FormField label="Descrição (opcional)">
-            <Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Ex: Proposta Comercial — Nome do Cliente" />
-          </FormField>
-          <FormField label="Valor (MRR)">
-            <Input value={editMrr} onChange={(e) => setEditMrr(e.target.value)} placeholder="Ex: 1500,00" />
-          </FormField>
-          <FormField label="Data de Assinatura">
-            <Input
-              type="date"
-              value={/^\d{2}\/\d{2}\/\d{4}$/.test(editDate) ? editDate.split("/").reverse().join("-") : editDate}
-              onChange={(e) => setEditDate(e.target.value.split("-").reverse().join("/"))}
-            />
-          </FormField>
-          <FormField label="Data de Término (opcional)">
-            <Input
-              type="date"
-              value={/^\d{2}\/\d{2}\/\d{4}$/.test(editEndDate) ? editEndDate.split("/").reverse().join("-") : editEndDate}
-              onChange={(e) => setEditEndDate(e.target.value ? e.target.value.split("-").reverse().join("/") : "")}
-            />
-          </FormField>
-        </div>
-      </Modal>
+        contract={editingContract}
+        clienteBase={clienteBase as any[]}
+        colaboradores={colaboradores as any[]}
+        onSave={handleSaveEditContract}
+      />
     </PageContainer>
   );
 }
