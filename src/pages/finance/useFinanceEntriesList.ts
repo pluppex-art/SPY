@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 
-const PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
 
 export interface FinanceEntriesFilters {
@@ -15,6 +15,7 @@ export interface FinanceEntriesFilters {
   centroCustoId: string;
   dataInicio: string;
   dataFim: string;
+  pageSize?: number;
 }
 
 /**
@@ -34,7 +35,7 @@ export interface FinanceEntriesFilters {
  */
 export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
   const { activeTenantId: tenantId, activeFilialId } = useAuth();
-  const { type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim } = filters;
+  const { type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, pageSize: PAGE_SIZE = DEFAULT_PAGE_SIZE } = filters;
 
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<any[]>([]);
@@ -42,7 +43,7 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
   const [totalValue, setTotalValue] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { setPage(0); }, [type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim]);
+  useEffect(() => { setPage(0); }, [type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, PAGE_SIZE]);
 
   const requestIdRef = useRef(0);
 
@@ -96,7 +97,7 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
     fetchPage();
     fetchTotalValue();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, activeFilialId, type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, page]);
+  }, [tenantId, activeFilialId, type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, page, PAGE_SIZE]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 

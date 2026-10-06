@@ -4,12 +4,12 @@ import { EmptyState } from "../../components/ui/empty-state";
 import {
   Download, Calendar, CheckCircle2,
   Clock, AlertTriangle, Plus, Trash2, DollarSign, Pencil, Lock, Repeat, Layers, User, Landmark, HelpCircle,
-  TrendingUp, TrendingDown, BarChart3, HourglassIcon,
+  TrendingUp, TrendingDown, BarChart3, HourglassIcon, Copy, ArrowUpRight, ArrowDownRight, Minus, Tag,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { Switch } from "../../components/ui/switch";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
@@ -22,7 +22,8 @@ import { parseEntryDate } from "./lib/financeDates";
 import { useFinanceEntriesList } from "./useFinanceEntriesList";
 import { Pagination } from "../../components/ui/Pagination";
 import { type Frequencia, addPeriodo, splitInstallments } from "../../lib/saleCalculator";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { Sparkline } from "../../components/ui/sparkline";
 import { isInMonth, pctDelta, getMonthlyRealizedSeries } from "./lib/financeEngine";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
@@ -221,6 +222,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const [filtroCentroCustoId, setFiltroCentroCustoId] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [pageSizeSel, setPageSizeSel] = useState(10);
   // Achado de UX 2026-09-21: os 7 filtros ficavam sempre visíveis antes de
   // qualquer dado — quem só quer ver "o que tenho a receber esse mês" caía
   // direto num formulário de 7 campos. Conta Bancária/Centro de Custo/período
@@ -251,9 +253,13 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     centroCustoId: filtroCentroCustoId,
     dataInicio: filtroDataInicio,
     dataFim: filtroDataFim,
+    pageSize: pageSizeSel,
   });
 
+  useEffect(() => { setSelecionados(new Set()); }, [filteredData]);
+
   const [formErrors, setFormErrors] = useState<{ desc?: string; value?: string; category?: string }>({});
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
   const resetAddForm = () => {
     setNewDesc("");
@@ -367,7 +373,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   // Exportação precisa de TODOS os lançamentos que batem o filtro, não só a
   // página atual visível na tela — busca à parte, sem paginação.
   const handleExport = async () => {
-    const allFiltered = await fetchAllForExport();
+    const allFiltered = selecionados.size > 0 ? filteredData.filter((r: any) => selecionados.has(r.id)) : await fetchAllForExport();
     downloadCsv(
       `${type === 'Pagar' ? 'contas_a_pagar' : 'contas_a_receber'}_${Date.now()}.csv`,
       ["Nome", "Categoria", "Cliente/Fornecedor", "Forma de Pagamento", "Vencimento", "Status", "Valor"],
@@ -382,6 +388,28 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     }))) return;
     deleteFinanceEntry(item.id);
     toast.success("Lançamento excluído.");
+    setTimeout(refetchEntries, 300);
+  };
+
+  // Duplicar: novo lançamento "A Vencer" com os mesmos dados (sem herdar parcelas/recorrência/rateio).
+  const handleDuplicate = async (item: (typeof financeEntries)[number]) => {
+    await addFinanceEntry({
+      description: item.description,
+      notes: item.notes || null,
+      category: item.category,
+      category_id: (item as any).category_id || null,
+      conta_bancaria_id: (item as any).conta_bancaria_id || null,
+      centro_custo_id: (item as any).centro_custo_id || null,
+      tags: (item as any).tags || [],
+      counterparty: item.counterparty || null,
+      contato_id: (item as any).contato_id || null,
+      payment_method: item.payment_method || null,
+      value: item.value,
+      date: item.date,
+      status: "A Vencer",
+      type,
+    } as any);
+    toast.success("Lançamento duplicado como \"A Vencer\".");
     setTimeout(refetchEntries, 300);
   };
 
@@ -457,36 +485,44 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Pago': return "bg-success/10 text-success border-success/30";
-      case 'A Vencer': return "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]";
-      case 'Atrasado': return "bg-danger/10 text-danger border-danger/30";
-      case 'Pendente': return "bg-warning/10 text-warning border-warning/30";
-      default: return "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]";
+      case 'Pago': return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-transparent";
+      case 'A Vencer': return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-transparent";
+      case 'Atrasado': return "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-transparent";
+      case 'Pendente': return "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-transparent";
+      default: return "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-transparent";
     }
   };
 
-  const kpiItems: KpiItem[] = kpis.kind === "pipeline"
-    ? [
-        { label: "Pago", value: formatCurrency(kpis.pago), icon: CheckCircle2, tone: "success", hint: `${kpis.countPago} lançamento(s)` },
-        { label: "A Vencer", value: formatCurrency(kpis.aVencer), icon: Clock, tone: "neutral", hint: `${kpis.countAVencer} lançamento(s)` },
-        { label: "Atrasado", value: formatCurrency(kpis.atrasado), icon: AlertTriangle, tone: kpis.atrasado > 0 ? "danger" : "neutral", hint: `${kpis.countAtrasado} lançamento(s)` },
-        { label: "Pendente", value: formatCurrency(kpis.pendente), icon: HourglassIcon, tone: kpis.pendente > 0 ? "warning" : "neutral", hint: `${kpis.countPendente} lançamento(s)` },
-      ]
+  // Cards no padrão do Dashboard: valor + variação do mês corrente contra o anterior
+  // (por data de vencimento, status atual — mesma convenção da casa) e gráfico dos últimos 6 meses.
+  const mesRef = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+  }, []);
+  const serieStatus = (status: string): number[] => {
+    const doTipo = (financeEntries as any[]).filter((e: any) => e.type === type && e.status === status);
+    return mesRef.map(({ y, m }) => doTipo.filter((e: any) => isInMonth(e.date, y, m)).reduce((s: number, e: any) => s + e.value, 0));
+  };
+  const deltaSerie = (serie: number[]) => (serie[4] > 0 ? ((serie[5] - serie[4]) / serie[4]) * 100 : null);
+
+  type KpiCard = { label: string; value: string; hint?: string; icon: typeof CheckCircle2; delta: number | null; goodUp: boolean | null; series: number[]; drill?: string; danger?: boolean };
+  const kpiCards: KpiCard[] = kpis.kind === "pipeline"
+    ? (() => {
+        const sPago = serieStatus("Pago"), sAV = serieStatus("A Vencer"), sAt = serieStatus("Atrasado"), sPe = serieStatus("Pendente");
+        return [
+          { label: "Pago", value: formatCurrency(kpis.pago), hint: `${kpis.countPago} lançamento(s)`, icon: CheckCircle2, delta: deltaSerie(sPago), goodUp: true, series: sPago, drill: "pago" },
+          { label: "A Vencer", value: formatCurrency(kpis.aVencer), hint: `${kpis.countAVencer} lançamento(s)`, icon: Clock, delta: deltaSerie(sAV), goodUp: null, series: sAV, drill: "aVencer" },
+          { label: "Atrasado", value: formatCurrency(kpis.atrasado), hint: `${kpis.countAtrasado} lançamento(s)`, icon: AlertTriangle, delta: deltaSerie(sAt), goodUp: false, series: sAt, drill: "atrasado", danger: kpis.atrasado > 0 },
+          { label: "Pendente", value: formatCurrency(kpis.pendente), hint: `${kpis.countPendente} lançamento(s)`, icon: HourglassIcon, delta: deltaSerie(sPe), goodUp: null, series: sPe, drill: "pendente" },
+        ];
+      })()
     : [
-        { label: type === "Pagar" ? "Gasto no Mês" : "Recebido no Mês", value: formatCurrency(kpis.totalMes), icon: type === "Pagar" ? TrendingDown : TrendingUp, tone: type === "Pagar" ? (kpis.totalMes > 0 ? "danger" : "neutral") : "success" },
-        {
-          label: "Vs. Mês Anterior",
-          value: kpis.deltaPct === null ? "—" : `${kpis.deltaPct > 0 ? "+" : ""}${kpis.deltaPct}%`,
-          icon: type === "Pagar" ? TrendingUp : TrendingDown,
-          tone: kpis.deltaPct === null ? "neutral" : (type === "Pagar" ? kpis.deltaPct <= 0 : kpis.deltaPct >= 0) ? "success" : "danger",
-        },
-        { label: "Ticket Médio", value: formatCurrency(kpis.ticketMedio), icon: DollarSign, tone: "info" },
-        { label: "Total Geral (Histórico)", value: formatCurrency(kpis.totalGeral), icon: Layers, tone: "accent", hint: `${kpis.count} lançamento(s)` },
+        { label: type === "Pagar" ? "Gasto no mês" : "Recebido no mês", value: formatCurrency(kpis.totalMes), icon: type === "Pagar" ? TrendingDown : TrendingUp, delta: kpis.deltaPct, goodUp: type !== "Pagar", series: monthlySeries.map((x: any) => x.value), drill: "mes" },
+        { label: "Ticket médio", value: formatCurrency(kpis.ticketMedio), icon: DollarSign, delta: null, goodUp: null, series: [] },
+        { label: "Total geral (histórico)", value: formatCurrency(kpis.totalGeral), hint: `${kpis.count} lançamento(s)`, icon: Layers, delta: null, goodUp: null, series: [], drill: "geral" },
+        { label: "Lançamentos", value: String(kpis.count), icon: BarChart3, delta: null, goodUp: null, series: [] },
       ];
-  // Os KPIs eram clicáveis (drill-down); agora o clique vira botões "Detalhar" dentro do card.
-  const drillButtons: { key: string; label: string }[] = kpis.kind === "pipeline"
-    ? [{ key: "pago", label: "Pago" }, { key: "aVencer", label: "A Vencer" }, { key: "atrasado", label: "Atrasado" }, { key: "pendente", label: "Pendente" }]
-    : [{ key: "mes", label: type === "Pagar" ? "Gasto no Mês" : "Recebido no Mês" }, { key: "geral", label: "Total Geral" }];
+  const ICON_COLORS = ["text-[var(--color-primary-blue)]", "text-emerald-500", "text-cyan-500", "text-rose-500"];
   const filtrosAtivosCount = [filtroBusca, filtroCategoriaId, filtroStatus, filtroContaBancariaId, filtroCentroCustoId, filtroDataInicio, filtroDataFim].filter(Boolean).length;
 
   const RepeatBadge = ({ item }: { item: (typeof financeEntries)[number] }) => {
@@ -522,25 +558,59 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       actions={
         <div className="flex items-center gap-2">
           <Button
+            variant="outline"
+            onClick={handleExport}
+            className="h-9 px-4 text-xs font-bold gap-1.5 border-[var(--color-border-default)]"
+          >
+            <Download className="w-3.5 h-3.5" /> Exportar{selecionados.size > 0 ? ` (${selecionados.size})` : ""}
+          </Button>
+          <Button
             onClick={() => { setNewContaBancariaId(contaPrincipalId); setIsModalOpen(true); }}
             className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" /> Novo Lançamento
           </Button>
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            className="h-9 px-4 text-xs font-bold gap-1.5 border-[var(--color-border-default)]"
-          >
-            <Download className="w-3.5 h-3.5" /> Exportar
-          </Button>
         </div>
       }
     >
       <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {kpiCards.map((k, i) => {
+          const Icon = k.icon;
+          const up = (k.delta ?? 0) > 0;
+          const flat = k.delta !== null && Math.abs(k.delta) < 0.05;
+          const good = k.goodUp === null ? null : k.goodUp === up;
+          const deltaColor = k.delta === null || flat || good === null ? "text-[var(--color-text-faint)]" : good ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
+          const sparkColor = k.delta === null || flat || good === null ? "text-[var(--color-text-faint)]" : good ? "text-emerald-500" : "text-rose-500";
+          const DIcon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
+          return (
+            <Card
+              key={k.label}
+              onClick={k.drill ? () => setDrillKey(k.drill!) : undefined}
+              className={`p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm ${k.drill ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md" : ""}`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <Icon className={`w-5 h-5 ${ICON_COLORS[i % ICON_COLORS.length]}`} />
+                {k.delta === null ? (
+                  <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right leading-tight">Sem base<br />p/ comparação</span>
+                ) : (
+                  <span className={`text-xs font-bold flex items-center gap-0.5 tabular-nums ${deltaColor}`}>{up ? "+" : ""}{k.delta.toFixed(1)}% <DIcon className="w-3.5 h-3.5" /></span>
+                )}
+              </div>
+              <div className={`text-2xl font-display font-black mb-1 italic whitespace-nowrap ${k.danger ? "text-rose-500" : "text-[var(--color-text-primary)]"}`}>{k.value}</div>
+              <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</div>
+              <div className="flex items-center justify-between mt-1 gap-2">
+                <span className="text-[10px] text-[var(--color-text-faint)] font-medium">{k.hint ?? (k.delta !== null ? "vs. mês anterior" : "")}</span>
+                {k.series.length >= 2 && <Sparkline data={k.series} className={`w-16 h-5 shrink-0 ${sparkColor}`} />}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
       <KpiFilterCard
         id={`finLista${type}${statusFilter ?? "Todos"}`}
-        kpis={kpiItems}
+        title="Filtros e pesquisa"
         activeCount={filtrosAtivosCount}
         onClear={limparFiltros}
       >
@@ -581,63 +651,10 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             />
           )}
         </FilterBar>
-        {drillButtons.length > 0 && (
-          <FilterBar>
-            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-faint)]">Detalhar:</span>
-            {drillButtons.map(d => (
-              <Button key={d.key} variant="outline" onClick={() => setDrillKey(d.key)} className="h-8 px-3 text-xs font-bold border-[var(--color-border-default)]">
-                {d.label}
-              </Button>
-            ))}
-          </FilterBar>
-        )}
       </KpiFilterCard>
 
-      {kpis.kind === "pipeline" ? (
-        <>
-          {statusBreakdown.length > 0 && (
-            <Card className="p-4">
-              <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {type === "Pagar" ? "Pagamentos" : "Recebimentos"} por Status
-              </h3>
-              <div className="h-36 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={statusBreakdown} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="status" type="category" stroke="var(--color-text-muted)" fontSize={11} width={70} tickLine={false} axisLine={false} />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                      {statusBreakdown.map((entry, index) => <Cell key={index} fill={entry.fill} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-          )}
-        </>
-      ) : (
-        <>
-          <Card className="p-4">
-            <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {title} — Últimos 6 Meses
-            </h3>
-            <div className="h-40 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlySeries} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
-                  <XAxis dataKey="label" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
-                  <Bar dataKey="value" name={type === "Pagar" ? "Pago" : "Recebido"} fill={type === "Pagar" ? "var(--color-danger)" : "var(--color-success)"} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-        </>
-      )}
-
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-between">
           <div className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
             Fluxo de Caixa / {type === 'Pagar' ? 'Contas a Pagar' : 'Contas a Receber'}
             {temFiltrosAtivos && <span className="ml-2 normal-case font-medium text-[var(--color-primary-blue)]">· {filteredTotal} lançamento(s) encontrado(s)</span>}
@@ -652,20 +669,29 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
           <table className="w-full text-xs text-left hidden md:table">
             <thead className="text-[10px] uppercase font-bold tracking-wider text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
               <tr>
-                <th className="px-6 py-3.5">Nome</th>
-                <th className="px-6 py-3.5">Categoria</th>
-                <th className="px-6 py-3.5">Cliente/Fornecedor</th>
-                <th className="px-6 py-3.5">Pagamento</th>
-                <th className="px-6 py-3.5">Vencimento</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5 text-right">Valor</th>
-                <th className="px-6 py-3.5 text-right">Ações</th>
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={filteredData.length > 0 && filteredData.every((r: any) => selecionados.has(r.id))}
+                    onChange={() => setSelecionados(filteredData.every((r: any) => selecionados.has(r.id)) ? new Set() : new Set(filteredData.map((r: any) => r.id)))}
+                    className="w-4 h-4 accent-[var(--color-primary-blue)] cursor-pointer"
+                    aria-label="Selecionar todos da página"
+                  />
+                </th>
+                <th className="px-3 py-3">Nome</th>
+                <th className="px-3 py-3">Categoria</th>
+                <th className="px-3 py-3">Cliente/Fornecedor</th>
+                <th className="px-3 py-3">Pagamento</th>
+                <th className="px-3 py-3">Vencimento</th>
+                <th className="px-3 py-3">Status</th>
+                <th className="px-3 py-3 text-right">Valor</th>
+                <th className="px-3 py-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-0">
+                  <td colSpan={9} className="p-0">
                     <EmptyState
                       icon={DollarSign}
                       title={temFiltrosAtivos ? "Nenhum lançamento para esses filtros" : "Nenhum lançamento ainda"}
@@ -681,8 +707,16 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 </tr>
               ) : (
                 filteredData.map((item) => (
-                  <tr key={item.id} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors group">
-                    <td className="px-6 py-4 font-bold text-[var(--color-text-primary)]">
+                  <tr key={item.id} className={`hover:bg-[var(--color-surface-sunken)]/50 transition-colors group ${selecionados.has(item.id) ? "bg-[var(--color-primary-blue)]/[0.04]" : ""}`}>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selecionados.has(item.id)}
+                        onChange={() => setSelecionados((prev) => { const n = new Set(prev); if (n.has(item.id)) n.delete(item.id); else n.add(item.id); return n; })}
+                        className="w-4 h-4 accent-[var(--color-primary-blue)] cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-3 py-3 font-bold text-[var(--color-text-primary)]">
                       <span className="inline-flex items-center gap-1.5">
                         {item.description}
                         <RepeatBadge item={item} />
@@ -694,24 +728,28 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                         <p className="text-[10px] font-normal text-[var(--color-text-faint)] mt-0.5">NF {item.numero_documento}</p>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-[var(--color-text-muted)]">{item.category}</td>
-                    <td className="px-6 py-4 text-[var(--color-text-muted)]">{item.counterparty || "—"}</td>
-                    <td className="px-6 py-4 text-[var(--color-text-muted)]">{item.payment_method || "—"}</td>
-                    <td className="px-6 py-4 text-[var(--color-text-muted)] font-mono">{item.date}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 text-[var(--color-text-muted)]">
+                      <span className="flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-md bg-[var(--color-surface-sunken)] flex items-center justify-center shrink-0"><Tag className="w-3.5 h-3.5" /></span>
+                        <span className="truncate max-w-[150px]">{item.category}</span>
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-[var(--color-text-muted)]">{item.counterparty || "—"}</td>
+                    <td className="px-3 py-3 text-[var(--color-text-muted)]">{item.payment_method || "—"}</td>
+                    <td className="px-3 py-3 text-[var(--color-text-muted)] font-mono">{item.date}</td>
+                    <td className="px-3 py-3">
                       <span
-                        title="Status travado — use o lápis para editar"
-                        className={`inline-flex items-center px-2.5 py-1 text-[10px] font-bold rounded-lg border cursor-default ${getStatusColor(item.status)}`}
+                        title="Para alterar o status, use o lápis (editar)"
+                        className={`inline-flex items-center px-2.5 py-1 text-[11px] font-bold rounded-full border cursor-default ${getStatusColor(item.status)}`}
                       >
                         {getStatusIcon(item.status)}
                         {item.status}
-                        <Lock className="w-2.5 h-2.5 ml-1.5 opacity-60" />
                       </span>
                     </td>
-                    <td className={`px-6 py-4 text-right font-mono font-bold ${type === 'Pagar' ? 'text-danger' : 'text-success'}`}>
+                    <td className={`px-3 py-3 text-right font-mono font-bold ${type === 'Pagar' ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
                       {type === 'Pagar' ? '-' : '+'} {formatCurrency(item.value)}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-3 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
@@ -720,6 +758,14 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                           title="Editar lançamento"
                         >
                           <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicate(item)}
+                          className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors cursor-pointer"
+                          title="Duplicar lançamento"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
@@ -737,8 +783,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             </tbody>
             <tfoot className="bg-[var(--color-surface-sunken)] border-t border-[var(--color-border-subtle)] font-bold">
               <tr>
-                <td colSpan={6} className="px-6 py-4 text-[var(--color-text-muted)] text-right uppercase tracking-wider text-[10px]">Total:</td>
-                <td className={`px-6 py-4 font-mono font-bold text-sm text-right ${type === 'Pagar' ? 'text-danger' : 'text-success'}`}>
+                <td colSpan={7} className="px-4 py-3 text-[var(--color-text-muted)] text-right uppercase tracking-wider text-[10px]">Total:</td>
+                <td className={`px-3 py-3 font-mono font-bold text-sm text-right ${type === 'Pagar' ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
                   {formatCurrency(totalValue)}
                 </td>
                 <td></td>
@@ -816,15 +862,72 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         </div>
       </Card>
 
-      <Pagination
-        page={page}
-        totalPages={totalPages}
-        total={filteredTotal}
-        pageSize={pageSize}
-        loading={entriesLoading}
-        onPageChange={setPage}
-        itemLabel="lançamento"
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+          <select
+            value={pageSizeSel}
+            onChange={(e) => setPageSizeSel(Number(e.target.value))}
+            className="h-9 px-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none cursor-pointer"
+          >
+            {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          registros por página
+        </label>
+        <div className="min-w-[260px] flex-1 max-w-xl">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={filteredTotal}
+            pageSize={pageSize}
+            loading={entriesLoading}
+            onPageChange={setPage}
+            itemLabel="lançamento"
+          />
+        </div>
+      </div>
+
+      {kpis.kind === "pipeline" ? (
+        <>
+          {statusBreakdown.length > 0 && (
+            <Card className="p-4">
+              <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {type === "Pagar" ? "Pagamentos" : "Recebimentos"} por Status
+              </h3>
+              <div className="h-36 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={statusBreakdown} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="status" type="category" stroke="var(--color-text-muted)" fontSize={11} width={70} tickLine={false} axisLine={false} />
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                      {statusBreakdown.map((entry, index) => <Cell key={index} fill={entry.fill} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+        </>
+      ) : (
+        <>
+          <Card className="p-4">
+            <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {title} — Últimos 6 Meses
+            </h3>
+            <div className="h-40 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlySeries} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
+                  <XAxis dataKey="label" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
+                  <Bar dataKey="value" name={type === "Pagar" ? "Pago" : "Recebido"} fill={type === "Pagar" ? "var(--color-danger)" : "var(--color-success)"} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </>
+      )}
 
       {/* Creation Modal */}
       <Modal
