@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
-import { Plus, Pencil, Trash2, Search, CheckCircle2, XCircle, AlertTriangle, UserCheck, ShieldAlert } from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle2, XCircle, AlertTriangle, UserCheck, Users, UserX, Network, Briefcase } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../../../components/ui/kpi-filter-card";
 import { motion } from "motion/react";
 import { TeamMember } from "../../hooks/useEquipe";
 
@@ -109,7 +110,11 @@ export function EquipeMembros({
   const [statusFilter, setStatusFilter] = useState<"todos" | "ativo" | "inativo">("todos");
   const [memberToDelete, setMemberToDelete] = useState<{ id: string; name: string } | null>(null);
 
+  const [squadFilter, setSquadFilter] = useState("");
+  const squadOptions = Array.from(new Set(filteredTeam.map((m) => m.squad).filter(Boolean))).sort();
+
   const displayedTeam = filteredTeam.filter((m) => {
+    if (squadFilter && m.squad !== squadFilter) return false;
     if (statusFilter === "ativo") return m.status === "Ativo";
     if (statusFilter === "inativo") return m.status !== "Ativo";
     return true;
@@ -141,34 +146,6 @@ export function EquipeMembros({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Status Tabs */}
-          <div className="flex items-center bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl p-1">
-            {(["todos", "ativo", "inativo"] as const).map((st) => (
-              <button
-                key={st}
-                type="button"
-                onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border-none ${
-                  statusFilter === st
-                    ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-transparent"
-                }`}
-              >
-                {st === "todos" ? "Todos" : st === "ativo" ? "Ativos" : "Inativos"}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative flex-1 sm:flex-none">
-            <Search className="w-4 h-4 text-[var(--color-text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              placeholder="Buscar por nome, cargo ou squad..."
-              className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] pl-10 pr-4 py-2 rounded-xl text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-faint)] outline-none focus:border-[var(--color-primary-blue)] w-full sm:w-64 transition-all"
-              value={memberSearch}
-              onChange={(e) => onMemberSearchChange(e.target.value)}
-            />
-          </div>
-
           <Button
             onClick={onAdmitir}
             className="gap-2 h-10 px-5 font-bold text-xs uppercase tracking-wider shadow-xs"
@@ -177,6 +154,28 @@ export function EquipeMembros({
           </Button>
         </div>
       </div>
+
+      <KpiFilterCard
+        id="opsEquipeMembros"
+        kpis={[
+          { label: "Colaboradores", value: displayedTeam.length, icon: Users, tone: "primary" },
+          { label: "Ativos", value: displayedTeam.filter((m) => m.status === "Ativo").length, icon: UserCheck, tone: "success" },
+          { label: "Inativos", value: displayedTeam.filter((m) => m.status !== "Ativo").length, icon: UserX, tone: "neutral" },
+          { label: "Squads", value: new Set(displayedTeam.map((m) => m.squad).filter(Boolean)).size, icon: Network, tone: "info" },
+        ]}
+        activeCount={(memberSearch.trim() ? 1 : 0) + (statusFilter !== "todos" ? 1 : 0) + (squadFilter ? 1 : 0)}
+        onClear={() => { onMemberSearchChange(""); setStatusFilter("todos"); setSquadFilter(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={memberSearch} onChange={onMemberSearchChange} placeholder="Buscar por nome, cargo ou squad..." />
+          <FilterSelect icon={Briefcase} value={squadFilter} onChange={setSquadFilter} options={squadOptions} allLabel="Todos os squads" />
+          <FilterChips
+            value={statusFilter === "todos" ? "" : statusFilter}
+            onChange={(v) => setStatusFilter((v || "todos") as "todos" | "ativo" | "inativo")}
+            options={[{ value: "ativo", label: "Ativos" }, { value: "inativo", label: "Inativos" }]}
+          />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Delete Confirmation Banner */}
       {memberToDelete && (

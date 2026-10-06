@@ -3,9 +3,9 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
   Calendar, Clock, Video, MapPin, Users, Plus,
-  Search, Filter, CheckCircle2, ArrowRight
+  CheckCircle2, ArrowRight, Flag
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Link } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";
 import { NovaReuniaoModal } from "../../components/ui/modals/reunioes/NovaReuniaoModal";
@@ -14,6 +14,7 @@ export default function Eventos() {
   const { reunioes } = useData();
   const [search, setSearch] = useState("");
   const [tipoFilter, setTipoFilter] = useState("Todos");
+  const [statusFilter, setStatusFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
 
   const eventos = useMemo(() => {
@@ -30,6 +31,8 @@ export default function Eventos() {
     }));
   }, [reunioes]);
 
+  const statusOptions = useMemo(() => Array.from(new Set(eventos.map(e => e.status).filter(Boolean))).sort() as string[], [eventos]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return eventos.filter(e => {
@@ -41,9 +44,12 @@ export default function Eventos() {
         tipoFilter === "Todos" ||
         (tipoFilter === "Presencial" && e.formato === "presencial") ||
         (tipoFilter === "Virtual" && e.formato !== "presencial");
-      return matchSearch && matchTipo;
+      const matchStatus = !statusFilter || e.status === statusFilter;
+      return matchSearch && matchTipo && matchStatus;
     });
-  }, [eventos, search, tipoFilter]);
+  }, [eventos, search, tipoFilter, statusFilter]);
+
+  const activeCount = (search.trim() ? 1 : 0) + (tipoFilter !== "Todos" ? 1 : 0) + (statusFilter ? 1 : 0);
 
   return (
     <PageContainer
@@ -63,23 +69,24 @@ export default function Eventos() {
         </div>
       }
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: Calendar, label: "Total de Compromissos", val: eventos.length, color: "text-blue-500" },
-          { icon: Video, label: "Reuniões Virtuais", val: eventos.filter(e => e.formato !== "presencial").length, color: "text-purple-500" },
-          { icon: MapPin, label: "Visitas Presenciais", val: eventos.filter(e => e.formato === "presencial").length, color: "text-amber-500" },
-          { icon: CheckCircle2, label: "Realizados", val: eventos.filter(e => e.status === "realizada").length, color: "text-emerald-500" },
-        ].map((k, i) => (
-          <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</span>
-              <k.icon className={`w-4 h-4 ${k.color}`} />
-            </div>
-            <p className="text-xl font-black text-[var(--color-text-primary)]">{k.val}</p>
-          </Card>
-        ))}
-      </div>
+      <KpiFilterCard
+        id="agendaEventos"
+        className="mb-6"
+        kpis={[
+          { label: "Compromissos", value: filtered.length, icon: Calendar, tone: "primary" },
+          { label: "Reuniões Virtuais", value: filtered.filter(e => e.formato !== "presencial").length, icon: Video, tone: "accent" },
+          { label: "Visitas Presenciais", value: filtered.filter(e => e.formato === "presencial").length, icon: MapPin, tone: "warning" },
+          { label: "Realizados", value: filtered.filter(e => e.status === "realizada").length, icon: CheckCircle2, tone: "success" },
+        ]}
+        activeCount={activeCount}
+        onClear={() => { setSearch(""); setTipoFilter("Todos"); setStatusFilter(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por título, lead ou responsável..." />
+          <FilterChips value={tipoFilter === "Todos" ? "" : tipoFilter} onChange={v => setTipoFilter(v || "Todos")} options={["Presencial", "Virtual"]} />
+          <FilterSelect icon={Flag} value={statusFilter} onChange={setStatusFilter} options={statusOptions} allLabel="Todos os status" />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Events List */}
       <div className="space-y-3">

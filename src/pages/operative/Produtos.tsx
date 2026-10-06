@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Plus, Package, FileSpreadsheet } from "lucide-react";
+import { Plus, Package, FileSpreadsheet, Activity, TrendingUp, Sparkles } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
@@ -8,7 +8,7 @@ import { useProdutoForm } from "./produtos/useProdutoForm";
 import { ProdutoModal } from "./produtos/ProdutoModal";
 import { ProdutosGrid } from "./produtos/ProdutosGrid";
 import { ProdutosTable } from "./produtos/ProdutosTable";
-import { ProdutosKPIs } from "./components/Produtos/ProdutosKPIs";
+import { KpiFilterCard } from "../../components/ui/kpi-filter-card";
 import { ProdutosFilters } from "./components/Produtos/ProdutosFilters";
 import { ProdutosAICombo } from "./components/Produtos/ProdutosAICombo";
 import { CriarPropostaModal } from "../../components/ui/modals/crm/CriarPropostaModal";
@@ -79,14 +79,17 @@ export default function Catalog() {
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
   const pageProducts = filteredProducts.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
-  const totalSkuCount = f.products.length;
-  const activeSkuCount = f.products.filter(p => p.active).length;
+  const totalSkuCount = filteredProducts.length;
+  const activeSkuCount = filteredProducts.filter(p => p.active).length;
   const averageMarginVal = useMemo(() => {
-    const list = f.products.filter(p => p.active);
+    const list = filteredProducts.filter(p => p.active);
     if (list.length === 0) return 0;
     return Math.round((list.reduce((acc, curr) => acc + curr.margin, 0) / list.length) * 10) / 10;
-  }, [f.products]);
-  const bestSellerCount = f.products.filter(p => p.isBestSeller).length;
+  }, [filteredProducts]);
+  const bestSellerCount = filteredProducts.filter(p => p.isBestSeller).length;
+  const activeFilterCount =
+    (f.searchTerm.trim() ? 1 : 0) + (f.selectedCategories.length > 0 ? 1 : 0) + (f.selectedTypes.length > 0 ? 1 : 0) + (f.selectedStatus !== "Todos" ? 1 : 0);
+  const clearFilters = () => { f.setSearchTerm(""); f.setSelectedCategories([]); f.setSelectedTypes([]); f.setSelectedStatus("Todos"); };
 
   const exportProductsToCSV = () => {
     downloadCsv(
@@ -119,13 +122,17 @@ export default function Catalog() {
       }
     >
       <div className="space-y-6 pb-20">
-        <ProdutosKPIs
-          totalSkuCount={totalSkuCount}
-          activeSkuCount={activeSkuCount}
-          averageMarginVal={averageMarginVal}
-          bestSellerCount={bestSellerCount}
-        />
-
+        <KpiFilterCard
+          id="opsProdutos"
+          kpis={[
+            { label: "Total de SKUs", value: totalSkuCount, icon: Package, tone: "primary" },
+            { label: "SKUs em Operação", value: activeSkuCount, icon: Activity, tone: "success" },
+            { label: "Margem Ativa Média", value: `${averageMarginVal}%`, icon: TrendingUp, tone: "info" },
+            { label: "Favoritos / BestSellers", value: bestSellerCount, icon: Sparkles, tone: "warning" },
+          ]}
+          activeCount={activeFilterCount}
+          onClear={clearFilters}
+        >
         <ProdutosFilters
           searchTerm={f.searchTerm} onSearchChange={f.setSearchTerm}
           categories={f.categories} selectedCategories={f.selectedCategories}
@@ -140,6 +147,7 @@ export default function Catalog() {
           onBulkDeactivate={() => f.executeBulkStatus(false)}
           onBulkDelete={f.executeBulkDelete}
         />
+        </KpiFilterCard>
 
         {filteredProducts.length === 0 ? (
           <Card className="p-16 flex flex-col items-center justify-center text-center bg-[var(--color-surface-elevated)]/40 border-[var(--color-border-subtle)]">

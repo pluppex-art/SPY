@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
-import { FileText, ChevronRight, Plus, Trash2, Sparkles } from "lucide-react";
+import { FileText, ChevronRight, Plus, Trash2, Sparkles, CheckCircle2, PauseCircle, Globe } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -27,6 +28,9 @@ export default function MarketingFormularios() {
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
   const [selected, setSelected] = useState<FormDefinition | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("");
+  const [origem, setOrigem] = useState("");
 
   const forms: FormDefinition[] = useMemo(() => {
     const list: FormDefinition[] = (marketingForms || []).map((f: any) => ({
@@ -54,6 +58,16 @@ export default function MarketingFormularios() {
     }
     return list;
   }, [marketingForms, activeTenantId]);
+
+  const origens = useMemo(() => Array.from(new Set(forms.map(f => f.source).filter(Boolean))).sort() as string[], [forms]);
+  const formsFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return forms.filter(f =>
+      (!statusFiltro || (statusFiltro === "ativo" ? f.active : !f.active)) &&
+      (!origem || f.source === origem) &&
+      (!q || [f.name, f.description, f.previewUrl].some(v => (v || "").toLowerCase().includes(q))),
+    );
+  }, [forms, busca, statusFiltro, origem]);
 
   const handleCreate = async (data: { name: string; description: string; previewUrl: string; source: string }) => {
     await addMarketingForm({
@@ -112,6 +126,26 @@ export default function MarketingFormularios() {
           </motion.div>
         ) : (
           <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {forms.length > 0 && (
+              <KpiFilterCard
+                id="marketingFormularios"
+                className="mb-4"
+                kpis={[
+                  { label: "Formulários", value: formsFiltrados.length, icon: FileText, tone: "primary" },
+                  { label: "Ativos", value: formsFiltrados.filter(f => f.active).length, icon: CheckCircle2, tone: "success" },
+                  { label: "Inativos", value: formsFiltrados.filter(f => !f.active).length, icon: PauseCircle, tone: "neutral" },
+                  { label: "Origens", value: new Set(formsFiltrados.map(f => f.source).filter(Boolean)).size, icon: Globe, tone: "info" },
+                ]}
+                activeCount={(busca.trim() ? 1 : 0) + (statusFiltro ? 1 : 0) + (origem ? 1 : 0)}
+                onClear={() => { setBusca(""); setStatusFiltro(""); setOrigem(""); }}
+              >
+                <FilterBar>
+                  <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar formulário..." />
+                  <FilterSelect icon={Globe} value={origem} onChange={setOrigem} options={origens} allLabel="Todas as origens" />
+                  <FilterChips value={statusFiltro} onChange={setStatusFiltro} options={[{ value: "ativo", label: "Ativos" }, { value: "inativo", label: "Inativos" }]} />
+                </FilterBar>
+              </KpiFilterCard>
+            )}
             {forms.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-50">
                 <FileText className="w-10 h-10 text-slate-600" />
@@ -120,7 +154,7 @@ export default function MarketingFormularios() {
               </div>
             ) : (
               <div className="grid gap-4">
-                {forms.map(form => (
+                {formsFiltrados.map(form => (
                   <div key={form.id} onClick={() => setSelected(form)} role="button" tabIndex={0}
                     className="group text-left w-full flex items-center gap-5 p-5 bg-[var(--color-surface-elevated)]/80 border border-white/5 rounded-2xl hover:border-white/15 hover:bg-white/[0.04] transition-all cursor-pointer">
                     <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">

@@ -10,6 +10,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
@@ -112,42 +113,6 @@ function TriggerCard({ trigger, onAprovar, onRejeitar, onRemover }: {
   );
 }
 
-function KpiSparkCard(props: {
-  icon: typeof Sparkles; iconClass: string; label: string; value: string | number;
-  deltaLabel: string | null; deltaUp: boolean | null; chartData: { v: number }[]; chartColor: string;
-}) {
-  const { icon: Icon, iconClass, label, value, deltaLabel, deltaUp, chartData } = props;
-  return (
-    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden relative">
-      <div className="flex items-center gap-2 text-[var(--color-text-faint)]">
-        <Icon className={cn("w-4 h-4", iconClass)} />
-        <span className="text-[10px] font-black uppercase tracking-wider">{label}</span>
-      </div>
-      <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{value}</p>
-      {deltaLabel && (
-        <p className={cn("text-[11px] font-bold mt-1 flex items-center gap-1", deltaUp === false ? "text-danger" : "text-success")}>
-          {deltaUp === false ? <TrendingDown className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />} {deltaLabel}
-        </p>
-      )}
-      {chartData.some((d) => d.v > 0) && (
-        <div className="h-8 -mx-1 mt-2 opacity-70">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`spark-${label}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={props.chartColor} stopOpacity={0.35} />
-                  <stop offset="95%" stopColor={props.chartColor} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Area type="monotone" dataKey="v" stroke={props.chartColor} strokeWidth={1.5} fill={`url(#spark-${label})`} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </Card>
-  );
-}
-
 type Aba = "julia" | "funis";
 
 export default function MarketingAutomacoes() {
@@ -161,6 +126,8 @@ export default function MarketingAutomacoes() {
   const [mostrarExemplos, setMostrarExemplos] = useState(false);
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = async () => {
@@ -183,14 +150,24 @@ export default function MarketingAutomacoes() {
   const stats = useMemo(() => computeTriggerStats(triggers, dateFrom, dateTo), [triggers, dateFrom, dateTo]);
   const sugestoes = useMemo(() => buildJuliaSuggestions({ leads, proposals, contracts }), [leads, proposals, contracts]);
 
+  // Filtros da lista de gatilhos (busca, status e o período global do topo).
+  const triggersFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return triggers.filter((t) => {
+      if (statusFiltro && t.status !== statusFiltro) return false;
+      const dia = (t.createdAt || "").slice(0, 10);
+      if (dateFrom && dia < dateFrom) return false;
+      if (dateTo && dia > dateTo) return false;
+      return !q || (t.descricao || "").toLowerCase().includes(q);
+    });
+  }, [triggers, busca, statusFiltro, dateFrom, dateTo]);
   const emAberto = useMemo(
-    () => triggers.filter((t) => t.status === "aguardando_confirmacao" || t.status === "pendente_interpretacao" || t.status === "erro"),
-    [triggers]
+    () => triggersFiltrados.filter((t) => t.status === "aguardando_confirmacao" || t.status === "pendente_interpretacao" || t.status === "erro"),
+    [triggersFiltrados]
   );
-  const recentes = useMemo(() => triggers.slice(0, 8), [triggers]);
+  const recentes = useMemo(() => triggersFiltrados.slice(0, 8), [triggersFiltrados]);
+  const activeCount = (busca.trim() ? 1 : 0) + (statusFiltro ? 1 : 0) + (dateFrom || dateTo ? 1 : 0);
 
-  const sparkContatos = stats.chart.map((d) => ({ v: d.contatos }));
-  const sparkEnviados = stats.chart.map((d) => ({ v: d.enviados }));
 
   return (
     <PageContainer
@@ -201,7 +178,6 @@ export default function MarketingAutomacoes() {
       actions={
         aba === "julia" ? (
           <div className="flex items-center gap-2 flex-wrap">
-            <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
             <Button variant="outline" onClick={() => setMostrarExemplos((v) => !v)} className="h-9 px-3 text-xs font-bold gap-1.5">
               <BookOpen className="w-3.5 h-3.5" /> Modelos de gatilho
             </Button>
@@ -231,28 +207,31 @@ export default function MarketingAutomacoes() {
 
         {aba === "julia" ? (
           <div className="space-y-6">
-            {/* KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              <KpiSparkCard
-                icon={Sparkles} iconClass="text-warning" label="Aguardando sua aprovação" value={stats.aguardando}
-                deltaLabel={stats.aguardandoDeltaSemana !== 0 ? `${stats.aguardandoDeltaSemana > 0 ? "+" : ""}${stats.aguardandoDeltaSemana} vs semana passada` : null}
-                deltaUp={stats.aguardandoDeltaSemana >= 0} chartData={sparkEnviados} chartColor="#f59e0b"
-              />
-              <KpiSparkCard
-                icon={Check} iconClass="text-success" label="Gatilhos já enviados" value={stats.enviados}
-                deltaLabel={stats.enviadosDeltaPct !== null ? `${stats.enviadosDeltaPct >= 0 ? "+" : ""}${stats.enviadosDeltaPct}% vs mês anterior` : null}
-                deltaUp={stats.enviadosDeltaPct === null ? null : stats.enviadosDeltaPct >= 0} chartData={sparkEnviados} chartColor="#10b981"
-              />
-              <KpiSparkCard
-                icon={Users} iconClass="text-[var(--color-primary-blue)]" label="Contatos alcançados" value={stats.contatos}
-                deltaLabel={stats.contatosDeltaPct !== null ? `${stats.contatosDeltaPct >= 0 ? "+" : ""}${stats.contatosDeltaPct}% vs mês anterior` : null}
-                deltaUp={stats.contatosDeltaPct === null ? null : stats.contatosDeltaPct >= 0} chartData={sparkContatos} chartColor="var(--color-primary-blue)"
-              />
-              <KpiSparkCard
-                icon={Check} iconClass="text-info" label="Taxa de aprovação da Júlia" value={stats.taxaAprovacao !== null ? `${stats.taxaAprovacao}%` : "—"}
-                deltaLabel={null} deltaUp={null} chartData={sparkEnviados} chartColor="#0ea5e9"
-              />
-            </div>
+            <KpiFilterCard
+              id="marketingAutomacoes"
+              kpis={[
+                { label: "Aguardando aprovação", value: stats.aguardando, icon: Sparkles, tone: "warning",
+                  hint: stats.aguardandoDeltaSemana !== 0 ? `${stats.aguardandoDeltaSemana > 0 ? "+" : ""}${stats.aguardandoDeltaSemana} vs semana passada` : undefined },
+                { label: "Gatilhos enviados", value: stats.enviados, icon: Check, tone: "success",
+                  hint: stats.enviadosDeltaPct !== null ? `${stats.enviadosDeltaPct >= 0 ? "+" : ""}${stats.enviadosDeltaPct}% vs mês anterior` : undefined },
+                { label: "Contatos alcançados", value: stats.contatos, icon: Users, tone: "primary",
+                  hint: stats.contatosDeltaPct !== null ? `${stats.contatosDeltaPct >= 0 ? "+" : ""}${stats.contatosDeltaPct}% vs mês anterior` : undefined },
+                { label: "Taxa de aprovação", value: stats.taxaAprovacao !== null ? `${stats.taxaAprovacao}%` : "—", icon: Check, tone: "info" },
+              ]}
+              activeCount={activeCount}
+              onClear={() => { setBusca(""); setStatusFiltro(""); setDateFrom(null); setDateTo(null); }}
+            >
+              <FilterBar>
+                <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar gatilho..." />
+                <FilterSelect
+                  value={statusFiltro}
+                  onChange={setStatusFiltro}
+                  options={(Object.keys(STATUS_LABEL) as MessageTrigger["status"][]).map((k) => ({ value: k, label: STATUS_LABEL[k].label }))}
+                  allLabel="Todos os status"
+                />
+                <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} className="h-[38px]" />
+              </FilterBar>
+            </KpiFilterCard>
 
             {/* Novo gatilho + Sugestões */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

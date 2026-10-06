@@ -1,9 +1,10 @@
-import { useRef } from "react";
+import { useRef, useState, useMemo } from "react";
 import {
   Users, Search, UserPlus, Mail, Calendar,
   MoreVertical, TrendingUp, ShieldCheck,
-  UserX, Coffee, Plane, Pencil, Phone
+  UserX, Coffee, Plane, Pencil, Phone, Building2
 } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../../../components/ui/kpi-filter-card";
 import { Button } from "../../../../components/ui/button";
 import { Card } from "../../../../components/ui/card";
 import { Badge } from "../../../../components/ui/badge";
@@ -21,54 +22,47 @@ interface MembrosSectionProps {
 }
 
 export function MembrosSection({
-  filtered, search, onSearchChange,
+  filtered: filteredBySearch, search, onSearchChange,
   menuOpenId, setMenuOpenId, onVerPerfil, onEditColab,
   onChangeStatus, onDesligar,
 }: MembrosSectionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [depto, setDepto] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("");
+  const deptoOptions = useMemo(
+    () => Array.from(new Set(filteredBySearch.map(c => c.departamento).filter(Boolean))).sort() as string[],
+    [filteredBySearch],
+  );
+  const statusOptions = useMemo(
+    () => Array.from(new Set(filteredBySearch.map(c => c.status).filter(Boolean))).sort() as string[],
+    [filteredBySearch],
+  );
+  const filtered = useMemo(
+    () => filteredBySearch.filter(c => (!depto || c.departamento === depto) && (!statusFiltro || c.status === statusFiltro)),
+    [filteredBySearch, depto, statusFiltro],
+  );
+  const desempenhos = filtered.map(c => Number(c.desempenho)).filter(n => Number.isFinite(n));
+  const mediaDesempenho = desempenhos.length > 0 ? Math.round(desempenhos.reduce((a, b) => a + b, 0) / desempenhos.length) : 0;
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: "Total de Colaboradores", value: filtered.length.toString(), icon: Users, color: "text-[var(--color-primary-blue)]" },
-          { label: "Colaboradores Ativos", value: filtered.filter(f => f.status === 'Ativo').length.toString(), icon: UserPlus, color: "text-emerald-500" },
-          { label: "Em Férias / Afastados", value: filtered.filter(f => f.status !== 'Ativo').length.toString(), icon: Coffee, color: "text-amber-500" },
-          { label: "Média de Desempenho", value: filtered.length > 0 ? "94%" : "0%", icon: TrendingUp, color: "text-purple-500" },
-        ].map((stat, i) => (
-          <Card key={i} className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">{stat.label}</span>
-              <stat.icon className={`w-4 h-4 ${stat.color}`} />
-            </div>
-            <div className="text-2xl font-black font-mono text-[var(--color-text-primary)]">{stat.value}</div>
-          </Card>
-        ))}
-      </div>
-
-      <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col md:flex-row gap-4 items-center shadow-sm">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
-          <input
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Pesquisar por nome, cargo ou departamento..."
-            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] pl-10 pr-4 h-9 rounded-[var(--radius-control)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-          />
-        </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto">
-          {["Todos", "Tecnologia", "Produtos", "Vendas", "Operações"].map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => onSearchChange(cat === "Todos" ? "" : cat)}
-              className="px-3 py-1.5 text-xs font-bold rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </Card>
+      <KpiFilterCard
+        id="rhColaboradores"
+        kpis={[
+          { label: "Colaboradores", value: filtered.length, icon: Users, tone: "primary" },
+          { label: "Ativos", value: filtered.filter(f => f.status === "Ativo").length, icon: UserPlus, tone: "success" },
+          { label: "Férias / Afastados", value: filtered.filter(f => f.status !== "Ativo").length, icon: Coffee, tone: "warning" },
+          { label: "Média de Desempenho", value: `${mediaDesempenho}%`, icon: TrendingUp, tone: "accent" },
+        ]}
+        activeCount={(search.trim() ? 1 : 0) + (depto ? 1 : 0) + (statusFiltro ? 1 : 0)}
+        onClear={() => { onSearchChange(""); setDepto(""); setStatusFiltro(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={onSearchChange} placeholder="Pesquisar por nome ou cargo..." />
+          <FilterSelect icon={Building2} value={depto} onChange={setDepto} options={deptoOptions} allLabel="Todos os departamentos" />
+          <FilterChips value={statusFiltro} onChange={setStatusFiltro} options={statusOptions} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {filtered.length === 0 ? (
         <Card className="p-12 text-center bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">

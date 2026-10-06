@@ -7,7 +7,7 @@ import { Button } from "../../components/ui/button";
 import { NovaReuniaoModal } from "../../components/ui/modals/reunioes/NovaReuniaoModal";
 import { ConfirmModal } from "../../components/ui/modals/shared/ConfirmModal";
 import {
-  Video, Calendar, Clock, User, Search, ExternalLink, Copy,
+  Video, Calendar, Clock, User, ExternalLink, Copy,
   LayoutList, CalendarDays, ChevronLeft, ChevronRight,
   CheckCircle2, PlayCircle, Zap, AlertCircle, Plus, Trash2,
 } from "lucide-react";
@@ -15,6 +15,7 @@ import { cn } from "../../lib/utils";
 import { toast } from "sonner";
 import { Reuniao } from "../../contexts/DataContextTypes";
 import { Pagination } from "../../components/ui/Pagination";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
 const PAGE_SIZE = 30;
 
@@ -64,6 +65,7 @@ export default function ReunioesList() {
   const [view, setView] = useState<ViewMode>("lista");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<StatusTab>("Todas");
+  const [closer, setCloser] = useState("");
   const [calYear, setCalYear] = useState(() => new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -80,15 +82,21 @@ export default function ReunioesList() {
       (r.leadName || "").toLowerCase().includes(q) ||
       (r.companyName || "").toLowerCase().includes(q) ||
       (r.closerName || "").toLowerCase().includes(q);
-    return matchesTab && matchesSearch;
-  }), [all, tab, search]);
+    const matchesCloser = !closer || r.closerName === closer;
+    return matchesTab && matchesSearch && matchesCloser;
+  }), [all, tab, search, closer]);
+
+  const closerOptions = useMemo(
+    () => Array.from(new Set(all.map(r => r.closerName).filter(Boolean))).sort() as string[],
+    [all],
+  );
 
   // A visão de lista renderizava TODAS as reuniões filtradas como <Card> de
   // uma vez — com milhares de reuniões, isso trava o navegador (DOM
   // gigante), independente de quão rápido os dados chegam. Pagina só a
   // renderização aqui — os dados já estão todos em memória.
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [tab, search]);
+  useEffect(() => { setPage(0); }, [tab, search, closer]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
@@ -177,6 +185,27 @@ export default function ReunioesList() {
         </div>
       }
     >
+      <KpiFilterCard
+        id="reunioes"
+        className="mb-6"
+        kpis={[
+          { label: "Reuniões", value: filtered.length, icon: Video, tone: "primary" },
+          { label: "Agendadas", value: filtered.filter(r => r.status === "Agendada").length, icon: AlertCircle, tone: "info" },
+          { label: "Ao Vivo", value: filtered.filter(r => r.status === "Em Andamento").length, icon: PlayCircle, tone: "success" },
+          { label: "Concluídas", value: filtered.filter(r => r.status === "Concluída").length, icon: CheckCircle2, tone: "neutral" },
+        ]}
+        activeCount={view === "lista" ? (search.trim() ? 1 : 0) + (tab !== "Todas" ? 1 : 0) + (closer ? 1 : 0) : 0}
+        onClear={() => { setSearch(""); setTab("Todas"); setCloser(""); }}
+      >
+        {view === "lista" && (
+          <FilterBar>
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar lead, empresa ou closer..." />
+            <FilterSelect icon={User} value={closer} onChange={setCloser} options={closerOptions} allLabel="Todos os closers" />
+            <FilterChips value={tab === "Todas" ? "" : tab} onChange={v => setTab((v || "Todas") as StatusTab)} options={STATUS_TABS.filter(t => t !== "Todas")} />
+          </FilterBar>
+        )}
+      </KpiFilterCard>
+
       <div className="grid lg:grid-cols-4 gap-6 pb-10">
 
         {/* ── Main content (3 cols) ── */}
@@ -185,32 +214,6 @@ export default function ReunioesList() {
           {/* ── LISTA VIEW ── */}
           {view === "lista" && (
             <>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="relative flex-1 min-w-[200px] max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar lead, empresa ou closer..."
-                    className="w-full bg-[var(--color-surface-elevated)] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/40 transition-all"
-                  />
-                </div>
-                <div className="flex items-center gap-0.5 bg-[var(--color-surface-elevated)] border border-white/[0.06] rounded-xl p-1">
-                  {STATUS_TABS.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTab(t)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-[10px] font-black transition-all",
-                        tab === t ? "bg-blue-500/20 text-blue-300" : "text-slate-500 hover:text-slate-300"
-                      )}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {filtered.length === 0 ? (
                 <Card className="py-24 bg-[var(--color-surface-elevated)]/80 border-white/5">
                   <div className="flex flex-col items-center justify-center text-center gap-4">
@@ -428,25 +431,6 @@ export default function ReunioesList() {
 
         {/* ── Right panel (1 col) ── */}
         <div className="space-y-5">
-
-          {/* KPIs */}
-          <Card className="p-6 bg-[var(--color-surface-elevated)]/80 border-white/5">
-            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-5">Resumo</h4>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Total",      value: kpis.total,       icon: Video,         color: "text-slate-300" },
-                { label: "Agendadas",  value: kpis.agendadas,   icon: AlertCircle,   color: "text-blue-400"  },
-                { label: "Ao Vivo",    value: kpis.emAndamento, icon: PlayCircle,    color: "text-emerald-400" },
-                { label: "Concluídas", value: kpis.concluidas,  icon: CheckCircle2,  color: "text-slate-400" },
-              ].map(({ label, value, icon: Icon, color }) => (
-                <div key={label} className="p-3 bg-white/[0.03] rounded-2xl border border-white/[0.05] flex flex-col gap-1">
-                  <Icon className={cn("w-4 h-4", color)} />
-                  <p className={cn("text-2xl font-black", color)}>{value}</p>
-                  <p className="text-[9px] font-bold text-slate-600 uppercase tracking-wider">{label}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
 
           {/* Next meeting */}
           <Card className="p-6 bg-[var(--color-surface-elevated)]/80 border-white/5">

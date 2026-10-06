@@ -1,5 +1,7 @@
 import { PageContainer } from "../../components/PageContainer";
-import { Plus, Calendar, CheckCircle2, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plus, Calendar, CheckCircle2, X, FileText, Share2, CalendarCheck, Layers } from "lucide-react";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
@@ -47,6 +49,22 @@ export default function MarketingConteudo() {
   } = useMarketingConteudo();
   const { deleteMarketingContent } = useData();
 
+  const [busca, setBusca] = useState("");
+  const [plataforma, setPlataforma] = useState("");
+  const [etapa, setEtapa] = useState("");
+
+  const plataformas = useMemo(() => Array.from(new Set(tasks.map(t => t.platform).filter(Boolean))).sort() as string[], [tasks]);
+  const tasksFiltradas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return tasks.filter(t =>
+      (!plataforma || t.platform === plataforma) &&
+      (!etapa || t.colId === etapa) &&
+      (!q || [t.title, t.desc, t.platform].some((v: string) => (v || "").toLowerCase().includes(q))),
+    );
+  }, [tasks, busca, plataforma, etapa]);
+  const colunasVisiveis = etapa ? initialColumns.filter(c => c.id === etapa) : initialColumns;
+  const ultimaCol = initialColumns[initialColumns.length - 1];
+
   const handleConcluir = () => {
     if (!selectedTask) return;
     const lastCol = initialColumns[initialColumns.length - 1];
@@ -86,6 +104,25 @@ export default function MarketingConteudo() {
       title="Gestão de Conteúdo (Kanban)"
       subtitle="Organize postagens, vídeos, e criativos em um fluxo visual."
     >
+      <KpiFilterCard
+        id="marketingConteudo"
+        className="mb-6"
+        kpis={[
+          { label: "Pautas", value: tasksFiltradas.length, icon: FileText, tone: "primary" },
+          { label: "Canais", value: new Set(tasksFiltradas.map(t => t.platform)).size, icon: Share2, tone: "info" },
+          { label: ultimaCol ? ultimaCol.title : "Concluídas", value: ultimaCol ? tasksFiltradas.filter(t => t.colId === ultimaCol.id).length : 0, icon: CheckCircle2, tone: "success", hint: "Pautas na última etapa do fluxo" },
+          { label: "Com data de publicação", value: tasksFiltradas.filter(t => t.publishDateISO).length, icon: CalendarCheck, tone: "accent" },
+        ]}
+        activeCount={(busca.trim() ? 1 : 0) + (plataforma ? 1 : 0) + (etapa ? 1 : 0)}
+        onClear={() => { setBusca(""); setPlataforma(""); setEtapa(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar pauta, descrição ou canal..." />
+          <FilterSelect icon={Share2} value={plataforma} onChange={setPlataforma} options={plataformas} allLabel="Todos os canais" />
+          <FilterSelect icon={Layers} value={etapa} onChange={setEtapa} options={initialColumns.map(c => ({ value: c.id, label: c.title }))} allLabel="Todas as etapas" />
+        </FilterBar>
+      </KpiFilterCard>
+
       <div className="flex justify-between items-center mb-6">
         <div className="flex gap-4 items-center overflow-x-auto pb-2 scrollbar-none">
           <Button 
@@ -106,11 +143,11 @@ export default function MarketingConteudo() {
       <div id="app-marketing-conteudo-kanban-board" className="w-full flex-1 flex flex-col min-h-0">
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-6 overflow-x-auto min-h-[500px] scrollbar-thin pb-6 flex-1 items-start">
-            {initialColumns.map(col => (
+            {colunasVisiveis.map(col => (
               <div key={col.id}>
                 <KanbanColumn
                   col={col}
-                  tasks={tasks}
+                  tasks={tasksFiltradas}
                   columnSearches={columnSearches}
                   setColumnSearches={setColumnSearches}
                   openTask={openTask}

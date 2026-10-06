@@ -25,6 +25,7 @@ import {
   Legend,
   CartesianGrid,
 } from "recharts";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { LandingPageCard } from "./components/LandingPages/LandingPageCard";
 import { LandingPageCreateModal } from "./components/LandingPages/LandingPageCreateModal";
 import { LandingPageTrackingModal } from "./components/LandingPages/LandingPageTrackingModal";
@@ -58,6 +59,10 @@ export default function MarketingLandingPages() {
   const [clientSelected, setClientSelected] = useState("");
   const [copiedScript, setCopiedScript] = useState(false);
 
+  // Filtros da lista (o card KPIs & Filtros)
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("");
+
   // Métricas reais da página — antes, qualquer valor "falsy" (incluindo um
   // 0 genuíno) era substituído por um número inventado (`1240 + idx*780`
   // etc.), fazendo toda landing page sem tráfego real mostrar estatísticas
@@ -86,11 +91,19 @@ export default function MarketingLandingPages() {
     return [...pages].sort((a, b) => (b.salesVal || 0) - (a.salesVal || 0))[0];
   }, [pages]);
 
-  // Aggregate stats
-  const totalViews = useMemo(() => pages.reduce((acc, p) => acc + (p.views || 0), 0), [pages]);
-  const totalClicks = useMemo(() => pages.reduce((acc, p) => acc + (p.clicks || 0), 0), [pages]);
-  const totalConversions = useMemo(() => pages.reduce((acc, p) => acc + (p.conversions || 0), 0), [pages]);
-  const totalSalesVal = useMemo(() => pages.reduce((acc, p) => acc + (p.salesVal || 0), 0), [pages]);
+  const pagesFiltradas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return pages.filter((p: any) =>
+      (!statusFiltro || p.status === statusFiltro) &&
+      (!q || [p.name, p.url].some((v: string) => (v || "").toLowerCase().includes(q))),
+    );
+  }, [pages, busca, statusFiltro]);
+
+  // Aggregate stats (refletem a lista filtrada)
+  const totalViews = useMemo(() => pagesFiltradas.reduce((acc: number, p: any) => acc + (p.views || 0), 0), [pagesFiltradas]);
+  const totalClicks = useMemo(() => pagesFiltradas.reduce((acc: number, p: any) => acc + (p.clicks || 0), 0), [pagesFiltradas]);
+  const totalConversions = useMemo(() => pagesFiltradas.reduce((acc: number, p: any) => acc + (p.conversions || 0), 0), [pagesFiltradas]);
+  const totalSalesVal = useMemo(() => pagesFiltradas.reduce((acc: number, p: any) => acc + (p.salesVal || 0), 0), [pagesFiltradas]);
 
   // Chart data
   const chartData = useMemo(() => {
@@ -224,38 +237,22 @@ export default function MarketingLandingPages() {
       }
     >
       <div className="space-y-6 pb-20">
-        {/* ── KPIs GERAIS DE PERFORMANCE ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-              <Globe className="w-4 h-4 text-blue-400" /> Total Visitas
-            </div>
-            <p className="text-2xl font-mono font-black text-white">{totalViews.toLocaleString("pt-BR")}</p>
-          </Card>
-
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-              <MousePointer2 className="w-4 h-4 text-indigo-400" /> Total Cliques
-            </div>
-            <p className="text-2xl font-mono font-black text-indigo-300">{totalClicks.toLocaleString("pt-BR")}</p>
-          </Card>
-
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-              <TrendingUp className="w-4 h-4 text-emerald-400" /> Conversões (Leads)
-            </div>
-            <p className="text-2xl font-mono font-black text-emerald-400">{totalConversions.toLocaleString("pt-BR")}</p>
-          </Card>
-
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-              <DollarSign className="w-4 h-4 text-amber-400" /> Vendas Geradas
-            </div>
-            <p className="text-2xl font-mono font-black text-amber-400">
-              R$ {totalSalesVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-            </p>
-          </Card>
-        </div>
+        <KpiFilterCard
+          id="marketingLandingPages"
+          kpis={[
+            { label: "Total Visitas", value: totalViews.toLocaleString("pt-BR"), icon: Globe, tone: "info" },
+            { label: "Total Cliques", value: totalClicks.toLocaleString("pt-BR"), icon: MousePointer2, tone: "accent" },
+            { label: "Conversões (Leads)", value: totalConversions.toLocaleString("pt-BR"), icon: TrendingUp, tone: "success" },
+            { label: "Vendas Geradas", value: `R$ ${totalSalesVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "warning" },
+          ]}
+          activeCount={(busca.trim() ? 1 : 0) + (statusFiltro ? 1 : 0)}
+          onClear={() => { setBusca(""); setStatusFiltro(""); }}
+        >
+          <FilterBar>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar página por nome ou URL..." />
+            <FilterChips value={statusFiltro} onChange={setStatusFiltro} options={[{ value: "published", label: "Publicadas" }, { value: "draft", label: "Rascunhos" }]} />
+          </FilterBar>
+        </KpiFilterCard>
 
         {/* ── PAINEL DE GRÁFICOS E RANKING DA LP QUE MAIS VENDE ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -407,11 +404,11 @@ export default function MarketingLandingPages() {
 
         {/* ── LISTA DE LANDING PAGES ── */}
         <div className="flex justify-between items-center pt-4">
-          <h3 className="text-base font-black text-white">Todas as Páginas Ativas ({pages.length})</h3>
+          <h3 className="text-base font-black text-white">Todas as Páginas ({pagesFiltradas.length})</h3>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
-          {pages.map((page, index) => (
+          {pagesFiltradas.map((page: any, index: number) => (
             <LandingPageCard
               key={page.id}
               page={page}

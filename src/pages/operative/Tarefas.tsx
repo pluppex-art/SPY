@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import { LayoutGrid, List as ListIcon, RefreshCw, Plus } from "lucide-react";
+import { LayoutGrid, List as ListIcon, RefreshCw, Plus, ListChecks, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
+import { KpiFilterCard } from "../../components/ui/kpi-filter-card";
 import { NovaTarefaModal } from "../../components/ui/modals/productivity/NovaTarefaModal";
 import { ConfirmModal } from "../../components/ui/modals/shared/ConfirmModal";
 import { NovaPautaModal } from "../../components/ui/modals/productivity/NovaPautaModal";
 
 import { useTarefas } from "./tarefas/useTarefas";
 import { useTarefasList } from "./tarefas/useTarefasList";
-import { PerformanceMetrics } from "./tarefas/PerformanceMetrics";
 import { WorkloadBento } from "./tarefas/WorkloadBento";
 import { TasksFilter } from "./tarefas/TasksFilter";
 import { TasksListMode } from "./tarefas/TasksListMode";
@@ -136,25 +136,26 @@ export default function Tarefas() {
           onExpandTask={openEditTaskModal}
         />
 
-        {/* Statistics Widgets */}
-        <PerformanceMetrics
-          completionRate={completionRate}
-          completedCount={completedCount}
-          totalCount={totalCount}
-          overdueCount={overdueCount}
-          openCount={openCount}
-          highPriorityCount={highPriorityCount}
-        />
-
-        {/* Filters */}
-        <TasksFilter
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          deadlineFilter={deadlineFilter}
-          setDeadlineFilter={setDeadlineFilter}
-          selectedPriorities={selectedPriorities}
-          setSelectedPriorities={setSelectedPriorities}
-        />
+        <KpiFilterCard
+          id="opsTarefas"
+          kpis={[
+            { label: "Tarefas", value: filteredTasks.length, icon: ListChecks, tone: "primary", hint: "Conforme os filtros" },
+            { label: "Em aberto", value: filteredTasks.filter(t => t.status === "Em Aberto").length, icon: Clock, tone: "warning" },
+            { label: "Atrasadas", value: filteredTasks.filter(t => t.status === "Atrasado").length, icon: AlertTriangle, tone: "danger" },
+            { label: "Concluídas", value: filteredTasks.filter(t => t.status === "Concluída").length, icon: CheckCircle2, tone: "success" },
+          ]}
+          activeCount={(searchQuery.trim() ? 1 : 0) + (deadlineFilter ? 1 : 0) + (selectedPriorities.length > 0 ? 1 : 0)}
+          onClear={() => { setSearchQuery(""); setSelectedPriorities([]); setDeadlineFilter(""); }}
+        >
+          <TasksFilter
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            deadlineFilter={deadlineFilter}
+            setDeadlineFilter={setDeadlineFilter}
+            selectedPriorities={selectedPriorities}
+            setSelectedPriorities={setSelectedPriorities}
+          />
+        </KpiFilterCard>
 
         {/* Views */}
         {viewMode === 'list' ? (

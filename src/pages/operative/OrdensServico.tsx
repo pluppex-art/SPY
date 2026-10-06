@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle2, ClipboardList, Clock, Hammer, LayoutGrid, List, Loader2, Plus, Search, Settings2, Wallet } from "lucide-react";
+import { CheckCircle2, ClipboardList, Clock, Hammer, LayoutGrid, List, Loader2, Plus, Settings2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
-import { StatCell, StatCellRow } from "../finance/components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
@@ -162,15 +162,18 @@ export default function OrdensServico() {
       }
     >
       <div className="space-y-5 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label="Em andamento" value={kpis.abertas} icon={Hammer} hint="Abertas ou em execução" />
-          <StatCell label="Atrasadas" value={kpis.atrasadas} icon={Clock} tone={kpis.atrasadas > 0 ? "danger" : "neutral"} hint="Passaram da data prevista" />
-          <StatCell label="A faturar" value={formatCurrency(kpis.aFaturar)} icon={CheckCircle2} tone={kpis.aFaturar > 0 ? "warning" : "neutral"} hint="Concluídas sem cobrança" />
-          <StatCell label="Faturado (mês)" value={formatCurrency(kpis.faturadoMes)} icon={Wallet} tone="success" />
-        </StatCellRow>
-
-        {/* Abas por departamento + busca + vista */}
-        <div className="flex flex-wrap items-center gap-3">
+        <KpiFilterCard
+          id="opsOrdensServico"
+          kpis={[
+            { label: "Em andamento", value: kpis.abertas, icon: Hammer, tone: "primary", hint: "Abertas ou em execução" },
+            { label: "Atrasadas", value: kpis.atrasadas, icon: Clock, tone: kpis.atrasadas > 0 ? "danger" : "neutral", hint: "Passaram da data prevista" },
+            { label: "A faturar", value: formatCurrency(kpis.aFaturar), icon: CheckCircle2, tone: kpis.aFaturar > 0 ? "warning" : "neutral", hint: "Concluídas sem cobrança" },
+            { label: "Faturado (mês)", value: formatCurrency(kpis.faturadoMes), icon: Wallet, tone: "success" },
+          ]}
+          activeCount={(busca.trim() ? 1 : 0) + (filtroStatus !== "Todas" ? 1 : 0) + (depAtual ? 1 : 0)}
+          onClear={() => { setBusca(""); setFiltroStatus("Todas"); irParaDep(null); }}
+        >
+          <FilterBar>
           {depsAtivos.length > 0 && (
             <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] overflow-x-auto max-w-full">
               {[{ id: TODOS, nome: "Todos", total: os.ordens.filter(o => osEmAberto(o, os.etapaDaOrdem(o))).length }, ...depsAtivos.map(d => ({ id: d.id, nome: d.nome, total: contagem.get(d.id) ?? 0 }))].map(t => {
@@ -187,10 +190,10 @@ export default function OrdensServico() {
               })}
             </div>
           )}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-            <input type="text" placeholder="Buscar cliente, serviço, responsável ou número…" value={busca} onChange={e => setBusca(e.target.value)} className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-9 pr-3 py-2 text-xs focus:outline-none" />
-          </div>
+            <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar cliente, serviço, responsável ou número…" />
+            {vista === "lista" && (
+              <FilterChips value={filtroStatus === "Todas" ? "" : filtroStatus} onChange={v => setFiltroStatus((v || "Todas") as (typeof FILTROS)[number])} options={[...OS_STATUSES]} allLabel="Todas" />
+            )}
           <div className="ml-auto flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
             {([["kanban", "Kanban", LayoutGrid], ["lista", "Lista", List]] as const).map(([v, label, Icon]) => (
               <button
@@ -199,7 +202,8 @@ export default function OrdensServico() {
               ><Icon className="w-3.5 h-3.5" /> {label}</button>
             ))}
           </div>
-        </div>
+          </FilterBar>
+        </KpiFilterCard>
 
         {vista === "kanban" && funisDoDep.length > 1 && (
           <div className="flex flex-wrap items-center gap-2">
@@ -235,14 +239,6 @@ export default function OrdensServico() {
           />
         ) : (
           <>
-            <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] flex-wrap w-fit">
-              {FILTROS.map(f => (
-                <button
-                  key={f} type="button" onClick={() => setFiltroStatus(f)}
-                  className={cn("px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all", filtroStatus === f ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
-                >{f}</button>
-              ))}
-            </div>
             {linhas.length === 0 ? (
               <EmptyState
                 icon={ClipboardList}
