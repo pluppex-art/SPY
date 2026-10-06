@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "../../../../components/ui/card";
 import { Badge } from "../../../../components/ui/badge";
-import { Input } from "../../../../components/ui/input";
 import { EmptyState } from "../../../../components/ui/empty-state";
 import { Pagination } from "../../../../components/ui/Pagination";
 import {
@@ -12,9 +11,8 @@ import {
   TableHead,
   TableCell,
 } from "../../../../components/ui/table";
-import { FileText, Search, Edit2, Trash2, Download } from "lucide-react";
+import { FileText, Edit2, Trash2, Download } from "lucide-react";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
-import { normalizeText } from "../../../../lib/utils";
 
 interface Contract {
   id: string;
@@ -37,14 +35,7 @@ interface Contract {
 
 interface ContractsTableProps {
   contracts: Contract[];
-  searchQuery: string;
-  onSearchChange: (v: string) => void;
-  statusFilter: string;
-  onStatusFilterChange: (v: string) => void;
-  planFilter: string;
-  onPlanFilterChange: (v: string) => void;
-  vendedorFilter: string;
-  onVendedorFilterChange: (v: string) => void;
+  /** Busca/filtros vivem no card "KPIs & Filtros" de Contracts.tsx; a tabela recebe a lista já filtrada. */
   onDelete: (id: string) => void;
   onEdit: (contract: Contract) => void;
   onDownloadPdf: (contract: Contract) => void;
@@ -65,68 +56,23 @@ function parseDateBR(br?: string | null): Date | null {
 const PAGE_SIZE = 50;
 
 export function ContractsTable({
-  contracts, searchQuery, onSearchChange,
-  statusFilter, onStatusFilterChange, planFilter, onPlanFilterChange, vendedorFilter, onVendedorFilterChange,
+  contracts,
   onDelete, onEdit, onDownloadPdf,
 }: ContractsTableProps) {
   const { formatCurrency } = useLocalization();
 
-  // Opções reais dos filtros — só valores que de fato existem nos contratos
-  // deste tenant, nunca uma lista fixa.
-  const planosDisponiveis = useMemo(() => Array.from(new Set(contracts.map((c) => c.plan).filter(Boolean))).sort(), [contracts]);
-  const vendedoresDisponiveis = useMemo(() => Array.from(new Set(contracts.map((c) => c.responsavel).filter(Boolean))).sort() as string[], [contracts]);
-
-  const q = normalizeText(searchQuery);
-  const filtered = contracts.filter(c => {
-    if (statusFilter !== "Todos" && c.status !== statusFilter) return false;
-    if (planFilter !== "Todos" && c.plan !== planFilter) return false;
-    if (vendedorFilter !== "Todos" && c.responsavel !== vendedorFilter) return false;
-    if (!q) return true;
-    return normalizeText(c.client).includes(q) || normalizeText(c.plan).includes(q) || normalizeText(c.responsavel).includes(q);
-  });
+  const filtered = contracts;
 
   // Mesmo componente de paginação da Base de Clientes (ClientesList.tsx) —
   // antes era um botão "Carregar mais" aqui e páginas numeradas lá, dois
   // padrões diferentes pra telas de lista quase idênticas do mesmo módulo.
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [searchQuery, statusFilter, planFilter, vendedorFilter]);
+  useEffect(() => { setPage(0); }, [contracts]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = useMemo(() => filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE), [filtered, page]);
 
-  const selectClass = "bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-blue)] font-bold";
-
   return (
     <Card className="overflow-hidden">
-      <div className="p-4 border-b border-[var(--color-border-subtle)] flex gap-3 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
-          <Input
-            type="text"
-            placeholder="Buscar cliente, plano ou responsável..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <select value={statusFilter} onChange={(e) => onStatusFilterChange(e.target.value)} className={selectClass}>
-          <option>Todos</option>
-          <option>Ativo</option>
-          <option>Inadimplente</option>
-          <option>Cancelado</option>
-        </select>
-        {planosDisponiveis.length > 1 && (
-          <select value={planFilter} onChange={(e) => onPlanFilterChange(e.target.value)} className={selectClass}>
-            <option>Todos</option>
-            {planosDisponiveis.map((p) => <option key={p}>{p}</option>)}
-          </select>
-        )}
-        {vendedoresDisponiveis.length > 1 && (
-          <select value={vendedorFilter} onChange={(e) => onVendedorFilterChange(e.target.value)} className={selectClass}>
-            <option>Todos</option>
-            {vendedoresDisponiveis.map((v) => <option key={v}>{v}</option>)}
-          </select>
-        )}
-      </div>
       {filtered.length === 0 ? (
         <EmptyState
           icon={FileText}

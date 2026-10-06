@@ -2,10 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  Building2, Plus, Search, MapPin, Globe, Phone, Mail,
+  Building2, Plus, MapPin, Globe, Phone, Mail,
   TrendingUp, Users, DollarSign, Trash2, ExternalLink,
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -14,6 +13,7 @@ import { friendlyError } from "../../lib/friendlyError";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
 import { useData } from "../../contexts/DataContext";
 import { normalizeText } from "../../lib/utils";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
 export default function Empresas() {
   const { activeTenantId } = useAuth();
@@ -21,6 +21,9 @@ export default function Empresas() {
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [segmentoFilter, setSegmentoFilter] = useState("");
+  const [cidadeFilter, setCidadeFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [novaEmpresa, setNovaEmpresa] = useState({
     nome: "",
@@ -63,12 +66,21 @@ export default function Empresas() {
   const filtered = useMemo(() => {
     const q = normalizeText(search);
     return empresas.filter(e =>
-      normalizeText(e.name).includes(q) ||
+      (normalizeText(e.name).includes(q) ||
       normalizeText(e.industry).includes(q) ||
       normalizeText(e.city).includes(q) ||
-      normalizeText(e.documento).includes(q)
+      normalizeText(e.documento).includes(q)) &&
+      (!statusFilter || (e.status || "Ativo") === statusFilter) &&
+      (!segmentoFilter || e.industry === segmentoFilter) &&
+      (!cidadeFilter || e.city === cidadeFilter)
     );
-  }, [empresas, search]);
+  }, [empresas, search, statusFilter, segmentoFilter, cidadeFilter]);
+
+  const statusList = useMemo(() => Array.from(new Set(empresas.map(e => e.status || "Ativo"))).sort() as string[], [empresas]);
+  const segmentosList = useMemo(() => Array.from(new Set(empresas.map(e => e.industry).filter(Boolean))).sort() as string[], [empresas]);
+  const cidadesList = useMemo(() => Array.from(new Set(empresas.map(e => e.city).filter(Boolean))).sort() as string[], [empresas]);
+  const activeCount = (search ? 1 : 0) + (statusFilter ? 1 : 0) + (segmentoFilter ? 1 : 0) + (cidadeFilter ? 1 : 0);
+  const clearFilters = () => { setSearch(""); setStatusFilter(""); setSegmentoFilter(""); setCidadeFilter(""); };
 
   const handleSave = async () => {
     if (!novaEmpresa.nome.trim()) {
@@ -123,37 +135,24 @@ export default function Empresas() {
         </Button>
       }
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: Building2, label: "Total de Empresas", val: empresas.length, color: "text-blue-500" },
-          { icon: Users, label: "Empresas Ativas", val: empresas.filter(e => e.status === "Ativo").length, color: "text-emerald-500" },
-          { icon: MapPin, label: "Cidades Atendidas", val: new Set(empresas.map(e => e.city).filter(Boolean)).size, color: "text-amber-500" },
-          { icon: TrendingUp, label: "Segmentos Ativos", val: new Set(empresas.map(e => e.industry).filter(Boolean)).size, color: "text-indigo-500" },
-        ].map((k, i) => (
-          <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</span>
-              <k.icon className={`w-4 h-4 ${k.color}`} />
-            </div>
-            <p className="text-xl font-black text-[var(--color-text-primary)]">{k.val}</p>
-          </Card>
-        ))}
-      </div>
-
-      {/* Search Bar */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por razão social, CNPJ, segmento ou cidade..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl pl-10 pr-4 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-      </div>
+      <KpiFilterCard
+        id="crmEmpresas"
+        activeCount={activeCount}
+        onClear={clearFilters}
+        kpis={[
+          { label: "Empresas", value: filtered.length, icon: Building2, tone: "primary" },
+          { label: "Empresas Ativas", value: filtered.filter(e => (e.status || "Ativo") === "Ativo").length, icon: Users, tone: "success" },
+          { label: "Cidades Atendidas", value: new Set(filtered.map(e => e.city).filter(Boolean)).size, icon: MapPin, tone: "warning" },
+          { label: "Segmentos", value: new Set(filtered.map(e => e.industry).filter(Boolean)).size, icon: TrendingUp, tone: "accent" },
+        ]}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por razão social, CNPJ, segmento ou cidade..." />
+          <FilterSelect icon={TrendingUp} value={segmentoFilter} onChange={setSegmentoFilter} options={segmentosList} allLabel="Todos os segmentos" />
+          <FilterSelect icon={MapPin} value={cidadeFilter} onChange={setCidadeFilter} options={cidadesList} allLabel="Todas as cidades" />
+          <FilterChips value={statusFilter} onChange={setStatusFilter} options={statusList} allLabel="Todos" />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Grid of Companies */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

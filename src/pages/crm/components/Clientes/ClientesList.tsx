@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card } from "../../../../components/ui/card";
 import { Badge } from "../../../../components/ui/badge";
-import { Input } from "../../../../components/ui/input";
 import { EmptyState } from "../../../../components/ui/empty-state";
 import { Pagination } from "../../../../components/ui/Pagination";
 import {
@@ -12,8 +11,7 @@ import {
   TableHead,
   TableCell,
 } from "../../../../components/ui/table";
-import { Search, Building2, MapPin, Phone, Mail, Trash2, FileText, Users, Pencil, Eye, List, LayoutGrid } from "lucide-react";
-import { normalizeText } from "../../../../lib/utils";
+import { Building2, MapPin, Phone, Mail, Trash2, FileText, Users, Pencil, Eye, List, LayoutGrid } from "lucide-react";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
 
 const PAGE_SIZE = 50;
@@ -65,14 +63,8 @@ interface ClientesListProps {
   /** Decisor "principal" (cliente_contatos.principal=true) por cliente —
    * mostrado junto com o Documento na tabela. */
   decisorPorCliente?: Record<string, { nome: string; cargo?: string | null }>;
-  searchQuery: string;
-  onSearchChange: (v: string) => void;
-  sectorFilter: string;
-  onSectorChange: (v: string) => void;
-  statusFilter: string;
-  onStatusChange: (v: string) => void;
-  contratoStatusFilter: string;
-  onContratoStatusChange: (v: string) => void;
+  /** A busca/filtros agora vivem no card "KPIs & Filtros" de Clientes.tsx; a
+   * lista chega já filtrada. */
   onDelete: (id: string) => void;
   onEdit: (cliente: Cliente) => void;
   onManageContatos: (clienteId: string) => void;
@@ -93,49 +85,20 @@ function contratoStatusMeta(status?: string | null): { label: string; dot: strin
 }
 
 export function ClientesList({
-  clientes, decisorPorCliente = {}, searchQuery, onSearchChange,
-  sectorFilter, onSectorChange, statusFilter, onStatusChange,
-  contratoStatusFilter, onContratoStatusChange,
+  clientes, decisorPorCliente = {},
   onDelete, onEdit, onManageContatos, onOpenDetalhes,
 }: ClientesListProps) {
   const { formatCurrency } = useLocalization();
   const [view, setView] = useState<"list" | "grid">("list");
 
-  // Opções reais do filtro de setor — só os valores que de fato existem na
-  // base, nunca uma lista fixa (achado real: o dropdown antigo tinha
-  // "Engenharia"/"Saúde"/"Indústria" hardcoded, sem relação nenhuma com os
-  // setores realmente cadastrados nesse tenant).
-  const setoresDisponiveis = useMemo(
-    () => Array.from(new Set(clientes.map((c) => c.industry).filter(Boolean))).sort() as string[],
-    [clientes]
-  );
-
-  const filtered = useMemo(() => clientes.filter(c => {
-    if (statusFilter !== "Todas as situações" && c.status !== statusFilter) return false;
-    if (sectorFilter !== "Todos os setores" && c.industry !== sectorFilter) return false;
-    if (contratoStatusFilter !== "Todos os status") {
-      const meta = contratoStatusMeta(c.contratoStatus).label;
-      if (meta !== contratoStatusFilter) return false;
-    }
-    if (searchQuery) {
-      const term = normalizeText(searchQuery);
-      return normalizeText(c.name).includes(term) ||
-             normalizeText(c.documento).includes(term) ||
-             normalizeText(c.responsavel).includes(term) ||
-             normalizeText(c.email).includes(term) ||
-             normalizeText(c.phone).includes(term);
-    }
-    return true;
-  }), [clientes, statusFilter, sectorFilter, contratoStatusFilter, searchQuery]);
+  const filtered = clientes;
 
   // Renderizava TODOS os clientes filtrados de uma vez — pagina só a
   // exibição (os dados já estão em memória).
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [statusFilter, sectorFilter, contratoStatusFilter, searchQuery]);
+  useEffect(() => { setPage(0); }, [clientes]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-
-  const selectClass = "bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-blue)] font-bold";
 
   const actionButtons = (c: Cliente) => (
     <>
@@ -176,36 +139,8 @@ export function ClientesList({
 
   return (
     <Card className="overflow-hidden">
-      {/* Filters bar */}
-      <div className="p-4 border-b border-[var(--color-border-subtle)] flex gap-3 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
-          <Input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar por cliente, documento, responsável, e-mail ou telefone..."
-            className="pl-9"
-          />
-        </div>
-        <select value={sectorFilter} onChange={(e) => onSectorChange(e.target.value)} className={selectClass}>
-          <option>Todos os setores</option>
-          {setoresDisponiveis.map((s) => <option key={s}>{s}</option>)}
-        </select>
-        <select value={statusFilter} onChange={(e) => onStatusChange(e.target.value)} className={selectClass}>
-          <option>Todas as situações</option>
-          <option>Ativo</option>
-          <option>Em Implantação</option>
-          <option>Inativo</option>
-        </select>
-        <select value={contratoStatusFilter} onChange={(e) => onContratoStatusChange(e.target.value)} className={selectClass}>
-          <option>Todos os status</option>
-          <option>Em dia</option>
-          <option>Inadimplente</option>
-          <option>Cancelado</option>
-          <option>Sem contrato</option>
-        </select>
-        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] ml-auto">
+      <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] flex justify-end">
+        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
           <button type="button" onClick={() => setView("list")} title="Lista" className={`p-1.5 rounded-lg transition-colors ${view === "list" ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}><List className="w-3.5 h-3.5" /></button>
           <button type="button" onClick={() => setView("grid")} title="Grade" className={`p-1.5 rounded-lg transition-colors ${view === "grid" ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}><LayoutGrid className="w-3.5 h-3.5" /></button>
         </div>

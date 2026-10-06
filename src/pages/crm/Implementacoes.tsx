@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { Rocket, Play, Search, ClipboardList, CheckCircle2, Clock, Gauge, ChevronRight, LayoutList, Columns3, Workflow } from "lucide-react";
+import { Rocket, Play, User, ClipboardList, CheckCircle2, Clock, Gauge, ChevronRight, LayoutList, Columns3, Workflow } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
-import { StatCell, StatCellRow } from "../finance/components/StatCell";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { ImplementationProgressBar } from "../../components/implementacao/ImplementationProgressBar";
 import { ImplementacoesKanban, type KanbanColumnDef } from "../../components/implementacao/ImplementacoesKanban";
 import { useData } from "../../contexts/DataContext";
@@ -33,6 +33,7 @@ export default function Implementacoes() {
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState<(typeof FILTROS)[number]>("Todas");
   const [busca, setBusca] = useState("");
+  const [respFiltro, setRespFiltro] = useState("");
   const [outroClienteId, setOutroClienteId] = useState("");
   const [iniciando, setIniciando] = useState<string | null>(null);
   const iniciandoRef = useRef(false);
@@ -94,28 +95,43 @@ export default function Implementacoes() {
     ? implementacaoStages.map((s) => ({ id: s.id, label: s.name, dot: s.color, isHex: true }))
     : IMPLEMENTATION_STATUSES.map((s) => ({ id: s, label: s, dot: LEGACY_STATUS_DOT[s] }));
 
+  // Base filtrada por busca + responsável (o chip de status refina só a lista; os KPIs mostram o
+  // retrato dessa base, senão "Concluídas" zeraria ao filtrar por "Em andamento").
+  const linhasBase = useMemo(() => {
+    const q = normalizeText(busca.trim());
+    return linhas.filter((l) => {
+      if (respFiltro && l.impl.responsavel !== respFiltro) return false;
+      return !q || normalizeText(l.cliente?.name).includes(q) || normalizeText(l.impl.responsavel).includes(q);
+    });
+  }, [linhas, busca, respFiltro]);
+
+  const responsaveis = useMemo(
+    () => Array.from(new Set(linhas.map((l) => l.impl.responsavel).filter(Boolean))).sort() as string[],
+    [linhas]
+  );
+
   const kpis = useMemo(() => {
-    const abertas = linhas.filter((l) => l.impl.status !== "Concluída");
+    const abertas = linhasBase.filter((l) => l.impl.status !== "Concluída");
     const media = abertas.length === 0 ? 0 : Math.round(abertas.reduce((s, l) => s + l.progresso.percent, 0) / abertas.length);
     return {
       abertas: abertas.length,
-      concluidas: linhas.length - abertas.length,
+      concluidas: linhasBase.length - abertas.length,
       media,
     };
-  }, [linhas]);
+  }, [linhasBase]);
 
-  const filtradas = useMemo(() => {
-    const q = normalizeText(busca.trim());
-    return linhas.filter((l) => {
-      if (filtro !== "Todas" && l.impl.status !== filtro) return false;
-      return !q || normalizeText(l.cliente?.name).includes(q) || normalizeText(l.impl.responsavel).includes(q);
-    });
-  }, [linhas, filtro, busca]);
+  const filtradas = useMemo(
+    () => linhasBase.filter((l) => filtro === "Todas" || l.impl.status === filtro),
+    [linhasBase, filtro]
+  );
 
   const aguardandoFiltrado = useMemo(() => {
     const q = normalizeText(busca.trim());
     return aguardando.filter(({ cliente }) => !q || normalizeText(cliente.name).includes(q));
   }, [aguardando, busca]);
+
+  const activeCount = (busca ? 1 : 0) + (respFiltro ? 1 : 0) + (view === "lista" && filtro !== "Todas" ? 1 : 0);
+  const limparFiltros = () => { setBusca(""); setRespFiltro(""); setFiltro("Todas"); };
 
   // Mesmas regras da tela de detalhe ao mudar de coluna (conclusão finaliza o cliente e vice-versa).
   const moverStatus = async (impl: any, cliente: any, nextColumnId: string) => {
@@ -156,10 +172,9 @@ export default function Implementacoes() {
   };
 
   const linhasBusca = useMemo(() => {
-    const q = normalizeText(busca.trim());
-    return linhas.filter((l) => etapas.pertence(l.impl) && (!q || normalizeText(l.cliente?.name).includes(q) || normalizeText(l.impl.responsavel).includes(q)));
+    return linhasBase.filter((l) => etapas.pertence(l.impl));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linhas, busca, etapas.funilId, etapas.origem, etapas.funis]);
+  }, [linhasBase, etapas.funilId, etapas.origem, etapas.funis]);
 
   const iniciar = async (cliente: any, lead?: any) => {
     // Trava síncrona (o estado só atualiza no próximo render — um duplo clique passaria).
@@ -188,13 +203,6 @@ export default function Implementacoes() {
       breadcrumb={[{ label: "CRM & Vendas" }, { label: "Implementações" }]}
     >
       <div className="space-y-5 max-w-[1700px] mx-auto pb-12">
-        <StatCellRow>
-          <StatCell label="Em implantação" value={kpis.abertas} icon={Rocket} />
-          <StatCell label="Aguardando início" value={aguardando.length} icon={Clock} tone={aguardando.length > 0 ? "warning" : "neutral"} hint="Fecharam e ainda não começaram" />
-          <StatCell label="Concluídas" value={kpis.concluidas} icon={CheckCircle2} tone="success" />
-          <StatCell label="Progresso médio (em andamento)" value={`${kpis.media}%`} icon={Gauge} />
-        </StatCellRow>
-
         {view === "lista" && (aguardando.length > 0 || clientesLivres.length > 0) && (
           <Card className="p-6">
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1 flex items-center gap-2">
@@ -240,7 +248,18 @@ export default function Implementacoes() {
           </Card>
         )}
 
-        <div className="flex flex-wrap items-center gap-3">
+        <KpiFilterCard
+          id="crmImplementacoes"
+          activeCount={activeCount}
+          onClear={limparFiltros}
+          kpis={[
+            { label: "Em implantação", value: kpis.abertas, icon: Rocket, tone: "primary" },
+            { label: "Aguardando início", value: aguardandoFiltrado.length, icon: Clock, tone: aguardandoFiltrado.length > 0 ? "warning" : "neutral", hint: "Fecharam e ainda não começaram" },
+            { label: "Concluídas", value: kpis.concluidas, icon: CheckCircle2, tone: "success" },
+            { label: "Progresso médio (em andamento)", value: `${kpis.media}%`, icon: Gauge, tone: "info" },
+          ]}
+        >
+          <FilterBar>
           <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
             {([["lista", "Lista", LayoutList], ["kanban", "Kanban", Columns3]] as const).map(([id, label, Icon]) => (
               <button
@@ -277,30 +296,14 @@ export default function Implementacoes() {
             </span>
           )}
           {view === "lista" && (
-          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] flex-wrap">
-            {FILTROS.map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFiltro(f)}
-                className={cn(
-                  "px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all",
-                  filtro === f ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                )}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
+            <FilterChips value={filtro === "Todas" ? "" : filtro} onChange={(v) => setFiltro((v || "Todas") as (typeof FILTROS)[number])} options={[...IMPLEMENTATION_STATUSES]} allLabel="Todas" />
           )}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-            <input
-              type="text" placeholder="Buscar cliente ou responsável…" value={busca} onChange={(e) => setBusca(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-9 pr-3 py-2 text-xs focus:outline-none"
-            />
-          </div>
-        </div>
+          {responsaveis.length > 0 && (
+            <FilterSelect icon={User} value={respFiltro} onChange={setRespFiltro} options={responsaveis} allLabel="Todos os responsáveis" />
+          )}
+          <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar cliente ou responsável…" />
+          </FilterBar>
+        </KpiFilterCard>
 
         {view === "kanban" ? (
           <>

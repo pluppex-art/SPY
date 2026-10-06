@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Radar as RadarIcon, Flame, Clock, Users, Phone, MessageCircle, ExternalLink,
-  Download, Send, Search, ListTree,
+  Download, Send, ListTree,
 } from "lucide-react";
 import {
   AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
@@ -11,6 +11,7 @@ import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Sparkline } from "../../components/ui/sparkline";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -197,6 +198,8 @@ export default function Radar() {
       return [r.l.name, r.l.company, r.l.title, r.l.seller].some((v) => String(v || "").toLowerCase().includes(q));
     }), [allStalled, days, riskFiltro, vendedor, funilFiltro, busca]);
 
+  const activeCount = (days !== 3 ? 1 : 0) + (vendedor !== "todos" ? 1 : 0) + (funilFiltro !== "todos" ? 1 : 0) + (busca ? 1 : 0) + (riskFiltro ? 1 : 0);
+  const limparFiltros = () => { setDays(3); setVendedor("todos"); setFunilFiltro("todos"); setBusca(""); setRiskFiltro(null); };
   const funisDisponiveis = useMemo(() => Array.from(new Set(allStalled.map((r) => r.funilNome))).sort(), [allStalled]);
   const visible = visibleRows.slice(0, 200);
   const allSelected = visible.length > 0 && visible.every((r) => selecionados.has(r.l.id));
@@ -238,8 +241,8 @@ export default function Radar() {
 
   return (
     <PageContainer breadcrumb={[{ label: "Radar" }]} title="Radar" subtitle="Negócios em aberto que esfriaram — retome antes de perder.">
-      {/* Cards de topo */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-4">
+      <KpiFilterCard id="crmRadar" activeCount={activeCount} onClear={limparFiltros}>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {(["critico", "alto", "atencao"] as Risk[]).map((k) => (
           <Card key={k} onClick={() => toggleRiskFiltro(k)} className={`p-4 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${riskFiltro === k ? "ring-2 ring-[var(--color-primary-blue)]" : ""}`}>
             <div className="flex items-center justify-between mb-2">
@@ -283,6 +286,18 @@ export default function Radar() {
           <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{formatCurrency(valorEmRisco)} em jogo</p>
         </Card>
       </div>
+        <FilterBar>
+          <FilterSelect icon={Clock} value={String(days)} onChange={(v) => setDays(Number(v))} options={[1, 2, 3, 5, 7, 14, 30].map((d) => ({ value: String(d), label: `Sem contato há ${d}+ dia${d > 1 ? "s" : ""}` }))} title="Sem contato há pelo menos N dias" />
+          {funisDisponiveis.length > 1 && (
+            <FilterSelect icon={ListTree} value={funilFiltro} onChange={setFunilFiltro} options={funisDisponiveis} allLabel="Todos os funis" allValue="todos" />
+          )}
+          {vendedores.length > 1 && (
+            <FilterSelect icon={Users} value={vendedor} onChange={setVendedor} options={vendedores as string[]} allLabel="Todos os responsáveis" allValue="todos" />
+          )}
+          <FilterChips value={riskFiltro ?? ""} onChange={(v) => setRiskFiltro((v || null) as Risk | null)} allLabel="Todos os riscos" options={(["critico", "alto", "atencao"] as Risk[]).map((k) => ({ value: k, label: RISK_META[k].label }))} />
+          <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar lead, empresa ou responsável..." />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Evolução + Distribuição + Parados por etapa */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
@@ -375,39 +390,9 @@ export default function Radar() {
         </Card>
       </div>
 
-      {/* Filtros + Tabela */}
+      {/* Tabela */}
       <Card className="p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-3">
-          <label className="text-xs flex items-center gap-2">Sem contato há pelo menos
-            <select className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] px-2 py-1 text-xs" value={days} onChange={(e) => setDays(Number(e.target.value))}>
-              {[1, 2, 3, 5, 7, 14, 30].map((d) => <option key={d} value={d}>{d} dia{d > 1 ? "s" : ""}</option>)}
-            </select>
-          </label>
-          {funisDisponiveis.length > 1 && (
-            <label className="text-xs flex items-center gap-2">Funil
-              <select className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] px-2 py-1 text-xs" value={funilFiltro} onChange={(e) => setFunilFiltro(e.target.value)}>
-                <option value="todos">Todos</option>
-                {funisDisponiveis.map((f) => <option key={f} value={f}>{f}</option>)}
-              </select>
-            </label>
-          )}
-          {vendedores.length > 1 && (
-            <label className="text-xs flex items-center gap-2">Responsável
-              <select className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] px-2 py-1 text-xs" value={vendedor} onChange={(e) => setVendedor(e.target.value)}>
-                <option value="todos">Todos</option>
-                {vendedores.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-            </label>
-          )}
-          {riskFiltro && (
-            <button type="button" onClick={() => setRiskFiltro(null)} className="text-xs font-bold text-[var(--color-primary-blue)] hover:underline">
-              Limpar filtro de risco ({RISK_META[riskFiltro].label})
-            </button>
-          )}
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-            <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar lead, empresa ou responsável..." className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] focus:outline-none focus:border-[var(--color-primary-blue)]/50" />
-          </div>
           <div className="flex items-center gap-2 ml-auto">
             {selecionados.size > 0 && (
               <Button size="sm" onClick={reengajarSelecionados} className="h-8 px-3 text-[11px] font-bold gap-1.5"><Send className="w-3.5 h-3.5" /> Reengajar selecionados ({selecionados.size})</Button>

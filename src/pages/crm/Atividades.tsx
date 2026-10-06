@@ -3,13 +3,13 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
   Activity, PhoneCall, Mail, MessageSquare, Calendar,
-  CheckCircle2, Clock, Search, Filter, Plus, User
+  CheckCircle2, Clock, Filter, Plus, User
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
 import { Pagination } from "../../components/ui/Pagination";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { normalizeText } from "../../lib/utils";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
 const PAGE_SIZE = 50;
 
@@ -17,6 +17,7 @@ export default function Atividades() {
   const { leads } = useData();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("Todos");
+  const [userFilter, setUserFilter] = useState("");
 
   // Synthetic activity feed derived from lead notes, followups and meetings
   const activities = useMemo(() => {
@@ -60,14 +61,24 @@ export default function Atividades() {
         normalizeText(a.content).includes(q) ||
         normalizeText(a.user).includes(q);
       const matchType = typeFilter === "Todos" || a.type === typeFilter;
-      return matchSearch && matchType;
+      const matchUser = !userFilter || a.user === userFilter;
+      return matchSearch && matchType && matchUser;
     });
-  }, [activities, search, typeFilter]);
+  }, [activities, search, typeFilter, userFilter]);
+
+  const typeLabels: Record<string, string> = { whatsapp: "WhatsApp", ligacao: "Ligação", email: "E-mail", reuniao: "Reunião", anotacao: "Anotação", lead_criado: "Lead criado" };
+  const typesList = useMemo(
+    () => Array.from(new Set(activities.map(a => a.type))).sort().map(t => ({ value: t as string, label: typeLabels[t as string] || String(t) })),
+    [activities],
+  );
+  const usersList = useMemo(() => Array.from(new Set(activities.map(a => a.user).filter(Boolean))).sort() as string[], [activities]);
+  const activeCount = (search ? 1 : 0) + (typeFilter !== "Todos" ? 1 : 0) + (userFilter ? 1 : 0);
+  const clearFilters = () => { setSearch(""); setTypeFilter("Todos"); setUserFilter(""); };
 
   // Renderizava TODAS as atividades de uma vez (uma por lead, no mínimo) —
   // pagina só a exibição (os dados já estão em memória).
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [search, typeFilter]);
+  useEffect(() => { setPage(0); }, [search, typeFilter, userFilter]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
@@ -91,37 +102,23 @@ export default function Atividades() {
         </Button>
       }
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: Activity, label: "Total de Interações", val: activities.length, color: "text-blue-500" },
-          { icon: MessageSquare, label: "Mensagens WhatsApp", val: activities.filter(a => a.type === "whatsapp").length, color: "text-emerald-500" },
-          { icon: Calendar, label: "Reuniões Agendadas", val: activities.filter(a => a.type === "reuniao").length, color: "text-purple-500" },
-          { icon: CheckCircle2, label: "Leads Interagidos", val: new Set(activities.map(a => a.leadName)).size, color: "text-amber-500" },
-        ].map((k, i) => (
-          <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</span>
-              <k.icon className={`w-4 h-4 ${k.color}`} />
-            </div>
-            <p className="text-xl font-black text-[var(--color-text-primary)]">{k.val}</p>
-          </Card>
-        ))}
-      </div>
-
-      {/* Search & Filter */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por lead, empresa, conteúdo ou usuário..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl pl-10 pr-4 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-      </div>
+      <KpiFilterCard
+        id="crmAtividades"
+        activeCount={activeCount}
+        onClear={clearFilters}
+        kpis={[
+          { label: "Total de Interações", value: filtered.length, icon: Activity, tone: "primary" },
+          { label: "Mensagens WhatsApp", value: filtered.filter(a => a.type === "whatsapp").length, icon: MessageSquare, tone: "success" },
+          { label: "Reuniões Agendadas", value: filtered.filter(a => a.type === "reuniao").length, icon: Calendar, tone: "accent" },
+          { label: "Leads Interagidos", value: new Set(filtered.map(a => a.leadName)).size, icon: CheckCircle2, tone: "warning" },
+        ]}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por lead, empresa, conteúdo ou usuário..." />
+          <FilterSelect icon={Filter} value={typeFilter} onChange={setTypeFilter} options={typesList} allLabel="Todos os tipos" allValue="Todos" />
+          <FilterSelect icon={User} value={userFilter} onChange={setUserFilter} options={usersList} allLabel="Todos os responsáveis" />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Activity Timeline */}
       <div className="space-y-3">

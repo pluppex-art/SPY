@@ -3,21 +3,23 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
   Clock, AlertCircle, CheckCircle2, MessageSquare, PhoneCall,
-  Calendar, Search, Filter, User, ArrowRight
+  Calendar, User, ArrowRight
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
 import { Pagination } from "../../components/ui/Pagination";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import { isLeadOpen } from "../../lib/leadStatus";
 import { normalizeText } from "../../lib/utils";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
 const PAGE_SIZE = 50;
 
 export default function FollowUps() {
   const { leads } = useData();
   const [search, setSearch] = useState("");
+  const [sellerFilter, setSellerFilter] = useState("");
+  const [urgenciaFilter, setUrgenciaFilter] = useState("");
   const [selectedLead, setSelectedLead] = useState<any>(null);
 
   // Computes leads needing follow-up (e.g. status open, sorted by last interaction or temperature)
@@ -40,18 +42,23 @@ export default function FollowUps() {
   const filtered = useMemo(() => {
     const q = normalizeText(search);
     return followUpList.filter(l =>
-      normalizeText(l.name).includes(q) ||
+      (normalizeText(l.name).includes(q) ||
       normalizeText(l.company).includes(q) ||
-      normalizeText(l.seller).includes(q)
+      normalizeText(l.seller).includes(q)) &&
+      (!sellerFilter || l.seller === sellerFilter) &&
+      (!urgenciaFilter || (urgenciaFilter === "urgente" ? l.isUrgent : !l.isUrgent))
     );
-  }, [followUpList, search]);
+  }, [followUpList, search, sellerFilter, urgenciaFilter]);
 
-  const urgentCount = useMemo(() => followUpList.filter(l => l.isUrgent).length, [followUpList]);
+  const urgentCount = useMemo(() => filtered.filter(l => l.isUrgent).length, [filtered]);
+  const sellersList = useMemo(() => Array.from(new Set(followUpList.map(l => l.seller).filter(Boolean))).sort() as string[], [followUpList]);
+  const activeCount = (search ? 1 : 0) + (sellerFilter ? 1 : 0) + (urgenciaFilter ? 1 : 0);
+  const clearFilters = () => { setSearch(""); setSellerFilter(""); setUrgenciaFilter(""); };
 
   // Renderizava TODOS os leads em follow-up de uma vez — pagina só a
   // exibição (os dados já estão em memória).
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [search]);
+  useEffect(() => { setPage(0); }, [search, sellerFilter, urgenciaFilter]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
@@ -60,37 +67,23 @@ export default function FollowUps() {
       title="Central de Follow-ups"
       description="Identifique oportunidades paradas, agende retomadas e garanta que nenhum lead fique sem resposta."
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: Clock, label: "Total em Follow-up", val: followUpList.length, color: "text-blue-500" },
-          { icon: AlertCircle, label: "Atenção / Urgentes", val: urgentCount, color: "text-rose-500" },
-          { icon: Calendar, label: "Parados > 3 Dias", val: followUpList.filter(l => l.daysInactive >= 3).length, color: "text-amber-500" },
-          { icon: CheckCircle2, label: "Leads Quentes", val: followUpList.filter(l => l.temperature === "quente").length, color: "text-emerald-500" },
-        ].map((k, i) => (
-          <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</span>
-              <k.icon className={`w-4 h-4 ${k.color}`} />
-            </div>
-            <p className="text-xl font-black text-[var(--color-text-primary)]">{k.val}</p>
-          </Card>
-        ))}
-      </div>
-
-      {/* Search Bar */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por lead, empresa ou vendedor..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl pl-10 pr-4 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-      </div>
+      <KpiFilterCard
+        id="crmFollowUps"
+        activeCount={activeCount}
+        onClear={clearFilters}
+        kpis={[
+          { label: "Total em Follow-up", value: filtered.length, icon: Clock, tone: "primary" },
+          { label: "Atenção / Urgentes", value: urgentCount, icon: AlertCircle, tone: "danger" },
+          { label: "Parados > 3 Dias", value: filtered.filter(l => l.daysInactive >= 3).length, icon: Calendar, tone: "warning" },
+          { label: "Leads Quentes", value: filtered.filter(l => l.temperature === "quente").length, icon: CheckCircle2, tone: "success" },
+        ]}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por lead, empresa ou vendedor..." />
+          <FilterSelect icon={User} value={sellerFilter} onChange={setSellerFilter} options={sellersList} allLabel="Todos os vendedores" />
+          <FilterChips value={urgenciaFilter} onChange={setUrgenciaFilter} allLabel="Todos" options={[{ value: "urgente", label: "Urgentes" }, { value: "normal", label: "Normais" }]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Follow-up Cards */}
       <div className="space-y-3">

@@ -2,16 +2,16 @@ import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  Users, Plus, Search, Mail, Phone, Building2, Briefcase,
+  Users, Plus, Mail, Phone, Building2, Briefcase,
   MessageSquare, Calendar, Trash2, Edit2, ShieldCheck, CheckCircle2,
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../contexts/AuthContext";
 import { friendlyError } from "../../lib/friendlyError";
 import { normalizeText } from "../../lib/utils";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
 type Contato = {
   id: string;
@@ -36,6 +36,8 @@ export default function Contatos() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [cargoFilter, setCargoFilter] = useState("Todos");
+  const [empresaFilter, setEmpresaFilter] = useState("");
+  const [decisorFilter, setDecisorFilter] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [showModal, setShowModal] = useState(false);
   const [novoContato, setNovoContato] = useState({
@@ -116,17 +118,22 @@ export default function Contatos() {
         normalizeText(c.telefone).includes(q) ||
         normalizeText(c.empresa).includes(q);
       const matchCargo = cargoFilter === "Todos" || c.cargo === cargoFilter;
-      return matchQ && matchCargo;
+      const matchEmpresa = !empresaFilter || c.empresa === empresaFilter;
+      const matchDecisor = !decisorFilter || (decisorFilter === "decisor" ? c.isDecisor : !c.isDecisor);
+      return matchQ && matchCargo && matchEmpresa && matchDecisor;
     });
-  }, [contatos, search, cargoFilter]);
+  }, [contatos, search, cargoFilter, empresaFilter, decisorFilter]);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [search, cargoFilter]);
+  }, [search, cargoFilter, empresaFilter, decisorFilter]);
+
+  const cargosList = useMemo(() => Array.from(new Set(contatos.map(c => c.cargo).filter(Boolean))).sort(), [contatos]);
+  const empresasList = useMemo(() => Array.from(new Set(contatos.map(c => c.empresa).filter(Boolean))).sort(), [contatos]);
+  const activeCount = (search ? 1 : 0) + (cargoFilter !== "Todos" ? 1 : 0) + (empresaFilter ? 1 : 0) + (decisorFilter ? 1 : 0);
+  const clearFilters = () => { setSearch(""); setCargoFilter("Todos"); setEmpresaFilter(""); setDecisorFilter(""); };
 
   const paged = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
-
-  const decisoresCount = useMemo(() => contatos.filter(c => c.isDecisor).length, [contatos]);
 
   const handleSaveContato = async () => {
     if (!novoContato.nome.trim()) {
@@ -188,37 +195,24 @@ export default function Contatos() {
         </Button>
       }
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: Users, label: "Total de Contatos", val: contatos.length, color: "text-[var(--color-primary-blue)]" },
-          { icon: ShieldCheck, label: "Decisores / C-Level", val: decisoresCount, color: "text-[var(--color-text-muted)]" },
-          { icon: Phone, label: "Com WhatsApp", val: contatos.filter(c => !!c.telefone).length, color: "text-[var(--color-text-muted)]" },
-          { icon: Mail, label: "Com E-mail", val: contatos.filter(c => !!c.email).length, color: "text-[var(--color-text-muted)]" },
-        ].map((k, i) => (
-          <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</span>
-              <k.icon className={`w-4 h-4 ${k.color}`} />
-            </div>
-            <p className="text-xl font-black text-[var(--color-text-primary)]">{k.val}</p>
-          </Card>
-        ))}
-      </div>
-
-      {/* Filters Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5 items-center justify-between">
-        <div className="relative flex-1 w-full max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por nome, e-mail, telefone ou empresa..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl pl-10 pr-4 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-      </div>
+      <KpiFilterCard
+        id="crmContatos"
+        activeCount={activeCount}
+        onClear={clearFilters}
+        kpis={[
+          { label: "Contatos", value: filtered.length, icon: Users, tone: "primary" },
+          { label: "Decisores / C-Level", value: filtered.filter(c => c.isDecisor).length, icon: ShieldCheck, tone: "accent" },
+          { label: "Com WhatsApp", value: filtered.filter(c => !!c.telefone).length, icon: Phone, tone: "success" },
+          { label: "Com E-mail", value: filtered.filter(c => !!c.email).length, icon: Mail, tone: "info" },
+        ]}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por nome, e-mail, telefone ou empresa..." />
+          <FilterSelect icon={Building2} value={empresaFilter} onChange={setEmpresaFilter} options={empresasList} allLabel="Todas as empresas" />
+          <FilterSelect icon={Briefcase} value={cargoFilter} onChange={setCargoFilter} options={cargosList} allLabel="Todos os cargos" allValue="Todos" />
+          <FilterChips value={decisorFilter} onChange={setDecisorFilter} allLabel="Todos" options={[{ value: "decisor", label: "Decisores" }, { value: "outros", label: "Outros" }]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Contacts Table */}
       <div className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl overflow-hidden shadow-xs">

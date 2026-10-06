@@ -82,7 +82,7 @@ export function PropostasKPIs({ kpis, contracts }: { kpis: PropostasKpisValue; c
 
   return (
     <>
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
       {stats.map((stat, i) => (
         <Card
           key={stat.label}

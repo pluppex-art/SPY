@@ -67,7 +67,7 @@ export function ClientesKPIs({ total, ativos, implantacao, inativos, todosRows, 
 
   return (
     <>
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {items.map(({ label, value, icon: Icon, color, rows, spark, delta }, i) => (
         <Card
           key={label}

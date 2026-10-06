@@ -2,10 +2,9 @@ import { useState, useMemo, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  DollarSign, Plus, Search, Filter, TrendingUp,
+  DollarSign, Plus, Users, Filter, TrendingUp,
   Columns3, Calendar, CheckCircle2, Clock, AlertCircle, ArrowUpRight
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
 import { Pagination } from "../../components/ui/Pagination";
 import { Link } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";
@@ -14,6 +13,7 @@ import { NewLeadModal } from "../../components/ui/modals/crm/NewLeadModal";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import { isLeadOpen } from "../../lib/leadStatus";
 import { normalizeText } from "../../lib/utils";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
 const PAGE_SIZE = 50;
 
@@ -22,6 +22,8 @@ export default function Oportunidades() {
   const { formatCurrency } = useLocalization();
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("Todos");
+  const [sellerFilter, setSellerFilter] = useState("");
+  const [tempFilter, setTempFilter] = useState("");
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [showNewModal, setShowNewModal] = useState(false);
 
@@ -44,24 +46,31 @@ export default function Oportunidades() {
         normalizeText(op.seller).includes(q) ||
         normalizeText(op.nicho).includes(q);
       const matchStage = stageFilter === "Todos" || op.status === stageFilter;
-      return matchSearch && matchStage;
+      const matchSeller = !sellerFilter || op.seller === sellerFilter;
+      const matchTemp = !tempFilter || (op.temperature || "normal") === tempFilter;
+      return matchSearch && matchStage && matchSeller && matchTemp;
     });
-  }, [oportunidades, search, stageFilter]);
+  }, [oportunidades, search, stageFilter, sellerFilter, tempFilter]);
+
+  const stagesList = useMemo(() => Array.from(new Set(oportunidades.map(o => o.status).filter(Boolean))).sort() as string[], [oportunidades]);
+  const sellersList = useMemo(() => Array.from(new Set(oportunidades.map(o => o.seller).filter(Boolean))).sort() as string[], [oportunidades]);
+  const activeCount = (search ? 1 : 0) + (stageFilter !== "Todos" ? 1 : 0) + (sellerFilter ? 1 : 0) + (tempFilter ? 1 : 0);
+  const clearFilters = () => { setSearch(""); setStageFilter("Todos"); setSellerFilter(""); setTempFilter(""); };
 
   // Renderizava TODAS as oportunidades filtradas de uma vez — pagina só a
   // exibição (os dados já estão em memória).
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [search, stageFilter]);
+  useEffect(() => { setPage(0); }, [search, stageFilter, sellerFilter, tempFilter]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   const totalPipeline = useMemo(() => {
-    return oportunidades.reduce((acc, curr) => acc + curr.numericValue, 0);
-  }, [oportunidades]);
+    return filtered.reduce((acc, curr) => acc + curr.numericValue, 0);
+  }, [filtered]);
 
   const closedWon = useMemo(() => {
-    return oportunidades.filter(op => op.status === "Fechado");
-  }, [oportunidades]);
+    return filtered.filter(op => op.status === "Fechado");
+  }, [filtered]);
 
   const totalWon = useMemo(() => {
     return closedWon.reduce((acc, curr) => acc + curr.numericValue, 0);
@@ -85,37 +94,24 @@ export default function Oportunidades() {
         </div>
       }
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: DollarSign, label: "Pipeline Total", val: formatCurrency(totalPipeline), color: "text-blue-500" },
-          { icon: TrendingUp, label: "Ganhos / Fechados", val: formatCurrency(totalWon), color: "text-emerald-500" },
-          { icon: Clock, label: "Oportunidades Abertas", val: oportunidades.filter(o => isLeadOpen(o.status)).length, color: "text-amber-500" },
-          { icon: CheckCircle2, label: "Taxa de Sucesso", val: oportunidades.length > 0 ? `${Math.round((closedWon.length / oportunidades.length) * 100)}%` : "0%", color: "text-indigo-500" },
-        ].map((k, i) => (
-          <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</span>
-              <k.icon className={`w-4 h-4 ${k.color}`} />
-            </div>
-            <p className="text-xl font-black text-[var(--color-text-primary)]">{k.val}</p>
-          </Card>
-        ))}
-      </div>
-
-      {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5 items-center justify-between">
-        <div className="relative flex-1 w-full max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por oportunidade, cliente, responsável ou nicho..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl pl-10 pr-4 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-      </div>
+      <KpiFilterCard
+        id="crmOportunidades"
+        activeCount={activeCount}
+        onClear={clearFilters}
+        kpis={[
+          { label: "Pipeline Total", value: formatCurrency(totalPipeline), icon: DollarSign, tone: "primary" },
+          { label: "Ganhos / Fechados", value: formatCurrency(totalWon), icon: TrendingUp, tone: "success" },
+          { label: "Oportunidades Abertas", value: filtered.filter(o => isLeadOpen(o.status)).length, icon: Clock, tone: "warning" },
+          { label: "Taxa de Sucesso", value: filtered.length > 0 ? `${Math.round((closedWon.length / filtered.length) * 100)}%` : "0%", icon: CheckCircle2, tone: "accent" },
+        ]}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por oportunidade, cliente, responsável ou nicho..." />
+          <FilterSelect icon={Filter} value={stageFilter} onChange={setStageFilter} options={stagesList} allLabel="Todos os status" allValue="Todos" />
+          <FilterSelect icon={Users} value={sellerFilter} onChange={setSellerFilter} options={sellersList} allLabel="Todos os responsáveis" />
+          <FilterChips value={tempFilter} onChange={setTempFilter} allLabel="Todas" options={[{ value: "quente", label: "Quente" }, { value: "morno", label: "Morno" }, { value: "frio", label: "Frio" }]} />
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* Opportunities Table */}
       <div className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl overflow-hidden shadow-xs">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Building2, CheckCircle2, FileText } from "lucide-react";
 import { NovoClienteModal } from "../../components/ui/modals/crm/NovoClienteModal";
 import { ClienteContatosModal } from "../../components/ui/modals/crm/ClienteContatosModal";
 import { ClienteDetalhesModal } from "../../components/ui/modals/crm/ClienteDetalhesModal";
@@ -14,6 +14,8 @@ import { useData } from "../../contexts/DataContext";
 import { ClientesKPIs } from "./components/Clientes/ClientesKPIs";
 import { ClientesList } from "./components/Clientes/ClientesList";
 import { ClientesResumo } from "./components/Clientes/ClientesResumo";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { normalizeText } from "../../lib/utils";
 
 export default function Clientes() {
   const { activeTenantId } = useAuth();
@@ -92,21 +94,53 @@ export default function Clientes() {
     });
   }, [clientes, leads, contracts]);
 
+  const NEUTRO_SETOR = "Todos os setores";
+  const NEUTRO_SITUACAO = "Todas as situações";
+  const NEUTRO_CONTRATO = "Todos os status";
+
+  const contratoStatusLabel = (st?: string | null) =>
+    st === "Ativo" ? "Em dia" : st === "Inadimplente" ? "Inadimplente" : st === "Cancelado" ? "Cancelado" : "Sem contrato";
+
+  // Opções reais do filtro de setor — só os valores que existem na base.
+  const setoresDisponiveis = useMemo(
+    () => Array.from(new Set(clientesEnriquecidos.map((c: any) => c.industry).filter(Boolean))).sort() as string[],
+    [clientesEnriquecidos]
+  );
+
+  const clientesFiltrados = useMemo(() => clientesEnriquecidos.filter((c: any) => {
+    if (statusFilter !== NEUTRO_SITUACAO && c.status !== statusFilter) return false;
+    if (sectorFilter !== NEUTRO_SETOR && c.industry !== sectorFilter) return false;
+    if (contratoStatusFilter !== NEUTRO_CONTRATO && contratoStatusLabel(c.contratoStatus) !== contratoStatusFilter) return false;
+    if (searchQuery) {
+      const term = normalizeText(searchQuery);
+      return normalizeText(c.name).includes(term) ||
+             normalizeText(c.documento).includes(term) ||
+             normalizeText(c.responsavel).includes(term) ||
+             normalizeText(c.email).includes(term) ||
+             normalizeText(c.phone).includes(term);
+    }
+    return true;
+  }), [clientesEnriquecidos, statusFilter, sectorFilter, contratoStatusFilter, searchQuery]);
+
+  const activeCount = (searchQuery ? 1 : 0) + (statusFilter !== NEUTRO_SITUACAO ? 1 : 0) + (sectorFilter !== NEUTRO_SETOR ? 1 : 0) + (contratoStatusFilter !== NEUTRO_CONTRATO ? 1 : 0);
+  const clearFilters = () => { setSearchQuery(""); setStatusFilter(NEUTRO_SITUACAO); setSectorFilter(NEUTRO_SETOR); setContratoStatusFilter(NEUTRO_CONTRATO); };
+
+  // KPIs refletem a lista já filtrada (mesmo comportamento do Pipeline).
   const kpis = useMemo(() => {
-    const ativosRows = clientes.filter(c => c.status === "Ativo");
-    const implantacaoRows = clientes.filter(c => c.status === "Em Implantação");
-    const inativosRows = clientes.filter(c => c.status === "Inativo");
+    const ativosRows = clientesFiltrados.filter((c: any) => c.status === "Ativo");
+    const implantacaoRows = clientesFiltrados.filter((c: any) => c.status === "Em Implantação");
+    const inativosRows = clientesFiltrados.filter((c: any) => c.status === "Inativo");
     return {
-      total: clientes.length,
+      total: clientesFiltrados.length,
       ativos: ativosRows.length,
       implantacao: implantacaoRows.length,
       inativos: inativosRows.length,
-      todosRows: clientes,
+      todosRows: clientesFiltrados,
       ativosRows,
       implantacaoRows,
       inativosRows,
     };
-  }, [clientes]);
+  }, [clientesFiltrados]);
 
   const handleSaveCliente = async (data: any) => {
     if (!data.nome) { toast.error("Nome da empresa é obrigatório."); return; }
@@ -205,19 +239,21 @@ export default function Clientes() {
         </Button>
       }
     >
-      <ClientesKPIs {...kpis} clientes={clientes} />
+      {/* Card "KPIs & Filtros" compartilhado. Os KPIs de Clientes mantêm drill-down e sparkline
+          (ClientesKPIs), agora dentro do card e calculados sobre a lista filtrada. */}
+      <KpiFilterCard id="crmClientes" activeCount={activeCount} onClear={clearFilters}>
+        <ClientesKPIs {...kpis} clientes={clientesFiltrados} />
+        <FilterBar>
+          <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por cliente, documento, responsável, e-mail ou telefone..." />
+          <FilterSelect icon={Building2} value={sectorFilter} onChange={setSectorFilter} options={setoresDisponiveis} allLabel={NEUTRO_SETOR} allValue={NEUTRO_SETOR} />
+          <FilterSelect icon={CheckCircle2} value={statusFilter} onChange={setStatusFilter} options={["Ativo", "Em Implantação", "Inativo"]} allLabel={NEUTRO_SITUACAO} allValue={NEUTRO_SITUACAO} />
+          <FilterSelect icon={FileText} value={contratoStatusFilter} onChange={setContratoStatusFilter} options={["Em dia", "Inadimplente", "Cancelado", "Sem contrato"]} allLabel={NEUTRO_CONTRATO} allValue={NEUTRO_CONTRATO} />
+        </FilterBar>
+      </KpiFilterCard>
 
       <ClientesList
-        clientes={clientesEnriquecidos}
+        clientes={clientesFiltrados}
         decisorPorCliente={decisorPorCliente}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        sectorFilter={sectorFilter}
-        onSectorChange={setSectorFilter}
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
-        contratoStatusFilter={contratoStatusFilter}
-        onContratoStatusChange={setContratoStatusFilter}
         onDelete={handleDeleteCliente}
         onEdit={(c) => {
           const hasDeal = (leads || []).some((l: any) => l.clientId === c.id);

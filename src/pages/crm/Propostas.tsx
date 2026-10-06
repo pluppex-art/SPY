@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
-import { Plus, FileText, FileSignature, Workflow, Search, X, Send, Eye as EyeIcon, CheckCircle2, XCircle, FileEdit } from "lucide-react";
+import { Plus, FileText, FileSignature, Workflow, Send, Eye as EyeIcon, CheckCircle2, XCircle, FileEdit, User, Layers } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { PageContainer } from "../../components/PageContainer";
 import { toast } from "sonner";
 import { useData } from "../../contexts/DataContext";
@@ -17,7 +17,7 @@ import { ContractsTable } from "./components/Contracts/ContractsTable";
 import { ContractFormModal, type ContractFormPayload } from "./components/Contracts/ContractFormModal";
 import { Pagination } from "../../components/ui/Pagination";
 import { handleDownloadPdf } from "./utils/proposalPdf";
-import { cn } from "../../lib/utils";
+import { cn, normalizeText } from "../../lib/utils";
 import { getFaturamentoContratado } from "../../lib/revenueMetrics";
 import { isContractAtivo } from "../../components/ui/drillColumns";
 import type { Contract } from "../../types";
@@ -171,6 +171,23 @@ export default function Propostas() {
   const [contractPlanFilter, setContractPlanFilter] = useState("Todos");
   const [contractVendedorFilter, setContractVendedorFilter] = useState("Todos");
 
+  const contractPlanosDisponiveis = useMemo(() => Array.from(new Set(contractsEnriquecidos.map((c: any) => c.plan).filter(Boolean))).sort() as string[], [contractsEnriquecidos]);
+  const contractVendedoresDisponiveis = useMemo(() => Array.from(new Set(contractsEnriquecidos.map((c: any) => c.responsavel).filter(Boolean))).sort() as string[], [contractsEnriquecidos]);
+  const contractsFiltrados = useMemo(() => {
+    const q = normalizeText(contractSearch);
+    return contractsEnriquecidos.filter((c: any) => {
+      if (contractStatusFilter !== "Todos" && c.status !== contractStatusFilter) return false;
+      if (contractPlanFilter !== "Todos" && c.plan !== contractPlanFilter) return false;
+      if (contractVendedorFilter !== "Todos" && c.responsavel !== contractVendedorFilter) return false;
+      if (!q) return true;
+      return normalizeText(c.client).includes(q) || normalizeText(c.plan).includes(q) || normalizeText(c.responsavel).includes(q);
+    });
+  }, [contractsEnriquecidos, contractSearch, contractStatusFilter, contractPlanFilter, contractVendedorFilter]);
+  const contractActiveCount = (contractSearch ? 1 : 0) + (contractStatusFilter !== "Todos" ? 1 : 0) + (contractPlanFilter !== "Todos" ? 1 : 0) + (contractVendedorFilter !== "Todos" ? 1 : 0) + (dateFrom || dateTo ? 1 : 0);
+  const limparFiltrosContratos = () => {
+    setContractSearch(""); setContractStatusFilter("Todos"); setContractPlanFilter("Todos"); setContractVendedorFilter("Todos"); setDateFrom(null); setDateTo(null);
+  };
+
   // Sincronização de contrato/fatura + reconciliação de propostas "Aceita" sem
   // contrato correspondente (ou com contrato desatualizado) agora é global —
   // vive em DataContext.tsx e roda assim que os dados do tenant carregam, não
@@ -192,7 +209,7 @@ export default function Propostas() {
     toast.success(`Proposta atualizada para: ${newStatus}`);
   };
 
-  const valorContratosAtivos = getFaturamentoContratado(filteredContracts || []);
+  const valorContratosAtivos = getFaturamentoContratado(contractsFiltrados || []);
 
   const handleEditContract = (contract: Contract) => {
     setEditingContract(contract);
@@ -302,35 +319,25 @@ export default function Propostas() {
             Funil de Conversão
           </button>
         </div>
-        <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
       </div>
 
       {activeTab === "propostas" ? (
         <div className="space-y-6">
-          <PropostasKPIs kpis={propostasKpis} contracts={contracts as any[]} />
-
-          <Card className="p-3 flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
-              <Input value={propostasSearch} onChange={(e) => setPropostasSearch(e.target.value)} placeholder="Buscar por cliente, título ou vendedor..." className="pl-9" />
-            </div>
-            <select className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] px-3 py-2 text-xs" value={statusFiltro} onChange={(e) => setStatusFiltro(e.target.value)}>
-              <option value="todos">Status: Todos</option>
-              <option value="Rascunho">Rascunho</option>
-              <option value="Enviada">Enviada</option>
-              <option value="Aceita">Aceita</option>
-              <option value="Recusada">Recusada</option>
-            </select>
-            {vendedores.length > 1 && (
-              <select className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] px-3 py-2 text-xs" value={vendedorFiltro} onChange={(e) => setVendedorFiltro(e.target.value)}>
-                <option value="todos">Responsável: Todos</option>
-                {vendedores.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-            )}
-            {temFiltrosAtivos && (
-              <Button variant="ghost" size="sm" onClick={limparFiltros} className="text-[11px] font-bold gap-1"><X className="w-3.5 h-3.5" /> Limpar filtros</Button>
-            )}
-          </Card>
+          <KpiFilterCard
+            id="crmPropostas"
+            activeCount={(propostasSearch ? 1 : 0) + (statusFiltro !== "todos" ? 1 : 0) + (vendedorFiltro !== "todos" ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
+            onClear={limparFiltros}
+          >
+            <PropostasKPIs kpis={propostasKpis} contracts={contracts as any[]} />
+            <FilterBar>
+              <FilterSearch value={propostasSearch} onChange={setPropostasSearch} placeholder="Buscar por cliente, título ou vendedor..." />
+              <FilterSelect icon={FileText} value={statusFiltro} onChange={setStatusFiltro} options={["Rascunho", "Enviada", "Aceita", "Recusada"]} allLabel="Status: Todos" allValue="todos" />
+              {vendedores.length > 1 && (
+                <FilterSelect icon={User} value={vendedorFiltro} onChange={setVendedorFiltro} options={vendedores} allLabel="Responsável: Todos" allValue="todos" />
+              )}
+              <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
+            </FilterBar>
+          </KpiFilterCard>
 
           <PropostasTable
             propostas={pagedPropostas as any}
@@ -365,26 +372,31 @@ export default function Propostas() {
         </div>
       ) : activeTab === "contratos" ? (
         <div className="space-y-6">
-          <ContractsKPIs
-            valorAtivos={valorContratosAtivos}
-            ativos={filteredContracts.filter((c: any) => c.status === "Ativo").length}
-            inadimplentes={filteredContracts.filter((c: any) => c.status === "Inadimplente").length}
-            mrrRows={filteredContracts.filter(isContractAtivo)}
-            ativosRows={filteredContracts.filter((c: any) => c.status === "Ativo")}
-            inadimplentesRows={filteredContracts.filter((c: any) => c.status === "Inadimplente")}
-            contracts={filteredContracts as any[]}
-          />
+          <KpiFilterCard id="crmContratos" activeCount={contractActiveCount} onClear={limparFiltrosContratos}>
+            <ContractsKPIs
+              valorAtivos={valorContratosAtivos}
+              ativos={contractsFiltrados.filter((c: any) => c.status === "Ativo").length}
+              inadimplentes={contractsFiltrados.filter((c: any) => c.status === "Inadimplente").length}
+              mrrRows={contractsFiltrados.filter(isContractAtivo)}
+              ativosRows={contractsFiltrados.filter((c: any) => c.status === "Ativo")}
+              inadimplentesRows={contractsFiltrados.filter((c: any) => c.status === "Inadimplente")}
+              contracts={contractsFiltrados as any[]}
+            />
+            <FilterBar>
+              <FilterSearch value={contractSearch} onChange={setContractSearch} placeholder="Buscar cliente, plano ou responsável..." />
+              <FilterSelect icon={FileText} value={contractStatusFilter} onChange={setContractStatusFilter} options={["Ativo", "Inadimplente", "Cancelado"]} allLabel="Todos os status" allValue="Todos" />
+              {contractPlanosDisponiveis.length > 1 && (
+                <FilterSelect icon={Layers} value={contractPlanFilter} onChange={setContractPlanFilter} options={contractPlanosDisponiveis} allLabel="Todos os planos" allValue="Todos" />
+              )}
+              {contractVendedoresDisponiveis.length > 1 && (
+                <FilterSelect icon={User} value={contractVendedorFilter} onChange={setContractVendedorFilter} options={contractVendedoresDisponiveis} allLabel="Todos os responsáveis" allValue="Todos" />
+              )}
+              <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
+            </FilterBar>
+          </KpiFilterCard>
 
           <ContractsTable
-            contracts={contractsEnriquecidos as any}
-            statusFilter={contractStatusFilter}
-            onStatusFilterChange={setContractStatusFilter}
-            planFilter={contractPlanFilter}
-            onPlanFilterChange={setContractPlanFilter}
-            vendedorFilter={contractVendedorFilter}
-            onVendedorFilterChange={setContractVendedorFilter}
-            searchQuery={contractSearch}
-            onSearchChange={setContractSearch}
+            contracts={contractsFiltrados as any}
             onDelete={(id) => { deleteContract(id); toast.success("Contrato removido."); }}
             onEdit={handleEditContract}
             onDownloadPdf={handleContractPdf}

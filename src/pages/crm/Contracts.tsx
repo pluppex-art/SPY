@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button } from "../../components/ui/button";
 import { ConfirmModal } from "../../components/ui/modals/shared/ConfirmModal";
-import { Plus } from "lucide-react";
+import { Plus, FileText, Layers, User } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -12,6 +12,8 @@ import { handleDownloadPdf } from "./utils/proposalPdf";
 import { getFaturamentoContratado } from "../../lib/revenueMetrics";
 import { isContractAtivo } from "../../components/ui/drillColumns";
 import type { Contract } from "../../types";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { normalizeText } from "../../lib/utils";
 
 export default function Contracts() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -36,6 +38,24 @@ export default function Contracts() {
       };
     });
   }, [contracts, colaboradores, proposals]);
+
+  // Opções reais dos filtros — só valores que existem nos contratos deste tenant.
+  const planosDisponiveis = useMemo(() => Array.from(new Set(contractsEnriquecidos.map((c: any) => c.plan).filter(Boolean))).sort() as string[], [contractsEnriquecidos]);
+  const vendedoresDisponiveis = useMemo(() => Array.from(new Set(contractsEnriquecidos.map((c: any) => c.responsavel).filter(Boolean))).sort() as string[], [contractsEnriquecidos]);
+
+  const contractsFiltrados = useMemo(() => {
+    const q = normalizeText(searchQuery);
+    return contractsEnriquecidos.filter((c: any) => {
+      if (statusFilter !== "Todos" && c.status !== statusFilter) return false;
+      if (planFilter !== "Todos" && c.plan !== planFilter) return false;
+      if (vendedorFilter !== "Todos" && c.responsavel !== vendedorFilter) return false;
+      if (!q) return true;
+      return normalizeText(c.client).includes(q) || normalizeText(c.plan).includes(q) || normalizeText(c.responsavel).includes(q);
+    });
+  }, [contractsEnriquecidos, searchQuery, statusFilter, planFilter, vendedorFilter]);
+
+  const activeCount = (searchQuery ? 1 : 0) + (statusFilter !== "Todos" ? 1 : 0) + (planFilter !== "Todos" ? 1 : 0) + (vendedorFilter !== "Todos" ? 1 : 0);
+  const clearFilters = () => { setSearchQuery(""); setStatusFilter("Todos"); setPlanFilter("Todos"); setVendedorFilter("Todos"); };
 
   const handleEditContract = (contract: Contract) => {
     setEditingContract(contract);
@@ -85,7 +105,7 @@ export default function Contracts() {
     );
   };
 
-  const valorContratosAtivos = getFaturamentoContratado(contracts);
+  const valorContratosAtivos = getFaturamentoContratado(contractsFiltrados);
 
   return (
     <div className="space-y-6">
@@ -102,26 +122,32 @@ export default function Contracts() {
         </div>
       </div>
 
-      <ContractsKPIs
-        valorAtivos={valorContratosAtivos}
-        ativos={contracts.filter(c => c.status === "Ativo").length}
-        inadimplentes={contracts.filter(c => c.status === "Inadimplente").length}
-        mrrRows={contracts.filter(isContractAtivo)}
-        ativosRows={contracts.filter(c => c.status === "Ativo")}
-        inadimplentesRows={contracts.filter(c => c.status === "Inadimplente")}
-        contracts={contracts}
-      />
+      {/* Card "KPIs & Filtros" compartilhado. ContractsKPIs (drill-down + sparkline) fica dentro do card,
+          calculado sobre a lista filtrada. */}
+      <KpiFilterCard id="crmContratos" activeCount={activeCount} onClear={clearFilters}>
+        <ContractsKPIs
+          valorAtivos={valorContratosAtivos}
+          ativos={contractsFiltrados.filter(c => c.status === "Ativo").length}
+          inadimplentes={contractsFiltrados.filter(c => c.status === "Inadimplente").length}
+          mrrRows={contractsFiltrados.filter(isContractAtivo)}
+          ativosRows={contractsFiltrados.filter(c => c.status === "Ativo")}
+          inadimplentesRows={contractsFiltrados.filter(c => c.status === "Inadimplente")}
+          contracts={contractsFiltrados}
+        />
+        <FilterBar>
+          <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar cliente, plano ou responsável..." />
+          <FilterSelect icon={FileText} value={statusFilter} onChange={setStatusFilter} options={["Ativo", "Inadimplente", "Cancelado"]} allLabel="Todos os status" allValue="Todos" />
+          {planosDisponiveis.length > 1 && (
+            <FilterSelect icon={Layers} value={planFilter} onChange={setPlanFilter} options={planosDisponiveis} allLabel="Todos os planos" allValue="Todos" />
+          )}
+          {vendedoresDisponiveis.length > 1 && (
+            <FilterSelect icon={User} value={vendedorFilter} onChange={setVendedorFilter} options={vendedoresDisponiveis} allLabel="Todos os responsáveis" allValue="Todos" />
+          )}
+        </FilterBar>
+      </KpiFilterCard>
 
       <ContractsTable
-        contracts={contractsEnriquecidos}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        planFilter={planFilter}
-        onPlanFilterChange={setPlanFilter}
-        vendedorFilter={vendedorFilter}
-        onVendedorFilterChange={setVendedorFilter}
+        contracts={contractsFiltrados}
         onDelete={(id) => setContractToDelete(id)}
         onEdit={handleEditContract}
         onDownloadPdf={handleContractPdf}
