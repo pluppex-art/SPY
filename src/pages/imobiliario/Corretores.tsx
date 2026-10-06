@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import {
   Plus, Search, Star, Building2, TrendingUp, Copy, ExternalLink, X,
   Phone, Mail, Edit2, Trash2, Link, Target, Award, Users, ChevronRight,
@@ -329,6 +329,8 @@ export default function Corretores() {
   const { activeTenantId } = useAuth();
   const [corretores, setCorretores] = useState<Corretor[]>([]);
   const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterEsp, setFilterEsp] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editCorretor, setEditCorretor] = useState<Corretor | null>(null);
   const [selectedCorretor, setSelectedCorretor] = useState<{ c: Corretor; idx: number } | null>(null);
@@ -371,6 +373,8 @@ export default function Corretores() {
       c.especialidade.toLowerCase().includes(search.toLowerCase()) ||
       c.creci.toLowerCase().includes(search.toLowerCase())
     )
+    .filter(c => !filterStatus || c.status === filterStatus)
+    .filter(c => !filterEsp || c.especialidade === filterEsp)
     .sort((a, b) => {
       if (sortBy === "vendas") return b.vendasMes - a.vendasMes;
       if (sortBy === "avaliacao") return b.avaliacao - a.avaliacao;
@@ -436,11 +440,10 @@ export default function Corretores() {
     toast.success("Corretor removido.");
   };
 
-  const totalAtivos = corretores.filter(c => c.status === "Ativo").length;
-  const totalVendas = corretores.reduce((s, c) => s + c.vendasMes, 0);
-  const totalVGV = corretores.reduce((s, c) => s + c.vgvMes, 0);
-  const mediaAvaliacao = corretores.length
-    ? (corretores.reduce((s, c) => s + c.avaliacao, 0) / corretores.length).toFixed(1)
+  const totalVendas = filtered.reduce((s, c) => s + c.vendasMes, 0);
+  const totalVGV = filtered.reduce((s, c) => s + c.vgvMes, 0);
+  const mediaAvaliacao = filtered.length
+    ? (filtered.reduce((s, c) => s + c.avaliacao, 0) / filtered.length).toFixed(1)
     : "0";
 
   return (
@@ -465,37 +468,32 @@ export default function Corretores() {
         />
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: Users, label: "Ativos", value: totalAtivos.toString(), color: "text-indigo-500" },
-          { icon: TrendingUp, label: "Vendas Mês", value: totalVendas.toString(), color: "text-emerald-500" },
-          { icon: Target, label: "VGV Mês", value: `R$ ${totalVGV.toFixed(1)}M`, color: "text-blue-500" },
-          { icon: Star, label: "Média Avaliação", value: mediaAvaliacao, color: "text-amber-500" },
-        ].map((s, i) => (
-          <Card key={i} className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-            <s.icon className={`w-5 h-5 ${s.color} mb-4`} />
-            <div className="text-2xl font-display font-black text-white mb-1 italic">{s.value}</div>
-            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</div>
-          </Card>
-        ))}
-      </div>
+      <KpiFilterCard
+        id="imobCorretores"
+        kpis={[
+          { label: "Corretores", value: filtered.length, icon: Users, tone: "primary" },
+          { label: "Vendas Mês", value: totalVendas, icon: TrendingUp, tone: "success" },
+          { label: "VGV Mês", value: `R$ ${totalVGV.toFixed(1)}M`, icon: Target, tone: "info" },
+          { label: "Média Avaliação", value: mediaAvaliacao, icon: Star, tone: "warning" },
+        ]}
+        activeCount={(search.trim() ? 1 : 0) + (filterStatus ? 1 : 0) + (filterEsp ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus(""); setFilterEsp(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar corretor, CRECI ou especialidade..." />
+          <FilterSelect icon={Award} value={filterEsp} onChange={setFilterEsp} options={ESPECIALIDADES} allLabel="Todas as especialidades" />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} options={["Ativo", "Inativo"]} />
+          <div className="flex bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-1 gap-1" title="Ordenar por">
+            {(["vendas", "avaliacao", "vgv"] as const).map(s => (
+              <button key={s} onClick={() => setSortBy(s)} className={`px-3 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer ${sortBy === s ? "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
+                {s === "vendas" ? "Vendas" : s === "avaliacao" ? "Avaliação" : "VGV"}
+              </button>
+            ))}
+          </div>
+        </FilterBar>
+      </KpiFilterCard>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar corretor ou especialidade..." className="w-full bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50" />
-        </div>
-        <div className="flex bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl p-1 gap-1">
-          {(["vendas", "avaliacao", "vgv"] as const).map(s => (
-            <button key={s} onClick={() => setSortBy(s)} className={`px-3 py-1.5 text-[10px] font-black rounded-lg transition-all ${sortBy === s ? "bg-blue-600/20 text-blue-400 border border-blue-500/30" : "text-slate-500 hover:text-slate-300"}`}>
-              {s === "vendas" ? "Vendas" : s === "avaliacao" ? "Avaliação" : "VGV"}
-            </button>
-          ))}
-        </div>
-      </div>
-
+      <div className="mt-4" />
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((c, idx) => {
           const metaPct = c.meta > 0 ? Math.min((c.vendasMes / c.meta) * 100, 100) : 0;

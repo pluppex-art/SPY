@@ -5,7 +5,7 @@ import {
   DollarSign, CheckCircle2, Clock, Users, ArrowUpRight,
   TrendingUp, Download, Building2, Plus, Search, Trash2, X, AlertCircle
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -66,6 +66,7 @@ export default function ImobiliarioComissoes() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
+  const [corretorFilter, setCorretorFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
 
   // Form state
@@ -168,19 +169,23 @@ export default function ImobiliarioComissoes() {
         c.corretor.toLowerCase().includes(q) ||
         (c.observacoes && c.observacoes.toLowerCase().includes(q));
       const matchStatus = statusFilter === "Todos" || c.status === statusFilter;
-      return matchSearch && matchStatus;
+      const matchCorretor = !corretorFilter || c.corretor === corretorFilter;
+      return matchSearch && matchStatus && matchCorretor;
     });
-  }, [comissoes, search, statusFilter]);
+  }, [comissoes, search, statusFilter, corretorFilter]);
 
-  const totalAReceber = comissoes
+  const corretoresList = Array.from(new Set(comissoes.map(c => c.corretor).filter(Boolean))).sort();
+  const brl = (n: number) => `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
+  const totalAReceber = filtered
     .filter(c => c.status !== "Liquidada")
     .reduce((s, c) => s + c.comissaoTotal, 0);
 
-  const totalRepasses = comissoes
+  const totalRepasses = filtered
     .filter(c => c.status !== "Liquidada")
     .reduce((s, c) => s + c.comissaoCorretor, 0);
 
-  const totalLiquidado = comissoes
+  const totalLiquidado = filtered
     .filter(c => c.status === "Liquidada")
     .reduce((s, c) => s + c.comissaoTotal, 0);
 
@@ -205,75 +210,25 @@ export default function ImobiliarioComissoes() {
         </div>
       }
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-emerald-500/25 shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">
-            Comissões a Receber (VGV)
-          </span>
-          <div className="text-2xl font-black text-emerald-500">
-            R$ {totalAReceber.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </div>
-          <span className="text-[10px] text-[var(--color-text-muted)] mt-1 block">
-            Aguardando compensação ou escritura
-          </span>
-        </Card>
+      <KpiFilterCard
+        id="imobComissoes"
+        kpis={[
+          { label: "Comissões a Receber", value: brl(totalAReceber), icon: DollarSign, tone: "success", hint: "Aguardando compensação ou escritura" },
+          { label: "Repasses a Corretores", value: brl(totalRepasses), icon: Users, tone: "warning", hint: "Split automático de honorários" },
+          { label: "Honorários Liquidados", value: brl(totalLiquidado), icon: CheckCircle2, tone: "primary", hint: "Totalmente recebidos e distribuídos" },
+          { label: "Registros", value: filtered.length, icon: Clock, tone: "info" },
+        ]}
+        activeCount={(search.trim() ? 1 : 0) + (statusFilter !== "Todos" ? 1 : 0) + (corretorFilter ? 1 : 0)}
+        onClear={() => { setSearch(""); setStatusFilter("Todos"); setCorretorFilter(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por imóvel, corretor..." />
+          <FilterSelect icon={Users} value={corretorFilter} onChange={setCorretorFilter} options={corretoresList} allLabel="Todos os corretores" />
+          <FilterChips value={statusFilter} onChange={setStatusFilter} allValue="Todos" options={["A Receber", "Em Tramitação", "Liquidada"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">
-            Repasses Previstos a Corretores
-          </span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">
-            R$ {totalRepasses.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </div>
-          <span className="text-[10px] text-[var(--color-text-muted)] mt-1 block">
-            Split automático de honorários
-          </span>
-        </Card>
-
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-blue-500/25 shadow-xs">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">
-            Honorários Liquidados
-          </span>
-          <div className="text-2xl font-black text-[var(--color-primary-blue)]">
-            R$ {totalLiquidado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </div>
-          <span className="text-[10px] text-[var(--color-text-muted)] mt-1 block">
-            Totalmente recebidos e distribuídos
-          </span>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-5">
-        <div className="relative flex-1 w-full max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por imóvel, corretor..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl pl-10 pr-4 py-2 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          {["Todos", "A Receber", "Em Tramitação", "Liquidada"].map(st => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                statusFilter === st
-                  ? "bg-[var(--color-primary-blue)] text-white border-[var(--color-primary-blue)]"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
-
+      <div className="mt-4" />
       {/* Table */}
       <div className="bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">

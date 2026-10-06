@@ -7,6 +7,7 @@ import {
   ChevronRight, Landmark, ArrowRightLeft, HandCoins, Banknote, Columns3,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -537,6 +538,8 @@ export default function Veiculos() {
   const [search, setSearch] = useState("");
   const [combustivelFilter, setCombustivelFilter] = useState("Todos");
   const [statusFilter, setStatusFilter] = useState("Todos");
+  const [marcaFilter, setMarcaFilter] = useState("");
+  const [cambioFilter, setCambioFilter] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showForm, setShowForm] = useState(false);
   const [editVeiculo, setEditVeiculo] = useState<Veiculo | null>(null);
@@ -558,9 +561,13 @@ export default function Veiculos() {
     return (
       (v.marca.toLowerCase().includes(q) || v.modelo.toLowerCase().includes(q) || v.vendedor.toLowerCase().includes(q) || v.placa.toLowerCase().includes(q)) &&
       (combustivelFilter === "Todos" || v.combustivel === combustivelFilter) &&
-      (statusFilter === "Todos" || v.status === statusFilter)
+      (statusFilter === "Todos" || v.status === statusFilter) &&
+      (!marcaFilter || v.marca === marcaFilter) &&
+      (!cambioFilter || v.cambio === cambioFilter)
     );
   });
+
+  const marcasList = Array.from(new Set(veiculos.map(v => v.marca).filter(Boolean))).sort();
 
   const handleSave = async (form: any) => {
     if (!supabase || !activeTenantId) { toast.error("Não foi possível conectar ao servidor."); return; }
@@ -595,10 +602,10 @@ export default function Veiculos() {
     toast.success("Veículo removido.");
   };
 
-  const disponiveis = veiculos.filter(v => v.status === "Disponível").length;
-  const vendidos = veiculos.filter(v => v.status === "Vendido").length;
-  const valorTotal = veiculos.filter(v => v.status === "Disponível").reduce((s, v) => s + v.valor, 0);
-  const totalVisitas = veiculos.reduce((s, v) => s + v.visitas, 0);
+  const disponiveis = filtered.filter(v => v.status === "Disponível").length;
+  const vendidos = filtered.filter(v => v.status === "Vendido").length;
+  const valorTotal = filtered.filter(v => v.status === "Disponível").reduce((s, v) => s + v.valor, 0);
+  const totalVisitas = filtered.reduce((s, v) => s + v.visitas, 0);
 
   return (
     <PageContainer
@@ -633,44 +640,35 @@ export default function Veiculos() {
         />
       )}
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: Package, label: "Disponíveis", value: disponiveis.toString(), color: "text-indigo-500" },
-          { icon: TrendingUp, label: "Vendidos", value: vendidos.toString(), color: "text-emerald-500" },
-          { icon: DollarSign, label: "Estoque (R$)", value: `R$ ${(valorTotal / 1e6).toFixed(1)}M`, color: "text-amber-500" },
-          { icon: Eye, label: "Total Test-Drives", value: totalVisitas.toString(), color: "text-blue-500" },
-        ].map((s, i) => (
-          <Card key={i} className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-            <s.icon className={`w-5 h-5 ${s.color} mb-4`} />
-            <div className="text-2xl font-display font-black text-white mb-1 italic">{s.value}</div>
-            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</div>
-          </Card>
-        ))}
-      </div>
+      <KpiFilterCard
+        id="imobVeiculos"
+        kpis={[
+          { label: "Disponíveis", value: disponiveis, icon: Package, tone: "primary" },
+          { label: "Vendidos", value: vendidos, icon: TrendingUp, tone: "success" },
+          { label: "Estoque (R$)", value: `R$ ${(valorTotal / 1e6).toFixed(1)}M`, icon: DollarSign, tone: "warning" },
+          { label: "Total Test-Drives", value: totalVisitas, icon: Eye, tone: "info" },
+        ]}
+        activeCount={(search.trim() ? 1 : 0) + (combustivelFilter !== "Todos" ? 1 : 0) + (statusFilter !== "Todos" ? 1 : 0) + (marcaFilter ? 1 : 0) + (cambioFilter ? 1 : 0)}
+        onClear={() => { setSearch(""); setCombustivelFilter("Todos"); setStatusFilter("Todos"); setMarcaFilter(""); setCambioFilter(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar marca, modelo, vendedor, placa..." />
+          <FilterSelect icon={Car} value={marcaFilter} onChange={setMarcaFilter} options={marcasList} allLabel="Todas as marcas" />
+          <FilterSelect icon={Fuel} value={combustivelFilter} onChange={setCombustivelFilter} allValue="Todos" allLabel="Todos os combustíveis" options={COMBUSTIVEIS.slice(1)} />
+          <FilterSelect icon={Settings2} value={cambioFilter} onChange={setCambioFilter} allLabel="Todos os câmbios" options={CAMBIOS} />
+          <FilterSelect icon={Package} value={statusFilter} onChange={setStatusFilter} allValue="Todos" allLabel="Todos os status" options={STATUS_LIST.slice(1)} />
+          <div className="flex bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-1 gap-1">
+            <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === "grid" ? "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
+              <Grid3x3 className="w-4 h-4" />
+            </button>
+            <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === "list" ? "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+        </FilterBar>
+      </KpiFilterCard>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar marca, modelo, vendedor, placa..." className="w-full bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50" />
-        </div>
-        <select value={combustivelFilter} onChange={e => setCombustivelFilter(e.target.value)} className="bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50">
-          {COMBUSTIVEIS.map(c => <option key={c}>{c}</option>)}
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50">
-          {STATUS_LIST.map(s => <option key={s}>{s}</option>)}
-        </select>
-        <div className="flex bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl p-1 gap-1">
-          <button onClick={() => setViewMode("grid")} className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-blue-600/20 text-blue-400" : "text-slate-500 hover:text-white"}`}>
-            <Grid3x3 className="w-4 h-4" />
-          </button>
-          <button onClick={() => setViewMode("list")} className={`p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-blue-600/20 text-blue-400" : "text-slate-500 hover:text-white"}`}>
-            <List className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
+      <div className="mt-4" />
       <p className="text-[10px] text-slate-600 font-bold mb-4">{filtered.length} veículo(s) encontrado(s)</p>
 
       {/* Grid View */}

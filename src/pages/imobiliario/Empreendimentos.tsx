@@ -5,7 +5,7 @@ import {
   Building2, Plus, Search, MapPin, DollarSign,
   TrendingUp, CheckCircle2, ArrowRight, Trash2, X, Download
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -62,6 +62,8 @@ export default function Empreendimentos() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterCidade, setFilterCidade] = useState("");
+  const [filterConstrutora, setFilterConstrutora] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -147,11 +149,15 @@ export default function Empreendimentos() {
       e.construtora.toLowerCase().includes(search.toLowerCase())
     );
     const matchStatus = filterStatus === "Todos" || e.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchCidade = !filterCidade || e.cidade === filterCidade;
+    const matchConstrutora = !filterConstrutora || e.construtora === filterConstrutora;
+    return matchSearch && matchStatus && matchCidade && matchConstrutora;
   });
 
-  const vgvTotalGeral = empreendimentos.reduce((s, e) => s + e.vgvTotal, 0);
-  const unidadesTotalDisp = empreendimentos.reduce((s, e) => s + e.unidadesDisponiveis, 0);
+  const cidadesList = Array.from(new Set(empreendimentos.map(e => e.cidade).filter(Boolean))).sort();
+  const construtorasList = Array.from(new Set(empreendimentos.map(e => e.construtora).filter(Boolean))).sort();
+  const vgvTotalGeral = filtered.reduce((s, e) => s + e.vgvTotal, 0);
+  const unidadesTotalDisp = filtered.reduce((s, e) => s + e.unidadesDisponiveis, 0);
 
   const handleExportCSV = () => {
     if (filtered.length === 0) {
@@ -195,55 +201,26 @@ export default function Empreendimentos() {
         </div>
       }
     >
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Empreendimentos Ativos</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{empreendimentos.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">VGV Total Gerenciado</span>
-          <div className="text-2xl font-black text-amber-500">
-            R$ {(vgvTotalGeral / 1e6).toFixed(1)}M
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Unidades Disponíveis</span>
-          <div className="text-2xl font-black text-emerald-500">
-            {unidadesTotalDisp} unidades
-          </div>
-        </Card>
-      </div>
+      <KpiFilterCard
+        id="imobEmpreendimentos"
+        kpis={[
+          { label: "Empreendimentos", value: filtered.length, icon: Building2, tone: "primary" },
+          { label: "VGV Total", value: `R$ ${(vgvTotalGeral / 1e6).toFixed(1)}M`, icon: DollarSign, tone: "warning" },
+          { label: "Unidades Disponíveis", value: unidadesTotalDisp, icon: CheckCircle2, tone: "success" },
+          { label: "Em Obras", value: filtered.filter(e => e.status === "Em Obras").length, icon: TrendingUp, tone: "info" },
+        ]}
+        activeCount={(search.trim() ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterCidade ? 1 : 0) + (filterConstrutora ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterCidade(""); setFilterConstrutora(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por nome, cidade ou construtora..." />
+          <FilterSelect icon={MapPin} value={filterCidade} onChange={setFilterCidade} options={cidadesList} allLabel="Todas as cidades" />
+          <FilterSelect icon={Building2} value={filterConstrutora} onChange={setFilterConstrutora} options={construtorasList} allLabel="Todas as construtoras" />
+          <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" options={["Lançamento", "Em Obras", "Pronto para Morar", "100% Vendido"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por nome, cidade ou construtora..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Lançamento", "Em Obras", "Pronto para Morar", "100% Vendido"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-[var(--color-primary-blue)] text-white font-bold"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
-
+      <div className="mt-4" />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(emp => (
           <div key={emp.id} className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/50 transition-all flex flex-col justify-between shadow-2xs">

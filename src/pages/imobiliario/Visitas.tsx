@@ -6,7 +6,8 @@ import {
   Search, CheckCircle2, XCircle, AlertCircle, Eye, TrendingUp,
   Phone, Edit2, Trash2, ChevronRight, MessageSquare, ExternalLink,
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -330,6 +331,9 @@ export default function Visitas() {
   const [ativos, setAtivos] = useState<AtivoOption[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todas");
+  const [corretorFilter, setCorretorFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState<string | null>(null);
+  const [dateTo, setDateTo] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editVisita, setEditVisita] = useState<Visita | null>(null);
   const [selectedVisita, setSelectedVisita] = useState<Visita | null>(null);
@@ -365,9 +369,14 @@ export default function Visitas() {
     const q = search.toLowerCase();
     return (
       (v.cliente.toLowerCase().includes(q) || v.imovel.toLowerCase().includes(q) || v.corretor.toLowerCase().includes(q) || v.bairro.toLowerCase().includes(q)) &&
-      (statusFilter === "Todas" || v.status === statusFilter)
+      (statusFilter === "Todas" || v.status === statusFilter) &&
+      (!corretorFilter || v.corretor === corretorFilter) &&
+      (!dateFrom || v.data >= dateFrom) &&
+      (!dateTo || v.data <= dateTo)
     );
   });
+
+  const corretoresList = Array.from(new Set(visitas.map(v => v.corretor).filter(Boolean))).sort();
 
   const handleSave = async (form: any) => {
     const nova: Visita = { ...form, id: Date.now().toString(), status: "Agendada" };
@@ -454,10 +463,10 @@ export default function Visitas() {
   const proximas = filtered.filter(v => v.data >= hoje && v.status !== "Cancelada" && v.status !== "Realizada");
   const historico = filtered.filter(v => v.data < hoje || v.status === "Realizada" || v.status === "Cancelada");
 
-  const agendadas = visitas.filter(v => v.status === "Agendada").length;
-  const confirmadas = visitas.filter(v => v.status === "Confirmada").length;
-  const realizadas = visitas.filter(v => v.status === "Realizada").length;
-  const canceladas = visitas.filter(v => v.status === "Cancelada").length;
+  const agendadas = filtered.filter(v => v.status === "Agendada").length;
+  const confirmadas = filtered.filter(v => v.status === "Confirmada").length;
+  const realizadas = filtered.filter(v => v.status === "Realizada").length;
+  const canceladas = filtered.filter(v => v.status === "Cancelada").length;
 
   const VisitaRow = ({ v }: { v: Visita }) => {
     const StatusIcon = STATUS_ICON[v.status] ?? AlertCircle;
@@ -541,34 +550,26 @@ export default function Visitas() {
         />
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: AlertCircle, label: "Agendadas", value: agendadas.toString(), color: "text-amber-500" },
-          { icon: Clock, label: "Confirmadas", value: confirmadas.toString(), color: "text-blue-500" },
-          { icon: CheckCircle2, label: "Realizadas", value: realizadas.toString(), color: "text-emerald-500" },
-          { icon: TrendingUp, label: "Taxa Realização", value: realizadas + canceladas > 0 ? `${Math.round((realizadas / (realizadas + canceladas)) * 100)}%` : "—", color: "text-indigo-500" },
-        ].map((s, i) => (
-          <Card key={i} className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-            <s.icon className={`w-5 h-5 ${s.color} mb-4`} />
-            <div className="text-2xl font-display font-black text-white mb-1 italic">{s.value}</div>
-            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</div>
-          </Card>
-        ))}
-      </div>
+      <KpiFilterCard
+        id="imobVisitas"
+        kpis={[
+          { label: "Agendadas", value: agendadas, icon: AlertCircle, tone: "warning" },
+          { label: "Confirmadas", value: confirmadas, icon: Clock, tone: "info" },
+          { label: "Realizadas", value: realizadas, icon: CheckCircle2, tone: "success" },
+          { label: "Taxa Realização", value: realizadas + canceladas > 0 ? `${Math.round((realizadas / (realizadas + canceladas)) * 100)}%` : "—", icon: TrendingUp, tone: "accent" },
+        ]}
+        activeCount={(search.trim() ? 1 : 0) + (statusFilter !== "Todas" ? 1 : 0) + (corretorFilter ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
+        onClear={() => { setSearch(""); setStatusFilter("Todas"); setCorretorFilter(""); setDateFrom(null); setDateTo(null); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar cliente, imóvel, corretor ou bairro..." />
+          <FilterSelect icon={User} value={corretorFilter} onChange={setCorretorFilter} options={corretoresList} allLabel="Todos os corretores" />
+          <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} className="h-[38px]" />
+          <FilterChips value={statusFilter} onChange={setStatusFilter} allValue="Todas" allLabel="Todas" options={["Agendada", "Confirmada", "Realizada", "Cancelada"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente, imóvel, corretor ou bairro..." className="w-full bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50" />
-        </div>
-        <div className="flex bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl p-1 gap-1">
-          {["Todas", "Agendada", "Confirmada", "Realizada", "Cancelada"].map(s => (
-            <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 text-[10px] font-black rounded-lg transition-all ${statusFilter === s ? "bg-blue-600/20 text-blue-400 border border-blue-500/30" : "text-slate-500 hover:text-slate-300"}`}>{s}</button>
-          ))}
-        </div>
-      </div>
+      <div className="mt-4" />
 
       {proximas.length > 0 && (
         <div className="mb-8">

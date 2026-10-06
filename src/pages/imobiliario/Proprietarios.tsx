@@ -5,7 +5,7 @@ import {
   Users, Plus, Search, Phone, Mail, Home,
   Building2, MessageSquare, Trash2, X
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -56,6 +56,7 @@ export default function Proprietarios() {
   }, [activeTenantId]);
 
   const [search, setSearch] = useState("");
+  const [tipoFilter, setTipoFilter] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -119,9 +120,10 @@ export default function Proprietarios() {
   };
 
   const filtered = proprietarios.filter(p =>
-    p.nome.toLowerCase().includes(search.toLowerCase()) ||
+    (p.nome.toLowerCase().includes(search.toLowerCase()) ||
     p.email.toLowerCase().includes(search.toLowerCase()) ||
-    p.telefone.includes(search)
+    p.telefone.includes(search)) &&
+    (!tipoFilter || p.tipo === tipoFilter)
   );
 
   return (
@@ -134,37 +136,24 @@ export default function Proprietarios() {
         </Button>
       }
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: Users, label: "Total de Proprietários", val: proprietarios.length, color: "text-blue-500" },
-          { icon: Home, label: "Imóveis Vinculados", val: proprietarios.reduce((s, p) => s + p.imoveisCount, 0), color: "text-emerald-500" },
-          { icon: Building2, label: "Pessoas Jurídicas", val: proprietarios.filter(p => p.tipo === "Pessoa Jurídica").length, color: "text-purple-500" },
-          { icon: Phone, label: "Contatos Registrados", val: proprietarios.length, color: "text-amber-500" },
-        ].map((k, i) => (
-          <Card key={i} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</span>
-              <k.icon className={`w-4 h-4 ${k.color}`} />
-            </div>
-            <p className="text-xl font-black text-[var(--color-text-primary)]">{k.val}</p>
-          </Card>
-        ))}
-      </div>
+      <KpiFilterCard
+        id="imobProprietarios"
+        kpis={[
+          { label: "Proprietários", value: filtered.length, icon: Users, tone: "primary" },
+          { label: "Imóveis Vinculados", value: filtered.reduce((s, p) => s + p.imoveisCount, 0), icon: Home, tone: "success" },
+          { label: "Pessoas Jurídicas", value: filtered.filter(p => p.tipo === "Pessoa Jurídica").length, icon: Building2, tone: "accent" },
+          { label: "Com Telefone", value: filtered.filter(p => p.telefone.trim()).length, icon: Phone, tone: "warning" },
+        ]}
+        activeCount={(search.trim() ? 1 : 0) + (tipoFilter ? 1 : 0)}
+        onClear={() => { setSearch(""); setTipoFilter(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por nome, e-mail ou telefone..." />
+          <FilterChips value={tipoFilter} onChange={setTipoFilter} options={["Pessoa Física", "Pessoa Jurídica"]} />
+        </FilterBar>
+      </KpiFilterCard>
 
-      {/* Search */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por nome, e-mail ou telefone..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          />
-        </div>
-      </div>
+      <div className="mt-4" />
 
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

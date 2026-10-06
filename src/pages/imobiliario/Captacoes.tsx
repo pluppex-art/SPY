@@ -5,7 +5,7 @@ import {
   ClipboardList, Plus, Search, MapPin, DollarSign,
   User, CheckCircle2, Clock, Trash2, X, Filter, Download
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -61,6 +61,8 @@ export default function Captacoes() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterTipo, setFilterTipo] = useState("");
+  const [filterCorretor, setFilterCorretor] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form state
@@ -145,10 +147,14 @@ export default function Captacoes() {
       c.proprietario.toLowerCase().includes(search.toLowerCase())
     );
     const matchStatus = filterStatus === "Todos" || c.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchTipo = !filterTipo || c.tipo === filterTipo;
+    const matchCorretor = !filterCorretor || c.corretor === filterCorretor;
+    return matchSearch && matchStatus && matchTipo && matchCorretor;
   });
 
-  const totalVGV = captacoes.reduce((acc, c) => acc + c.valorPretendido, 0);
+  const tiposList = Array.from(new Set(captacoes.map(c => c.tipo).filter(Boolean))).sort();
+  const corretoresList = Array.from(new Set(captacoes.map(c => c.corretor).filter(Boolean))).sort();
+  const totalVGV = filtered.reduce((acc, c) => acc + c.valorPretendido, 0);
 
   const handleExportCSV = () => {
     if (filtered.length === 0) {
@@ -192,54 +198,29 @@ export default function Captacoes() {
         </div>
       }
     >
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Captações Ativas</span>
-          <div className="text-2xl font-black text-[var(--color-text-primary)]">{captacoes.length}</div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">VGV Pretendido em Captação</span>
-          <div className="text-2xl font-black text-amber-500">
-            R$ {(totalVGV / 1e6).toFixed(2)}M
-          </div>
-        </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
-          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Taxa de Conclusão</span>
-          <div className="text-2xl font-black text-emerald-500">
-            {captacoes.length > 0 ? `${Math.round((captacoes.filter(c => c.status === "Ativo no Catálogo").length / captacoes.length) * 100)}%` : "0%"}
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <input
-            type="text"
-            placeholder="Buscar por endereço, corretor ou proprietário..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
+      <KpiFilterCard
+        id="imobCaptacoes"
+        kpis={[
+          { label: "Captações", value: filtered.length, icon: ClipboardList, tone: "primary" },
+          { label: "VGV Pretendido", value: `R$ ${(totalVGV / 1e6).toFixed(2)}M`, icon: DollarSign, tone: "warning" },
+          { label: "Em andamento", value: filtered.filter(c => c.status !== "Ativo no Catálogo" && c.status !== "Recusado").length, icon: Clock, tone: "info" },
+          { label: "Taxa de Conclusão", value: filtered.length > 0 ? `${Math.round((filtered.filter(c => c.status === "Ativo no Catálogo").length / filtered.length) * 100)}%` : "0%", icon: CheckCircle2, tone: "success" },
+        ]}
+        activeCount={(search.trim() ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterTipo ? 1 : 0) + (filterCorretor ? 1 : 0)}
+        onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterTipo(""); setFilterCorretor(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por endereço, corretor ou proprietário..." />
+          <FilterSelect icon={MapPin} value={filterTipo} onChange={setFilterTipo} options={tiposList} allLabel="Todos os tipos" />
+          <FilterSelect icon={User} value={filterCorretor} onChange={setFilterCorretor} options={corretoresList} allLabel="Todos os corretores" />
+          <FilterChips
+            value={filterStatus}
+            onChange={setFilterStatus}
+            allValue="Todos"
+            options={["Em Avaliação", "Contrato de Posse", "Fotos & Vistoria", "Ativo no Catálogo", "Recusado"]}
           />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {["Todos", "Em Avaliação", "Contrato de Posse", "Fotos & Vistoria", "Ativo no Catálogo"].map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all shrink-0 ${
-                filterStatus === st
-                  ? "bg-[var(--color-primary-blue)] text-white"
-                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
+        </FilterBar>
+      </KpiFilterCard>
 
       {/* List */}
       <div className="space-y-3">

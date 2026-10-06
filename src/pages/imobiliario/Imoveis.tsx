@@ -6,7 +6,7 @@ import {
   Copy, X, Home, DollarSign, Grid3x3, List, TrendingUp, Package,
   ChevronRight, User, ExternalLink, SquarePen, Columns3,
 } from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { EmptyState } from "../../components/ui/empty-state";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
@@ -432,6 +432,8 @@ export default function Imoveis() {
   const [tipoFilter, setTipoFilter] = useState("Todos");
   const [statusFilter, setStatusFilter] = useState("Todos");
   const [operacaoFilter, setOperacaoFilter] = useState("Todos");
+  const [cidadeFilter, setCidadeFilter] = useState("");
+  const [corretorFilter, setCorretorFilter] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showForm, setShowForm] = useState(false);
   const [editImovel, setEditImovel] = useState<Imovel | null>(null);
@@ -462,9 +464,14 @@ export default function Imoveis() {
       (i.titulo.toLowerCase().includes(q) || i.bairro.toLowerCase().includes(q) || i.corretor.toLowerCase().includes(q)) &&
       (tipoFilter === "Todos" || i.tipo === tipoFilter) &&
       (statusFilter === "Todos" || i.status === statusFilter) &&
-      (operacaoFilter === "Todos" || i.operacao === operacaoFilter)
+      (operacaoFilter === "Todos" || i.operacao === operacaoFilter) &&
+      (!cidadeFilter || i.cidade === cidadeFilter) &&
+      (!corretorFilter || i.corretor === corretorFilter)
     );
   });
+
+  const cidadesList = Array.from(new Set(imoveis.map(i => i.cidade).filter(Boolean))).sort();
+  const corretoresFiltroList = Array.from(new Set(imoveis.map(i => i.corretor).filter(Boolean))).sort();
 
   const handleSave = async (form: any) => {
     if (!supabase || !activeTenantId) { toast.error("Não foi possível conectar ao servidor."); return; }
@@ -499,10 +506,10 @@ export default function Imoveis() {
     toast.success("Imóvel removido.");
   };
 
-  const disponiveis = imoveis.filter(i => i.status === "Disponível").length;
-  const vendidos = imoveis.filter(i => i.status === "Vendido").length;
-  const vgvTotal = imoveis.filter(i => i.operacao === "Venda").reduce((s, i) => s + i.valor, 0);
-  const totalVisitas = imoveis.reduce((s, i) => s + i.visitas, 0);
+  const disponiveis = filtered.filter(i => i.status === "Disponível").length;
+  const vendidos = filtered.filter(i => i.status === "Vendido").length;
+  const vgvTotal = filtered.filter(i => i.operacao === "Venda").reduce((s, i) => s + i.valor, 0);
+  const totalVisitas = filtered.reduce((s, i) => s + i.visitas, 0);
 
   return (
     <PageContainer
@@ -533,47 +540,36 @@ export default function Imoveis() {
         />
       )}
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: Package, label: "Disponíveis", value: disponiveis.toString(), color: "text-indigo-500" },
-          { icon: TrendingUp, label: "Vendidos", value: vendidos.toString(), color: "text-emerald-500" },
-          { icon: DollarSign, label: "VGV Portfólio", value: `R$ ${(vgvTotal / 1e6).toFixed(1)}M`, color: "text-amber-500" },
-          { icon: Eye, label: "Total Visitas", value: totalVisitas.toString(), color: "text-blue-500" },
-        ].map((s, i) => (
-          <Card key={i} className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-            <s.icon className={`w-5 h-5 ${s.color} mb-4`} />
-            <div className="text-2xl font-display font-black text-white mb-1 italic">{s.value}</div>
-            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</div>
-          </Card>
-        ))}
-      </div>
+      <KpiFilterCard
+        id="imobImoveis"
+        kpis={[
+          { label: "Disponíveis", value: disponiveis, icon: Package, tone: "primary" },
+          { label: "Vendidos", value: vendidos, icon: TrendingUp, tone: "success" },
+          { label: "VGV Portfólio", value: `R$ ${(vgvTotal / 1e6).toFixed(1)}M`, icon: DollarSign, tone: "warning" },
+          { label: "Total Visitas", value: totalVisitas, icon: Eye, tone: "info" },
+        ]}
+        activeCount={(search.trim() ? 1 : 0) + (tipoFilter !== "Todos" ? 1 : 0) + (statusFilter !== "Todos" ? 1 : 0) + (operacaoFilter !== "Todos" ? 1 : 0) + (cidadeFilter ? 1 : 0) + (corretorFilter ? 1 : 0)}
+        onClear={() => { setSearch(""); setTipoFilter("Todos"); setStatusFilter("Todos"); setOperacaoFilter("Todos"); setCidadeFilter(""); setCorretorFilter(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar imóvel, bairro, corretor..." />
+          <FilterSelect icon={Home} value={tipoFilter} onChange={setTipoFilter} allValue="Todos" allLabel="Todos os tipos" options={TIPOS.slice(1)} />
+          <FilterSelect icon={Package} value={statusFilter} onChange={setStatusFilter} allValue="Todos" allLabel="Todos os status" options={STATUS_LIST.slice(1)} />
+          <FilterSelect icon={DollarSign} value={operacaoFilter} onChange={setOperacaoFilter} allValue="Todos" allLabel="Venda e locação" options={OPERACOES.slice(1)} />
+          <FilterSelect icon={MapPin} value={cidadeFilter} onChange={setCidadeFilter} options={cidadesList} allLabel="Todas as cidades" />
+          <FilterSelect icon={User} value={corretorFilter} onChange={setCorretorFilter} options={corretoresFiltroList} allLabel="Todos os corretores" />
+          <div className="flex bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-1 gap-1">
+            <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === "grid" ? "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
+              <Grid3x3 className="w-4 h-4" />
+            </button>
+            <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === "list" ? "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+        </FilterBar>
+      </KpiFilterCard>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar imóvel, bairro, corretor..." className="w-full bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50" />
-        </div>
-        <select value={tipoFilter} onChange={e => setTipoFilter(e.target.value)} className="bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50">
-          {TIPOS.map(t => <option key={t}>{t}</option>)}
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50">
-          {STATUS_LIST.map(s => <option key={s}>{s}</option>)}
-        </select>
-        <select value={operacaoFilter} onChange={e => setOperacaoFilter(e.target.value)} className="bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50">
-          {OPERACOES.map(o => <option key={o}>{o}</option>)}
-        </select>
-        <div className="flex bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl p-1 gap-1">
-          <button onClick={() => setViewMode("grid")} className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-blue-600/20 text-blue-400" : "text-slate-500 hover:text-white"}`}>
-            <Grid3x3 className="w-4 h-4" />
-          </button>
-          <button onClick={() => setViewMode("list")} className={`p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-blue-600/20 text-blue-400" : "text-slate-500 hover:text-white"}`}>
-            <List className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
+      <div className="mt-4" />
       <p className="text-[10px] text-slate-600 font-bold mb-4">{filtered.length} imóvel(is) encontrado(s)</p>
 
       {/* Grid View */}
