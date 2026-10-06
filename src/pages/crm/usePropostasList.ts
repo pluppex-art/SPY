@@ -44,6 +44,8 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
   const [page, setPage] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("todos");
+  const [vendedorFiltro, setVendedorFiltro] = useState("todos");
 
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -61,7 +63,7 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  useEffect(() => { setPage(0); }, [dateFrom, dateTo]);
+  useEffect(() => { setPage(0); }, [dateFrom, dateTo, statusFiltro, vendedorFiltro]);
 
   const requestIdRef = useRef(0);
 
@@ -73,10 +75,12 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
       let query = supabase.from("proposals").select("*", { count: "exact" }).eq("tenant_id", tenantId);
       if (searchQuery.trim()) {
         const q = searchQuery.trim().replace(/[%,]/g, "");
-        query = query.or(`cliente.ilike.%${q}%,titulo.ilike.%${q}%`);
+        query = query.or(`cliente.ilike.%${q}%,titulo.ilike.%${q}%,vendedor.ilike.%${q}%`);
       }
       if (dateFrom) query = query.gte("created_at", dateFrom);
       if (dateTo) query = query.lte("created_at", `${dateTo}T23:59:59`);
+      if (statusFiltro !== "todos") query = query.eq("status", statusFiltro);
+      if (vendedorFiltro !== "todos") query = query.eq("vendedor", vendedorFiltro);
 
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -102,7 +106,7 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
 
   const fetchKpis = async () => {
     if (!supabase || !tenantId) return;
-    const projection = "id,valor,status,created_at,cliente,titulo";
+    const projection = "id,valor,status,created_at,cliente,titulo,vendedor,first_viewed_at";
     let filteredQuery = supabase.from("proposals").select(projection).eq("tenant_id", tenantId);
     if (dateFrom) filteredQuery = filteredQuery.gte("created_at", dateFrom);
     if (dateTo) filteredQuery = filteredQuery.lte("created_at", `${dateTo}T23:59:59`);
@@ -118,29 +122,71 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
   useEffect(() => {
     fetchPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, page, searchQuery, dateFrom, dateTo]);
+  }, [tenantId, page, searchQuery, dateFrom, dateTo, statusFiltro, vendedorFiltro]);
 
   useEffect(() => {
     fetchKpis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, dateFrom, dateTo]);
 
+  // Buckets reais dos últimos 6 meses (sempre sobre kpiAllRows — TODO
+  // proposta do tenant, nunca o `dateFrom`/`dateTo` da lista paginada, pra
+  // "este mês"/"mês passado" nunca mudar de significado conforme o filtro da
+  // tela) — fonte do valor/sparkline/delta de cada card, sem precisar de
+  // nenhum histórico sintético: created_at já é um timestamp real e imutável.
+  const monthlyBuckets = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      const y = d.getFullYear(), m = d.getMonth();
+      const doMes = kpiAllRows.filter((p) => {
+        const pd = p.created_at ? new Date(p.created_at) : null;
+        return pd && !isNaN(pd.getTime()) && pd.getFullYear() === y && pd.getMonth() === m;
+      });
+      const aceitas = doMes.filter((p) => p.status === "Aceita");
+      const valorTotal = doMes.reduce((s, p) => s + (Number(p.valor) || 0), 0);
+      const valorConvertido = aceitas.reduce((s, p) => s + (Number(p.valor) || 0), 0);
+      return {
+        label: d.toLocaleDateString("pt-BR", { month: "short" }),
+        count: doMes.length,
+        valorTotal,
+        valorConvertido,
+        taxaConversao: doMes.length > 0 ? Math.round((aceitas.length / doMes.length) * 1000) / 10 : 0,
+        rows: doMes,
+        rowsConvertidas: aceitas,
+      };
+    });
+  }, [kpiAllRows]);
+
   const kpis = useMemo(() => {
-    const convertidasMesBase = kpiAllRows.filter((p) => p.status === "Aceita" && isThisMonth(p.created_at));
-    const aceitasFiltered = kpiFilteredRows.filter((p) => p.status === "Aceita");
-    const aguardandoAceiteRows = kpiFilteredRows.filter((p) => p.status === "Enviada");
+    const mesAtual = monthlyBuckets[monthlyBuckets.length - 1];
+    const mesAnterior = monthlyBuckets[monthlyBuckets.length - 2];
+    const pctDelta = (atual: number, anterior: number): number | null => (anterior > 0 ? Math.round(((atual - anterior) / anterior) * 1000) / 10 : null);
+    const ativasRows = kpiAllRows.filter((p) => p.status !== "Aceita" && p.status !== "Recusada");
     return {
-      aguardandoAceite: aguardandoAceiteRows.reduce((acc, c) => acc + (Number(c.valor) || 0), 0),
-      aguardandoAceiteRows,
-      convertidasMes: convertidasMesBase.reduce((acc, c) => acc + (Number(c.valor) || 0), 0),
-      convertidasMesRows: convertidasMesBase,
-      taxaConversao: kpiFilteredRows.length > 0 ? Math.round((aceitasFiltered.length / kpiFilteredRows.length) * 100) : 0,
-      propostasAtivas: kpiFilteredRows.length,
-      propostasAtivasRows: kpiFilteredRows,
+      valorEmPropostas: mesAtual.valorTotal,
+      valorEmPropostasDelta: pctDelta(mesAtual.valorTotal, mesAnterior.valorTotal),
+      valorEmPropostasRows: mesAtual.rows,
+      convertidasMes: mesAtual.valorConvertido,
+      convertidasMesDelta: pctDelta(mesAtual.valorConvertido, mesAnterior.valorConvertido),
+      convertidasMesRows: mesAtual.rowsConvertidas,
+      taxaConversao: mesAtual.taxaConversao,
+      taxaConversaoDeltaPP: mesAnterior.count > 0 ? Math.round((mesAtual.taxaConversao - mesAnterior.taxaConversao) * 10) / 10 : null,
+      propostasAtivas: ativasRows.length,
+      propostasAtivasRows: ativasRows,
+      propostasTotal: kpiAllRows.length,
+      volumeSparkline: monthlyBuckets.map((b) => b.count),
+      valorSparkline: monthlyBuckets.map((b) => b.valorTotal),
+      convertidasSparkline: monthlyBuckets.map((b) => b.valorConvertido),
+      taxaConversaoSparkline: monthlyBuckets.map((b) => b.taxaConversao),
+      // Mantido pro filtro da lista (aba Propostas Comerciais usa o
+      // dateFrom/dateTo aplicado na tela, diferente dos cards acima).
+      aguardandoAceite: kpiFilteredRows.filter((p) => p.status === "Enviada").reduce((s, p) => s + (Number(p.valor) || 0), 0),
     };
-  }, [kpiFilteredRows, kpiAllRows]);
+  }, [monthlyBuckets, kpiAllRows, kpiFilteredRows]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const vendedores = useMemo(() => Array.from(new Set(kpiAllRows.map((p) => p.vendedor).filter(Boolean))).sort(), [kpiAllRows]);
 
   return {
     propostas: rows,
@@ -153,6 +199,12 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
     pageSize: PAGE_SIZE,
     searchQuery: searchInput,
     setSearchQuery: setSearchInput,
+    statusFiltro,
+    setStatusFiltro,
+    vendedorFiltro,
+    setVendedorFiltro,
+    vendedores,
+    kpiAllRows,
     loading,
     refetch: () => { fetchPage(); fetchKpis(); },
   };

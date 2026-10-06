@@ -79,12 +79,6 @@ export function ContractsTable({ contracts, searchQuery, onSearchChange, onDelet
             className="pl-9"
           />
         </div>
-        <select className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-4 py-2 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-blue)]">
-          <option>Todos os Planos</option>
-          <option>Enterprise</option>
-          <option>Pro</option>
-          <option>Starter</option>
-        </select>
       </div>
       {filtered.length === 0 ? (
         <EmptyState

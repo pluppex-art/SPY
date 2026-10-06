@@ -1,8 +1,5 @@
 import { useState } from "react";
-import { Card } from "../../../../components/ui/card";
-import { Input } from "../../../../components/ui/input";
 import { Badge } from "../../../../components/ui/badge";
-import { Button } from "../../../../components/ui/button";
 import { EmptyState } from "../../../../components/ui/empty-state";
 import {
   Table,
@@ -13,7 +10,7 @@ import {
   TableCell,
 } from "../../../../components/ui/table";
 import {
-  FileText, Search, Clock, CheckCircle2, XCircle, User, Download, Trash2, History, Send, Link2, Eye, Edit3,
+  FileText, Clock, CheckCircle2, XCircle, Download, Trash2, History, Send, Link2, Eye, Edit3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { handleDownloadPdf } from "../../utils/proposalPdf";
@@ -41,9 +38,40 @@ interface Proposta {
   link_pdf?: string | null;
   view_token?: string | null;
   view_count?: number;
+  first_viewed_at?: string | null;
   last_viewed_at?: string | null;
   decisor_nome?: string | null;
   decisor_cargo?: string | null;
+}
+
+const STATUS_DOT: Record<string, string> = {
+  Aceita: "bg-success", Enviada: "bg-info", Aberta: "bg-warning", Recusada: "bg-danger",
+};
+
+function diasDesde(iso?: string): number | null {
+  if (!iso) return null;
+  const d = new Date(iso).getTime();
+  if (isNaN(d)) return null;
+  return Math.max(0, Math.floor((Date.now() - d) / 86400000));
+}
+
+function initials(name?: string): string {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
+}
+
+// Etapa real da proposta, derivada de status + rastreio de visualização
+// (first_viewed_at/view_count, campos reais já gravados pela própria
+// proposta pública) — não existe um campo "etapa" granular no banco, então
+// em vez de inventar categorias (Negociação/Documentação/etc., que não
+// correspondem a nada real), usa só o que dá pra confirmar de verdade.
+export function etapaDe(item: { status: string; first_viewed_at?: string | null }): { label: string; step: number } {
+  if (item.status === "Aceita") return { label: "Proposta aceita", step: 4 };
+  if (item.status === "Recusada") return { label: "Proposta recusada", step: 4 };
+  if (item.first_viewed_at) return { label: "Visualizada pelo cliente", step: 3 };
+  if (item.status === "Enviada" || item.status === "Aberta") return { label: "Aguardando retorno", step: 2 };
+  return { label: "Rascunho", step: 1 };
 }
 
 const TIPO_LABEL: Record<string, string> = { itens: "Modelo", texto: "Texto", arquivo: "Arquivo" };
@@ -71,8 +99,6 @@ const DEFAULT_STATUS = { variant: "secondary" as const, icon: History };
 interface PropostasTableProps {
   propostas: Proposta[];
   proposalItems: PropostaItem[];
-  search: string;
-  onSearchChange: (v: string) => void;
   onUpdateStatus: (id: string, status: Proposta["status"]) => void;
   onDelete: (id: string) => void | Promise<boolean>;
   updateProposal?: (id: string, updates: any) => Promise<void> | void;
@@ -80,8 +106,9 @@ interface PropostasTableProps {
 
 // `propostas` já chega paginada/filtrada do servidor (ver
 // src/pages/crm/usePropostasList.ts) — este componente só renderiza a
-// página atual, sem filtrar/paginar de novo no cliente.
-export function PropostasTable({ propostas, proposalItems, search, onSearchChange, onUpdateStatus, onDelete, updateProposal }: PropostasTableProps) {
+// página atual, sem filtrar/paginar de novo no cliente. Busca e filtros
+// ficam na barra unificada de Propostas.tsx, não aqui.
+export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDelete, updateProposal }: PropostasTableProps) {
   const [editingProposal, setEditingProposal] = useState<PropostaEditorData | null>(null);
   const [isWordModalOpen, setIsWordModalOpen] = useState(false);
   const { appSettings, contracts } = useData();
@@ -93,27 +120,6 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
 
   return (
     <>
-      <Card className="p-4 flex flex-col md:flex-row gap-4 items-center mb-6">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
-          <Input
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar por cliente ou título..."
-            className="w-full pl-12 h-12 rounded-xl text-sm italic"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => toast.info("Filtros extras ativados automaticamente para seller ativo.")}
-            className="text-[10px] font-black uppercase tracking-widest"
-          >
-            Filtros Avançados
-          </Button>
-        </div>
-      </Card>
-
       {paged.length === 0 ? (
         <EmptyState
           icon={FileText}
@@ -127,6 +133,7 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
               <TableHead>Cliente / Título</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Etapa atual</TableHead>
               <TableHead>Datas</TableHead>
               <TableHead>Vendedor</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -135,6 +142,8 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
           <TableBody>
             {paged.map((item) => {
               const status = STATUS_CONFIG[item.status as keyof typeof STATUS_CONFIG] || DEFAULT_STATUS;
+              const etapa = etapaDe(item);
+              const dias = diasDesde(item.created_at);
               const itens = proposalItems.filter(pi => pi.proposal_id === item.id);
               // `preco_unitario`/`quantidade` guardam o preço de catálogo CHEIO
               // (quantidade já é meses × unidades num item recorrente — ver
@@ -210,10 +219,11 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Badge variant={status.variant} className="font-black uppercase tracking-widest text-[9px] px-2.5 py-1 flex items-center gap-1.5 w-fit">
-                        <status.icon className="w-3 h-3" />
-                        {item.status}
-                      </Badge>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[item.status] || "bg-[var(--color-text-faint)]"}`} />
+                      <div>
+                        <Badge variant={status.variant} className="font-black uppercase tracking-widest text-[9px] px-2 py-0.5 w-fit">{item.status}</Badge>
+                        {dias !== null && <div className="text-[9px] text-[var(--color-text-faint)] mt-0.5">Há {dias} dia{dias === 1 ? "" : "s"}</div>}
+                      </div>
                       {/* Achado real: esses 2 botões ficavam sempre no DOM (só escondidos
                           pelo hover da linha), mesmo numa proposta já Aceita/Recusada —
                           dava pra "Recusar" uma proposta já aceita (ou vice-versa) sem
@@ -228,15 +238,23 @@ export function PropostasTable({ propostas, proposalItems, search, onSearchChang
                     </div>
                   </TableCell>
                   <TableCell>
+                    <div className="text-[11px] font-semibold text-[var(--color-text-muted)] mb-1">{etapa.label}</div>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4].map((s) => (
+                        <span key={s} className={`h-1.5 w-5 rounded-full ${s <= etapa.step ? (item.status === "Recusada" ? "bg-danger" : "bg-[var(--color-primary-blue)]") : "bg-[var(--color-surface-sunken)]"}`} />
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     <div className="text-[10px] font-bold text-[var(--color-text-muted)]">Criada: {fmtDate(item.created_at)}</div>
                     <div className="text-[10px] font-bold text-danger">Venc: {fmtDate(item.validade)}</div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg bg-[var(--color-primary-blue)]/10 flex items-center justify-center">
-                        <User className="w-3 h-3 text-[var(--color-primary-blue)]" />
+                      <div className="w-6 h-6 rounded-full bg-[var(--color-primary-blue)]/10 flex items-center justify-center shrink-0">
+                        <span className="text-[9px] font-black text-[var(--color-primary-blue)]">{initials(item.vendedor)}</span>
                       </div>
-                      <span className="text-xs font-bold text-[var(--color-text-muted)]">{item.vendedor}</span>
+                      <span className="text-xs font-bold text-[var(--color-text-muted)] truncate max-w-[90px]">{item.vendedor}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
