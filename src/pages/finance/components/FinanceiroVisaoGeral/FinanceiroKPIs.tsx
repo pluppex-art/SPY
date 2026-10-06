@@ -28,43 +28,26 @@ export interface FinanceiroKpiCard {
   note?: string;
 }
 
-// Padrão único de cores: todos os cards usam a cor primária do tema; só o delta (alta/queda)
-// e valores críticos (negativo/vencido) usam cor semântica.
-const TILE = "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]";
-const SPARK_COLOR = "var(--color-primary-blue)";
+// Mesmo padrão dos cards do Dashboard (QuickStatsGrid): ícone solto colorido em rotação,
+// variação no canto, valor grande em itálico e gráfico verde/vermelho conforme a tendência.
+const ICON_COLORS = ["text-[var(--color-primary-blue)]", "text-emerald-500", "text-cyan-500", "text-rose-500"];
 
-function MiniBars({ data }: { data: number[] }) {
-  const max = Math.max(...data.map((v) => Math.abs(v)), 1);
-  return (
-    <div className="flex items-end gap-[3px] h-8 w-20" aria-hidden="true">
-      {data.map((v, i) => (
-        <span
-          key={i}
-          className="flex-1 rounded-sm bg-current"
-          style={{ height: `${Math.max(8, (Math.abs(v) / max) * 100)}%`, opacity: 0.35 + (0.65 * (i + 1)) / data.length }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function DeltaBadge({ deltaPct, deltaGoodWhenUp, note }: { deltaPct: number | null; deltaGoodWhenUp: boolean | null; note?: string }) {
+function DeltaTop({ deltaPct, deltaGoodWhenUp }: { deltaPct: number | null; deltaGoodWhenUp: boolean | null }) {
   if (deltaPct === null) {
-    return <span className="text-[11px] font-medium text-[var(--color-text-faint)]">{note ?? "Sem base no mês anterior"}</span>;
+    return <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right leading-tight">Sem base<br />p/ comparação</span>;
   }
   const isUp = deltaPct > 0;
   const isFlat = Math.abs(deltaPct) < 0.05;
   const isGood = deltaGoodWhenUp === null ? null : deltaGoodWhenUp === isUp;
   const colorClass = isFlat || isGood === null
-    ? "text-[var(--color-text-muted)]"
+    ? "text-[var(--color-text-faint)]"
     : isGood
     ? "text-emerald-600 dark:text-emerald-400"
-    : "text-rose-500";
+    : "text-rose-600 dark:text-rose-400";
   const Icon = isFlat ? Minus : isUp ? ArrowUpRight : ArrowDownRight;
   return (
-    <span className={cn("inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums", colorClass)}>
-      <Icon className="w-3 h-3" />
-      {isUp ? "+" : ""}{deltaPct.toFixed(0)}% <span className="font-normal text-[var(--color-text-faint)]">vs. mês anterior</span>
+    <span className={cn("text-xs font-bold flex items-center gap-0.5 tabular-nums", colorClass)}>
+      {isUp ? "+" : ""}{deltaPct.toFixed(1)}% <Icon className="w-3.5 h-3.5" />
     </span>
   );
 }
@@ -74,35 +57,33 @@ export function FinanceiroKPIs({ cards }: { cards: FinanceiroKpiCard[] }) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      {cards.map((kpi) => {
+      {cards.map((kpi, i) => {
         const Icon = kpi.icon;
         const displayValue = kpi.format === "percent" ? `${kpi.value.toFixed(1)}%` : formatCurrency(kpi.value);
         const valueColor = kpi.danger && kpi.value !== 0 ? "text-rose-500" : "text-[var(--color-text-primary)]";
+        const up = (kpi.deltaPct ?? 0) > 0;
+        const good = kpi.deltaGoodWhenUp === null ? null : kpi.deltaGoodWhenUp === up;
+        const sparkColor = kpi.deltaPct === null || Math.abs(kpi.deltaPct) < 0.05 || good === null
+          ? "text-[var(--color-text-faint)]"
+          : good ? "text-emerald-500" : "text-rose-500";
         const temSerie = !!kpi.series && kpi.series.length >= 2;
         return (
           <Link key={kpi.label} to={kpi.href} className="group block">
-            <div className="h-full rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] p-4 shadow-sm transition-all group-hover:shadow-md group-hover:border-[var(--color-primary-blue)]/30">
-              <div className="flex items-center gap-3">
-                <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center shrink-0", TILE)}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-[var(--color-text-muted)]">{kpi.label}</p>
-                  <p className={cn("text-xl font-black tabular-nums tracking-tight leading-tight mt-0.5", valueColor)}>
-                    {displayValue}
-                    {typeof kpi.count === "number" && (
-                      <span className="text-xs font-medium text-[var(--color-text-faint)] ml-1.5">({kpi.count})</span>
-                    )}
-                  </p>
-                </div>
+            <div className="h-full p-5 rounded-[var(--radius-panel)] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm group-hover:-translate-y-0.5 group-hover:shadow-md">
+              <div className="flex items-center justify-between mb-3">
+                <Icon className={cn("w-5 h-5", ICON_COLORS[i % ICON_COLORS.length])} />
+                <DeltaTop deltaPct={kpi.deltaPct} deltaGoodWhenUp={kpi.deltaGoodWhenUp} />
               </div>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <DeltaBadge deltaPct={kpi.deltaPct} deltaGoodWhenUp={kpi.deltaGoodWhenUp} note={kpi.note} />
-                {temSerie && (
-                  <div className="shrink-0" style={{ color: SPARK_COLOR }}>
-                    {kpi.chart === "line" ? <Sparkline data={kpi.series!} className="w-20 h-8" /> : <MiniBars data={kpi.series!} />}
-                  </div>
+              <div className={cn("text-2xl font-display font-black mb-1 italic", valueColor)}>
+                {displayValue}
+                {typeof kpi.count === "number" && (
+                  <span className="text-xs font-medium not-italic text-[var(--color-text-faint)] ml-1.5">({kpi.count})</span>
                 )}
+              </div>
+              <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{kpi.label}</div>
+              <div className="flex items-center justify-between mt-1 gap-2">
+                <span className="text-[10px] text-[var(--color-text-faint)] font-medium">{kpi.note ?? "vs. mês anterior"}</span>
+                {temSerie && <Sparkline data={kpi.series!} className={cn("w-16 h-5 shrink-0", sparkColor)} />}
               </div>
             </div>
           </Link>
