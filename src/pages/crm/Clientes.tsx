@@ -62,12 +62,21 @@ export default function Clientes() {
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
-  const kpis = useMemo(() => ({
-    total:       clientes.length,
-    ativos:      clientes.filter(c => c.status === "Ativo").length,
-    implantacao: clientes.filter(c => c.status === "Em Implantação").length,
-    inativos:    clientes.filter(c => c.status === "Inativo").length,
-  }), [clientes]);
+  const kpis = useMemo(() => {
+    const ativosRows = clientes.filter(c => c.status === "Ativo");
+    const implantacaoRows = clientes.filter(c => c.status === "Em Implantação");
+    const inativosRows = clientes.filter(c => c.status === "Inativo");
+    return {
+      total: clientes.length,
+      ativos: ativosRows.length,
+      implantacao: implantacaoRows.length,
+      inativos: inativosRows.length,
+      todosRows: clientes,
+      ativosRows,
+      implantacaoRows,
+      inativosRows,
+    };
+  }, [clientes]);
 
   const handleSaveCliente = async (data: any) => {
     if (!data.nome) { toast.error("Nome da empresa é obrigatório."); return; }

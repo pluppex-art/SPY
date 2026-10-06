@@ -5,6 +5,10 @@ import { PageContainer } from "../../components/PageContainer";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiFetch } from "../../lib/apiClient";
+import { leadDrillColumns } from "../../components/ui/drillColumns";
+import { Badge } from "../../components/ui/badge";
+import { useLocalization } from "../../contexts/LocalizationContext";
+import type { DrillColumn } from "../../components/ui/DrillDownPanel";
 
 import { KpiCards } from "./components/PerformanceDashboard/KpiCards";
 import { PerformanceScoreChart, HotLeadsPanel, LeadsVolumeChart } from "./components/PerformanceDashboard/PerformanceCharts";
@@ -17,6 +21,7 @@ interface DashboardPerformanceServerSummary {
 export default function Dashboard() {
   const { leads, leadScoreTriggers } = useData();
   const { activeTenantId } = useAuth();
+  const { formatCurrency } = useLocalization();
 
   // KPIs do topo + janela de 6 meses vêm de um cache no Redis-SPY quando
   // disponível (GET /api/crm/dashboard-performance-summary), mesma fórmula.
@@ -70,14 +75,25 @@ export default function Dashboard() {
     const totalValue = serverSummary?.totalValue ?? clientTotalValue;
     const winRate = serverSummary?.winRate ?? clientWinRate;
 
-    return [
-      { label: "Leads Totais",      value: totalLeads,                    icon: Users },
-      { label: "Score IA Médio",    value: avgScore.toFixed(1),           icon: Brain },
-      { label: "Pipeline Total",    value: `R$ ${(totalValue/1000).toFixed(1)}k`, icon: DollarSign },
-      { label: "Taxa de Conversão", value: `${winRate.toFixed(1)}%`,      icon: Award },
-      { label: "Gatilhos de Automação Ativos", value: leadScoreTriggers.length, icon: Zap },
+    // Listas reais por trás dos números acima — o array completo de leads já
+    // está em memória via useData() independente do cache do servidor, então
+    // o drill-down funciona mesmo quando o valor exibido vem do serverSummary.
+    const leadColumns = leadDrillColumns(formatCurrency);
+    const wonLeadsRows = all.filter((l) => l.status === "Fechado");
+    const triggerColumns: DrillColumn[] = [
+      { header: "Condição", render: (t: any) => `Score IA ${t.condition === "greater" ? ">" : "<"} ${t.scoreThreshold}%` },
+      { header: "Etapa destino", render: (t: any) => t.targetStageId || "—" },
+      { header: "Mensagem automática", render: (t: any) => <Badge variant="secondary">{t.autoMessage ? "Sim" : "Não"}</Badge> },
     ];
-  }, [leads, leadScoreTriggers, serverSummary]);
+
+    return [
+      { label: "Leads Totais",      value: totalLeads,                    icon: Users, drill: { subtitle: `${all.length} lead${all.length === 1 ? "" : "s"} no total`, rows: all, columns: leadColumns } },
+      { label: "Score IA Médio",    value: avgScore.toFixed(1),           icon: Brain },
+      { label: "Pipeline Total",    value: `R$ ${(totalValue/1000).toFixed(1)}k`, icon: DollarSign, drill: { subtitle: `${all.length} lead${all.length === 1 ? "" : "s"} somados`, rows: all, columns: leadColumns } },
+      { label: "Taxa de Conversão", value: `${winRate.toFixed(1)}%`,      icon: Award, drill: { subtitle: `${wonLeadsRows.length} negócio${wonLeadsRows.length === 1 ? "" : "s"} fechado${wonLeadsRows.length === 1 ? "" : "s"}`, rows: wonLeadsRows, columns: leadColumns } },
+      { label: "Gatilhos de Automação Ativos", value: leadScoreTriggers.length, icon: Zap, drill: { subtitle: `${leadScoreTriggers.length} gatilho${leadScoreTriggers.length === 1 ? "" : "s"} configurado${leadScoreTriggers.length === 1 ? "" : "s"}`, rows: leadScoreTriggers as any[], columns: triggerColumns } },
+    ];
+  }, [leads, leadScoreTriggers, serverSummary, formatCurrency]);
 
   const hotLeads = useMemo(() =>
     (leads as any[]).filter(l => (l.temperature || "").toLowerCase() === "quente").slice(0, 5),

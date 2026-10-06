@@ -17,6 +17,17 @@ export function leadDrillColumns(formatCurrency: (n: number) => string): DrillCo
   ];
 }
 
+/** Colunas padrão pra drill-down de uma lista de clientes (`clienteBase`). */
+export function clienteDrillColumns(): DrillColumn[] {
+  return [
+    { header: "Nome", render: (c: any) => <span className="font-bold text-[var(--color-text-primary)]">{c.name || "—"}</span> },
+    { header: "Setor", render: (c: any) => c.industry || "—" },
+    { header: "Email", render: (c: any) => c.email || "—" },
+    { header: "Telefone", render: (c: any) => c.phone || "—" },
+    { header: "Status", render: (c: any) => <Badge variant="secondary">{c.status || "—"}</Badge> },
+  ];
+}
+
 /** Colunas padrão pra drill-down de uma lista de contratos. `valueField` escolhe se a coluna de valor mostra MRR (parcela recorrente) ou Valor Total (recorrente + avulso) — mesma distinção de revenueMetrics.getMRR vs getFaturamentoContratado. */
 export function contractDrillColumns(formatCurrency: (n: number) => string, valueField: "totalValue" | "mrr" = "mrr"): DrillColumn[] {
   return [

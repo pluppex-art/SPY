@@ -15,6 +15,7 @@ import { ContractsKPIs } from "./components/Contracts/ContractsKPIs";
 import { ContractsTable } from "./components/Contracts/ContractsTable";
 import { handleDownloadPdf } from "./utils/proposalPdf";
 import { getMRR } from "../../lib/revenueMetrics";
+import { isContractAtivo } from "../../components/ui/drillColumns";
 import type { Contract } from "../../types";
 
 const contractSchema = z.object({
@@ -123,6 +124,9 @@ export default function Contracts() {
         totalMRR={totalMRR}
         ativos={contracts.filter(c => c.status === "Ativo").length}
         inadimplentes={contracts.filter(c => c.status === "Inadimplente").length}
+        mrrRows={contracts.filter(isContractAtivo)}
+        ativosRows={contracts.filter(c => c.status === "Ativo")}
+        inadimplentesRows={contracts.filter(c => c.status === "Inadimplente")}
       />
 
       <ContractsTable
