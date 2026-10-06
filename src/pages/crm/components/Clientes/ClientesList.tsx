@@ -12,8 +12,9 @@ import {
   TableHead,
   TableCell,
 } from "../../../../components/ui/table";
-import { Search, Building2, MapPin, Phone, Mail, Trash2, FileText, Users, Pencil } from "lucide-react";
+import { Search, Building2, MapPin, Phone, Mail, Trash2, FileText, Users, Pencil, Eye, List, LayoutGrid } from "lucide-react";
 import { normalizeText } from "../../../../lib/utils";
+import { useLocalization } from "../../../../contexts/LocalizationContext";
 
 const PAGE_SIZE = 50;
 
@@ -29,6 +30,18 @@ function localizacaoLabel(city?: string | null, state?: string | null): string {
   return "Não informado";
 }
 
+function initials(name?: string | null): string {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
+}
+
+function fmtDate(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
+}
+
 interface Cliente {
   id: string;
   name: string;
@@ -39,6 +52,12 @@ interface Cliente {
   email?: string;
   status?: string;
   documento?: string | null;
+  created_at?: string;
+  /** Campos derivados em Clientes.tsx (leads/contracts vinculados) — ver
+   * comentário lá. Ausentes num cliente sem lead/contrato correspondente. */
+  responsavel?: string | null;
+  contratoStatus?: string | null;
+  mrr?: number;
 }
 
 interface ClientesListProps {
@@ -52,6 +71,8 @@ interface ClientesListProps {
   onSectorChange: (v: string) => void;
   statusFilter: string;
   onStatusChange: (v: string) => void;
+  contratoStatusFilter: string;
+  onContratoStatusChange: (v: string) => void;
   onDelete: (id: string) => void;
   onEdit: (cliente: Cliente) => void;
   onManageContatos: (clienteId: string) => void;
@@ -64,93 +85,192 @@ function statusBadgeVariant(status?: string): "success" | "warning" | "secondary
   return "secondary";
 }
 
+function contratoStatusMeta(status?: string | null): { label: string; dot: string } {
+  if (status === "Ativo") return { label: "Em dia", dot: "bg-success" };
+  if (status === "Inadimplente") return { label: "Inadimplente", dot: "bg-danger" };
+  if (status === "Cancelado") return { label: "Cancelado", dot: "bg-[var(--color-text-faint)]" };
+  return { label: "Sem contrato", dot: "bg-[var(--color-text-faint)]" };
+}
+
 export function ClientesList({
   clientes, decisorPorCliente = {}, searchQuery, onSearchChange,
-  sectorFilter, onSectorChange, statusFilter, onStatusChange, onDelete, onEdit, onManageContatos, onOpenDetalhes,
+  sectorFilter, onSectorChange, statusFilter, onStatusChange,
+  contratoStatusFilter, onContratoStatusChange,
+  onDelete, onEdit, onManageContatos, onOpenDetalhes,
 }: ClientesListProps) {
+  const { formatCurrency } = useLocalization();
+  const [view, setView] = useState<"list" | "grid">("list");
+
+  // Opções reais do filtro de setor — só os valores que de fato existem na
+  // base, nunca uma lista fixa (achado real: o dropdown antigo tinha
+  // "Engenharia"/"Saúde"/"Indústria" hardcoded, sem relação nenhuma com os
+  // setores realmente cadastrados nesse tenant).
+  const setoresDisponiveis = useMemo(
+    () => Array.from(new Set(clientes.map((c) => c.industry).filter(Boolean))).sort() as string[],
+    [clientes]
+  );
+
   const filtered = useMemo(() => clientes.filter(c => {
-    if (statusFilter !== "Todos as situações" && c.status !== statusFilter) return false;
+    if (statusFilter !== "Todas as situações" && c.status !== statusFilter) return false;
     if (sectorFilter !== "Todos os setores" && c.industry !== sectorFilter) return false;
+    if (contratoStatusFilter !== "Todos os status") {
+      const meta = contratoStatusMeta(c.contratoStatus).label;
+      if (meta !== contratoStatusFilter) return false;
+    }
     if (searchQuery) {
       const term = normalizeText(searchQuery);
       return normalizeText(c.name).includes(term) ||
+             normalizeText(c.documento).includes(term) ||
+             normalizeText(c.responsavel).includes(term) ||
              normalizeText(c.email).includes(term) ||
-             normalizeText(c.industry).includes(term);
+             normalizeText(c.phone).includes(term);
     }
     return true;
-  }), [clientes, statusFilter, sectorFilter, searchQuery]);
+  }), [clientes, statusFilter, sectorFilter, contratoStatusFilter, searchQuery]);
 
   // Renderizava TODOS os clientes filtrados de uma vez — pagina só a
   // exibição (os dados já estão em memória).
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [statusFilter, sectorFilter, searchQuery]);
+  useEffect(() => { setPage(0); }, [statusFilter, sectorFilter, contratoStatusFilter, searchQuery]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   const selectClass = "bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-blue)] font-bold";
 
+  const actionButtons = (c: Cliente) => (
+    <>
+      <button
+        onClick={(e) => { e.stopPropagation(); onOpenDetalhes(c.id); }}
+        title="Ver detalhes"
+        aria-label="Ver detalhes"
+        className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors"
+      >
+        <Eye className="w-3.5 h-3.5" />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onEdit(c); }}
+        title="Editar Cliente"
+        aria-label="Editar Cliente"
+        className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onManageContatos(c.id); }}
+        title="Contatos e Decisores"
+        aria-label="Contatos e Decisores"
+        className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors"
+      >
+        <Users className="w-3.5 h-3.5" />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
+        title="Remover Cliente"
+        aria-label="Remover Cliente"
+        className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </>
+  );
+
   return (
     <Card className="overflow-hidden">
       {/* Filters bar */}
-      <div className="p-4 border-b border-[var(--color-border-subtle)] flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="p-4 border-b border-[var(--color-border-subtle)] flex gap-3 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[220px]">
           <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
           <Input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar cliente..."
+            placeholder="Buscar por cliente, documento, responsável, e-mail ou telefone..."
             className="pl-9"
           />
         </div>
-        <select
-          value={sectorFilter}
-          onChange={(e) => onSectorChange(e.target.value)}
-          className={selectClass}
-        >
+        <select value={sectorFilter} onChange={(e) => onSectorChange(e.target.value)} className={selectClass}>
           <option>Todos os setores</option>
-          <option>Tecnologia</option>
-          <option>Engenharia</option>
-          <option>Saúde</option>
-          <option>Varejo</option>
-          <option>Indústria</option>
+          {setoresDisponiveis.map((s) => <option key={s}>{s}</option>)}
         </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => onStatusChange(e.target.value)}
-          className={selectClass}
-        >
-          <option>Todos as situações</option>
+        <select value={statusFilter} onChange={(e) => onStatusChange(e.target.value)} className={selectClass}>
+          <option>Todas as situações</option>
           <option>Ativo</option>
           <option>Em Implantação</option>
           <option>Inativo</option>
         </select>
+        <select value={contratoStatusFilter} onChange={(e) => onContratoStatusChange(e.target.value)} className={selectClass}>
+          <option>Todos os status</option>
+          <option>Em dia</option>
+          <option>Inadimplente</option>
+          <option>Cancelado</option>
+          <option>Sem contrato</option>
+        </select>
+        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] ml-auto">
+          <button type="button" onClick={() => setView("list")} title="Lista" className={`p-1.5 rounded-lg transition-colors ${view === "list" ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}><List className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => setView("grid")} title="Grade" className={`p-1.5 rounded-lg transition-colors ${view === "grid" ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}><LayoutGrid className="w-3.5 h-3.5" /></button>
+        </div>
       </div>
 
-      {/* Desktop table */}
-      <div className="hidden sm:block">
-        {filtered.length === 0 ? (
-          <EmptyState
-            icon={Building2}
-            title="Nenhum cliente encontrado"
-            description="Ajuste os filtros ou cadastre um novo cliente"
-            className="border-none rounded-none"
-          />
-        ) : (
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={Building2}
+          title="Nenhum cliente encontrado"
+          description="Ajuste os filtros ou cadastre um novo cliente"
+          className="border-none rounded-none"
+        />
+      ) : view === "grid" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+          {pageItems.map((c) => {
+            const contratoMeta = contratoStatusMeta(c.contratoStatus);
+            return (
+              <div key={c.id} onClick={() => onOpenDetalhes(c.id)} className="p-4 rounded-xl border border-[var(--color-border-subtle)] hover:border-[var(--color-border-default)] hover:shadow-sm cursor-pointer transition-all space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
+                      <Building2 className="w-4 h-4 text-[var(--color-primary-blue)]" />
+                    </div>
+                    <span className="font-bold text-[var(--color-text-primary)] text-sm truncate">{c.name}</span>
+                  </div>
+                  <Badge variant={statusBadgeVariant(c.status)}>{c.status}</Badge>
+                </div>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="bg-[var(--color-surface-sunken)] px-2 py-0.5 rounded font-bold text-[var(--color-text-muted)] uppercase">{c.industry || "—"}</span>
+                  <span className="flex items-center gap-1 text-[var(--color-text-faint)]"><span className={`w-1.5 h-1.5 rounded-full ${contratoMeta.dot}`} /> {contratoMeta.label}</span>
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5"><MapPin className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" /> {localizacaoLabel(c.city, c.state)}</div>
+                {!!c.mrr && <div className="text-sm font-black text-[var(--color-text-primary)]">{formatCurrency(c.mrr)}<span className="text-[10px] font-normal text-[var(--color-text-faint)]"> /mês</span></div>}
+                <div className="pt-2 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
+                  <span className="text-[10px] text-[var(--color-text-faint)]">{c.responsavel || "Sem responsável"}</span>
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>{actionButtons(c)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Empresa</TableHead>
+                <TableHead>Cliente / Empresa</TableHead>
                 <TableHead>Documento</TableHead>
                 <TableHead>Setor</TableHead>
+                <TableHead>Responsável</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Localização</TableHead>
+                <TableHead>Situação</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Valor MRR</TableHead>
+                <TableHead>Início</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pageItems.map((c) => (
+              {pageItems.map((c) => {
+                const contratoMeta = contratoStatusMeta(c.contratoStatus);
+                return (
                 <TableRow key={c.id} className="cursor-pointer group" onClick={() => onOpenDetalhes(c.id)}>
                   <TableCell>
                     <div className="font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
@@ -173,13 +293,23 @@ export function ClientesList({
                   </TableCell>
                   <TableCell>
                     <span className="text-[10px] font-bold bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] px-2 py-0.5 rounded uppercase tracking-wide">
-                      {c.industry}
+                      {c.industry || "—"}
                     </span>
                   </TableCell>
                   <TableCell>
+                    {c.responsavel ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-[var(--color-primary-blue)]/10 flex items-center justify-center shrink-0">
+                          <span className="text-[9px] font-black text-[var(--color-primary-blue)]">{initials(c.responsavel)}</span>
+                        </div>
+                        <span className="text-xs font-bold text-[var(--color-text-muted)] truncate max-w-[90px]">{c.responsavel}</span>
+                      </div>
+                    ) : <span className="text-xs text-[var(--color-text-faint)]">—</span>}
+                  </TableCell>
+                  <TableCell>
                     <div className="flex flex-col gap-1 text-[var(--color-text-muted)] text-xs">
-                      <span className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-[var(--color-text-faint)]" /> {c.email}</span>
-                      <span className="flex items-center gap-1.5"><Phone className="w-3 h-3 text-[var(--color-text-faint)]" /> {c.phone}</span>
+                      <span className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-[var(--color-text-faint)]" /> {c.email || "—"}</span>
+                      <span className="flex items-center gap-1.5"><Phone className="w-3 h-3 text-[var(--color-text-faint)]" /> {c.phone || "—"}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-[var(--color-text-muted)] text-xs">
@@ -190,104 +320,63 @@ export function ClientesList({
                   <TableCell>
                     <Badge variant={statusBadgeVariant(c.status)}>{c.status}</Badge>
                   </TableCell>
+                  <TableCell>
+                    <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]"><span className={`w-1.5 h-1.5 rounded-full ${contratoMeta.dot}`} /> {contratoMeta.label}</span>
+                  </TableCell>
+                  <TableCell>
+                    {c.mrr ? (
+                      <div>
+                        <div className="text-xs font-black text-[var(--color-text-primary)]">{formatCurrency(c.mrr)}</div>
+                        <div className="text-[9px] text-[var(--color-text-faint)]">Mensal</div>
+                      </div>
+                    ) : <span className="text-xs text-[var(--color-text-faint)]">—</span>}
+                  </TableCell>
+                  <TableCell className="text-[var(--color-text-muted)] text-xs">{fmtDate(c.created_at)}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onEdit(c); }}
-                        title="Editar Cliente"
-                        aria-label="Editar Cliente"
-                        className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onManageContatos(c.id); }}
-                        title="Contatos e Decisores"
-                        aria-label="Contatos e Decisores"
-                        className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors"
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
-                        title="Remover Cliente"
-                        aria-label="Remover Cliente"
-                        className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <div className="flex items-center justify-end gap-1">{actionButtons(c)}</div>
                   </TableCell>
                 </TableRow>
-              ))}
+              );})}
             </TableBody>
           </Table>
-        )}
-      </div>
+        </div>
 
-      {/* Mobile cards */}
-      <div className="sm:hidden divide-y divide-[var(--color-border-subtle)]">
-        {pageItems.map((c) => (
-          <div key={c.id} className="p-4 flex flex-col gap-3 hover:bg-[var(--color-surface-sunken)]/60 transition-all cursor-pointer" onClick={() => onOpenDetalhes(c.id)}>
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
-                  <Building2 className="w-4 h-4 text-[var(--color-primary-blue)]" />
+        {/* Mobile cards */}
+        <div className="sm:hidden divide-y divide-[var(--color-border-subtle)]">
+          {pageItems.map((c) => (
+            <div key={c.id} className="p-4 flex flex-col gap-3 hover:bg-[var(--color-surface-sunken)]/60 transition-all cursor-pointer" onClick={() => onOpenDetalhes(c.id)}>
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
+                    <Building2 className="w-4 h-4 text-[var(--color-primary-blue)]" />
+                  </div>
+                  <span className="font-bold text-[var(--color-text-primary)] text-sm truncate">{c.name}</span>
                 </div>
-                <span className="font-bold text-[var(--color-text-primary)] text-sm truncate">{c.name}</span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant={statusBadgeVariant(c.status)}>{c.status}</Badge>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onEdit(c); }}
-                  className="p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded transition-colors"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onManageContatos(c.id); }}
-                  className="p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded transition-colors"
-                >
-                  <Users className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
-                  className="p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 rounded transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="bg-[var(--color-surface-sunken)] px-2 py-0.5 rounded text-[9px] uppercase font-bold text-[var(--color-text-muted)]">{c.industry}</span>
-              <span className="flex items-center gap-1 text-[10px] text-[var(--color-text-faint)]"><MapPin className="w-3 h-3" /> {localizacaoLabel(c.city, c.state)}</span>
-            </div>
-            <div className="pt-2 border-t border-[var(--color-border-subtle)] flex flex-col gap-1.5 text-[11px] text-[var(--color-text-muted)]">
-              <div className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" /><span className="truncate">{c.email}</span></div>
-              <div className="flex items-center gap-1.5"><Phone className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" /><span>{c.phone}</span></div>
-              {c.documento && (
-                <div className="flex items-center gap-1.5"><FileText className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" /><span className="font-mono">{c.documento}</span></div>
-              )}
-              {decisorPorCliente[c.id] && (
-                <div className="flex items-center gap-1.5" title="Decisor (contato principal)">
-                  <Users className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" />
-                  <span className="truncate">
-                    {decisorPorCliente[c.id].nome}
-                    {decisorPorCliente[c.id].cargo ? ` · ${decisorPorCliente[c.id].cargo}` : ""}
-                  </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant={statusBadgeVariant(c.status)}>{c.status}</Badge>
                 </div>
-              )}
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="bg-[var(--color-surface-sunken)] px-2 py-0.5 rounded text-[9px] uppercase font-bold text-[var(--color-text-muted)]">{c.industry || "—"}</span>
+                <span className="flex items-center gap-1 text-[10px] text-[var(--color-text-faint)]"><MapPin className="w-3 h-3" /> {localizacaoLabel(c.city, c.state)}</span>
+              </div>
+              {!!c.mrr && <div className="text-sm font-black text-[var(--color-text-primary)]">{formatCurrency(c.mrr)}<span className="text-[10px] font-normal text-[var(--color-text-faint)]"> /mês</span></div>}
+              <div className="pt-2 border-t border-[var(--color-border-subtle)] flex flex-col gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+                <div className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" /><span className="truncate">{c.email}</span></div>
+                <div className="flex items-center gap-1.5"><Phone className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" /><span>{c.phone}</span></div>
+                {c.documento && (
+                  <div className="flex items-center gap-1.5"><FileText className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" /><span className="font-mono">{c.documento}</span></div>
+                )}
+                {c.responsavel && (
+                  <div className="flex items-center gap-1.5"><Users className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" /><span className="truncate">{c.responsavel}</span></div>
+                )}
+              </div>
+              <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>{actionButtons(c)}</div>
             </div>
-          </div>
-        ))}
-        {filtered.length === 0 && (
-          <EmptyState
-            icon={Building2}
-            title="Nenhum cliente cadastrado"
-            className="border-none rounded-none"
-          />
-        )}
-      </div>
+          ))}
+        </div>
+        </>
+      )}
 
       <div className="p-4 border-t border-[var(--color-border-subtle)]">
         <Pagination page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="cliente" />

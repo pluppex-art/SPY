@@ -13,6 +13,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { ClientesKPIs } from "./components/Clientes/ClientesKPIs";
 import { ClientesList } from "./components/Clientes/ClientesList";
+import { ClientesResumo } from "./components/Clientes/ClientesResumo";
 
 export default function Clientes() {
   const { activeTenantId } = useAuth();
@@ -23,7 +24,7 @@ export default function Clientes() {
   // compartilhado, então nem tinha realtime nem via ao vivo a sincronia de
   // Cidade/Setor/Documento feita a partir do Detalhe do Lead — só depois de
   // recarregar a página).
-  const { leads, clienteBase: clientes, addClienteBase, updateClienteBase, deleteClienteBase } = useData();
+  const { leads, clienteBase: clientes, contracts, addClienteBase, updateClienteBase, deleteClienteBase } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<any | null>(null);
   const [contatosClienteId, setContatosClienteId] = useState<string | null>(null);
@@ -34,8 +35,9 @@ export default function Clientes() {
   // (funil/score/estágio) e não tem um modo "só cliente".
   const [orphanDetalhesClienteId, setOrphanDetalhesClienteId] = useState<string | null>(null);
   const [selectedLeadForDetails, setSelectedLeadForDetails] = useState<any | null>(null);
-  const [statusFilter, setStatusFilter] = useState("Todos as situações");
+  const [statusFilter, setStatusFilter] = useState("Todas as situações");
   const [sectorFilter, setSectorFilter] = useState("Todos os setores");
+  const [contratoStatusFilter, setContratoStatusFilter] = useState("Todos os status");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Decisor por cliente, pra mostrar na tabela junto com o Documento — vem do
@@ -61,6 +63,34 @@ export default function Clientes() {
 
     return () => { cancelled = true; };
   }, [activeTenantId]);
+
+  // Enriquece cada cliente com 3 campos reais que não existem na tabela
+  // `clientes` (sem coluna própria de MRR/responsável): "Responsável" vem do
+  // vendedor do lead mais recente vinculado (leads.clientId -> clientes.id,
+  // o mesmo FK já usado em openClienteOrLead); "MRR"/"Status do contrato"
+  // vêm do contrato cujo `client` (texto livre, ver rowToContract em
+  // DataContext.tsx) bate com o nome do cliente — mesma convenção de
+  // "mesmo nome = mesma entidade" já usada no resto do app (ex.: busca de
+  // contrato vinculado em PropostasTable.tsx).
+  const clientesEnriquecidos = useMemo(() => {
+    return clientes.map((c: any) => {
+      const dealLeads = (leads || []).filter((l: any) => l.clientId === c.id);
+      const leadMaisRecente = [...dealLeads].sort((a: any, b: any) =>
+        new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime()
+      )[0];
+      const contratosDoCliente = (contracts as any[]).filter((ct: any) => ct.client === c.name);
+      const contratoAtivo = contratosDoCliente.find((ct: any) => ct.status === "Ativo") || contratosDoCliente[0] || null;
+      const mrr = contratosDoCliente
+        .filter((ct: any) => ct.status !== "Cancelado")
+        .reduce((s: number, ct: any) => s + (Number(String(ct.mrr).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0), 0);
+      return {
+        ...c,
+        responsavel: leadMaisRecente?.seller || null,
+        contratoStatus: contratoAtivo?.status || null,
+        mrr,
+      };
+    });
+  }, [clientes, leads, contracts]);
 
   const kpis = useMemo(() => {
     const ativosRows = clientes.filter(c => c.status === "Ativo");
@@ -175,10 +205,10 @@ export default function Clientes() {
         </Button>
       }
     >
-      <ClientesKPIs {...kpis} />
+      <ClientesKPIs {...kpis} clientes={clientes} />
 
       <ClientesList
-        clientes={clientes}
+        clientes={clientesEnriquecidos}
         decisorPorCliente={decisorPorCliente}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -186,6 +216,8 @@ export default function Clientes() {
         onSectorChange={setSectorFilter}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
+        contratoStatusFilter={contratoStatusFilter}
+        onContratoStatusChange={setContratoStatusFilter}
         onDelete={handleDeleteCliente}
         onEdit={(c) => {
           const hasDeal = (leads || []).some((l: any) => l.clientId === c.id);
@@ -194,6 +226,13 @@ export default function Clientes() {
         }}
         onManageContatos={setContatosClienteId}
         onOpenDetalhes={openClienteOrLead}
+      />
+
+      <ClientesResumo
+        clientes={clientes}
+        contracts={contracts}
+        onFilterSetor={setSectorFilter}
+        onFilterStatus={setStatusFilter}
       />
 
       <NovoClienteModal
