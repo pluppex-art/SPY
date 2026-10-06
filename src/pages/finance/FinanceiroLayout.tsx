@@ -113,6 +113,7 @@ const PAGINAS_COM_BOTAO_PROPRIO = [
   "/app/financeiro/centros-custo",
   "/app/financeiro/contatos",
   "/app/financeiro/cobrancas",
+  "/app/financeiro/busca",
 ];
 
 export default function FinanceiroLayout() {
