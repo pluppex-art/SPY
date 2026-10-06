@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import { LayoutGrid, List as ListIcon, RefreshCw, Plus, ListChecks, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
-import { KpiFilterCard } from "../../components/ui/kpi-filter-card";
+import { LayoutGrid, List as ListIcon, RefreshCw, Plus } from "lucide-react";
 import { NovaTarefaModal } from "../../components/ui/modals/productivity/NovaTarefaModal";
 import { ConfirmModal } from "../../components/ui/modals/shared/ConfirmModal";
 import { NovaPautaModal } from "../../components/ui/modals/productivity/NovaPautaModal";
@@ -35,6 +34,8 @@ export default function Tarefas() {
     setSelectedPriorities,
     deadlineFilter,
     setDeadlineFilter,
+    statusFilter, setStatusFilter, assigneeFilter, setAssigneeFilter, clienteFilter, setClienteFilter,
+    assigneeOptions, clienteOptions, clienteLeadIds, clearFilters, activeFilterCount, duplicateTask,
     needsAuth,
     isSyncing,
     handleSyncGoogleTasks,
@@ -73,7 +74,7 @@ export default function Tarefas() {
     tasks: pagedTasks, total: pagedTotal, page: tasksPage, setPage: setTasksPage,
     totalPages: tasksTotalPages, pageSize: tasksPageSize, loading: tasksLoading,
     refetch: refetchTasksList,
-  } = useTarefasList({ searchQuery, selectedPriorities, deadlineFilter, active: viewMode === "list" });
+  } = useTarefasList({ searchQuery, selectedPriorities, deadlineFilter, active: viewMode === "list", statusFilter, assigneeFilter, clienteFilter, clienteLeadIds });
 
   const refetchIfList = () => { if (viewMode === "list") setTimeout(refetchTasksList, 300); };
 
@@ -132,30 +133,29 @@ export default function Tarefas() {
         {/* Workload Section */}
         <WorkloadBento
           tasks={tasks}
-          highPriorityCount={highPriorityCount}
           onExpandTask={openEditTaskModal}
+          googleConnected={!needsAuth}
         />
 
-        <KpiFilterCard
-          id="opsTarefas"
-          kpis={[
-            { label: "Tarefas", value: filteredTasks.length, icon: ListChecks, tone: "primary", hint: "Conforme os filtros" },
-            { label: "Em aberto", value: filteredTasks.filter(t => t.status === "Em Aberto").length, icon: Clock, tone: "warning" },
-            { label: "Atrasadas", value: filteredTasks.filter(t => t.status === "Atrasado").length, icon: AlertTriangle, tone: "danger" },
-            { label: "Concluídas", value: filteredTasks.filter(t => t.status === "Concluída").length, icon: CheckCircle2, tone: "success" },
-          ]}
-          activeCount={(searchQuery.trim() ? 1 : 0) + (deadlineFilter ? 1 : 0) + (selectedPriorities.length > 0 ? 1 : 0)}
-          onClear={() => { setSearchQuery(""); setSelectedPriorities([]); setDeadlineFilter(""); }}
-        >
-          <TasksFilter
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            deadlineFilter={deadlineFilter}
-            setDeadlineFilter={setDeadlineFilter}
-            selectedPriorities={selectedPriorities}
-            setSelectedPriorities={setSelectedPriorities}
-          />
-        </KpiFilterCard>
+        <TasksFilter
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          deadlineFilter={deadlineFilter}
+          setDeadlineFilter={setDeadlineFilter}
+          selectedPriorities={selectedPriorities}
+          setSelectedPriorities={setSelectedPriorities}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          assigneeFilter={assigneeFilter}
+          setAssigneeFilter={setAssigneeFilter}
+          clienteFilter={clienteFilter}
+          setClienteFilter={setClienteFilter}
+          statusOptions={columns.map((c) => ({ id: c.id, nome: c.nome }))}
+          assigneeOptions={assigneeOptions}
+          clienteOptions={clienteOptions}
+          activeCount={activeFilterCount}
+          onClear={clearFilters}
+        />
 
         {/* Views */}
         {viewMode === 'list' ? (
@@ -197,6 +197,7 @@ export default function Tarefas() {
             toggleTaskStatus={toggleTaskStatus}
             handleDeleteTask={handleDeleteTask}
             setSearchQuery={setSearchQuery}
+            duplicateTask={duplicateTask}
             getPriorityColor={getPriorityColor}
           />
         )}

@@ -14,6 +14,9 @@ export function useTarefas() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
   const [deadlineFilter, setDeadlineFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("");
+  const [clienteFilter, setClienteFilter] = useState<string>("");
   const { tasks, addTask, updateTask, deleteTask, appSettings, leads, colaboradores, products } = useData();
   const { activeTenantId, user } = useAuth();
 
@@ -148,6 +151,10 @@ export function useTarefas() {
 
       const matchesPriority = selectedPriorities.length === 0 || (t.priority ? selectedPriorities.includes(t.priority) : false);
 
+      const matchesStatus = !statusFilter || t.status === statusFilter;
+      const matchesAssignee = !assigneeFilter || (assigneeFilter === "__none__" ? !t.assigned_to : t.assigned_to === assigneeFilter);
+      const matchesCliente = !clienteFilter || getLeadLabel(t) === clienteFilter;
+
       const matchesDeadline = !deadlineFilter || (() => {
         if (!t.due_date) return false;
         const taskDate = new Date(t.due_date);
@@ -155,9 +162,50 @@ export function useTarefas() {
         return taskDate <= limitDate;
       })();
 
-      return matchesSearch && matchesPriority && matchesDeadline;
+      return matchesSearch && matchesPriority && matchesDeadline && matchesStatus && matchesAssignee && matchesCliente;
     });
-  }, [tasks, searchQuery, selectedPriorities, deadlineFilter, leads]);
+  }, [tasks, searchQuery, selectedPriorities, deadlineFilter, statusFilter, assigneeFilter, clienteFilter, leads]);
+
+  // Responsáveis possíveis: colaboradores ativos com usuário vinculado
+  // (`assigned_to` é FK pra users.id, não pra colaboradores.id).
+  const assigneeOptions = useMemo(
+    () => (colaboradores as any[])
+      .filter((c) => c.status !== "Desligado" && c.user_id && c.nome)
+      .map((c) => ({ id: c.user_id as string, nome: c.nome as string })),
+    [colaboradores]
+  );
+
+  // Clientes que realmente aparecem em alguma tarefa (via lead vinculado).
+  const clienteOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of tasks) if (t.lead_id) { const l = getLeadLabel(t); if (l && l !== "Interno") set.add(l); }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [tasks, leads]);
+
+  const clienteLeadIds = useMemo(
+    () => clienteFilter ? (leads as any[]).filter((l) => (l.company || l.name) === clienteFilter).map((l) => l.id as string) : [],
+    [clienteFilter, leads]
+  );
+
+  const clearFilters = () => {
+    setSearchQuery(""); setSelectedPriorities([]); setDeadlineFilter("");
+    setStatusFilter(""); setAssigneeFilter(""); setClienteFilter("");
+  };
+  const activeFilterCount = (searchQuery.trim() ? 1 : 0) + (deadlineFilter ? 1 : 0) + (selectedPriorities.length > 0 ? 1 : 0)
+    + (statusFilter ? 1 : 0) + (assigneeFilter ? 1 : 0) + (clienteFilter ? 1 : 0);
+
+  const duplicateTask = (task: Task) => {
+    addTask({
+      title: `${task.title} (cópia)`,
+      description: task.description,
+      priority: task.priority,
+      due_date: task.due_date,
+      lead_id: task.lead_id,
+      assigned_to: task.assigned_to,
+      status: "Em Aberto",
+    } as any);
+    toast.success("Tarefa duplicada.");
+  };
 
   const totalCount = tasks.length;
   const completedCount = tasks.filter(t => t.status === 'Concluída').length;
@@ -285,6 +333,11 @@ export function useTarefas() {
     searchQuery, setSearchQuery,
     selectedPriorities, setSelectedPriorities,
     deadlineFilter, setDeadlineFilter,
+    statusFilter, setStatusFilter,
+    assigneeFilter, setAssigneeFilter,
+    clienteFilter, setClienteFilter,
+    assigneeOptions, clienteOptions, clienteLeadIds,
+    clearFilters, activeFilterCount, duplicateTask,
     tasks, addTask, updateTask, deleteTask,
     needsAuth,
     isSyncing,

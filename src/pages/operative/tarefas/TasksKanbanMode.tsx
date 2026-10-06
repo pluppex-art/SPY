@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { motion } from "motion/react";
 import { Task } from "../../../types";
@@ -20,6 +21,7 @@ interface TasksKanbanModeProps {
   toggleTaskStatus: (id: string, currentStatus: string) => void;
   handleDeleteTask: (id: string) => void;
   setSearchQuery: (q: string) => void;
+  duplicateTask: (task: Task) => void;
   getPriorityColor: (p: string) => string;
 }
 
@@ -39,12 +41,17 @@ export function TasksKanbanMode({
   toggleTaskStatus,
   handleDeleteTask,
   setSearchQuery,
+  duplicateTask,
   getPriorityColor,
 }: TasksKanbanModeProps) {
+  // Colunas como "Concluída" chegam a milhares de tarefas — desenhar todas
+  // de uma vez trava o navegador; mostra em blocos de 30.
+  const KANBAN_PAGE = 30;
+  const [visible, setVisible] = useState<Record<string, number>>({});
   return (
     <div className="space-y-4">
       {/* Mobile Segments Header */}
-      <div className="flex md:hidden bg-[var(--color-surface)] border border-white/10 rounded-2xl p-1 w-full shrink-0 relative">
+      <div className="flex md:hidden bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl p-1 w-full shrink-0 relative">
         {columns.map(col => {
           const isActive = mobileActiveCol === col.id;
           const count = filteredTasks.filter(t => t.status === col.id).length;
@@ -59,7 +66,7 @@ export function TasksKanbanMode({
               {isActive && (
                 <motion.div
                   layoutId="activeKanbanTabIndicator"
-                  className="absolute inset-0 bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl shadow-lg"
+                  className="absolute inset-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl shadow-sm"
                   transition={{ type: "spring", stiffness: 350, damping: 28 }}
                 />
               )}
@@ -68,12 +75,12 @@ export function TasksKanbanMode({
                   className="w-1.5 h-1.5 rounded-full"
                   style={{ backgroundColor: isActive ? '#60a5fa' : dotColor }}
                 />
-                <span className={isActive ? "text-white font-extrabold" : "text-slate-400 font-medium hover:text-white"}>
+                <span className={isActive ? "text-[var(--color-text-primary)] font-extrabold" : "text-[var(--color-text-muted)] font-medium"}>
                   {col.nome}
                 </span>
               </span>
               <span className={`relative z-10 text-[9px] px-1.5 py-0.5 rounded-full font-black transition-colors ${
-                isActive ? 'bg-[#2563EB]/20 text-blue-400 border border-[#2563EB]/30' : 'bg-white/5 text-slate-500'
+                isActive ? 'bg-[#2563EB]/20 text-blue-500 border border-[#2563EB]/30' : 'bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]'
               }`}>{count}</span>
             </button>
           );
@@ -96,13 +103,13 @@ export function TasksKanbanMode({
               className={`flex flex-col gap-4 min-w-0 ${isVisibleOnMobile ? 'flex' : 'hidden md:flex'}`}
             >
               {/* Column Header */}
-              <div className="flex items-center justify-between px-2 shrink-0 border-b border-white/5 pb-2">
+              <div className="flex items-center justify-between px-3 py-2.5 shrink-0 rounded-2xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
                 <div className="flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full ${dotClass}`} style={{ boxShadow: `0 0 8px ${dotColor}80` }} />
-                  <h3 className="text-xs font-black text-white uppercase tracking-widest">{col.nome}</h3>
-                  <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded-full text-slate-400 font-extrabold">{count}</span>
+                  <h3 className="text-sm font-black text-[var(--color-text-primary)]">{col.nome}</h3>
+                  <span className="text-[10px] bg-[var(--color-surface-sunken)] px-2 py-0.5 rounded-full text-[var(--color-text-muted)] font-extrabold">{count}</span>
                 </div>
-                <button className="text-slate-500 hover:text-white transition-colors bg-transparent border-none p-0 cursor-pointer" onClick={openNewTaskModal}>
+                <button className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors bg-transparent border-none p-0 cursor-pointer" onClick={openNewTaskModal}>
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
@@ -125,8 +132,9 @@ export function TasksKanbanMode({
                     : 'p-0'
                 }`}
               >
-                {filteredTasks.filter(t => t.status === col.id).length > 0 ? (
-                  filteredTasks.filter(t => t.status === col.id).map(task => (
+                {count > 0 ? (
+                  <>
+                  {filteredTasks.filter(t => t.status === col.id).slice(0, visible[col.id] ?? KANBAN_PAGE).map(task => (
                     <div key={task.id}>
                       <TasksKanbanCard
                         task={task}
@@ -136,6 +144,7 @@ export function TasksKanbanMode({
                         getPriorityColor={getPriorityColor}
                         updateTask={updateTask}
                         setSearchQuery={setSearchQuery}
+                        duplicateTask={duplicateTask}
                         openEditTaskModal={openEditTaskModal}
                         toggleTaskStatus={toggleTaskStatus}
                         handleDeleteTask={handleDeleteTask}
@@ -143,12 +152,22 @@ export function TasksKanbanMode({
                         columns={columns.map(c => c.id) as any}
                       />
                     </div>
-                  ))
+                  ))}
+                  {count > (visible[col.id] ?? KANBAN_PAGE) && (
+                    <button
+                      type="button"
+                      onClick={() => setVisible((v) => ({ ...v, [col.id]: (v[col.id] ?? KANBAN_PAGE) + KANBAN_PAGE }))}
+                      className="w-full py-2.5 rounded-xl border border-dashed border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] bg-transparent cursor-pointer"
+                    >
+                      Ver mais ({count - (visible[col.id] ?? KANBAN_PAGE)} restantes)
+                    </button>
+                  )}
+                  </>
                 ) : (
-                  <div className="py-12 border border-dashed border-white/5 rounded-xl text-center bg-[var(--color-surface-elevated)]/10">
-                    <span className="w-8 h-8 text-slate-700 mx-auto mb-2 block">✓</span>
-                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Coluna Vazia</p>
-                    <p className="text-[10px] text-slate-600 px-3 mt-0.5">Sem pendências nesta classificação.</p>
+                  <div className="py-12 border border-dashed border-[var(--color-border-default)] rounded-2xl text-center">
+                    <span className="w-8 h-8 text-[var(--color-text-faint)] mx-auto mb-2 block">✓</span>
+                    <p className="text-[11px] text-[var(--color-text-muted)] font-bold">Coluna vazia</p>
+                    <p className="text-[10px] text-[var(--color-text-faint)] px-3 mt-0.5">Sem tarefas nesta classificação.</p>
                   </div>
                 )}
               </div>

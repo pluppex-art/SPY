@@ -16,16 +16,20 @@ const PAGE_SIZE = 50;
  * relacionado na busca — isso exigiria um join, fora do escopo desta
  * passagem; o modo Kanban, que continua sem paginação, ainda busca por lead).
  */
-export function useTarefasList(params: { searchQuery: string; selectedPriorities: string[]; deadlineFilter: string; active: boolean }) {
+export function useTarefasList(params: {
+  searchQuery: string; selectedPriorities: string[]; deadlineFilter: string; active: boolean;
+  statusFilter?: string; assigneeFilter?: string; clienteLeadIds?: string[]; clienteFilter?: string;
+}) {
   const { activeTenantId: tenantId, activeFilialId } = useAuth();
-  const { searchQuery, selectedPriorities, deadlineFilter, active } = params;
+  const { searchQuery, selectedPriorities, deadlineFilter, active, statusFilter = "", assigneeFilter = "", clienteLeadIds = [], clienteFilter = "" } = params;
+  const filtersKey = `${statusFilter}|${assigneeFilter}|${clienteFilter}`;
 
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<Task[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { setPage(0); }, [searchQuery, selectedPriorities.join(","), deadlineFilter]);
+  useEffect(() => { setPage(0); }, [searchQuery, selectedPriorities.join(","), deadlineFilter, filtersKey]);
 
   const requestIdRef = useRef(0);
 
@@ -42,6 +46,12 @@ export function useTarefasList(params: { searchQuery: string; selectedPriorities
       }
       if (selectedPriorities.length > 0) query = query.in("priority", selectedPriorities);
       if (deadlineFilter) query = query.lte("due_date", `${deadlineFilter}T23:59:59`);
+      if (statusFilter) query = query.eq("status", statusFilter);
+      if (assigneeFilter) query = assigneeFilter === "__none__" ? query.is("assigned_to", null) : query.eq("assigned_to", assigneeFilter);
+      if (clienteFilter) {
+        // cliente sem lead correspondente = nenhuma linha (id impossível evita .in([]) inválido)
+        query = query.in("lead_id", clienteLeadIds.length > 0 ? clienteLeadIds : ["00000000-0000-0000-0000-000000000000"]);
+      }
 
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -60,7 +70,7 @@ export function useTarefasList(params: { searchQuery: string; selectedPriorities
   useEffect(() => {
     fetchPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, activeFilialId, active, page, searchQuery, selectedPriorities.join(","), deadlineFilter]);
+  }, [tenantId, activeFilialId, active, page, searchQuery, selectedPriorities.join(","), deadlineFilter, filtersKey]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
