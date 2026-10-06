@@ -155,7 +155,10 @@ export function NovaPropostaWizard({
   // ── Reset ao abrir ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
-    setStep(1);
+    // Pedido explícito do usuário: editando uma proposta já existente, abre
+    // direto na Revisão (tudo já preenchido) — só volta pra uma etapa
+    // específica se precisar mudar algo, usando o "Editar" de cada seção.
+    setStep(existingProposal ? 5 : 1);
     const lead = leadId ? (leads || []).find((l: any) => l.id === leadId) : null;
     // Prioriza o cadastro formal (clienteBase) quando existe um pra esse
     // nome; sem isso, o próprio lead do Pipeline já conta como "cadastrado"
