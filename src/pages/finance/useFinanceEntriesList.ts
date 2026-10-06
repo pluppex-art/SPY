@@ -16,6 +16,8 @@ export interface FinanceEntriesFilters {
   dataInicio: string;
   dataFim: string;
   pageSize?: number;
+  /** true = vencimento mais antigo primeiro (padrão: mais recente primeiro). */
+  ascending?: boolean;
 }
 
 /**
@@ -35,7 +37,7 @@ export interface FinanceEntriesFilters {
  */
 export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
   const { activeTenantId: tenantId, activeFilialId } = useAuth();
-  const { type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, pageSize: PAGE_SIZE = DEFAULT_PAGE_SIZE } = filters;
+  const { type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, pageSize: PAGE_SIZE = DEFAULT_PAGE_SIZE, ascending = false } = filters;
 
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<any[]>([]);
@@ -43,7 +45,7 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
   const [totalValue, setTotalValue] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { setPage(0); }, [type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, PAGE_SIZE]);
+  useEffect(() => { setPage(0); }, [type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, PAGE_SIZE, ascending]);
 
   const requestIdRef = useRef(0);
 
@@ -73,7 +75,7 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       const { data, count, error } = await query
-        .order("date_normalized", { ascending: false, nullsFirst: false })
+        .order("date_normalized", { ascending, nullsFirst: false })
         .range(from, to);
 
       if (requestId !== requestIdRef.current) return;
@@ -97,7 +99,7 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
     fetchPage();
     fetchTotalValue();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, activeFilialId, type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, page, PAGE_SIZE]);
+  }, [tenantId, activeFilialId, type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, page, PAGE_SIZE, ascending]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 

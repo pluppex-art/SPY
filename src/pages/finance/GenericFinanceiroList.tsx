@@ -242,6 +242,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
   const [pageSizeSel, setPageSizeSel] = useState(10);
+  const [ordemAsc, setOrdemAsc] = useState(false);
   // Achado de UX 2026-09-21: os 7 filtros ficavam sempre visíveis antes de
   // qualquer dado — quem só quer ver "o que tenho a receber esse mês" caía
   // direto num formulário de 7 campos. Conta Bancária/Centro de Custo/período
@@ -273,6 +274,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     dataInicio: filtroDataInicio,
     dataFim: filtroDataFim,
     pageSize: pageSizeSel,
+    ascending: ordemAsc,
   });
 
   useEffect(() => { setSelecionados(new Set()); }, [filteredData]);
@@ -546,7 +548,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     ? (() => {
         const sPago = serieStatus("Pago"), sAV = serieStatus("A Vencer"), sAt = serieStatus("Atrasado"), sPe = serieStatus("Pendente");
         return [
-          { label: "Pago", value: formatCurrency(kpis.pago), hint: `${kpis.countPago} lançamento(s)`, icon: CheckCircle2, delta: deltaSerie(sPago), goodUp: true, series: sPago, drill: "pago" },
+          { label: type === "Receber" ? "Recebido no período" : "Pago no período", value: formatCurrency(kpis.pago), hint: `${kpis.countPago} lançamento(s)`, icon: CheckCircle2, delta: deltaSerie(sPago), goodUp: true, series: sPago, drill: "pago" },
           { label: "A Vencer", value: formatCurrency(kpis.aVencer), hint: `${kpis.countAVencer} lançamento(s)`, icon: Clock, delta: deltaSerie(sAV), goodUp: null, series: sAV, drill: "aVencer" },
           { label: "Atrasado", value: formatCurrency(kpis.atrasado), hint: `${kpis.countAtrasado} lançamento(s)`, icon: AlertTriangle, delta: deltaSerie(sAt), goodUp: false, series: sAt, drill: "atrasado", danger: kpis.atrasado > 0 },
           { label: "Pendente", value: formatCurrency(kpis.pendente), hint: `${kpis.countPendente} lançamento(s)`, icon: HourglassIcon, delta: deltaSerie(sPe), goodUp: null, series: sPe, drill: "pendente" },
@@ -597,9 +599,12 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         <>
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {type === "Pagar" ? "Pagamentos" : "Recebimentos"} por Status
-              </h3>
+              <div>
+                <h3 className="text-xs font-bold text-[var(--color-text-primary)] flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> {type === "Pagar" ? "Pagamentos" : "Recebimentos"} por Status
+                </h3>
+                <p className="text-[11px] text-[var(--color-text-faint)] mt-0.5 ml-6">Valores {type === "Pagar" ? "pagos e a pagar" : "recebidos e a receber"} nos últimos {mesesGrafico} meses.</p>
+              </div>
               <label className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-xs font-bold text-[var(--color-text-primary)]">
                 <Calendar className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
                 <select value={mesesGrafico} onChange={(e) => setMesesGrafico(Number(e.target.value))} className="bg-transparent focus:outline-none cursor-pointer font-bold">
@@ -611,17 +616,25 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             </div>
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={statusMonthly} margin={{ top: 8, right: 16, left: 0, bottom: 0 }} barGap={2}>
+                <AreaChart data={statusMonthly} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <defs>
+                    {[["Pago", "#10b981"], ["A Vencer", "#f59e0b"], ["Atrasado", "#f43f5e"], ["Pendente", "#3b82f6"]].map(([k, c]) => (
+                      <linearGradient key={k} id={`st-${type}-${k.replace(" ", "")}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c} stopOpacity={0.25} />
+                        <stop offset="100%" stopColor={c} stopOpacity={0.02} />
+                      </linearGradient>
+                    ))}
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
                   <XAxis dataKey="label" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={48} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
                   <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: "var(--radius-control)" }} itemStyle={{ fontSize: "11px" }} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="Pago" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={14} />
-                  <Bar dataKey="A Vencer" fill="#f59e0b" radius={[3, 3, 0, 0]} maxBarSize={14} />
-                  <Bar dataKey="Atrasado" fill="#f43f5e" radius={[3, 3, 0, 0]} maxBarSize={14} />
-                  <Bar dataKey="Pendente" fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={14} />
-                </BarChart>
+                  <Area type="monotone" dataKey="Pago" stroke="#10b981" strokeWidth={2} fill={`url(#st-${type}-Pago)`} dot={{ r: 3 }} />
+                  <Area type="monotone" dataKey="A Vencer" stroke="#f59e0b" strokeWidth={2} fill={`url(#st-${type}-AVencer)`} dot={{ r: 3 }} />
+                  <Area type="monotone" dataKey="Atrasado" stroke="#f43f5e" strokeWidth={2} fill={`url(#st-${type}-Atrasado)`} dot={{ r: 3 }} />
+                  <Area type="monotone" dataKey="Pendente" stroke="#3b82f6" strokeWidth={2} fill={`url(#st-${type}-Pendente)`} dot={{ r: 3 }} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </Card>
@@ -711,8 +724,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                   <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right leading-tight">Sem base<br />p/ comparação</span>
                 ) : (
                   <span className="flex flex-col items-end gap-0.5">
-                    <span className={`text-xs font-bold flex items-center gap-0.5 tabular-nums px-2 py-0.5 rounded-md ${flat || good === null ? "bg-[var(--color-surface-sunken)]" : good ? "bg-emerald-500/10" : "bg-rose-500/10"} ${deltaColor}`}>
-                      <DIcon className="w-3 h-3" /> {up ? "+" : ""}{k.delta.toFixed(1)}%
+                    <span className={`text-xs font-bold flex items-center gap-0.5 tabular-nums ${deltaColor}`}>
+                      <DIcon className="w-3.5 h-3.5" /> {up ? "+" : ""}{k.delta.toFixed(1)}%
                     </span>
                     <span className="text-[9px] text-[var(--color-text-faint)]">vs. mês anterior</span>
                   </span>
@@ -820,7 +833,11 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 <th className="px-3 py-3">Categoria</th>
                 <th className="px-3 py-3">Cliente/Fornecedor</th>
                 <th className="px-3 py-3">Pagamento</th>
-                <th className="px-3 py-3">Vencimento</th>
+                <th className="px-3 py-3">
+                  <button type="button" onClick={() => setOrdemAsc((v) => !v)} className="inline-flex items-center gap-1 uppercase font-bold tracking-wider bg-transparent border-none cursor-pointer text-inherit p-0" title="Ordenar por vencimento">
+                    Vencimento {ordemAsc ? <ArrowUpRight className="w-3 h-3 rotate-[-45deg]" /> : <ArrowDownRight className="w-3 h-3 rotate-[45deg]" />}
+                  </button>
+                </th>
                 <th className="px-3 py-3">Status</th>
                 <th className="px-3 py-3 text-right">Valor</th>
                 <th className="px-3 py-3 text-right">Ações</th>
@@ -846,7 +863,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               ) : (
                 filteredData.map((item) => (
                   <tr key={item.id} className={`hover:bg-[var(--color-surface-sunken)]/50 transition-colors group ${selecionados.has(item.id) ? "bg-[var(--color-primary-blue)]/[0.04]" : ""}`}>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <input
                         type="checkbox"
                         checked={selecionados.has(item.id)}
@@ -854,9 +871,9 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                         className="w-4 h-4 accent-[var(--color-primary-blue)] cursor-pointer"
                       />
                     </td>
-                    <td className="px-3 py-3 font-bold text-[var(--color-text-primary)]">
-                      <span className="inline-flex items-center gap-1.5">
-                        {item.description}
+                    <td className="px-3 py-2.5 font-bold text-[var(--color-text-primary)] min-w-[260px]">
+                      <span className="inline-flex items-center gap-1.5 max-w-[460px]">
+                        <span className="truncate" title={item.description}>{item.description}</span>
                         <RepeatBadge item={item} />
                       </span>
                       {item.notes && (
@@ -866,16 +883,16 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                         <p className="text-[10px] font-normal text-[var(--color-text-faint)] mt-0.5">NF {item.numero_documento}</p>
                       )}
                     </td>
-                    <td className="px-3 py-3 text-[var(--color-text-muted)]">
+                    <td className="px-3 py-2.5 text-[var(--color-text-muted)]">
                       <span className="flex items-center gap-2">
                         <span className="w-7 h-7 rounded-md bg-[var(--color-surface-sunken)] flex items-center justify-center shrink-0"><Tag className="w-3.5 h-3.5" /></span>
                         <span className="truncate max-w-[150px]">{item.category}</span>
                       </span>
                     </td>
-                    <td className="px-3 py-3 text-[var(--color-text-muted)]">{item.counterparty || "—"}</td>
-                    <td className="px-3 py-3 text-[var(--color-text-muted)]">{item.payment_method || "—"}</td>
-                    <td className="px-3 py-3 text-[var(--color-text-muted)] font-mono whitespace-nowrap">{parseEntryDate(item.date)?.toLocaleDateString("pt-BR") ?? item.date}</td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2.5 text-[var(--color-text-muted)]">{item.counterparty || "—"}</td>
+                    <td className="px-3 py-2.5 text-[var(--color-text-muted)]">{item.payment_method || "—"}</td>
+                    <td className="px-3 py-2.5 text-[var(--color-text-muted)] font-mono whitespace-nowrap">{parseEntryDate(item.date)?.toLocaleDateString("pt-BR") ?? item.date}</td>
+                    <td className="px-3 py-2.5">
                       <span
                         title="Para alterar o status, use o lápis (editar)"
                         className={`inline-flex items-center px-2.5 py-1 text-[11px] font-bold rounded-full border cursor-default ${getStatusColor(item.status)}`}
@@ -884,10 +901,10 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                         {item.status}
                       </span>
                     </td>
-                    <td className={`px-3 py-3 text-right font-mono font-bold ${type === 'Pagar' ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    <td className={`px-3 py-2.5 text-right font-mono font-bold ${type === 'Pagar' ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
                       {type === 'Pagar' ? '-' : '+'} {formatCurrency(item.value)}
                     </td>
-                    <td className="px-3 py-3 text-right">
+                    <td className="px-3 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
