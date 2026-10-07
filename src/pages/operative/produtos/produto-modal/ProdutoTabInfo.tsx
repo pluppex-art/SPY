@@ -303,6 +303,7 @@ export function ProdutoTabInfo({
           ["ia_para_quem", "Para quem é", "Perfil ideal e quando indicar."],
           ["ia_beneficios", "Benefícios e resultados", "O que o cliente ganha. Não prometa números que a empresa não garante."],
           ["ia_como_funciona", "Como funciona e o que está incluso", "Formato, etapas, entregáveis, local, data/turma, duração."],
+          ["ia_planos_valores", "Planos, valores e condições", "Planos/níveis do produto, valores de referência, créditos, garantias e formas de pagamento. A IA só usa o que estiver escrito aqui ou no preço cadastrado."],
           ["ia_objecoes", "Objeções comuns e respostas", "Ex.: \"é caro\" → resposta oficial."],
         ] as const).map(([key, label, hint]) => (
           <div key={key} className="space-y-1.5">
