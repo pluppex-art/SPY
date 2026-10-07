@@ -295,7 +295,7 @@ export function ProdutoTabInfo({
           e lido ao vivo pelo n8n junto com a descrição, o valor e os arquivos/criativos da aba Arquivos. */}
       <div className="p-4 bg-blue-500/5 border border-blue-500/15 rounded-xl space-y-3">
         <div>
-          <label className="text-[10px] font-black text-blue-400 uppercase tracking-wider block">Para a vendedora vender este produto</label>
+          <label className="text-[10px] font-black text-blue-400 uppercase tracking-wider block">Para a IA vender este produto</label>
           <p className="text-[10px] text-slate-500">Escreva como explicaria a um vendedor novo. O que ficar vazio, ela não inventa: diz que a equipe confirma.</p>
         </div>
         {([

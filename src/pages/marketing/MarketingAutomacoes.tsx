@@ -63,7 +63,7 @@ function TriggerCard({ trigger, onAprovar, onRejeitar, onRemover }: {
 
       {trigger.status === "pendente_interpretacao" && (
         <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5">
-          <Loader2 className="w-3.5 h-3.5 animate-spin" /> A vendedora (IA) está lendo seu pedido e montando a lista...
+          <Loader2 className="w-3.5 h-3.5 animate-spin" /> A IA está lendo seu pedido e montando a lista...
         </p>
       )}
 
@@ -138,7 +138,7 @@ export default function MarketingAutomacoes() {
     if (error) { toast.error(error); return; }
     setDescricao("");
     setTipoSelecionado(null);
-    toast.success("Pedido enviado — a vendedora já está analisando.");
+    toast.success("Pedido enviado — a IA já está analisando.");
   };
 
   const usarTexto = (texto: string) => {
@@ -173,7 +173,7 @@ export default function MarketingAutomacoes() {
     <PageContainer
       title="Central de Automações S.P.Y."
       description={aba === "julia"
-        ? "Descreva quem você quer contatar em texto livre — a vendedora (IA) entende, monta a lista e a mensagem, e só envia depois que você aprovar."
+        ? "Descreva quem você quer contatar em texto livre — a IA entende, monta a lista e a mensagem, e só envia depois que você aprovar."
         : "Conecte etapas do funil comercial (ou categorias de produto vendidas) a departamentos da Operação — monte como você quiser, sem precisar de ninguém mexer em configuração."}
       actions={
         aba === "julia" ? (
@@ -321,7 +321,7 @@ export default function MarketingAutomacoes() {
               <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
                 <div className="flex items-center gap-2 mb-1">
                   <Lightbulb className="w-4 h-4 text-[var(--color-primary-blue)]" />
-                  <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">Sugestões da vendedora</h3>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">Sugestões da IA</h3>
                 </div>
                 <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Com base nos seus dados reais, aqui estão algumas oportunidades:</p>
                 {sugestoes.length === 0 ? (

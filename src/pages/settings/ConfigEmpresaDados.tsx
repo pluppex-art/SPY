@@ -33,7 +33,7 @@ interface EmpresaDados {
 }
 
 const CAMPOS_IA: { key: keyof EmpresaDados; label: string; hint: string; rows: number }[] = [
-  { key: "ia_nome_comercial", label: "Como a vendedora chama a empresa", hint: "Nome curto usado na apresentação (ex.: Pluppex). Se vazio, usa o Nome Fantasia.", rows: 1 },
+  { key: "ia_nome_comercial", label: "Como a IA chama a empresa", hint: "Nome curto usado na apresentação (ex.: Pluppex). Se vazio, usa o Nome Fantasia.", rows: 1 },
   { key: "ia_sobre", label: "O que é a empresa", hint: "Em poucas frases: o que faz, o que vende, em que cidade/região atua.", rows: 3 },
   { key: "ia_publico", label: "Quem são os clientes", hint: "Perfil de quem compra e o problema que chega até vocês.", rows: 2 },
   { key: "ia_fundadores", label: "Fundadores e equipe", hint: "Quem são os responsáveis e por que isso gera confiança (ex.: nome, trajetória).", rows: 3 },
@@ -350,9 +350,9 @@ export default function ConfigEmpresaDados() {
 
           <div className="pt-4 border-t border-[var(--color-border-subtle)] space-y-3">
             <div>
-              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Perfil da empresa para a vendedora</h3>
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Perfil da empresa para a IA</h3>
               <p className="text-[11px] text-[var(--color-text-muted)]">
-                A vendedora (IA) usa estes textos para falar sobre a empresa com os clientes. Escreva como explicaria a um vendedor novo. O que não estiver aqui
+                A IA usa estes textos para falar sobre a empresa com os clientes. Escreva como explicaria a um vendedor novo. O que não estiver aqui
                 (nem em Produtos) ela não inventa: diz que a equipe confirma. Ela lê na próxima conversa, sem precisar de mais nada.
               </p>
             </div>
