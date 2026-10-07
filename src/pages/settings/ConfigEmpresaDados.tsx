@@ -20,7 +20,29 @@ interface EmpresaDados {
   telefoneContato: string;
   website: string;
   logoUrl?: string;
+  // Perfil que a Júlia (IA de vendas) usa para conversar sobre a empresa — lido ao vivo pelo n8n.
+  ia_nome_comercial?: string;
+  ia_sobre?: string;
+  ia_publico?: string;
+  ia_fundadores?: string;
+  ia_historia?: string;
+  ia_metodo?: string;
+  ia_diferenciais?: string;
+  ia_horario?: string;
+  ia_faq?: string;
 }
+
+const CAMPOS_IA: { key: keyof EmpresaDados; label: string; hint: string; rows: number }[] = [
+  { key: "ia_nome_comercial", label: "Como a Júlia chama a empresa", hint: "Nome curto usado na apresentação (ex.: Pluppex). Se vazio, usa o Nome Fantasia.", rows: 1 },
+  { key: "ia_sobre", label: "O que é a empresa", hint: "Em poucas frases: o que faz, o que vende, em que cidade/região atua.", rows: 3 },
+  { key: "ia_publico", label: "Quem são os clientes", hint: "Perfil de quem compra e o problema que chega até vocês.", rows: 2 },
+  { key: "ia_fundadores", label: "Fundadores e equipe", hint: "Quem são os responsáveis e por que isso gera confiança (ex.: nome, trajetória).", rows: 3 },
+  { key: "ia_historia", label: "História", hint: "Como a empresa nasceu e o que já entregou.", rows: 3 },
+  { key: "ia_metodo", label: "Método / modelo de trabalho", hint: "Como funciona o processo, etapas e o que o cliente recebe.", rows: 3 },
+  { key: "ia_diferenciais", label: "Diferenciais", hint: "Por que escolher esta empresa e não outra.", rows: 2 },
+  { key: "ia_horario", label: "Horário e canais de atendimento", hint: "Quando e por onde a equipe atende.", rows: 2 },
+  { key: "ia_faq", label: "Perguntas frequentes", hint: "Dúvidas comuns e as respostas oficiais.", rows: 4 },
+];
 
 const SETTING_KEY = "empresa_dados";
 
@@ -324,6 +346,28 @@ export default function ConfigEmpresaDados() {
               className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3.5 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] transition-all font-medium"
               placeholder="Logradouro, Número - Bairro, Cidade - UF, CEP"
             />
+          </div>
+
+          <div className="pt-4 border-t border-[var(--color-border-subtle)] space-y-3">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Perfil da empresa para a Júlia</h3>
+              <p className="text-[11px] text-[var(--color-text-muted)]">
+                A Júlia usa estes textos para falar sobre a empresa com os clientes. Escreva como explicaria a um vendedor novo. O que não estiver aqui
+                (nem em Produtos) ela não inventa: diz que a equipe confirma. Ela lê na próxima conversa, sem precisar de mais nada.
+              </p>
+            </div>
+            {CAMPOS_IA.map((c) => (
+              <div key={c.key} className="space-y-1.5">
+                <label className="text-xs font-bold text-[var(--color-text-muted)]">{c.label}</label>
+                <textarea
+                  rows={c.rows}
+                  value={(empresa[c.key] as string) || ""}
+                  onChange={(e) => setEmpresa({ ...empresa, [c.key]: e.target.value })}
+                  placeholder={c.hint}
+                  className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3.5 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] transition-all font-medium resize-y"
+                />
+              </div>
+            ))}
           </div>
 
           <div className="pt-3 border-t border-[var(--color-border-subtle)] flex justify-end">

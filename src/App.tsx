@@ -110,6 +110,7 @@ const ConfigCRMGatilhosIA = lazy(() => import("./pages/settings/SettingsPages").
 const ConfigIntegracoesSMTP = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigIntegracoesSMTP })));
 const ConfigSistemaBackups = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigSistemaBackups })));
 const ConfigSistemaAuroraUso = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigSistemaAuroraUso })));
+const ConfigSistemaConhecimentoIA = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigSistemaConhecimentoIA })));
 const ConfigIntegracoesSDR = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigIntegracoesSDR })));
 const ConfigFinanceiroSquads = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroSquads })));
 const ConfigFinanceiroBloqueioPeriodo = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroBloqueioPeriodo })));
@@ -549,6 +550,7 @@ function AppContent() {
 
             <Route path="sistema/backups" element={<ConfigSistemaBackups />} />
             <Route path="sistema/aurora" element={<ProtectedRoute requireTenantAdmin><ConfigSistemaAuroraUso /></ProtectedRoute>} />
+            <Route path="sistema/conhecimento" element={<ProtectedRoute requireTenantAdmin><ConfigSistemaConhecimentoIA /></ProtectedRoute>} />
             {/* Páginas "Aurora" e "Aurora — Consumo & Agentes" foram unificadas em uma só
                 (sistema/aurora) — redirect pra quem tiver o link antigo salvo. */}
             <Route path="ia/aurora" element={<Navigate to="/app/configuracoes/sistema/aurora" replace />} />

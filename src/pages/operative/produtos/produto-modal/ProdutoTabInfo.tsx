@@ -290,6 +290,28 @@ export function ProdutoTabInfo({
           ))}
         </div>
       </div>
+
+      {/* Conhecimento do produto para a Júlia (IA de vendas) — gravado em type_attributes (chaves ia_*)
+          e lido ao vivo pelo n8n junto com a descrição, o valor e os arquivos/criativos da aba Arquivos. */}
+      <div className="p-4 bg-blue-500/5 border border-blue-500/15 rounded-xl space-y-3">
+        <div>
+          <label className="text-[10px] font-black text-blue-400 uppercase tracking-wider block">Para a Júlia vender este produto</label>
+          <p className="text-[10px] text-slate-500">Escreva como explicaria a um vendedor novo. O que ficar vazio, ela não inventa: diz que a equipe confirma.</p>
+        </div>
+        {([
+          ["ia_oque_e", "O que é o produto", "Explique em linguagem simples, como se fosse para um cliente leigo."],
+          ["ia_para_quem", "Para quem é", "Perfil ideal e quando indicar."],
+          ["ia_beneficios", "Benefícios e resultados", "O que o cliente ganha. Não prometa números que a empresa não garante."],
+          ["ia_como_funciona", "Como funciona e o que está incluso", "Formato, etapas, entregáveis, local, data/turma, duração."],
+          ["ia_objecoes", "Objeções comuns e respostas", "Ex.: \"é caro\" → resposta oficial."],
+        ] as const).map(([key, label, hint]) => (
+          <div key={key} className="space-y-1.5">
+            <label className={labelCls}>{label}</label>
+            <textarea value={String(attr(key) ?? "")} onChange={(e) => setAttr(key, e.target.value)}
+              placeholder={hint} className={`${inputCls} h-16`} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
