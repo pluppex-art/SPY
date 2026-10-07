@@ -43,7 +43,7 @@ export function FinanceKpiFilter({ kpis = [], children, activeCount = 0, onClear
       {children && (
         <Card className="p-2.5 rounded-xl">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex-1 min-w-0"><FilterVariantContext.Provider value="model"><FilterTabsSlotContext.Provider value={tabsSlot}>{children}</FilterTabsSlotContext.Provider></FilterVariantContext.Provider></div>
+            <div className="flex-1 min-w-0 space-y-2.5"><FilterVariantContext.Provider value="model"><FilterTabsSlotContext.Provider value={tabsSlot}>{children}</FilterTabsSlotContext.Provider></FilterVariantContext.Provider></div>
             {activeCount > 0 && onClear && (
               <button
                 type="button"
