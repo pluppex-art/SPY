@@ -11,5 +11,6 @@ export { ConfigPerfilUsuario } from "./sections/usuario/ConfigPerfilUsuario";
 export { ConfigPreferenciasSistema } from "./sections/usuario/ConfigPreferenciasSistema";
 export { ConfigSistemaBackups, ConfigSistemaAuroraUso } from "./sections/SettingsSistema";
 export { ConfigSistemaConhecimentoIA } from "./sections/SettingsSistemaConhecimento";
+export { ConfigSistemaAprendizados } from "./sections/SettingsSistemaAprendizados";
 export { ConfigRodizioLeads } from "./sections/SettingsRodizioLeads";
 export { ConfigKanbanBoards } from "./sections/SettingsKanbanBoards";

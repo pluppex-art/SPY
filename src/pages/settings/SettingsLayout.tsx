@@ -109,6 +109,7 @@ export default function SettingsLayout() {
         // páginas separadas ("Aurora" em Inteligência Artificial + esta), unificadas.
         ...(isModuleEnabled("aurora") ? [{ title: "Aurora (Controle, Consumo & Agentes)", path: "/app/configuracoes/sistema/aurora" }] : []),
         ...(isModuleEnabled("aurora") ? [{ title: "Conhecimento extra da IA", path: "/app/configuracoes/sistema/conhecimento" }] : []),
+        ...(isModuleEnabled("aurora") ? [{ title: "Aprendizado da IA", path: "/app/configuracoes/sistema/aprendizados" }] : []),
         { title: "Backups automáticos", path: "/app/configuracoes/sistema/backups" },
       ],
     },
