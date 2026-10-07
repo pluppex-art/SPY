@@ -282,6 +282,7 @@ export default function FinanceiroConciliacao() {
         </Button>
       }
     >
+      <div className="space-y-4">
       <FinanceKpiFilter
         id="finConciliacao"
         className="mb-6"
@@ -416,6 +417,7 @@ export default function FinanceiroConciliacao() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </PageContainer>
   );
