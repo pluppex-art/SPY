@@ -181,6 +181,7 @@ export default function FinanceiroTransacoes() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Todas as Movimentações" }]}
       actions={
         <div className="flex items-center gap-2">
+          <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} className="!h-9 !rounded-lg" />
           <Button variant="outline" onClick={handleExport} className="h-9 px-4 text-xs font-medium gap-1.5">
             <Download className="w-3.5 h-3.5" /> Exportar CSV{selecionados.size > 0 ? ` (${selecionados.size})` : ""}
           </Button>
@@ -206,7 +207,6 @@ export default function FinanceiroTransacoes() {
                 className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40"
               />
             </div>
-            <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} className="!h-9 !rounded-lg" />
             <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={cn(SELECT, "max-w-[200px]")}>
               <option value="">Categoria: Todas</option>
               {categorias.map((c) => <option key={c} value={c}>{c}</option>)}

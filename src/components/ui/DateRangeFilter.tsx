@@ -31,6 +31,8 @@ function buildPresets() {
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
   const startOfYear = toISO(new Date(now.getFullYear(), 0, 1));
+  // "Últimos N meses" = do 1º dia do mês (N-1) meses atrás até hoje.
+  const lastMonths = (n: number) => toISO(new Date(now.getFullYear(), now.getMonth() - (n - 1), 1));
 
   return [
     { label: "Hoje", from: today, to: today },
@@ -38,6 +40,10 @@ function buildPresets() {
     { label: "Últimos 30 dias", from: days(29), to: today },
     { label: "Este mês", from: startOfMonth, to: today },
     { label: "Mês passado", from: toISO(lastMonthStart), to: toISO(lastMonthEnd) },
+    { label: "Últimos 2 meses", from: lastMonths(2), to: today },
+    { label: "Últimos 3 meses", from: lastMonths(3), to: today },
+    { label: "Últimos 6 meses", from: lastMonths(6), to: today },
+    { label: "Últimos 12 meses", from: lastMonths(12), to: today },
     { label: "Este ano", from: startOfYear, to: today },
     { label: "Tudo", from: null, to: null },
   ] as const;

@@ -53,6 +53,9 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const { financeEntries, addFinanceEntry, deleteFinanceEntry, updateFinanceEntry, financeCategories, addFinanceCategory, financeBankAccounts, financeCentrosCusto, clienteBase } = useData();
   const { formatCurrency } = useLocalization();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // Período global da tela (seletor "Período: Tudo" do cabeçalho): filtra a tabela (servidor), os cards e o gráfico.
+  const [filtroDataInicio, setFiltroDataInicio] = useState("");
+  const [filtroDataFim, setFiltroDataFim] = useState("");
 
   // Categoria é vinculada de verdade (category_id → finance_categories), não
   // mais texto livre — sem isso o DRE não sabe em qual linha somar o
@@ -79,6 +82,48 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   // (não sobre os filtros da tabela abaixo, que são pra achar um lançamento
   // específico). Pago/Receitas usa regime de caixa (só o realizado);
   // Receber/Pagar mostra o pipeline completo por status.
+  const periodoAtivo = !!(filtroDataInicio || filtroDataFim);
+  const { rangeFrom, rangeTo } = useMemo(() => ({
+    rangeFrom: filtroDataInicio ? new Date(filtroDataInicio + "T00:00:00") : null,
+    rangeTo: filtroDataFim ? new Date(filtroDataFim + "T23:59:59") : null,
+  }), [filtroDataInicio, filtroDataFim]);
+  const inRange = (e: any, from: Date | null, to: Date | null) => {
+    if (!from && !to) return true;
+    const d = parseEntryDate(e.date);
+    if (!d) return false;
+    return (!from || d >= from) && (!to || d <= to);
+  };
+  // Janela anterior de mesma duração (só existe com início e fim definidos).
+  const prevRange = useMemo(() => {
+    if (!rangeFrom || !rangeTo) return null;
+    const dias = Math.round((rangeTo.getTime() - rangeFrom.getTime()) / 86400000) + 1;
+    const from = new Date(rangeFrom); from.setDate(from.getDate() - dias);
+    const to = new Date(rangeFrom); to.setDate(to.getDate() - 1); to.setHours(23, 59, 59);
+    return { from, to };
+  }, [rangeFrom, rangeTo]);
+
+  // Meses exibidos no gráfico e nas minis dos cards: o período escolhido (até 24 meses) ou, em "Tudo", os últimos 6.
+  const mesesDoGrafico = useMemo(() => {
+    const now = new Date();
+    let start: Date, end: Date;
+    if (rangeFrom || rangeTo) {
+      end = rangeTo ?? now;
+      start = rangeFrom ?? new Date(end.getFullYear(), end.getMonth() - 5, 1);
+    } else {
+      end = now;
+      start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    }
+    const out: { y: number; m: number }[] = [];
+    let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cursor <= end && out.length < 24) {
+      out.push({ y: cursor.getFullYear(), m: cursor.getMonth() });
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    }
+    return out.length >= 2 ? out : [{ y: start.getFullYear(), m: start.getMonth() - 1 }, ...out].map((x) => { const d = new Date(x.y, x.m, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+  }, [rangeFrom, rangeTo]);
+
+  // KPIs/gráfico do topo — seguem o período escolhido no cabeçalho (sem período = visão geral).
+  // Pago/Receitas usa regime de caixa (só o realizado); Receber/Pagar mostra o pipeline completo por status.
   const kpis = useMemo(() => {
     const entriesDoTipo = (financeEntries as any[]).filter((e: any) => e.type === type);
     if (statusFilter === "Pago") {
@@ -87,28 +132,40 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       const prevRef = new Date(y, m - 1, 1);
       const py = prevRef.getFullYear(), pm = prevRef.getMonth();
       const pagos = entriesDoTipo.filter((e: any) => e.status === "Pago");
-      const rowsMesAtual = pagos.filter((e: any) => isInMonth(e.date, y, m));
-      const sumMes = (yy: number, mm: number) => pagos.filter((e: any) => isInMonth(e.date, yy, mm)).reduce((s: number, e: any) => s + e.value, 0);
-      const totalMes = sumMes(y, m);
-      const totalMesAnterior = sumMes(py, pm);
-      const totalGeral = pagos.reduce((s: number, e: any) => s + e.value, 0);
+      const soma = (rows: any[]) => rows.reduce((acc: number, e: any) => acc + e.value, 0);
+      let rowsMesAtual: any[], totalMes: number, totalMesAnterior: number;
+      if (periodoAtivo) {
+        rowsMesAtual = pagos.filter((e: any) => inRange(e, rangeFrom, rangeTo));
+        totalMes = soma(rowsMesAtual);
+        totalMesAnterior = prevRange ? soma(pagos.filter((e: any) => inRange(e, prevRange.from, prevRange.to))) : 0;
+      } else {
+        rowsMesAtual = pagos.filter((e: any) => isInMonth(e.date, y, m));
+        totalMes = soma(rowsMesAtual);
+        totalMesAnterior = soma(pagos.filter((e: any) => isInMonth(e.date, py, pm)));
+      }
+      const totalGeral = soma(pagos);
       return {
         kind: "realizado" as const,
-        totalMes, deltaPct: pctDelta(totalMes, totalMesAnterior),
-        totalGeral, ticketMedio: pagos.length > 0 ? totalGeral / pagos.length : 0, count: pagos.length,
+        totalMes, totalMesAnterior, deltaPct: pctDelta(totalMes, totalMesAnterior), temComparacao: !periodoAtivo || !!prevRange,
+        totalGeral, ticketMedio: rowsMesAtual.length > 0 ? totalMes / rowsMesAtual.length : (pagos.length > 0 ? totalGeral / pagos.length : 0),
+        count: pagos.length, countPeriodo: rowsMesAtual.length,
         rowsMesAtual, rowsGeral: pagos,
       };
     }
-    const filterStatus = (status: string) => entriesDoTipo.filter((e: any) => e.status === status);
-    const sumStatus = (status: string) => filterStatus(status).reduce((s: number, e: any) => s + e.value, 0);
+    const base = periodoAtivo ? entriesDoTipo.filter((e: any) => inRange(e, rangeFrom, rangeTo)) : entriesDoTipo;
+    const prevBase = prevRange ? entriesDoTipo.filter((e: any) => inRange(e, prevRange.from, prevRange.to)) : null;
+    const filterStatus = (status: string) => base.filter((e: any) => e.status === status);
+    const sumStatus = (status: string) => filterStatus(status).reduce((acc: number, e: any) => acc + e.value, 0);
+    const prevSum = (status: string) => (prevBase ? prevBase.filter((e: any) => e.status === status).reduce((acc: number, e: any) => acc + e.value, 0) : null);
     const countStatus = (status: string) => filterStatus(status).length;
     return {
       kind: "pipeline" as const,
       pago: sumStatus("Pago"), aVencer: sumStatus("A Vencer"), atrasado: sumStatus("Atrasado"), pendente: sumStatus("Pendente"),
+      prevPago: prevSum("Pago"), prevAVencer: prevSum("A Vencer"), prevAtrasado: prevSum("Atrasado"), prevPendente: prevSum("Pendente"),
       countPago: countStatus("Pago"), countAVencer: countStatus("A Vencer"), countAtrasado: countStatus("Atrasado"), countPendente: countStatus("Pendente"),
       rowsPago: filterStatus("Pago"), rowsAVencer: filterStatus("A Vencer"), rowsAtrasado: filterStatus("Atrasado"), rowsPendente: filterStatus("Pendente"),
     };
-  }, [financeEntries, type, statusFilter]);
+  }, [financeEntries, type, statusFilter, periodoAtivo, rangeFrom, rangeTo, prevRange]);
 
   const contrapartesOpcoes = useMemo(
     () => Array.from(new Set((financeEntries as any[]).filter((e: any) => e.type === type).map((e: any) => e.counterparty).filter(Boolean))).sort((a: any, b: any) => String(a).localeCompare(String(b), "pt-BR")) as string[],
@@ -128,29 +185,25 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     ].filter(s => s.value > 0);
   }, [kpis]);
 
-  const [mesesGrafico, setMesesGrafico] = useState(6);
-  const monthlySeries = useMemo(
-    () => (statusFilter === "Pago" ? getMonthlyRealizedSeries(financeEntries as any[], type, mesesGrafico) : []),
-    [financeEntries, type, statusFilter, mesesGrafico]
-  );
+  const NOMES_MES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const rotuloMes = (x: { y: number; m: number }) => (mesesDoGrafico.length > 12 || new Set(mesesDoGrafico.map((z) => z.y)).size > 1 ? `${NOMES_MES[x.m]}/${String(x.y).slice(2)}` : NOMES_MES[x.m]);
+  const monthlySeries = useMemo(() => {
+    if (statusFilter !== "Pago") return [];
+    const pagos = (financeEntries as any[]).filter((e: any) => e.type === type && e.status === "Pago");
+    return mesesDoGrafico.map((x) => ({ label: rotuloMes(x), value: pagos.filter((e: any) => isInMonth(e.date, x.y, x.m)).reduce((acc: number, e: any) => acc + e.value, 0) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financeEntries, type, statusFilter, mesesDoGrafico]);
   // Contas a Pagar/Receber: valor por mês de vencimento e por status (status atual de cada título).
   const statusMonthly = useMemo(() => {
     if (statusFilter === "Pago") return [];
-    const now = new Date();
     const doTipo = (financeEntries as any[]).filter((e: any) => e.type === type);
-    const NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-    return Array.from({ length: mesesGrafico }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (mesesGrafico - 1 - i), 1);
-      const y = d.getFullYear(), m = d.getMonth();
-      const soma = (st: string) => doTipo.filter((e: any) => e.status === st && isInMonth(e.date, y, m)).reduce((acc: number, e: any) => acc + e.value, 0);
-      return { label: NAMES[m], Pago: soma("Pago"), "A Vencer": soma("A Vencer"), Atrasado: soma("Atrasado"), Pendente: soma("Pendente") };
+    return mesesDoGrafico.map((x) => {
+      const soma = (st: string) => doTipo.filter((e: any) => e.status === st && isInMonth(e.date, x.y, x.m)).reduce((acc: number, e: any) => acc + e.value, 0);
+      return { label: rotuloMes(x), Pago: soma("Pago"), "A Vencer": soma("A Vencer"), Atrasado: soma("Atrasado"), Pendente: soma("Pendente") };
     });
-  }, [financeEntries, type, statusFilter, mesesGrafico]);
-  // Série fixa de 6 meses pros cards (independe do período escolhido pro gráfico).
-  const monthlySeries6 = useMemo(
-    () => (statusFilter === "Pago" ? getMonthlyRealizedSeries(financeEntries as any[], type, 6) : []),
-    [financeEntries, type, statusFilter]
-  );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financeEntries, type, statusFilter, mesesDoGrafico]);
+  const periodoGraficoLabel = periodoAtivo ? "no período selecionado" : "nos últimos 6 meses";
   const [showNovaCategoria, setShowNovaCategoria] = useState(false);
   const [novaCategoriaNome, setNovaCategoriaNome] = useState("");
   const [novaCategoriaSubtipo, setNovaCategoriaSubtipo] = useState<"DESPESA_FIXA" | "DESPESA_VARIAVEL" | "PESSOAS" | "IMPOSTOS">("DESPESA_VARIAVEL");
@@ -244,8 +297,6 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const [filtroStatus, setFiltroStatus] = useState<"" | "Pago" | "A Vencer" | "Atrasado" | "Pendente">("");
   const [filtroContaBancariaId, setFiltroContaBancariaId] = useState("");
   const [filtroCentroCustoId, setFiltroCentroCustoId] = useState("");
-  const [filtroDataInicio, setFiltroDataInicio] = useState("");
-  const [filtroDataFim, setFiltroDataFim] = useState("");
   const [pageSizeSel, setPageSizeSel] = useState(10);
   const [ordem, setOrdem] = useState<"data_desc" | "data_asc" | "valor_desc" | "valor_asc">("data_desc");
   const [filtroContraparte, setFiltroContraparte] = useState("");
@@ -539,37 +590,33 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     }
   };
 
-  // Cards no padrão do Dashboard: valor + variação do mês corrente contra o anterior
-  // (por data de vencimento, status atual — mesma convenção da casa) e gráfico dos últimos 6 meses.
-  const mesRef = useMemo(() => {
-    const now = new Date();
-    return Array.from({ length: 6 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1); return { y: d.getFullYear(), m: d.getMonth() }; });
-  }, []);
+  // Cards: valor do período (ou visão geral) + variação contra o período anterior de mesma duração
+  // (sem período: mês corrente x mês anterior) e mini gráfico mensal.
   const serieStatus = (status: string): number[] => {
     const doTipo = (financeEntries as any[]).filter((e: any) => e.type === type && e.status === status);
-    return mesRef.map(({ y, m }) => doTipo.filter((e: any) => isInMonth(e.date, y, m)).reduce((s: number, e: any) => s + e.value, 0));
+    return mesesDoGrafico.map(({ y, m }) => doTipo.filter((e: any) => isInMonth(e.date, y, m)).reduce((acc: number, e: any) => acc + e.value, 0));
   };
-  const deltaSerie = (serie: number[]) => (serie[4] > 0 ? ((serie[5] - serie[4]) / serie[4]) * 100 : null);
+  const deltaSerie = (serie: number[]) => (serie.length >= 2 && serie[serie.length - 2] > 0 ? ((serie[serie.length - 1] - serie[serie.length - 2]) / serie[serie.length - 2]) * 100 : null);
 
   type KpiCard = { label: string; value: string; hint?: string; icon: typeof CheckCircle2; delta: number | null; goodUp: boolean | null; series: number[]; drill?: string; danger?: boolean; hideDelta?: boolean };
   const kpiCards: KpiCard[] = kpis.kind === "pipeline"
     ? (() => {
         const sPago = serieStatus("Pago"), sAV = serieStatus("A Vencer"), sAt = serieStatus("Atrasado"), sPe = serieStatus("Pendente");
+        const d = (atual: number, ant: number | null, serie: number[]) => (periodoAtivo ? (ant !== null ? pctDelta(atual, ant) : null) : deltaSerie(serie));
         return [
-          { label: type === "Receber" ? "Recebido no período" : "Pago no período", value: formatCurrency(kpis.pago), hint: `${kpis.countPago} lançamento(s)`, icon: CheckCircle2, delta: deltaSerie(sPago), goodUp: true, series: sPago, drill: "pago" },
-          { label: "A Vencer", value: formatCurrency(kpis.aVencer), hint: `${kpis.countAVencer} lançamento(s)`, icon: Clock, delta: deltaSerie(sAV), goodUp: null, series: sAV, drill: "aVencer" },
-          { label: "Atrasado", value: formatCurrency(kpis.atrasado), hint: `${kpis.countAtrasado} lançamento(s)`, icon: AlertTriangle, delta: deltaSerie(sAt), goodUp: false, series: sAt, drill: "atrasado", danger: kpis.atrasado > 0 },
-          { label: "Pendente", value: formatCurrency(kpis.pendente), hint: `${kpis.countPendente} lançamento(s)`, icon: HourglassIcon, delta: deltaSerie(sPe), goodUp: null, series: sPe, drill: "pendente" },
+          { label: type === "Receber" ? "Recebido no período" : "Pago no período", value: formatCurrency(kpis.pago), hint: `${kpis.countPago} lançamento(s)`, icon: CheckCircle2, delta: d(kpis.pago, kpis.prevPago, sPago), goodUp: true, series: sPago, drill: "pago" },
+          { label: "A Vencer", value: formatCurrency(kpis.aVencer), hint: `${kpis.countAVencer} lançamento(s)`, icon: Clock, delta: d(kpis.aVencer, kpis.prevAVencer, sAV), goodUp: null, series: sAV, drill: "aVencer" },
+          { label: "Atrasado", value: formatCurrency(kpis.atrasado), hint: `${kpis.countAtrasado} lançamento(s)`, icon: AlertTriangle, delta: d(kpis.atrasado, kpis.prevAtrasado, sAt), goodUp: false, series: sAt, drill: "atrasado", danger: kpis.atrasado > 0 },
+          { label: "Pendente", value: formatCurrency(kpis.pendente), hint: `${kpis.countPendente} lançamento(s)`, icon: HourglassIcon, delta: d(kpis.pendente, kpis.prevPendente, sPe), goodUp: null, series: sPe, drill: "pendente" },
         ];
       })()
     : (() => {
-        const serie6 = monthlySeries6.map((x: any) => x.value);
-        const atual = serie6[serie6.length - 1] ?? 0;
-        const anterior = serie6[serie6.length - 2] ?? 0;
+        const serie = monthlySeries.map((x: any) => x.value);
+        const rotulo = periodoAtivo ? "no período" : "no mês";
         return [
-          { label: type === "Pagar" ? "Gasto no mês" : "Recebido no mês", value: formatCurrency(kpis.totalMes), icon: type === "Pagar" ? TrendingDown : TrendingUp, delta: kpis.deltaPct, goodUp: type !== "Pagar", series: serie6, drill: "mes" },
-          { label: "Vs. mês anterior", value: `${atual - anterior > 0 ? "+" : atual - anterior < 0 ? "−" : ""}${formatCurrency(Math.abs(atual - anterior))}`, hint: `Mês anterior: ${formatCurrency(anterior)}`, icon: type === "Pagar" ? TrendingUp : TrendingDown, delta: kpis.deltaPct, goodUp: type !== "Pagar", series: [], drill: "mes" },
-          { label: "Ticket médio", value: formatCurrency(kpis.ticketMedio), hint: `${kpis.count} lançamento(s) no histórico`, icon: DollarSign, delta: null, goodUp: null, series: [], hideDelta: true },
+          { label: (type === "Pagar" ? "Gasto " : "Recebido ") + rotulo, value: formatCurrency(kpis.totalMes), icon: type === "Pagar" ? TrendingDown : TrendingUp, delta: kpis.temComparacao ? kpis.deltaPct : null, goodUp: type !== "Pagar", series: serie, drill: "mes", hint: `${kpis.countPeriodo} lançamento(s)` },
+          { label: periodoAtivo ? "Vs. período anterior" : "Vs. mês anterior", value: `${kpis.totalMes - kpis.totalMesAnterior > 0 ? "+" : kpis.totalMes - kpis.totalMesAnterior < 0 ? "−" : ""}${formatCurrency(Math.abs(kpis.totalMes - kpis.totalMesAnterior))}`, hint: kpis.temComparacao ? `${periodoAtivo ? "Período" : "Mês"} anterior: ${formatCurrency(kpis.totalMesAnterior)}` : "Informe início e fim p/ comparar", icon: type === "Pagar" ? TrendingUp : TrendingDown, delta: kpis.temComparacao ? kpis.deltaPct : null, goodUp: type !== "Pagar", series: [], drill: "mes" },
+          { label: "Ticket médio", value: formatCurrency(kpis.ticketMedio), hint: periodoAtivo ? `${kpis.countPeriodo} lançamento(s) no período` : `${kpis.count} lançamento(s) no histórico`, icon: DollarSign, delta: null, goodUp: null, series: [], hideDelta: true },
           { label: "Total geral (histórico)", value: formatCurrency(kpis.totalGeral), hint: `${kpis.count} lançamento(s)`, icon: Layers, delta: null, goodUp: null, series: [], drill: "geral", hideDelta: true },
         ];
       })();
@@ -611,16 +658,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 <h3 className="text-xs font-bold text-[var(--color-text-primary)] flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> {type === "Pagar" ? "Pagamentos" : "Recebimentos"} por Status
                 </h3>
-                <p className="text-[11px] text-[var(--color-text-faint)] mt-0.5 ml-6">Valores {type === "Pagar" ? "pagos e a pagar" : "recebidos e a receber"} nos últimos {mesesGrafico} meses.</p>
+                <p className="text-[11px] text-[var(--color-text-faint)] mt-0.5 ml-6">Valores {type === "Pagar" ? "pagos e a pagar" : "recebidos e a receber"} {periodoGraficoLabel}.</p>
               </div>
-              <label className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-xs font-bold text-[var(--color-text-primary)]">
-                <Calendar className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-                <select value={mesesGrafico} onChange={(e) => setMesesGrafico(Number(e.target.value))} className="bg-transparent focus:outline-none cursor-pointer font-bold">
-                  <option value={3}>Últimos 3 meses</option>
-                  <option value={6}>Últimos 6 meses</option>
-                  <option value={12}>Últimos 12 meses</option>
-                </select>
-              </label>
             </div>
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -651,7 +690,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         <>
           <Card className="p-4">
             <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {title} — Últimos {mesesGrafico} Meses
+              <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {title} — {periodoAtivo ? "Período selecionado" : "Últimos 6 Meses"}
             </h3>
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -683,17 +722,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: title }]}
       actions={
         <div className="flex items-center gap-2">
-          {(
-            <label className="hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-xs font-bold text-[var(--color-text-primary)]">
-              <Calendar className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-              Período:
-              <select value={mesesGrafico} onChange={(e) => setMesesGrafico(Number(e.target.value))} className="bg-transparent focus:outline-none cursor-pointer font-bold">
-                <option value={3}>Últimos 3 meses</option>
-                <option value={6}>Últimos 6 meses</option>
-                <option value={12}>Últimos 12 meses</option>
-              </select>
-            </label>
-          )}
+          <DateRangeFilter dateFrom={filtroDataInicio || null} setDateFrom={(v) => setFiltroDataInicio(v ?? "")} dateTo={filtroDataFim || null} setDateTo={(v) => setFiltroDataFim(v ?? "")} className="!h-9 !rounded-lg" />
           <Button
             variant="outline"
             onClick={handleExport}
@@ -732,7 +761,6 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40"
             />
           </div>
-          <DateRangeFilter dateFrom={filtroDataInicio || null} setDateFrom={(v) => setFiltroDataInicio(v ?? "")} dateTo={filtroDataFim || null} setDateTo={(v) => setFiltroDataFim(v ?? "")} className="!h-9 !rounded-lg" />
           <select value={filtroCategoriaId} onChange={(e) => setFiltroCategoriaId(e.target.value)} className="h-9 px-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none cursor-pointer max-w-[200px]">
             <option value="">Categoria: Todas</option>
             {categoriasDoTipo.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}

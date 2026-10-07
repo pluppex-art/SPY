@@ -209,6 +209,7 @@ export default function FinanceiroBuscaGlobal() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Busca" }]}
       actions={
         <div className="flex items-center gap-2">
+          <DateRangeFilter dateFrom={dataDe || null} setDateFrom={(v) => setDataDe(v ?? "")} dateTo={dataAte || null} setDateTo={(v) => setDataAte(v ?? "")} className="!h-9 !rounded-lg" />
           <Button onClick={handleExport} variant="outline" className="h-9 px-4 text-xs font-medium gap-1.5">
             <Download className="w-3.5 h-3.5" /> Exportar{selecionados.size > 0 ? ` (${selecionados.size})` : ""}
           </Button>
@@ -253,7 +254,6 @@ export default function FinanceiroBuscaGlobal() {
                 <input type="number" min="0" value={valorMax} onChange={(e) => setValorMax(e.target.value)} placeholder="0,00" className="w-full bg-transparent font-mono text-[var(--color-text-primary)] focus:outline-none" />
               </span>
             </label>
-            <DateRangeFilter dateFrom={dataDe || null} setDateFrom={(v) => setDataDe(v ?? "")} dateTo={dataAte || null} setDateTo={(v) => setDataAte(v ?? "")} className="!h-10 !rounded-xl" />
           </div>
         </Card>
 
