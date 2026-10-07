@@ -10,6 +10,7 @@ import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../../components/ui/dropdown-menu";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
+import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import {
   ArrowDownLeft, ArrowUpRight, ArrowDownRight, Download, Plus, ListOrdered, Scale, Search, Minus,
   CheckCircle2, Clock, AlertTriangle, Tag, List as ListIcon, LayoutGrid, ArrowUpDown, X, MoreVertical, Copy, ExternalLink,
@@ -190,40 +191,7 @@ export default function FinanceiroTransacoes() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        {/* KPIs — mesmo padrão dos cards do Dashboard */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {kpis.map((k, i) => {
-            const Icon = k.icon;
-            const up = (k.delta ?? 0) > 0;
-            const flat = k.delta !== null && Math.abs(k.delta) < 0.05;
-            const good = k.goodUp === null ? null : k.goodUp === up;
-            const deltaColor = k.delta === null || flat || good === null ? "text-[var(--color-text-faint)]" : good ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
-            const sparkColor = k.delta === null || flat || good === null ? "text-[var(--color-text-faint)]" : good ? "text-emerald-500" : "text-rose-500";
-            const DIcon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
-            return (
-              <Card
-                key={k.label}
-                onClick={() => openDrill(k.drill)}
-                className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <Icon className={cn("w-5 h-5", ICON_COLORS[i % ICON_COLORS.length])} />
-                  {k.delta === null ? (
-                    <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right leading-tight">Sem período<br />p/ comparação</span>
-                  ) : (
-                    <span className={cn("text-xs font-bold flex items-center gap-0.5 tabular-nums", deltaColor)}>{up ? "+" : ""}{k.delta.toFixed(1)}% <DIcon className="w-3.5 h-3.5" /></span>
-                  )}
-                </div>
-                <div className={cn("text-2xl font-display font-black mb-1 italic whitespace-nowrap", k.danger ? "text-rose-500" : "text-[var(--color-text-primary)]")}>{k.value}</div>
-                <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</div>
-                <div className="flex items-center justify-between mt-1 gap-2">
-                  <span className="text-[10px] text-[var(--color-text-faint)] font-medium">{k.delta === null ? periodoLabel : "vs. período anterior"}</span>
-                  <Sparkline data={k.series} className={cn("w-16 h-5 shrink-0", sparkColor)} />
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <FinanceKpiGrid cards={kpis.map((k) => ({ label: k.label, value: k.value, icon: k.icon, delta: k.delta, goodUp: k.goodUp, series: k.series, danger: k.danger, footer: k.delta === null ? periodoLabel : "vs. período anterior", onClick: () => openDrill(k.drill) }))} />
 
         {/* Filtros */}
         <Card className="p-2.5 rounded-xl">

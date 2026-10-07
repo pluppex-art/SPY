@@ -4,7 +4,7 @@ import { EmptyState } from "../../components/ui/empty-state";
 import {
   Download, Calendar, CheckCircle2,
   Clock, AlertTriangle, Plus, Trash2, DollarSign, Pencil, Lock, Repeat, Layers, User, Landmark, HelpCircle,
-  TrendingUp, TrendingDown, BarChart3, HourglassIcon, Copy, ArrowUpRight, ArrowDownRight, Minus, Tag,
+  TrendingUp, TrendingDown, BarChart3, HourglassIcon, Copy, ArrowUpRight, ArrowDownRight, Tag, Search, X, ArrowUpDown, LayoutGrid, List as ListIcon,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
@@ -23,7 +23,8 @@ import { useFinanceEntriesList } from "./useFinanceEntriesList";
 import { Pagination } from "../../components/ui/Pagination";
 import { type Frequencia, addPeriodo, splitInstallments } from "../../lib/saleCalculator";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
-import { Sparkline } from "../../components/ui/sparkline";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
+import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import { isInMonth, pctDelta, getMonthlyRealizedSeries } from "./lib/financeEngine";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
@@ -109,6 +110,10 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     };
   }, [financeEntries, type, statusFilter]);
 
+  const contrapartesOpcoes = useMemo(
+    () => Array.from(new Set((financeEntries as any[]).filter((e: any) => e.type === type).map((e: any) => e.counterparty).filter(Boolean))).sort((a: any, b: any) => String(a).localeCompare(String(b), "pt-BR")) as string[],
+    [financeEntries, type]
+  );
   const [drillKey, setDrillKey] = useState<string | null>(null);
   const drillColumns = financeEntryDrillColumns(formatCurrency);
 
@@ -242,15 +247,17 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
   const [pageSizeSel, setPageSizeSel] = useState(10);
-  const [ordemAsc, setOrdemAsc] = useState(false);
+  const [ordem, setOrdem] = useState<"data_desc" | "data_asc" | "valor_desc" | "valor_asc">("data_desc");
+  const [filtroContraparte, setFiltroContraparte] = useState("");
+  const [viewMode, setViewMode] = useState<"lista" | "grade">("lista");
   // Achado de UX 2026-09-21: os 7 filtros ficavam sempre visíveis antes de
   // qualquer dado — quem só quer ver "o que tenho a receber esse mês" caía
   // direto num formulário de 7 campos. Conta Bancária/Centro de Custo/período
   // agora ficam atrás de "Mais filtros".
 
-  const temFiltrosAtivos = !!(filtroBusca || filtroCategoriaId || filtroStatus || filtroContaBancariaId || filtroCentroCustoId || filtroDataInicio || filtroDataFim);
+  const temFiltrosAtivos = !!(filtroContraparte || filtroBusca || filtroCategoriaId || filtroStatus || filtroContaBancariaId || filtroCentroCustoId || filtroDataInicio || filtroDataFim);
   const limparFiltros = () => {
-    setFiltroBusca(""); setFiltroCategoriaId(""); setFiltroStatus("");
+    setFiltroBusca(""); setFiltroCategoriaId(""); setFiltroStatus(""); setFiltroContraparte("");
     setFiltroContaBancariaId(""); setFiltroCentroCustoId(""); setFiltroDataInicio(""); setFiltroDataFim("");
   };
 
@@ -263,7 +270,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const {
     entries: filteredData, total: filteredTotal, totalValue,
     page, setPage, totalPages, pageSize, loading: entriesLoading,
-    refetch: refetchEntries, fetchAllForExport,
+    refetch: refetchEntries, fetchAllForExport, statusCounts,
   } = useFinanceEntriesList({
     type, statusFilter,
     search: filtroBusca,
@@ -274,7 +281,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     dataInicio: filtroDataInicio,
     dataFim: filtroDataFim,
     pageSize: pageSizeSel,
-    ascending: ordemAsc,
+    contraparte: filtroContraparte,
+    ordem,
   });
 
   useEffect(() => { setSelecionados(new Set()); }, [filteredData]);
@@ -566,7 +574,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         ];
       })();
   const ICON_COLORS = ["text-[var(--color-primary-blue)]", "text-emerald-500", "text-cyan-500", "text-rose-500"];
-  const filtrosAtivosCount = [filtroBusca, filtroCategoriaId, filtroStatus, filtroContaBancariaId, filtroCentroCustoId, filtroDataInicio, filtroDataFim].filter(Boolean).length;
+  const filtrosAtivosCount = [filtroContraparte, filtroBusca, filtroCategoriaId, filtroStatus, filtroContaBancariaId, filtroCentroCustoId, filtroDataInicio, filtroDataFim].filter(Boolean).length;
 
   const RepeatBadge = ({ item }: { item: (typeof financeEntries)[number] }) => {
     if (item.is_recurring) {
@@ -703,107 +711,117 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       }
     >
       <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {kpiCards.map((k, i) => {
-          const Icon = k.icon;
-          const up = (k.delta ?? 0) > 0;
-          const flat = k.delta !== null && Math.abs(k.delta) < 0.05;
-          const good = k.goodUp === null ? null : k.goodUp === up;
-          const deltaColor = k.delta === null || flat || good === null ? "text-[var(--color-text-faint)]" : good ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
-          const sparkColor = k.delta === null || flat || good === null ? "text-[var(--color-text-faint)]" : good ? "text-emerald-500" : "text-rose-500";
-          const DIcon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
-          return (
-            <Card
-              key={k.label}
-              onClick={k.drill ? () => setDrillKey(k.drill!) : undefined}
-              className={`p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm ${k.drill ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md" : ""}`}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <Icon className={`w-5 h-5 ${ICON_COLORS[i % ICON_COLORS.length]}`} />
-                {k.hideDelta ? <span /> : k.delta === null ? (
-                  <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right leading-tight">Sem base<br />p/ comparação</span>
-                ) : (
-                  <span className="flex flex-col items-end gap-0.5">
-                    <span className={`text-xs font-bold flex items-center gap-0.5 tabular-nums ${deltaColor}`}>
-                      <DIcon className="w-3.5 h-3.5" /> {up ? "+" : ""}{k.delta.toFixed(1)}%
-                    </span>
-                    <span className="text-[9px] text-[var(--color-text-faint)]">vs. mês anterior</span>
-                  </span>
-                )}
-              </div>
-              <div className={`text-2xl font-display font-black mb-1 italic whitespace-nowrap ${k.danger ? "text-rose-500" : "text-[var(--color-text-primary)]"}`}>{k.value}</div>
-              <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</div>
-              <div className="flex items-center justify-between mt-1 gap-2">
-                <span className="text-[10px] text-[var(--color-text-faint)] font-medium">{k.hint ?? ""}</span>
-                {k.series.length >= 2 && <Sparkline data={k.series} className={`w-16 h-5 shrink-0 ${sparkColor}`} />}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+      <FinanceKpiGrid
+        noDeltaLabel="Sem base p/ comparação"
+        cards={kpiCards.map((k) => ({
+          label: k.label, value: k.value, icon: k.icon, delta: k.delta, goodUp: k.goodUp, series: k.series, danger: k.danger, hideDelta: k.hideDelta,
+          footer: k.hint ?? (k.delta !== null ? "vs. mês anterior" : ""),
+          onClick: k.drill ? () => setDrillKey(k.drill!) : undefined,
+        }))}
+      />
 
-      <KpiFilterCard
-        id={`finLista${type}${statusFilter ?? "Todos"}`}
-        title="Filtros e pesquisa"
-        activeCount={filtrosAtivosCount}
-        onClear={limparFiltros}
-      >
-        <FilterBar>
-          <FilterSearch value={filtroBusca} onChange={setFiltroBusca} placeholder="Nome, categoria ou cliente/fornecedor..." />
-          <FilterSelect
-            icon={Layers}
-            value={filtroCategoriaId}
-            onChange={setFiltroCategoriaId}
-            options={categoriasDoTipo.map((c: any) => ({ value: c.id, label: c.nome }))}
-            allLabel="Todas as categorias"
-          />
-          <FilterSelect
-            icon={Landmark}
-            value={filtroContaBancariaId}
-            onChange={setFiltroContaBancariaId}
-            options={contasAtivas.map((c: any) => ({ value: c.id, label: c.nome }))}
-            allLabel="Todas as contas"
-          />
-          <FilterSelect
-            icon={Layers}
-            value={filtroCentroCustoId}
-            onChange={setFiltroCentroCustoId}
-            options={(financeCentrosCusto as any[]).map((c) => ({ value: c.id, label: c.nome }))}
-            allLabel="Todos os centros de custo"
-          />
-          <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px]">
-            <Calendar className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
-            <input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} title="De" className="bg-transparent border-none text-xs text-[var(--color-text-primary)] focus:outline-none" />
-            <span className="text-[10px] text-[var(--color-text-muted)]">até</span>
-            <input type="date" value={filtroDataFim} onChange={(e) => setFiltroDataFim(e.target.value)} title="Até" className="bg-transparent border-none text-xs text-[var(--color-text-primary)] focus:outline-none" />
-          </div>
-          {!statusFilter && (
-            <FilterChips
-              value={filtroStatus}
-              onChange={(v) => setFiltroStatus(v as typeof filtroStatus)}
-              options={["Pago", "A Vencer", "Pendente", "Atrasado"]}
+      <Card className="p-2.5 rounded-xl">
+        <div className="flex flex-col xl:flex-row xl:items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
+            <input
+              type="text"
+              value={filtroBusca}
+              onChange={(e) => setFiltroBusca(e.target.value)}
+              placeholder="Buscar por nome, categoria ou cliente/fornecedor..."
+              className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40"
             />
+          </div>
+          <DateRangeFilter dateFrom={filtroDataInicio || null} setDateFrom={(v) => setFiltroDataInicio(v ?? "")} dateTo={filtroDataFim || null} setDateTo={(v) => setFiltroDataFim(v ?? "")} className="!h-9 !rounded-lg" />
+          <select value={filtroCategoriaId} onChange={(e) => setFiltroCategoriaId(e.target.value)} className="h-9 px-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none cursor-pointer max-w-[200px]">
+            <option value="">Categoria: Todas</option>
+            {categoriasDoTipo.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+          <select value={filtroContaBancariaId} onChange={(e) => setFiltroContaBancariaId(e.target.value)} className="h-9 px-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none cursor-pointer max-w-[180px]">
+            <option value="">Conta: Todas</option>
+            {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+          <select value={filtroCentroCustoId} onChange={(e) => setFiltroCentroCustoId(e.target.value)} className="h-9 px-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none cursor-pointer max-w-[200px]">
+            <option value="">Centro de custo: Todos</option>
+            {(financeCentrosCusto as any[]).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+          <select value={filtroContraparte} onChange={(e) => setFiltroContraparte(e.target.value)} className="h-9 px-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none cursor-pointer max-w-[220px]">
+            <option value="">Cliente / Fornecedor: Todos</option>
+            {contrapartesOpcoes.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          {temFiltrosAtivos && (
+            <button type="button" onClick={limparFiltros} className="flex items-center gap-1 px-2 h-9 text-xs font-bold text-[var(--color-text-muted)] hover:text-rose-500 bg-transparent border-none cursor-pointer whitespace-nowrap">
+              <X className="w-3 h-3" /> Limpar ({filtrosAtivosCount})
+            </button>
           )}
-        </FilterBar>
-        {statusFilter === "Pago" && (
-          <FilterBar>
-            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-faint)]">Detalhar:</span>
-            {[
+        </div>
+      </Card>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {statusFilter === "Pago" ? (
+            [
               { key: "mes", label: type === "Pagar" ? "Gasto no mês" : "Recebido no mês" },
               { key: "geral", label: "Total geral" },
               { key: "categoria", label: "Por categoria" },
               { key: "contraparte", label: type === "Pagar" ? "Por fornecedor" : "Por cliente" },
             ].map((d) => (
-              <Button key={d.key} variant="outline" onClick={() => setDrillKey(d.key)} className="h-8 px-3 text-xs font-bold border-[var(--color-border-default)]">
+              <button key={d.key} type="button" onClick={() => setDrillKey(d.key)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-[var(--color-text-primary)] transition-all cursor-pointer">
                 {d.label}
-              </Button>
+              </button>
+            ))
+          ) : (
+            ([
+              { id: "", label: "Todos", icon: ListIcon, count: Object.values(statusCounts).reduce((a, b) => a + b, 0) },
+              { id: "Pago", label: "Pago", icon: CheckCircle2, count: statusCounts["Pago"] || 0 },
+              { id: "A Vencer", label: "A Vencer", icon: Clock, count: statusCounts["A Vencer"] || 0 },
+              { id: "Pendente", label: "Pendente", icon: HourglassIcon, count: statusCounts["Pendente"] || 0 },
+              { id: "Atrasado", label: "Atrasado", icon: AlertTriangle, count: statusCounts["Atrasado"] || 0 },
+            ] as const).map((t) => (
+              <button
+                key={t.label}
+                type="button"
+                onClick={() => setFiltroStatus(t.id as typeof filtroStatus)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${filtroStatus === t.id ? "bg-[var(--color-primary-blue)] text-white border-transparent shadow-sm" : "bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-[var(--color-text-primary)]"}`}
+              >
+                <t.icon className="w-3.5 h-3.5" /> {t.label}
+                <span className={`min-w-5 text-center text-[10px] font-black px-1.5 py-0.5 rounded-full ${filtroStatus === t.id ? "bg-white text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]"}`}>{t.count}</span>
+              </button>
+            ))
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 h-9 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-3">
+            <ArrowUpDown className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+            <span className="flex flex-col">
+              <span className="text-[9px] text-[var(--color-text-faint)] leading-none">Ordenar por</span>
+              <select value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} className="bg-transparent text-xs font-bold text-[var(--color-text-primary)] focus:outline-none cursor-pointer">
+                <option value="data_desc">Data (mais recente)</option>
+                <option value="data_asc">Data (mais antiga)</option>
+                <option value="valor_desc">Valor (maior)</option>
+                <option value="valor_asc">Valor (menor)</option>
+              </select>
+            </span>
+          </label>
+          <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)]">
+            {([{ id: "lista" as const, icon: ListIcon }, { id: "grade" as const, icon: LayoutGrid }]).map(({ id, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setViewMode(id)}
+                className={`h-8 w-8 flex items-center justify-center rounded-md border-none cursor-pointer ${viewMode === id ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : "bg-transparent text-[var(--color-text-muted)]"}`}
+                aria-label={id === "lista" ? "Visualização em lista" : "Visualização em grade"}
+              >
+                <Icon className="w-4 h-4" />
+              </button>
             ))}
-          </FilterBar>
-        )}
-      </KpiFilterCard>
+          </div>
+        </div>
+      </div>
 
       {chartsJsx}
 
+      {viewMode === "lista" ? (
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden shadow-sm">
         <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-between">
           <div className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -834,8 +852,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 <th className="px-3 py-3">Cliente/Fornecedor</th>
                 <th className="px-3 py-3">Pagamento</th>
                 <th className="px-3 py-3">
-                  <button type="button" onClick={() => setOrdemAsc((v) => !v)} className="inline-flex items-center gap-1 uppercase font-bold tracking-wider bg-transparent border-none cursor-pointer text-inherit p-0" title="Ordenar por vencimento">
-                    Vencimento {ordemAsc ? <ArrowUpRight className="w-3 h-3 rotate-[-45deg]" /> : <ArrowDownRight className="w-3 h-3 rotate-[45deg]" />}
+                  <button type="button" onClick={() => setOrdem((v) => (v === "data_desc" ? "data_asc" : "data_desc"))} className="inline-flex items-center gap-1 uppercase font-bold tracking-wider bg-transparent border-none cursor-pointer text-inherit p-0" title="Ordenar por vencimento">
+                    Vencimento {ordem === "data_asc" ? <ArrowUpRight className="w-3 h-3 rotate-[-45deg]" /> : <ArrowDownRight className="w-3 h-3 rotate-[45deg]" />}
                   </button>
                 </th>
                 <th className="px-3 py-3">Status</th>
@@ -1016,6 +1034,31 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
           </div>
         </div>
       </Card>
+      ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        {filteredData.map((item) => (
+          <Card key={item.id} className="p-4 rounded-xl space-y-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-[var(--color-text-primary)] truncate flex items-center gap-1.5">{item.description}<RepeatBadge item={item} /></p>
+                <p className="text-[11px] text-[var(--color-text-muted)] truncate">{item.category || "Sem categoria"}{item.counterparty ? ` · ${item.counterparty}` : ""}</p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button type="button" onClick={() => openEdit(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Editar lançamento"><Pencil className="w-3.5 h-3.5" /></button>
+                <button type="button" onClick={() => handleDuplicate(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Duplicar lançamento"><Copy className="w-3.5 h-3.5" /></button>
+                <button type="button" onClick={() => handleDelete(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger rounded-lg cursor-pointer" title="Excluir lançamento"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className={`text-base font-black tabular-nums ${type === "Pagar" ? "text-rose-500" : "text-emerald-600 dark:text-emerald-400"}`}>{type === "Pagar" ? "− " : "+ "}{formatCurrency(item.value)}</span>
+              <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-bold rounded-full border ${getStatusColor(item.status)}`}>{getStatusIcon(item.status)}{item.status}</span>
+            </div>
+            <p className="text-[10px] text-[var(--color-text-faint)]">{parseEntryDate(item.date)?.toLocaleDateString("pt-BR") ?? item.date}{item.payment_method ? ` · ${item.payment_method}` : ""}</p>
+          </Card>
+        ))}
+        {filteredData.length === 0 && <p className="col-span-full py-12 text-center text-xs text-[var(--color-text-faint)]">{temFiltrosAtivos ? "Nenhum lançamento para esses filtros." : "Nenhum lançamento ainda."}</p>}
+      </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">

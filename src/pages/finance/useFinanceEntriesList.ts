@@ -16,8 +16,9 @@ export interface FinanceEntriesFilters {
   dataInicio: string;
   dataFim: string;
   pageSize?: number;
-  /** true = vencimento mais antigo primeiro (padrão: mais recente primeiro). */
-  ascending?: boolean;
+  /** Contraparte (cliente/fornecedor) exata. */
+  contraparte?: string;
+  ordem?: "data_desc" | "data_asc" | "valor_desc" | "valor_asc";
 }
 
 /**
@@ -37,22 +38,24 @@ export interface FinanceEntriesFilters {
  */
 export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
   const { activeTenantId: tenantId, activeFilialId } = useAuth();
-  const { type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, pageSize: PAGE_SIZE = DEFAULT_PAGE_SIZE, ascending = false } = filters;
+  const { type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, pageSize: PAGE_SIZE = DEFAULT_PAGE_SIZE, contraparte = "", ordem = "data_desc" } = filters;
 
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [totalValue, setTotalValue] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
 
-  useEffect(() => { setPage(0); }, [type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, PAGE_SIZE, ascending]);
+  useEffect(() => { setPage(0); }, [type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, PAGE_SIZE, contraparte, ordem]);
 
   const requestIdRef = useRef(0);
 
-  const applyFilters = (query: any) => {
+  const applyFilters = (query: any, skipStatus = false) => {
     let q = query.eq("type", type);
     if (statusFilter) q = q.eq("status", statusFilter);
-    else if (status) q = q.eq("status", status);
+    else if (status && !skipStatus) q = q.eq("status", status);
+    if (contraparte) q = q.eq("counterparty", contraparte);
     if (activeFilialId) q = q.or(`filial_id.is.null,filial_id.eq.${activeFilialId}`);
     if (search.trim()) {
       const term = search.trim().replace(/[%,]/g, "");
@@ -74,9 +77,10 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
       let query = applyFilters(supabase.from("finance_entries").select("*", { count: "exact" }).eq("tenant_id", tenantId));
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const { data, count, error } = await query
-        .order("date_normalized", { ascending, nullsFirst: false })
-        .range(from, to);
+      if (ordem === "valor_desc") query = query.order("value", { ascending: false });
+      else if (ordem === "valor_asc") query = query.order("value", { ascending: true });
+      else query = query.order("date_normalized", { ascending: ordem === "data_asc", nullsFirst: false });
+      const { data, count, error } = await query.range(from, to);
 
       if (requestId !== requestIdRef.current) return;
       if (!error && data) {
@@ -95,11 +99,29 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
     if (data) setTotalValue((data as any[]).reduce((acc, r) => acc + (Number(r.value) || 0), 0));
   };
 
+  // Contagem por status sob os demais filtros (alimenta as abas Todos/Pago/A Vencer/...).
+  const fetchStatusCounts = async () => {
+    if (!supabase || !tenantId) return;
+    const counts: Record<string, number> = {};
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await applyFilters(supabase.from("finance_entries").select("status").eq("tenant_id", tenantId).order("id"), true).range(from, from + 999);
+      if (error || !data) break;
+      for (const r of data as any[]) counts[r.status] = (counts[r.status] || 0) + 1;
+      if (data.length < 1000) break;
+    }
+    setStatusCounts(counts);
+  };
+
+  useEffect(() => {
+    fetchStatusCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, activeFilialId, type, statusFilter, search, categoriaId, contaBancariaId, centroCustoId, dataInicio, dataFim, contraparte]);
+
   useEffect(() => {
     fetchPage();
     fetchTotalValue();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, activeFilialId, type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, page, PAGE_SIZE, ascending]);
+  }, [tenantId, activeFilialId, type, statusFilter, search, categoriaId, status, contaBancariaId, centroCustoId, dataInicio, dataFim, page, PAGE_SIZE, contraparte, ordem]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -121,7 +143,8 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
     totalPages,
     pageSize: PAGE_SIZE,
     loading,
-    refetch: () => { fetchPage(); fetchTotalValue(); },
+    statusCounts,
+    refetch: () => { fetchPage(); fetchTotalValue(); fetchStatusCounts(); },
     fetchAllForExport,
   };
 }

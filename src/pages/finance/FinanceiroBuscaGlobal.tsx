@@ -8,6 +8,7 @@ import { Pagination } from "../../components/ui/Pagination";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../../components/ui/dropdown-menu";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
+import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import {
   Download, Plus, Search, ArrowUpRight, ArrowDownRight, Scale, ListOrdered, Filter, X, MoreVertical,
   CheckCircle2, Clock, AlertCircle, Tag, Users, Building2, ArrowUpDown, Copy, ExternalLink,
@@ -218,26 +219,14 @@ export default function FinanceiroBuscaGlobal() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {kpis.map((k) => (
-            <div key={k.label} className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] p-3 shadow-sm">
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className={cn("w-6 h-6 rounded-md flex items-center justify-center", k.tile)}><k.icon className="w-3.5 h-3.5" /></span>
-                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] truncate">{k.label}</span>
-              </div>
-              <div className="flex items-end justify-between gap-2">
-                <div className="min-w-0">
-                  <p className={cn("text-lg font-black tabular-nums tracking-tight whitespace-nowrap", k.danger ? "text-rose-500" : "text-[var(--color-text-primary)]")}>{k.value}</p>
-                  <span className={cn("inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap", k.chipCls)}>{k.chip}</span>
-                </div>
-                <div className="w-16 h-7 shrink-0" style={{ color: k.color }}>
-                  <Sparkline data={k.data} className="w-full h-full" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <FinanceKpiGrid
+          cards={[
+            { label: "Entradas", value: formatCurrency(entradas), icon: ArrowUpRight, delta: null, goodUp: true, series: series.entradas, footer: `${nEntradas} ${nEntradas === 1 ? "movimentação" : "movimentações"}`, hideDelta: true },
+            { label: "Saídas", value: formatCurrency(saidas), icon: ArrowDownRight, delta: null, goodUp: false, series: series.saidas, footer: `${nSaidas} ${nSaidas === 1 ? "movimentação" : "movimentações"}`, hideDelta: true },
+            { label: "Resultado", value: formatCurrency(entradas - saidas), icon: Scale, delta: null, goodUp: true, series: series.resultado, footer: "Saldo no período", hideDelta: true, danger: entradas - saidas < 0 },
+            { label: "Movimentações", value: String(resultadosMovimentacoes.length), icon: ListOrdered, delta: null, goodUp: null, series: series.qtd, footer: "Total de registros", hideDelta: true },
+          ]}
+        />
 
         {/* Busca e filtros principais */}
         <Card className="p-2.5 rounded-xl">
