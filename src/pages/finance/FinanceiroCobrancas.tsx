@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/button";
 import {
   Receipt, Plus, QrCode, Copy, CheckCircle2, Clock,
   AlertTriangle, ExternalLink, DollarSign, X, Trash2, Check, Download,
-  Send, MessageCircle, Mail
+  Send, MessageCircle, Mail, Eye, User, FolderOpen, Landmark, Wallet, CreditCard, Hash, AlignLeft, Calendar, FileText, Save, Info, Loader2
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { Card } from "../../components/ui/card";
@@ -20,11 +20,20 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { parseEntryDate } from "./lib/financeDates";
+import { Field, FormSection, InfoRow, ModalFooter, ModalTitle, inputCls, selectCls, textareaCls } from "./components/ModalKit";
+import { formatPhone } from "../../lib/utils";
+
+const PAYMENT_METHODS = ["Pix", "Boleto", "Cartão de Crédito", "Cartão de Débito", "Transferência/TED", "Dinheiro", "Cheque", "Outro"];
+const todayIso = () => new Date().toISOString().split("T")[0];
+const emptyCobranca = () => ({
+  cliente: "", valor: "", vencimento: todayIso(), metodo: "Pix", categoryId: "",
+  notes: "", numeroDocumento: "", contaBancariaId: "", centroCustoId: "",
+});
 
 const PAGE_SIZE = 50;
 
 export default function FinanceiroCobrancas() {
-  const { financeEntries, addFinanceEntry, updateFinanceEntry, deleteFinanceEntry, appSettings } = useData();
+  const { financeEntries, addFinanceEntry, updateFinanceEntry, deleteFinanceEntry, appSettings, clienteBase, financeCategories, financeBankAccounts, financeCentrosCusto } = useData();
   const { user, activeTenantName } = useAuth();
   const { formatCurrency } = useLocalization();
   const { dataInicio, dataFim, label: periodoLabel } = useFinanceiroFiltro();
@@ -32,18 +41,20 @@ export default function FinanceiroCobrancas() {
   const [statusFilter, setStatusFilter] = useState("Todos");
   const [metodoFilter, setMetodoFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [novaCobranca, setNovaCobranca] = useState({
-    cliente: "",
-    valor: "",
-    vencimento: new Date().toISOString().split("T")[0],
-    metodo: "Pix",
-    categoria: "Receita de Vendas",
-  });
+  const [novaCobranca, setNovaCobranca] = useState(emptyCobranca);
+  const [formErrors, setFormErrors] = useState<{ cliente?: string; valor?: string }>({});
+  const [saving, setSaving] = useState(false);
+  const [detalhe, setDetalhe] = useState<any | null>(null);
+  const categoriasReceita = useMemo(() => (financeCategories as any[]).filter(c => c.tipo === "Receita"), [financeCategories]);
+  const contasAtivas = useMemo(() => (financeBankAccounts as any[]).filter(c => !c.arquivada), [financeBankAccounts]);
+  const clientesSugeridos = useMemo(() => (clienteBase as any[]).filter(c => c.tipos?.includes("CLIENTE")), [clienteBase]);
+  const resolverCliente = (nome: string) => clientesSugeridos.find(c => c.name?.toLowerCase() === nome.trim().toLowerCase()) || null;
+  const clienteResolvido = novaCobranca.cliente.trim() ? resolverCliente(novaCobranca.cliente) : null;
 
   const empresaDados = appSettings?.empresa_dados || {};
   const tenantName = empresaDados?.nomeFantasia || empresaDados?.razaoSocial || activeTenantName || "nossa empresa";
 
-  const [sendingCobranca, setSendingCobranca] = useState<{ id: string; cliente: string; valor: number; vencimento: string } | null>(null);
+  const [sendingCobranca, setSendingCobranca] = useState<{ id: string; cliente: string; valor: number; vencimento: string; contatoId?: string | null } | null>(null);
   const [sendPhone, setSendPhone] = useState("");
   const [sendEmail, setSendEmail] = useState("");
 
@@ -55,9 +66,11 @@ export default function FinanceiroCobrancas() {
         cliente: f.description,
         valor: f.value,
         vencimento: f.date,
-        metodo: f.value > 2000 ? "Boleto" : "Pix",
+        metodo: f.payment_method || (f.value > 2000 ? "Boleto" : "Pix"),
         status: f.status === "Pago" ? "Liquidada" : "Pendente",
         categoria: f.category,
+        contatoId: f.contato_id || null,
+        entry: f,
       }));
   }, [financeEntries]);
 
@@ -107,10 +120,12 @@ export default function FinanceiroCobrancas() {
     toast.success(`Chave Copia e Cola Pix gerada para ${cliente}!`);
   };
 
-  const openSendCobranca = (c: { id: string; cliente: string; valor: number; vencimento: string }) => {
+  const openSendCobranca = (c: { id: string; cliente: string; valor: number; vencimento: string; contatoId?: string | null }) => {
     setSendingCobranca(c);
-    setSendPhone("");
-    setSendEmail("");
+    // Se a cobrança está ligada a um Contato cadastrado, aproveita o telefone/e-mail dele.
+    const contato = c.contatoId ? (clienteBase as any[]).find(x => x.id === c.contatoId) : resolverCliente(c.cliente);
+    setSendPhone(contato?.phone ? formatPhone(contato.phone) : "");
+    setSendEmail(contato?.email || "");
   };
 
   const buildCobrancaMessage = (c: { cliente: string; valor: number; vencimento: string }) => {
@@ -124,8 +139,8 @@ export default function FinanceiroCobrancas() {
   const handleSendWhatsApp = () => {
     if (!sendingCobranca) return;
     const digits = sendPhone.replace(/\D/g, "");
-    if (!digits) {
-      toast.error("Informe o número de WhatsApp do cliente.");
+    if (digits.length < 10) {
+      toast.error("Informe o WhatsApp do cliente com DDD.");
       return;
     }
     const phone = digits.length <= 11 ? `55${digits}` : digits;
@@ -136,8 +151,8 @@ export default function FinanceiroCobrancas() {
 
   const handleSendEmail = () => {
     if (!sendingCobranca) return;
-    if (!sendEmail.trim()) {
-      toast.error("Informe o e-mail do cliente.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sendEmail.trim())) {
+      toast.error("Informe um e-mail válido do cliente.");
       return;
     }
     const subject = encodeURIComponent(`Cobrança ${tenantName} — ${sendingCobranca.cliente}`);
@@ -166,36 +181,44 @@ export default function FinanceiroCobrancas() {
     toast.success("Cobrança removida.");
   };
 
-  const handleCreateCobranca = (e: React.FormEvent) => {
+  const closeNovaCobranca = () => { if (saving) return; setShowModal(false); setNovaCobranca(emptyCobranca()); setFormErrors({}); };
+
+  const handleCreateCobranca = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!novaCobranca.cliente.trim()) {
-      toast.error("Informe o cliente / sacado.");
-      return;
-    }
-    const val = parseFloat(novaCobranca.valor.replace(/\./g, "").replace(",", ".")) || 0;
-    if (val <= 0) {
-      toast.error("Informe um valor positivo.");
-      return;
-    }
+    const errs: typeof formErrors = {};
+    if (!novaCobranca.cliente.trim()) errs.cliente = "Informe o cliente / sacado.";
+    const val = parseFloat(novaCobranca.valor) || 0;
+    if (val <= 0) errs.valor = "Informe um valor maior que zero.";
+    setFormErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
-    addFinanceEntry({
-      description: novaCobranca.cliente.trim(),
-      value: val,
-      type: "Receber",
-      category: novaCobranca.categoria || "Serviços / Honorários",
-      date: novaCobranca.vencimento,
-      status: "A Vencer",
-    });
-
-    toast.success("Cobrança emitida e vinculada ao Contas a Receber!");
-    setShowModal(false);
-    setNovaCobranca({
-      cliente: "",
-      valor: "",
-      vencimento: new Date().toISOString().split("T")[0],
-      metodo: "Pix",
-      categoria: "Receita de Vendas",
-    });
+    const categoria = categoriasReceita.find(c => c.id === novaCobranca.categoryId);
+    const contato = resolverCliente(novaCobranca.cliente);
+    setSaving(true);
+    try {
+      await addFinanceEntry({
+        description: novaCobranca.cliente.trim(),
+        counterparty: novaCobranca.cliente.trim(),
+        contato_id: contato?.id || null,
+        value: val,
+        type: "Receber",
+        category: categoria?.nome || "Serviços / Honorários",
+        category_id: categoria?.id || null,
+        date: novaCobranca.vencimento || todayIso(),
+        status: "A Vencer",
+        payment_method: novaCobranca.metodo || null,
+        notes: novaCobranca.notes.trim() || null,
+        numero_documento: novaCobranca.numeroDocumento.trim() || null,
+        conta_bancaria_id: novaCobranca.contaBancariaId || null,
+        centro_custo_id: novaCobranca.centroCustoId || null,
+      });
+      toast.success("Cobrança emitida e vinculada ao Contas a Receber!");
+      setShowModal(false);
+      setNovaCobranca(emptyCobranca());
+      setFormErrors({});
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -261,7 +284,7 @@ export default function FinanceiroCobrancas() {
       >
         <FilterBar>
           <FilterSearch value={search} onChange={setSearch} placeholder="Buscar cobrança por cliente ou método..." />
-          <FilterSelect icon={QrCode} value={metodoFilter} onChange={setMetodoFilter} options={["Pix", "Boleto"]} allLabel="Todos os métodos" />
+          <FilterSelect icon={QrCode} value={metodoFilter} onChange={setMetodoFilter} options={Array.from(new Set(cobrancas.map(c => c.metodo))).sort()} allLabel="Todos os métodos" />
           <FilterChips value={statusFilter} onChange={setStatusFilter} allValue="Todos" allLabel="Todos" options={["Liquidada", "Pendente"]} />
         </FilterBar>
       </FinanceKpiFilter>
@@ -311,7 +334,7 @@ export default function FinanceiroCobrancas() {
             <tbody className="divide-y divide-[var(--color-border-subtle)]">
               {pageItems.map(c => (
                 <tr key={c.id} className="hover:bg-[var(--color-surface-sunken)]/40 transition-colors">
-                  <td className="px-5 py-3.5 font-bold text-[var(--color-text-primary)]">{c.cliente}</td>
+                  <td className="px-5 py-3.5 font-bold text-[var(--color-text-primary)]"><button type="button" onClick={() => setDetalhe(c)} className="text-left hover:text-[var(--color-primary-blue)] cursor-pointer">{c.cliente}</button></td>
                   <td className="px-4 py-3.5">
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
                       {c.metodo}
@@ -336,6 +359,13 @@ export default function FinanceiroCobrancas() {
                     {formatCurrency(c.valor)}
                   </td>
                   <td className="px-5 py-3.5 text-right flex items-center justify-end gap-1.5">
+                    <button
+                      onClick={() => setDetalhe(c)}
+                      title="Ver detalhes da cobrança"
+                      className="p-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handleCopyPix(c.cliente, c.valor)}
                       className="px-2.5 py-1 rounded-lg bg-[var(--color-surface-sunken)] hover:bg-[var(--color-primary-blue)] hover:text-white border border-[var(--color-border-default)] text-[11px] font-bold transition-all inline-flex items-center gap-1"
@@ -375,136 +405,187 @@ export default function FinanceiroCobrancas() {
 
       <Modal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title="Nova Cobrança"
-        description="Emita uma nova ordem de cobrança via Pix, Boleto ou Cartão com conciliação automática."
-        maxWidth="max-w-md"
+        onClose={closeNovaCobranca}
+        title={<ModalTitle icon={Receipt} tone="success" title="Nova Cobrança" subtitle="Emita um título a receber — ele entra direto em Contas a Receber." />}
+        maxWidth="max-w-xl"
       >
-        <form onSubmit={handleCreateCobranca} className="space-y-3">
-          <div>
-            <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-1">
-              Cliente / Sacado *
-            </label>
-            <input
-              value={novaCobranca.cliente}
-              onChange={e => setNovaCobranca({ ...novaCobranca, cliente: e.target.value })}
-              placeholder="Nome do cliente ou empresa"
+        <form onSubmit={handleCreateCobranca} className="space-y-4" noValidate>
+          <FormSection icon={User} title="Cliente e valor">
+            <Field
+              label="Cliente / sacado"
+              icon={User}
               required
-              className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-1">
-                Valor (R$) *
-              </label>
+              error={formErrors.cliente}
+              hint={novaCobranca.cliente.trim() ? (clienteResolvido ? "Cliente cadastrado: a cobrança será vinculada ao contato." : "Não está nos Contatos: será salvo só como nome.") : "Digite ou escolha um cliente cadastrado."}
+            >
               <input
-                value={novaCobranca.valor}
-                onChange={e => setNovaCobranca({ ...novaCobranca, valor: e.target.value })}
-                placeholder="1500.00"
-                required
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] font-mono focus:outline-none focus:border-[var(--color-primary-blue)]"
+                list="cobranca-clientes"
+                autoFocus
+                value={novaCobranca.cliente}
+                onChange={e => { setNovaCobranca({ ...novaCobranca, cliente: e.target.value }); setFormErrors(p => ({ ...p, cliente: undefined })); }}
+                placeholder="Nome do cliente ou empresa"
+                className={inputCls(!!formErrors.cliente)}
               />
+              <datalist id="cobranca-clientes">{clientesSugeridos.map((c: any) => <option key={c.id} value={c.name} />)}</datalist>
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Valor (R$)" icon={DollarSign} required error={formErrors.valor}>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={novaCobranca.valor}
+                  onChange={e => { setNovaCobranca({ ...novaCobranca, valor: e.target.value }); setFormErrors(p => ({ ...p, valor: undefined })); }}
+                  placeholder="1500,00"
+                  className={`${inputCls(!!formErrors.valor)} font-mono`}
+                />
+              </Field>
+              <Field label="Vencimento" icon={Calendar} hint={!novaCobranca.vencimento ? "Em branco = hoje." : undefined}>
+                <input type="date" value={novaCobranca.vencimento} onChange={e => setNovaCobranca({ ...novaCobranca, vencimento: e.target.value })} className={inputCls()} />
+              </Field>
             </div>
-            <div>
-              <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-1">
-                Método
-              </label>
-              <select
-                value={novaCobranca.metodo}
-                onChange={e => setNovaCobranca({ ...novaCobranca, metodo: e.target.value })}
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              >
-                <option value="Pix">Pix Dinâmico</option>
-                <option value="Boleto">Boleto Bancário</option>
-                <option value="Cartao">Cartão de Crédito</option>
-              </select>
-            </div>
-          </div>
+          </FormSection>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-1">
-                Vencimento
-              </label>
-              <input
-                type="date"
-                value={novaCobranca.vencimento}
-                onChange={e => setNovaCobranca({ ...novaCobranca, vencimento: e.target.value })}
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
+          <FormSection icon={CreditCard} title="Cobrança">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Forma de recebimento" icon={CreditCard} hint="Fica gravada no lançamento.">
+                <select value={novaCobranca.metodo} onChange={e => setNovaCobranca({ ...novaCobranca, metodo: e.target.value })} className={selectCls()}>
+                  {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </Field>
+              <Field label="Categoria" icon={FolderOpen} hint={categoriasReceita.length === 0 ? "Nenhuma categoria de receita cadastrada." : undefined}>
+                <select value={novaCobranca.categoryId} onChange={e => setNovaCobranca({ ...novaCobranca, categoryId: e.target.value })} className={selectCls()}>
+                  <option value="">Padrão (Serviços / Honorários)</option>
+                  {categoriasReceita.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </Field>
+              <Field label="Conta bancária" icon={Landmark}>
+                <select value={novaCobranca.contaBancariaId} onChange={e => setNovaCobranca({ ...novaCobranca, contaBancariaId: e.target.value })} className={selectCls()}>
+                  <option value="">Não vinculada</option>
+                  {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}{c.is_principal ? " (Principal)" : ""}</option>)}
+                </select>
+              </Field>
+              <Field label="Centro de custo" icon={Wallet}>
+                <select value={novaCobranca.centroCustoId} onChange={e => setNovaCobranca({ ...novaCobranca, centroCustoId: e.target.value })} className={selectCls()}>
+                  <option value="">Não informado</option>
+                  {(financeCentrosCusto as any[]).map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </Field>
+              <Field label="Nº da nota fiscal / documento" icon={Hash} className="sm:col-span-2">
+                <input value={novaCobranca.numeroDocumento} onChange={e => setNovaCobranca({ ...novaCobranca, numeroDocumento: e.target.value })} placeholder="Ex: NF-e 12345" className={inputCls()} />
+              </Field>
             </div>
-            <div>
-              <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-1">
-                Categoria
-              </label>
-              <input
-                value={novaCobranca.categoria}
-                onChange={e => setNovaCobranca({ ...novaCobranca, categoria: e.target.value })}
-                placeholder="Honorários, Produtos..."
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
-            </div>
-          </div>
+            <Field label="Observações" icon={AlignLeft} hint={`${novaCobranca.notes.length}/500`}>
+              <textarea rows={2} maxLength={500} value={novaCobranca.notes} onChange={e => setNovaCobranca({ ...novaCobranca, notes: e.target.value })} placeholder="Detalhes da cobrança (opcional)" className={textareaCls} />
+            </Field>
+          </FormSection>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
-            <Button type="button" variant="ghost" onClick={() => setShowModal(false)} className="text-xs">
-              Cancelar
-            </Button>
-            <Button type="submit" className="text-xs font-bold bg-[var(--color-primary-blue)] text-white">
-              Emitir Cobrança
-            </Button>
-          </div>
+          {(parseFloat(novaCobranca.valor) || 0) > 0 && (
+            <div className="rounded-xl border border-[var(--color-primary-blue)]/20 bg-[var(--color-primary-blue)]/[0.05] p-3 text-xs text-[var(--color-text-primary)] flex items-start gap-2">
+              <Info className="w-3.5 h-3.5 text-[var(--color-primary-blue)] shrink-0 mt-0.5" />
+              <span>Será emitida uma cobrança de <b className="font-mono">{formatCurrency(parseFloat(novaCobranca.valor) || 0)}</b> via <b>{novaCobranca.metodo}</b> com vencimento em <b>{(novaCobranca.vencimento ? new Date(novaCobranca.vencimento + "T12:00:00") : new Date()).toLocaleDateString("pt-BR")}</b>, com status “A Vencer”.</span>
+            </div>
+          )}
+
+          <ModalFooter onCancel={closeNovaCobranca} saving={saving} submitLabel="Emitir cobrança" submitIcon={Save} />
         </form>
+      </Modal>
+
+      {/* Detalhes da cobrança */}
+      <Modal
+        isOpen={!!detalhe}
+        onClose={() => setDetalhe(null)}
+        title={<ModalTitle icon={Receipt} tone={detalhe?.status === "Liquidada" ? "success" : "warning"} title={detalhe?.cliente || "Cobrança"} subtitle="Detalhes da cobrança" />}
+        maxWidth="max-w-lg"
+      >
+        {detalhe && (() => {
+          const e = detalhe.entry || {};
+          const venc = parseEntryDate(detalhe.vencimento);
+          const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+          const diasAtraso = venc && detalhe.status === "Pendente" && venc < hoje ? Math.floor((hoje.getTime() - venc.getTime()) / 86400000) : 0;
+          const conta = e.conta_bancaria_id ? (financeBankAccounts as any[]).find(c => c.id === e.conta_bancaria_id)?.nome : null;
+          const centro = e.centro_custo_id ? (financeCentrosCusto as any[]).find(c => c.id === e.centro_custo_id)?.nome : null;
+          const contato = e.contato_id ? (clienteBase as any[]).find(c => c.id === e.contato_id) : null;
+          return (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/60 p-3.5 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-faint)]">Valor</div>
+                  <div className="text-xl font-black font-mono text-[var(--color-text-primary)]">{formatCurrency(detalhe.valor)}</div>
+                </div>
+                <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border inline-flex items-center gap-1 ${detalhe.status === "Liquidada" ? "bg-success/10 text-success border-success/20" : "bg-warning/10 text-warning border-warning/20"}`}>
+                  {detalhe.status === "Liquidada" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                  {detalhe.status}
+                </span>
+              </div>
+              {diasAtraso > 0 && (
+                <p className="text-[11px] text-danger flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Vencida há {diasAtraso} dia(s).</p>
+              )}
+              <FormSection icon={FileText} title="Informações">
+                <div className="space-y-2">
+                  <InfoRow label="Vencimento" value={venc ? venc.toLocaleDateString("pt-BR") : detalhe.vencimento} />
+                  <InfoRow label="Forma de recebimento" value={detalhe.metodo} />
+                  <InfoRow label="Categoria" value={detalhe.categoria} />
+                  <InfoRow label="Contato vinculado" value={contato ? `${contato.name}${contato.phone ? ` · ${contato.phone}` : ""}` : e.counterparty} />
+                  <InfoRow label="Conta bancária" value={conta} />
+                  <InfoRow label="Centro de custo" value={centro} />
+                  <InfoRow label="Nº da nota / documento" value={e.numero_documento} mono />
+                  {e.installment_total ? <InfoRow label="Parcela" value={`${e.installment_number} de ${e.installment_total}`} /> : null}
+                  {e.is_recurring ? <InfoRow label="Recorrência" value={e.recurring_frequency} /> : null}
+                </div>
+                {e.notes && <p className="text-xs text-[var(--color-text-muted)] whitespace-pre-wrap border-t border-[var(--color-border-subtle)] pt-2">{e.notes}</p>}
+              </FormSection>
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--color-border-subtle)] flex-wrap">
+                <Button type="button" variant="outline" onClick={() => { handleToggleStatus(detalhe.id, detalhe.status); setDetalhe(null); }} className="h-9 px-3 text-xs font-bold gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {detalhe.status === "Liquidada" ? "Voltar para A Vencer" : "Marcar como liquidada"}
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={() => handleCopyPix(detalhe.cliente, detalhe.valor)} className="h-9 px-3 text-xs font-bold gap-1.5"><Copy className="w-3.5 h-3.5" /> Pix</Button>
+                  <Button type="button" onClick={() => { const c = detalhe; setDetalhe(null); openSendCobranca(c); }} className="h-9 px-4 text-xs font-bold gap-1.5"><Send className="w-3.5 h-3.5" /> Enviar</Button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       <Modal
         isOpen={!!sendingCobranca}
         onClose={() => setSendingCobranca(null)}
-        title="Enviar Cobrança ao Cliente"
-        description="Monta a mensagem de cobrança e abre pronta no WhatsApp ou no seu e-mail para envio."
-        maxWidth="max-w-md"
+        title={<ModalTitle icon={Send} title="Enviar Cobrança ao Cliente" subtitle="Abre a mensagem pronta no WhatsApp ou no seu e-mail." />}
+        maxWidth="max-w-lg"
       >
         {sendingCobranca && (
           <div className="space-y-4">
-            <div className="p-3 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)] leading-relaxed whitespace-pre-wrap">
-              {buildCobrancaMessage(sendingCobranca)}
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] flex items-center gap-1.5 mb-1">
-                <MessageCircle className="w-3 h-3" /> WhatsApp do Cliente
-              </label>
-              <div className="flex gap-2">
-                <input
-                  value={sendPhone}
-                  onChange={e => setSendPhone(e.target.value)}
-                  placeholder="(00) 00000-0000"
-                  className="flex-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] font-mono focus:outline-none focus:border-[var(--color-primary-blue)]"
-                />
-                <Button type="button" onClick={handleSendWhatsApp} className="text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white shrink-0">
-                  <Send className="w-3.5 h-3.5" /> WhatsApp
-                </Button>
+            <FormSection icon={MessageCircle} title="Mensagem">
+              <div className="p-3 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)] leading-relaxed whitespace-pre-wrap">
+                {buildCobrancaMessage(sendingCobranca)}
               </div>
-            </div>
+              <p className="text-[10px] text-[var(--color-text-faint)]">O envio é feito por você, no app aberto: nada é enviado automaticamente.</p>
+            </FormSection>
 
-            <div>
-              <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] flex items-center gap-1.5 mb-1">
-                <Mail className="w-3 h-3" /> E-mail do Cliente
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={sendEmail}
-                  onChange={e => setSendEmail(e.target.value)}
-                  placeholder="cliente@empresa.com"
-                  className="flex-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-                />
-                <Button type="button" onClick={handleSendEmail} variant="outline" className="text-xs font-bold gap-1.5 shrink-0">
-                  <Send className="w-3.5 h-3.5" /> E-mail
-                </Button>
-              </div>
+            <FormSection icon={Send} title="Destinatário">
+              <Field label="WhatsApp do cliente" icon={MessageCircle} hint={sendPhone ? undefined : "Informe com DDD."}>
+                <div className="flex gap-2">
+                  <input value={sendPhone} onChange={e => setSendPhone(formatPhone(e.target.value))} inputMode="tel" placeholder="(00) 00000-0000" className={`${inputCls()} font-mono flex-1`} />
+                  <Button type="button" onClick={handleSendWhatsApp} className="h-9 text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white shrink-0">
+                    <Send className="w-3.5 h-3.5" /> WhatsApp
+                  </Button>
+                </div>
+              </Field>
+              <Field label="E-mail do cliente" icon={Mail}>
+                <div className="flex gap-2">
+                  <input type="email" value={sendEmail} onChange={e => setSendEmail(e.target.value)} placeholder="cliente@empresa.com" className={`${inputCls()} flex-1`} />
+                  <Button type="button" onClick={handleSendEmail} variant="outline" className="h-9 text-xs font-bold gap-1.5 shrink-0">
+                    <Send className="w-3.5 h-3.5" /> E-mail
+                  </Button>
+                </div>
+              </Field>
+              {(sendPhone || sendEmail) && sendingCobranca.contatoId && <p className="text-[10px] text-[var(--color-text-faint)]">Preenchido a partir do contato cadastrado.</p>}
+            </FormSection>
+
+            <div className="flex justify-end pt-3 border-t border-[var(--color-border-subtle)]">
+              <Button type="button" variant="outline" onClick={() => setSendingCobranca(null)} className="h-9 px-4 text-xs font-bold border-[var(--color-border-default)]">Fechar</Button>
             </div>
           </div>
         )}

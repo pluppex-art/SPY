@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
-import { ArrowUpRight, ArrowDownRight, DollarSign, Repeat, Layers } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, DollarSign, Repeat, Layers, FileText, AlignLeft, FolderOpen, User, CreditCard, Landmark, Tag, Calendar, CalendarCheck, Hash, Save, X, Info, ListChecks, Wallet } from "lucide-react";
+import { Field, FormSection, ModalFooter, ModalTitle, inputCls, selectCls, textareaCls } from "./ModalKit";
 import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
 import { toast } from "sonner";
@@ -68,12 +69,15 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
   const [frequency, setFrequency] = useState<Frequencia>("mensal");
   const [ocorrencias, setOcorrencias] = useState("12");
   const [parcelas, setParcelas] = useState("2");
+  const [numeroDocumento, setNumeroDocumento] = useState("");
+  const [competencia, setCompetencia] = useState("");
+  const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ desc?: string; value?: string; category?: string }>({});
 
   const resetForm = () => {
     setDesc(""); setNotes(""); setCategoryId("");
     setContaBancariaId(contaPrincipalId); setCentroCustoId(""); setTags("");
-    setCounterparty(""); setPaymentMethod(""); setValue(""); setDate("");
+    setCounterparty(""); setPaymentMethod(""); setValue(""); setDate(""); setNumeroDocumento(""); setCompetencia(""); setSaving(false);
     setRepeatMode("none"); setFrequency("mensal"); setOcorrencias("12"); setParcelas("2");
     setErrors({}); setShowNovaCategoria(false); setNovaCategoriaNome("");
   };
@@ -93,6 +97,22 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
     return created?.id ?? null;
   };
 
+  const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // Competência é opcional; nas séries (recorrência/parcelas) acompanha o mesmo deslocamento do vencimento.
+  const competenciaFields = (i: number) => {
+    if (!competencia) return {};
+    const base = new Date(competencia + "T12:00:00");
+    return { competencia_date: toIso(i === 0 || repeatMode === "none" ? base : addPeriodo(base, frequency, i)) };
+  };
+
+  const totalNum = parseFloat(value) || 0;
+  const nOcorr = Math.min(60, Math.max(1, parseInt(ocorrencias, 10) || 1));
+  const nParc = Math.min(60, Math.max(2, parseInt(parcelas, 10) || 2));
+  const serieBase = date ? new Date(date + "T12:00:00") : new Date();
+  const serieN = repeatMode === "recorrente" ? nOcorr : repeatMode === "parcelado" ? nParc : 1;
+  const ultimaData = serieN > 1 ? addPeriodo(serieBase, frequency, serieN - 1) : serieBase;
+  const totalGerado = repeatMode === "recorrente" ? totalNum * nOcorr : totalNum;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const totalValor = parseFloat(value) || 0;
@@ -108,6 +128,8 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
+    setSaving(true);
+    try {
     const categoriaSelecionada = categoriasDoTipo.find(c => c.id === catId);
     const baseDate = date ? new Date(date + "T12:00:00") : new Date();
     const baseFields = {
@@ -121,6 +143,7 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
       counterparty: counterparty || null,
       contato_id: counterparty ? resolverContatoId(counterparty) : null,
       payment_method: paymentMethod || null,
+      numero_documento: numeroDocumento.trim() || null,
       status: "A Vencer" as const,
       type,
     };
@@ -130,7 +153,7 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
       const groupId = crypto.randomUUID();
       for (let i = 0; i < ocs; i++) {
         const dataOcorrencia = i === 0 ? baseDate : addPeriodo(baseDate, frequency, i);
-        addFinanceEntry({ ...baseFields, value: totalValor, date: dataOcorrencia.toLocaleDateString("pt-BR"), is_recurring: true, recurring_frequency: frequency, recurring_group_id: groupId }, { silent: i > 0 });
+        addFinanceEntry({ ...baseFields, value: totalValor, date: dataOcorrencia.toLocaleDateString("pt-BR"), ...competenciaFields(i), is_recurring: true, recurring_frequency: frequency, recurring_group_id: groupId }, { silent: i > 0 });
       }
       if (ocs > 1) toast.success(`${ocs} lançamentos recorrentes gerados.`);
     } else if (repeatMode === "parcelado") {
@@ -139,32 +162,38 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
       const groupId = crypto.randomUUID();
       valores.forEach((valorParcela, i) => {
         const dataParcela = i === 0 ? baseDate : addPeriodo(baseDate, frequency, i);
-        addFinanceEntry({ ...baseFields, value: valorParcela, date: dataParcela.toLocaleDateString("pt-BR"), installment_group_id: groupId, installment_number: i + 1, installment_total: numParcelas }, { silent: i > 0 });
+        addFinanceEntry({ ...baseFields, value: valorParcela, date: dataParcela.toLocaleDateString("pt-BR"), ...competenciaFields(i), installment_group_id: groupId, installment_number: i + 1, installment_total: numParcelas }, { silent: i > 0 });
       });
       toast.success(`${numParcelas} parcelas geradas (${formatCurrency(valores[0])} cada, ajustado na última).`);
     } else {
-      await addFinanceEntry({ ...baseFields, value: totalValor, date: baseDate.toLocaleDateString("pt-BR") });
+      await addFinanceEntry({ ...baseFields, value: totalValor, date: baseDate.toLocaleDateString("pt-BR"), ...competenciaFields(0) });
       toast.success(type === "Pagar" ? "Despesa lançada." : "Recebimento lançado.");
     }
 
     onClose();
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const isPagar = type === "Pagar";
+  const FREQ_OPTS = [["semanal", "Semanal"], ["quinzenal", "Quinzenal"], ["mensal", "Mensal"], ["bimestral", "Bimestral"], ["trimestral", "Trimestral"], ["semestral", "Semestral"], ["anual", "Anual"]];
+  const fmtDate = (d: Date) => d.toLocaleDateString("pt-BR");
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
-      title={type === "Pagar" ? "Novo Gasto / Despesa" : "Novo Recebimento / Receita"}
-      description="Registre um lançamento financeiro no sistema com classificação de categoria e vencimento."
-      maxWidth="max-w-lg"
+      onClose={() => { if (!saving) onClose(); }}
+      title={<ModalTitle icon={DollarSign} tone={isPagar ? "danger" : "success"} title={isPagar ? "Novo Gasto / Despesa" : "Novo Recebimento / Receita"} subtitle="Registre um lançamento financeiro com classificação, vencimento e, se quiser, recorrência ou parcelas." />}
+      maxWidth="max-w-2xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {!lockType && (
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => { setType("Pagar"); setCategoryId(""); }}
-              className={cn("flex items-center justify-center gap-1.5 py-2.5 rounded-[var(--radius-control)] border text-xs font-semibold transition-colors cursor-pointer",
+              className={cn("flex items-center justify-center gap-1.5 h-9 rounded-lg border text-xs font-bold transition-colors cursor-pointer",
                 type === "Pagar" ? "bg-[var(--color-danger)]/10 border-[var(--color-danger)]/40 text-[var(--color-danger)]" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
             >
               <ArrowDownRight className="w-3.5 h-3.5" /> Despesa
@@ -172,7 +201,7 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
             <button
               type="button"
               onClick={() => { setType("Receber"); setCategoryId(""); }}
-              className={cn("flex items-center justify-center gap-1.5 py-2.5 rounded-[var(--radius-control)] border text-xs font-semibold transition-colors cursor-pointer",
+              className={cn("flex items-center justify-center gap-1.5 h-9 rounded-lg border text-xs font-bold transition-colors cursor-pointer",
                 type === "Receber" ? "bg-[var(--color-success)]/10 border-[var(--color-success)]/40 text-[var(--color-success)]" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
             >
               <ArrowUpRight className="w-3.5 h-3.5" /> Receita
@@ -180,236 +209,178 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
           </div>
         )}
 
-        <div>
-          <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Nome do Lançamento *</label>
-          <input
-            type="text"
-            required
-            autoFocus
-            placeholder="Ex: Servidor AWS, Licença de Software, Fatura..."
-            value={desc}
-            onChange={(e) => { setDesc(e.target.value); setErrors(prev => ({ ...prev, desc: undefined })); }}
-            className={cn("w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]", errors.desc ? "border-[var(--color-danger)]" : "border-[var(--color-border-default)]")}
-          />
-          {errors.desc && <p className="text-[10px] text-[var(--color-danger)] mt-1">{errors.desc}</p>}
-        </div>
-
-        <div>
-          <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Descrição / Observações</label>
-          <textarea
-            rows={2}
-            placeholder="Detalhes adicionais deste lançamento (opcional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] resize-none"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Categoria Financeira *</label>
-            {!showNovaCategoria ? (
-              <select
-                required
-                value={categoryId}
-                onChange={(e) => {
-                  if (e.target.value === "__nova__") { setShowNovaCategoria(true); return; }
-                  setCategoryId(e.target.value);
-                  setErrors(prev => ({ ...prev, category: undefined }));
-                }}
-                className={cn("w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer", errors.category ? "border-[var(--color-danger)]" : "border-[var(--color-border-default)]")}
-              >
-                <option value="">Selecione...</option>
-                {categoriasDoTipo.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                <option value="__nova__">+ Criar nova categoria...</option>
-              </select>
-            ) : (
-              <div className="flex gap-1.5">
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="Nome da categoria"
-                  value={novaCategoriaNome}
-                  onChange={(e) => setNovaCategoriaNome(e.target.value)}
-                  className="flex-1 min-w-0 bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-                />
-                <button type="button" onClick={() => setShowNovaCategoria(false)} className="text-xs text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] px-1">✕</button>
-              </div>
-            )}
-            {type === "Pagar" && showNovaCategoria && (
-              <select
-                value={novaCategoriaSubtipo}
-                onChange={(e) => setNovaCategoriaSubtipo(e.target.value as typeof novaCategoriaSubtipo)}
-                className="w-full mt-1.5 bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-1.5 text-[11px] focus:outline-none cursor-pointer"
-              >
-                <option value="DESPESA_FIXA">Despesa Fixa</option>
-                <option value="DESPESA_VARIAVEL">Despesa Variável</option>
-                <option value="PESSOAS">Pessoas</option>
-                <option value="IMPOSTOS">Impostos</option>
-              </select>
-            )}
-            {errors.category && <p className="text-[10px] text-[var(--color-danger)] mt-1">{errors.category}</p>}
-          </div>
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">{type === "Pagar" ? "Fornecedor" : "Cliente"}</label>
+        <FormSection icon={FileText} title="Identificação">
+          <Field label="Nome do lançamento" icon={FileText} required error={errors.desc}>
             <input
               type="text"
-              list="contatos-sugeridos-nova-operacao"
-              placeholder={type === "Pagar" ? "Ex: AWS, Fornecedor X" : "Ex: Nome do cliente"}
-              value={counterparty}
-              onChange={(e) => setCounterparty(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+              autoFocus
+              placeholder="Ex: Servidor AWS, Licença de Software, Fatura..."
+              value={desc}
+              onChange={(e) => { setDesc(e.target.value); setErrors(prev => ({ ...prev, desc: undefined })); }}
+              className={inputCls(!!errors.desc)}
             />
-            <datalist id="contatos-sugeridos-nova-operacao">
-              {contatosSugeridos.map((c: any) => <option key={c.id} value={c.name} />)}
-            </datalist>
-          </div>
-        </div>
+          </Field>
+          <Field label="Descrição / Observações" icon={AlignLeft} hint={`${notes.length}/500`}>
+            <textarea rows={2} maxLength={500} placeholder="Detalhes adicionais deste lançamento (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} className={textareaCls} />
+          </Field>
+        </FormSection>
 
-        <div>
-          <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Forma de {type === "Pagar" ? "Pagamento" : "Recebimento"}</label>
-          <select
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
-          >
-            <option value="">Não informado</option>
-            {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Conta Bancária</label>
-          <select
-            value={contaBancariaId}
-            onChange={(e) => setContaBancariaId(e.target.value)}
-            className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
-          >
-            <option value="">Não vinculada</option>
-            {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}{c.is_principal ? " (Principal)" : ""}</option>)}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Centro de Custo</label>
-            <select
-              value={centroCustoId}
-              onChange={(e) => setCentroCustoId(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
-            >
-              <option value="">Não informado</option>
-              {(financeCentrosCusto as any[]).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Tags</label>
-            <input
-              type="text"
-              placeholder="separadas por vírgula"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">
-              {repeatMode === "parcelado" ? "Valor Total (R$) *" : "Valor (R$) *"}
-            </label>
-            <input
-              type="number"
-              required
-              step="0.01"
-              placeholder="0,00"
-              value={value}
-              onChange={(e) => { setValue(e.target.value); setErrors(prev => ({ ...prev, value: undefined })); }}
-              className={cn("w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono", errors.value ? "border-[var(--color-danger)]" : "border-[var(--color-border-default)]")}
-            />
-            {errors.value && <p className="text-[10px] text-[var(--color-danger)] mt-1">{errors.value}</p>}
-          </div>
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">
-              {repeatMode === "none" ? "Data de Vencimento" : "1º Vencimento"}
-            </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-            />
-          </div>
-        </div>
-
-        <div className="bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3.5 space-y-3">
-          <label className="text-xs font-bold text-[var(--color-text-muted)] block">Tipo de lançamento</label>
-          <div className="grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => setRepeatMode("none")} className={cn("flex flex-col items-center gap-1 py-2.5 rounded-[var(--radius-control)] border text-[10px] font-bold uppercase transition-colors cursor-pointer", repeatMode === "none" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}>
-              <DollarSign className="w-3.5 h-3.5" /> Único
-            </button>
-            <button type="button" onClick={() => setRepeatMode("recorrente")} className={cn("flex flex-col items-center gap-1 py-2.5 rounded-[var(--radius-control)] border text-[10px] font-bold uppercase transition-colors cursor-pointer", repeatMode === "recorrente" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}>
-              <Repeat className="w-3.5 h-3.5" /> Recorrente
-            </button>
-            <button type="button" onClick={() => setRepeatMode("parcelado")} className={cn("flex flex-col items-center gap-1 py-2.5 rounded-[var(--radius-control)] border text-[10px] font-bold uppercase transition-colors cursor-pointer", repeatMode === "parcelado" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}>
-              <Layers className="w-3.5 h-3.5" /> Parcelado
-            </button>
-          </div>
-
-          {repeatMode === "recorrente" && (
-            <div className="grid grid-cols-2 gap-4 pt-1">
-              <div>
-                <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Frequência</label>
-                <select value={frequency} onChange={(e) => setFrequency(e.target.value as Frequencia)} className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer">
-                  <option value="semanal">Semanal</option>
-                  <option value="quinzenal">Quinzenal</option>
-                  <option value="mensal">Mensal</option>
-                  <option value="bimestral">Bimestral</option>
-                  <option value="trimestral">Trimestral</option>
-                  <option value="semestral">Semestral</option>
-                  <option value="anual">Anual</option>
+        <FormSection icon={FolderOpen} title="Classificação">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Categoria financeira" icon={FolderOpen} required error={errors.category} hint={categoriasDoTipo.length === 0 && !showNovaCategoria ? "Nenhuma categoria deste tipo ainda — crie uma na lista." : undefined}>
+              {!showNovaCategoria ? (
+                <select
+                  value={categoryId}
+                  onChange={(e) => {
+                    if (e.target.value === "__nova__") { setShowNovaCategoria(true); return; }
+                    setCategoryId(e.target.value);
+                    setErrors(prev => ({ ...prev, category: undefined }));
+                  }}
+                  className={selectCls(!!errors.category)}
+                >
+                  <option value="">Selecione...</option>
+                  {categoriasDoTipo.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  <option value="__nova__">+ Criar nova categoria...</option>
                 </select>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Repetir por quantas vezes</label>
-                <input type="number" min={1} max={60} value={ocorrencias} onChange={(e) => setOcorrencias(e.target.value)} className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono" />
-              </div>
-            </div>
-          )}
-
-          {repeatMode === "parcelado" && (
-            <div className="grid grid-cols-2 gap-4 pt-1">
-              <div>
-                <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Número de Parcelas</label>
-                <input type="number" min={2} max={60} value={parcelas} onChange={(e) => setParcelas(e.target.value)} className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Intervalo entre parcelas</label>
-                <select value={frequency} onChange={(e) => setFrequency(e.target.value as Frequencia)} className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer">
-                  <option value="semanal">Semanal</option>
-                  <option value="quinzenal">Quinzenal</option>
-                  <option value="mensal">Mensal</option>
-                  <option value="bimestral">Bimestral</option>
-                  <option value="trimestral">Trimestral</option>
-                  <option value="semestral">Semestral</option>
-                  <option value="anual">Anual</option>
-                </select>
-              </div>
-              {value && (
-                <p className="col-span-2 text-[10px] text-[var(--color-text-muted)]">
-                  {Math.max(2, parseInt(parcelas, 10) || 2)}x de{" "}
-                  <span className="font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(splitInstallments(parseFloat(value) || 0, Math.max(2, parseInt(parcelas, 10) || 2))[0])}</span>
-                </p>
+              ) : (
+                <div className="flex gap-1.5">
+                  <input type="text" autoFocus placeholder="Nome da nova categoria" value={novaCategoriaNome} onChange={(e) => setNovaCategoriaNome(e.target.value)} className={inputCls(!!errors.category)} />
+                  <button type="button" onClick={() => { setShowNovaCategoria(false); setNovaCategoriaNome(""); }} title="Cancelar nova categoria" className="h-9 w-9 shrink-0 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] flex items-center justify-center cursor-pointer"><X className="w-3.5 h-3.5" /></button>
+                </div>
               )}
+              {isPagar && showNovaCategoria && (
+                <select value={novaCategoriaSubtipo} onChange={(e) => setNovaCategoriaSubtipo(e.target.value as typeof novaCategoriaSubtipo)} className={`${selectCls()} mt-1.5`}>
+                  <option value="DESPESA_FIXA">Despesa Fixa</option>
+                  <option value="DESPESA_VARIAVEL">Despesa Variável</option>
+                  <option value="PESSOAS">Pessoas</option>
+                  <option value="IMPOSTOS">Impostos</option>
+                </select>
+              )}
+            </Field>
+            <Field
+              label={isPagar ? "Fornecedor" : "Cliente"}
+              icon={User}
+              hint={counterparty.trim() ? (resolverContatoId(counterparty) ? "Contato cadastrado: será vinculado ao lançamento." : "Não está nos Contatos: fica só como texto livre.") : "Digite ou escolha um contato cadastrado."}
+            >
+              <input
+                type="text"
+                list="contatos-sugeridos-nova-operacao"
+                placeholder={isPagar ? "Ex: AWS, Fornecedor X" : "Ex: Nome do cliente"}
+                value={counterparty}
+                onChange={(e) => setCounterparty(e.target.value)}
+                className={inputCls()}
+              />
+              <datalist id="contatos-sugeridos-nova-operacao">
+                {contatosSugeridos.map((c: any) => <option key={c.id} value={c.name} />)}
+              </datalist>
+            </Field>
+            <Field label="Centro de custo" icon={Wallet}>
+              <select value={centroCustoId} onChange={(e) => setCentroCustoId(e.target.value)} className={selectCls()}>
+                <option value="">Não informado</option>
+                {(financeCentrosCusto as any[]).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </Field>
+            <Field label="Tags" icon={Tag} hint={parseTags(tags).length > 0 ? `${parseTags(tags).length} tag(s): ${parseTags(tags).join(", ")}` : "Separadas por vírgula."}>
+              <input type="text" placeholder="ex: marketing, anual" value={tags} onChange={(e) => setTags(e.target.value)} className={inputCls()} />
+            </Field>
+          </div>
+        </FormSection>
+
+        <FormSection icon={CreditCard} title={isPagar ? "Pagamento" : "Recebimento"}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label={`Forma de ${isPagar ? "pagamento" : "recebimento"}`} icon={CreditCard}>
+              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={selectCls()}>
+                <option value="">Não informado</option>
+                {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </Field>
+            <Field label="Conta bancária" icon={Landmark} hint={contasAtivas.length === 0 ? "Nenhuma conta ativa cadastrada." : undefined}>
+              <select value={contaBancariaId} onChange={(e) => setContaBancariaId(e.target.value)} className={selectCls()}>
+                <option value="">Não vinculada</option>
+                {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}{c.is_principal ? " (Principal)" : ""}</option>)}
+              </select>
+            </Field>
+            <Field label="Nº da nota fiscal / documento" icon={Hash} hint="O arquivo (PDF/XML) pode ser anexado depois, em Editar lançamento.">
+              <input type="text" placeholder="Ex: NF-e 12345" value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} className={inputCls()} />
+            </Field>
+            <Field label="Competência" icon={CalendarCheck} hint="Mês a que o lançamento se refere, se diferente do vencimento.">
+              <input type="date" value={competencia} onChange={(e) => setCompetencia(e.target.value)} className={inputCls()} />
+            </Field>
+            <Field label={repeatMode === "parcelado" ? "Valor total (R$)" : "Valor (R$)"} icon={DollarSign} required error={errors.value}>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0,00"
+                value={value}
+                onChange={(e) => { setValue(e.target.value); setErrors(prev => ({ ...prev, value: undefined })); }}
+                className={`${inputCls(!!errors.value)} font-mono`}
+              />
+            </Field>
+            <Field label={repeatMode === "none" ? "Data de vencimento" : "1º vencimento"} icon={Calendar} hint={!date ? "Em branco = hoje." : undefined}>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls()} />
+            </Field>
+          </div>
+        </FormSection>
+
+        <FormSection icon={Repeat} title="Tipo de lançamento">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {([
+              { id: "none" as const, icon: DollarSign, title: "Único", desc: isPagar ? "Valor a pagar uma vez" : "Valor a receber uma vez" },
+              { id: "recorrente" as const, icon: Repeat, title: "Recorrente", desc: "Repete periodicamente" },
+              { id: "parcelado" as const, icon: Layers, title: "Parcelado", desc: "Dividido em parcelas" },
+            ]).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setRepeatMode(opt.id)}
+                className={cn("flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-colors cursor-pointer", repeatMode === opt.id ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] hover:border-[var(--color-primary-blue)]/30")}
+              >
+                <opt.icon className={cn("w-4 h-4 shrink-0", repeatMode === opt.id ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)]")} />
+                <span className="min-w-0">
+                  <span className={cn("block text-xs font-bold", repeatMode === opt.id ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-primary)]")}>{opt.title}</span>
+                  <span className="block text-[10px] text-[var(--color-text-muted)] leading-tight">{opt.desc}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {repeatMode !== "none" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {repeatMode === "recorrente" ? (
+                <Field label="Repetir por quantas vezes" hint="De 1 a 60 ocorrências.">
+                  <input type="number" min={1} max={60} value={ocorrencias} onChange={(e) => setOcorrencias(e.target.value)} className={`${inputCls()} font-mono`} />
+                </Field>
+              ) : (
+                <Field label="Número de parcelas" hint="De 2 a 60 parcelas.">
+                  <input type="number" min={2} max={60} value={parcelas} onChange={(e) => setParcelas(e.target.value)} className={`${inputCls()} font-mono`} />
+                </Field>
+              )}
+              <Field label={repeatMode === "recorrente" ? "Frequência" : "Intervalo entre parcelas"}>
+                <select value={frequency} onChange={(e) => setFrequency(e.target.value as Frequencia)} className={selectCls()}>
+                  {FREQ_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </Field>
             </div>
           )}
+        </FormSection>
+
+        {/* Resumo do que será gerado */}
+        <div className="rounded-xl border border-[var(--color-primary-blue)]/20 bg-[var(--color-primary-blue)]/[0.05] p-3.5 space-y-1.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[var(--color-primary-blue)]"><ListChecks className="w-3.5 h-3.5" /> Resumo</div>
+          {totalNum <= 0 ? (
+            <p className="text-[11px] text-[var(--color-text-muted)] flex items-center gap-1.5"><Info className="w-3 h-3 shrink-0" /> Informe o valor para ver o resumo do que será lançado.</p>
+          ) : repeatMode === "none" ? (
+            <p className="text-xs text-[var(--color-text-primary)]">1 lançamento de <b className="font-mono">{formatCurrency(totalNum)}</b> com vencimento em <b>{fmtDate(serieBase)}</b>.</p>
+          ) : repeatMode === "recorrente" ? (
+            <p className="text-xs text-[var(--color-text-primary)]">{nOcorr} lançamentos de <b className="font-mono">{formatCurrency(totalNum)}</b> ({FREQ_OPTS.find(f => f[0] === frequency)?.[1].toLowerCase()}), de <b>{fmtDate(serieBase)}</b> até <b>{fmtDate(ultimaData)}</b> — total de <b className="font-mono">{formatCurrency(totalGerado)}</b>.</p>
+          ) : (
+            <p className="text-xs text-[var(--color-text-primary)]">{nParc} parcelas de <b className="font-mono">{formatCurrency(splitInstallments(totalNum, nParc)[0])}</b> (centavos ajustados na última), de <b>{fmtDate(serieBase)}</b> até <b>{fmtDate(ultimaData)}</b>.</p>
+          )}
+          <p className="text-[10px] text-[var(--color-text-faint)]">O lançamento nasce como “A Vencer”; marque como pago na lista quando acontecer.</p>
         </div>
 
-        <div className="flex justify-end gap-2 pt-4 border-t border-[var(--color-border-subtle)]">
-          <Button type="button" variant="outline" onClick={onClose} className="h-9 px-4 text-xs font-bold border-[var(--color-border-default)]">Cancelar</Button>
-          <Button type="submit" className="h-9 px-5 text-xs font-bold shadow-xs">Confirmar Lançamento</Button>
-        </div>
+        <ModalFooter onCancel={onClose} saving={saving} submitLabel="Confirmar lançamento" submitIcon={Save} />
       </form>
     </Modal>
   );

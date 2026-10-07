@@ -3,7 +3,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
   Layers, Plus, DollarSign, Users, TrendingUp,
-  Building2, Trash2, Edit2, X, AlertCircle, PieChart, Download
+  Building2, Trash2, Edit2, X, AlertCircle, PieChart, Download, FileText, Loader2, Info
 } from "lucide-react";
 import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
@@ -12,6 +12,11 @@ import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { useLocalization } from "../../contexts/LocalizationContext";
+import { cn } from "../../lib/utils";
+
+const ctl = "w-full h-9 px-3 rounded-lg bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40";
+const lbl = "text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5";
 
 type CentroCusto = {
   id: string;
@@ -25,7 +30,8 @@ type CentroCusto = {
 
 export default function FinanceiroCentrosCusto() {
   const { user } = useAuth();
-  const { financeCentrosCusto, addFinanceCentroCusto, updateFinanceCentroCusto, deleteFinanceCentroCusto } = useData();
+  const { financeCentrosCusto, addFinanceCentroCusto, updateFinanceCentroCusto, deleteFinanceCentroCusto, financeEntries } = useData();
+  const { formatCurrency } = useLocalization();
   const centros = financeCentrosCusto as CentroCusto[];
 
   const [search, setSearch] = useState("");
@@ -40,6 +46,8 @@ export default function FinanceiroCentrosCusto() {
   const [orcamento, setOrcamento] = useState("");
   const [gasto, setGasto] = useState("");
   const [responsavel, setResponsavel] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [tentou, setTentou] = useState(false);
 
   const handleOpenNew = () => {
     setEditingId(null);
@@ -48,53 +56,70 @@ export default function FinanceiroCentrosCusto() {
     setOrcamento("");
     setGasto("0");
     setResponsavel(user?.name || "");
+    setTentou(false); setSaving(false);
     setShowModal(true);
   };
 
   const handleOpenEdit = (c: CentroCusto) => {
     setEditingId(c.id);
     setNome(c.nome);
-    setCodigo(c.codigo);
-    setOrcamento(c.orcamento.toString());
-    setGasto(c.gasto.toString());
-    setResponsavel(c.responsavel);
+    setCodigo(c.codigo || "");
+    setOrcamento(String(c.orcamento ?? 0));
+    setGasto(String(c.gasto ?? 0));
+    setResponsavel(c.responsavel || "");
+    setTentou(false); setSaving(false);
     setShowModal(true);
   };
 
+  const numOrcamento = Math.max(0, parseFloat(orcamento) || 0);
+  const numGasto = Math.max(0, parseFloat(gasto) || 0);
+  const percForm = numOrcamento > 0 ? Math.round((numGasto / numOrcamento) * 100) : 0;
+  const nomeErro = !nome.trim() ? "Informe o nome do centro de custo." : "";
+  const codigoDuplicado = !!codigo.trim() && centros.some(c => c.id !== editingId && (c.codigo || "").trim().toLowerCase() === codigo.trim().toLowerCase());
+  const nomeDuplicado = !!nome.trim() && centros.some(c => c.id !== editingId && c.nome.trim().toLowerCase() === nome.trim().toLowerCase());
+  const vinculados = useMemo(() => {
+    if (!editingId) return null;
+    const rows = (financeEntries as any[]).filter(e => e.centro_custo_id === editingId);
+    const pagos = rows.filter(e => e.status === "Pago" && e.type === "Pagar").reduce((s, e) => s + (Number(e.value) || 0), 0);
+    return { count: rows.length, pagos };
+  }, [editingId, financeEntries]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nome.trim()) {
-      toast.error("Informe o nome do centro de custo.");
+    setTentou(true);
+    if (nomeErro) {
+      toast.error(nomeErro);
       return;
     }
 
-    const numOrcamento = parseFloat(orcamento) || 0;
-    const numGasto = parseFloat(gasto) || 0;
-
-    if (editingId) {
-      await updateFinanceCentroCusto(editingId, {
-        nome: nome.trim(),
-        codigo: codigo.trim(),
-        orcamento: numOrcamento,
-        gasto: numGasto,
-        responsavel: responsavel.trim() || "Responsável",
-      });
-      toast.success("Centro de custo atualizado com sucesso!");
-    } else {
-      await addFinanceCentroCusto({
-        nome: nome.trim(),
-        codigo: codigo.trim() || `CC-0${centros.length + 1}`,
-        orcamento: numOrcamento,
-        gasto: numGasto,
-        responsavel: responsavel.trim() || user?.name || "Responsável",
-      });
-      toast.success("Centro de custo criado com sucesso!");
+    setSaving(true);
+    try {
+      if (editingId) {
+        await updateFinanceCentroCusto(editingId, {
+          nome: nome.trim(),
+          codigo: codigo.trim(),
+          orcamento: numOrcamento,
+          gasto: numGasto,
+          responsavel: responsavel.trim() || "Responsável",
+        });
+        toast.success("Centro de custo atualizado com sucesso!");
+      } else {
+        await addFinanceCentroCusto({
+          nome: nome.trim(),
+          codigo: codigo.trim() || `CC-0${centros.length + 1}`,
+          orcamento: numOrcamento,
+          gasto: numGasto,
+          responsavel: responsavel.trim() || user?.name || "Responsável",
+        });
+        toast.success("Centro de custo criado com sucesso!");
+      }
+      setShowModal(false);
+    } finally {
+      setSaving(false);
     }
-
-    setShowModal(false);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string): Promise<boolean> => {
     const ok = await confirmDialog({
       title: "Excluir Centro de Custo",
       message: "Tem certeza de que deseja excluir esta unidade de despesa?",
@@ -102,10 +127,11 @@ export default function FinanceiroCentrosCusto() {
       cancelText: "Cancelar",
       variant: "danger",
     });
-    if (!ok) return;
+    if (!ok) return false;
 
     await deleteFinanceCentroCusto(id);
     toast.success("Centro de custo excluído.");
+    return true;
   };
 
   const gestores = useMemo(() => Array.from(new Set(centros.map(c => c.responsavel).filter(Boolean))).sort(), [centros]);
@@ -278,83 +304,105 @@ export default function FinanceiroCentrosCusto() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editingId ? "Editar Centro de Custo" : "Novo Centro de Custo"}
-        description="Defina as alocações de budget por setor ou centro de custo."
-        maxWidth="max-w-md"
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]">
+              {editingId ? <Edit2 className="w-5 h-5" /> : <Layers className="w-6 h-6" />}
+            </div>
+            <div className="min-w-0">
+              <div className="text-lg font-black text-[var(--color-text-primary)] leading-tight">{editingId ? "Editar Centro de Custo" : "Novo Centro de Custo"}</div>
+              <div className="text-xs font-normal text-[var(--color-text-muted)]">Defina as alocações de budget por setor, squad ou unidade de despesa.</div>
+            </div>
+          </div>
+        }
+        maxWidth="max-w-xl"
       >
-        <form onSubmit={handleSave} className="space-y-3">
-          <div>
-            <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-1">
-              Nome do Centro / Unidade *
-            </label>
-            <input
-              value={nome}
-              onChange={e => setNome(e.target.value)}
-              placeholder="Ex: Marketing Digital & Performance"
-              required
-              className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="rounded-xl border border-[var(--color-border-subtle)] p-3 space-y-3">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Identificação</div>
             <div>
-              <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-1">
-                Código Interno
-              </label>
+              <label className={lbl}>Nome do centro / unidade</label>
               <input
-                value={codigo}
-                onChange={e => setCodigo(e.target.value)}
-                placeholder="CC-05"
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
+                value={nome}
+                onChange={e => setNome(e.target.value)}
+                placeholder="Ex: Marketing Digital & Performance"
+                autoFocus
+                className={cn(ctl, tentou && nomeErro && "border-danger")}
               />
+              {tentou && nomeErro && <p className="text-[10px] text-danger mt-1">{nomeErro}</p>}
+              {nomeDuplicado && <p className="text-[10px] text-[var(--color-warning)] mt-1">Já existe um centro com esse nome.</p>}
             </div>
-            <div>
-              <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-1">
-                Gestor / Responsável
-              </label>
-              <input
-                value={responsavel}
-                onChange={e => setResponsavel(e.target.value)}
-                placeholder="Nome do líder"
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={lbl}>Código interno</label>
+                <input value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="CC-05" className={cn(ctl, "font-mono")} />
+                {codigoDuplicado
+                  ? <p className="text-[10px] text-[var(--color-warning)] mt-1">Este código já é usado por outro centro.</p>
+                  : <p className="text-[10px] text-[var(--color-text-faint)] mt-1">Opcional — se vazio, geramos um automaticamente.</p>}
+              </div>
+              <div>
+                <label className={lbl}>Gestor / responsável</label>
+                <input value={responsavel} onChange={e => setResponsavel(e.target.value)} placeholder="Nome do líder" className={ctl} />
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-1">
-                Orçamento Mensal (R$)
-              </label>
-              <input
-                type="number"
-                value={orcamento}
-                onChange={e => setOrcamento(e.target.value)}
-                placeholder="50000"
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] font-mono"
-              />
+          <div className="rounded-xl border border-[var(--color-border-subtle)] p-3 space-y-3">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5" /> Orçamento e consumo</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={lbl}>Orçamento mensal (R$)</label>
+                <input type="number" step="0.01" min="0" value={orcamento} onChange={e => setOrcamento(e.target.value)} placeholder="0,00" className={cn(ctl, "font-mono")} />
+              </div>
+              <div>
+                <label className={lbl}>Gasto atual (R$)</label>
+                <input type="number" step="0.01" min="0" value={gasto} onChange={e => setGasto(e.target.value)} placeholder="0,00" className={cn(ctl, "font-mono")} />
+              </div>
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-1">
-                Gasto Atual (R$)
-              </label>
-              <input
-                type="number"
-                value={gasto}
-                onChange={e => setGasto(e.target.value)}
-                placeholder="0"
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] font-mono"
-              />
+              <div className="flex justify-between text-[11px] mb-1">
+                <span className="text-[var(--color-text-muted)]">
+                  {numOrcamento > 0 ? `Saldo disponível: ${formatCurrency(numOrcamento - numGasto)}` : "Defina um orçamento para acompanhar o consumo."}
+                </span>
+                {numOrcamento > 0 && (
+                  <span className={`font-bold ${percForm > 90 ? "text-danger" : percForm > 75 ? "text-warning" : "text-success"}`}>{percForm}%</span>
+                )}
+              </div>
+              <div className="w-full h-2 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${percForm > 90 ? "bg-danger" : percForm > 75 ? "bg-warning" : "bg-success"}`} style={{ width: `${Math.min(percForm, 100)}%` }} />
+              </div>
+              {numOrcamento > 0 && numGasto > numOrcamento && (
+                <p className="flex items-start gap-1.5 text-[10px] text-danger mt-1.5"><AlertCircle className="w-3 h-3 shrink-0 mt-0.5" /> O gasto ultrapassa o orçamento em {formatCurrency(numGasto - numOrcamento)}.</p>
+              )}
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
-            <Button type="button" variant="ghost" onClick={() => setShowModal(false)} className="text-xs">
-              Cancelar
-            </Button>
-            <Button type="submit" className="text-xs font-bold bg-[var(--color-primary-blue)] text-white">
-              {editingId ? "Salvar Alterações" : "Criar Centro de Custo"}
-            </Button>
+          {vinculados && (
+            <p className="flex items-start gap-1.5 text-[10px] text-[var(--color-text-muted)] p-2 rounded-lg bg-[var(--color-primary-blue)]/[0.06] border border-[var(--color-primary-blue)]/15">
+              <Info className="w-3 h-3 shrink-0 mt-0.5" />
+              {vinculados.count === 0
+                ? "Nenhum lançamento está vinculado a este centro ainda. Vincule pelo campo \"Centro de Custo\" ao criar ou editar um lançamento."
+                : `${vinculados.count} lançamento(s) vinculado(s) a este centro, somando ${formatCurrency(vinculados.pagos)} em despesas já pagas. O "Gasto atual" acima é informado manualmente.`}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
+            <div>
+              {editingId && (
+                <Button type="button" variant="outline" disabled={saving} onClick={async () => { if (await handleDelete(editingId)) setShowModal(false); }} className="h-9 px-3 text-xs font-medium gap-1.5 text-[var(--color-danger)]">
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={saving} className="h-9 px-4 text-xs font-medium">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving} className="h-9 px-5 text-xs font-medium gap-1.5">
+                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {editingId ? "Salvar Alterações" : "Criar Centro de Custo"}
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>

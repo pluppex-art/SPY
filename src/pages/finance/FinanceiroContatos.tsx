@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Users, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, TrendingUp, TrendingDown, BarChart3, UserPlus, IdCard, FileText, Hash, Phone, Mail, MapPin, Save, Loader2, Search, Building2, Briefcase } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -17,9 +17,21 @@ import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { parseEntryDate } from "./lib/financeDates";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
+import { Field, FormSection, ModalFooter, ModalTitle, inputCls, selectCls } from "./components/ModalKit";
+import { fetchCnpj, formatCepMask, formatCnpjMask, onlyDigits } from "../../lib/brLookup";
+import { formatPhone } from "../../lib/utils";
 
 type Tipo = "CLIENTE" | "FORNECEDOR" | "FUNCIONARIO";
 const TIPO_LABEL: Record<Tipo, string> = { CLIENTE: "Cliente", FORNECEDOR: "Fornecedor", FUNCIONARIO: "Funcionário" };
+const TIPO_ICON: Record<Tipo, React.ComponentType<{ className?: string }>> = { CLIENTE: Users, FORNECEDOR: Building2, FUNCIONARIO: Briefcase };
+
+const maskDocumento = (v: string) => {
+  const d = onlyDigits(v).slice(0, 14);
+  if (d.length <= 11) {
+    return d.replace(/^(\d{3})(\d)/, "$1.$2").replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1-$2");
+  }
+  return formatCnpjMask(d);
+};
 
 interface Contato {
   id: string;
@@ -55,6 +67,8 @@ export default function FinanceiroContatos() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
   const { estados, municipios, loadingMunicipios } = useIbgeLocalidades(form.state);
 
   const emUso = useMemo(() => new Set((financeEntries as any[]).map(e => e.contato_id).filter(Boolean)), [financeEntries]);
@@ -116,7 +130,52 @@ export default function FinanceiroContatos() {
       .slice(0, 8);
   }, [contatos, aba, totaisPorContato]);
 
-  const resetForm = () => { setForm(emptyForm); setEditingId(null); setFormError(""); };
+  const resetForm = () => { setForm(emptyForm); setEditingId(null); setFormError(""); setSaving(false); };
+  const closeModal = () => { if (saving) return; setIsModalOpen(false); resetForm(); };
+
+  // Resumo dos lançamentos ligados ao contato em edição (dados reais de finance_entries).
+  const vinculos = useMemo(() => {
+    if (!editingId) return null;
+    let count = 0, totalPeriodo = 0, emAberto = 0;
+    for (const e of financeEntries as any[]) {
+      if (e.contato_id !== editingId) continue;
+      count++;
+      if (e.status === "Pago") {
+        const d = parseEntryDate(e.date);
+        if (d && d >= dataInicio && d <= dataFim) totalPeriodo += Number(e.value) || 0;
+      } else emAberto += Number(e.value) || 0;
+    }
+    return { count, totalPeriodo, emAberto };
+  }, [editingId, financeEntries, dataInicio, dataFim]);
+
+  const docDigits = onlyDigits(form.documento);
+  const docWarning = !docDigits ? "" :
+    docDigits.length !== 11 && docDigits.length !== 14 ? "CPF tem 11 dígitos e CNPJ tem 14." :
+    form.tipo_pessoa === "PF" && docDigits.length === 14 ? "Pessoa Física normalmente usa CPF (11 dígitos)." :
+    form.tipo_pessoa === "PJ" && docDigits.length === 11 ? "Pessoa Jurídica normalmente usa CNPJ (14 dígitos)." : "";
+  const emailError = form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) ? "E-mail com formato inválido." : "";
+  const phoneDigits = onlyDigits(form.phone);
+  const phoneError = phoneDigits && (phoneDigits.length < 10 || phoneDigits.length > 11) ? "Telefone deve ter DDD + 8 ou 9 dígitos." : "";
+
+  const handleBuscarCnpj = async () => {
+    setBuscandoCnpj(true);
+    try {
+      const info = await fetchCnpj(docDigits);
+      setForm(prev => ({
+        ...prev,
+        tipo_pessoa: prev.tipo_pessoa || "PJ",
+        name: prev.name || info.razao_social || info.nome_fantasia,
+        email: prev.email || info.email,
+        phone: prev.phone || (info.telefone ? formatPhone(info.telefone) : ""),
+        cep: prev.cep || (info.cep ? formatCepMask(info.cep) : ""),
+      }));
+      toast.success(`Dados de "${info.razao_social || info.nome_fantasia}" carregados (campos já preenchidos foram mantidos).`);
+    } catch (err: any) {
+      toast.error(err?.message || "Não foi possível consultar o CNPJ.");
+    } finally {
+      setBuscandoCnpj(false);
+    }
+  };
 
   const openNew = () => { resetForm(); setIsModalOpen(true); };
   const openEdit = (c: Contato) => {
@@ -156,25 +215,33 @@ export default function FinanceiroContatos() {
       state: form.state || null,
     };
 
-    if (editingId) {
-      await updateClienteBase(editingId, payload);
-      toast.success("Contato atualizado.");
-    } else {
-      await addClienteBase(payload);
-      toast.success("Contato criado.");
+    setSaving(true);
+    try {
+      if (editingId) {
+        await updateClienteBase(editingId, payload);
+        toast.success("Contato atualizado.");
+      } else {
+        await addClienteBase(payload);
+        toast.success("Contato criado.");
+      }
+      setIsModalOpen(false);
+      resetForm();
+    } finally {
+      setSaving(false);
     }
-    setIsModalOpen(false);
-    resetForm();
   };
 
-  const handleDelete = async (c: Contato) => {
+  const handleDelete = async (c: Contato, fromModal = false) => {
     if (emUso.has(c.id)) { toast.error("Este contato tem lançamentos vinculados e não pode ser excluído."); return; }
     if (!(await confirmDialog({ title: "Excluir contato", description: `Excluir "${c.name}"? Essa ação não pode ser desfeita.` }))) return;
     // Mesmo bug já corrigido em Propostas.tsx: toast de sucesso disparava mesmo
     // quando a exclusão falhava de verdade (deleteClienteBase já mostra seu
     // próprio toast de erro quando retorna false, então só confirma aqui).
     const ok = await deleteClienteBase(c.id);
-    if (ok) toast.success("Contato excluído.");
+    if (ok) {
+      toast.success("Contato excluído.");
+      if (fromModal) { setIsModalOpen(false); resetForm(); }
+    }
   };
 
   return (
@@ -276,92 +343,126 @@ export default function FinanceiroContatos() {
         {semTipo.length > 0 && aba === "todos" && <p className="text-[11px] text-[var(--color-text-faint)]">{semTipo.length} contato(s) sem tipo definido aparecem no grupo "Outros".</p>}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title={editingId ? "Editar Contato" : "Novo Contato"} maxWidth="max-w-lg">
-        <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Tipo de Contato</label>
-            <div className="flex gap-2">
-              {(["CLIENTE", "FORNECEDOR", "FUNCIONARIO"] as Tipo[]).map(t => (
-                <button key={t} type="button" onClick={() => toggleTipo(t)} className={`px-3 py-1.5 rounded-[var(--radius-control)] text-xs font-medium border transition-colors ${form.tipos.includes(t) ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)]"}`}>
-                  {TIPO_LABEL[t]}
-                </button>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={<ModalTitle icon={editingId ? Pencil : UserPlus} title={editingId ? "Editar Contato" : "Novo Contato"} subtitle={editingId ? "Atualize os dados deste contato. Só o nome é necessário para salvar." : "Cadastre um cliente, fornecedor ou funcionário para usar em lançamentos e cobranças."} />}
+        maxWidth="max-w-2xl"
+      >
+        <form onSubmit={handleSave} className="space-y-4" noValidate>
+          {editingId && vinculos && (
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Lançamentos vinculados", value: String(vinculos.count) },
+                { label: `Movimentado (${periodoLabel})`, value: formatCurrency(vinculos.totalPeriodo) },
+                { label: "Em aberto", value: formatCurrency(vinculos.emAberto) },
+              ].map(s => (
+                <div key={s.label} className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/60 px-3 py-2">
+                  <div className="text-[10px] text-[var(--color-text-muted)] leading-tight">{s.label}</div>
+                  <div className="text-xs font-mono font-bold text-[var(--color-text-primary)] mt-0.5">{s.value}</div>
+                </div>
               ))}
             </div>
-          </div>
+          )}
 
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Nome / Razão Social *</label>
-            <input type="text" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormError(""); }} maxLength={115} className={`w-full bg-[var(--color-surface-sunken)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none ${formError ? "border-danger" : "border-[var(--color-border-default)]"}`} />
-            {formError && <p className="text-[10px] text-danger mt-1">{formError}</p>}
-          </div>
+          <FormSection icon={IdCard} title="Identificação">
+            <Field label="Tipo de contato" hint="Um contato pode ter mais de um tipo. Sem tipo, aparece em “Outros”.">
+              <div className="flex gap-2 flex-wrap">
+                {(["CLIENTE", "FORNECEDOR", "FUNCIONARIO"] as Tipo[]).map(t => {
+                  const TIcon = TIPO_ICON[t];
+                  const on = form.tipos.includes(t);
+                  return (
+                    <button key={t} type="button" onClick={() => toggleTipo(t)} aria-pressed={on} className={`h-9 px-3 rounded-lg text-xs font-bold border transition-colors cursor-pointer inline-flex items-center gap-1.5 ${on ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
+                      <TIcon className="w-3.5 h-3.5" /> {TIPO_LABEL[t]}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Tipo de Pessoa</label>
-              <select value={form.tipo_pessoa} onChange={(e) => setForm({ ...form, tipo_pessoa: e.target.value as any })} className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs cursor-pointer">
-                <option value="">Não informado</option>
-                <option value="PF">Pessoa Física</option>
-                <option value="PJ">Pessoa Jurídica</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">CPF/CNPJ</label>
-              <input type="text" value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-            </div>
-          </div>
+            <Field label="Nome / Razão Social" icon={FileText} required error={formError} hint={`${form.name.length}/115 caracteres`}>
+              <input type="text" autoFocus value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormError(""); }} maxLength={115} placeholder="Ex: Maria Silva ou Empresa LTDA" className={inputCls(!!formError)} />
+            </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">E-mail</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Telefone</label>
-              <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-            </div>
-          </div>
-
-          <details>
-            <summary className="text-xs font-semibold text-[var(--color-text-muted)] cursor-pointer">Endereço (opcional)</summary>
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <input type="text" placeholder="CEP" value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-              <input type="text" placeholder="Logradouro" value={form.logradouro} onChange={(e) => setForm({ ...form, logradouro: e.target.value })} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-              <input type="text" placeholder="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-              <input type="text" placeholder="Bairro" value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-              <input type="text" placeholder="Complemento" value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs" />
-              <select
-                value={form.state}
-                onChange={(e) => setForm({ ...form, state: e.target.value, city: "" })}
-                className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs uppercase"
-              >
-                <option value="">UF...</option>
-                {estados.map((uf) => <option key={uf.sigla} value={uf.sigla}>{uf.sigla}</option>)}
-              </select>
-              {form.state && municipios.length > 0 ? (
-                <select
-                  value={form.city}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
-                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs"
-                >
-                  <option value="">{loadingMunicipios ? "Carregando..." : "Cidade..."}</option>
-                  {municipios.map((m) => <option key={m.id} value={m.nome}>{m.nome}</option>)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Tipo de pessoa" icon={Users}>
+                <select value={form.tipo_pessoa} onChange={(e) => setForm({ ...form, tipo_pessoa: e.target.value as any })} className={selectCls()}>
+                  <option value="">Não informado</option>
+                  <option value="PF">Pessoa Física</option>
+                  <option value="PJ">Pessoa Jurídica</option>
                 </select>
-              ) : (
-                <input
-                  type="text"
-                  placeholder={form.state ? "Digite a cidade" : "Cidade (escolha a UF primeiro)"}
-                  value={form.city}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
-                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs"
-                />
-              )}
+              </Field>
+              <Field label="CPF / CNPJ" icon={Hash} error={docWarning} hint={!docWarning ? "Opcional. Apenas números ou com máscara." : undefined}>
+                <div className="flex gap-1.5">
+                  <input type="text" inputMode="numeric" value={form.documento} onChange={(e) => setForm({ ...form, documento: maskDocumento(e.target.value) })} placeholder="000.000.000-00" className={`${inputCls(!!docWarning)} font-mono`} />
+                  {docDigits.length === 14 && (
+                    <button type="button" onClick={handleBuscarCnpj} disabled={buscandoCnpj} title="Preencher nome, e-mail, telefone e CEP pela Receita" className="h-9 px-2.5 shrink-0 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] disabled:opacity-60 cursor-pointer">
+                      {buscandoCnpj ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                    </button>
+                  )}
+                </div>
+              </Field>
             </div>
-          </details>
+          </FormSection>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
-            <Button type="button" variant="outline" onClick={() => { setIsModalOpen(false); resetForm(); }} className="h-9 px-4 text-xs font-medium">Cancelar</Button>
-            <Button type="submit" className="h-9 px-5 text-xs font-medium">{editingId ? "Salvar Alterações" : "Criar Contato"}</Button>
-          </div>
+          <FormSection icon={Phone} title="Contato">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="E-mail" icon={Mail} error={emailError}>
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="contato@empresa.com" className={inputCls(!!emailError)} />
+              </Field>
+              <Field label="Telefone / WhatsApp" icon={Phone} error={phoneError}>
+                <input type="text" inputMode="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })} placeholder="(11) 99999-9999" className={inputCls(!!phoneError)} />
+              </Field>
+            </div>
+          </FormSection>
+
+          <FormSection icon={MapPin} title="Endereço" hint="opcional">
+            <div className="grid grid-cols-6 gap-3">
+              <Field label="CEP" className="col-span-6 sm:col-span-2">
+                <input type="text" inputMode="numeric" placeholder="00000-000" value={form.cep} onChange={(e) => setForm({ ...form, cep: formatCepMask(e.target.value) })} className={`${inputCls()} font-mono`} />
+              </Field>
+              <Field label="Logradouro" className="col-span-6 sm:col-span-3">
+                <input type="text" placeholder="Rua, avenida..." value={form.logradouro} onChange={(e) => setForm({ ...form, logradouro: e.target.value })} className={inputCls()} />
+              </Field>
+              <Field label="Número" className="col-span-3 sm:col-span-1">
+                <input type="text" placeholder="123" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} className={inputCls()} />
+              </Field>
+              <Field label="Bairro" className="col-span-3 sm:col-span-3">
+                <input type="text" value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} className={inputCls()} />
+              </Field>
+              <Field label="Complemento" className="col-span-6 sm:col-span-3">
+                <input type="text" placeholder="Sala, bloco, apto..." value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} className={inputCls()} />
+              </Field>
+              <Field label="UF" className="col-span-2 sm:col-span-2">
+                <select value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value, city: "" })} className={`${selectCls()} uppercase`}>
+                  <option value="">UF...</option>
+                  {estados.map((uf) => <option key={uf.sigla} value={uf.sigla}>{uf.sigla}</option>)}
+                </select>
+              </Field>
+              <Field label="Cidade" className="col-span-4 sm:col-span-4" hint={!form.state ? "Escolha a UF para listar as cidades." : undefined}>
+                {form.state && municipios.length > 0 ? (
+                  <select value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className={selectCls()}>
+                    <option value="">{loadingMunicipios ? "Carregando..." : "Cidade..."}</option>
+                    {municipios.map((m) => <option key={m.id} value={m.nome}>{m.nome}</option>)}
+                  </select>
+                ) : (
+                  <input type="text" placeholder={form.state ? "Digite a cidade" : "Cidade"} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className={inputCls()} />
+                )}
+              </Field>
+            </div>
+          </FormSection>
+
+          <ModalFooter
+            onCancel={closeModal}
+            saving={saving}
+            submitLabel={editingId ? "Salvar alterações" : "Criar contato"}
+            submitIcon={Save}
+            left={editingId ? (
+              <Button type="button" variant="ghost" onClick={() => { const c = contatos.find(x => x.id === editingId); if (c) handleDelete(c, true); }} disabled={saving} className="h-9 px-3 text-xs font-bold gap-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10">
+                <Trash2 className="w-3.5 h-3.5" /> Excluir
+              </Button>
+            ) : undefined}
+          />
         </form>
       </Modal>
 

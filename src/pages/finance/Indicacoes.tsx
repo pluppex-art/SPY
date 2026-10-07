@@ -15,8 +15,12 @@ import { downloadCsv } from "../../lib/csvExport";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from "recharts";
 import {
   Plus, X, Trash2, Download, CheckCircle2, Clock, XCircle, DollarSign,
-  UserPlus, Share2, Copy, ExternalLink, QrCode, Send, MessageCircle, Link, Check, Users, BarChart3
+  UserPlus, Share2, Copy, ExternalLink, QrCode, Send, MessageCircle, Link, Check, Users, BarChart3,
+  Pencil, User, Phone, Mail, Calendar, AlignLeft, Save, Info
 } from "lucide-react";
+import type { Indicacao } from "../../contexts/DataContextTypes";
+import { Field, FormSection, ModalFooter, ModalTitle, inputCls, selectCls, textareaCls } from "./components/ModalKit";
+import { formatPhone } from "../../lib/utils";
 
 const DEFAULT_COMMISSION_KEY = "indicacao_comissao_padrao";
 const AFFILIATES_KEY = "afiliados_sistema";
@@ -65,6 +69,15 @@ export default function Indicacoes() {
   const [referredContact, setReferredContact] = useState("");
   const [commissionValue, setCommissionValue] = useState("");
   const [notes, setNotes] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [dateIndicated, setDateIndicated] = useState("");
+  const [datePaid, setDatePaid] = useState("");
+  const [statusEdit, setStatusEdit] = useState<Indicacao["status"]>("Pendente");
+  const [formErrors, setFormErrors] = useState<{ referrer?: string; referred?: string; commission?: string }>({});
+  const [affCodeTouched, setAffCodeTouched] = useState(false);
+  const [affErrors, setAffErrors] = useState<{ name?: string; code?: string; email?: string; phone?: string }>({});
+  const [savingAff, setSavingAff] = useState(false);
+  const [previewErrors, setPreviewErrors] = useState<{ name?: string; phone?: string; email?: string }>({});
 
   // Default Commission State
   const defaultCommission = Number(appSettings?.[DEFAULT_COMMISSION_KEY] ?? 0);
@@ -145,20 +158,49 @@ export default function Indicacoes() {
   }, [indicacoesNoPeriodo]);
 
   const referrerOptions = referrerType === "colaborador" ? colaboradores : clienteBase;
+  const referrerNomeSelecionado = (() => {
+    const r: any = referrerOptions.find((x: any) => x.id === referrerId);
+    return referrerType === "colaborador" ? r?.nome : r?.name;
+  })();
+  const affCodeClean = affCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
   const resetForm = () => {
+    setEditingId(null);
     setReferrerType("colaborador");
     setReferrerId("");
     setReferredName("");
     setReferredContact("");
     setCommissionValue(String(defaultCommission || ""));
     setNotes("");
+    setDateIndicated(new Date().toISOString().split("T")[0]);
+    setDatePaid("");
+    setStatusEdit("Pendente");
+    setFormErrors({});
   };
 
   const openModal = () => {
     resetForm();
     setIsModalOpen(true);
   };
+
+  const openEdit = (item: Indicacao) => {
+    setEditingId(item.id);
+    setReferrerType(item.referrer_type);
+    setReferrerId((item.referrer_type === "colaborador" ? item.referrer_colaborador_id : item.referrer_cliente_id) || "");
+    setReferredName(item.referred_name || "");
+    setReferredContact(item.referred_contact || "");
+    setCommissionValue(String(item.commission_value ?? ""));
+    setNotes(item.notes || "");
+    setDateIndicated(item.date_indicated ? item.date_indicated.slice(0, 10) : "");
+    setDatePaid(item.date_paid ? item.date_paid.slice(0, 10) : "");
+    setStatusEdit(item.status);
+    setFormErrors({});
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => { setIsModalOpen(false); setEditingId(null); };
+  const closeAffiliateModal = () => { if (savingAff) return; setIsAffiliateModalOpen(false); setAffErrors({}); setAffCodeTouched(false); };
 
   const handleSaveDefault = async () => {
     const v = parseFloat(defaultDraft.replace(",", "."));
@@ -170,40 +212,54 @@ export default function Indicacoes() {
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!referrerId) { toast.error("Selecione quem fez a indicação."); return; }
-    if (!referredName.trim()) { toast.error("Informe o nome do cliente indicado."); return; }
+    const errs: typeof formErrors = {};
+    const editingItem = editingId ? indicacoes.find(i => i.id === editingId) : null;
+    // Ao editar, indicadores antigos podem não estar mais na lista (ex.: colaborador removido): mantém o nome gravado.
+    if (!referrerId && !editingItem) errs.referrer = "Selecione quem fez a indicação.";
+    if (!referredName.trim()) errs.referred = "Informe o nome do cliente indicado.";
     const value = parseFloat(commissionValue.replace(",", "."));
-    if (isNaN(value) || value < 0) { toast.error("Informe um valor de comissão válido."); return; }
+    if (commissionValue === "" || isNaN(value) || value < 0) errs.commission = "Informe um valor de comissão válido (zero ou mais).";
+    setFormErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
-    const referrer = referrerOptions.find((r: any) => r.id === referrerId);
-    const referrerName = referrerType === "colaborador" ? referrer?.nome : referrer?.name;
-    if (!referrerName) { toast.error("Indicador inválido."); return; }
+    const referrerName = referrerNomeSelecionado || editingItem?.referrer_name;
+    if (!referrerName) { setFormErrors({ referrer: "Indicador inválido." }); return; }
 
-    addIndicacao({
+    const common = {
       referrer_type: referrerType,
-      referrer_colaborador_id: referrerType === "colaborador" ? referrerId : null,
-      referrer_cliente_id: referrerType === "cliente" ? referrerId : null,
+      referrer_colaborador_id: referrerType === "colaborador" ? (referrerId || null) : null,
+      referrer_cliente_id: referrerType === "cliente" ? (referrerId || null) : null,
       referrer_name: referrerName,
       referred_name: referredName.trim(),
       referred_contact: referredContact.trim() || null,
       commission_value: value,
-      status: "Pendente",
-      date_indicated: new Date().toISOString().split("T")[0],
+      date_indicated: dateIndicated || new Date().toISOString().split("T")[0],
       notes: notes.trim() || null,
-    });
+    };
 
-    toast.success("Indicação registrada com sucesso!");
-    setIsModalOpen(false);
+    if (editingId) {
+      updateIndicacao(editingId, { ...common, status: statusEdit, date_paid: statusEdit === "Paga" ? (datePaid || new Date().toISOString().split("T")[0]) : null });
+      toast.success("Indicação atualizada.");
+    } else {
+      addIndicacao({ ...common, status: "Pendente" });
+      toast.success("Indicação registrada com sucesso!");
+    }
+    closeModal();
   };
 
   const handleSaveAffiliate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!affName.trim() || !affCode.trim()) {
-      toast.error("Preencha ao menos o Nome e o Código do Afiliado.");
-      return;
-    }
+    const errs: typeof affErrors = {};
+    if (!affName.trim()) errs.name = "Informe o nome do afiliado.";
+    if (!affCodeClean) errs.code = "Informe um código para o link.";
+    else if (affiliates.some((a: any) => a.code === affCodeClean)) errs.code = "Já existe um afiliado com esse código.";
+    if (affEmail.trim() && !isEmail(affEmail)) errs.email = "E-mail com formato inválido.";
+    const ph = affPhone.replace(/\D/g, "");
+    if (ph && (ph.length < 10 || ph.length > 11)) errs.phone = "Telefone deve ter DDD + 8 ou 9 dígitos.";
+    setAffErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
-    const cleanCode = affCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    const cleanCode = affCodeClean;
     const newAff = {
       id: crypto.randomUUID(),
       name: affName.trim(),
@@ -215,10 +271,14 @@ export default function Indicacoes() {
       createdAt: new Date().toISOString(),
     };
 
-    const updated = [...affiliates, newAff];
-    await saveAppSetting(AFFILIATES_KEY, updated);
+    setSavingAff(true);
+    try {
+      await saveAppSetting(AFFILIATES_KEY, [...affiliates, newAff]);
+    } finally {
+      setSavingAff(false);
+    }
 
-    toast.success(`🎉 Afiliado "${newAff.name}" cadastrado! Link gerado: ref=${cleanCode}`);
+    toast.success(`Afiliado "${newAff.name}" cadastrado! Link gerado: ref=${cleanCode}`);
     setSelectedAffiliateCode(cleanCode);
     setAffName("");
     setAffEmail("");
@@ -226,8 +286,21 @@ export default function Indicacoes() {
     setAffPix("");
     setAffCode("");
     setAffCommission("");
+    setAffCodeTouched(false);
+    setAffErrors({});
     setIsAffiliateModalOpen(false);
     setIsLinkModalOpen(true);
+  };
+
+  const handleRemoveAffiliate = async (aff: any) => {
+    if (!(await confirmDialog({
+      title: "Remover afiliado",
+      description: `Remover "${aff.name}" (ref=${aff.code})? Links já compartilhados com esse código deixam de ser reconhecidos como afiliado. Indicações já registradas são mantidas.`,
+      confirmText: "Remover",
+      variant: "danger",
+    }))) return;
+    await saveAppSetting(AFFILIATES_KEY, affiliates.filter((a: any) => a.code !== aff.code));
+    toast.success("Afiliado removido.");
   };
 
   const handleCopyLink = () => {
@@ -255,10 +328,13 @@ export default function Indicacoes() {
   // Simulação / Teste do formulário público de indicação
   const handleTestSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!previewLeadName.trim() || !previewLeadPhone.trim()) {
-      toast.error("Preencha nome e WhatsApp.");
-      return;
-    }
+    const errs: typeof previewErrors = {};
+    if (!previewLeadName.trim()) errs.name = "Informe o nome do indicado.";
+    const ph = previewLeadPhone.replace(/\D/g, "");
+    if (ph.length < 10 || ph.length > 11) errs.phone = "Informe o WhatsApp com DDD.";
+    if (previewLeadEmail.trim() && !isEmail(previewLeadEmail)) errs.email = "E-mail com formato inválido.";
+    setPreviewErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
     const affiliateName = currentAffiliate?.name || "Afiliado Externo";
     const affiliateComm = currentAffiliate?.commission || defaultCommission || 100;
@@ -270,7 +346,7 @@ export default function Indicacoes() {
       referrer_cliente_id: null,
       referrer_name: `[Afiliado] ${affiliateName}`,
       referred_name: previewLeadName.trim(),
-      referred_contact: `${previewLeadPhone.trim()} · ${previewLeadEmail.trim()}`,
+      referred_contact: [previewLeadPhone.trim(), previewLeadEmail.trim()].filter(Boolean).join(" · "),
       commission_value: Number(affiliateComm),
       status: "Pendente",
       date_indicated: new Date().toISOString().split("T")[0],
@@ -313,13 +389,14 @@ export default function Indicacoes() {
     toast.success(`Indicação marcada como ${next}.`);
   };
 
-  const handleDelete = async (item: (typeof indicacoes)[number]) => {
+  const handleDelete = async (item: (typeof indicacoes)[number], fromModal = false) => {
     if (!(await confirmDialog({
       title: "Excluir indicação",
       description: `Excluir a indicação de "${item.referred_name}"? Essa ação não pode ser desfeita.`,
     }))) return;
     deleteIndicacao(item.id);
     toast.success("Indicação excluída.");
+    if (fromModal) closeModal();
   };
 
   const handleExport = () => {
@@ -491,7 +568,14 @@ export default function Indicacoes() {
                         {item.status}
                       </button>
                     </td>
-                    <td className="p-3 text-right">
+                    <td className="p-3 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => openEdit(item)}
+                        className="p-1.5 mr-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] transition-colors cursor-pointer rounded-lg"
+                        title="Editar / ver detalhes"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => handleDelete(item)}
                         className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger transition-colors cursor-pointer rounded-lg hover:bg-danger/10 hover:border-danger/25"
@@ -511,104 +595,76 @@ export default function Indicacoes() {
       {/* ── MODAL 1: CADASTRAR AFILIADO / INDICADOR ── */}
       <Modal
         isOpen={isAffiliateModalOpen}
-        onClose={() => setIsAffiliateModalOpen(false)}
-        title="Cadastrar Afiliado / Indicador Oficial"
+        onClose={closeAffiliateModal}
+        title={<ModalTitle icon={UserPlus} title="Cadastrar Afiliado / Indicador" subtitle="Parceiros, influenciadores, clientes ou colaboradores que recebem comissão por cada cliente indicado." />}
+        maxWidth="max-w-xl"
       >
-        <form onSubmit={handleSaveAffiliate} className="space-y-3.5">
-          <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-            Cadastre parceiros, influenciadores, clientes ou colaboradores como afiliados para que recebam comissão por cada cliente indicado.
-          </p>
-
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Nome do Afiliado / Parceiro *</label>
-            <input
-              type="text"
-              required
-              placeholder="Ex: Carlos Mendonça ou Agência Impacto"
-              value={affName}
-              onChange={(e) => {
-                setAffName(e.target.value);
-                if (!affCode) {
-                  const slug = e.target.value.toLowerCase().trim().split(" ")[0].replace(/[^a-z0-9]/g, "");
-                  setAffCode(slug);
-                }
-              }}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">WhatsApp / Telefone</label>
+        <form onSubmit={handleSaveAffiliate} className="space-y-4" noValidate>
+          <FormSection icon={User} title="Dados do afiliado">
+            <Field label="Nome do afiliado / parceiro" icon={User} required error={affErrors.name}>
               <input
                 type="text"
-                placeholder="(11) 99999-9999"
-                value={affPhone}
-                onChange={(e) => setAffPhone(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                autoFocus
+                placeholder="Ex: Carlos Mendonça ou Agência Impacto"
+                value={affName}
+                onChange={(e) => {
+                  setAffName(e.target.value);
+                  setAffErrors(p => ({ ...p, name: undefined }));
+                  if (!affCodeTouched) {
+                    const slug = e.target.value.toLowerCase().trim().split(" ")[0].replace(/[^a-z0-9]/g, "");
+                    setAffCode(slug);
+                  }
+                }}
+                className={inputCls(!!affErrors.name)}
               />
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="WhatsApp / Telefone" icon={Phone} error={affErrors.phone}>
+                <input type="text" inputMode="tel" placeholder="(11) 99999-9999" value={affPhone} onChange={(e) => { setAffPhone(formatPhone(e.target.value)); setAffErrors(p => ({ ...p, phone: undefined })); }} className={inputCls(!!affErrors.phone)} />
+              </Field>
+              <Field label="E-mail" icon={Mail} error={affErrors.email}>
+                <input type="email" placeholder="afiliado@email.com" value={affEmail} onChange={(e) => { setAffEmail(e.target.value); setAffErrors(p => ({ ...p, email: undefined })); }} className={inputCls(!!affErrors.email)} />
+              </Field>
             </div>
+          </FormSection>
 
-            <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">E-mail</label>
-              <input
-                type="email"
-                placeholder="afiliado@email.com"
-                value={affEmail}
-                onChange={(e) => setAffEmail(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-              />
+          <FormSection icon={Link} title="Link e comissão">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Código / slug do link" icon={Link} required error={affErrors.code} hint={!affErrors.code && affCodeClean ? `Link: …/indicacao?ref=${affCodeClean}` : "Letras minúsculas, números, - e _."}>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] font-mono text-xs">ref=</span>
+                  <input
+                    type="text"
+                    placeholder="carlos"
+                    value={affCode}
+                    onChange={(e) => { setAffCodeTouched(true); setAffCode(e.target.value.toLowerCase().replace(/\s+/g, "-")); setAffErrors(p => ({ ...p, code: undefined })); }}
+                    className={`${inputCls(!!affErrors.code)} pl-11 font-mono font-bold`}
+                  />
+                </div>
+              </Field>
+              <Field label="Comissão por venda (R$)" icon={DollarSign} hint={defaultCommission ? `Em branco = padrão (${currency(defaultCommission)}).` : "Em branco = R$ 100,00 (nenhum padrão definido)."}>
+                <input type="number" step="0.01" min="0" placeholder={String(defaultCommission || "100,00")} value={affCommission} onChange={(e) => setAffCommission(e.target.value)} className={`${inputCls()} font-mono font-bold`} />
+              </Field>
             </div>
-          </div>
+            <Field label="Chave Pix para pagamentos" icon={QrCode}>
+              <input type="text" placeholder="CPF, e-mail, telefone ou chave aleatória" value={affPix} onChange={(e) => setAffPix(e.target.value)} className={inputCls()} />
+            </Field>
+          </FormSection>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Código / Slug do Link *</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] font-mono text-xs">ref=</span>
-                <input
-                  type="text"
-                  required
-                  placeholder="carlos"
-                  value={affCode}
-                  onChange={(e) => setAffCode(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
-                  className="w-full pl-11 bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] font-mono font-bold border border-[var(--color-border-default)] rounded-[var(--radius-control)] pr-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-                />
-              </div>
-            </div>
+          {affiliates.length > 0 && (
+            <FormSection icon={Users} title={`Afiliados cadastrados (${affiliates.length})`}>
+              <ul className="divide-y divide-[var(--color-border-subtle)] max-h-36 overflow-y-auto">
+                {affiliates.map((a: any) => (
+                  <li key={a.id || a.code} className="flex items-center justify-between gap-2 py-1.5 text-xs">
+                    <span className="min-w-0 truncate"><b className="text-[var(--color-text-primary)]">{a.name}</b> <span className="font-mono text-[var(--color-text-faint)]">ref={a.code}</span> <span className="text-[var(--color-text-muted)]">· {currency(a.commission)}</span></span>
+                    <button type="button" onClick={() => handleRemoveAffiliate(a)} title="Remover afiliado" className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 cursor-pointer shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </li>
+                ))}
+              </ul>
+            </FormSection>
+          )}
 
-            <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Comissão por Venda (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                placeholder={String(defaultCommission || "100,00")}
-                value={affCommission}
-                onChange={(e) => setAffCommission(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] font-mono font-bold border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Chave Pix para Pagamentos</label>
-            <input
-              type="text"
-              placeholder="CPF, E-mail, Telefone ou Chave Aleatória"
-              value={affPix}
-              onChange={(e) => setAffPix(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-[var(--color-border-subtle)]">
-            <Button type="button" variant="outline" onClick={() => setIsAffiliateModalOpen(false)} className="h-9 px-4 text-xs font-bold">
-              Cancelar
-            </Button>
-            <Button type="submit" className="h-9 px-5 text-xs font-bold shadow-xs">
-              Salvar Afiliado
-            </Button>
-          </div>
+          <ModalFooter onCancel={closeAffiliateModal} saving={savingAff} submitLabel="Salvar afiliado" submitIcon={Save} />
         </form>
       </Modal>
 
@@ -616,219 +672,156 @@ export default function Indicacoes() {
       <Modal
         isOpen={isLinkModalOpen}
         onClose={() => setIsLinkModalOpen(false)}
-        title="Link & Formulário de Indicação / Afiliados"
+        title={<ModalTitle icon={Share2} title="Link & Formulário de Indicação" subtitle="Compartilhe o link rastreável e teste o formulário que o indicado preenche." />}
+        maxWidth="max-w-xl"
       >
         <div className="space-y-4">
-          {/* Seletor de Afiliado */}
-          {affiliates.length > 0 && (
-            <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Selecione o Afiliado:</label>
-              <select
-                value={selectedAffiliateCode}
-                onChange={(e) => setSelectedAffiliateCode(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none"
-              >
-                {affiliates.map((a: any) => (
-                  <option key={a.code} value={a.code}>
-                    {a.name} (ref={a.code} — {currency(a.commission)})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Card com o Link Gerado */}
-          <div className="p-3.5 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-primary-blue)]/25 space-y-2.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-primary-blue)] block">
-              Link de Indicação Rastreável
-            </span>
+          <FormSection icon={Link} title="Link rastreável">
+            {affiliates.length > 0 ? (
+              <Field label="Afiliado" icon={User}>
+                <select value={currentAffiliate?.code || ""} onChange={(e) => setSelectedAffiliateCode(e.target.value)} className={selectCls()}>
+                  {affiliates.map((a: any) => (
+                    <option key={a.code} value={a.code}>{a.name} (ref={a.code} — {currency(a.commission)})</option>
+                  ))}
+                </select>
+              </Field>
+            ) : (
+              <p className="text-[11px] text-[var(--color-text-muted)] flex items-start gap-1.5"><Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[var(--color-primary-blue)]" /> Nenhum afiliado cadastrado: o link usa o código geral “oficial”. Cadastre afiliados para rastrear cada parceiro.</p>
+            )}
             <div className="flex items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={currentReferralUrl}
-                className="flex-1 bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] font-mono focus:outline-none"
-              />
-              <Button
-                type="button"
-                onClick={handleCopyLink}
-                className="h-9 px-3 text-xs font-bold gap-1"
-              >
+              <input type="text" readOnly value={currentReferralUrl} onFocus={(e) => e.currentTarget.select()} className={`${inputCls()} font-mono flex-1`} />
+              <Button type="button" onClick={handleCopyLink} className="h-9 px-3 text-xs font-bold gap-1 shrink-0">
                 {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 {copiedLink ? "Copiado!" : "Copiar"}
               </Button>
             </div>
-
-            {/* Ações de Compartilhamento WhatsApp e Instagram */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleShareWhatsApp}
-                className="h-8 text-[11px] font-bold gap-1.5"
-              >
-                <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleShareInstagram}
-                className="h-8 text-[11px] font-bold gap-1.5"
-              >
-                <Share2 className="w-3.5 h-3.5" /> Instagram (Bio)
-              </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" onClick={handleShareWhatsApp} className="h-9 text-xs font-bold gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> WhatsApp</Button>
+              <Button type="button" variant="outline" onClick={handleShareInstagram} className="h-9 text-xs font-bold gap-1.5"><Share2 className="w-3.5 h-3.5" /> Instagram (Bio)</Button>
             </div>
-          </div>
+            {currentAffiliate && (
+              <p className="text-[10px] text-[var(--color-text-faint)]">Comissão deste afiliado: <b className="font-mono">{currency(currentAffiliate.commission)}</b> por indicação{currentAffiliate.pix ? " · Pix cadastrado" : " · sem chave Pix cadastrada"}.</p>
+            )}
+          </FormSection>
 
-          {/* Visualização / Teste do Formulário que o Cliente / Indicado vê */}
-          <div className="p-4 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-3">
-            <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-2">
-              <span className="text-[11px] font-black uppercase text-[var(--color-text-primary)] flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Formulário de Cadastro do Indicado
-              </span>
-              <span className="text-[10px] text-[var(--color-text-muted)] font-mono font-bold">Rastreio: {currentAffiliate ? currentAffiliate.name : "Geral"}</span>
-            </div>
-
-            <p className="text-[11px] text-[var(--color-text-muted)] leading-tight">
-              Quando o indicado acessa pelo WhatsApp ou Instagram, ele preenche este formulário e entra automaticamente no CRM:
-            </p>
-
-            <form onSubmit={handleTestSubmitForm} className="space-y-2.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  required
-                  placeholder="Nome do indicado *"
-                  value={previewLeadName}
-                  onChange={(e) => setPreviewLeadName(e.target.value)}
-                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none"
-                />
-                <input
-                  type="text"
-                  required
-                  placeholder="WhatsApp com DDD *"
-                  value={previewLeadPhone}
-                  onChange={(e) => setPreviewLeadPhone(e.target.value)}
-                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none"
-                />
+          <FormSection icon={Users} title="Formulário do indicado" hint={`rastreio: ${currentAffiliate ? currentAffiliate.name : "Geral"}`}>
+            <p className="text-[11px] text-[var(--color-text-muted)] leading-snug">É assim que o indicado se cadastra. Ao testar, o envio é real: cria uma indicação (Pendente) e um lead no CRM.</p>
+            <form onSubmit={handleTestSubmitForm} className="space-y-3" noValidate>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Nome do indicado" required error={previewErrors.name}>
+                  <input type="text" placeholder="Nome completo" value={previewLeadName} onChange={(e) => { setPreviewLeadName(e.target.value); setPreviewErrors(p => ({ ...p, name: undefined })); }} className={inputCls(!!previewErrors.name)} />
+                </Field>
+                <Field label="WhatsApp com DDD" required error={previewErrors.phone}>
+                  <input type="text" inputMode="tel" placeholder="(11) 99999-9999" value={previewLeadPhone} onChange={(e) => { setPreviewLeadPhone(formatPhone(e.target.value)); setPreviewErrors(p => ({ ...p, phone: undefined })); }} className={inputCls(!!previewErrors.phone)} />
+                </Field>
+                <Field label="E-mail" error={previewErrors.email}>
+                  <input type="email" placeholder="email@exemplo.com" value={previewLeadEmail} onChange={(e) => { setPreviewLeadEmail(e.target.value); setPreviewErrors(p => ({ ...p, email: undefined })); }} className={inputCls(!!previewErrors.email)} />
+                </Field>
+                <Field label="Empresa">
+                  <input type="text" placeholder="Nome da empresa" value={previewLeadCompany} onChange={(e) => setPreviewLeadCompany(e.target.value)} className={inputCls()} />
+                </Field>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input
-                  type="email"
-                  placeholder="E-mail"
-                  value={previewLeadEmail}
-                  onChange={(e) => setPreviewLeadEmail(e.target.value)}
-                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="Nome da Empresa"
-                  value={previewLeadCompany}
-                  onChange={(e) => setPreviewLeadCompany(e.target.value)}
-                  className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end pt-1">
-                <Button type="submit" className="h-8 px-4 text-xs font-bold gap-1.5">
-                  <Send className="w-3 h-3" /> Testar Envio do Formulário
-                </Button>
+              <div className="flex justify-end">
+                <Button type="submit" className="h-9 px-4 text-xs font-bold gap-1.5"><Send className="w-3.5 h-3.5" /> Testar envio do formulário</Button>
               </div>
             </form>
-          </div>
+          </FormSection>
         </div>
       </Modal>
 
-      {/* ── MODAL INDICAÇÃO MANUAL ── */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nova Indicação Manual">
-        <form onSubmit={handleAdd} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Quem Indicou? *</label>
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <button
-                type="button"
-                onClick={() => { setReferrerType("colaborador"); setReferrerId(""); }}
-                className={`h-9 rounded-[var(--radius-control)] text-xs font-bold border transition-colors cursor-pointer ${referrerType === "colaborador" ? "bg-[var(--color-primary-blue)] text-white border-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}
-              >
-                Colaborador
-              </button>
-              <button
-                type="button"
-                onClick={() => { setReferrerType("cliente"); setReferrerId(""); }}
-                className={`h-9 rounded-[var(--radius-control)] text-xs font-bold border transition-colors cursor-pointer ${referrerType === "cliente" ? "bg-[var(--color-primary-blue)] text-white border-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}
-              >
-                Cliente
-              </button>
-            </div>
-            <select
-              required
-              value={referrerId}
-              onChange={(e) => setReferrerId(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-            >
-              <option value="">Selecione {referrerType === "colaborador" ? "o colaborador" : "o cliente"}...</option>
-              {referrerOptions.map((r: any) => (
-                <option key={r.id} value={r.id}>{referrerType === "colaborador" ? r.nome : r.name}</option>
+      {/* ── MODAL INDICAÇÃO (NOVA / EDITAR) ── */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={<ModalTitle icon={editingId ? Pencil : UserPlus} title={editingId ? "Editar Indicação" : "Nova Indicação Manual"} subtitle={editingId ? "Atualize os dados, o status e as datas desta indicação." : "Registre uma indicação feita por um colaborador ou cliente."} />}
+        maxWidth="max-w-xl"
+      >
+        <form onSubmit={handleAdd} className="space-y-4" noValidate>
+          <FormSection icon={Users} title="Quem indicou">
+            <div className="grid grid-cols-2 gap-2">
+              {(["colaborador", "cliente"] as const).map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => { setReferrerType(t); setReferrerId(""); setFormErrors(p => ({ ...p, referrer: undefined })); }}
+                  className={`h-9 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${referrerType === t ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/40" : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}
+                >
+                  {t === "colaborador" ? "Colaborador" : "Cliente"}
+                </button>
               ))}
-            </select>
-          </div>
+            </div>
+            <Field label={referrerType === "colaborador" ? "Colaborador" : "Cliente"} icon={User} required error={formErrors.referrer} hint={referrerOptions.length === 0 ? `Nenhum ${referrerType} cadastrado ainda.` : undefined}>
+              <select value={referrerId} onChange={(e) => { setReferrerId(e.target.value); setFormErrors(p => ({ ...p, referrer: undefined })); }} className={selectCls(!!formErrors.referrer)}>
+                <option value="">Selecione {referrerType === "colaborador" ? "o colaborador" : "o cliente"}...</option>
+                {referrerOptions.map((r: any) => (
+                  <option key={r.id} value={r.id}>{referrerType === "colaborador" ? r.nome : r.name}</option>
+                ))}
+              </select>
+            </Field>
+          </FormSection>
 
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Nome do Indicado (Lead / Cliente) *</label>
-            <input
-              type="text"
-              required
-              placeholder="Ex: Pedro Henrique"
-              value={referredName}
-              onChange={(e) => setReferredName(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-            />
-          </div>
+          <FormSection icon={UserPlus} title="Indicado">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Nome do indicado (lead / cliente)" icon={User} required error={formErrors.referred}>
+                <input type="text" placeholder="Ex: Pedro Henrique" value={referredName} onChange={(e) => { setReferredName(e.target.value); setFormErrors(p => ({ ...p, referred: undefined })); }} className={inputCls(!!formErrors.referred)} />
+              </Field>
+              <Field label="Contato" icon={Phone} hint="Telefone ou e-mail (opcional).">
+                <input type="text" placeholder="Telefone ou e-mail do indicado" value={referredContact} onChange={(e) => setReferredContact(e.target.value)} className={inputCls()} />
+              </Field>
+            </div>
+          </FormSection>
 
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Contato (opcional)</label>
-            <input
-              type="text"
-              placeholder="Telefone ou e-mail do indicado"
-              value={referredContact}
-              onChange={(e) => setReferredContact(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-            />
-          </div>
+          <FormSection icon={DollarSign} title="Comissão e acompanhamento">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field
+                label="Valor da comissão (R$)"
+                icon={DollarSign}
+                required
+                error={formErrors.commission}
+                hint={defaultCommission > 0 && !editingId ? (
+                  <span>Padrão: {currency(defaultCommission)}. {commissionValue !== String(defaultCommission) && <button type="button" onClick={() => setCommissionValue(String(defaultCommission))} className="text-[var(--color-primary-blue)] font-bold hover:underline cursor-pointer">Usar padrão</button>}</span>
+                ) : undefined}
+              >
+                <input type="number" step="0.01" min="0" placeholder="0,00" value={commissionValue} onChange={(e) => { setCommissionValue(e.target.value); setFormErrors(p => ({ ...p, commission: undefined })); }} className={`${inputCls(!!formErrors.commission)} font-mono`} />
+              </Field>
+              <Field label="Data da indicação" icon={Calendar} hint={!dateIndicated ? "Em branco = hoje." : undefined}>
+                <input type="date" value={dateIndicated} onChange={(e) => setDateIndicated(e.target.value)} className={inputCls()} />
+              </Field>
+              {editingId && (
+                <>
+                  <Field label="Status" icon={Clock}>
+                    <select value={statusEdit} onChange={(e) => { const v = e.target.value as Indicacao["status"]; setStatusEdit(v); if (v === "Paga" && !datePaid) setDatePaid(new Date().toISOString().split("T")[0]); }} className={selectCls()}>
+                      {["Pendente", "Aprovada", "Paga", "Cancelada"].map(st => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Data do pagamento" icon={CheckCircle2} hint={statusEdit !== "Paga" ? "Só é gravada quando o status é “Paga”." : undefined}>
+                    <input type="date" value={datePaid} disabled={statusEdit !== "Paga"} onChange={(e) => setDatePaid(e.target.value)} className={inputCls()} />
+                  </Field>
+                </>
+              )}
+            </div>
+            <Field label="Observações" icon={AlignLeft} hint={`${notes.length}/500`}>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={500} placeholder="Contexto adicional sobre a indicação (opcional)" className={textareaCls} />
+            </Field>
+          </FormSection>
 
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Valor da Comissão (R$) *</label>
-            <input
-              type="number"
-              required
-              step="0.01"
-              placeholder="0,00"
-              value={commissionValue}
-              onChange={(e) => setCommissionValue(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-            />
-          </div>
+          {(referrerId && referredName.trim()) && (
+            <div className="rounded-xl border border-[var(--color-primary-blue)]/20 bg-[var(--color-primary-blue)]/[0.05] p-3 text-xs text-[var(--color-text-primary)] flex items-start gap-2">
+              <Info className="w-3.5 h-3.5 text-[var(--color-primary-blue)] shrink-0 mt-0.5" />
+              <span><b>{referrerNomeSelecionado}</b> indicou <b>{referredName.trim()}</b>{parseFloat(commissionValue) >= 0 && commissionValue !== "" ? <> — comissão de <b className="font-mono">{currency(parseFloat(commissionValue) || 0)}</b></> : null}.</span>
+            </div>
+          )}
 
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Observações</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Contexto adicional sobre a indicação..."
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] resize-none"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-[var(--color-border-subtle)]">
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="h-9 px-4 text-xs font-bold border-[var(--color-border-default)]">
-              Cancelar
-            </Button>
-            <Button type="submit" className="h-9 px-5 text-xs font-bold shadow-xs">
-              Registrar Indicação
-            </Button>
-          </div>
+          <ModalFooter
+            onCancel={closeModal}
+            submitLabel={editingId ? "Salvar alterações" : "Registrar indicação"}
+            submitIcon={Save}
+            left={editingId ? (
+              <Button type="button" variant="ghost" onClick={() => { const it = indicacoes.find(i => i.id === editingId); if (it) handleDelete(it, true); }} className="h-9 px-3 text-xs font-bold gap-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10">
+                <Trash2 className="w-3.5 h-3.5" /> Excluir
+              </Button>
+            ) : undefined}
+          />
         </form>
       </Modal>
       </div>

@@ -4,7 +4,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
-import { Plus, Star, Pencil, Trash2, Archive, ArchiveRestore, Landmark, Repeat, Wallet, BarChart3 } from "lucide-react";
+import { Plus, Star, Pencil, Trash2, Archive, ArchiveRestore, Landmark, Repeat, Wallet, BarChart3, FileText, DollarSign, Info, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
 import { useData } from "../../contexts/DataContext";
@@ -27,6 +27,18 @@ const TIPOS: { id: string; label: string }[] = [
   { id: "CARTAO_DEBITO", label: "Cartão de Débito" },
   { id: "OUTRO", label: "Outro" },
 ];
+const TIPO_HINTS: Record<string, string> = {
+  CONTA_CORRENTE: "Conta do dia a dia no banco.",
+  CONTA_POUPANCA: "Reserva com rendimento no banco.",
+  CARTEIRA: "Dinheiro em espécie ou caixa físico.",
+  COFRE: "Valores guardados fora do banco.",
+  INVESTIMENTO: "Aplicações e fundos.",
+  CARTAO_CREDITO: "Use saldo inicial negativo para uma fatura em aberto.",
+  CARTAO_DEBITO: "Cartão ligado a uma conta existente.",
+  OUTRO: "Qualquer outro tipo de conta ou caixa.",
+};
+const ctl = "w-full h-9 px-3 rounded-lg bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40";
+const lbl = "text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5";
 const tipoLabel = (id: string) => TIPOS.find(t => t.id === id)?.label ?? id;
 
 type Sinal = "POSITIVO" | "NEGATIVO" | "ZERADO";
@@ -56,6 +68,9 @@ export default function FinanceiroContasBancarias() {
   const [tipo, setTipo] = useState("CONTA_CORRENTE");
   const [saldoInicial, setSaldoInicial] = useState("");
   const [sinal, setSinal] = useState<Sinal>("POSITIVO");
+  const [principal, setPrincipal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [tentou, setTentou] = useState(false);
 
   const emUso = useMemo(() => new Set((financeEntries as any[]).map(e => e.conta_bancaria_id).filter(Boolean)), [financeEntries]);
 
@@ -102,51 +117,78 @@ export default function FinanceiroContasBancarias() {
 
   const resetForm = () => {
     setNome(""); setTipo("CONTA_CORRENTE"); setSaldoInicial(""); setSinal("POSITIVO"); setEditingId(null);
+    setPrincipal(false); setSaving(false); setTentou(false);
   };
+  const closeModal = () => { setIsModalOpen(false); resetForm(); };
 
   const openNew = () => { resetForm(); setIsModalOpen(true); };
   const openEdit = (c: ContaBancaria) => {
+    resetForm();
     setEditingId(c.id); setNome(c.nome); setTipo(c.tipo);
     setSaldoInicial(String(c.saldo_inicial)); setSinal(c.sinal_saldo_inicial);
+    setPrincipal(!!c.is_principal);
     setIsModalOpen(true);
   };
 
+  const editingConta = editingId ? contas.find(c => c.id === editingId) ?? null : null;
+  const nomeDuplicado = !!nome.trim() && contas.some(c => c.id !== editingId && c.nome.trim().toLowerCase() === nome.trim().toLowerCase());
+  const nomeErro = !nome.trim() ? "Informe o nome da conta." : "";
+  const saldoInicialNum = sinal === "ZERADO" ? 0 : Math.abs(parseFloat(saldoInicial) || 0);
+  const saldoInicialAssinado = sinal === "NEGATIVO" ? -saldoInicialNum : saldoInicialNum;
+
+  const detalhesConta = useMemo(() => {
+    if (!editingId) return null;
+    const lanc = (financeEntries as any[]).filter(e => e.conta_bancaria_id === editingId).length;
+    const transf = (financeTransfers as any[]).filter(t => t.conta_origem_id === editingId || t.conta_destino_id === editingId).length;
+    return { lanc, transf, saldo: saldoPorConta.get(editingId) ?? 0 };
+  }, [editingId, financeEntries, financeTransfers, saldoPorConta]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nome.trim()) { toast.error("Informe o nome da conta."); return; }
+    setTentou(true);
+    if (nomeErro) { toast.error(nomeErro); return; }
 
     const payload = {
       nome: nome.trim(),
       tipo,
-      saldo_inicial: sinal === "ZERADO" ? 0 : Math.abs(parseFloat(saldoInicial) || 0),
+      saldo_inicial: saldoInicialNum,
       sinal_saldo_inicial: sinal,
     };
 
-    if (editingId) {
-      await updateFinanceBankAccount(editingId, payload);
-      toast.success("Conta atualizada.");
-    } else {
-      const isFirst = contas.length === 0;
-      await addFinanceBankAccount({ ...payload, is_principal: isFirst, arquivada: false });
-      toast.success("Conta bancária criada.");
+    setSaving(true);
+    try {
+      if (editingId) {
+        await updateFinanceBankAccount(editingId, payload);
+        if (principal && editingConta && !editingConta.is_principal && !editingConta.arquivada) await setContaPrincipal(editingId);
+        toast.success("Conta atualizada.");
+      } else {
+        const isFirst = contas.length === 0;
+        const criada = await addFinanceBankAccount({ ...payload, is_principal: isFirst, arquivada: false });
+        if (principal && !isFirst && criada?.id) await setContaPrincipal(criada.id);
+        toast.success("Conta bancária criada.");
+      }
+      closeModal();
+    } finally {
+      setSaving(false);
     }
-    setIsModalOpen(false);
-    resetForm();
   };
 
-  const handleDelete = async (c: ContaBancaria) => {
+  const handleDelete = async (c: ContaBancaria): Promise<boolean> => {
     if (emUso.has(c.id)) {
       toast.error("Esta conta tem lançamentos vinculados — arquive em vez de excluir.");
-      return;
+      return false;
     }
-    if (!(await confirmDialog({ title: "Excluir conta bancária", description: `Excluir "${c.nome}"? Essa ação não pode ser desfeita.` }))) return;
+    if (!(await confirmDialog({ title: "Excluir conta bancária", description: `Excluir "${c.nome}"? Essa ação não pode ser desfeita.` }))) return false;
     await deleteFinanceBankAccount(c.id);
     toast.success("Conta excluída.");
+    return true;
   };
 
-  const handleArchiveToggle = async (c: ContaBancaria) => {
+  const handleArchiveToggle = async (c: ContaBancaria): Promise<boolean> => {
+    if (!c.arquivada && !(await confirmDialog({ title: "Arquivar conta", description: `Arquivar "${c.nome}"? Ela deixa de aparecer nas listas de seleção, mas o histórico e os lançamentos são mantidos. Você pode reativá-la depois.` }))) return false;
     await updateFinanceBankAccount(c.id, { arquivada: !c.arquivada, ...(c.is_principal && !c.arquivada ? { is_principal: false } : {}) });
     toast.success(c.arquivada ? "Conta reativada." : "Conta arquivada.");
+    return true;
   };
 
   const handleSetPrincipal = async (id: string) => {
@@ -287,35 +329,116 @@ export default function FinanceiroContasBancarias() {
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title={editingId ? "Editar Conta Bancária" : "Nova Conta Bancária"} maxWidth="max-w-md">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]">
+              {editingId ? <Pencil className="w-5 h-5" /> : <Landmark className="w-6 h-6" />}
+            </div>
+            <div className="min-w-0">
+              <div className="text-lg font-black text-[var(--color-text-primary)] leading-tight">{editingId ? "Editar Conta Bancária" : "Nova Conta Bancária"}</div>
+              <div className="text-xs font-normal text-[var(--color-text-muted)]">Contas e caixas onde o dinheiro realmente circula — só lançamentos pagos afetam o saldo.</div>
+            </div>
+          </div>
+        }
+        maxWidth="max-w-xl"
+      >
         <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Tipo de Conta</label>
-            <select value={tipo} onChange={(e) => setTipo(e.target.value)} className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer">
-              {TIPOS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Nome *</label>
-            <input type="text" required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Nubank, Caixa da Loja..." className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+          {detalhesConta && editingConta && (
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { l: "Saldo atual", v: formatCurrency(detalhesConta.saldo), neg: detalhesConta.saldo < 0 },
+                { l: "Lançamentos vinculados", v: String(detalhesConta.lanc) },
+                { l: "Transferências", v: String(detalhesConta.transf) },
+              ].map(k => (
+                <div key={k.l} className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-3 py-2">
+                  <div className="text-[10px] text-[var(--color-text-muted)]">{k.l}</div>
+                  <div className={cn("text-sm font-bold tabular-nums", k.neg ? "text-[var(--color-danger)]" : "text-[var(--color-text-primary)]")}>{k.v}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="rounded-xl border border-[var(--color-border-subtle)] p-3 space-y-3">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Identificação</div>
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Saldo Inicial</label>
-              <input type="number" step="0.01" disabled={sinal === "ZERADO"} value={saldoInicial} onChange={(e) => setSaldoInicial(e.target.value)} placeholder="0,00" className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] disabled:opacity-50" />
+              <label className={lbl}>Nome da conta</label>
+              <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Nubank, Caixa da Loja..." className={cn(ctl, tentou && nomeErro && "border-danger")} autoFocus />
+              {tentou && nomeErro && <p className="text-[10px] text-danger mt-1">{nomeErro}</p>}
+              {nomeDuplicado && <p className="text-[10px] text-[var(--color-warning)] mt-1">Já existe uma conta com esse nome — considere diferenciar para não confundir nas seleções.</p>}
             </div>
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Sinal</label>
-              <select value={sinal} onChange={(e) => setSinal(e.target.value as Sinal)} className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer">
-                <option value="POSITIVO">Positivo</option>
-                <option value="NEGATIVO">Negativo</option>
-                <option value="ZERADO">Zerado</option>
+              <label className={lbl}>Tipo de conta</label>
+              <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={cn(ctl, "cursor-pointer")}>
+                {TIPOS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
+              <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{TIPO_HINTS[tipo]}</p>
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
-            <Button type="button" variant="outline" onClick={() => { setIsModalOpen(false); resetForm(); }} className="h-9 px-4 text-xs font-medium">Cancelar</Button>
-            <Button type="submit" className="h-9 px-5 text-xs font-medium">{editingId ? "Salvar Alterações" : "Criar Conta"}</Button>
+
+          <div className="rounded-xl border border-[var(--color-border-subtle)] p-3 space-y-3">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5" /> Saldo inicial</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={lbl}>Valor (R$)</label>
+                <input type="number" step="0.01" min="0" disabled={sinal === "ZERADO"} value={saldoInicial} onChange={(e) => setSaldoInicial(e.target.value)} placeholder="0,00" className={cn(ctl, "font-mono disabled:opacity-50")} />
+              </div>
+              <div>
+                <label className={lbl}>Sinal</label>
+                <select value={sinal} onChange={(e) => setSinal(e.target.value as Sinal)} className={cn(ctl, "cursor-pointer")}>
+                  <option value="POSITIVO">Positivo (crédito)</option>
+                  <option value="NEGATIVO">Negativo (dívida)</option>
+                  <option value="ZERADO">Zerado</option>
+                </select>
+              </div>
+            </div>
+            <p className="flex items-start gap-1.5 text-[10px] text-[var(--color-text-muted)]">
+              <Info className="w-3 h-3 shrink-0 mt-0.5" />
+              Saldo de partida: <strong className={cn("ml-0.5", saldoInicialAssinado < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-text-primary)]")}>{formatCurrency(saldoInicialAssinado)}</strong>. Recebimentos e transferências pagos somam; despesas pagas subtraem a partir daqui.
+            </p>
+          </div>
+
+          {(!editingConta || !editingConta.arquivada) && (
+            <label className={cn("flex items-start gap-2 text-xs cursor-pointer", (editingConta?.is_principal || contas.length === 0) && "opacity-70 cursor-default")}>
+              <input
+                type="checkbox"
+                checked={principal || contas.length === 0}
+                disabled={!!editingConta?.is_principal || contas.length === 0}
+                onChange={(e) => setPrincipal(e.target.checked)}
+                className="mt-0.5 cursor-pointer"
+              />
+              <span>
+                <span className="font-bold text-[var(--color-text-primary)] flex items-center gap-1"><Star className="w-3 h-3 text-[var(--color-success)]" /> Conta principal</span>
+                <span className="block text-[10px] text-[var(--color-text-faint)]">
+                  {contas.length === 0 || editingConta?.is_principal ? "Esta é a conta principal — vem pré-selecionada nos novos lançamentos." : "Passa a vir pré-selecionada nos novos lançamentos (substitui a principal atual)."}
+                </span>
+              </span>
+            </label>
+          )}
+
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
+            <div className="flex gap-2">
+              {editingConta && (
+                <>
+                  <Button type="button" variant="outline" disabled={saving} onClick={async () => { if (await handleArchiveToggle(editingConta)) closeModal(); }} className="h-9 px-3 text-xs font-medium gap-1.5">
+                    {editingConta.arquivada ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+                    {editingConta.arquivada ? "Reativar" : "Arquivar"}
+                  </Button>
+                  <Button type="button" variant="outline" disabled={saving} onClick={async () => { if (await handleDelete(editingConta)) closeModal(); }} className="h-9 px-3 text-xs font-medium gap-1.5 text-[var(--color-danger)]">
+                    <Trash2 className="w-3.5 h-3.5" /> Excluir
+                  </Button>
+                </>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={closeModal} disabled={saving} className="h-9 px-4 text-xs font-medium">Cancelar</Button>
+              <Button type="submit" disabled={saving} className="h-9 px-5 text-xs font-medium gap-1.5">
+                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {editingId ? "Salvar Alterações" : "Criar Conta"}
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>
