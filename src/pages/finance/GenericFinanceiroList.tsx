@@ -4,7 +4,7 @@ import { EmptyState } from "../../components/ui/empty-state";
 import {
   Download, Calendar, CheckCircle2,
   Clock, AlertTriangle, Plus, Trash2, DollarSign, Pencil, Lock, Repeat, Layers, User, Landmark, HelpCircle,
-  TrendingUp, TrendingDown, BarChart3, HourglassIcon, Copy, ArrowUpRight, ArrowDownRight, Tag, Search, X, ArrowUpDown, LayoutGrid, List as ListIcon, FileText, AlignLeft, FolderOpen, CreditCard, ArrowLeftRight, Save,
+  TrendingUp, TrendingDown, BarChart3, HourglassIcon, Copy, ArrowUpRight, ArrowDownRight, Tag, Search, X, ArrowUpDown, LayoutGrid, List as ListIcon, FileText, AlignLeft, FolderOpen, CreditCard, ArrowLeftRight, Save, Paperclip, Info, Activity,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
@@ -520,10 +520,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingItem || !editDesc.trim() || !(parseFloat(editValue) > 0) || !editCategoryId) {
-      toast.error("Preencha descrição, valor e categoria antes de salvar.");
-      return;
-    }
+    if (!editingItem) return;
 
     const statusChanged = editStatus !== editingItem.status;
     if (statusChanged && !(await confirmDialog({
@@ -536,10 +533,11 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
 
     const categoriaSelecionada = categoriasDoTipo.find(c => c.id === editCategoryId);
     updateFinanceEntry(editingItem.id, {
-      description: editDesc,
+      // Nenhum campo é obrigatório na edição: nome vazio vira "Sem descrição", valor vazio vira 0, categoria pode ficar em branco.
+      description: editDesc.trim() || "Sem descrição",
       notes: editNotes || null,
-      category: categoriaSelecionada?.nome || "Geral",
-      category_id: editCategoryId,
+      category: categoriaSelecionada?.nome || "Sem categoria",
+      category_id: editCategoryId || null,
       conta_bancaria_id: editContaBancariaId || null,
       centro_custo_id: editCentroCustoId || null,
       tags: parseTags(editTags),
@@ -547,8 +545,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       contato_id: editCounterparty ? resolverContatoId(editCounterparty) : null,
       payment_method: editPaymentMethod || null,
       numero_documento: editNumeroDocumento || null,
-      value: parseFloat(editValue),
-      date: editDate,
+      value: parseFloat(editValue) || 0,
+      date: editDate.trim() || editingItem.date,
       status: editStatus,
       is_recurring: editIsRecurring,
       recurring_frequency: editIsRecurring ? editFrequency : null,
@@ -1436,19 +1434,28 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       <Modal
         isOpen={!!editingItem}
         onClose={() => setEditingItem(null)}
-        title="Editar Lançamento"
-        description="Atualize os dados e o status deste lançamento financeiro."
-        maxWidth="max-w-lg"
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]">
+              <Pencil className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-lg font-black text-[var(--color-text-primary)] leading-tight">Editar Lançamento</div>
+              <div className="text-xs font-normal text-[var(--color-text-muted)]">Atualize os dados e o status deste lançamento financeiro. Nenhum campo é obrigatório.</div>
+            </div>
+          </div>
+        }
+        maxWidth="max-w-2xl"
       >
-        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit mb-4">
-          {([{ id: "detalhes", label: "Detalhes" }, { id: "arquivos", label: "Nota Fiscal / Anexos" }] as const).map(t => (
+        <div className="flex items-center gap-1 border-b border-[var(--color-border-subtle)] mb-4">
+          {([{ id: "detalhes", label: "Detalhes", icon: FileText }, { id: "arquivos", label: "Nota Fiscal / Anexos", icon: Paperclip }] as const).map(t => (
             <button
               key={t.id}
               type="button"
               onClick={() => setEditModalTab(t.id)}
-              className={`px-3 h-7 rounded text-xs font-medium transition-colors cursor-pointer ${editModalTab === t.id ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+              className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors cursor-pointer bg-transparent border-x-0 border-t-0 ${editModalTab === t.id ? "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]" : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
             >
-              {t.label}
+              <t.icon className="w-3.5 h-3.5" /> {t.label}
             </button>
           ))}
         </div>
@@ -1468,47 +1475,48 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             </div>
           )}
           <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Nome do Lançamento *</label>
+            <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Nome do Lançamento</label>
             <input
               type="text"
-              required
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
             />
           </div>
 
           <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Descrição / Observações</label>
+            <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><AlignLeft className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Descrição / Observações</label>
             <textarea
               rows={2}
               value={editNotes}
+              maxLength={500}
+              placeholder="Detalhes adicionais deste lançamento (opcional)"
               onChange={(e) => setEditNotes(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] resize-none"
+              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] resize-none"
             />
+            <p className="text-[10px] text-[var(--color-text-faint)] text-right mt-0.5">{editNotes.length}/500</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Categoria Financeira *</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Categoria Financeira</label>
               <select
-                required
                 value={editCategoryId}
                 onChange={(e) => setEditCategoryId(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
               >
                 <option value="">Selecione...</option>
                 {categoriasDoTipo.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">{type === 'Pagar' ? 'Fornecedor' : 'Cliente'}</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> {type === 'Pagar' ? 'Fornecedor' : 'Cliente'}</label>
               <input
                 type="text"
                 list="contatos-sugeridos-edit"
                 value={editCounterparty}
                 onChange={(e) => setEditCounterparty(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
               />
               <datalist id="contatos-sugeridos-edit">
                 {contatosSugeridos.map((c: any) => <option key={c.id} value={c.name} />)}
@@ -1518,34 +1526,38 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Forma de {type === 'Pagar' ? 'Pagamento' : 'Recebimento'}</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Forma de {type === 'Pagar' ? 'Pagamento' : 'Recebimento'}</label>
               <select
                 value={editPaymentMethod}
                 onChange={(e) => setEditPaymentMethod(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
               >
                 <option value="">Não informado</option>
                 {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Nº da Nota Fiscal</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Nº da Nota Fiscal</label>
               <input
                 type="text"
                 placeholder="Ex: NF-e 12345"
                 value={editNumeroDocumento}
                 onChange={(e) => setEditNumeroDocumento(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
               />
+              <p className="flex items-start gap-2 text-[10px] text-[var(--color-text-muted)] mt-1.5 p-2 rounded-lg bg-[var(--color-primary-blue)]/[0.06] border border-[var(--color-primary-blue)]/15">
+                <Info className="w-3.5 h-3.5 shrink-0 text-[var(--color-primary-blue)]" />
+                O arquivo da nota (PDF/XML) pode ser anexado na aba "Nota Fiscal / Anexos".
+              </p>
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Conta Bancária</label>
+            <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><Landmark className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Conta Bancária</label>
             <select
               value={editContaBancariaId}
               onChange={(e) => setEditContaBancariaId(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
+              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
             >
               <option value="">Não vinculada</option>
               {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}{c.is_principal ? " (Principal)" : ""}</option>)}
@@ -1554,39 +1566,43 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Centro de Custo</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><Layers className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Centro de Custo</label>
               <select
                 value={editCentroCustoId}
                 onChange={(e) => setEditCentroCustoId(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
               >
                 <option value="">Não informado</option>
                 {(financeCentrosCusto as any[]).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Tags</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Tags</label>
               <input
                 type="text"
                 placeholder="separadas por vírgula"
                 value={editTags}
                 onChange={(e) => setEditTags(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
               />
+              <p className="text-[10px] text-[var(--color-text-faint)] mt-1">Ex: marketing, software, recorrente</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Valor (R$) *</label>
-              <input
-                type="number"
-                required
-                step="0.01"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono"
-              />
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Valor (R$)</label>
+              <div className="flex items-stretch rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] overflow-hidden focus-within:ring-2 focus-within:ring-[var(--color-primary-blue)]">
+                <span className="px-3 flex items-center text-xs font-bold text-[var(--color-text-muted)] border-r border-[var(--color-border-default)]">R$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className="flex-1 min-w-0 bg-transparent text-[var(--color-text-primary)] px-3 py-2.5 text-xs focus:outline-none font-mono"
+                />
+              </div>
               {!editingItem?.division_group_id && (
                 <button
                   type="button"
@@ -1600,13 +1616,13 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             </div>
 
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Data de Vencimento</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Data de Vencimento</label>
               <input
                 type="text"
                 value={editDate}
                 onChange={(e) => setEditDate(e.target.value)}
                 placeholder="dd/mm/aaaa"
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
               />
             </div>
           </div>
@@ -1624,11 +1640,11 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             />
             {editIsRecurring && (
               <div>
-                <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Frequência</label>
+                <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5">Frequência</label>
                 <select
                   value={editFrequency}
                   onChange={(e) => setEditFrequency(e.target.value as Frequencia)}
-                  className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
+                  className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
                 >
                   <option value="semanal">Semanal</option>
                   <option value="quinzenal">Quinzenal</option>
@@ -1643,39 +1659,49 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
           </div>
 
           <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 flex items-center gap-1.5">
-              Status
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-faint)]">
-                <Lock className="w-2.5 h-2.5" /> só muda por aqui
-              </span>
+            <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Status
             </label>
-            <select
-              value={editStatus}
-              onChange={(e) => setEditStatus(e.target.value as "Pago" | "A Vencer" | "Atrasado" | "Pendente")}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
-            >
-              <option value="A Vencer">A Vencer</option>
-              <option value="Pago">Pago</option>
-              <option value="Atrasado">Atrasado</option>
-              <option value="Pendente">Pendente</option>
-            </select>
+            <div className={`flex items-center gap-2.5 rounded-xl border px-3 ${getStatusColor(editStatus)}`}>
+              {getStatusIcon(editStatus)}
+              <select
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as "Pago" | "A Vencer" | "Atrasado" | "Pendente")}
+                className="flex-1 bg-transparent py-2.5 text-xs font-bold focus:outline-none cursor-pointer"
+              >
+                <option value="A Vencer">A Vencer</option>
+                <option value="Pago">Pago</option>
+                <option value="Atrasado">Atrasado</option>
+                <option value="Pendente">Pendente</option>
+              </select>
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-[var(--color-border-subtle)]">
+          <div className="flex items-center justify-between gap-2 pt-4 border-t border-[var(--color-border-subtle)]">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setEditingItem(null)}
-              className="h-9 px-4 text-xs font-bold border-[var(--color-border-default)]"
+              onClick={async () => { if (editingItem) { const item = editingItem; setEditingItem(null); await handleDelete(item); } }}
+              className="h-10 px-4 text-xs font-bold gap-1.5 text-rose-500 border-rose-500/30 hover:bg-rose-500/10"
             >
-              Cancelar
+              <Trash2 className="w-4 h-4" /> Excluir
             </Button>
-            <Button
-              type="submit"
-              className="h-9 px-5 text-xs font-bold shadow-xs"
-            >
-              Salvar Alterações
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingItem(null)}
+                className="h-10 px-5 text-xs font-bold border-[var(--color-border-default)]"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="h-10 px-6 text-xs font-bold shadow-xs gap-2"
+              >
+                <Save className="w-4 h-4" /> Salvar Alterações
+              </Button>
+            </div>
           </div>
         </form>
         )}
