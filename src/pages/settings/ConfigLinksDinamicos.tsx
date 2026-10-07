@@ -41,7 +41,7 @@ export function ConfigLinksDinamicos() {
       toast.error(error);
       return;
     }
-    toast.success("Link cadastrado. A Aurora/Júlia já pode consultá-lo ao vivo.");
+    toast.success("Link cadastrado. A Aurora e a vendedora já podem consultá-lo ao vivo.");
     setForm({ link_type: "payment", label: "", url: "" });
   };
 
@@ -66,7 +66,7 @@ export function ConfigLinksDinamicos() {
         </h1>
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
           Cadastre aqui os links reais que sua empresa já usa (pagamento, agendamento, checkout, contrato) — a Aurora e a
-          Júlia consultam essa lista ao vivo em vez de ter qualquer link fixo no prompt. Atualizar um link aqui reflete
+          vendedora (IA) consultam essa lista ao vivo em vez de ter qualquer link fixo no prompt. Atualizar um link aqui reflete
           imediatamente, sem precisar editar nenhuma automação.
         </p>
       </div>
@@ -121,7 +121,7 @@ export function ConfigLinksDinamicos() {
           {loading ? (
             <div className="text-center py-8 text-[var(--color-text-faint)] text-xs">Carregando...</div>
           ) : links.length === 0 ? (
-            <EmptyState icon={Link2} title="Nenhum link cadastrado" description="Cadastre um link acima para a Aurora/Júlia usarem." className="py-8" />
+            <EmptyState icon={Link2} title="Nenhum link cadastrado" description="Cadastre um link acima para a Aurora e a vendedora usarem." className="py-8" />
           ) : (
             links.map((link) => (
               <div key={link.id} className="bg-[var(--color-surface-sunken)] p-3.5 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] flex items-center justify-between gap-3 text-xs">

@@ -30,7 +30,7 @@ const AURORA_CORE_ID = "aurora-core";
 // pra não duplicar controle nem ter um botão a mais que só repetia a mesma decisão.
 const EXECUTE_MODULE_BY_NAME: Record<string, string> = {
   "Radar de Oportunidades": "radar",
-  "Júlia — SDR": "sdr",
+  "Vendedora — SDR": "sdr",
   "Closer": "closer",
 };
 
@@ -43,7 +43,7 @@ const EXECUTE_MODULE_BY_NAME: Record<string, string> = {
 // negócio, não os nomes técnicos das AURORA_TOOLS (ferramentas internas que
 // a Aurora chama por trás; o agente é quem representa isso pro usuário).
 export const AURORA_AGENTS_DEFAULT: Array<Pick<AuroraAgent, "name" | "role" | "description">> = [
-  { name: "Júlia — SDR", role: "SDR", description: "Qualificação e primeiro contato com leads recebidos." },
+  { name: "Vendedora — SDR", role: "SDR", description: "Qualificação e primeiro contato com leads recebidos." },
   { name: "Agente Secreto", role: "Inteligência", description: "Monitoramento e alertas de oportunidades ocultas no pipeline." },
   { name: "Radar de Oportunidades", role: "Prospecção", description: "Identifica leads quentes e sinais de compra em tempo real." },
   { name: "Closer", role: "Vendas", description: "Condução de negociações e fechamento de propostas." },
@@ -392,7 +392,7 @@ export function ConfigSistemaAuroraAgentes() {
                 />
                 {isN8nLinked && (
                   <p className="text-[10px] text-[var(--color-text-faint)] mt-1">
-                    Esse é o nome que aparece pra você e pro seu cliente — pode trocar à vontade (ex: "Júlia" vira
+                    Esse é o nome que aparece pra você e pro seu cliente — pode trocar à vontade (ex: "Vendedora" vira
                     outro nome). O funcionamento por trás continua o mesmo, controlado pela Pluppex; só o apelido
                     muda por empresa.
                   </p>

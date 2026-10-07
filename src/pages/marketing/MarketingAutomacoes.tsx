@@ -63,7 +63,7 @@ function TriggerCard({ trigger, onAprovar, onRejeitar, onRemover }: {
 
       {trigger.status === "pendente_interpretacao" && (
         <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5">
-          <Loader2 className="w-3.5 h-3.5 animate-spin" /> A Júlia está lendo seu pedido e montando a lista...
+          <Loader2 className="w-3.5 h-3.5 animate-spin" /> A vendedora (IA) está lendo seu pedido e montando a lista...
         </p>
       )}
 
@@ -138,7 +138,7 @@ export default function MarketingAutomacoes() {
     if (error) { toast.error(error); return; }
     setDescricao("");
     setTipoSelecionado(null);
-    toast.success("Pedido enviado — a Júlia já está analisando.");
+    toast.success("Pedido enviado — a vendedora já está analisando.");
   };
 
   const usarTexto = (texto: string) => {
@@ -173,7 +173,7 @@ export default function MarketingAutomacoes() {
     <PageContainer
       title="Central de Automações S.P.Y."
       description={aba === "julia"
-        ? "Descreva quem você quer contatar em texto livre — a Júlia entende, monta a lista e a mensagem, e só envia depois que você aprovar."
+        ? "Descreva quem você quer contatar em texto livre — a vendedora (IA) entende, monta a lista e a mensagem, e só envia depois que você aprovar."
         : "Conecte etapas do funil comercial (ou categorias de produto vendidas) a departamentos da Operação — monte como você quiser, sem precisar de ninguém mexer em configuração."}
       actions={
         aba === "julia" ? (
@@ -190,7 +190,7 @@ export default function MarketingAutomacoes() {
     >
       <div className="space-y-6 pb-20">
         <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit">
-          {([["julia", "Gatilho → Mensagem (Júlia)", MessageCircle], ["funis", "Gatilho → Funis / OS", Workflow]] as const).map(([v, label, Icon]) => (
+          {([["julia", "Gatilho → Mensagem (IA)", MessageCircle], ["funis", "Gatilho → Funis / OS", Workflow]] as const).map(([v, label, Icon]) => (
             <button
               key={v}
               type="button"
@@ -296,7 +296,7 @@ export default function MarketingAutomacoes() {
 
                 <div className="flex items-center gap-2 pt-1">
                   <Button onClick={handleSubmit} disabled={submitting} className="h-9 px-4 text-xs font-bold gap-1.5">
-                    {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Pedir pra Júlia entender
+                    {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Pedir pra IA entender
                   </Button>
                   <Button variant="outline" onClick={() => setMostrarExemplos((v) => !v)} className="h-9 px-3 text-xs font-bold gap-1.5">
                     <BookOpen className="w-3.5 h-3.5" /> Ver exemplos de gatilhos
@@ -321,7 +321,7 @@ export default function MarketingAutomacoes() {
               <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
                 <div className="flex items-center gap-2 mb-1">
                   <Lightbulb className="w-4 h-4 text-[var(--color-primary-blue)]" />
-                  <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">Sugestões da Júlia</h3>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">Sugestões da vendedora</h3>
                 </div>
                 <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Com base nos seus dados reais, aqui estão algumas oportunidades:</p>
                 {sugestoes.length === 0 ? (

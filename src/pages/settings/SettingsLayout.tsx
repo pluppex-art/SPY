@@ -98,7 +98,7 @@ export default function SettingsLayout() {
         { title: "Integrações automáticas & Logs (Webhooks)", path: "/app/configuracoes/integracoes/webhooks" },
         { title: "Automações de Pré-Vendas (Webhooks de SDR)", path: "/app/configuracoes/integracoes/sdr-webhooks" },
         { title: "Conectar outros sistemas (ERP/CRM)", path: "/app/configuracoes/integracoes/conectores-externos" },
-        { title: "Links para os assistentes de IA (Aurora/Júlia)", path: "/app/configuracoes/integracoes/links-dinamicos" },
+        { title: "Links para os assistentes de IA (Aurora e vendedora)", path: "/app/configuracoes/integracoes/links-dinamicos" },
       ],
     },
     {
