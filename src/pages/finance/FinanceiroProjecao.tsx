@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { KpiFilterCard, FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { ArrowUpRight, ArrowDownRight, Scale, Waves, ListOrdered } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from "recharts";
@@ -88,7 +89,7 @@ export default function FinanceiroProjecao() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Projeção de Caixa" }]}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard id="finProjecao" kpis={kpis} activeCount={horizonte !== 30 ? 1 : 0} onClear={() => setHorizonte(30)}>
+        <FinanceKpiFilter id="finProjecao" kpis={kpis} activeCount={horizonte !== 30 ? 1 : 0} onClear={() => setHorizonte(30)}>
           <FilterBar>
             <FilterChips
               value={String(horizonte)}
@@ -99,7 +100,7 @@ export default function FinanceiroProjecao() {
             />
           </FilterBar>
           <KpiDrillChips items={[{ label: "Recebimentos previstos", onClick: () => setDrillKey("receber") }, { label: "Pagamentos previstos", onClick: () => setDrillKey("pagar") }]} />
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">

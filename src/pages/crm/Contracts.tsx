@@ -12,7 +12,8 @@ import { handleDownloadPdf } from "./utils/proposalPdf";
 import { getFaturamentoContratado } from "../../lib/revenueMetrics";
 import { isContractAtivo } from "../../components/ui/drillColumns";
 import type { Contract } from "../../types";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "../finance/components/FinanceKpiFilter";
 import { normalizeText } from "../../lib/utils";
 
 export default function Contracts() {
@@ -122,18 +123,19 @@ export default function Contracts() {
         </div>
       </div>
 
-      {/* Card "KPIs & Filtros" compartilhado. ContractsKPIs (drill-down + sparkline) fica dentro do card,
-          calculado sobre a lista filtrada. */}
-      <KpiFilterCard id="crmContratos" activeCount={activeCount} onClear={clearFilters}>
-        <ContractsKPIs
-          valorAtivos={valorContratosAtivos}
-          ativos={contractsFiltrados.filter(c => c.status === "Ativo").length}
-          inadimplentes={contractsFiltrados.filter(c => c.status === "Inadimplente").length}
-          mrrRows={contractsFiltrados.filter(isContractAtivo)}
-          ativosRows={contractsFiltrados.filter(c => c.status === "Ativo")}
-          inadimplentesRows={contractsFiltrados.filter(c => c.status === "Inadimplente")}
-          contracts={contractsFiltrados}
-        />
+      <ContractsKPIs
+        valorAtivos={valorContratosAtivos}
+        ativos={contractsFiltrados.filter(c => c.status === "Ativo").length}
+        inadimplentes={contractsFiltrados.filter(c => c.status === "Inadimplente").length}
+        mrrRows={contractsFiltrados.filter(isContractAtivo)}
+        ativosRows={contractsFiltrados.filter(c => c.status === "Ativo")}
+        inadimplentesRows={contractsFiltrados.filter(c => c.status === "Inadimplente")}
+        contracts={contractsFiltrados}
+      />
+
+      {/* Mesmo padrão de KPIs + filtros das telas do Financeiro: cards em cima, cartão de filtros embaixo.
+          Os cards (drill-down + gráfico) são calculados sobre a lista filtrada. */}
+      <FinanceKpiFilter id="crmContratos" activeCount={activeCount} onClear={clearFilters}>
         <FilterBar>
           <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar cliente, plano ou responsável..." />
           <FilterSelect icon={FileText} value={statusFilter} onChange={setStatusFilter} options={["Ativo", "Inadimplente", "Cancelado"]} allLabel="Todos os status" allValue="Todos" />
@@ -144,7 +146,7 @@ export default function Contracts() {
             <FilterSelect icon={User} value={vendedorFilter} onChange={setVendedorFilter} options={vendedoresDisponiveis} allLabel="Todos os responsáveis" allValue="Todos" />
           )}
         </FilterBar>
-      </KpiFilterCard>
+      </FinanceKpiFilter>
 
       <ContractsTable
         contracts={contractsFiltrados}

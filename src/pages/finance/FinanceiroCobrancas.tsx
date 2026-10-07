@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { Card } from "../../components/ui/card";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { Modal } from "../../components/ui/modal";
 import { Pagination } from "../../components/ui/Pagination";
 import { toast } from "sonner";
@@ -245,7 +246,7 @@ export default function FinanceiroCobrancas() {
       }
     >
       {/* KPIs recortadas pelo filtro global de período (vencimento); busca/status/método filtram só a tabela */}
-      <KpiFilterCard
+      <FinanceKpiFilter
         id="finCobrancas"
         className="mb-6"
         kpis={[
@@ -265,7 +266,7 @@ export default function FinanceiroCobrancas() {
           <FilterSelect icon={QrCode} value={metodoFilter} onChange={setMetodoFilter} options={["Pix", "Boleto"]} allLabel="Todos os métodos" />
           <FilterChips value={statusFilter} onChange={setStatusFilter} allValue="Todos" allLabel="Todos" options={["Liquidada", "Pendente"]} />
         </FilterBar>
-      </KpiFilterCard>
+      </FinanceKpiFilter>
 
       {(cobrancasKpis.valorLiquidado > 0 || cobrancasKpis.valorPendente > 0) && (
         <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] mb-6">

@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { Card } from "../../components/ui/card";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -281,7 +282,7 @@ export default function FinanceiroConciliacao() {
         </Button>
       }
     >
-      <KpiFilterCard
+      <FinanceKpiFilter
         id="finConciliacao"
         className="mb-6"
         kpis={[
@@ -307,7 +308,7 @@ export default function FinanceiroConciliacao() {
             options={[{ value: "pendente", label: "Pendentes" }, { value: "conciliado", label: "Conciliados" }]}
           />
         </FilterBar>
-      </KpiFilterCard>
+      </FinanceKpiFilter>
 
       {statusChartData.length > 0 && (
         <Card className="p-4 bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs mb-6">

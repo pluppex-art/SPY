@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { KpiFilterCard, FilterBar, FilterSearch, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import {
   PieChart, Waves, LineChart, Repeat2, AlertTriangle, Inbox, TrendingDown,
   TrendingUp, Wallet, Target, ArrowUpRight, Calendar, Users, Truck,
@@ -150,12 +151,12 @@ export default function FinanceiroRelatorios() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Central de Relatórios" }]}
     >
       <div className="space-y-8 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard id="finRelatorios" kpis={kpiCards} activeCount={activeCount} onClear={() => { setPreset("mes-atual"); setBusca(""); }}>
+        <FinanceKpiFilter id="finRelatorios" kpis={kpiCards} activeCount={activeCount} onClear={() => { setPreset("mes-atual"); setBusca(""); }}>
           <FilterBar>
             <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar relatório..." />
           </FilterBar>
           <FinanceiroFilterBar />
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">

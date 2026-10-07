@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
@@ -363,7 +364,7 @@ export default function Indicacoes() {
       }
     >
       <div className="space-y-6">
-      <KpiFilterCard
+      <FinanceKpiFilter
         id="finIndicacoes"
         kpis={[
           { label: "Total de Indicações", value: kpis.total, icon: Users, tone: "primary" },
@@ -379,7 +380,7 @@ export default function Indicacoes() {
           <FilterSelect icon={UserPlus} value={indicadorFilter} onChange={setIndicadorFilter} options={indicadores} allLabel="Todos os indicadores" />
           <FilterChips value={statusFilter} onChange={setStatusFilter} options={["Pendente", "Aprovada", "Paga", "Cancelada"]} />
         </FilterBar>
-      </KpiFilterCard>
+      </FinanceKpiFilter>
 
       {indicacoes.length > 0 && (
         <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">

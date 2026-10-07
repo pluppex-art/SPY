@@ -5,7 +5,8 @@ import {
   Layers, Plus, DollarSign, Users, TrendingUp,
   Building2, Trash2, Edit2, X, AlertCircle, PieChart, Download
 } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -177,7 +178,7 @@ export default function FinanceiroCentrosCusto() {
         </div>
       }
     >
-      <KpiFilterCard className="mb-4"
+      <FinanceKpiFilter className="mb-4"
         id="finCentrosCusto"
         kpis={[
           { label: "Orçamento Total", value: `R$ ${totalOrcado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "primary" },
@@ -202,7 +203,7 @@ export default function FinanceiroCentrosCusto() {
             ]}
           />
         </FilterBar>
-      </KpiFilterCard>
+      </FinanceKpiFilter>
 
       {/* Grid of Centros de Custo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

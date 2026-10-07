@@ -3,7 +3,8 @@ import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Download, Printer, ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Scale, Landmark } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -144,11 +145,11 @@ export default function FinanceiroPerformanceAnual() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard id="finPerformanceAnual" kpis={kpis} activeCount={ano !== anoAtual ? 1 : 0} onClear={() => setAno(anoAtual)}>
+        <FinanceKpiFilter id="finPerformanceAnual" kpis={kpis} activeCount={ano !== anoAtual ? 1 : 0} onClear={() => setAno(anoAtual)}>
           <FilterBar>
             <FilterChips value={String(ano)} onChange={(v) => setAno(Number(v))} allValue={String(anoAtual)} allLabel={String(anoAtual)} options={[String(anoAtual - 1)]} />
           </FilterBar>
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card className="p-6">

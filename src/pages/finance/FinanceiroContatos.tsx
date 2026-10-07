@@ -10,7 +10,8 @@ import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { parseEntryDate } from "./lib/financeDates";
@@ -184,7 +185,7 @@ export default function FinanceiroContatos() {
       actions={<Button onClick={openNew} className="h-9 px-4 text-xs font-medium gap-1.5"><Plus className="w-3.5 h-3.5" /> Novo Contato</Button>}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard
+        <FinanceKpiFilter
           id="finContatos"
           kpis={[
             { label: `Recebido de Clientes (${periodoLabel})`, value: formatCurrency(financeiroKpis.totalRecebido), icon: TrendingUp, tone: "success", hint: "Lançamentos pagos, vinculados a um cliente" },
@@ -219,7 +220,7 @@ export default function FinanceiroContatos() {
               <TrendingDown className="w-3.5 h-3.5" /> Ver pago
             </Button>
           </FilterBar>
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         {topContatosChart.length > 0 && (
           <Card className="p-6">

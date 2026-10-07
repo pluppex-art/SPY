@@ -7,7 +7,8 @@ import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseEntryDate, daysBetween } from "./lib/financeDates";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterSelect, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { apiFetch } from "../../lib/apiClient";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
@@ -118,7 +119,7 @@ export default function FinanceiroInadimplencia() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Inadimplência" }]}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard
+        <FinanceKpiFilter
           id="finInadimplencia"
           kpis={kpis}
           activeCount={(busca.trim() ? 1 : 0) + (faixa ? 1 : 0)}
@@ -129,7 +130,7 @@ export default function FinanceiroInadimplencia() {
             <FilterSelect icon={Hourglass} value={faixa} onChange={setFaixa} options={AGING_BUCKETS.map(b => ({ value: b.id, label: b.label }))} allLabel="Todas as faixas de atraso" title="Faixa de atraso" />
           </FilterBar>
           <KpiDrillChips items={[{ label: "Cobranças vencidas", onClick: () => setDrillOpen(true) }]} />
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         <Card className="p-6">
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">Aging de Recebimento</h3>

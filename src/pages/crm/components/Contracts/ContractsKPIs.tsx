@@ -4,7 +4,7 @@ import { useLocalization } from "../../../../contexts/LocalizationContext";
 import { FileText, DollarSign, AlertCircle, TrendingUp } from "lucide-react";
 import { DrillDownPanel } from "../../../../components/ui/DrillDownPanel";
 import { contractDrillColumns } from "../../../../components/ui/drillColumns";
-import { Sparkline } from "../../../../components/ui/sparkline";
+import { FinanceKpiGrid } from "../../../finance/components/FinanceKpiGrid";
 
 interface ContractsKPIsProps {
   /** Valor total contratado (recorrente + avulso) dos contratos ativos —
@@ -101,31 +101,22 @@ export function ContractsKPIs({ valorAtivos, ativos, inadimplentes, mrrRows, ati
 
   return (
     <>
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-      {items.map(({ label, value, icon: Icon, color, rows, spark, footer }, i) => (
-        <Card
-          key={label}
-          onClick={rows ? () => setDrillIndex(i) : undefined}
-          className={`p-5 ${rows ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all" : ""}`}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <Icon className={`w-4 h-4 ${color}`} />
-            <span className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest">{label}</span>
-          </div>
-          <div className="flex items-end justify-between gap-2">
-            <div>
-              <div className="text-xl font-display font-black text-[var(--color-text-primary)]">{value}</div>
-              <span className="text-[11px] font-bold text-[var(--color-text-muted)]">{footer}</span>
-            </div>
-            {spark && (
-              <div className={color}>
-                <Sparkline data={spark} className="w-14 h-7 shrink-0" />
-              </div>
-            )}
-          </div>
-        </Card>
-      ))}
-    </div>
+    <FinanceKpiGrid
+      noDeltaLabel="Sem base p/ comparação"
+      cards={items.map((it, i) => ({
+        label: it.label,
+        value: it.value,
+        icon: it.icon,
+        delta: i === 0 ? valorDelta : i === 1 ? pctDelta(atual.count, anterior.count) : i === 3 ? retencaoDeltaPP : null,
+        deltaSuffix: i === 3 ? " p.p." : "%",
+        goodUp: i === 2 ? false : i === 0 || i === 1 || i === 3 ? true : null,
+        series: it.spark ?? [],
+        footer: i === 1 || i === 2 ? it.footer : i === 0 ? "vs. mês anterior" : "vs. mês anterior",
+        hideDelta: i === 2,
+        danger: i === 2 && inadimplentes > 0,
+        onClick: it.rows ? () => setDrillIndex(i) : undefined,
+      }))}
+    />
     <DrillDownPanel
       isOpen={drillItem !== null}
       onClose={() => setDrillIndex(null)}

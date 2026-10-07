@@ -8,7 +8,8 @@ import { Plus, ArrowRight, Trash2, CheckCircle2, Clock, Repeat, Layers, Building
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterSelect, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
@@ -138,7 +139,7 @@ export default function FinanceiroTransferencias() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard id="finTransferencias" kpis={kpiItems} activeCount={activeCount} onClear={limparFiltros}>
+        <FinanceKpiFilter id="finTransferencias" kpis={kpiItems} activeCount={activeCount} onClear={limparFiltros}>
           <FilterBar>
             <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar descrição ou conta..." />
             <FilterSelect icon={Building2} value={contaFiltro} onChange={setContaFiltro} options={contasAtivas.map(c => ({ value: c.id, label: c.nome }))} allLabel="Todas as contas" title="Conta (origem ou destino)" />
@@ -152,7 +153,7 @@ export default function FinanceiroTransferencias() {
               { label: "Todas", onClick: () => setDrillKey("todas") },
             ]} />
           )}
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         {ordenadas.length === 0 ? (
           <Card className="p-12 text-center">

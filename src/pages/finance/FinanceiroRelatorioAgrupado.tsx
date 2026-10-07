@@ -3,7 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { Download, Printer, Hash, Layers, TrendingUp, Crown } from "lucide-react";
@@ -211,7 +212,7 @@ export default function FinanceiroRelatorioAgrupado() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard id="finRelatorioAgrupado" kpis={kpis} activeCount={activeCount} onClear={limparFiltros}>
+        <FinanceKpiFilter id="finRelatorioAgrupado" kpis={kpis} activeCount={activeCount} onClear={limparFiltros}>
           <FilterBar>
             <FilterSearch value={busca} onChange={setBusca} placeholder={`Buscar ${config.groupLabel.toLowerCase()}...`} />
             <FilterChips
@@ -237,7 +238,7 @@ export default function FinanceiroRelatorioAgrupado() {
             </div>
           </FilterBar>
           {maior && <KpiDrillChips items={[{ label: `Maior ${config.groupLabel}`, onClick: () => setDrillGrupo({ label: maior.label, rows: maior.rows }) }]} />}
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         {chartData.length > 0 && (
           <Card className="p-6 print:hidden">

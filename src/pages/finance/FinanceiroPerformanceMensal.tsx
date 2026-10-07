@@ -2,7 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { KpiFilterCard, FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { Download, Printer, TrendingUp, TrendingDown, Scale, Award } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
@@ -108,7 +109,7 @@ export default function FinanceiroPerformanceMensal() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard id="finPerformanceMensal" kpis={kpis} activeCount={janela !== 12 ? 1 : 0} onClear={() => setJanela(12)}>
+        <FinanceKpiFilter id="finPerformanceMensal" kpis={kpis} activeCount={janela !== 12 ? 1 : 0} onClear={() => setJanela(12)}>
           <FilterBar>
             <FilterChips
               value={String(janela)}
@@ -119,7 +120,7 @@ export default function FinanceiroPerformanceMensal() {
             />
           </FilterBar>
           <KpiDrillChips items={[{ label: "Receitas", onClick: () => setDrillKey("receitas") }, { label: "Despesas", onClick: () => setDrillKey("despesas") }]} />
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         <Card className="p-6">
           <div className="h-64 w-full">

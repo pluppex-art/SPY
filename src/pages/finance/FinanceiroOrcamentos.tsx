@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { EmptyState } from "../../components/ui/empty-state";
 import { Target, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
@@ -207,7 +208,7 @@ export default function FinanceiroOrcamentos() {
         />
       ) : (
         <div className="space-y-5">
-          <KpiFilterCard id="finOrcamentos" kpis={kpis} activeCount={activeCount} onClear={limparFiltros}>
+          <FinanceKpiFilter id="finOrcamentos" kpis={kpis} activeCount={activeCount} onClear={limparFiltros}>
             <FilterBar>
               <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 h-[38px]">
                 <button type="button" onClick={() => setRefDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="p-1 rounded hover:bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] cursor-pointer">
@@ -221,7 +222,7 @@ export default function FinanceiroOrcamentos() {
               <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar categoria..." />
               <FilterChips value={tipoFiltro} onChange={setTipoFiltro} options={[{ value: "Despesa", label: "Despesas" }, { value: "Receita", label: "Receitas" }]} />
             </FilterBar>
-          </KpiFilterCard>
+          </FinanceKpiFilter>
 
           {tipoFiltro !== "Receita" && renderGrupo("Despesas", TrendingDown, despesaRows, totalOrcadoDespesa, totalRealizadoDespesa, "text-danger")}
           {tipoFiltro !== "Despesa" && renderGrupo("Receitas", TrendingUp, receitaRows, totalOrcadoReceita, totalRealizadoReceita, "text-success")}

@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterSelect, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { Download, Printer, CheckCircle2, Clock, Wallet, ArrowDownRight, ArrowUpRight, Landmark, ListOrdered, Building2 } from "lucide-react";
@@ -152,7 +153,7 @@ export default function FinanceiroExtrato() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard id="finExtrato" kpis={kpis} activeCount={activeCount} onClear={limparFiltros}>
+        <FinanceKpiFilter id="finExtrato" kpis={kpis} activeCount={activeCount} onClear={limparFiltros}>
           <FilterBar>
             <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar descrição ou categoria..." />
             <FilterSelect
@@ -173,7 +174,7 @@ export default function FinanceiroExtrato() {
             <FilterChips value={somentePagos ? "pagos" : "todos"} onChange={(v) => setSomentePagos(v === "pagos")} allValue="pagos" allLabel="Somente pagos" options={[{ value: "todos", label: "Incluir pendentes" }]} />
           </FilterBar>
           {conta && <KpiDrillChips items={[{ label: "Entradas", onClick: () => setDrillKey("entradas") }, { label: "Saídas", onClick: () => setDrillKey("saidas") }]} />}
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         {!conta ? (
           <Card className="p-12 text-center text-sm text-[var(--color-text-muted)]">Cadastre uma conta bancária para ver o extrato.</Card>

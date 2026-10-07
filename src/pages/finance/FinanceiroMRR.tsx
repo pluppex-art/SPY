@@ -5,7 +5,8 @@ import { Repeat2, Users, TrendingDown, Percent, Layers, Package } from "lucide-r
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterSelect, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { contractDrillColumns } from "../../components/ui/drillColumns";
@@ -66,13 +67,13 @@ export default function FinanceiroMRR() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "MRR & Receita Recorrente" }]}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard id="finMrr" kpis={kpis} activeCount={(busca.trim() ? 1 : 0) + (plano ? 1 : 0)} onClear={() => { setBusca(""); setPlano(""); }}>
+        <FinanceKpiFilter id="finMrr" kpis={kpis} activeCount={(busca.trim() ? 1 : 0) + (plano ? 1 : 0)} onClear={() => { setBusca(""); setPlano(""); }}>
           <FilterBar>
             <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar cliente ou plano..." />
             <FilterSelect icon={Package} value={plano} onChange={setPlano} options={planos} allLabel="Todos os planos" title="Plano" />
           </FilterBar>
           <KpiDrillChips items={[{ label: "MRR perdido (cancelados)", onClick: () => setDrillCanceladosOpen(true) }]} />
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         <Card className="p-6">
           <div className="flex items-center justify-between mb-1">

@@ -1,6 +1,7 @@
 import { Card } from "../../components/ui/card";
 import { Download, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Minus, LineChart as LineChartIcon, Wallet, TrendingUp, Percent, ListOrdered } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -178,7 +179,7 @@ export default function FinanceiroDRE() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard id="finDre" kpis={kpis} activeCount={periodo !== "mensal" ? 1 : 0} onClear={limparFiltros}>
+        <FinanceKpiFilter id="finDre" kpis={kpis} activeCount={periodo !== "mensal" ? 1 : 0} onClear={limparFiltros}>
           <FilterBar>
             <FilterChips
               value={periodo}
@@ -202,7 +203,7 @@ export default function FinanceiroDRE() {
               />
             )}
           </FilterBar>
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Card className="lg:col-span-2 p-6">

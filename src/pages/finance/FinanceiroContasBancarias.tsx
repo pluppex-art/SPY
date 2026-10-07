@@ -10,7 +10,8 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { saldoDaConta, transferenciasDaConta, type FinanceEntryLike } from "./lib/financeEngine";
 import { cn } from "../../lib/utils";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
@@ -172,7 +173,7 @@ export default function FinanceiroContasBancarias() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard
+        <FinanceKpiFilter
           id="finContasBancarias"
           kpis={[
             { label: "Saldo Total (Contas Ativas)", value: formatCurrency(saldoTotalAtivas), icon: Wallet, tone: saldoTotalAtivas < 0 ? "danger" : "neutral" },
@@ -199,7 +200,7 @@ export default function FinanceiroContasBancarias() {
               <Landmark className="w-3.5 h-3.5" /> Ver contas ativas
             </Button>
           </FilterBar>
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         {chartData.length > 1 && (
           <Card className="p-6">

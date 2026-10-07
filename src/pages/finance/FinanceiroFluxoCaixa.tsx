@@ -2,7 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { KpiFilterCard, FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { ArrowUpRight, ArrowDownRight, Scale, Download, Calendar, CalendarDays } from "lucide-react";
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
@@ -124,7 +125,7 @@ export default function FinanceiroFluxoCaixa() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <KpiFilterCard id="finFluxoCaixa" kpis={kpis} activeCount={periodo !== 30 ? 1 : 0} onClear={() => setPeriodo(30)}>
+        <FinanceKpiFilter id="finFluxoCaixa" kpis={kpis} activeCount={periodo !== 30 ? 1 : 0} onClear={() => setPeriodo(30)}>
           <FilterBar>
             <FilterChips
               value={String(periodo)}
@@ -135,7 +136,7 @@ export default function FinanceiroFluxoCaixa() {
             />
           </FilterBar>
           <KpiDrillChips items={[{ label: "Entradas", onClick: () => setDrillKey("entradas") }, { label: "Saídas", onClick: () => setDrillKey("saidas") }]} />
-        </KpiFilterCard>
+        </FinanceKpiFilter>
 
         {fluxoDiario.length > 0 && (
           <Card className="p-6 print:hidden">

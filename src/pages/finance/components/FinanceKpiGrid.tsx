@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ArrowUpRight, ArrowDownRight, Minus, type LucideIcon } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { Sparkline } from "../../../components/ui/sparkline";
@@ -5,13 +6,15 @@ import { cn } from "../../../lib/utils";
 
 export interface FinanceKpi {
   label: string;
-  value: string;
+  value: ReactNode;
   icon: LucideIcon;
   /** Variação % vs. período anterior; `null` = sem base. */
   delta: number | null;
   /** true = alta é boa, false = alta é ruim, null = neutro. */
   goodUp: boolean | null;
   series: number[];
+  /** Sufixo do delta (padrão "%"; use " p.p." para pontos percentuais). */
+  deltaSuffix?: string;
   /** Texto do rodapé (esquerda). */
   footer?: string;
   /** Esconde o texto "sem período p/ comparação" quando não faz sentido comparar. */
@@ -54,7 +57,7 @@ export function FinanceKpiGrid({ cards, noDeltaLabel = "Sem período p/ compara�
                 <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right leading-tight">{noDeltaLabel}</span>
               ) : (
                 <span className={cn("text-xs font-bold flex items-center gap-0.5 tabular-nums", deltaColor)}>
-                  {up ? "+" : ""}{k.delta.toFixed(1)}% <DIcon className="w-3.5 h-3.5" />
+                  {up ? "+" : ""}{k.delta.toFixed(1)}{k.deltaSuffix ?? "%"} <DIcon className="w-3.5 h-3.5" />
                 </span>
               )}
             </div>
