@@ -1,13 +1,12 @@
 import GenericFinanceiroList from "./GenericFinanceiroList";
 
+/** Tudo o que sai — pago, a vencer, pendente ou atrasado (abas de status). Substitui as antigas Despesas + Contas a Pagar. */
 export default function FinanceiroDespesas() {
   return (
     <GenericFinanceiroList
       title="Despesas"
-      desc="Despesas já realizadas (pagas) — para o que ainda está por vir, veja Contas a Pagar."
+      desc="Tudo o que sai — pago, a vencer, pendente ou atrasado. Use as abas de status para filtrar."
       type="Pagar"
-      statusFilter="Pago"
-      defaultStatus="Pago"
     />
   );
 }

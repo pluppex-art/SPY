@@ -196,7 +196,7 @@ export default function ImobiliarioComissoes() {
       actions={
         <div className="flex items-center gap-2">
           <Link
-            to="/app/financeiro/receber"
+            to="/app/financeiro/receitas?status=A%20Vencer"
             className="h-9 px-3.5 text-xs font-bold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)] text-[var(--color-text-primary)] transition-all"
           >
             <DollarSign className="w-3.5 h-3.5 text-emerald-500" /> Ver no Financeiro

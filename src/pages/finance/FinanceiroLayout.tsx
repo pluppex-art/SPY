@@ -45,9 +45,7 @@ const groups: SectionNavGroup[] = [
     icon: ArrowLeftRight,
     items: [
       { title: "Todas as Movimentações", path: "/app/financeiro/transacoes", icon: ArrowLeftRight },
-      { title: "Contas a Receber", path: "/app/financeiro/receber", icon: TrendingUp },
       { title: "Receitas", path: "/app/financeiro/receitas", icon: Inbox },
-      { title: "Contas a Pagar", path: "/app/financeiro/pagar", icon: Wallet },
       { title: "Despesas", path: "/app/financeiro/despesas", icon: TrendingDown },
       { title: "Contratos & Faturas", path: "/app/financeiro/faturas", icon: Receipt },
     ],

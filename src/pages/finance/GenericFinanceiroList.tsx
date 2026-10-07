@@ -10,6 +10,7 @@ import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { Switch } from "../../components/ui/switch";
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid, AreaChart, Area, Legend } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
@@ -294,7 +295,11 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   // achar um lançamento específico.
   const [filtroBusca, setFiltroBusca] = useState("");
   const [filtroCategoriaId, setFiltroCategoriaId] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState<"" | "Pago" | "A Vencer" | "Atrasado" | "Pendente">("");
+  // `?status=A Vencer` (links do Painel Financeiro) já abre na aba certa.
+  const [searchParams] = useSearchParams();
+  const statusParam = searchParams.get("status") as "Pago" | "A Vencer" | "Atrasado" | "Pendente" | null;
+  const [filtroStatus, setFiltroStatus] = useState<"" | "Pago" | "A Vencer" | "Atrasado" | "Pendente">(statusParam ?? "");
+  useEffect(() => { setFiltroStatus(statusParam ?? ""); }, [statusParam, type]);
   const [filtroContaBancariaId, setFiltroContaBancariaId] = useState("");
   const [filtroCentroCustoId, setFiltroCentroCustoId] = useState("");
   const [pageSizeSel, setPageSizeSel] = useState(10);
@@ -439,7 +444,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     } else {
       addFinanceEntry({
         ...baseFields,
-        status: defaultStatus ?? baseFields.status,
+        // Criado com a aba "Pago" ativa = lançamento já realizado; nas demais abas, a vencer.
+        status: filtroStatus === "Pago" ? "Pago" : (defaultStatus ?? baseFields.status),
         value: totalValor,
         date: baseDate.toLocaleDateString("pt-BR"),
       });

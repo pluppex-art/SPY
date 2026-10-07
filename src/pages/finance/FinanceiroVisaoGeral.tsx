@@ -247,8 +247,8 @@ export default function FinanceiroVisaoGeral() {
     { label: "Despesas do mês", value: base.despesaMes, format: "currency", deltaPct: pctChange(base.despesaMes, base.despesaMesAnt), deltaGoodWhenUp: false, icon: TrendingDown, href: "/app/financeiro/despesas", tone: "rose", series: serieDespesa, chart: "bars" },
     { label: "Resultado do mês", value: base.resultadoMes, format: "currency", deltaPct: pctChange(base.resultadoMes, base.resultadoMesAnt), deltaGoodWhenUp: true, danger: base.resultadoMes < 0, icon: Scale, href: "/app/financeiro/transacoes", tone: "violet", series: serieResultado, chart: "line" },
     { label: "MRR ativo", value: base.mrrAtual, format: "currency", deltaPct: mrrHist.delta, deltaGoodWhenUp: true, icon: Repeat2, href: "/app/financeiro/mrr", tone: "amber", series: mrrHist.serie, chart: "bars" },
-    { label: "Contas a receber", value: base.abertoReceber.value, format: "currency", count: base.abertoReceber.count, deltaPct: null, deltaGoodWhenUp: null, icon: TrendingUp, href: "/app/financeiro/receber", tone: "sky", note: "Posição atual em aberto" },
-    { label: "Contas a pagar", value: base.abertoPagar.value, format: "currency", count: base.abertoPagar.count, deltaPct: null, deltaGoodWhenUp: null, icon: Wallet, href: "/app/financeiro/pagar", tone: "rose", note: "Posição atual em aberto" },
+    { label: "Contas a receber", value: base.abertoReceber.value, format: "currency", count: base.abertoReceber.count, deltaPct: null, deltaGoodWhenUp: null, icon: TrendingUp, href: "/app/financeiro/receitas?status=A%20Vencer", tone: "sky", note: "Posição atual em aberto" },
+    { label: "Contas a pagar", value: base.abertoPagar.value, format: "currency", count: base.abertoPagar.count, deltaPct: null, deltaGoodWhenUp: null, icon: Wallet, href: "/app/financeiro/despesas?status=A%20Vencer", tone: "rose", note: "Posição atual em aberto" },
     { label: "Vencido (inadimplência)", value: base.vencidoReceber.value, format: "currency", count: base.vencidoReceber.count, deltaPct: null, deltaGoodWhenUp: null, danger: base.vencidoReceber.count > 0, icon: AlertTriangle, href: "/app/financeiro/inadimplencia", tone: "red", note: "Posição atual em atraso" },
   ], [saldo, base, serieReceita, serieDespesa, serieResultado, mrrHist]);
 
@@ -296,7 +296,7 @@ export default function FinanceiroVisaoGeral() {
       itens.push({ tone: "danger", badge: totalVencidas, title: "Contas vencidas", detail: `Total de ${formatCurrency(vencidasReceber.value + vencidasPagar.value)} em atraso`, href: "/app/financeiro/inadimplencia" });
     }
     if (aReceber7 > 0) {
-      itens.push({ tone: "warning", title: "Recebimentos previstos (7 dias)", detail: `Total de ${formatCurrency(aReceber7)}`, href: "/app/financeiro/receber" });
+      itens.push({ tone: "warning", title: "Recebimentos previstos (7 dias)", detail: `Total de ${formatCurrency(aReceber7)}`, href: "/app/financeiro/receitas?status=A%20Vencer" });
     }
     if (vencendoEm3.count > 0) {
       itens.push({ tone: "warning", title: "Vencendo nos próximos 3 dias", detail: `${vencendoEm3.count} lançamento(s) · ${formatCurrency(vencendoEm3.value)}`, href: "/app/financeiro/transacoes" });
@@ -306,7 +306,7 @@ export default function FinanceiroVisaoGeral() {
       .filter((x) => x.f.type === "Pagar" && x.f.status === "A Vencer" && (x.f as any).is_recurring && x.d && x.d >= hoje0)
       .sort((x, y) => x.d!.getTime() - y.d!.getTime())[0];
     if (recorrente) {
-      itens.push({ tone: "info", title: "Despesa recorrente", detail: `${recorrente.f.description} vence em ${fmtDia(recorrente.d!)} — ${formatCurrency(recorrente.f.value)}`, href: "/app/financeiro/pagar" });
+      itens.push({ tone: "info", title: "Despesa recorrente", detail: `${recorrente.f.description} vence em ${fmtDia(recorrente.d!)} — ${formatCurrency(recorrente.f.value)}`, href: "/app/financeiro/despesas?status=A%20Vencer" });
     }
     if (itens.length === 0) {
       itens.push({ tone: "neutral", title: "Tudo em dia", detail: "Nenhuma pendência crítica no momento.", href: "/app/financeiro/transacoes" });

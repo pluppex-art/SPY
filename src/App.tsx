@@ -54,8 +54,6 @@ const PartnersOverview = lazy(() => import("./pages/partners/PartnersOverview"))
 
 const FinanceiroLayout = lazy(() => import("./pages/finance/FinanceiroLayout"));
 const FinanceiroVisaoGeral = lazy(() => import("./pages/finance/FinanceiroVisaoGeral"));
-const FinanceiroReceber = lazy(() => import("./pages/finance/FinanceiroReceber"));
-const FinanceiroPagar = lazy(() => import("./pages/finance/FinanceiroPagar"));
 const FinanceiroReceitas = lazy(() => import("./pages/finance/FinanceiroReceitas"));
 const FinanceiroDespesas = lazy(() => import("./pages/finance/FinanceiroDespesas"));
 const FinanceiroFluxoCaixa = lazy(() => import("./pages/finance/FinanceiroFluxoCaixa"));
@@ -332,8 +330,9 @@ function AppContent() {
             <Route path="dashboard" element={<FinanceiroVisaoGeral />} />
             <Route path="painel" element={<FinanceiroVisaoGeral />} />
             <Route path="visao-geral" element={<FinanceiroVisaoGeral />} />
-            <Route path="receber" element={<FinanceiroReceber />} />
-            <Route path="pagar" element={<FinanceiroPagar />} />
+            {/* Contas a Receber/Pagar foram unificadas em Receitas/Despesas (abas de status). */}
+            <Route path="receber" element={<Navigate to="/app/financeiro/receitas" replace />} />
+            <Route path="pagar" element={<Navigate to="/app/financeiro/despesas" replace />} />
             <Route path="receitas" element={<FinanceiroReceitas />} />
             <Route path="despesas" element={<FinanceiroDespesas />} />
             <Route path="fluxo-caixa" element={<FinanceiroFluxoCaixa />} />
