@@ -15,7 +15,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { saldoDaConta, transferenciasDaConta, categoriesById, getMonthlyDreSeries, pctDelta, type FinanceEntryLike, type FinanceCategoryLike } from "./lib/financeEngine";
 import { parseEntryDate } from "./lib/financeDates";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
-import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
+import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
 import { cn } from "../../lib/utils";
 
 interface ReportLink { title: string; href: string; icon: LucideIcon; }
@@ -140,7 +140,7 @@ export default function FinanceiroRelatorios() {
   const matches = (r: ReportLink, groupTitle?: string) => !q || r.title.toLowerCase().includes(q) || (groupTitle ?? "").toLowerCase().includes(q);
   const gruposVisiveis = GROUPS.map(g => ({ ...g, reports: g.reports.filter(r => matches(r, g.title)) })).filter(g => g.reports.length > 0);
   const extrasVisiveis = EXTRAS.filter(r => matches(r, "Análises & Ferramentas"));
-  const activeCount = (preset !== "mes-atual" ? 1 : 0) + (q ? 1 : 0);
+  const activeCount = (preset !== "tudo" ? 1 : 0) + (q ? 1 : 0);
 
   const mesesComMovimento = useMemo(() => monthlySeries.filter(m => m.receitaBruta > 0 || m.despesaTotal > 0).length, [monthlySeries]);
 
@@ -149,13 +149,13 @@ export default function FinanceiroRelatorios() {
       title="Central de Relatórios"
       description="Todos os relatórios financeiros disponíveis, organizados por área."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Central de Relatórios" }]}
+      actions={<FinancePeriodFilter />}
     >
       <div className="space-y-8 max-w-[1700px] mx-auto pb-12">
-        <FinanceKpiFilter id="finRelatorios" kpis={kpiCards} activeCount={activeCount} onClear={() => { setPreset("mes-atual"); setBusca(""); }}>
+        <FinanceKpiFilter id="finRelatorios" kpis={kpiCards} activeCount={activeCount} onClear={() => { setPreset("tudo"); setBusca(""); }}>
           <FilterBar>
             <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar relatório..." />
           </FilterBar>
-          <FinanceiroFilterBar />
         </FinanceKpiFilter>
 
         <Card className="p-6">

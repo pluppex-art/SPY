@@ -147,6 +147,13 @@ export default function FinanceiroExtrato() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Relatórios", path: "/app/financeiro/relatorios" }, { label: "Extrato" }]}
       actions={
         <div className="flex items-center gap-2 print:hidden">
+          <DateRangeFilter
+            dateFrom={dataInicial}
+            setDateFrom={(v) => setDataInicial(v ?? defaultInicio())}
+            dateTo={dataFinal}
+            setDateTo={(v) => setDataFinal(v ?? defaultFim())}
+            className="!h-9 !rounded-lg"
+          />
           <Button variant="outline" onClick={() => window.print()} className="h-9 px-3 text-xs font-medium"><Printer className="w-3.5 h-3.5" /></Button>
           <Button onClick={handleExport} className="h-9 px-4 text-xs font-medium gap-1.5"><Download className="w-3.5 h-3.5" /> Exportar CSV</Button>
         </div>
@@ -163,13 +170,6 @@ export default function FinanceiroExtrato() {
               options={contas.map(c => ({ value: c.id, label: c.nome }))}
               allLabel={contas.length === 0 ? "Nenhuma conta cadastrada" : undefined}
               title="Conta"
-            />
-            <DateRangeFilter
-              dateFrom={dataInicial}
-              setDateFrom={(v) => setDataInicial(v ?? defaultInicio())}
-              dateTo={dataFinal}
-              setDateTo={(v) => setDataFinal(v ?? defaultFim())}
-              className="h-[38px]"
             />
             <FilterChips value={somentePagos ? "pagos" : "todos"} onChange={(v) => setSomentePagos(v === "pagos")} allValue="pagos" allLabel="Somente pagos" options={[{ value: "todos", label: "Incluir pendentes" }]} />
           </FilterBar>

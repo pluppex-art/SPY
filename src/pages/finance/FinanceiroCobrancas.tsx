@@ -17,7 +17,7 @@ import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
-import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
+import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { parseEntryDate } from "./lib/financeDates";
 
@@ -61,9 +61,7 @@ export default function FinanceiroCobrancas() {
       }));
   }, [financeEntries]);
 
-  // KPIs seguem o filtro global de período (barra no topo), por vencimento
-  // — a tabela abaixo continua mostrando TODAS as cobranças (busca/status é
-  // pra achar uma específica, não pra recortar o panorama geral).
+  // KPIs e tabela seguem o seletor de período do cabeçalho (por vencimento).
   const cobrancasKpis = useMemo(() => {
     const doPeriodo = cobrancas.filter(c => {
       const d = parseEntryDate(c.vencimento);
@@ -88,9 +86,11 @@ export default function FinanceiroCobrancas() {
       const matchQ = c.cliente.toLowerCase().includes(q) || c.metodo.toLowerCase().includes(q);
       const matchSt = statusFilter === "Todos" || c.status === statusFilter;
       const matchMet = !metodoFilter || c.metodo === metodoFilter;
-      return matchQ && matchSt && matchMet;
+      const d = parseEntryDate(c.vencimento);
+      const matchPeriodo = !!d && d >= dataInicio && d <= dataFim;
+      return matchQ && matchSt && matchMet && matchPeriodo;
     });
-  }, [cobrancas, search, statusFilter, metodoFilter]);
+  }, [cobrancas, search, statusFilter, metodoFilter, dataInicio, dataFim]);
 
   // Tabela renderizava TODAS as cobranças filtradas de uma vez — com
   // milhares de lançamentos "Receber", trava o navegador. Pagina só a
@@ -229,6 +229,7 @@ export default function FinanceiroCobrancas() {
       description="Emissão e acompanhamento de faturas, boletos bancários e cobranças via Pix com conciliação automática."
       actions={
         <div className="flex items-center gap-2">
+          <FinancePeriodFilter />
           <Button
             onClick={handleExportCSV}
             variant="outline"
@@ -258,9 +259,6 @@ export default function FinanceiroCobrancas() {
         activeCount={(search ? 1 : 0) + (statusFilter !== "Todos" ? 1 : 0) + (metodoFilter ? 1 : 0)}
         onClear={() => { setSearch(""); setStatusFilter("Todos"); setMetodoFilter(""); }}
       >
-        <FilterBar>
-          <FinanceiroFilterBar />
-        </FilterBar>
         <FilterBar>
           <FilterSearch value={search} onChange={setSearch} placeholder="Buscar cobrança por cliente ou método..." />
           <FilterSelect icon={QrCode} value={metodoFilter} onChange={setMetodoFilter} options={["Pix", "Boleto"]} allLabel="Todos os métodos" />

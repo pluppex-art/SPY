@@ -9,6 +9,8 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseEntryDate, daysBetween } from "./lib/financeDates";
 import { FilterBar, FilterSearch, FilterSelect, type KpiItem } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
+import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
+import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { apiFetch } from "../../lib/apiClient";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
@@ -36,6 +38,8 @@ export default function FinanceiroInadimplencia() {
   const { financeEntries } = useData();
   const { activeTenantId } = useAuth();
   const { formatCurrency } = useLocalization();
+  const { dataInicio, dataFim, periodoFrom, periodoTo } = useFinanceiroFiltro();
+  const periodoAtivo = !!(periodoFrom || periodoTo);
 
   // KPIs + aging + agrupamento por cliente vêm de um cache no Redis-SPY
   // quando disponível (GET /api/finance/inadimplencia-summary) — mesma
@@ -61,6 +65,7 @@ export default function FinanceiroInadimplencia() {
     const q = busca.trim().toLowerCase();
     const vencidos = financeEntries
       .filter(f => f.type === "Receber" && f.status === "Atrasado")
+      .filter(f => { const d = parseEntryDate(f.date); return !!d && d >= dataInicio && d <= dataFim; })
       .map(f => {
         const due = parseEntryDate(f.date);
         const dias = due ? Math.max(0, daysBetween(due, now)) : 0;
@@ -95,7 +100,7 @@ export default function FinanceiroInadimplencia() {
   }, [financeEntries, busca, faixa]);
 
   // Com filtro ativo o resumo do servidor (que é do total) não vale — usa o cálculo local filtrado.
-  const { vencidosCount, totalVencido, clientesUnicos, atrasoMedio, buckets, porCliente } = (filtrosAtivos ? clientSide : serverSummary ?? clientSide);
+  const { vencidosCount, totalVencido, clientesUnicos, atrasoMedio, buckets, porCliente } = ((filtrosAtivos || periodoAtivo) ? clientSide : serverSummary ?? clientSide);
   // Lista real pro drill-down vem sempre do cálculo client-side (nunca do
   // serverSummary, que só traz os números já agregados, sem os registros).
   const { vencidos } = clientSide;
@@ -117,6 +122,7 @@ export default function FinanceiroInadimplencia() {
       title="Inadimplência"
       description="Cobranças vencidas, por cliente e por faixa de atraso."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Inadimplência" }]}
+      actions={<FinancePeriodFilter />}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <FinanceKpiFilter

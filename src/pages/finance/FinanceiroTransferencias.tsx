@@ -11,7 +11,7 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { FilterBar, FilterSearch, FilterSelect, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
-import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
+import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { cn } from "../../lib/utils";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
@@ -109,11 +109,12 @@ export default function FinanceiroTransferencias() {
       if (statusFiltro === "concluida" && !t.pago) return false;
       if (statusFiltro === "pendente" && t.pago) return false;
       if (contaFiltro && t.conta_origem_id !== contaFiltro && t.conta_destino_id !== contaFiltro) return false;
+      if (t.data_pagamento && (t.data_pagamento < toLocalISODate(dataInicio) || t.data_pagamento > toLocalISODate(dataFim))) return false;
       if (q && !`${t.descricao || ""} ${contaNome(t.conta_origem_id)} ${contaNome(t.conta_destino_id)}`.toLowerCase().includes(q)) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [financeTransfers, busca, statusFiltro, contaFiltro, financeBankAccounts]);
+  }, [financeTransfers, busca, statusFiltro, contaFiltro, financeBankAccounts, dataInicio, dataFim]);
 
   const kpiItems: KpiItem[] = ordenadas.length > 0 ? [
     { label: `Transferido (${periodoLabel})`, value: formatCurrency(kpis.totalPeriodo), icon: Repeat, tone: "info", hint: "Já concluídas" },
@@ -121,8 +122,8 @@ export default function FinanceiroTransferencias() {
     { label: "Total de Transferências", value: kpis.count, icon: Layers, tone: "primary" },
   ] : [];
 
-  const activeCount = (preset !== "mes-atual" ? 1 : 0) + (busca.trim() ? 1 : 0) + (statusFiltro ? 1 : 0) + (contaFiltro ? 1 : 0);
-  const limparFiltros = () => { setPreset("mes-atual"); setBusca(""); setStatusFiltro(""); setContaFiltro(""); };
+  const activeCount = (preset !== "tudo" ? 1 : 0) + (busca.trim() ? 1 : 0) + (statusFiltro ? 1 : 0) + (contaFiltro ? 1 : 0);
+  const limparFiltros = () => { setPreset("tudo"); setBusca(""); setStatusFiltro(""); setContaFiltro(""); };
 
   const [drillKey, setDrillKey] = useState<"periodo" | "pendentes" | "todas" | null>(null);
   const transferColumns = transferDrillColumns(formatCurrency, contaNome);
@@ -133,9 +134,12 @@ export default function FinanceiroTransferencias() {
       description="Movimentação entre suas próprias contas — nunca conta como receita ou despesa, nunca entra no DRE."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Transferências" }]}
       actions={
-        <Button onClick={openNew} className="h-9 px-4 text-xs font-medium gap-1.5">
-          <Plus className="w-3.5 h-3.5" /> Nova Transferência
-        </Button>
+        <div className="flex items-center gap-2">
+          <FinancePeriodFilter />
+          <Button onClick={openNew} className="h-9 px-4 text-xs font-medium gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> Nova Transferência
+          </Button>
+        </div>
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
@@ -145,7 +149,6 @@ export default function FinanceiroTransferencias() {
             <FilterSelect icon={Building2} value={contaFiltro} onChange={setContaFiltro} options={contasAtivas.map(c => ({ value: c.id, label: c.nome }))} allLabel="Todas as contas" title="Conta (origem ou destino)" />
             <FilterChips value={statusFiltro} onChange={setStatusFiltro} options={[{ value: "concluida", label: "Concluídas" }, { value: "pendente", label: "Pendentes" }]} />
           </FilterBar>
-          <FinanceiroFilterBar />
           {ordenadas.length > 0 && (
             <KpiDrillChips items={[
               { label: "Transferido no período", onClick: () => setDrillKey("periodo") },

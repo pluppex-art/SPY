@@ -12,7 +12,7 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
 import { FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
-import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
+import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { parseEntryDate } from "./lib/financeDates";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
@@ -182,7 +182,7 @@ export default function FinanceiroContatos() {
       title="Contatos"
       description="Clientes, fornecedores e funcionários — usados em lançamentos, cobranças e relatórios."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Contatos" }]}
-      actions={<Button onClick={openNew} className="h-9 px-4 text-xs font-medium gap-1.5"><Plus className="w-3.5 h-3.5" /> Novo Contato</Button>}
+      actions={<div className="flex items-center gap-2"><FinancePeriodFilter /><Button onClick={openNew} className="h-9 px-4 text-xs font-medium gap-1.5"><Plus className="w-3.5 h-3.5" /> Novo Contato</Button></div>}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <FinanceKpiFilter
@@ -197,9 +197,6 @@ export default function FinanceiroContatos() {
           activeCount={(busca ? 1 : 0) + (aba !== "todos" ? 1 : 0)}
           onClear={() => { setBusca(""); setAba("todos"); }}
         >
-          <FilterBar>
-            <FinanceiroFilterBar />
-          </FilterBar>
           <FilterBar>
             <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar por nome, documento ou e-mail..." />
             <FilterChips

@@ -3,6 +3,8 @@ import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
+import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
+import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
@@ -101,6 +103,7 @@ export default function Indicacoes() {
     return `${origin}/indicacao?ref=${encodeURIComponent(code)}`;
   }, [currentAffiliate]);
 
+  const { dataInicio, dataFim } = useFinanceiroFiltro();
   const [busca, setBusca] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [indicadorFilter, setIndicadorFilter] = useState("");
@@ -108,32 +111,38 @@ export default function Indicacoes() {
     () => Array.from(new Set(indicacoes.map(i => i.referrer_name).filter(Boolean))).sort() as string[],
     [indicacoes]
   );
+  // Indicações dentro do período escolhido no cabeçalho (por data da indicação).
+  const indicacoesNoPeriodo = useMemo(() => indicacoes.filter(i => {
+    if (!i.date_indicated) return true;
+    const d = new Date(i.date_indicated.length <= 10 ? i.date_indicated + "T12:00:00" : i.date_indicated);
+    return isNaN(d.getTime()) || (d >= dataInicio && d <= dataFim);
+  }), [indicacoes, dataInicio, dataFim]);
   const indicacoesFiltradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return indicacoes.filter(i => {
+    return indicacoesNoPeriodo.filter(i => {
       if (statusFilter && i.status !== statusFilter) return false;
       if (indicadorFilter && i.referrer_name !== indicadorFilter) return false;
       if (!q) return true;
       return (i.referrer_name || "").toLowerCase().includes(q) || (i.referred_name || "").toLowerCase().includes(q) || (i.referred_contact || "").toLowerCase().includes(q);
     });
-  }, [indicacoes, busca, statusFilter, indicadorFilter]);
+  }, [indicacoesNoPeriodo, busca, statusFilter, indicadorFilter]);
 
   const kpis = useMemo(() => {
-    const total = indicacoes.length;
-    const pendentes = indicacoes.filter(i => i.status === "Pendente" || i.status === "Aprovada").length;
-    const totalPago = indicacoes.filter(i => i.status === "Paga").reduce((acc, i) => acc + Number(i.commission_value || 0), 0);
-    const totalPendente = indicacoes.filter(i => i.status === "Pendente" || i.status === "Aprovada").reduce((acc, i) => acc + Number(i.commission_value || 0), 0);
+    const total = indicacoesNoPeriodo.length;
+    const pendentes = indicacoesNoPeriodo.filter(i => i.status === "Pendente" || i.status === "Aprovada").length;
+    const totalPago = indicacoesNoPeriodo.filter(i => i.status === "Paga").reduce((acc, i) => acc + Number(i.commission_value || 0), 0);
+    const totalPendente = indicacoesNoPeriodo.filter(i => i.status === "Pendente" || i.status === "Aprovada").reduce((acc, i) => acc + Number(i.commission_value || 0), 0);
     return { total, pendentes, totalPago, totalPendente };
-  }, [indicacoes]);
+  }, [indicacoesNoPeriodo]);
 
   const STATUS_COLORS: Record<string, string> = {
     Pendente: "var(--color-warning)", Aprovada: "var(--color-primary-blue)", Paga: "var(--color-success)", Cancelada: "var(--color-danger)",
   };
   const statusBreakdown = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const i of indicacoes) counts.set(i.status, (counts.get(i.status) || 0) + 1);
+    for (const i of indicacoesNoPeriodo) counts.set(i.status, (counts.get(i.status) || 0) + 1);
     return Array.from(counts.entries()).map(([status, count]) => ({ status, count, fill: STATUS_COLORS[status] || "var(--color-text-faint)" }));
-  }, [indicacoes]);
+  }, [indicacoesNoPeriodo]);
 
   const referrerOptions = referrerType === "colaborador" ? colaboradores : clienteBase;
 
@@ -337,6 +346,7 @@ export default function Indicacoes() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Indicações & Parcerias" }]}
       actions={
         <div className="flex items-center gap-2 flex-wrap">
+          <FinancePeriodFilter />
           {/* Botão 1 Solicitado: Cadastrar Afiliado */}
           <Button
             onClick={() => setIsAffiliateModalOpen(true)}
