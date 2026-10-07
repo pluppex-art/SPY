@@ -108,8 +108,8 @@ export default function SettingsLayout() {
         // Página única de Aurora (controle, prompts, consumo e agentes) — era duas
         // páginas separadas ("Aurora" em Inteligência Artificial + esta), unificadas.
         ...(isModuleEnabled("aurora") ? [{ title: "Aurora (Controle, Consumo & Agentes)", path: "/app/configuracoes/sistema/aurora" }] : []),
-        ...(isModuleEnabled("aurora") ? [{ title: "Conhecimento extra da IA", path: "/app/configuracoes/sistema/conhecimento" }] : []),
-        ...(isModuleEnabled("aurora") ? [{ title: "Aprendizado da IA", path: "/app/configuracoes/sistema/aprendizados" }] : []),
+        ...(user?.isMaster && isModuleEnabled("aurora") ? [{ title: "Conhecimento extra da IA (interno)", path: "/app/configuracoes/sistema/conhecimento" }] : []),
+        ...(user?.isMaster && isModuleEnabled("aurora") ? [{ title: "Aprendizado da IA (interno)", path: "/app/configuracoes/sistema/aprendizados" }] : []),
         { title: "Backups automáticos", path: "/app/configuracoes/sistema/backups" },
       ],
     },
