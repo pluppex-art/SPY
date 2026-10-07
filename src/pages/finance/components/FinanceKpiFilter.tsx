@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { X, Activity } from "lucide-react";
 import { Card } from "../../../components/ui/card";
-import type { KpiItem } from "../../../components/ui/kpi-filter-card";
+import { FilterVariantContext, type KpiItem } from "../../../components/ui/kpi-filter-card";
 import { FinanceKpiGrid } from "./FinanceKpiGrid";
 
 interface FinanceKpiFilterProps {
@@ -42,7 +42,7 @@ export function FinanceKpiFilter({ kpis = [], children, activeCount = 0, onClear
       {children && (
         <Card className="p-2.5 rounded-xl">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex-1 min-w-0">{children}</div>
+            <div className="flex-1 min-w-0"><FilterVariantContext.Provider value="model">{children}</FilterVariantContext.Provider></div>
             {activeCount > 0 && onClear && (
               <button
                 type="button"

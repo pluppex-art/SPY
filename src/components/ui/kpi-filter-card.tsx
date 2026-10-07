@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { ChevronDown, Search, SlidersHorizontal, X, type LucideIcon } from "lucide-react";
 import { Card } from "./card";
 import { useAuth } from "../../contexts/AuthContext";
@@ -140,6 +140,9 @@ export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], childre
 
 // ─── Peças de filtro (mesmo visual da barra do Pipeline) ────────────────────
 
+/** "model" = padrão visual do Financeiro (controles h-9, cantos arredondados, abas em pílulas) — ver FinanceKpiFilter. */
+export const FilterVariantContext = createContext<"default" | "model">("default");
+
 const CONTROL_BOX =
   "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[200px]";
 
@@ -148,15 +151,16 @@ export function FilterBar({ children, className }: { children: ReactNode; classN
 }
 
 export function FilterSearch({ value, onChange, placeholder = "Buscar..." }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const model = useContext(FilterVariantContext) === "model";
   return (
-    <div className="relative flex-1 min-w-[160px]">
+    <div className={cn("relative flex-1", model ? "min-w-[220px]" : "min-w-[160px]")}>
       <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
       <input
         type="text"
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-9 pr-3 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] w-full h-[38px]"
+        className={cn("bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] pl-9 pr-3 text-xs text-[var(--color-text-primary)] focus:outline-none w-full", model ? "rounded-lg h-9 placeholder:text-[var(--color-text-faint)] focus:ring-2 focus:ring-[var(--color-primary-blue)]/40" : "rounded-[var(--radius-control)] h-[38px] focus:border-[var(--color-primary-blue)]")}
       />
     </div>
   );
@@ -177,8 +181,9 @@ interface FilterSelectProps {
 }
 
 export function FilterSelect({ value, onChange, options, allLabel, allValue = "", icon: Icon, title }: FilterSelectProps) {
+  const model = useContext(FilterVariantContext) === "model";
   return (
-    <div className={CONTROL_BOX} title={title}>
+    <div className={model ? "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-lg border border-[var(--color-border-default)] h-9 max-w-[240px] focus-within:ring-2 focus-within:ring-[var(--color-primary-blue)]/40" : CONTROL_BOX} title={title}>
       {Icon && <Icon className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />}
       <select
         value={value}
@@ -204,16 +209,21 @@ export function FilterChips({ value, onChange, options, allLabel = "Todos", allV
     { value: allValue, label: allLabel },
     ...options.map(o => (typeof o === "string" ? { value: o, label: o } : o)),
   ];
+  const model = useContext(FilterVariantContext) === "model";
   return (
-    <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] flex-wrap">
+    <div className={model ? "flex items-center gap-2 flex-wrap" : "flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] flex-wrap"}>
       {items.map(o => (
         <button
           key={o.value || "__todos__"}
           type="button"
           onClick={() => onChange(o.value)}
           className={cn(
-            "px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all",
-            value === o.value ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]",
+            model
+              ? "px-3 py-2 text-xs font-bold rounded-lg border cursor-pointer transition-all"
+              : "px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all",
+            model
+              ? (value === o.value ? "bg-[var(--color-primary-blue)] !text-white border-transparent shadow-sm" : "bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-[var(--color-text-primary)]")
+              : (value === o.value ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"),
           )}
         >
           {o.label}
