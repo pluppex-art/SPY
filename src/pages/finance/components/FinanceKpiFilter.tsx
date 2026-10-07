@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { X, Activity } from "lucide-react";
 import { Card } from "../../../components/ui/card";
-import { FilterVariantContext, type KpiItem } from "../../../components/ui/kpi-filter-card";
+import { FilterVariantContext, FilterTabsSlotContext, type KpiItem } from "../../../components/ui/kpi-filter-card";
 import { FinanceKpiGrid } from "./FinanceKpiGrid";
 
 interface FinanceKpiFilterProps {
@@ -22,6 +22,7 @@ interface FinanceKpiFilterProps {
  * da página. API compatível com o antigo KpiFilterCard — cada página mantém os próprios indicadores.
  */
 export function FinanceKpiFilter({ kpis = [], children, activeCount = 0, onClear }: FinanceKpiFilterProps) {
+  const [tabsSlot, setTabsSlot] = useState<HTMLDivElement | null>(null);
   return (
     <div className="space-y-4">
       {kpis.length > 0 && (
@@ -42,7 +43,7 @@ export function FinanceKpiFilter({ kpis = [], children, activeCount = 0, onClear
       {children && (
         <Card className="p-2.5 rounded-xl">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex-1 min-w-0"><FilterVariantContext.Provider value="model">{children}</FilterVariantContext.Provider></div>
+            <div className="flex-1 min-w-0"><FilterVariantContext.Provider value="model"><FilterTabsSlotContext.Provider value={tabsSlot}>{children}</FilterTabsSlotContext.Provider></FilterVariantContext.Provider></div>
             {activeCount > 0 && onClear && (
               <button
                 type="button"
@@ -55,6 +56,7 @@ export function FinanceKpiFilter({ kpis = [], children, activeCount = 0, onClear
           </div>
         </Card>
       )}
+      <div ref={setTabsSlot} className="empty:hidden" />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Search, SlidersHorizontal, X, type LucideIcon } from "lucide-react";
 import { Card } from "./card";
 import { useAuth } from "../../contexts/AuthContext";
@@ -142,6 +143,8 @@ export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], childre
 
 /** "model" = padrão visual do Financeiro (controles h-9, cantos arredondados, abas em pílulas) — ver FinanceKpiFilter. */
 export const FilterVariantContext = createContext<"default" | "model">("default");
+/** Elemento (linha de abas abaixo do cartão de filtros) onde os FilterChips da variante "model" são renderizados. */
+export const FilterTabsSlotContext = createContext<HTMLElement | null>(null);
 
 const CONTROL_BOX =
   "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[200px]";
@@ -210,7 +213,8 @@ export function FilterChips({ value, onChange, options, allLabel = "Todos", allV
     ...options.map(o => (typeof o === "string" ? { value: o, label: o } : o)),
   ];
   const model = useContext(FilterVariantContext) === "model";
-  return (
+  const slot = useContext(FilterTabsSlotContext);
+  const chips = (
     <div className={model ? "flex items-center gap-2 flex-wrap" : "flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] flex-wrap"}>
       {items.map(o => (
         <button
@@ -231,4 +235,5 @@ export function FilterChips({ value, onChange, options, allLabel = "Todos", allV
       ))}
     </div>
   );
+  return model && slot ? createPortal(chips, slot) : chips;
 }
