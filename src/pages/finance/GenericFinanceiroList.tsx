@@ -4,7 +4,7 @@ import { EmptyState } from "../../components/ui/empty-state";
 import {
   Download, Calendar, CheckCircle2,
   Clock, AlertTriangle, Plus, Trash2, DollarSign, Pencil, Lock, Repeat, Layers, User, Landmark, HelpCircle,
-  TrendingUp, TrendingDown, BarChart3, HourglassIcon, Copy, ArrowUpRight, ArrowDownRight, Tag, Search, X, ArrowUpDown, LayoutGrid, List as ListIcon,
+  TrendingUp, TrendingDown, BarChart3, HourglassIcon, Copy, ArrowUpRight, ArrowDownRight, Tag, Search, X, ArrowUpDown, LayoutGrid, List as ListIcon, FileText, AlignLeft, FolderOpen, CreditCard, ArrowLeftRight, Save,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
@@ -1117,38 +1117,47 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       <Modal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); resetAddForm(); }}
-        title={type === 'Pagar' ? 'Novo Gasto / Despesa' : 'Novo Recebimento / Receita'}
-        description="Registre um lançamento financeiro no sistema com classificação de categoria e vencimento."
-        maxWidth="max-w-lg"
+        title={
+          <div className="flex items-center gap-3">
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${type === 'Pagar' ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+              <DollarSign className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-lg font-black text-[var(--color-text-primary)] leading-tight">{type === 'Pagar' ? 'Novo Gasto / Despesa' : 'Novo Recebimento / Receita'}</div>
+              <div className="text-xs font-normal text-[var(--color-text-muted)]">Registre um lançamento financeiro com classificação de categoria e vencimento.</div>
+            </div>
+          </div>
+        }
+        maxWidth="max-w-2xl"
       >
         <form onSubmit={handleAdd} className="space-y-4">
           <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Nome do Lançamento *</label>
+            <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Nome do Lançamento *</label>
             <input
               type="text"
               required
               placeholder="Ex: Servidor AWS, Licença de Software, Fatura..."
               value={newDesc}
               onChange={(e) => { setNewDesc(e.target.value); setFormErrors(prev => ({ ...prev, desc: undefined })); }}
-              className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] ${formErrors.desc ? "border-danger" : "border-[var(--color-border-default)]"}`}
+              className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] ${formErrors.desc ? "border-danger" : "border-[var(--color-border-default)]"}`}
             />
             {formErrors.desc && <p className="text-[10px] text-danger mt-1">{formErrors.desc}</p>}
           </div>
 
           <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Descrição / Observações</label>
+            <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><AlignLeft className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Descrição / Observações</label>
             <textarea
               rows={2}
               placeholder="Detalhes adicionais deste lançamento (opcional)"
               value={newNotes}
               onChange={(e) => setNewNotes(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] resize-none"
+              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] resize-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Categoria Financeira *</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Categoria Financeira *</label>
               {!showNovaCategoria ? (
                 <select
                   required
@@ -1158,7 +1167,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                     setNewCategoryId(e.target.value);
                     setFormErrors(prev => ({ ...prev, category: undefined }));
                   }}
-                  className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer ${formErrors.category ? "border-danger" : "border-[var(--color-border-default)]"}`}
+                  className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer ${formErrors.category ? "border-danger" : "border-[var(--color-border-default)]"}`}
                 >
                   <option value="">Selecione...</option>
                   {categoriasDoTipo.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
@@ -1172,7 +1181,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                     placeholder="Nome da categoria"
                     value={novaCategoriaNome}
                     onChange={(e) => setNovaCategoriaNome(e.target.value)}
-                    className="flex-1 min-w-0 bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                    className="flex-1 min-w-0 bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
                   />
                   <button type="button" onClick={() => setShowNovaCategoria(false)} className="text-xs text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] px-1">✕</button>
                 </div>
@@ -1181,7 +1190,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 <select
                   value={novaCategoriaSubtipo}
                   onChange={(e) => setNovaCategoriaSubtipo(e.target.value as typeof novaCategoriaSubtipo)}
-                  className="w-full mt-1.5 bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-1.5 text-[11px] focus:outline-none cursor-pointer"
+                  className="w-full mt-1.5 bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-[11px] focus:outline-none cursor-pointer"
                 >
                   <option value="DESPESA_FIXA">Despesa Fixa</option>
                   <option value="DESPESA_VARIAVEL">Despesa Variável</option>
@@ -1192,14 +1201,14 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               {formErrors.category && <p className="text-[10px] text-danger mt-1">{formErrors.category}</p>}
             </div>
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">{type === 'Pagar' ? 'Fornecedor' : 'Cliente'}</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> {type === 'Pagar' ? 'Fornecedor' : 'Cliente'}</label>
               <input
                 type="text"
                 list="contatos-sugeridos-new"
                 placeholder={type === 'Pagar' ? 'Ex: AWS, Fornecedor X' : 'Ex: Nome do cliente'}
                 value={newCounterparty}
                 onChange={(e) => setNewCounterparty(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
               />
               <datalist id="contatos-sugeridos-new">
                 {contatosSugeridos.map((c: any) => <option key={c.id} value={c.name} />)}
@@ -1209,35 +1218,35 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Forma de {type === 'Pagar' ? 'Pagamento' : 'Recebimento'}</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Forma de {type === 'Pagar' ? 'Pagamento' : 'Recebimento'}</label>
               <select
                 value={newPaymentMethod}
                 onChange={(e) => setNewPaymentMethod(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
               >
                 <option value="">Não informado</option>
                 {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Nº da Nota Fiscal</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Nº da Nota Fiscal</label>
               <input
                 type="text"
                 placeholder="Ex: NF-e 12345"
                 value={newNumeroDocumento}
                 onChange={(e) => setNewNumeroDocumento(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
               />
               <p className="text-[10px] text-[var(--color-text-faint)] mt-1">O arquivo da nota (PDF/XML) pode ser anexado depois de salvar, em "Editar → Nota Fiscal / Anexos".</p>
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Conta Bancária</label>
+            <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><Landmark className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Conta Bancária</label>
             <select
               value={newContaBancariaId}
               onChange={(e) => setNewContaBancariaId(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
+              className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
             >
               <option value="">Não vinculada</option>
               {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}{c.is_principal ? " (Principal)" : ""}</option>)}
@@ -1246,31 +1255,32 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Centro de Custo</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><Layers className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Centro de Custo</label>
               <select
                 value={newCentroCustoId}
                 onChange={(e) => setNewCentroCustoId(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
               >
                 <option value="">Não informado</option>
                 {(financeCentrosCusto as any[]).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Tags</label>
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Tags</label>
               <input
                 type="text"
                 placeholder="separadas por vírgula"
                 value={newTags}
                 onChange={(e) => setNewTags(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" />
                 {newRepeatMode === "parcelado" ? "Valor Total (R$) *" : "Valor (R$) *"}
               </label>
               <input
@@ -1280,58 +1290,58 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 placeholder="0,00"
                 value={newValue}
                 onChange={(e) => { setNewValue(e.target.value); setFormErrors(prev => ({ ...prev, value: undefined })); }}
-                className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono ${formErrors.value ? "border-danger" : "border-[var(--color-border-default)]"}`}
+                className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono ${formErrors.value ? "border-danger" : "border-[var(--color-border-default)]"}`}
               />
               {formErrors.value && <p className="text-[10px] text-danger mt-1">{formErrors.value}</p>}
             </div>
 
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">
+              <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" />
                 {newRepeatMode === "none" ? "Data de Vencimento" : "1º Vencimento"}
               </label>
               <input
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
               />
             </div>
           </div>
 
-          <div className="bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3.5 space-y-3">
-            <label className="text-xs font-bold text-[var(--color-text-muted)] block">Tipo de lançamento</label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setNewRepeatMode("none")}
-                className={`flex flex-col items-center gap-1 py-2.5 rounded-[var(--radius-control)] border text-[10px] font-bold uppercase transition-colors cursor-pointer ${newRepeatMode === "none" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
-              >
-                <DollarSign className="w-3.5 h-3.5" /> Único
-              </button>
-              <button
-                type="button"
-                onClick={() => setNewRepeatMode("recorrente")}
-                className={`flex flex-col items-center gap-1 py-2.5 rounded-[var(--radius-control)] border text-[10px] font-bold uppercase transition-colors cursor-pointer ${newRepeatMode === "recorrente" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
-              >
-                <Repeat className="w-3.5 h-3.5" /> Recorrente
-              </button>
-              <button
-                type="button"
-                onClick={() => setNewRepeatMode("parcelado")}
-                className={`flex flex-col items-center gap-1 py-2.5 rounded-[var(--radius-control)] border text-[10px] font-bold uppercase transition-colors cursor-pointer ${newRepeatMode === "parcelado" ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
-              >
-                <Layers className="w-3.5 h-3.5" /> Parcelado
-              </button>
+          <div className="bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] rounded-2xl p-4 space-y-3">
+            <label className="text-xs font-bold text-[var(--color-text-primary)] flex items-center gap-1.5">
+              <ArrowLeftRight className="w-3.5 h-3.5 text-[var(--color-text-muted)]" /> Tipo de lançamento
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {([
+                { id: "none" as const, icon: DollarSign, title: "Único", desc: type === "Pagar" ? "Valor a pagar uma vez" : "Valor a receber uma vez" },
+                { id: "recorrente" as const, icon: Repeat, title: "Recorrente", desc: "Repete periodicamente" },
+                { id: "parcelado" as const, icon: Layers, title: "Parcelado", desc: "Dividido em parcelas" },
+              ]).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setNewRepeatMode(opt.id)}
+                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl border text-left transition-colors cursor-pointer ${newRepeatMode === opt.id ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40" : "bg-[var(--color-surface-elevated)] border-[var(--color-border-subtle)] hover:border-[var(--color-primary-blue)]/30"}`}
+                >
+                  <opt.icon className={`w-5 h-5 shrink-0 ${newRepeatMode === opt.id ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)]"}`} />
+                  <span className="min-w-0">
+                    <span className={`block text-xs font-bold ${newRepeatMode === opt.id ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-primary)]"}`}>{opt.title}</span>
+                    <span className="block text-[10px] text-[var(--color-text-muted)] leading-tight">{opt.desc}</span>
+                  </span>
+                </button>
+              ))}
             </div>
 
             {newRepeatMode === "recorrente" && (
               <div className="grid grid-cols-2 gap-4 pt-1">
                 <div>
-                  <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Frequência</label>
+                  <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5">Frequência</label>
                   <select
                     value={newFrequency}
                     onChange={(e) => setNewFrequency(e.target.value as Frequencia)}
-                    className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
+                    className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
                   >
                     <option value="semanal">Semanal</option>
                     <option value="quinzenal">Quinzenal</option>
@@ -1343,14 +1353,14 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Repetir por quantas vezes</label>
+                  <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5">Repetir por quantas vezes</label>
                   <input
                     type="number"
                     min={1}
                     max={60}
                     value={newOcorrencias}
                     onChange={(e) => setNewOcorrencias(e.target.value)}
-                    className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono"
+                    className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono"
                   />
                 </div>
               </div>
@@ -1359,22 +1369,22 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             {newRepeatMode === "parcelado" && (
               <div className="grid grid-cols-2 gap-4 pt-1">
                 <div>
-                  <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Número de Parcelas</label>
+                  <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5">Número de Parcelas</label>
                   <input
                     type="number"
                     min={2}
                     max={60}
                     value={newParcelas}
                     onChange={(e) => setNewParcelas(e.target.value)}
-                    className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono"
+                    className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Intervalo entre parcelas</label>
+                  <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5">Intervalo entre parcelas</label>
                   <select
                     value={newFrequency}
                     onChange={(e) => setNewFrequency(e.target.value as Frequencia)}
-                    className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
+                    className="w-full bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
                   >
                     <option value="semanal">Semanal</option>
                     <option value="quinzenal">Quinzenal</option>
@@ -1402,15 +1412,15 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               type="button"
               variant="outline"
               onClick={() => { setIsModalOpen(false); resetAddForm(); }}
-              className="h-9 px-4 text-xs font-bold border-[var(--color-border-default)]"
+              className="h-10 px-5 text-xs font-bold border-[var(--color-border-default)]"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              className="h-9 px-5 text-xs font-bold shadow-xs"
+              className="h-10 px-6 text-xs font-bold shadow-xs gap-2"
             >
-              Confirmar Lançamento
+              <Save className="w-4 h-4" /> Salvar lançamento
             </Button>
           </div>
         </form>
