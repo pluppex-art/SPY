@@ -48,7 +48,7 @@ function EntryCard({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={7}
-        placeholder="Escreva em linguagem natural. A Júlia usa este texto como conhecimento da empresa."
+        placeholder="Escreva em linguagem natural. A vendedora (IA) usa este texto como conhecimento da empresa."
         className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)] resize-y"
       />
       <div className="flex items-center justify-between gap-3">
@@ -99,13 +99,13 @@ export function ConfigSistemaConhecimentoIA() {
       toast.error(`Não foi possível salvar: ${error}`);
       return false;
     }
-    toast.success("Conhecimento salvo. A Júlia já usa na próxima conversa.");
+    toast.success("Conhecimento salvo. A vendedora já usa na próxima conversa.");
     if (!e.id) setNovo(null);
     return true;
   };
 
   const handleDelete = async (e: KnowledgeEntry) => {
-    if (!(await confirmDialog({ title: "Excluir entrada", description: `Excluir "${e.title}"? A Júlia deixa de usar esse conhecimento.` }))) return;
+    if (!(await confirmDialog({ title: "Excluir entrada", description: `Excluir "${e.title}"? A vendedora deixa de usar esse conhecimento.` }))) return;
     const { error } = await remove(e.id);
     if (error) toast.error(`Não foi possível excluir: ${error}`);
     else toast.info("Entrada excluída.");
@@ -115,10 +115,10 @@ export function ConfigSistemaConhecimentoIA() {
     <div className="max-w-3xl space-y-6 animate-in fade-in duration-300 pb-12">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
-          Conhecimento extra da IA <BookOpen className="w-5 h-5 text-[var(--color-primary-blue)]" />
+          Conhecimento extra da vendedora <BookOpen className="w-5 h-5 text-[var(--color-primary-blue)]" />
         </h1>
         <p className="text-sm text-[var(--color-text-muted)]">
-          Textos livres que a Júlia também usa para conversar sobre {activeTenantName ?? "a sua empresa"}: regras de venda, como indicar cada produto, casos de sucesso, avisos.
+          Textos livres que a vendedora (IA) também usa para conversar sobre {activeTenantName ?? "a sua empresa"}: regras de venda, como indicar cada produto, casos de sucesso, avisos.
           O perfil da empresa fica em Dados da Empresa e o conhecimento de cada produto fica em Produtos.
         </p>
       </div>
@@ -129,7 +129,7 @@ export function ConfigSistemaConhecimentoIA() {
         </p>
         <p>
           Uso: {total.toLocaleString("pt-BR")} de {MAX_TOTAL.toLocaleString("pt-BR")} caracteres. O que passar de {MAX_ENTRY.toLocaleString("pt-BR")} por entrada
-          ou de {MAX_TOTAL.toLocaleString("pt-BR")} no total é ignorado pela Júlia.
+          ou de {MAX_TOTAL.toLocaleString("pt-BR")} no total é ignorado pela vendedora.
         </p>
       </Card>
 
