@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 import type { AuroraAgent } from "../../../contexts/DataContextTypes";
 import { useAgentPrompts } from "../../../hooks/useAgentPrompts";
+import { useAuth } from "../../../contexts/AuthContext";
 import { useTenantAiConfig } from "../../../hooks/useTenantAiConfig";
 import { ViewPromptButton, InlinePromptEditor } from "./AgentPromptControls";
 
@@ -122,7 +123,13 @@ function displayNameForAgent(agent: Pick<AuroraAgent, "name">, promptByKey: Map<
   return promptByKey.get(key)?.name || agent.name;
 }
 
+// Agentes que o CLIENTE enxerga (somente leitura): os 4 do modelo padrão. Ligar/desligar, editar,
+// remover e treinar (prompt) é só do master da plataforma — ver Sistema → Treinamento dos agentes.
+const CLIENT_VISIBLE_AGENTS = new Set(["Agente SDR", "Agente Secreto", "Radar de Oportunidades", "Closer"]);
+
 export function ConfigSistemaAuroraAgentes() {
+  const { user } = useAuth();
+  const isMaster = !!user?.isMaster;
   const { auroraAgents, addAuroraAgent, updateAuroraAgent, deleteAuroraAgent, toggleAuroraAgent, ensureNicheModulesLoaded } = useData();
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
   const [editing, setEditing] = useState<EditingState>(null);
@@ -145,7 +152,8 @@ export function ConfigSistemaAuroraAgentes() {
     description: "Orquestradora central — desativar aqui faz a Aurora recusar educadamente qualquer mensagem desta empresa (chat pessoal e WhatsApp da equipe) até reativar.",
     active: config?.auroraEnabled ?? true,
   } as AuroraAgent;
-  const displayList: AuroraAgent[] = [auroraCoreEntry, ...personaList];
+  const fullList: AuroraAgent[] = [auroraCoreEntry, ...personaList];
+  const displayList: AuroraAgent[] = isMaster ? fullList : fullList.filter((a) => CLIENT_VISIBLE_AGENTS.has(a.name));
 
   // "Ver fluxo" — chave vazia enquanto nenhum agente está selecionado (modal fechado); o hook
   // não busca nada nesse caso (ver useAgentFlow.ts). Precisa ficar no nível do componente (não
@@ -263,7 +271,9 @@ export function ConfigSistemaAuroraAgentes() {
             <Bot className="w-5 h-5 text-[var(--color-primary-blue)]" /> Agentes vinculados à Aurora
           </h2>
           <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
-            Cada agente pode ser ativado ou desativado — a Aurora não age em nome de um agente inativo quando ele é citado diretamente na conversa.
+            {isMaster
+              ? "Cada agente pode ser ativado ou desativado — a Aurora não age em nome de um agente inativo quando ele é citado diretamente na conversa."
+              : "Estes são os agentes que trabalham para a sua empresa. A ativação e o treinamento deles são feitos pela equipe da plataforma."}
           </p>
         </div>
         <span className="shrink-0 text-[11px] font-bold text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-full px-3 py-1.5 whitespace-nowrap">
@@ -271,7 +281,7 @@ export function ConfigSistemaAuroraAgentes() {
         </span>
       </div>
 
-      {!hasCustomAgents && (
+      {isMaster && !hasCustomAgents && (
         <div className="p-3 bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 rounded-xl flex items-start gap-2">
           <Sparkles className="w-3.5 h-3.5 text-[var(--color-primary-blue)] shrink-0 mt-0.5" />
           <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
@@ -309,23 +319,31 @@ export function ConfigSistemaAuroraAgentes() {
                         </span>
                       )}
                     </div>
-                    <Switch
-                      checked={isActive}
-                      disabled={
-                        (agent.id === AURORA_CORE_ID && savingAuroraCore) ||
-                        (!!executeKey && pendingExecuteKey === executeKey)
-                      }
-                      onCheckedChange={() => handleToggle(agent)}
-                    />
+                    {isMaster ? (
+                      <Switch
+                        checked={isActive}
+                        disabled={
+                          (agent.id === AURORA_CORE_ID && savingAuroraCore) ||
+                          (!!executeKey && pendingExecuteKey === executeKey)
+                        }
+                        onCheckedChange={() => handleToggle(agent)}
+                      />
+                    ) : (
+                      <span className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full border ${isActive ? "text-success border-success/30 bg-success/10" : "text-[var(--color-text-faint)] border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]"}`}>
+                        {isActive ? "Ativo" : "Inativo"}
+                      </span>
+                    )}
                   </div>
                   {agent.description && <p className="text-xs text-[var(--color-text-muted)] mt-1.5 leading-relaxed">{agent.description}</p>}
 
                   <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-[var(--color-border-subtle)] flex-wrap">
-                    <ViewPromptButton
-                      agentKey={agent.id}
-                      expandedKey={expandedId}
-                      setExpandedKey={setExpandedId}
-                    />
+                    {isMaster && (
+                      <ViewPromptButton
+                        agentKey={agent.id}
+                        expandedKey={expandedId}
+                        setExpandedKey={setExpandedId}
+                      />
+                    )}
                     <button
                       onClick={() => setFlowViewerAgentId(agent.id)}
                       className="flex items-center gap-1 px-2 py-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors text-[10px] font-bold"
@@ -333,7 +351,7 @@ export function ConfigSistemaAuroraAgentes() {
                     >
                       <Workflow className="w-3 h-3" /> Ver fluxo
                     </button>
-                    {agent.id !== AURORA_CORE_ID && (
+                    {isMaster && agent.id !== AURORA_CORE_ID && (
                       <>
                         <button
                           onClick={() => setEditing({ id: agent.id, name: displayNameForAgent(agent, promptByKey), originalName: agent.name, role: agent.role || "", description: agent.description || "" })}
@@ -353,7 +371,7 @@ export function ConfigSistemaAuroraAgentes() {
                     )}
                   </div>
 
-                  {isExpanded && (
+                  {isMaster && isExpanded && (
                     <InlinePromptEditor
                       agentKey={promptKey}
                       agent={promptByKey.get(promptKey)}

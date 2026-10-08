@@ -87,7 +87,7 @@ function EntryCard({
  * fundadores, método, FAQ…) e a Júlia passa a usar isso nas conversas, por tenant. Produtos e
  * materiais/criativos continuam em Produtos (aba Arquivos), e o nome da empresa vem do cadastro do tenant — esta tela cobre só o texto livre que não cabe nesses cadastros.
  */
-export function ConfigSistemaConhecimentoIA() {
+export function ConfigSistemaConhecimentoIA({ embedded = false }: { embedded?: boolean } = {}) {
   const { activeTenantName } = useAuth();
   const { entries, loading, saving, save, remove } = useAiKnowledgeBase();
   const [novo, setNovo] = useState<{ title: string; hint: string } | null>(null);
@@ -112,8 +112,8 @@ export function ConfigSistemaConhecimentoIA() {
   };
 
   return (
-    <div className="max-w-3xl space-y-6 animate-in fade-in duration-300 pb-12">
-      <div>
+    <div className={embedded ? "space-y-4" : "max-w-3xl space-y-6 animate-in fade-in duration-300 pb-12"}>
+      {!embedded && <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Conhecimento extra da IA <BookOpen className="w-5 h-5 text-[var(--color-primary-blue)]" />
         </h1>
@@ -121,7 +121,7 @@ export function ConfigSistemaConhecimentoIA() {
           Textos livres que a IA também usa para conversar sobre {activeTenantName ?? "a sua empresa"}: regras de venda, como indicar cada produto, casos de sucesso, avisos.
           O perfil da empresa fica em Dados da Empresa e o conhecimento de cada produto fica em Produtos.
         </p>
-      </div>
+      </div>}
 
       <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] space-y-1">
         <p>

@@ -110,8 +110,7 @@ const ConfigCRMGatilhosIA = lazy(() => import("./pages/settings/SettingsPages").
 const ConfigIntegracoesSMTP = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigIntegracoesSMTP })));
 const ConfigSistemaBackups = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigSistemaBackups })));
 const ConfigSistemaAuroraUso = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigSistemaAuroraUso })));
-const ConfigSistemaConhecimentoIA = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigSistemaConhecimentoIA })));
-const ConfigSistemaAprendizados = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigSistemaAprendizados })));
+const ConfigSistemaTreinamento = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigSistemaTreinamento })));
 const ConfigIntegracoesSDR = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigIntegracoesSDR })));
 const ConfigFinanceiroSquads = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroSquads })));
 const ConfigFinanceiroBloqueioPeriodo = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroBloqueioPeriodo })));
@@ -551,8 +550,9 @@ function AppContent() {
 
             <Route path="sistema/backups" element={<ConfigSistemaBackups />} />
             <Route path="sistema/aurora" element={<ProtectedRoute requireTenantAdmin><ConfigSistemaAuroraUso /></ProtectedRoute>} />
-            <Route path="sistema/conhecimento" element={<ProtectedRoute requireMaster><ConfigSistemaConhecimentoIA /></ProtectedRoute>} />
-            <Route path="sistema/aprendizados" element={<ProtectedRoute requireMaster><ConfigSistemaAprendizados /></ProtectedRoute>} />
+            <Route path="sistema/treinamento" element={<ProtectedRoute requireMaster><ConfigSistemaTreinamento /></ProtectedRoute>} />
+            <Route path="sistema/conhecimento" element={<Navigate to="/app/configuracoes/sistema/treinamento" replace />} />
+            <Route path="sistema/aprendizados" element={<Navigate to="/app/configuracoes/sistema/treinamento" replace />} />
             {/* Páginas "Aurora" e "Aurora — Consumo & Agentes" foram unificadas em uma só
                 (sistema/aurora) — redirect pra quem tiver o link antigo salvo. */}
             <Route path="ia/aurora" element={<Navigate to="/app/configuracoes/sistema/aurora" replace />} />

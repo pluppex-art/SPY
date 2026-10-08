@@ -95,7 +95,8 @@ const CREDITS_PER_CYCLE = 10000;
 export function ConfigSistemaAuroraUso() {
   const { usage, loading: usageLoading, refresh } = useAuroraTokenUsage();
   const { config, loading: configLoading, update } = useTenantAiConfig();
-  const { activeTenantName } = useAuth();
+  const { activeTenantName, user } = useAuth();
+  const isMaster = !!user?.isMaster;
   const [refreshing, setRefreshing] = useState(false);
   const [customPromptDraft, setCustomPromptDraft] = useState<string | null>(null);
   const [savingCustomPrompt, setSavingCustomPrompt] = useState(false);
@@ -141,7 +142,7 @@ export function ConfigSistemaAuroraUso() {
         </Button>
       </div>
 
-      {configLoading || !config ? (
+      {!isMaster ? null : configLoading || !config ? (
         <p className="text-xs text-[var(--color-text-muted)]">Carregando configuração...</p>
       ) : (
         <>
@@ -255,7 +256,7 @@ export function ConfigSistemaAuroraUso() {
         <ConfigSistemaAuroraAgentes />
       </div>
 
-      <Card className="p-5 bg-warning/5 border border-warning/20 space-y-2">
+      {isMaster && <Card className="p-5 bg-warning/5 border border-warning/20 space-y-2">
         <h3 className="font-bold text-xs text-warning flex items-center gap-2">
           <ShieldAlert className="w-3.5 h-3.5" /> Ainda não existe nesta tela
         </h3>
@@ -264,7 +265,7 @@ export function ConfigSistemaAuroraUso() {
           conexão com sistemas externos do cliente e integrações/APIs de terceiros fazem parte de fases
           futuras do projeto de integração — ainda não estão implementadas, e esta tela não finge que estão.
         </p>
-      </Card>
+      </Card>}
     </div>
   );
 }

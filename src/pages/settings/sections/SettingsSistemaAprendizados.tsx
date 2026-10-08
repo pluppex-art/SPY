@@ -119,13 +119,13 @@ function LessonList({ scope, canAdd }: { scope: "empresa" | "plataforma"; canAdd
  * da empresa todo dia (e as cadastradas à mão) e permite ligar/desligar, excluir e ensinar novas.
  * As lições gerais, que a IA usa entre empresas, são confidenciais: só o master da plataforma as vê.
  */
-export function ConfigSistemaAprendizados() {
+export function ConfigSistemaAprendizados({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, activeTenantName } = useAuth();
   const [aba, setAba] = useState<"empresa" | "plataforma">("empresa");
 
   return (
-    <div className="max-w-3xl space-y-6 animate-in fade-in duration-300 pb-12">
-      <div>
+    <div className={embedded ? "space-y-4" : "max-w-3xl space-y-6 animate-in fade-in duration-300 pb-12"}>
+      {!embedded && <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Aprendizado da IA <Sparkles className="w-5 h-5 text-[var(--color-primary-blue)]" />
         </h1>
@@ -133,7 +133,7 @@ export function ConfigSistemaAprendizados() {
           Todo dia, de madrugada, a IA lê as conversas de {activeTenantName ?? "sua empresa"} e extrai o que funcionou e o que não funcionou. Aqui você vê essas lições,
           desliga as que não fazem sentido e ensina novas. Desligar uma lição faz a IA parar de usá-la na próxima conversa.
         </p>
-      </div>
+      </div>}
 
       {user?.isMaster && (
         <div className="flex gap-2">
