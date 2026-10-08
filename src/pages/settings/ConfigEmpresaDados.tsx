@@ -22,6 +22,7 @@ interface EmpresaDados {
   logoUrl?: string;
   // Perfil que a Júlia (IA de vendas) usa para conversar sobre a empresa — lido ao vivo pelo n8n.
   ia_nome_comercial?: string;
+  ia_nome_agente?: string;
   ia_sobre?: string;
   ia_publico?: string;
   ia_fundadores?: string;
@@ -33,6 +34,7 @@ interface EmpresaDados {
 }
 
 const CAMPOS_IA: { key: keyof EmpresaDados; label: string; hint: string; rows: number }[] = [
+  { key: "ia_nome_agente", label: "Nome do agente de vendas", hint: "Como o agente se apresenta aos clientes (ex.: Júlia, Marina, Beto). Se vazio, usa Júlia.", rows: 1 },
   { key: "ia_nome_comercial", label: "Como a IA chama a empresa", hint: "Nome curto usado na apresentação (ex.: Pluppex). Se vazio, usa o Nome Fantasia.", rows: 1 },
   { key: "ia_sobre", label: "O que é a empresa", hint: "Em poucas frases: o que faz, o que vende, em que cidade/região atua.", rows: 3 },
   { key: "ia_publico", label: "Quem são os clientes", hint: "Perfil de quem compra e o problema que chega até vocês.", rows: 2 },
