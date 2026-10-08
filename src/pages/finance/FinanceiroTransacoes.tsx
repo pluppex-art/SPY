@@ -331,7 +331,7 @@ export default function FinanceiroTransacoes() {
                     <th className="px-3 py-3">Data</th>
                     <th className="px-3 py-3">Status</th>
                     <th className="px-3 py-3 text-right">Valor</th>
-                    <th className="px-3 py-3 text-right w-20">Ações</th>
+                    <th className="px-3 py-3 text-right w-28">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border-subtle)]">
