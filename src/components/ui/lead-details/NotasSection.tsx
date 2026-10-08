@@ -72,6 +72,15 @@ function formatDate(iso: string): string {
   return `${d.toLocaleDateString("pt-BR")} às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
+// Notas da IA marcam o que importa (origem, reunião, produto, objeção...) com **negrito**; aqui vira <strong>.
+function renderNegrito(texto: string) {
+  return String(texto ?? "").split(/(\*\*[^*]+\*\*)/g).map((parte, i) =>
+    parte.startsWith("**") && parte.endsWith("**") && parte.length > 4
+      ? <strong key={i} className="font-bold text-[var(--color-text-primary)]">{parte.slice(2, -2)}</strong>
+      : parte
+  );
+}
+
 export function NotasSection({
   lead,
   leadName,
@@ -618,7 +627,7 @@ export function NotasSection({
                 </div>
 
                 <p className="text-xs text-[var(--color-text-primary)] leading-relaxed whitespace-pre-wrap">
-                  {note.text}
+                  {renderNegrito(note.text)}
                 </p>
               </Card>
             );

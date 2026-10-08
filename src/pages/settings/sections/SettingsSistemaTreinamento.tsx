@@ -7,6 +7,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { supabase } from "../../../lib/supabase";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { useAgentPrompts } from "../../../hooks/useAgentPrompts";
+import { useData } from "../../../contexts/DataContext";
 import { ConfigSistemaConhecimentoIA } from "./SettingsSistemaConhecimento";
 import { ConfigSistemaAprendizados } from "./SettingsSistemaAprendizados";
 
@@ -171,6 +172,47 @@ function AgenteTreino({ agente }: { agente: (typeof AGENTES)[number] }) {
   );
 }
 
+
+function EscopoVendas() {
+  const { appSettings, saveAppSetting } = useData();
+  const { activeTenantName } = useAuth();
+  const atual: "fechamento" | "ate_reuniao" = appSettings?.ia_vendas_config?.escopo === "ate_reuniao" ? "ate_reuniao" : "fechamento";
+  const [salvando, setSalvando] = useState(false);
+  const mudar = async (escopo: "fechamento" | "ate_reuniao") => {
+    if (escopo === atual) return;
+    setSalvando(true);
+    await saveAppSetting("ia_vendas_config", { ...(appSettings?.ia_vendas_config ?? {}), escopo });
+    setSalvando(false);
+    toast.success(escopo === "ate_reuniao" ? "Os agentes de vendas agora vão só até a reunião." : "Os agentes de vendas voltaram a conduzir até o fechamento.");
+  };
+  const opcoes = [
+    { v: "fechamento" as const, titulo: "Até o fechamento", desc: "O Agente de Vendas 1 conduz a venda e pode usar o Agente de Vendas 2 para fechar (proposta, negociação, próximo passo de pagamento conforme o cadastro)." },
+    { v: "ate_reuniao" as const, titulo: "Só até a reunião", desc: "Os agentes qualificam, tratam objeções e marcam a reunião com a equipe. Não enviam proposta, contrato, link de pagamento nem PIX e não negociam. O Agente de Vendas 2 passa a ajudar só a conseguir a reunião." },
+  ];
+  return (
+    <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-3 shadow-sm">
+      <div>
+        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Até onde os agentes de vendas vão ({activeTenantName ?? "empresa selecionada"})</h3>
+        <p className="text-[11px] text-[var(--color-text-muted)]">Vale para esta empresa. Para desligar o Agente de Vendas 2 por completo, use a chave dele em Sistema → Aurora.</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {opcoes.map((o) => (
+          <button
+            key={o.v}
+            type="button"
+            disabled={salvando}
+            onClick={() => mudar(o.v)}
+            className={`text-left rounded-lg border p-3 transition-colors cursor-pointer ${atual === o.v ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10" : "border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface-elevated)]"}`}
+          >
+            <p className="text-xs font-bold text-[var(--color-text-primary)]">{o.titulo}{atual === o.v ? " ✓" : ""}</p>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">{o.desc}</p>
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 /**
  * Configurações → Sistema → Treinamento dos agentes (SOMENTE master da plataforma).
  * Reúne num lugar só tudo o que treina os 4 agentes do modelo padrão: o treinamento de cada agente
@@ -212,6 +254,7 @@ export function ConfigSistemaTreinamento() {
         ))}
       </div>
 
+      {(aba === "sdr" || aba === "closer") && <EscopoVendas />}
       {agente && <AgenteTreino key={agente.key} agente={agente} />}
       {aba === "conhecimento" && <ConfigSistemaConhecimentoIA embedded />}
       {aba === "licoes" && <ConfigSistemaAprendizados embedded />}
