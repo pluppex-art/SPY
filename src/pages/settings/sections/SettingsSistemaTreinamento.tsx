@@ -16,13 +16,13 @@ import { ConfigSistemaAprendizados } from "./SettingsSistemaAprendizados";
 const AGENTES = [
   {
     key: "sdr",
-    nome: "Agente SDR",
+    nome: "Agente de Vendas 1",
     resumo: "Atende e qualifica o lead no WhatsApp, agenda reunião e chama o Closer no fechamento.",
     secoes: ["TOM", "PERGUNTAS DE DESCOBERTA", "FECHAMENTO", "OFERTA", "REGRAS DA EMPRESA"],
   },
   {
     key: "closer",
-    nome: "Closer",
+    nome: "Agente de Vendas 2",
     resumo: "Orienta o SDR e os gestores em negociação: objeções, valor e próximo passo de fechamento.",
     secoes: ["ESTILO", "ABORDAGEM DE OBJEÇÕES", "LIMITES DE NEGOCIAÇÃO", "REGRAS DA EMPRESA"],
   },

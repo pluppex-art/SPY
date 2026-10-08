@@ -31,6 +31,9 @@ const AURORA_CORE_ID = "aurora-core";
 // pra não duplicar controle nem ter um botão a mais que só repetia a mesma decisão.
 const EXECUTE_MODULE_BY_NAME: Record<string, string> = {
   "Radar de Oportunidades": "radar",
+  "Agente de Vendas 1": "sdr",
+  "Agente de Vendas 2": "closer",
+  // nomes antigos: mantidos para linhas já salvas no catálogo de cada empresa
   "Agente SDR": "sdr",
   "Closer": "closer",
 };
@@ -44,10 +47,10 @@ const EXECUTE_MODULE_BY_NAME: Record<string, string> = {
 // negócio, não os nomes técnicos das AURORA_TOOLS (ferramentas internas que
 // a Aurora chama por trás; o agente é quem representa isso pro usuário).
 export const AURORA_AGENTS_DEFAULT: Array<Pick<AuroraAgent, "name" | "role" | "description">> = [
-  { name: "Agente SDR", role: "SDR", description: "Qualificação e primeiro contato com leads recebidos." },
+  { name: "Agente de Vendas 1", role: "Vendas 1", description: "Passo 1 da venda: atende, qualifica o lead e agenda a reunião pelo WhatsApp." },
   { name: "Agente Secreto", role: "Inteligência", description: "Monitoramento e alertas de oportunidades ocultas no pipeline." },
   { name: "Radar de Oportunidades", role: "Prospecção", description: "Identifica leads quentes e sinais de compra em tempo real." },
-  { name: "Closer", role: "Vendas", description: "Condução de negociações e fechamento de propostas." },
+  { name: "Agente de Vendas 2", role: "Vendas 2", description: "Passo 2 da venda: conduz a negociação e o fechamento das propostas." },
   { name: "Agente Comercial", role: "Comercial", description: "Suporte geral ao time comercial no dia a dia do CRM." },
   { name: "Diretoria", role: "Executivo", description: "Resumos e recomendações estratégicas para a liderança." },
   { name: "Pesquisa", role: "Pesquisa", description: "Levantamento de dados de mercado e concorrência." },
@@ -60,6 +63,8 @@ export const AURORA_AGENTS_DEFAULT: Array<Pick<AuroraAgent, "name" | "role" | "d
 
 export const ROLE_ICONS: Record<string, typeof Bot> = {
   SDR: UserSearch,
+  "Vendas 1": UserSearch,
+  "Vendas 2": Handshake,
   "Inteligência": Eye,
   "Prospecção": Radar,
   Vendas: Handshake,
@@ -77,6 +82,8 @@ export const ROLE_ICONS: Record<string, typeof Bot> = {
 const ROLE_TONES: Record<string, { box: string; text: string; pill: string }> = {
   "Núcleo": { box: "bg-orange-500/10 border-orange-500/20", text: "text-orange-500", pill: "bg-orange-500/10 text-orange-600" },
   SDR: { box: "bg-blue-500/10 border-blue-500/20", text: "text-blue-500", pill: "bg-blue-500/10 text-blue-600" },
+  "Vendas 1": { box: "bg-blue-500/10 border-blue-500/20", text: "text-blue-500", pill: "bg-blue-500/10 text-blue-600" },
+  "Vendas 2": { box: "bg-rose-500/10 border-rose-500/20", text: "text-rose-500", pill: "bg-rose-500/10 text-rose-600" },
   "Inteligência": { box: "bg-violet-500/10 border-violet-500/20", text: "text-violet-500", pill: "bg-violet-500/10 text-violet-600" },
   "Prospecção": { box: "bg-emerald-500/10 border-emerald-500/20", text: "text-emerald-500", pill: "bg-emerald-500/10 text-emerald-600" },
   Vendas: { box: "bg-rose-500/10 border-rose-500/20", text: "text-rose-500", pill: "bg-rose-500/10 text-rose-600" },
@@ -144,12 +151,17 @@ function displayNameForAgent(agent: Pick<AuroraAgent, "name">, promptByKey: Map<
 
 // Agentes que o CLIENTE enxerga (somente leitura): os 4 do modelo padrão. Ligar/desligar, editar,
 // remover e treinar (prompt) é só do master da plataforma — ver Sistema → Treinamento dos agentes.
-const CLIENT_VISIBLE_AGENTS = new Set(["Agente SDR", "Agente Secreto", "Radar de Oportunidades", "Closer"]);
+const MODULE_BY_AGENT: Record<string, "sdr" | "closer" | "radar" | "agente_secreto"> = {
+  "Agente de Vendas 1": "sdr", "Agente SDR": "sdr",
+  "Agente de Vendas 2": "closer", "Closer": "closer",
+  "Radar de Oportunidades": "radar",
+  "Agente Secreto": "agente_secreto",
+};
 
 export function ConfigSistemaAuroraAgentes() {
-  const { user } = useAuth();
+  const { user, isModuleEnabled } = useAuth();
   const isMaster = !!user?.isMaster;
-  const { auroraAgents, addAuroraAgent, updateAuroraAgent, deleteAuroraAgent, toggleAuroraAgent, ensureNicheModulesLoaded } = useData();
+  const { auroraAgents, addAuroraAgent, updateAuroraAgent, deleteAuroraAgent, toggleAuroraAgent, ensureNicheModulesLoaded, appSettings, saveAppSetting } = useData();
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
   const [editing, setEditing] = useState<EditingState>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -157,6 +169,9 @@ export function ConfigSistemaAuroraAgentes() {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const { prompts, loading: promptsLoading, savingKey: promptSavingKey, updatePrompt } = useAgentPrompts();
   const promptByKey = new Map(prompts.map((p) => [p.agentKey, p]));
+  // Apelido do Agente de Vendas 1 = nome com que ele se apresenta aos clientes (empresa_dados.ia_nome_agente).
+  const apelidoVendas1 = String(appSettings?.empresa_dados?.ia_nome_agente || "").trim();
+  if (apelidoVendas1) promptByKey.set("sdr", { ...(promptByKey.get("sdr") ?? { agentKey: "sdr", description: null, prompt: "", basePrompt: null, updatedAt: null, isCustomized: true }), name: apelidoVendas1 } as any);
   const { config, update: updateTenantAiConfig } = useTenantAiConfig();
   const [pendingExecuteKey, setPendingExecuteKey] = useState<string | null>(null);
   const [savingAuroraCore, setSavingAuroraCore] = useState(false);
@@ -173,7 +188,7 @@ export function ConfigSistemaAuroraAgentes() {
     active: config?.auroraEnabled ?? true,
   } as AuroraAgent;
   const fullList: AuroraAgent[] = [auroraCoreEntry, ...personaList];
-  const displayList: AuroraAgent[] = isMaster ? fullList : fullList.filter((a) => CLIENT_VISIBLE_AGENTS.has(a.name));
+  const displayList: AuroraAgent[] = isMaster ? fullList : fullList.filter((a) => !!MODULE_BY_AGENT[a.name] && isModuleEnabled(MODULE_BY_AGENT[a.name]));
 
   // "Ver fluxo" — chave vazia enquanto nenhum agente está selecionado (modal fechado); o hook
   // não busca nada nesse caso (ver useAgentFlow.ts). Precisa ficar no nível do componente (não
@@ -238,6 +253,7 @@ export function ConfigSistemaAuroraAgentes() {
       // prompt e a descrição já salvos (se houver) em vez de zerar ao só trocar o nome.
       const existing = promptByKey.get(n8nKey);
       updatePrompt(n8nKey, existing?.prompt ?? "", editing.name, existing?.description ?? editing.description);
+      if (n8nKey === "sdr") saveAppSetting("empresa_dados", { ...(appSettings?.empresa_dados ?? {}), ia_nome_agente: editing.name.trim() });
       toast.success("Apelido do agente atualizado.");
       setEditing(null);
       return;
@@ -295,7 +311,7 @@ export function ConfigSistemaAuroraAgentes() {
             <p className="text-sm text-[var(--color-text-muted)] mt-1 max-w-3xl">
               {isMaster
                 ? "Cada agente pode ser ativado ou desativado — a Aurora não age em nome de um agente inativo quando ele é citado diretamente na conversa."
-                : "Estes são os agentes que trabalham para a sua empresa. A ativação e o treinamento deles são feitos pela equipe da plataforma."}
+                : "Estes são os agentes contratados pela sua empresa. Você pode dar um apelido a cada um (o Agente de Vendas 1 usa esse nome ao conversar com os seus clientes). Ativação e treinamento ficam com a equipe da plataforma."}
             </p>
           </div>
         </div>
@@ -340,6 +356,9 @@ export function ConfigSistemaAuroraAgentes() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-base font-bold text-[var(--color-text-primary)] truncate">{displayNameForAgent(agent, promptByKey)}</p>
+                      {displayNameForAgent(agent, promptByKey) !== agent.name && agent.id !== AURORA_CORE_ID && (
+                        <p className="text-[11px] text-[var(--color-text-faint)] truncate">{agent.name}</p>
+                      )}
                       {agent.role && (
                         <span className={`inline-block mt-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${toneFor(agent.role).pill}`}>
                           {agent.role}
@@ -381,22 +400,22 @@ export function ConfigSistemaAuroraAgentes() {
                     >
                       <Workflow className="w-3.5 h-3.5" /> Ver fluxo
                     </button>
-                    {isMaster && agent.id !== AURORA_CORE_ID && (
+                    {agent.id !== AURORA_CORE_ID && (
                       <>
                         <button
                           onClick={() => setEditing({ id: agent.id, name: displayNameForAgent(agent, promptByKey), originalName: agent.name, role: agent.role || "", description: agent.description || "" })}
                           className="flex items-center gap-1.5 px-3 h-8 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-lg cursor-pointer transition-colors text-xs font-bold"
                           title="Editar agente"
                         >
-                          <Pencil className="w-3.5 h-3.5" /> Editar
+                          <Pencil className="w-3.5 h-3.5" /> {isMaster ? "Editar" : "Renomear"}
                         </button>
-                        <button
+                        {isMaster && <button
                           onClick={() => handleDelete(agent)}
                           className="flex items-center gap-1.5 px-3 h-8 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-danger hover:bg-danger/10 rounded-lg cursor-pointer transition-colors text-xs font-bold"
                           title="Remover agente"
                         >
                           <Trash2 className="w-3.5 h-3.5" /> Remover
-                        </button>
+                        </button>}
                       </>
                     )}
                   </div>
@@ -446,12 +465,16 @@ export function ConfigSistemaAuroraAgentes() {
                   </p>
                 )}
               </FormField>
-              <FormField label="Papel/Função">
-                <Input value={editing.role} onChange={(e) => setEditing({ ...editing, role: e.target.value })} placeholder="Ex: Vendas" />
-              </FormField>
-              <FormField label="Descrição">
-                <Input value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} placeholder="O que esse agente faz" />
-              </FormField>
+              {isMaster && (
+                <>
+                  <FormField label="Papel/Função">
+                    <Input value={editing.role} onChange={(e) => setEditing({ ...editing, role: e.target.value })} placeholder="Ex: Vendas" />
+                  </FormField>
+                  <FormField label="Descrição">
+                    <Input value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} placeholder="O que esse agente faz" />
+                  </FormField>
+                </>
+              )}
             </div>
           );
         })()}
