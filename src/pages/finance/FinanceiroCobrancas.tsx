@@ -540,6 +540,7 @@ export default function FinanceiroCobrancas() {
                   <CheckCircle2 className="w-3.5 h-3.5" /> {detalhe.status === "Liquidada" ? "Voltar para A Vencer" : "Marcar como liquidada"}
                 </Button>
                 <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={() => { setDetalhe(null); setShowModal(true); }} className="h-9 px-3 text-xs font-bold gap-1.5"><Plus className="w-3.5 h-3.5" /> Nova cobrança</Button>
                   <Button type="button" variant="outline" onClick={() => handleCopyPix(detalhe.cliente, detalhe.valor)} className="h-9 px-3 text-xs font-bold gap-1.5"><Copy className="w-3.5 h-3.5" /> Pix</Button>
                   <Button type="button" onClick={() => { const c = detalhe; setDetalhe(null); openSendCobranca(c); }} className="h-9 px-4 text-xs font-bold gap-1.5"><Send className="w-3.5 h-3.5" /> Enviar</Button>
                 </div>

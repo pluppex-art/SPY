@@ -4,7 +4,7 @@ import { EmptyState } from "../../components/ui/empty-state";
 import {
   Download, Calendar, CheckCircle2,
   Clock, AlertTriangle, Plus, Trash2, DollarSign, Pencil, Lock, Repeat, Layers, User, Landmark, HelpCircle,
-  TrendingUp, TrendingDown, BarChart3, HourglassIcon, Copy, ArrowUpRight, ArrowDownRight, Tag, Search, X, ArrowUpDown, LayoutGrid, List as ListIcon, FileText, AlignLeft, FolderOpen, CreditCard, ArrowLeftRight, Save, Paperclip, Info, Activity,
+  TrendingUp, TrendingDown, BarChart3, HourglassIcon, Copy, ArrowUpRight, ArrowDownRight, Tag, Search, X, ArrowUpDown, LayoutGrid, List as ListIcon, FileText, AlignLeft, FolderOpen, CreditCard, ArrowLeftRight, Save, Paperclip, Info, Activity, Eye,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
@@ -19,6 +19,7 @@ import { downloadCsv } from "../../lib/csvExport";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { RateioModal, type RateioDivisao } from "./components/RateioModal";
 import { FinanceiroAnexosTab } from "./components/FinanceiroAnexosTab";
+import { ViewModal, type ViewSection } from "./components/ViewModal";
 import { parseEntryDate } from "./lib/financeDates";
 import { useFinanceEntriesList } from "./useFinanceEntriesList";
 import { Pagination } from "../../components/ui/Pagination";
@@ -51,7 +52,7 @@ interface GenericProps {
 }
 
 export default function GenericFinanceiroList({ title, desc, type, statusFilter, defaultStatus }: GenericProps) {
-  const { financeEntries, addFinanceEntry, deleteFinanceEntry, updateFinanceEntry, financeCategories, addFinanceCategory, financeBankAccounts, financeCentrosCusto, clienteBase } = useData();
+  const { financeEntries, addFinanceEntry, deleteFinanceEntry, updateFinanceEntry, financeCategories, addFinanceCategory, financeBankAccounts, financeCentrosCusto, clienteBase, financeAttachments } = useData();
   const { formatCurrency } = useLocalization();
   const [isModalOpen, setIsModalOpen] = useState(false);
   // Período global da tela (seletor "Período: Tudo" do cabeçalho): filtra a tabela (servidor), os cards e o gráfico.
@@ -243,6 +244,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const [newParcelas, setNewParcelas] = useState("2");
 
   // Edit entry form
+  const [viewingItem, setViewingItem] = useState<any | null>(null);
   const [editingItem, setEditingItem] = useState<(typeof financeEntries)[number] | null>(null);
   const [editDesc, setEditDesc] = useState("");
   const [editNotes, setEditNotes] = useState("");
@@ -652,6 +654,42 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     return null;
   };
 
+  const openNewFromView = () => { setViewingItem(null); setNewContaBancariaId(contaPrincipalId); setIsModalOpen(true); };
+  const viewSections = (it: any): ViewSection[] => {
+    const conta = (financeBankAccounts as any[]).find(c => c.id === it.conta_bancaria_id)?.nome;
+    const cc = (financeCentrosCusto as any[]).find(c => c.id === it.centro_custo_id)?.nome;
+    const dt = parseEntryDate(it.date)?.toLocaleDateString("pt-BR") ?? it.date;
+    const tags = Array.isArray(it.tags) && it.tags.length > 0 ? it.tags.join(", ") : null;
+    const parcela = it.installment_total && it.installment_total > 1 ? `Parcela ${it.installment_number} de ${it.installment_total}` : null;
+    const recorr = it.is_recurring ? `Recorrente (${it.recurring_frequency})` : null;
+    const nAnexos = (financeAttachments as any[]).filter(a => a.transacao_id === it.id).length;
+    return [
+      { icon: FileText, title: "Lançamento", rows: [
+        { label: "Descrição", value: it.description },
+        { label: type === "Pagar" ? "Fornecedor" : "Cliente", value: it.counterparty || null },
+        { label: "Categoria", value: it.category || null },
+        { label: "Data", value: dt, mono: true },
+        { label: "Status", value: it.status },
+      ] },
+      { icon: Landmark, title: "Pagamento", rows: [
+        { label: "Forma de pagamento", value: it.payment_method || null },
+        { label: "Conta", value: conta || null },
+        { label: "Centro de custo", value: cc || null },
+        { label: "Nº do documento", value: it.numero_documento || null, mono: true },
+      ] },
+      { icon: Repeat, title: "Repetição", rows: [
+        { label: "Parcelamento", value: parcela },
+        { label: "Recorrência", value: recorr },
+        { label: "Rateio", value: it.division_group_id ? "Parte de um lançamento detalhado" : null },
+      ] },
+      { icon: Tag, title: "Outros", rows: [
+        { label: "Tags", value: tags },
+        { label: "Observações", value: it.notes || null },
+        { label: "Anexos", value: nAnexos > 0 ? String(nAnexos) : null },
+      ] },
+    ];
+  };
+
   const chartsJsx = (
     <>
 {kpis.kind === "pipeline" ? (
@@ -923,7 +961,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                     </td>
                     <td className="px-3 py-2.5 font-bold text-[var(--color-text-primary)] min-w-[260px]">
                       <span className="inline-flex items-center gap-1.5 max-w-[460px]">
-                        <span className="truncate" title={item.description}>{item.description}</span>
+                        <span className="truncate cursor-pointer hover:text-[var(--color-primary-blue)]" title={item.description} onClick={() => setViewingItem(item)}>{item.description}</span>
                         <RepeatBadge item={item} />
                       </span>
                       {item.notes && (
@@ -956,6 +994,14 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setViewingItem(item)}
+                          className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors cursor-pointer"
+                          title="Visualizar lançamento"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => openEdit(item)}
@@ -1017,6 +1063,14 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 <div className="absolute top-3 right-3 flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => setViewingItem(item)}
+                    className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 hover:border-[var(--color-primary-blue)]/25 p-1 transition-colors"
+                    title="Visualizar lançamento"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => openEdit(item)}
                     className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 hover:border-[var(--color-primary-blue)]/25 p-1 transition-colors"
                     title="Editar lançamento"
@@ -1076,6 +1130,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 <p className="text-[11px] text-[var(--color-text-muted)] truncate">{item.category || "Sem categoria"}{item.counterparty ? ` · ${item.counterparty}` : ""}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <button type="button" onClick={() => setViewingItem(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Visualizar lançamento"><Eye className="w-3.5 h-3.5" /></button>
                 <button type="button" onClick={() => openEdit(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Editar lançamento"><Pencil className="w-3.5 h-3.5" /></button>
                 <button type="button" onClick={() => handleDuplicate(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Duplicar lançamento"><Copy className="w-3.5 h-3.5" /></button>
                 <button type="button" onClick={() => handleDelete(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger rounded-lg cursor-pointer" title="Excluir lançamento"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -1722,6 +1777,23 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         onConfirm={handleConfirmRateio}
       />
       </div>
+
+      {viewingItem && (
+        <ViewModal
+          isOpen
+          onClose={() => setViewingItem(null)}
+          icon={type === "Pagar" ? TrendingDown : TrendingUp}
+          tone={type === "Pagar" ? "danger" : "success"}
+          title={viewingItem.description}
+          subtitle={type === "Pagar" ? "Despesa" : "Receita"}
+          highlight={<span className={`text-xl font-black tabular-nums ${type === "Pagar" ? "text-rose-500" : "text-emerald-600 dark:text-emerald-400"}`}>{type === "Pagar" ? "− " : "+ "}{formatCurrency(viewingItem.value)}</span>}
+          sections={viewSections(viewingItem)}
+          onEdit={() => { const it = viewingItem; setViewingItem(null); openEdit(it); }}
+          onNew={openNewFromView}
+          newLabel={type === "Pagar" ? "Nova despesa" : "Nova receita"}
+          onDelete={() => { const it = viewingItem; setViewingItem(null); handleDelete(it); }}
+        />
+      )}
 
       <DrillDownPanel
         isOpen={drillKey !== null}

@@ -3,7 +3,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
   Layers, Plus, DollarSign, Users, TrendingUp,
-  Building2, Trash2, Edit2, X, AlertCircle, PieChart, Download, FileText, Loader2, Info
+  Building2, Trash2, Edit2, X, AlertCircle, PieChart, Download, FileText, Loader2, Info, Eye
 } from "lucide-react";
 import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
@@ -14,6 +14,7 @@ import { useData } from "../../contexts/DataContext";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { cn } from "../../lib/utils";
+import { ViewModal } from "./components/ViewModal";
 
 const ctl = "w-full h-9 px-3 rounded-lg bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40";
 const lbl = "text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5";
@@ -39,6 +40,7 @@ export default function FinanceiroCentrosCusto() {
   const [gestorFilter, setGestorFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<CentroCusto | null>(null);
 
   // Form State
   const [nome, setNome] = useState("");
@@ -83,6 +85,13 @@ export default function FinanceiroCentrosCusto() {
     const pagos = rows.filter(e => e.status === "Pago" && e.type === "Pagar").reduce((s, e) => s + (Number(e.value) || 0), 0);
     return { count: rows.length, pagos };
   }, [editingId, financeEntries]);
+
+  const viewVinculados = useMemo(() => {
+    if (!viewing) return null;
+    const rows = (financeEntries as any[]).filter(e => e.centro_custo_id === viewing.id);
+    const pagos = rows.filter(e => e.status === "Pago" && e.type === "Pagar").reduce((s, e) => s + (Number(e.value) || 0), 0);
+    return { count: rows.length, pagos };
+  }, [viewing, financeEntries]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,6 +252,13 @@ export default function FinanceiroCentrosCusto() {
                 </span>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
+                    onClick={() => setViewing(c)}
+                    className="p-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 hover:border-[var(--color-primary-blue)]/25 transition-colors"
+                    title="Visualizar"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+                  <button
                     onClick={() => handleOpenEdit(c)}
                     className="p-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 hover:border-[var(--color-primary-blue)]/25 transition-colors"
                     title="Editar"
@@ -299,6 +315,40 @@ export default function FinanceiroCentrosCusto() {
           Nenhum centro de custo cadastrado.
         </div>
       )}
+
+      {viewing && (() => {
+        const perc = viewing.orcamento > 0 ? Math.round((viewing.gasto / viewing.orcamento) * 100) : 0;
+        return (
+          <ViewModal
+            isOpen
+            onClose={() => setViewing(null)}
+            icon={Layers}
+            title={viewing.nome}
+            subtitle={viewing.codigo || undefined}
+            tone={perc > 90 ? "danger" : perc > 75 ? "warning" : "primary"}
+            highlight={viewing.orcamento > 0 ? <span className={`text-lg font-black ${perc > 90 ? "text-danger" : perc > 75 ? "text-warning" : "text-success"}`}>{perc}% consumido</span> : undefined}
+            sections={[
+              { icon: FileText, title: "Identificação", rows: [
+                { label: "Código", value: viewing.codigo || null, mono: true },
+                { label: "Gestor", value: viewing.responsavel || null },
+              ] },
+              { icon: DollarSign, title: "Orçamento e consumo", rows: [
+                { label: "Orçamento mensal", value: formatCurrency(viewing.orcamento), mono: true },
+                { label: "Gasto atual", value: formatCurrency(viewing.gasto), mono: true },
+                { label: "Saldo disponível", value: formatCurrency(viewing.orcamento - viewing.gasto), mono: true },
+              ] },
+              ...(viewVinculados ? [{ icon: Info, title: "Lançamentos vinculados", rows: [
+                { label: "Lançamentos", value: String(viewVinculados.count) },
+                { label: "Despesas já pagas", value: formatCurrency(viewVinculados.pagos), mono: true },
+              ] }] : []),
+            ]}
+            newLabel="Novo centro de custo"
+            onEdit={() => { const c = viewing; setViewing(null); handleOpenEdit(c); }}
+            onNew={() => { setViewing(null); handleOpenNew(); }}
+            onDelete={async () => { const c = viewing; if (await handleDelete(c.id)) setViewing(null); }}
+          />
+        );
+      })()}
 
       {/* Modal */}
       <Modal

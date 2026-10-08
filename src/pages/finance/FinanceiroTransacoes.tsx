@@ -9,11 +9,12 @@ import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../../components/ui/dropdown-menu";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
+import { ViewModal, type ViewSection } from "./components/ViewModal";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
 import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import {
   ArrowDownLeft, ArrowUpRight, ArrowDownRight, Download, Plus, ListOrdered, Scale, Search, Minus,
-  CheckCircle2, Clock, AlertTriangle, Tag, List as ListIcon, LayoutGrid, ArrowUpDown, X, MoreVertical, Copy, ExternalLink,
+  CheckCircle2, Clock, AlertTriangle, Tag, List as ListIcon, LayoutGrid, ArrowUpDown, X, MoreVertical, Copy, ExternalLink, Eye, FileText, Landmark,
 } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -62,6 +63,8 @@ export default function FinanceiroTransacoes() {
   const [viewMode, setViewMode] = useState<"lista" | "grade">("lista");
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [novaOpen, setNovaOpen] = useState(false);
+  const [novaTipo, setNovaTipo] = useState<"Pagar" | "Receber">("Pagar");
+  const [viewing, setViewing] = useState<any | null>(null);
 
   const { entries, total, base, prev, page, setPage, totalPages, loading, fetchAllForExport } = useFinanceTransacoesList({
     search, tab, dateFrom, dateTo, categoria, contraparte, ordem, pageSize,
@@ -162,7 +165,30 @@ export default function FinanceiroTransacoes() {
     { id: "pendentes", label: "Pendentes", icon: Clock, count: tabCounts.pendentes },
   ];
 
+  const viewSections = (t: any): ViewSection[] => {
+    const st = STATUS_STYLE[t.status]?.label ?? t.status;
+    const d = parseEntryDate(t.date);
+    return [
+      { icon: FileText, title: "Lançamento", rows: [
+        { label: "Descrição", value: t.description },
+        { label: "Tipo", value: t.type === "Receber" ? "Entrada" : "Saída" },
+        { label: "Categoria", value: t.category || null },
+        { label: t.type === "Receber" ? "Cliente" : "Fornecedor", value: t.counterparty || null },
+        { label: "Data", value: d ? d.toLocaleDateString("pt-BR") : t.date || null, mono: true },
+        { label: "Status", value: st || null },
+      ] },
+      { icon: Landmark, title: "Pagamento", rows: [
+        { label: "Conta", value: contaNome(t.conta_bancaria_id) || null },
+        { label: "Forma de pagamento", value: t.payment_method || null },
+        { label: "Nº do documento", value: t.numero_documento || null, mono: true },
+        { label: "Observações", value: t.notes || null },
+      ] },
+    ];
+  };
+
   const acoes = (t: any) => (
+    <div className="flex items-center justify-end gap-1">
+    <button type="button" onClick={() => setViewing(t)} className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-surface-sunken)] bg-transparent border-none cursor-pointer" aria-label="Visualizar" title="Visualizar"><Eye className="w-4 h-4" /></button>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)] bg-transparent border-none cursor-pointer" aria-label="Ações"><MoreVertical className="w-4 h-4" /></button>
@@ -172,6 +198,7 @@ export default function FinanceiroTransacoes() {
         <DropdownMenuItem onClick={() => navigate(t.type === "Receber" ? "/app/financeiro/receitas" : "/app/financeiro/despesas")} className="gap-2"><ExternalLink className="w-3.5 h-3.5" /> Abrir {t.type === "Receber" ? "receitas" : "despesas"}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    </div>
   );
 
   return (
@@ -185,7 +212,7 @@ export default function FinanceiroTransacoes() {
           <Button variant="outline" onClick={handleExport} className="h-9 px-4 text-xs font-medium gap-1.5">
             <Download className="w-3.5 h-3.5" /> Exportar CSV{selecionados.size > 0 ? ` (${selecionados.size})` : ""}
           </Button>
-          <Button onClick={() => setNovaOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5">
+          <Button onClick={() => { setNovaTipo("Pagar"); setNovaOpen(true); }} className="h-9 px-4 text-xs font-bold gap-1.5">
             <Plus className="w-3.5 h-3.5" /> Nova Movimentação
           </Button>
         </div>
@@ -283,7 +310,7 @@ export default function FinanceiroTransacoes() {
                     <th className="px-3 py-3">Data</th>
                     <th className="px-3 py-3">Status</th>
                     <th className="px-3 py-3 text-right">Valor</th>
-                    <th className="px-3 py-3 text-right w-14">Ações</th>
+                    <th className="px-3 py-3 text-right w-20">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border-subtle)]">
@@ -295,7 +322,7 @@ export default function FinanceiroTransacoes() {
                       <tr key={t.id} className={cn("hover:bg-[var(--color-surface-sunken)]/50 transition-colors", selecionados.has(t.id) && "bg-[var(--color-primary-blue)]/[0.04]")}>
                         <td className="px-4 py-3"><input type="checkbox" checked={selecionados.has(t.id)} onChange={() => toggleUm(t.id)} className="w-4 h-4 accent-[var(--color-primary-blue)] cursor-pointer" /></td>
                         <td className="px-3 py-3 max-w-[340px]">
-                          <span className="font-medium text-[var(--color-text-primary)] block truncate">{t.description}</span>
+                          <span className="font-medium text-[var(--color-text-primary)] block truncate cursor-pointer hover:text-[var(--color-primary-blue)]" onClick={() => setViewing(t)}>{t.description}</span>
                           {t.counterparty && <span className="block text-[10px] text-[var(--color-text-faint)] truncate">({t.counterparty})</span>}
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap">
@@ -369,7 +396,22 @@ export default function FinanceiroTransacoes() {
         </div>
       </div>
 
-      <NovaOperacaoModal isOpen={novaOpen} onClose={() => setNovaOpen(false)} defaultType="Pagar" />
+      <NovaOperacaoModal isOpen={novaOpen} onClose={() => setNovaOpen(false)} defaultType={novaTipo} />
+
+      {viewing && (
+        <ViewModal
+          isOpen
+          onClose={() => setViewing(null)}
+          icon={viewing.type === "Receber" ? ArrowUpRight : ArrowDownLeft}
+          tone={viewing.type === "Receber" ? "success" : "danger"}
+          title={viewing.description}
+          subtitle={viewing.type === "Receber" ? "Entrada" : "Saída"}
+          highlight={<span className={cn("text-xl font-black tabular-nums", viewing.type === "Receber" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500")}>{viewing.type === "Receber" ? "+ " : "− "}{formatCurrency(viewing.value)}</span>}
+          sections={viewSections(viewing)}
+          onNew={() => { setNovaTipo(viewing.type === "Receber" ? "Receber" : "Pagar"); setViewing(null); setNovaOpen(true); }}
+          newLabel="Nova movimentação"
+        />
+      )}
 
       <DrillDownPanel
         isOpen={drillKey !== null}

@@ -4,7 +4,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
-import { Plus, ArrowRight, Trash2, CheckCircle2, Clock, Repeat, Layers, Building2, Pencil, FileText, DollarSign, Calendar, Landmark, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, ArrowRight, Trash2, CheckCircle2, Clock, Repeat, Layers, Building2, Pencil, FileText, DollarSign, Calendar, Landmark, AlertCircle, Loader2, Eye } from "lucide-react";
 import { saldoDaConta, transferenciasDaConta, type FinanceEntryLike } from "./lib/financeEngine";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -15,6 +15,7 @@ import { KpiDrillChips } from "./components/KpiDrillChips";
 import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { cn } from "../../lib/utils";
+import { ViewModal } from "./components/ViewModal";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { transferDrillColumns } from "../../components/ui/drillColumns";
 
@@ -38,6 +39,7 @@ export default function FinanceiroTransferencias() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<any | null>(null);
   const [editingOriginal, setEditingOriginal] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [tentou, setTentou] = useState(false);
@@ -272,6 +274,9 @@ export default function FinanceiroTransferencias() {
                       </button>
                     </td>
                     <td className="px-6 py-3.5 text-right">
+                      <button type="button" onClick={() => setViewing(t)} title="Visualizar" className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-surface-sunken)]">
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
                       <button type="button" onClick={() => openEdit(t)} title="Editar" className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-surface-sunken)]">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -286,6 +291,41 @@ export default function FinanceiroTransferencias() {
           </Card>
         )}
       </div>
+
+      {viewing && (
+        <ViewModal
+          isOpen
+          onClose={() => setViewing(null)}
+          icon={Repeat}
+          title={`${contaNome(viewing.conta_origem_id)} → ${contaNome(viewing.conta_destino_id)}`}
+          subtitle="Transferência entre contas"
+          tone={viewing.pago ? "success" : "warning"}
+          highlight={
+            <>
+              <span className="text-lg font-black tabular-nums text-[var(--color-info)]">{formatCurrency(viewing.valor)}</span>
+              <span className={cn("text-[10px] font-semibold uppercase", viewing.pago ? "text-[var(--color-success)]" : "text-[var(--color-warning)]")}>{viewing.pago ? "Concluída" : "Pendente"}</span>
+            </>
+          }
+          sections={[
+            { icon: Landmark, title: "Contas envolvidas", rows: [
+              { label: "Origem", value: contaNome(viewing.conta_origem_id) },
+              { label: "Destino", value: contaNome(viewing.conta_destino_id) },
+            ] },
+            { icon: DollarSign, title: "Valor e data", rows: [
+              { label: "Valor", value: formatCurrency(viewing.valor), mono: true },
+              { label: "Data", value: viewing.data_pagamento ? new Date(viewing.data_pagamento + "T12:00:00").toLocaleDateString("pt-BR") : null },
+              { label: "Situação", value: viewing.pago ? "Concluída" : "Pendente" },
+            ] },
+            { icon: FileText, title: "Observações", rows: [
+              { label: "Descrição", value: viewing.descricao || null },
+            ] },
+          ]}
+          newLabel="Nova transferência"
+          onEdit={() => { const t = viewing; setViewing(null); openEdit(t); }}
+          onNew={() => { setViewing(null); openNew(); }}
+          onDelete={() => { const t = viewing; setViewing(null); handleDelete(t); }}
+        />
+      )}
 
       <Modal
         isOpen={isModalOpen}

@@ -4,7 +4,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Users, TrendingUp, TrendingDown, BarChart3, UserPlus, IdCard, FileText, Hash, Phone, Mail, MapPin, Save, Loader2, Search, Building2, Briefcase } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, TrendingUp, TrendingDown, BarChart3, UserPlus, IdCard, FileText, Hash, Phone, Mail, MapPin, Save, Loader2, Search, Building2, Briefcase, Eye } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -17,6 +17,7 @@ import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { parseEntryDate } from "./lib/financeDates";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
+import { ViewModal } from "./components/ViewModal";
 import { Field, FormSection, ModalFooter, ModalTitle, inputCls, selectCls } from "./components/ModalKit";
 import { fetchCnpj, formatCepMask, formatCnpjMask, onlyDigits } from "../../lib/brLookup";
 import { formatPhone } from "../../lib/utils";
@@ -65,6 +66,7 @@ export default function FinanceiroContatos() {
   const [busca, setBusca] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<Contato | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -147,6 +149,20 @@ export default function FinanceiroContatos() {
     }
     return { count, totalPeriodo, emAberto };
   }, [editingId, financeEntries, dataInicio, dataFim]);
+
+  const viewVinculos = useMemo(() => {
+    if (!viewing) return null;
+    let count = 0, totalPeriodo = 0, emAberto = 0;
+    for (const e of financeEntries as any[]) {
+      if (e.contato_id !== viewing.id) continue;
+      count++;
+      if (e.status === "Pago") {
+        const d = parseEntryDate(e.date);
+        if (d && d >= dataInicio && d <= dataFim) totalPeriodo += Number(e.value) || 0;
+      } else emAberto += Number(e.value) || 0;
+    }
+    return { count, totalPeriodo, emAberto };
+  }, [viewing, financeEntries, dataInicio, dataFim]);
 
   const docDigits = onlyDigits(form.documento);
   const docWarning = !docDigits ? "" :
@@ -330,6 +346,7 @@ export default function FinanceiroContatos() {
                     <td className="px-6 py-3 text-[var(--color-text-muted)]">{c.email || c.phone || "—"}</td>
                     <td className="px-6 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button type="button" title="Visualizar" onClick={() => setViewing(c)} className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"><Eye className="w-3.5 h-3.5" /></button>
                         <button type="button" onClick={() => openEdit(c)} className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"><Pencil className="w-3.5 h-3.5" /></button>
                         <button type="button" onClick={() => handleDelete(c)} className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
@@ -342,6 +359,42 @@ export default function FinanceiroContatos() {
         </Card>
         {semTipo.length > 0 && aba === "todos" && <p className="text-[11px] text-[var(--color-text-faint)]">{semTipo.length} contato(s) sem tipo definido aparecem no grupo "Outros".</p>}
       </div>
+
+      {viewing && (
+        <ViewModal
+          isOpen
+          onClose={() => setViewing(null)}
+          icon={Users}
+          title={viewing.name}
+          subtitle={viewing.tipos && viewing.tipos.length > 0 ? viewing.tipos.map(t => TIPO_LABEL[t]).join(" · ") : "Outros"}
+          sections={[
+            { icon: IdCard, title: "Identificação", rows: [
+              { label: "Tipo de pessoa", value: viewing.tipo_pessoa === "PF" ? "Pessoa Física" : viewing.tipo_pessoa === "PJ" ? "Pessoa Jurídica" : null },
+              { label: "CPF / CNPJ", value: viewing.documento || null, mono: true },
+            ] },
+            { icon: Phone, title: "Contato", rows: [
+              { label: "E-mail", value: viewing.email || null },
+              { label: "Telefone", value: viewing.phone || null },
+            ] },
+            { icon: MapPin, title: "Endereço", rows: [
+              { label: "CEP", value: viewing.cep || null, mono: true },
+              { label: "Logradouro", value: [viewing.logradouro, viewing.numero].filter(Boolean).join(", ") || null },
+              { label: "Bairro", value: viewing.bairro || null },
+              { label: "Complemento", value: viewing.complemento || null },
+              { label: "Cidade / UF", value: [viewing.city, viewing.state].filter(Boolean).join(" / ") || null },
+            ] },
+            ...(viewVinculos ? [{ icon: BarChart3, title: "Lançamentos vinculados", rows: [
+              { label: "Lançamentos", value: String(viewVinculos.count) },
+              { label: `Movimentado (${periodoLabel})`, value: formatCurrency(viewVinculos.totalPeriodo), mono: true },
+              { label: "Em aberto", value: formatCurrency(viewVinculos.emAberto), mono: true },
+            ] }] : []),
+          ]}
+          newLabel="Novo contato"
+          onEdit={() => { const c = viewing; setViewing(null); openEdit(c); }}
+          onNew={() => { setViewing(null); openNew(); }}
+          onDelete={() => { const c = viewing; setViewing(null); handleDelete(c); }}
+        />
+      )}
 
       <Modal
         isOpen={isModalOpen}

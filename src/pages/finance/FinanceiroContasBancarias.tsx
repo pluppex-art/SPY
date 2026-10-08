@@ -4,7 +4,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
-import { Plus, Star, Pencil, Trash2, Archive, ArchiveRestore, Landmark, Repeat, Wallet, BarChart3, FileText, DollarSign, Info, Loader2 } from "lucide-react";
+import { Plus, Star, Pencil, Trash2, Archive, ArchiveRestore, Landmark, Repeat, Wallet, BarChart3, FileText, DollarSign, Info, Loader2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
 import { useData } from "../../contexts/DataContext";
@@ -14,6 +14,7 @@ import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../compon
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { saldoDaConta, transferenciasDaConta, type FinanceEntryLike } from "./lib/financeEngine";
 import { cn } from "../../lib/utils";
+import { ViewModal } from "./components/ViewModal";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { contaBancariaDrillColumns } from "../../components/ui/drillColumns";
 
@@ -63,6 +64,7 @@ export default function FinanceiroContasBancarias() {
   const [tipoFilter, setTipoFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<ContaBancaria | null>(null);
 
   const [nome, setNome] = useState("");
   const [tipo, setTipo] = useState("CONTA_CORRENTE");
@@ -142,6 +144,13 @@ export default function FinanceiroContasBancarias() {
     const transf = (financeTransfers as any[]).filter(t => t.conta_origem_id === editingId || t.conta_destino_id === editingId).length;
     return { lanc, transf, saldo: saldoPorConta.get(editingId) ?? 0 };
   }, [editingId, financeEntries, financeTransfers, saldoPorConta]);
+
+  const viewDetalhes = useMemo(() => {
+    if (!viewing) return null;
+    const lanc = (financeEntries as any[]).filter(e => e.conta_bancaria_id === viewing.id).length;
+    const transf = (financeTransfers as any[]).filter(t => t.conta_origem_id === viewing.id || t.conta_destino_id === viewing.id).length;
+    return { lanc, transf, saldo: saldoPorConta.get(viewing.id) ?? 0 };
+  }, [viewing, financeEntries, financeTransfers, saldoPorConta]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -309,6 +318,9 @@ export default function FinanceiroContasBancarias() {
                               <Star className="w-3.5 h-3.5" />
                             </button>
                           )}
+                          <button type="button" onClick={() => setViewing(c)} title="Visualizar" className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]">
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
                           <button type="button" onClick={() => openEdit(c)} title="Editar" className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -328,6 +340,40 @@ export default function FinanceiroContasBancarias() {
           </Card>
         )}
       </div>
+
+      {viewing && viewDetalhes && (
+        <ViewModal
+          isOpen
+          onClose={() => setViewing(null)}
+          icon={Landmark}
+          title={viewing.nome}
+          subtitle={tipoLabel(viewing.tipo)}
+          tone={viewDetalhes.saldo < 0 ? "danger" : "primary"}
+          highlight={
+            <>
+              <span className={cn("text-lg font-black tabular-nums", viewDetalhes.saldo < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-text-primary)]")}>{formatCurrency(viewDetalhes.saldo)}</span>
+              <span className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">{viewing.arquivada ? "Arquivada" : viewing.is_principal ? "Principal" : "Ativa"}</span>
+            </>
+          }
+          sections={[
+            { icon: FileText, title: "Conta", rows: [
+              { label: "Tipo", value: tipoLabel(viewing.tipo) },
+              { label: "Situação", value: viewing.arquivada ? "Arquivada" : "Ativa" },
+              { label: "Conta principal", value: viewing.is_principal ? "Sim" : null },
+            ] },
+            { icon: DollarSign, title: "Saldo", rows: [
+              { label: "Saldo inicial", value: `${formatCurrency(viewing.sinal_saldo_inicial === "NEGATIVO" ? -Math.abs(viewing.saldo_inicial) : viewing.sinal_saldo_inicial === "ZERADO" ? 0 : viewing.saldo_inicial)}`, mono: true },
+              { label: "Saldo atual", value: formatCurrency(viewDetalhes.saldo), mono: true },
+              { label: "Lançamentos vinculados", value: String(viewDetalhes.lanc) },
+              { label: "Transferências", value: String(viewDetalhes.transf) },
+            ] },
+          ]}
+          newLabel="Nova conta"
+          onEdit={() => { const c = viewing; setViewing(null); openEdit(c); }}
+          onNew={() => { setViewing(null); openNew(); }}
+          onDelete={async () => { const c = viewing; if (await handleDelete(c)) setViewing(null); }}
+        />
+      )}
 
       <Modal
         isOpen={isModalOpen}

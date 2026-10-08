@@ -16,11 +16,12 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Cartes
 import {
   Plus, X, Trash2, Download, CheckCircle2, Clock, XCircle, DollarSign,
   UserPlus, Share2, Copy, ExternalLink, QrCode, Send, MessageCircle, Link, Check, Users, BarChart3,
-  Pencil, User, Phone, Mail, Calendar, AlignLeft, Save, Info
+  Pencil, User, Phone, Mail, Calendar, AlignLeft, Save, Info, Eye
 } from "lucide-react";
 import type { Indicacao } from "../../contexts/DataContextTypes";
 import { Field, FormSection, ModalFooter, ModalTitle, inputCls, selectCls, textareaCls } from "./components/ModalKit";
 import { formatPhone } from "../../lib/utils";
+import { ViewModal } from "./components/ViewModal";
 
 const DEFAULT_COMMISSION_KEY = "indicacao_comissao_padrao";
 const AFFILIATES_KEY = "afiliados_sistema";
@@ -70,6 +71,7 @@ export default function Indicacoes() {
   const [commissionValue, setCommissionValue] = useState("");
   const [notes, setNotes] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<Indicacao | null>(null);
   const [dateIndicated, setDateIndicated] = useState("");
   const [datePaid, setDatePaid] = useState("");
   const [statusEdit, setStatusEdit] = useState<Indicacao["status"]>("Pendente");
@@ -570,6 +572,13 @@ export default function Indicacoes() {
                     </td>
                     <td className="p-3 text-right whitespace-nowrap">
                       <button
+                        onClick={() => setViewing(item)}
+                        className="p-1.5 mr-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] transition-colors cursor-pointer rounded-lg"
+                        title="Visualizar"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                      <button
                         onClick={() => openEdit(item)}
                         className="p-1.5 mr-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] transition-colors cursor-pointer rounded-lg"
                         title="Editar / ver detalhes"
@@ -730,6 +739,43 @@ export default function Indicacoes() {
       </Modal>
 
       {/* ── MODAL INDICAÇÃO (NOVA / EDITAR) ── */}
+      {viewing && (
+        <ViewModal
+          isOpen
+          onClose={() => setViewing(null)}
+          icon={Users}
+          title={viewing.referred_name}
+          subtitle={`Indicado por ${viewing.referrer_name}`}
+          tone={viewing.status === "Paga" ? "success" : viewing.status === "Cancelada" ? "danger" : viewing.status === "Aprovada" ? "primary" : "warning"}
+          highlight={
+            <>
+              <span className="text-lg font-black font-mono text-[var(--color-primary-blue)]">{currency(Number(viewing.commission_value || 0))}</span>
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusStyle(viewing.status)}`}>{statusIcon(viewing.status)}{viewing.status}</span>
+            </>
+          }
+          sections={[
+            { icon: User, title: "Indicador", rows: [
+              { label: "Nome", value: viewing.referrer_name || null },
+              { label: "Tipo", value: viewing.referrer_type === "colaborador" ? "Colaborador" : "Cliente" },
+            ] },
+            { icon: UserPlus, title: "Indicado", rows: [
+              { label: "Nome", value: viewing.referred_name || null },
+              { label: "Contato", value: viewing.referred_contact || null },
+            ] },
+            { icon: DollarSign, title: "Comissão e acompanhamento", rows: [
+              { label: "Comissão", value: currency(Number(viewing.commission_value || 0)), mono: true },
+              { label: "Data da indicação", value: viewing.date_indicated ? viewing.date_indicated.slice(0, 10).split("-").reverse().join("/") : null },
+              { label: "Data do pagamento", value: viewing.date_paid ? viewing.date_paid.slice(0, 10).split("-").reverse().join("/") : null },
+              { label: "Observações", value: viewing.notes || null },
+            ] },
+          ]}
+          newLabel="Nova indicação"
+          onEdit={() => { const it = viewing; setViewing(null); openEdit(it); }}
+          onNew={() => { setViewing(null); openModal(); }}
+          onDelete={() => { const it = viewing; setViewing(null); handleDelete(it); }}
+        />
+      )}
+
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
@@ -816,11 +862,14 @@ export default function Indicacoes() {
             onCancel={closeModal}
             submitLabel={editingId ? "Salvar alterações" : "Registrar indicação"}
             submitIcon={Save}
-            left={editingId ? (
+            left={editingId ? (<>
+              <Button type="button" variant="ghost" onClick={openModal} className="h-9 px-3 text-xs font-bold gap-1.5">
+                <Plus className="w-3.5 h-3.5" /> Nova indicação
+              </Button>
               <Button type="button" variant="ghost" onClick={() => { const it = indicacoes.find(i => i.id === editingId); if (it) handleDelete(it, true); }} className="h-9 px-3 text-xs font-bold gap-1.5 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10">
                 <Trash2 className="w-3.5 h-3.5" /> Excluir
               </Button>
-            ) : undefined}
+            </>) : undefined}
           />
         </form>
       </Modal>
