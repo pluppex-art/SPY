@@ -171,7 +171,12 @@ export function ConfigSistemaAuroraAgentes() {
   const promptByKey = new Map(prompts.map((p) => [p.agentKey, p]));
   // Apelido do Agente de Vendas 1 = nome com que ele se apresenta aos clientes (empresa_dados.ia_nome_agente).
   const apelidoVendas1 = String(appSettings?.empresa_dados?.ia_nome_agente || "").trim();
-  if (apelidoVendas1) promptByKey.set("sdr", { ...(promptByKey.get("sdr") ?? { agentKey: "sdr", description: null, prompt: "", basePrompt: null, updatedAt: null, isCustomized: true }), name: apelidoVendas1 } as any);
+  // O Agente de Vendas 2 (Closer) não tem nome próprio: usa o mesmo apelido do Agente de Vendas 1.
+  if (apelidoVendas1) {
+    for (const k of ["sdr", "closer"]) {
+      promptByKey.set(k, { ...(promptByKey.get(k) ?? { agentKey: k, description: null, prompt: "", basePrompt: null, updatedAt: null, isCustomized: true }), name: apelidoVendas1 } as any);
+    }
+  }
   const { config, update: updateTenantAiConfig } = useTenantAiConfig();
   const [pendingExecuteKey, setPendingExecuteKey] = useState<string | null>(null);
   const [savingAuroraCore, setSavingAuroraCore] = useState(false);
@@ -311,7 +316,7 @@ export function ConfigSistemaAuroraAgentes() {
             <p className="text-sm text-[var(--color-text-muted)] mt-1 max-w-3xl">
               {isMaster
                 ? "Cada agente pode ser ativado ou desativado — a Aurora não age em nome de um agente inativo quando ele é citado diretamente na conversa."
-                : "Estes são os agentes contratados pela sua empresa. Você pode dar um apelido a cada um (o Agente de Vendas 1 usa esse nome ao conversar com os seus clientes). Ativação e treinamento ficam com a equipe da plataforma."}
+                : "Estes são os agentes contratados pela sua empresa. Você pode dar um apelido ao Agente de Vendas 1, que é o nome com que ele conversa com os seus clientes; o Agente de Vendas 2 usa o mesmo nome. Ativação e treinamento ficam com a equipe da plataforma."}
             </p>
           </div>
         </div>
@@ -400,7 +405,7 @@ export function ConfigSistemaAuroraAgentes() {
                     >
                       <Workflow className="w-3.5 h-3.5" /> Ver fluxo
                     </button>
-                    {agent.id !== AURORA_CORE_ID && (
+                    {agent.id !== AURORA_CORE_ID && (isMaster || EXECUTE_MODULE_BY_NAME[agent.name] !== "closer") && (
                       <>
                         <button
                           onClick={() => setEditing({ id: agent.id, name: displayNameForAgent(agent, promptByKey), originalName: agent.name, role: agent.role || "", description: agent.description || "" })}
