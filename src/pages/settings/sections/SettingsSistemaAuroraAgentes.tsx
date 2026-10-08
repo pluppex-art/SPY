@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Bot, Pencil, Sparkles, UserSearch, Eye, Radar,
+  Bot, Pencil, Info, X, UserSearch, Eye, Radar,
   Handshake, Briefcase, LineChart, Search, Headset, Wallet, Megaphone, ClipboardList, Trash2, Sunrise, Workflow, Loader2,
 } from "lucide-react";
 import { AgentFlowViewerModal } from "./AgentFlowViewer";
@@ -73,9 +73,28 @@ export const ROLE_ICONS: Record<string, typeof Bot> = {
   Briefing: Sunrise,
 };
 
+// Cor por papel (ícone, selo e fundo) — só visual; papéis fora da lista usam a cor primária.
+const ROLE_TONES: Record<string, { box: string; text: string; pill: string }> = {
+  "Núcleo": { box: "bg-orange-500/10 border-orange-500/20", text: "text-orange-500", pill: "bg-orange-500/10 text-orange-600" },
+  SDR: { box: "bg-blue-500/10 border-blue-500/20", text: "text-blue-500", pill: "bg-blue-500/10 text-blue-600" },
+  "Inteligência": { box: "bg-violet-500/10 border-violet-500/20", text: "text-violet-500", pill: "bg-violet-500/10 text-violet-600" },
+  "Prospecção": { box: "bg-emerald-500/10 border-emerald-500/20", text: "text-emerald-500", pill: "bg-emerald-500/10 text-emerald-600" },
+  Vendas: { box: "bg-rose-500/10 border-rose-500/20", text: "text-rose-500", pill: "bg-rose-500/10 text-rose-600" },
+  Comercial: { box: "bg-amber-500/10 border-amber-500/20", text: "text-amber-500", pill: "bg-amber-500/10 text-amber-600" },
+  Executivo: { box: "bg-indigo-500/10 border-indigo-500/20", text: "text-indigo-500", pill: "bg-indigo-500/10 text-indigo-600" },
+  Pesquisa: { box: "bg-cyan-500/10 border-cyan-500/20", text: "text-cyan-500", pill: "bg-cyan-500/10 text-cyan-600" },
+  Suporte: { box: "bg-teal-500/10 border-teal-500/20", text: "text-teal-500", pill: "bg-teal-500/10 text-teal-600" },
+  Financeiro: { box: "bg-green-500/10 border-green-500/20", text: "text-green-500", pill: "bg-green-500/10 text-green-600" },
+  Marketing: { box: "bg-pink-500/10 border-pink-500/20", text: "text-pink-500", pill: "bg-pink-500/10 text-pink-600" },
+  "Operações": { box: "bg-slate-500/10 border-slate-500/20", text: "text-slate-500", pill: "bg-slate-500/10 text-slate-600" },
+  Briefing: { box: "bg-yellow-500/10 border-yellow-500/20", text: "text-yellow-600", pill: "bg-yellow-500/10 text-yellow-700" },
+};
+const DEFAULT_TONE = { box: "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/20", text: "text-[var(--color-primary-blue)]", pill: "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" };
+const toneFor = (role?: string) => (role && ROLE_TONES[role]) || DEFAULT_TONE;
+
 export function RoleIcon({ role }: { role?: string }) {
   const Icon = (role && ROLE_ICONS[role]) || Bot;
-  return <Icon className="w-4 h-4 text-[var(--color-primary-blue)]" />;
+  return <Icon className={`w-5 h-5 ${toneFor(role).text}`} />;
 }
 
 // Todo agente do catálogo com workflow real no n8n usa chave FIXA — é exatamente o agent_key
@@ -135,6 +154,7 @@ export function ConfigSistemaAuroraAgentes() {
   const [editing, setEditing] = useState<EditingState>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [flowViewerAgentId, setFlowViewerAgentId] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const { prompts, loading: promptsLoading, savingKey: promptSavingKey, updatePrompt } = useAgentPrompts();
   const promptByKey = new Map(prompts.map((p) => [p.agentKey, p]));
   const { config, update: updateTenantAiConfig } = useTenantAiConfig();
@@ -266,27 +286,34 @@ export function ConfigSistemaAuroraAgentes() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-lg font-bold tracking-tight flex items-center gap-2">
-            <Bot className="w-5 h-5 text-[var(--color-primary-blue)]" /> Agentes vinculados à Aurora
-          </h2>
-          <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
-            {isMaster
-              ? "Cada agente pode ser ativado ou desativado — a Aurora não age em nome de um agente inativo quando ele é citado diretamente na conversa."
-              : "Estes são os agentes que trabalham para a sua empresa. A ativação e o treinamento deles são feitos pela equipe da plataforma."}
-          </p>
+        <div className="flex items-start gap-4 min-w-0">
+          <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
+            <Bot className="w-6 h-6 text-orange-500" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">Agentes vinculados à Aurora</h2>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1 max-w-3xl">
+              {isMaster
+                ? "Cada agente pode ser ativado ou desativado — a Aurora não age em nome de um agente inativo quando ele é citado diretamente na conversa."
+                : "Estes são os agentes que trabalham para a sua empresa. A ativação e o treinamento deles são feitos pela equipe da plataforma."}
+            </p>
+          </div>
         </div>
-        <span className="shrink-0 text-[11px] font-bold text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-full px-3 py-1.5 whitespace-nowrap">
+        <span className="shrink-0 inline-flex items-center gap-2 text-xs font-bold text-[var(--color-text-primary)] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl px-3.5 py-2 whitespace-nowrap shadow-xs">
+          <span className={`w-2 h-2 rounded-full ${activeCount > 0 ? "bg-emerald-500" : "bg-[var(--color-text-faint)]"}`} />
           {activeCount}/{displayList.length} ativos
         </span>
       </div>
 
-      {isMaster && !hasCustomAgents && (
-        <div className="p-3 bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 rounded-xl flex items-start gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-[var(--color-primary-blue)] shrink-0 mt-0.5" />
-          <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
-            Nenhum agente foi salvo ainda — mostrando o catálogo padrão. Ative/desative ou edite algum pra começar a personalizar por sua empresa.
+      {isMaster && !hasCustomAgents && !bannerDismissed && (
+        <div className="px-4 py-3 bg-orange-500/10 border border-orange-500/25 rounded-xl flex items-center gap-3">
+          <Info className="w-4 h-4 text-orange-500 shrink-0" />
+          <p className="flex-1 text-xs text-[var(--color-text-muted)] leading-relaxed">
+            <strong className="text-[var(--color-text-primary)]">Nenhum agente foi salvo ainda</strong> — mostrando o catálogo padrão. Ative/desative ou edite algum pra começar a personalizar por sua empresa.
           </p>
+          <button type="button" onClick={() => setBannerDismissed(true)} className="shrink-0 p-1 rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-transparent border-none cursor-pointer" aria-label="Fechar aviso">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -301,42 +328,45 @@ export function ConfigSistemaAuroraAgentes() {
           return (
             <Card
               key={agent.id}
-              className={`p-4 bg-[var(--color-surface-elevated)]/80 border transition-colors ${
+              className={`p-5 rounded-2xl bg-[var(--color-surface-elevated)] border transition-all hover:shadow-md ${
                 isActive ? "border-[var(--color-border-default)]" : "border-[var(--color-border-subtle)] opacity-60"
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
+                <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 ${toneFor(agent.role).box}`}>
                   <RoleIcon role={agent.role} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">{displayNameForAgent(agent, promptByKey)}</p>
+                      <p className="text-base font-bold text-[var(--color-text-primary)] truncate">{displayNameForAgent(agent, promptByKey)}</p>
                       {agent.role && (
-                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--color-primary-blue)]">
+                        <span className={`inline-block mt-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${toneFor(agent.role).pill}`}>
                           {agent.role}
                         </span>
                       )}
                     </div>
                     {isMaster ? (
-                      <Switch
-                        checked={isActive}
-                        disabled={
-                          (agent.id === AURORA_CORE_ID && savingAuroraCore) ||
-                          (!!executeKey && pendingExecuteKey === executeKey)
-                        }
-                        onCheckedChange={() => handleToggle(agent)}
-                      />
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Switch
+                          checked={isActive}
+                          disabled={
+                            (agent.id === AURORA_CORE_ID && savingAuroraCore) ||
+                            (!!executeKey && pendingExecuteKey === executeKey)
+                          }
+                          onCheckedChange={() => handleToggle(agent)}
+                        />
+                        <span className="text-xs font-medium text-[var(--color-text-muted)] w-10">{isActive ? "Ativo" : "Inativo"}</span>
+                      </div>
                     ) : (
                       <span className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full border ${isActive ? "text-success border-success/30 bg-success/10" : "text-[var(--color-text-faint)] border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]"}`}>
                         {isActive ? "Ativo" : "Inativo"}
                       </span>
                     )}
                   </div>
-                  {agent.description && <p className="text-xs text-[var(--color-text-muted)] mt-1.5 leading-relaxed">{agent.description}</p>}
+                  {agent.description && <p className="text-xs text-[var(--color-text-muted)] mt-2 leading-relaxed">{agent.description}</p>}
 
-                  <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-[var(--color-border-subtle)] flex-wrap">
+                  <div className="flex items-center gap-2 mt-3.5 pt-3.5 border-t border-[var(--color-border-subtle)] flex-wrap">
                     {isMaster && (
                       <ViewPromptButton
                         agentKey={agent.id}
@@ -346,26 +376,26 @@ export function ConfigSistemaAuroraAgentes() {
                     )}
                     <button
                       onClick={() => setFlowViewerAgentId(agent.id)}
-                      className="flex items-center gap-1 px-2 py-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors text-[10px] font-bold"
+                      className="flex items-center gap-1.5 px-3 h-8 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-lg cursor-pointer transition-colors text-xs font-bold"
                       title="Ver como esse agente funciona"
                     >
-                      <Workflow className="w-3 h-3" /> Ver fluxo
+                      <Workflow className="w-3.5 h-3.5" /> Ver fluxo
                     </button>
                     {isMaster && agent.id !== AURORA_CORE_ID && (
                       <>
                         <button
                           onClick={() => setEditing({ id: agent.id, name: displayNameForAgent(agent, promptByKey), originalName: agent.name, role: agent.role || "", description: agent.description || "" })}
-                          className="flex items-center gap-1 px-2 py-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors text-[10px] font-bold"
+                          className="flex items-center gap-1.5 px-3 h-8 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-lg cursor-pointer transition-colors text-xs font-bold"
                           title="Editar agente"
                         >
-                          <Pencil className="w-3 h-3" /> Editar
+                          <Pencil className="w-3.5 h-3.5" /> Editar
                         </button>
                         <button
                           onClick={() => handleDelete(agent)}
-                          className="flex items-center gap-1 px-2 py-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-danger hover:bg-danger/10 rounded-lg transition-colors text-[10px] font-bold"
+                          className="flex items-center gap-1.5 px-3 h-8 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-danger hover:bg-danger/10 rounded-lg cursor-pointer transition-colors text-xs font-bold"
                           title="Remover agente"
                         >
-                          <Trash2 className="w-3 h-3" /> Remover
+                          <Trash2 className="w-3.5 h-3.5" /> Remover
                         </button>
                       </>
                     )}
