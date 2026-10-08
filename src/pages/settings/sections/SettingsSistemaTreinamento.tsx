@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GraduationCap, Save, Loader2, ChevronDown, ChevronUp, ListPlus, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { useAuth } from "../../../contexts/AuthContext";
+import { supabase } from "../../../lib/supabase";
+import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { useAgentPrompts } from "../../../hooks/useAgentPrompts";
 import { ConfigSistemaConhecimentoIA } from "./SettingsSistemaConhecimento";
 import { ConfigSistemaAprendizados } from "./SettingsSistemaAprendizados";
@@ -39,10 +41,46 @@ const AGENTES = [
 ] as const;
 
 function AgenteTreino({ agente }: { agente: (typeof AGENTES)[number] }) {
-  const { prompts, loading, savingKey, updatePrompt } = useAgentPrompts();
+  const { prompts, loading, savingKey, updatePrompt, refresh } = useAgentPrompts();
   const atual = prompts.find((p) => p.agentKey === agente.key);
   const [draft, setDraft] = useState<string | null>(null);
   const [verBase, setVerBase] = useState(false);
+  const [baseDraft, setBaseDraft] = useState<string | null>(null);
+  const [salvandoBase, setSalvandoBase] = useState(false);
+  const [historico, setHistorico] = useState<{ id: string; changed_at: string; base_prompt: string | null }[]>([]);
+  const baseAtual = atual?.basePrompt ?? "";
+  const baseTexto = baseDraft ?? baseAtual;
+  const baseMudou = baseDraft !== null && baseDraft !== baseAtual;
+
+  useEffect(() => {
+    if (!verBase || !supabase) return;
+    supabase
+      .from("agent_prompt_base_history")
+      .select("id, changed_at, base_prompt")
+      .eq("agent_key", agente.key)
+      .order("changed_at", { ascending: false })
+      .limit(8)
+      .then(({ data }) => setHistorico((data as any[]) ?? []));
+  }, [verBase, agente.key, salvandoBase]);
+
+  const salvarBase = async () => {
+    if (!supabase || !baseMudou) return;
+    if (!(await confirmDialog({
+      title: "Alterar o prompt base de TODAS as empresas",
+      description: `O prompt base (80%) do ${agente.nome} vale para todas as empresas e muda na próxima execução. A versão atual fica guardada no histórico para voltar atrás.`,
+    }))) return;
+    setSalvandoBase(true);
+    const { error } = await supabase
+      .from("ai_agent_prompts")
+      .update({ base_prompt: baseTexto, updated_at: new Date().toISOString() })
+      .eq("agent_key", agente.key)
+      .is("tenant_id", null);
+    setSalvandoBase(false);
+    if (error) return toast.error(`Não foi possível salvar: ${error.message}`);
+    setBaseDraft(null);
+    await refresh();
+    toast.success("Prompt base atualizado para todas as empresas.");
+  };
   const texto = draft ?? atual?.prompt ?? "";
   const mudou = draft !== null && draft !== (atual?.prompt ?? "");
   const salvando = savingKey === agente.key;
@@ -95,7 +133,37 @@ function AgenteTreino({ agente }: { agente: (typeof AGENTES)[number] }) {
             </div>
           </div>
           {verBase && atual?.basePrompt && (
-            <pre className="text-[11px] whitespace-pre-wrap bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg p-3 max-h-80 overflow-auto text-[var(--color-text-muted)]">{atual.basePrompt}</pre>
+            <div className="space-y-2 border border-warning/30 bg-warning/5 rounded-lg p-3">
+              <p className="text-[11px] text-[var(--color-text-primary)]">
+                <b>Prompt base (80%)</b>: é o mesmo para todas as empresas. Alterar aqui muda o agente em todas elas, na próxima execução. Os trechos entre
+                colchetes duplos (como [[AGENTE]], [[EMPRESA]], [[BLOCOS]]) são preenchidos automaticamente: não apague.
+              </p>
+              <textarea
+                value={baseTexto}
+                onChange={(e) => setBaseDraft(e.target.value)}
+                rows={16}
+                className="w-full text-[11px] font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg p-3 text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-blue)]/50 resize-y"
+              />
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[10px] text-[var(--color-text-faint)]">{baseTexto.length.toLocaleString("pt-BR")} caracteres</span>
+                <Button type="button" size="sm" disabled={!baseMudou || salvandoBase} onClick={salvarBase} className="bg-warning text-white font-bold uppercase tracking-wider">
+                  {salvandoBase ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Salvar para todas as empresas
+                </Button>
+              </div>
+              {historico.length > 0 && (
+                <div className="pt-2 border-t border-[var(--color-border-subtle)]">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Versões anteriores</p>
+                  <div className="space-y-1">
+                    {historico.map((h) => (
+                      <div key={h.id} className="flex items-center justify-between gap-2 text-[11px] text-[var(--color-text-muted)]">
+                        <span>{new Date(h.changed_at).toLocaleString("pt-BR")} · {(h.base_prompt ?? "").length.toLocaleString("pt-BR")} caracteres</span>
+                        <button type="button" onClick={() => setBaseDraft(h.base_prompt ?? "")} className="font-bold text-[var(--color-primary-blue)] hover:underline">Carregar no editor</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </>
       )}
