@@ -157,8 +157,7 @@ export default function FinanceiroTransacoes() {
   const limpar = () => { setSearch(""); setDateFrom(null); setDateTo(null); setCategoria(""); setContraparte(""); setTab("todos"); };
 
   const linhas = entries.map((t: any) => ({ ...t, __data: parseEntryDate(t.date) }));
-  const handleExcluirSelecionados = async () => {
-    const ids = [...selecionados];
+  const excluirIds = async (ids: string[]) => {
     if (ids.length === 0) return;
     if (!(await confirmDialog({
       title: "Excluir lançamentos",
@@ -169,6 +168,7 @@ export default function FinanceiroTransacoes() {
     toast.success(`${ids.length} lançamento${ids.length > 1 ? "s excluídos" : " excluído"}.`);
     setTimeout(refetch, 300);
   };
+  const handleExcluirSelecionados = () => excluirIds([...selecionados]);
   const todosNaPagina = linhas.length > 0 && linhas.every((t) => selecionados.has(t.id));
   const toggleTodos = () => setSelecionados(todosNaPagina ? new Set() : new Set(linhas.map((t) => t.id)));
   const toggleUm = (id: string) => setSelecionados((prevSel) => { const n = new Set(prevSel); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -204,6 +204,7 @@ export default function FinanceiroTransacoes() {
   const acoes = (t: any) => (
     <div className="flex items-center justify-end gap-1">
     <button type="button" onClick={() => setViewing(t)} className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-surface-sunken)] bg-transparent border-none cursor-pointer" aria-label="Visualizar" title="Visualizar"><Eye className="w-4 h-4" /></button>
+    <button type="button" onClick={() => excluirIds([t.id])} className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 bg-transparent border-none cursor-pointer" aria-label="Excluir" title="Excluir"><Trash2 className="w-4 h-4" /></button>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)] bg-transparent border-none cursor-pointer" aria-label="Ações"><MoreVertical className="w-4 h-4" /></button>
