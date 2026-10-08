@@ -25,6 +25,7 @@ const lbl = "text-xs font-bold text-[var(--color-text-primary)] mb-1.5 block";
 function toLocalISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+import { useRowOpen } from "./components/useRowOpen";
 
 export default function FinanceiroTransferencias() {
   const { financeTransfers, addFinanceTransfer, updateFinanceTransfer, deleteFinanceTransfer, financeBankAccounts, financeEntries } = useData();
@@ -40,6 +41,7 @@ export default function FinanceiroTransferencias() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<any | null>(null);
+  const rowOpen = useRowOpen<any>(setViewing, (x) => openEdit(x));
   const [editingOriginal, setEditingOriginal] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [tentou, setTentou] = useState(false);
@@ -251,7 +253,7 @@ export default function FinanceiroTransferencias() {
                   <tr><td colSpan={6} className="px-6 py-10 text-center text-[var(--color-text-faint)]">Nenhuma transferência encontrada para os filtros selecionados.</td></tr>
                 )}
                 {visiveis.map(t => (
-                  <tr key={t.id} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors">
+                  <tr key={t.id} {...rowOpen(t)} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors cursor-pointer">
                     <td className="px-6 py-3.5 font-mono text-[var(--color-text-muted)]">{new Date(t.data_pagamento + "T12:00:00").toLocaleDateString("pt-BR")}</td>
                     <td className="px-6 py-3.5">
                       <span className="inline-flex items-center gap-1.5 font-medium text-[var(--color-text-primary)]">

@@ -22,6 +22,7 @@ import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { parseEntryDate } from "./lib/financeDates";
 import { Field, FormSection, InfoRow, ModalFooter, ModalTitle, inputCls, selectCls, textareaCls } from "./components/ModalKit";
 import { formatPhone } from "../../lib/utils";
+import { useRowOpen } from "./components/useRowOpen";
 
 const PAYMENT_METHODS = ["Pix", "Boleto", "Cartão de Crédito", "Cartão de Débito", "Transferência/TED", "Dinheiro", "Cheque", "Outro"];
 const todayIso = () => new Date().toISOString().split("T")[0];
@@ -45,6 +46,7 @@ export default function FinanceiroCobrancas() {
   const [formErrors, setFormErrors] = useState<{ cliente?: string; valor?: string }>({});
   const [saving, setSaving] = useState(false);
   const [detalhe, setDetalhe] = useState<any | null>(null);
+  const rowOpen = useRowOpen<any>(setDetalhe);
   const categoriasReceita = useMemo(() => (financeCategories as any[]).filter(c => c.tipo === "Receita"), [financeCategories]);
   const contasAtivas = useMemo(() => (financeBankAccounts as any[]).filter(c => !c.arquivada), [financeBankAccounts]);
   const clientesSugeridos = useMemo(() => (clienteBase as any[]).filter(c => c.tipos?.includes("CLIENTE")), [clienteBase]);
@@ -333,7 +335,7 @@ export default function FinanceiroCobrancas() {
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">
               {pageItems.map(c => (
-                <tr key={c.id} className="hover:bg-[var(--color-surface-sunken)]/40 transition-colors">
+                <tr key={c.id} {...rowOpen(c)} className="cursor-pointer hover:bg-[var(--color-surface-sunken)]/40 transition-colors">
                   <td className="px-5 py-3.5 font-bold text-[var(--color-text-primary)]"><button type="button" onClick={() => setDetalhe(c)} className="text-left hover:text-[var(--color-primary-blue)] cursor-pointer">{c.cliente}</button></td>
                   <td className="px-4 py-3.5">
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">

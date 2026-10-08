@@ -55,6 +55,7 @@ const emptyForm = {
   name: "", tipos: [] as Tipo[], tipo_pessoa: "" as "" | "PF" | "PJ", documento: "", email: "", phone: "",
   cep: "", logradouro: "", numero: "", bairro: "", complemento: "", city: "", state: "",
 };
+import { useRowOpen } from "./components/useRowOpen";
 
 export default function FinanceiroContatos() {
   const { clienteBase, addClienteBase, updateClienteBase, deleteClienteBase, financeEntries } = useData();
@@ -67,6 +68,7 @@ export default function FinanceiroContatos() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<Contato | null>(null);
+  const rowOpen = useRowOpen<Contato>(setViewing, (x) => openEdit(x));
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -333,7 +335,7 @@ export default function FinanceiroContatos() {
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
                 {filtrados.map(c => (
-                  <tr key={c.id} className="hover:bg-[var(--color-surface-sunken)]/50">
+                  <tr key={c.id} {...rowOpen(c)} className="hover:bg-[var(--color-surface-sunken)]/50 cursor-pointer">
                     <td className="px-6 py-3 font-medium text-[var(--color-text-primary)]">{c.name}</td>
                     <td className="px-6 py-3">
                       {(!c.tipos || c.tipos.length === 0) ? <span className="text-[10px] text-[var(--color-text-faint)]">Outros</span> : (

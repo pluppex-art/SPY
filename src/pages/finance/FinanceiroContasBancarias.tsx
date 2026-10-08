@@ -53,6 +53,7 @@ interface ContaBancaria {
   is_principal: boolean;
   arquivada: boolean;
 }
+import { useRowOpen } from "./components/useRowOpen";
 
 export default function FinanceiroContasBancarias() {
   const { financeBankAccounts, addFinanceBankAccount, updateFinanceBankAccount, deleteFinanceBankAccount, setContaPrincipal, financeEntries, financeTransfers } = useData();
@@ -65,6 +66,7 @@ export default function FinanceiroContasBancarias() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<ContaBancaria | null>(null);
+  const rowOpen = useRowOpen<ContaBancaria>(setViewing, (x) => openEdit(x));
 
   const [nome, setNome] = useState("");
   const [tipo, setTipo] = useState("CONTA_CORRENTE");
@@ -297,7 +299,7 @@ export default function FinanceiroContasBancarias() {
                 {listaExibida.map(c => {
                   const saldo = saldoPorConta.get(c.id) ?? 0;
                   return (
-                    <tr key={c.id} className={cn("hover:bg-[var(--color-surface-sunken)]/50 transition-colors", c.arquivada && "opacity-50")}>
+                    <tr key={c.id} {...rowOpen(c)} className={cn("hover:bg-[var(--color-surface-sunken)]/50 transition-colors cursor-pointer", c.arquivada && "opacity-50")}>
                       <td className="px-6 py-3.5">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-[var(--color-text-primary)]">{c.nome}</span>

@@ -20,6 +20,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { RateioModal, type RateioDivisao } from "./components/RateioModal";
 import { FinanceiroAnexosTab } from "./components/FinanceiroAnexosTab";
 import { ViewModal, type ViewSection } from "./components/ViewModal";
+import { useRowOpen } from "./components/useRowOpen";
 import { parseEntryDate } from "./lib/financeDates";
 import { useFinanceEntriesList } from "./useFinanceEntriesList";
 import { Pagination } from "../../components/ui/Pagination";
@@ -519,6 +520,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     setEditIsRecurring(!!item.is_recurring);
     setEditFrequency((item.recurring_frequency as Frequencia) || "mensal");
   };
+  const rowOpen = useRowOpen<any>(setViewingItem, openEdit);
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -950,7 +952,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 </tr>
               ) : (
                 filteredData.map((item) => (
-                  <tr key={item.id} className={`hover:bg-[var(--color-surface-sunken)]/50 transition-colors group ${selecionados.has(item.id) ? "bg-[var(--color-primary-blue)]/[0.04]" : ""}`}>
+                  <tr key={item.id} {...rowOpen(item)} className={`cursor-pointer hover:bg-[var(--color-surface-sunken)]/50 transition-colors group ${selecionados.has(item.id) ? "bg-[var(--color-primary-blue)]/[0.04]" : ""}`}>
                     <td className="px-4 py-2.5">
                       <input
                         type="checkbox"
@@ -961,7 +963,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                     </td>
                     <td className="px-3 py-2.5 font-bold text-[var(--color-text-primary)] min-w-[260px]">
                       <span className="inline-flex items-center gap-1.5 max-w-[460px]">
-                        <span className="truncate cursor-pointer hover:text-[var(--color-primary-blue)]" title={item.description} onClick={() => setViewingItem(item)}>{item.description}</span>
+                        <span className="truncate cursor-pointer hover:text-[var(--color-primary-blue)]" title={item.description}>{item.description}</span>
                         <RepeatBadge item={item} />
                       </span>
                       {item.notes && (
@@ -1059,7 +1061,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               />
             )}
             {filteredData.map((item) => (
-              <div key={item.id} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] p-4 rounded-xl flex flex-col gap-3 relative">
+              <div key={item.id} {...rowOpen(item)} className="cursor-pointer bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] p-4 rounded-xl flex flex-col gap-3 relative">
                 <div className="absolute top-3 right-3 flex items-center gap-2">
                   <button
                     type="button"
@@ -1123,7 +1125,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
         {filteredData.map((item) => (
-          <Card key={item.id} className="p-4 rounded-xl space-y-2.5">
+          <Card key={item.id} {...rowOpen(item)} className="p-4 rounded-xl space-y-2.5 cursor-pointer hover:border-[var(--color-primary-blue)]/40 transition-colors">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-xs font-bold text-[var(--color-text-primary)] truncate flex items-center gap-1.5">{item.description}<RepeatBadge item={item} /></p>

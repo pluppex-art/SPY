@@ -10,6 +10,7 @@ import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../../components/ui/dropdown-menu";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 import { ViewModal, type ViewSection } from "./components/ViewModal";
+import { useRowOpen } from "./components/useRowOpen";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
 import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import {
@@ -65,6 +66,7 @@ export default function FinanceiroTransacoes() {
   const [novaOpen, setNovaOpen] = useState(false);
   const [novaTipo, setNovaTipo] = useState<"Pagar" | "Receber">("Pagar");
   const [viewing, setViewing] = useState<any | null>(null);
+  const rowOpen = useRowOpen<any>(setViewing);
 
   const { entries, total, base, prev, page, setPage, totalPages, loading, fetchAllForExport } = useFinanceTransacoesList({
     search, tab, dateFrom, dateTo, categoria, contraparte, ordem, pageSize,
@@ -319,10 +321,10 @@ export default function FinanceiroTransacoes() {
                     const st = STATUS_STYLE[t.status] ?? STATUS_STYLE["A Vencer"];
                     const StIcon = st.icon;
                     return (
-                      <tr key={t.id} className={cn("hover:bg-[var(--color-surface-sunken)]/50 transition-colors", selecionados.has(t.id) && "bg-[var(--color-primary-blue)]/[0.04]")}>
+                      <tr key={t.id} {...rowOpen(t)} className={cn("cursor-pointer hover:bg-[var(--color-surface-sunken)]/50 transition-colors", selecionados.has(t.id) && "bg-[var(--color-primary-blue)]/[0.04]")}>
                         <td className="px-4 py-3"><input type="checkbox" checked={selecionados.has(t.id)} onChange={() => toggleUm(t.id)} className="w-4 h-4 accent-[var(--color-primary-blue)] cursor-pointer" /></td>
                         <td className="px-3 py-3 max-w-[340px]">
-                          <span className="font-medium text-[var(--color-text-primary)] block truncate cursor-pointer hover:text-[var(--color-primary-blue)]" onClick={() => setViewing(t)}>{t.description}</span>
+                          <span className="font-medium text-[var(--color-text-primary)] block truncate hover:text-[var(--color-primary-blue)]">{t.description}</span>
                           {t.counterparty && <span className="block text-[10px] text-[var(--color-text-faint)] truncate">({t.counterparty})</span>}
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap">
@@ -363,7 +365,7 @@ export default function FinanceiroTransacoes() {
               const st = STATUS_STYLE[t.status] ?? STATUS_STYLE["A Vencer"];
               const StIcon = st.icon;
               return (
-                <Card key={t.id} className="p-4 rounded-xl space-y-2.5">
+                <Card key={t.id} {...rowOpen(t)} className="p-4 rounded-xl space-y-2.5 cursor-pointer hover:border-[var(--color-primary-blue)]/40 transition-colors">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{t.description}</p>

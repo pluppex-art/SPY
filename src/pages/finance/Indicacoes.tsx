@@ -49,6 +49,7 @@ function statusIcon(status: string) {
     default: return <Clock className="w-3 h-3 mr-1" />;
   }
 }
+import { useRowOpen } from "./components/useRowOpen";
 
 export default function Indicacoes() {
   const {
@@ -72,6 +73,7 @@ export default function Indicacoes() {
   const [notes, setNotes] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<Indicacao | null>(null);
+  const rowOpen = useRowOpen<Indicacao>(setViewing, (x) => openEdit(x));
   const [dateIndicated, setDateIndicated] = useState("");
   const [datePaid, setDatePaid] = useState("");
   const [statusEdit, setStatusEdit] = useState<Indicacao["status"]>("Pendente");
@@ -550,7 +552,7 @@ export default function Indicacoes() {
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)] text-[var(--color-text-primary)] font-medium">
                 {indicacoesFiltradas.map((item) => (
-                  <tr key={item.id} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors">
+                  <tr key={item.id} {...rowOpen(item)} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors cursor-pointer">
                     <td className="p-3 font-bold flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center text-[10px] font-bold">
                         {item.referrer_name.charAt(0).toUpperCase()}

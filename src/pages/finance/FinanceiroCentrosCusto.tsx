@@ -28,6 +28,7 @@ type CentroCusto = {
   responsavel: string;
   created_at?: string;
 };
+import { useRowOpen } from "./components/useRowOpen";
 
 export default function FinanceiroCentrosCusto() {
   const { user } = useAuth();
@@ -41,6 +42,7 @@ export default function FinanceiroCentrosCusto() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<CentroCusto | null>(null);
+  const rowOpen = useRowOpen<CentroCusto>(setViewing, (x) => handleOpenEdit(x));
 
   // Form State
   const [nome, setNome] = useState("");
@@ -245,7 +247,7 @@ export default function FinanceiroCentrosCusto() {
         {filtered.map(c => {
           const perc = c.orcamento > 0 ? Math.round((c.gasto / c.orcamento) * 100) : 0;
           return (
-            <div key={c.id} className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs space-y-3 relative group">
+            <div key={c.id} {...rowOpen(c)} className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs space-y-3 relative group cursor-pointer hover:border-[var(--color-primary-blue)]/40 transition-colors">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] font-bold">
                   {c.codigo}
