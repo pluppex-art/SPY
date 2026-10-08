@@ -17,6 +17,10 @@ import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { downloadCsv } from "../../lib/csvExport";
 import { useLocalization } from "../../contexts/LocalizationContext";
+import { ClienteSelect } from "./components/ClienteSelect";
+import { TagSelect, TagChips } from "./components/TagSelect";
+import { useFinanceTags } from "./hooks/useFinanceTags";
+import { DescricaoSugestoes, useDescricoesAnteriores } from "./components/DescricaoSugestoes";
 import { RateioModal, type RateioDivisao } from "./components/RateioModal";
 import { FinanceiroAnexosTab } from "./components/FinanceiroAnexosTab";
 import { ViewModal, type ViewSection } from "./components/ViewModal";
@@ -36,7 +40,6 @@ type RepeatMode = "none" | "recorrente" | "parcelado";
 
 const PAYMENT_METHODS = ["Pix", "Boleto", "Cartão de Crédito", "Cartão de Débito", "Transferência/TED", "Dinheiro", "Cheque", "Outro"];
 
-const parseTags = (raw: string): string[] => raw.split(",").map(t => t.trim()).filter(Boolean);
 
 interface GenericProps {
   title: string;
@@ -71,15 +74,10 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const contasAtivas = useMemo(() => (financeBankAccounts as any[]).filter(c => !c.arquivada), [financeBankAccounts]);
   const contaPrincipalId = useMemo(() => contasAtivas.find(c => c.is_principal)?.id || "", [contasAtivas]);
 
-  // Sugestão de contatos já cadastrados (Clientes pra receita, Fornecedores
-  // pra despesa) via <datalist> — mantém o campo livre (nem todo lançamento
-  // precisa de ficha completa) mas liga contato_id quando o nome bate exato.
+  // Cliente/Fornecedor vêm da base de clientes da plataforma (ClienteSelect):
+  // receita favorece CLIENTE, despesa favorece FORNECEDOR, mas ambos aparecem.
   const tipoContato = type === "Receber" ? "CLIENTE" : "FORNECEDOR";
-  const contatosSugeridos = useMemo(
-    () => (clienteBase as any[]).filter(c => c.tipos?.includes(tipoContato)),
-    [clienteBase, tipoContato]
-  );
-  const resolverContatoId = (nome: string): string | null => contatosSugeridos.find(c => c.name?.toLowerCase() === nome.trim().toLowerCase())?.id || null;
+  const descricoesAnteriores = useDescricoesAnteriores(financeEntries as any[], type);
 
   // KPIs/gráfico do topo — sempre sobre o panorama GERAL deste tipo+status
   // (não sobre os filtros da tabela abaixo, que são pra achar um lançamento
@@ -230,8 +228,10 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const [newCategoryId, setNewCategoryId] = useState("");
   const [newContaBancariaId, setNewContaBancariaId] = useState("");
   const [newCentroCustoId, setNewCentroCustoId] = useState("");
-  const [newTags, setNewTags] = useState("");
+  const [newTags, setNewTags] = useState<string[]>([]);
+  const { tags: tagCatalog } = useFinanceTags();
   const [newCounterparty, setNewCounterparty] = useState("");
+  const [newContatoId, setNewContatoId] = useState<string | null>(null);
   const [newPaymentMethod, setNewPaymentMethod] = useState("");
   // Lançamento de Notas Fiscais: número do documento fiscal do lançamento
   // (coluna `numero_documento` já existia no banco, usada só na importação
@@ -252,8 +252,9 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const [editCategoryId, setEditCategoryId] = useState("");
   const [editContaBancariaId, setEditContaBancariaId] = useState("");
   const [editCentroCustoId, setEditCentroCustoId] = useState("");
-  const [editTags, setEditTags] = useState("");
+  const [editTags, setEditTags] = useState<string[]>([]);
   const [editCounterparty, setEditCounterparty] = useState("");
+  const [editContatoId, setEditContatoId] = useState<string | null>(null);
   const [editPaymentMethod, setEditPaymentMethod] = useState("");
   const [editNumeroDocumento, setEditNumeroDocumento] = useState("");
   const [editValue, setEditValue] = useState("");
@@ -279,6 +280,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         category: categoria?.nome || "Geral",
         category_id: d.categoryId,
         counterparty: d.counterparty || null,
+        contato_id: d.counterparty ? (d.contatoId || null) : null,
         value: parseFloat(d.valor) || 0,
         date: d.date ? new Date(d.date + "T12:00:00").toLocaleDateString("pt-BR") : editingItem.date,
         status: d.pago ? "Pago" : "A Vencer",
@@ -351,11 +353,12 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
 
   const resetAddForm = () => {
     setNewDesc("");
+    setNewContatoId(null);
     setNewNotes("");
     setNewCategoryId("");
     setNewContaBancariaId(contaPrincipalId);
     setNewCentroCustoId("");
-    setNewTags("");
+    setNewTags([]);
     setNewCounterparty("");
     setNewPaymentMethod("");
     setNewNumeroDocumento("");
@@ -397,9 +400,9 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       category_id: categoryId,
       conta_bancaria_id: newContaBancariaId || null,
       centro_custo_id: newCentroCustoId || null,
-      tags: parseTags(newTags),
+      tags: newTags,
       counterparty: newCounterparty || null,
-      contato_id: newCounterparty ? resolverContatoId(newCounterparty) : null,
+      contato_id: newCounterparty ? newContatoId : null,
       payment_method: newPaymentMethod || null,
       numero_documento: newNumeroDocumento || null,
       status: "A Vencer" as const,
@@ -510,8 +513,9 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     setEditCategoryId((item as any).category_id || "");
     setEditContaBancariaId((item as any).conta_bancaria_id || "");
     setEditCentroCustoId((item as any).centro_custo_id || "");
-    setEditTags(Array.isArray((item as any).tags) ? (item as any).tags.join(", ") : "");
+    setEditTags(Array.isArray((item as any).tags) ? (item as any).tags : []);
     setEditCounterparty(item.counterparty || "");
+    setEditContatoId((item as any).contato_id || null);
     setEditPaymentMethod(item.payment_method || "");
     setEditNumeroDocumento((item as any).numero_documento || "");
     setEditValue(String(item.value));
@@ -544,9 +548,9 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       category_id: editCategoryId || null,
       conta_bancaria_id: editContaBancariaId || null,
       centro_custo_id: editCentroCustoId || null,
-      tags: parseTags(editTags),
+      tags: editTags,
       counterparty: editCounterparty || null,
-      contato_id: editCounterparty ? resolverContatoId(editCounterparty) : null,
+      contato_id: editCounterparty ? editContatoId : null,
       payment_method: editPaymentMethod || null,
       numero_documento: editNumeroDocumento || null,
       value: parseFloat(editValue) || 0,
@@ -661,14 +665,14 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     const conta = (financeBankAccounts as any[]).find(c => c.id === it.conta_bancaria_id)?.nome;
     const cc = (financeCentrosCusto as any[]).find(c => c.id === it.centro_custo_id)?.nome;
     const dt = parseEntryDate(it.date)?.toLocaleDateString("pt-BR") ?? it.date;
-    const tags = Array.isArray(it.tags) && it.tags.length > 0 ? it.tags.join(", ") : null;
+    const tags = Array.isArray(it.tags) && it.tags.length > 0 ? <TagChips tags={it.tags} catalog={tagCatalog} /> : null;
     const parcela = it.installment_total && it.installment_total > 1 ? `Parcela ${it.installment_number} de ${it.installment_total}` : null;
     const recorr = it.is_recurring ? `Recorrente (${it.recurring_frequency})` : null;
     const nAnexos = (financeAttachments as any[]).filter(a => a.transacao_id === it.id).length;
     return [
       { icon: FileText, title: "Lançamento", rows: [
         { label: "Descrição", value: it.description },
-        { label: type === "Pagar" ? "Fornecedor" : "Cliente", value: it.counterparty || null },
+        { label: type === "Pagar" ? "Fornecedor" : "Cliente", value: it.counterparty ? `${it.counterparty}${it.contato_id ? " · cadastrado" : ""}` : null },
         { label: "Categoria", value: it.category || null },
         { label: "Data", value: dt, mono: true },
         { label: "Status", value: it.status },
@@ -972,6 +976,9 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                       {item.numero_documento && (
                         <p className="text-[10px] font-normal text-[var(--color-text-faint)] mt-0.5">NF {item.numero_documento}</p>
                       )}
+                      {Array.isArray(item.tags) && item.tags.length > 0 && (
+                        <TagChips tags={item.tags} catalog={tagCatalog} max={3} className="mt-1" />
+                      )}
                     </td>
                     <td className="px-3 py-2.5 text-[var(--color-text-muted)]">
                       <span className="flex items-center gap-2">
@@ -1202,6 +1209,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               onChange={(e) => { setNewDesc(e.target.value); setFormErrors(prev => ({ ...prev, desc: undefined })); }}
               className={`w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] ${formErrors.desc ? "border-danger" : "border-[var(--color-border-default)]"}`}
             />
+            <DescricaoSugestoes anteriores={descricoesAnteriores} value={newDesc} onPick={(v) => { setNewDesc(v); setFormErrors(prev => ({ ...prev, desc: undefined })); }} />
             {formErrors.desc && <p className="text-[10px] text-danger mt-1">{formErrors.desc}</p>}
           </div>
 
@@ -1211,9 +1219,11 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               rows={2}
               placeholder="Detalhes adicionais deste lançamento (opcional)"
               value={newNotes}
+              maxLength={500}
               onChange={(e) => setNewNotes(e.target.value)}
               className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] resize-none"
             />
+            <p className="text-[10px] text-[var(--color-text-faint)] text-right mt-0.5">{newNotes.length}/500</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -1263,17 +1273,14 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             </div>
             <div>
               <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> {type === 'Pagar' ? 'Fornecedor' : 'Cliente'}</label>
-              <input
-                type="text"
-                list="contatos-sugeridos-new"
-                placeholder={type === 'Pagar' ? 'Ex: AWS, Fornecedor X' : 'Ex: Nome do cliente'}
+              <ClienteSelect
                 value={newCounterparty}
-                onChange={(e) => setNewCounterparty(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                contatoId={newContatoId}
+                onChange={(n, id) => { setNewCounterparty(n); setNewContatoId(id); }}
+                preferTipo={tipoContato}
+                placeholder={type === 'Pagar' ? 'Buscar fornecedor ou digitar um novo' : 'Buscar cliente cadastrado'}
               />
-              <datalist id="contatos-sugeridos-new">
-                {contatosSugeridos.map((c: any) => <option key={c.id} value={c.name} />)}
-              </datalist>
+              <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{type === 'Pagar' ? 'Escolha um cadastro existente ou use o nome digitado.' : 'Vem da sua base de clientes.'}</p>
             </div>
           </div>
 
@@ -1309,9 +1316,10 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               onChange={(e) => setNewContaBancariaId(e.target.value)}
               className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
             >
-              <option value="">Não vinculada</option>
+              <option value="">Sem conta vinculada</option>
               {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}{c.is_principal ? " (Principal)" : ""}</option>)}
             </select>
+            <p className="text-[10px] text-[var(--color-text-faint)] mt-1">Conta onde o valor entra/sai. A conta principal vem selecionada por padrão.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -1328,13 +1336,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             </div>
             <div>
               <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Tags</label>
-              <input
-                type="text"
-                placeholder="separadas por vírgula"
-                value={newTags}
-                onChange={(e) => setNewTags(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-              />
+              <TagSelect value={newTags} onChange={setNewTags} />
             </div>
           </div>
 
@@ -1539,6 +1541,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               onChange={(e) => setEditDesc(e.target.value)}
               className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
             />
+            <DescricaoSugestoes anteriores={descricoesAnteriores} value={editDesc} onPick={setEditDesc} />
           </div>
 
           <div>
@@ -1568,16 +1571,13 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             </div>
             <div>
               <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> {type === 'Pagar' ? 'Fornecedor' : 'Cliente'}</label>
-              <input
-                type="text"
-                list="contatos-sugeridos-edit"
+              <ClienteSelect
                 value={editCounterparty}
-                onChange={(e) => setEditCounterparty(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
+                contatoId={editContatoId}
+                onChange={(n, id) => { setEditCounterparty(n); setEditContatoId(id); }}
+                preferTipo={tipoContato}
+                placeholder={type === 'Pagar' ? 'Buscar fornecedor ou digitar um novo' : 'Buscar cliente cadastrado'}
               />
-              <datalist id="contatos-sugeridos-edit">
-                {contatosSugeridos.map((c: any) => <option key={c.id} value={c.name} />)}
-              </datalist>
             </div>
           </div>
 
@@ -1616,9 +1616,10 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               onChange={(e) => setEditContaBancariaId(e.target.value)}
               className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] cursor-pointer"
             >
-              <option value="">Não vinculada</option>
+              <option value="">Sem conta vinculada</option>
               {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}{c.is_principal ? " (Principal)" : ""}</option>)}
             </select>
+            <p className="text-[10px] text-[var(--color-text-faint)] mt-1">Conta onde o valor entra/sai. A conta principal vem selecionada por padrão.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -1635,15 +1636,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             </div>
             <div>
               <label className="text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" /> Tags</label>
-              <input
-                type="text"
-                placeholder="separadas por vírgula"
-                value={editTags}
-                onChange={(e) => setEditTags(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-              />
-              <p className="text-[10px] text-[var(--color-text-faint)] mt-1">Ex: marketing, software, recorrente</p>
-            </div>
+              <TagSelect value={editTags} onChange={setEditTags} />
+                          </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

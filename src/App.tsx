@@ -61,6 +61,7 @@ const FinanceiroTransacoes = lazy(() => import("./pages/finance/FinanceiroTransa
 const FinanceiroCobrancas = lazy(() => import("./pages/finance/FinanceiroCobrancas"));
 const FinanceiroConciliacao = lazy(() => import("./pages/finance/FinanceiroConciliacao"));
 const FinanceiroCentrosCusto = lazy(() => import("./pages/finance/FinanceiroCentrosCusto"));
+const FinanceiroTags = lazy(() => import("./pages/finance/FinanceiroTags"));
 const FinanceiroOrcamentos = lazy(() => import("./pages/finance/FinanceiroOrcamentos"));
 const FinanceiroDRE = lazy(() => import("./pages/finance/FinanceiroDRE"));
 const FinanceiroContasBancarias = lazy(() => import("./pages/finance/FinanceiroContasBancarias"));
@@ -341,6 +342,7 @@ function AppContent() {
             <Route path="cobrancas" element={<FinanceiroCobrancas />} />
             <Route path="conciliacao" element={<FinanceiroConciliacao />} />
             <Route path="centros-custo" element={<FinanceiroCentrosCusto />} />
+            <Route path="tags" element={<FinanceiroTags />} />
             {/* Reaproveita o MESMO componente já usado em Configurações
                 (financeiro/categorias) — a página já existe, só não era
                 alcançável de dentro do módulo Financeiro (ficava escondida em

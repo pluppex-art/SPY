@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Repeat, Layers, FileText, AlignLeft, FolderOpen, User, CreditCard, Landmark, Tag, Calendar, CalendarCheck, Hash, Save, X, Info, ListChecks, Wallet } from "lucide-react";
+import { ClienteSelect } from "./ClienteSelect";
+import { TagSelect } from "./TagSelect";
+import { DescricaoSugestoes, useDescricoesAnteriores } from "./DescricaoSugestoes";
 import { Field, FormSection, ModalFooter, ModalTitle, inputCls, selectCls, textareaCls } from "./ModalKit";
 import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
@@ -12,8 +15,6 @@ import { type Frequencia, addPeriodo, splitInstallments } from "../../../lib/sal
 type RepeatMode = "none" | "recorrente" | "parcelado";
 
 const PAYMENT_METHODS = ["Pix", "Boleto", "Cartão de Crédito", "Cartão de Débito", "Transferência/TED", "Dinheiro", "Cheque", "Outro"];
-
-const parseTags = (raw: string): string[] => raw.split(",").map(t => t.trim()).filter(Boolean);
 
 interface NovaOperacaoModalProps {
   isOpen: boolean;
@@ -32,7 +33,7 @@ interface NovaOperacaoModalProps {
  * de tipo (Receita/Despesa) só reclassifica labels e a lista de categorias —
  * os campos são exatamente os mesmos dos dois lados. */
 export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lockType = false }: NovaOperacaoModalProps) {
-  const { addFinanceEntry, financeCategories, addFinanceCategory, financeBankAccounts, financeCentrosCusto, clienteBase } = useData();
+  const { addFinanceEntry, financeCategories, addFinanceCategory, financeBankAccounts, financeCentrosCusto, financeEntries } = useData();
   const { formatCurrency } = useLocalization();
 
   const [type, setType] = useState<"Pagar" | "Receber">(defaultType);
@@ -45,11 +46,7 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
   const contasAtivas = useMemo(() => (financeBankAccounts as any[]).filter(c => !c.arquivada), [financeBankAccounts]);
   const contaPrincipalId = useMemo(() => contasAtivas.find(c => c.is_principal)?.id || "", [contasAtivas]);
   const tipoContato = type === "Receber" ? "CLIENTE" : "FORNECEDOR";
-  const contatosSugeridos = useMemo(
-    () => (clienteBase as any[]).filter(c => c.tipos?.includes(tipoContato)),
-    [clienteBase, tipoContato]
-  );
-  const resolverContatoId = (nome: string): string | null => contatosSugeridos.find(c => c.name?.toLowerCase() === nome.trim().toLowerCase())?.id || null;
+  const descricoesAnteriores = useDescricoesAnteriores(financeEntries as any[], type);
 
   const [showNovaCategoria, setShowNovaCategoria] = useState(false);
   const [novaCategoriaNome, setNovaCategoriaNome] = useState("");
@@ -60,8 +57,9 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
   const [categoryId, setCategoryId] = useState("");
   const [contaBancariaId, setContaBancariaId] = useState("");
   const [centroCustoId, setCentroCustoId] = useState("");
-  const [tags, setTags] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [counterparty, setCounterparty] = useState("");
+  const [contatoId, setContatoId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [value, setValue] = useState("");
   const [date, setDate] = useState("");
@@ -76,8 +74,8 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
 
   const resetForm = () => {
     setDesc(""); setNotes(""); setCategoryId("");
-    setContaBancariaId(contaPrincipalId); setCentroCustoId(""); setTags("");
-    setCounterparty(""); setPaymentMethod(""); setValue(""); setDate(""); setNumeroDocumento(""); setCompetencia(""); setSaving(false);
+    setContaBancariaId(contaPrincipalId); setCentroCustoId(""); setTags([]);
+    setCounterparty(""); setContatoId(null); setPaymentMethod(""); setValue(""); setDate(""); setNumeroDocumento(""); setCompetencia(""); setSaving(false);
     setRepeatMode("none"); setFrequency("mensal"); setOcorrencias("12"); setParcelas("2");
     setErrors({}); setShowNovaCategoria(false); setNovaCategoriaNome("");
   };
@@ -139,9 +137,9 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
       category_id: catId,
       conta_bancaria_id: contaBancariaId || null,
       centro_custo_id: centroCustoId || null,
-      tags: parseTags(tags),
+      tags,
       counterparty: counterparty || null,
-      contato_id: counterparty ? resolverContatoId(counterparty) : null,
+      contato_id: counterparty ? contatoId : null,
       payment_method: paymentMethod || null,
       numero_documento: numeroDocumento.trim() || null,
       status: "A Vencer" as const,
@@ -219,6 +217,7 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
               onChange={(e) => { setDesc(e.target.value); setErrors(prev => ({ ...prev, desc: undefined })); }}
               className={inputCls(!!errors.desc)}
             />
+            <DescricaoSugestoes anteriores={descricoesAnteriores} value={desc} onPick={(v) => { setDesc(v); setErrors(prev => ({ ...prev, desc: undefined })); }} />
           </Field>
           <Field label="Descrição / Observações" icon={AlignLeft} hint={`${notes.length}/500`}>
             <textarea rows={2} maxLength={500} placeholder="Detalhes adicionais deste lançamento (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} className={textareaCls} />
@@ -260,19 +259,15 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
             <Field
               label={isPagar ? "Fornecedor" : "Cliente"}
               icon={User}
-              hint={counterparty.trim() ? (resolverContatoId(counterparty) ? "Contato cadastrado: será vinculado ao lançamento." : "Não está nos Contatos: fica só como texto livre.") : "Digite ou escolha um contato cadastrado."}
+              hint={counterparty.trim() ? (contatoId ? "Cadastro encontrado: será vinculado ao lançamento." : "Sem cadastro: fica só como nome digitado.") : "Busque na base de clientes ou digite um nome."}
             >
-              <input
-                type="text"
-                list="contatos-sugeridos-nova-operacao"
-                placeholder={isPagar ? "Ex: AWS, Fornecedor X" : "Ex: Nome do cliente"}
+              <ClienteSelect
                 value={counterparty}
-                onChange={(e) => setCounterparty(e.target.value)}
-                className={inputCls()}
+                contatoId={contatoId}
+                onChange={(n, id) => { setCounterparty(n); setContatoId(id); }}
+                preferTipo={tipoContato}
+                placeholder={isPagar ? "Buscar fornecedor ou digitar um novo" : "Buscar cliente cadastrado"}
               />
-              <datalist id="contatos-sugeridos-nova-operacao">
-                {contatosSugeridos.map((c: any) => <option key={c.id} value={c.name} />)}
-              </datalist>
             </Field>
             <Field label="Centro de custo" icon={Wallet}>
               <select value={centroCustoId} onChange={(e) => setCentroCustoId(e.target.value)} className={selectCls()}>
@@ -280,8 +275,8 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
                 {(financeCentrosCusto as any[]).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </Field>
-            <Field label="Tags" icon={Tag} hint={parseTags(tags).length > 0 ? `${parseTags(tags).length} tag(s): ${parseTags(tags).join(", ")}` : "Separadas por vírgula."}>
-              <input type="text" placeholder="ex: marketing, anual" value={tags} onChange={(e) => setTags(e.target.value)} className={inputCls()} />
+            <Field label="Tags" icon={Tag} hint="Escolha tags cadastradas ou crie uma nova.">
+              <TagSelect value={tags} onChange={setTags} />
             </Field>
           </div>
         </FormSection>
@@ -294,9 +289,9 @@ export function NovaOperacaoModal({ isOpen, onClose, defaultType = "Pagar", lock
                 {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </Field>
-            <Field label="Conta bancária" icon={Landmark} hint={contasAtivas.length === 0 ? "Nenhuma conta ativa cadastrada." : undefined}>
+            <Field label="Conta bancária" icon={Landmark} hint={contasAtivas.length === 0 ? "Nenhuma conta ativa cadastrada." : "A conta principal vem selecionada por padrão."}>
               <select value={contaBancariaId} onChange={(e) => setContaBancariaId(e.target.value)} className={selectCls()}>
-                <option value="">Não vinculada</option>
+                <option value="">Sem conta vinculada</option>
                 {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}{c.is_principal ? " (Principal)" : ""}</option>)}
               </select>
             </Field>

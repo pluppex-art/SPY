@@ -19,6 +19,7 @@ import {
   Pencil, User, Phone, Mail, Calendar, AlignLeft, Save, Info, Eye
 } from "lucide-react";
 import type { Indicacao } from "../../contexts/DataContextTypes";
+import { ClienteSelect } from "./components/ClienteSelect";
 import { Field, FormSection, ModalFooter, ModalTitle, inputCls, selectCls, textareaCls } from "./components/ModalKit";
 import { formatPhone } from "../../lib/utils";
 import { ViewModal } from "./components/ViewModal";
@@ -69,6 +70,8 @@ export default function Indicacoes() {
   const [referrerId, setReferrerId] = useState("");
   const [referredName, setReferredName] = useState("");
   const [referredContact, setReferredContact] = useState("");
+  const [referrerClienteTexto, setReferrerClienteTexto] = useState("");
+  const [referredContatoId, setReferredContatoId] = useState<string | null>(null);
   const [commissionValue, setCommissionValue] = useState("");
   const [notes, setNotes] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -175,6 +178,8 @@ export default function Indicacoes() {
     setReferrerId("");
     setReferredName("");
     setReferredContact("");
+    setReferrerClienteTexto("");
+    setReferredContatoId(null);
     setCommissionValue(String(defaultCommission || ""));
     setNotes("");
     setDateIndicated(new Date().toISOString().split("T")[0]);
@@ -194,6 +199,8 @@ export default function Indicacoes() {
     setReferrerId((item.referrer_type === "colaborador" ? item.referrer_colaborador_id : item.referrer_cliente_id) || "");
     setReferredName(item.referred_name || "");
     setReferredContact(item.referred_contact || "");
+    setReferrerClienteTexto(item.referrer_type === "cliente" ? ((clienteBase as any[]).find(c => c.id === item.referrer_cliente_id)?.name || item.referrer_name || "") : "");
+    setReferredContatoId(null);
     setCommissionValue(String(item.commission_value ?? ""));
     setNotes(item.notes || "");
     setDateIndicated(item.date_indicated ? item.date_indicated.slice(0, 10) : "");
@@ -791,7 +798,7 @@ export default function Indicacoes() {
                 <button
                   key={t}
                   type="button"
-                  onClick={() => { setReferrerType(t); setReferrerId(""); setFormErrors(p => ({ ...p, referrer: undefined })); }}
+                  onClick={() => { setReferrerType(t); setReferrerId(""); setReferrerClienteTexto(""); setFormErrors(p => ({ ...p, referrer: undefined })); }}
                   className={`h-9 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${referrerType === t ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/40" : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}
                 >
                   {t === "colaborador" ? "Colaborador" : "Cliente"}
@@ -799,19 +806,41 @@ export default function Indicacoes() {
               ))}
             </div>
             <Field label={referrerType === "colaborador" ? "Colaborador" : "Cliente"} icon={User} required error={formErrors.referrer} hint={referrerOptions.length === 0 ? `Nenhum ${referrerType} cadastrado ainda.` : undefined}>
-              <select value={referrerId} onChange={(e) => { setReferrerId(e.target.value); setFormErrors(p => ({ ...p, referrer: undefined })); }} className={selectCls(!!formErrors.referrer)}>
-                <option value="">Selecione {referrerType === "colaborador" ? "o colaborador" : "o cliente"}...</option>
-                {referrerOptions.map((r: any) => (
-                  <option key={r.id} value={r.id}>{referrerType === "colaborador" ? r.nome : r.name}</option>
-                ))}
-              </select>
+              {referrerType === "colaborador" ? (
+                <select value={referrerId} onChange={(e) => { setReferrerId(e.target.value); setFormErrors(p => ({ ...p, referrer: undefined })); }} className={selectCls(!!formErrors.referrer)}>
+                  <option value="">Selecione o colaborador...</option>
+                  {referrerOptions.map((r: any) => (
+                    <option key={r.id} value={r.id}>{r.nome}</option>
+                  ))}
+                </select>
+              ) : (
+                <ClienteSelect
+                  value={referrerClienteTexto}
+                  contatoId={referrerId || null}
+                  allowFreeText={false}
+                  preferTipo="CLIENTE"
+                  invalid={!!formErrors.referrer}
+                  placeholder="Buscar cliente da base"
+                  onChange={(n, id) => { setReferrerClienteTexto(n); setReferrerId(id || ""); setFormErrors(p => ({ ...p, referrer: undefined })); }}
+                />
+              )}
             </Field>
           </FormSection>
 
           <FormSection icon={UserPlus} title="Indicado">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Nome do indicado (lead / cliente)" icon={User} required error={formErrors.referred}>
-                <input type="text" placeholder="Ex: Pedro Henrique" value={referredName} onChange={(e) => { setReferredName(e.target.value); setFormErrors(p => ({ ...p, referred: undefined })); }} className={inputCls(!!formErrors.referred)} />
+                <ClienteSelect
+                  value={referredName}
+                  contatoId={referredContatoId}
+                  invalid={!!formErrors.referred}
+                  placeholder="Buscar na base ou digitar o nome"
+                  onChange={(n, id) => {
+                    setReferredName(n); setReferredContatoId(id); setFormErrors(p => ({ ...p, referred: undefined }));
+                    const c = id ? (clienteBase as any[]).find(x => x.id === id) : null;
+                    if (c && !referredContact.trim()) setReferredContact([c.phone, c.email].filter(Boolean).join(" · "));
+                  }}
+                />
               </Field>
               <Field label="Contato" icon={Phone} hint="Telefone ou e-mail (opcional).">
                 <input type="text" placeholder="Telefone ou e-mail do indicado" value={referredContact} onChange={(e) => setReferredContact(e.target.value)} className={inputCls()} />

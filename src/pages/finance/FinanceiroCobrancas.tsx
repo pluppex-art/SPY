@@ -23,6 +23,7 @@ import { parseEntryDate } from "./lib/financeDates";
 import { Field, FormSection, InfoRow, ModalFooter, ModalTitle, inputCls, selectCls, textareaCls } from "./components/ModalKit";
 import { formatPhone } from "../../lib/utils";
 import { useRowOpen } from "./components/useRowOpen";
+import { ClienteSelect } from "./components/ClienteSelect";
 
 const PAYMENT_METHODS = ["Pix", "Boleto", "Cartão de Crédito", "Cartão de Débito", "Transferência/TED", "Dinheiro", "Cheque", "Outro"];
 const todayIso = () => new Date().toISOString().split("T")[0];
@@ -49,9 +50,14 @@ export default function FinanceiroCobrancas() {
   const rowOpen = useRowOpen<any>(setDetalhe);
   const categoriasReceita = useMemo(() => (financeCategories as any[]).filter(c => c.tipo === "Receita"), [financeCategories]);
   const contasAtivas = useMemo(() => (financeBankAccounts as any[]).filter(c => !c.arquivada), [financeBankAccounts]);
-  const clientesSugeridos = useMemo(() => (clienteBase as any[]).filter(c => c.tipos?.includes("CLIENTE")), [clienteBase]);
-  const resolverCliente = (nome: string) => clientesSugeridos.find(c => c.name?.toLowerCase() === nome.trim().toLowerCase()) || null;
-  const clienteResolvido = novaCobranca.cliente.trim() ? resolverCliente(novaCobranca.cliente) : null;
+  const contaPrincipalId = useMemo(() => contasAtivas.find(c => c.is_principal)?.id || "", [contasAtivas]);
+  const [cobrancaContatoId, setCobrancaContatoId] = useState<string | null>(null);
+  // Cliente vem da base de clientes; sem id escolhido, tenta casar por nome exato (cobranças antigas/ações externas).
+  const resolverCliente = (nome: string) => (clienteBase as any[]).find(c => c.name?.trim().toLowerCase() === nome.trim().toLowerCase()) || null;
+  // Abrir o modal já com a conta principal selecionada.
+  useEffect(() => {
+    if (showModal) setNovaCobranca(p => p.contaBancariaId ? p : { ...p, contaBancariaId: contaPrincipalId });
+  }, [showModal, contaPrincipalId]);
 
   const empresaDados = appSettings?.empresa_dados || {};
   const tenantName = empresaDados?.nomeFantasia || empresaDados?.razaoSocial || activeTenantName || "nossa empresa";
@@ -183,7 +189,7 @@ export default function FinanceiroCobrancas() {
     toast.success("Cobrança removida.");
   };
 
-  const closeNovaCobranca = () => { if (saving) return; setShowModal(false); setNovaCobranca(emptyCobranca()); setFormErrors({}); };
+  const closeNovaCobranca = () => { if (saving) return; setShowModal(false); setNovaCobranca(emptyCobranca()); setCobrancaContatoId(null); setFormErrors({}); };
 
   const handleCreateCobranca = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,13 +201,13 @@ export default function FinanceiroCobrancas() {
     if (Object.keys(errs).length > 0) return;
 
     const categoria = categoriasReceita.find(c => c.id === novaCobranca.categoryId);
-    const contato = resolverCliente(novaCobranca.cliente);
+    const contatoIdFinal = cobrancaContatoId || resolverCliente(novaCobranca.cliente)?.id || null;
     setSaving(true);
     try {
       await addFinanceEntry({
         description: novaCobranca.cliente.trim(),
         counterparty: novaCobranca.cliente.trim(),
-        contato_id: contato?.id || null,
+        contato_id: contatoIdFinal,
         value: val,
         type: "Receber",
         category: categoria?.nome || "Serviços / Honorários",
@@ -217,6 +223,7 @@ export default function FinanceiroCobrancas() {
       toast.success("Cobrança emitida e vinculada ao Contas a Receber!");
       setShowModal(false);
       setNovaCobranca(emptyCobranca());
+      setCobrancaContatoId(null);
       setFormErrors({});
     } finally {
       setSaving(false);
@@ -418,17 +425,17 @@ export default function FinanceiroCobrancas() {
               icon={User}
               required
               error={formErrors.cliente}
-              hint={novaCobranca.cliente.trim() ? (clienteResolvido ? "Cliente cadastrado: a cobrança será vinculada ao contato." : "Não está nos Contatos: será salvo só como nome.") : "Digite ou escolha um cliente cadastrado."}
+              hint={novaCobranca.cliente.trim() ? (cobrancaContatoId ? "Cliente cadastrado: a cobrança será vinculada ao cadastro." : "Sem cadastro: será salvo só como nome.") : "Busque na base de clientes ou digite um nome."}
             >
-              <input
-                list="cobranca-clientes"
+              <ClienteSelect
                 autoFocus
                 value={novaCobranca.cliente}
-                onChange={e => { setNovaCobranca({ ...novaCobranca, cliente: e.target.value }); setFormErrors(p => ({ ...p, cliente: undefined })); }}
-                placeholder="Nome do cliente ou empresa"
-                className={inputCls(!!formErrors.cliente)}
+                contatoId={cobrancaContatoId}
+                onChange={(n, id) => { setNovaCobranca(p => ({ ...p, cliente: n })); setCobrancaContatoId(id); setFormErrors(p => ({ ...p, cliente: undefined })); }}
+                preferTipo="CLIENTE"
+                invalid={!!formErrors.cliente}
+                placeholder="Buscar cliente ou digitar o nome"
               />
-              <datalist id="cobranca-clientes">{clientesSugeridos.map((c: any) => <option key={c.id} value={c.name} />)}</datalist>
             </Field>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Valor (R$)" icon={DollarSign} required error={formErrors.valor}>
@@ -461,9 +468,9 @@ export default function FinanceiroCobrancas() {
                   {categoriasReceita.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
               </Field>
-              <Field label="Conta bancária" icon={Landmark}>
+              <Field label="Conta bancária" icon={Landmark} hint={contasAtivas.length === 0 ? "Nenhuma conta ativa cadastrada." : "A conta principal vem selecionada por padrão."}>
                 <select value={novaCobranca.contaBancariaId} onChange={e => setNovaCobranca({ ...novaCobranca, contaBancariaId: e.target.value })} className={selectCls()}>
-                  <option value="">Não vinculada</option>
+                  <option value="">Sem conta vinculada</option>
                   {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}{c.is_principal ? " (Principal)" : ""}</option>)}
                 </select>
               </Field>

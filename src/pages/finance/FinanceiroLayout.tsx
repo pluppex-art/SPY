@@ -26,6 +26,7 @@ import {
   Search,
   Upload,
   Plus,
+  Tag,
 } from "lucide-react";
 import { SectionSidebar, type SectionNavGroup } from "../../components/layout/SectionSidebar";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
@@ -73,6 +74,7 @@ const groups: SectionNavGroup[] = [
     icon: FolderTree,
     items: [
       { title: "Centros de Custo", path: "/app/financeiro/centros-custo", icon: Target },
+      { title: "Tags", path: "/app/financeiro/tags", icon: Tag },
       { title: "Plano de Contas", path: "/app/financeiro/plano-contas", icon: FolderTree },
       { title: "Orçamentos", path: "/app/financeiro/orcamentos", icon: Target },
       { title: "Contatos (Clientes & Fornecedores)", path: "/app/financeiro/contatos", icon: Users },
@@ -109,6 +111,7 @@ const PAGINAS_COM_BOTAO_PROPRIO = [
   "/app/financeiro/bancos",
   "/app/financeiro/transferencias",
   "/app/financeiro/centros-custo",
+  "/app/financeiro/tags",
   "/app/financeiro/contatos",
   "/app/financeiro/cobrancas",
   "/app/financeiro/busca",

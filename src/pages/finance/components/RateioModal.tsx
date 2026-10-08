@@ -3,10 +3,10 @@ import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
 import { Trash2, Plus, Split, FileText, Calendar, FolderOpen, User, DollarSign, Scale, Check, AlertCircle, Equal, Copy } from "lucide-react";
 import { useLocalization } from "../../../contexts/LocalizationContext";
-import { useData } from "../../../contexts/DataContext";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { cn } from "../../../lib/utils";
 import { splitInstallments } from "../../../lib/saleCalculator";
+import { ClienteSelect } from "./ClienteSelect";
 import { Field, ModalFooter, ModalTitle, inputCls, selectCls } from "./ModalKit";
 
 export interface RateioParentEntry {
@@ -24,6 +24,8 @@ export interface RateioDivisao {
   description: string;
   valor: string;
   counterparty: string;
+  /** id do cadastro em Contatos/clientes, quando escolhido da lista. */
+  contatoId?: string | null;
   categoryId: string;
   pago: boolean;
 }
@@ -47,7 +49,6 @@ const newKey = () => `div_${Date.now()}_${seq++}`;
  */
 export function RateioModal({ isOpen, onClose, parent, categoriasDoTipo, onConfirm }: RateioModalProps) {
   const { formatCurrency } = useLocalization();
-  const { clienteBase } = useData();
   const [divisoes, setDivisoes] = useState<RateioDivisao[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -62,8 +63,6 @@ export function RateioModal({ isOpen, onClose, parent, categoriasDoTipo, onConfi
   const restanteCents = totalCents - somaCents;
   const bate = divisoes.length >= 2 && restanteCents === 0 && divisoes.every(d => d.categoryId && parseFloat(d.valor) > 0);
   const tipoContato = parent.type === "Receber" ? "CLIENTE" : "FORNECEDOR";
-  const contatosSugeridos = (clienteBase as any[]).filter(c => c.tipos?.includes(tipoContato));
-  const listId = `rateio-contatos-${parent.id}`;
   const pct = totalCents > 0 ? Math.min(100, Math.max(0, (somaCents / totalCents) * 100)) : 0;
   const excedeu = restanteCents < 0;
 
@@ -87,7 +86,7 @@ export function RateioModal({ isOpen, onClose, parent, categoriasDoTipo, onConfi
     setDivisoes(prev => {
       const base = prev.length >= 2 ? prev : [
         ...prev,
-        ...Array.from({ length: n - prev.length }, () => ({ key: newKey(), date: parent.date, description: parent.description, valor: "", counterparty: "", categoryId: parent.category_id || "", pago: false })),
+        ...Array.from({ length: n - prev.length }, () => ({ key: newKey(), date: parent.date, description: parent.description, valor: "", counterparty: "", contatoId: null, categoryId: parent.category_id || "", pago: false })),
       ];
       return base.map((d, i) => ({ ...d, valor: valores[i].toFixed(2) }));
     });
@@ -109,6 +108,7 @@ export function RateioModal({ isOpen, onClose, parent, categoriasDoTipo, onConfi
       description: parent.description,
       valor: valorSugerido !== undefined ? valorSugerido.toFixed(2) : "",
       counterparty: "",
+      contatoId: null,
       categoryId: parent.category_id || "",
       pago: false,
     }));
@@ -204,7 +204,7 @@ export function RateioModal({ isOpen, onClose, parent, categoriasDoTipo, onConfi
                     </select>
                   </Field>
                   <Field label={parent.type === "Receber" ? "Cliente" : "Fornecedor"} icon={User} className="sm:col-span-2">
-                    <input type="text" list={listId} placeholder="Opcional" value={d.counterparty} onChange={(e) => updateDivisao(d.key, { counterparty: e.target.value })} className={inputCls()} />
+                    <ClienteSelect value={d.counterparty} contatoId={d.contatoId} onChange={(n, id) => updateDivisao(d.key, { counterparty: n, contatoId: id })} preferTipo={tipoContato} placeholder="Opcional — buscar cadastro" />
                   </Field>
                   <Field label="Valor (R$)" icon={DollarSign} required className="sm:col-span-2" error={semValor ? "Informe um valor maior que zero." : undefined}>
                     <input type="number" step="0.01" min="0" placeholder="0,00" value={d.valor} onChange={(e) => updateDivisao(d.key, { valor: e.target.value })} className={`${inputCls(semValor)} font-mono`} />
@@ -217,7 +217,6 @@ export function RateioModal({ isOpen, onClose, parent, categoriasDoTipo, onConfi
             );
           })}
         </div>
-        <datalist id={listId}>{contatosSugeridos.map((c: any) => <option key={c.id} value={c.name} />)}</datalist>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Button type="button" variant="outline" onClick={() => addDivisoes(divisoes.length === 0 ? 2 : 1)} disabled={saving} className="h-9 px-3 text-xs font-bold gap-1.5">
