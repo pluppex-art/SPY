@@ -15,7 +15,7 @@ import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
 import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import {
   ArrowDownLeft, ArrowUpRight, ArrowDownRight, Download, Plus, ListOrdered, Scale, Search, Minus,
-  CheckCircle2, Clock, AlertTriangle, Tag, List as ListIcon, LayoutGrid, ArrowUpDown, X, MoreVertical, Copy, ExternalLink, Eye, FileText, Landmark,
+  CheckCircle2, Clock, AlertTriangle, Tag, List as ListIcon, LayoutGrid, ArrowUpDown, X, MoreVertical, Copy, ExternalLink, Eye, FileText, Landmark, Trash2,
 } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -23,6 +23,7 @@ import { downloadCsv } from "../../lib/csvExport";
 import { parseEntryDate } from "./lib/financeDates";
 import { cn } from "../../lib/utils";
 import { toast } from "sonner";
+import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useFinanceTransacoesList, type TransacoesTab, type TransacoesOrdem, type TransacaoLeve } from "./useFinanceTransacoesList";
 
 const STATUS_STYLE: Record<string, { icon: typeof CheckCircle2; className: string; label: string }> = {
@@ -50,7 +51,7 @@ const soma = (l: TransacaoLeve[], tipo: "Receber" | "Pagar") => l.filter((r) => 
  * Pagar ou Contas a Receber, que têm o formulário completo. */
 export default function FinanceiroTransacoes() {
   const { formatCurrency } = useLocalization();
-  const { financeEntries, financeBankAccounts } = useData();
+  const { financeEntries, financeBankAccounts, deleteFinanceEntry } = useData();
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
@@ -68,7 +69,7 @@ export default function FinanceiroTransacoes() {
   const [viewing, setViewing] = useState<any | null>(null);
   const rowOpen = useRowOpen<any>(setViewing);
 
-  const { entries, total, base, prev, page, setPage, totalPages, loading, fetchAllForExport } = useFinanceTransacoesList({
+  const { entries, total, base, prev, page, setPage, totalPages, loading, fetchAllForExport, refetch } = useFinanceTransacoesList({
     search, tab, dateFrom, dateTo, categoria, contraparte, ordem, pageSize,
   });
 
@@ -156,6 +157,18 @@ export default function FinanceiroTransacoes() {
   const limpar = () => { setSearch(""); setDateFrom(null); setDateTo(null); setCategoria(""); setContraparte(""); setTab("todos"); };
 
   const linhas = entries.map((t: any) => ({ ...t, __data: parseEntryDate(t.date) }));
+  const handleExcluirSelecionados = async () => {
+    const ids = [...selecionados];
+    if (ids.length === 0) return;
+    if (!(await confirmDialog({
+      title: "Excluir lançamentos",
+      description: `Excluir ${ids.length} lançamento${ids.length > 1 ? "s" : ""} selecionado${ids.length > 1 ? "s" : ""}? Essa ação não pode ser desfeita.`,
+    }))) return;
+    await Promise.all(ids.map((id) => deleteFinanceEntry(id)));
+    setSelecionados(new Set());
+    toast.success(`${ids.length} lançamento${ids.length > 1 ? "s excluídos" : " excluído"}.`);
+    setTimeout(refetch, 300);
+  };
   const todosNaPagina = linhas.length > 0 && linhas.every((t) => selecionados.has(t.id));
   const toggleTodos = () => setSelecionados(todosNaPagina ? new Set() : new Set(linhas.map((t) => t.id)));
   const toggleUm = (id: string) => setSelecionados((prevSel) => { const n = new Set(prevSel); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -211,6 +224,11 @@ export default function FinanceiroTransacoes() {
       actions={
         <div className="flex items-center gap-2">
           <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} className="!h-9 !rounded-lg" />
+          {selecionados.size > 0 && (
+            <Button variant="outline" onClick={handleExcluirSelecionados} className="h-9 px-4 text-xs font-bold gap-1.5 text-rose-500 border-rose-500/30 hover:bg-rose-500/10">
+              <Trash2 className="w-3.5 h-3.5" /> Excluir ({selecionados.size})
+            </Button>
+          )}
           <Button variant="outline" onClick={handleExport} className="h-9 px-4 text-xs font-medium gap-1.5">
             <Download className="w-3.5 h-3.5" /> Exportar CSV{selecionados.size > 0 ? ` (${selecionados.size})` : ""}
           </Button>

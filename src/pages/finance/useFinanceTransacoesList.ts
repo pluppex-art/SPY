@@ -139,5 +139,6 @@ export function useFinanceTransacoesList(params: TransacoesParams) {
     return fetchPaged(() => applyTab(applyBase(supabase!.from("finance_entries").select("*").eq("tenant_id", tenantId))).order("date_normalized", { ascending: false, nullsFirst: false }).order("id"));
   };
 
-  return { entries: rows, total, base, prev, page, setPage, totalPages, loading, fetchAllForExport };
+  const refetch = () => { fetchPage(); fetchBase(); };
+  return { entries: rows, total, base, prev, page, setPage, totalPages, loading, fetchAllForExport, refetch };
 }
