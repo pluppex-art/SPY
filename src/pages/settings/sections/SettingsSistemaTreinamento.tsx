@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { GraduationCap, Save, Loader2, ChevronDown, ChevronUp, ListPlus, Lock } from "lucide-react";
+import { GraduationCap, Save, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
@@ -13,39 +13,35 @@ import { ConfigSistemaAprendizados } from "./SettingsSistemaAprendizados";
 
 // Os 4 agentes do modelo padrão. `key` é o agent_key que o n8n lê ao vivo por empresa
 // (ai_agent_prompts): o que for salvo aqui entra no prompt do agente na próxima execução,
-// somado aos 80% fixos do workflow. `secoes` são títulos sugeridos para organizar o texto.
+// que é o prompt base (80%), igual para todas as empresas. Os 20% de cada empresa vêm só do cadastro:
+// Configurações → Empresa → Dados (bloco "perfil para a IA") e Produtos.
 const AGENTES = [
   {
     key: "sdr",
     nome: "Agente de Vendas 1",
     resumo: "Atende e qualifica o lead no WhatsApp, agenda reunião e chama o Closer no fechamento.",
-    secoes: ["TOM", "PERGUNTAS DE DESCOBERTA", "FECHAMENTO", "OFERTA", "REGRAS DA EMPRESA"],
   },
   {
     key: "closer",
     nome: "Agente de Vendas 2",
     resumo: "Orienta o SDR e os gestores em negociação: objeções, valor e próximo passo de fechamento.",
-    secoes: ["ESTILO", "ABORDAGEM DE OBJEÇÕES", "LIMITES DE NEGOCIAÇÃO", "REGRAS DA EMPRESA"],
   },
   {
     key: "radar",
     nome: "Radar de Oportunidades",
     resumo: "Lê grupos de WhatsApp e identifica oportunidades de venda; também prospecta empresas.",
-    secoes: ["O QUE É OPORTUNIDADE PARA ESTA EMPRESA", "O QUE IGNORAR", "REGRAS DA EMPRESA"],
   },
   {
     key: "agente_secreto",
     nome: "Agente Secreto",
     resumo: "Lê as conversas da equipe e cadastra sozinho lead, produto de interesse, etapa e tarefas no CRM.",
-    secoes: ["ETAPAS E CRITÉRIOS", "TERMOS DA EMPRESA", "REGRAS DA EMPRESA"],
   },
 ] as const;
 
 function AgenteTreino({ agente }: { agente: (typeof AGENTES)[number] }) {
-  const { prompts, loading, savingKey, updatePrompt, refresh } = useAgentPrompts();
+  const { prompts, loading, refresh } = useAgentPrompts();
   const atual = prompts.find((p) => p.agentKey === agente.key);
-  const [draft, setDraft] = useState<string | null>(null);
-  const [verBase, setVerBase] = useState(false);
+  const verBase = true;
   const [baseDraft, setBaseDraft] = useState<string | null>(null);
   const [salvandoBase, setSalvandoBase] = useState(false);
   const [historico, setHistorico] = useState<{ id: string; changed_at: string; base_prompt: string | null }[]>([]);
@@ -82,23 +78,6 @@ function AgenteTreino({ agente }: { agente: (typeof AGENTES)[number] }) {
     await refresh();
     toast.success("Prompt base atualizado para todas as empresas.");
   };
-  const texto = draft ?? atual?.prompt ?? "";
-  const mudou = draft !== null && draft !== (atual?.prompt ?? "");
-  const salvando = savingKey === agente.key;
-
-  const inserirSecoes = () => {
-    const faltam = agente.secoes.filter((s) => !texto.toUpperCase().includes(s));
-    if (!faltam.length) return toast.info("Todas as seções sugeridas já estão no texto.");
-    setDraft((texto.trim() ? texto.trim() + "\n\n" : "") + faltam.map((s) => `${s}\n`).join("\n"));
-  };
-
-  const salvar = async () => {
-    const { error } = await updatePrompt(agente.key, texto, atual?.name ?? agente.nome, atual?.description ?? null);
-    if (error) return toast.error(`Não foi possível salvar: ${error}`);
-    setDraft(null);
-    toast.success(`Treinamento do ${agente.nome} salvo. Vale na próxima execução.`);
-  };
-
   return (
     <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-3 shadow-sm">
       <p className="text-xs text-[var(--color-text-muted)]">{agente.resumo}</p>
@@ -106,34 +85,7 @@ function AgenteTreino({ agente }: { agente: (typeof AGENTES)[number] }) {
         <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Carregando…</p>
       ) : (
         <>
-          <textarea
-            value={texto}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={14}
-            placeholder={`Treinamento do ${agente.nome} para esta empresa. Sugestão de seções: ${agente.secoes.join(" · ")}`}
-            className="w-full text-xs font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg p-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-blue)]/50 resize-y"
-          />
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="ghost" size="sm" onClick={inserirSecoes} className="border border-[var(--color-border-default)] text-[var(--color-text-primary)]">
-                <ListPlus className="w-3.5 h-3.5" /> Inserir seções sugeridas
-              </Button>
-              {atual?.basePrompt && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setVerBase((v) => !v)} className="border border-[var(--color-border-default)] text-[var(--color-text-primary)]">
-                  {verBase ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />} Prompt base (80%)
-                </Button>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] text-[var(--color-text-faint)]">
-                {texto.length.toLocaleString("pt-BR")} caracteres{atual?.updatedAt ? ` · salvo em ${new Date(atual.updatedAt).toLocaleString("pt-BR")}` : ""}
-              </span>
-              <Button type="button" size="sm" disabled={!mudou || salvando} onClick={salvar} className="bg-[var(--color-primary-blue)] text-white font-bold uppercase tracking-wider">
-                {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Salvar
-              </Button>
-            </div>
-          </div>
-          {verBase && atual?.basePrompt && (
+          {atual?.basePrompt ? (
             <div className="space-y-2 border border-warning/30 bg-warning/5 rounded-lg p-3">
               <p className="text-[11px] text-[var(--color-text-primary)]">
                 <b>Prompt base (80%)</b>: é o mesmo para todas as empresas. Alterar aqui muda o agente em todas elas, na próxima execução. Os trechos entre
@@ -165,6 +117,8 @@ function AgenteTreino({ agente }: { agente: (typeof AGENTES)[number] }) {
                 </div>
               )}
             </div>
+          ) : (
+            <p className="text-xs text-[var(--color-text-muted)]">Este agente ainda não tem prompt base cadastrado.</p>
           )}
         </>
       )}
@@ -235,14 +189,14 @@ export function ConfigSistemaTreinamento() {
           Treinamento dos agentes <GraduationCap className="w-5 h-5 text-[var(--color-primary-blue)]" />
         </h1>
         <p className="text-sm text-[var(--color-text-muted)]">
-          Cada agente tem um prompt fixo (80%) e o treinamento desta empresa (20%), que você salva aqui. O que for salvo vale na próxima execução do agente.
+          Cada agente tem um prompt base (80%) igual para todas as empresas, que você edita aqui. Os 20% de cada empresa não são digitados aqui: vêm de Empresa → Dados (perfil para a IA) e de Produtos.
         </p>
       </div>
 
       <Card className="p-3 bg-warning/10 border border-warning/30 text-xs text-[var(--color-text-primary)] flex items-start gap-2">
         <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
         <span>
-          Tela interna (só master). Você está treinando os agentes de <b>{activeTenantName ?? "empresa selecionada"}</b>; para treinar outra empresa, troque a empresa ativa.
+          Tela interna (só master). Alterar o prompt base muda o agente em <b>todas</b> as empresas, na próxima execução.
         </span>
       </Card>
 
