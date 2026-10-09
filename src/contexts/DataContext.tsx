@@ -3152,6 +3152,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       category: "Contrato / Recorrente",
       category_id: contratoCategoryId,
       contato_id: contatoId,
+      ...camposComuns,
+      tags: ['Proposta', 'Recorrente'],
       value: recurringTotalFinal,
       type: "Receber",
       date: dataLancamento,
@@ -3162,8 +3164,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }, { silent });
 
     // Implantação/setup é receita única — lançamento à parte, não recorrente,
-      ...camposComuns,
-      tags: ['Proposta', 'Recorrente'],
     // pra não poluir relatórios de MRR/receita recorrente com valor avulso.
     if (oneTimeTotalFinal > 0) {
       addFinanceEntry({
@@ -3171,6 +3171,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         category: "Implantação / Setup",
         category_id: implantacaoCategoryId,
         contato_id: contatoId,
+        ...camposComuns,
+        tags: ['Proposta'],
         value: oneTimeTotalFinal,
         type: "Receber",
         date: dataLancamento,
@@ -3181,8 +3183,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (!silent) toast.success("🎉 Proposta Aceita! Contrato ativado e fatura a receber gerada no financeiro!");
     return true;
-        ...camposComuns,
-        tags: ['Proposta'],
   };
 
   // Reconciliação: propostas "Aceita" sem contrato correspondente (aceitas
