@@ -88,7 +88,8 @@ export function EditarColabModal({ colab, onClose, onSave, canGrantTenantAccess 
     const tenantAccess = (canGrantTenantAccess && colab.user_id && permiteTrocarEmpresa !== permiteTrocarEmpresaInicial)
       ? { userId: colab.user_id, enabled: permiteTrocarEmpresa }
       : undefined;
-    onSave(colab.id, { ...form, nome: form.nome.trim(), email: form.email.trim() }, tenantAccess);
+    // filial_id é FK: "sem filial" precisa ir como null, nunca como string vazia.
+    onSave(colab.id, { ...form, nome: form.nome.trim(), email: form.email.trim(), filial_id: form.filial_id || null }, tenantAccess);
     onClose();
   };
 
