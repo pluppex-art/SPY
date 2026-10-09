@@ -125,6 +125,17 @@ export default function RHColaboradores() {
   };
 
   const handleSaveEditColab = async (id: string, updates: any, tenantAccess?: { userId: string; enabled: boolean }) => {
+    // Cargo "Administrador" dá acesso de administrador da empresa (cadastrar cargos e permissões):
+    // acompanha a troca de cargo no login vinculado. Só mexe quando o cargo cruza essa fronteira,
+    // para nunca rebaixar quem já era administrador por outro motivo.
+    const anterior = (colaboradores as any[]).find((c) => c.id === id);
+    const ehAdm = (c?: string) => (c || "").trim().toLowerCase() === "administrador";
+    if (supabase && anterior?.user_id && updates?.cargo !== undefined && ehAdm(updates.cargo) !== ehAdm(anterior.cargo)) {
+      const { error: roleError } = await supabase.from("users")
+        .update({ role: updates.cargo || "Colaborador", is_tenant_admin: ehAdm(updates.cargo) })
+        .eq("id", anterior.user_id);
+      if (roleError) toast.error(`Cargo salvo, mas não foi possível atualizar o acesso de administrador: ${roleError.message}`);
+    }
     updateColaborador(id, updates);
     toast.success(`${updates.nome} atualizado com sucesso!`);
     if (tenantAccess) {

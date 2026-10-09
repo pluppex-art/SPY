@@ -4797,7 +4797,9 @@ app.post("/api/admin/team-user", requireUser, async (req: any, res) => {
       email: cleanEmail,
       role: typeof role === "string" && role.trim() ? role.trim() : "Colaborador",
       is_master: false,
-      is_tenant_admin: false,
+      // Quem tem o cargo "Administrador" administra a empresa (cadastra cargos e permissões).
+      // Quem chega aqui já é master/admin do tenant, então não há escalada de privilégio.
+      is_tenant_admin: typeof role === "string" && role.trim().toLowerCase() === "administrador",
       active: true,
     });
     if (profileError) {
