@@ -2440,6 +2440,8 @@ app.post("/api/v1/finance-entries", requireApiKey, async (req, res) => {
   const {
     externalId = "", description = "", value = 0, date = "",
     category = "", type = "Receber", status = "Pago",
+    counterparty, clientName, clientPhone, clientEmail, clientDocument,
+    paymentMethod, documentNumber, competenciaDate, tags, contaBancariaId,
   } = req.body;
 
   if (!externalId) { logApiKeyUsage(req, 400); return res.status(400).json({ error: "O campo 'externalId' é obrigatório." }); }
@@ -2452,6 +2454,10 @@ app.post("/api/v1/finance-entries", requireApiKey, async (req, res) => {
     : (value ?? 0);
   const id = `tnp_fat_${externalId}`;
 
+  const has = (v: unknown) => v !== undefined && v !== null && String(v).trim() !== "";
+  const todayStr = new Date().toISOString().split("T")[0];
+  const entryType = type === "Pagar" ? "Pagar" : "Receber";
+
   // Valor zero só faz sentido pra RETRATAR um lançamento que já existe (ex.: reserva paga que foi
   // cancelada/reembolsada depois). Se nunca houve lançamento, não cria uma linha de R$ 0 (ruído no financeiro).
   if (rawValue <= 0) {
@@ -2463,11 +2469,65 @@ app.post("/api/v1/finance-entries", requireApiKey, async (req, res) => {
     }
   }
 
-  const { error } = await supabaseService.from("finance_entries").upsert({
+  // Lançamento já existente (se houver): serve pra não sobrescrever campos que a requisição não enviou
+  // e pra só definir competencia_date padrão na criação.
+  const { data: atual } = await supabaseService.from("finance_entries").select("id, competencia_date")
+    .eq("tenant_id", tenantId).eq("id", id).limit(1).maybeSingle();
+
+  // Payload só com as chaves enviadas: o upsert (ON CONFLICT DO UPDATE) só altera as colunas presentes.
+  const payload: Record<string, any> = {
     id, tenant_id: tenantId, description, value: rawValue,
-    date: date || new Date().toISOString().split("T")[0],
+    date: date || todayStr,
     category, type, status,
-  }, { onConflict: "id" });
+  };
+  const optional = async () => {
+    // Categoria real (finance_categories): acha por tenant + nome (case-insensitive) + tipo, cria se não existir.
+    if (has(category)) {
+      const tipoCat = entryType === "Receber" ? "Receita" : "Despesa";
+      const nomeCat = String(category).trim();
+      const { data: cats } = await supabaseService!.from("finance_categories").select("id, nome")
+        .eq("tenant_id", tenantId).eq("tipo", tipoCat).ilike("nome", nomeCat.replace(/[\\%_]/g, "\\$&"));
+      let cat = (cats || []).find((c: any) => String(c.nome).trim().toLowerCase() === nomeCat.toLowerCase());
+      if (!cat) {
+        const { data: criada, error: catErr } = await supabaseService!.from("finance_categories")
+          .insert({ tenant_id: tenantId, nome: nomeCat, tipo: tipoCat, ...(entryType === "Pagar" ? { subtipo: "DESPESA_VARIAVEL" } : {}) })
+          .select("id").maybeSingle();
+        if (catErr) console.warn("[API v1] finance_categories insert:", catErr.message);
+        cat = criada as any;
+      }
+      if (cat?.id) payload.category_id = cat.id;
+    }
+
+    // Cliente cadastrado: documento, depois email, depois telefone (dígitos), por fim nome exato se for único.
+    const doc = has(clientDocument) ? String(clientDocument).trim() : "";
+    const mail = has(clientEmail) ? String(clientEmail).trim().toLowerCase() : "";
+    const fone = has(clientPhone) ? String(clientPhone).replace(/\D/g, "") : "";
+    const nomeCli = has(clientName) ? String(clientName).trim() : has(counterparty) ? String(counterparty).trim() : "";
+    let contatoId: string | null = null;
+    for (const [col, val] of [["documento", doc], ["email", mail], ["phone", fone]] as [string, string][]) {
+      if (contatoId || !val) continue;
+      const { data } = await supabaseService!.from("clientes").select("id").eq("tenant_id", tenantId).eq(col, val).limit(2);
+      if (data && data.length > 0) contatoId = data[0].id;
+    }
+    if (!contatoId && nomeCli) {
+      const { data } = await supabaseService!.from("clientes").select("id, name").eq("tenant_id", tenantId)
+        .ilike("name", nomeCli.replace(/[\\%_]/g, "\\$&")).limit(5);
+      const exatos = (data || []).filter((c: any) => String(c.name).trim().toLowerCase() === nomeCli.toLowerCase());
+      if (exatos.length === 1) contatoId = exatos[0].id;
+    }
+    if (contatoId) payload.contato_id = contatoId;
+  };
+  try { await optional(); } catch (e: any) { console.warn("[API v1] enriquecimento de finance_entry falhou:", e?.message); }
+
+  if (has(counterparty) || has(clientName)) payload.counterparty = String(has(counterparty) ? counterparty : clientName).trim();
+  if (has(paymentMethod)) payload.payment_method = String(paymentMethod).trim();
+  if (has(documentNumber)) payload.numero_documento = String(documentNumber).trim();
+  if (has(competenciaDate)) payload.competencia_date = String(competenciaDate).slice(0, 10);
+  else if (!atual?.competencia_date) payload.competencia_date = payload.date;
+  if (Array.isArray(tags)) payload.tags = tags.map((t: any) => String(t).trim()).filter(Boolean);
+  if (has(contaBancariaId)) payload.conta_bancaria_id = String(contaBancariaId);
+
+  const { error } = await supabaseService.from("finance_entries").upsert(payload, { onConflict: "id" });
 
   if (error) {
     console.error("[API v1] Erro ao criar finance_entry:", error.message);

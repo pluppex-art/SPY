@@ -70,7 +70,7 @@ interface ImportRow {
 }
 
 export default function FinanceiroImportarMovimentacoes() {
-  const { financeCategories, addFinanceCategory, financeBankAccounts, addFinanceBankAccount, financeCentrosCusto, addFinanceCentroCusto, addFinanceEntry } = useData();
+  const { financeCategories, addFinanceCategory, financeBankAccounts, addFinanceBankAccount, financeCentrosCusto, addFinanceCentroCusto, addFinanceEntry, clienteBase } = useData();
   const [step, setStep] = useState<1 | 2>(1);
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [fileName, setFileName] = useState("");
@@ -167,6 +167,27 @@ export default function FinanceiroImportarMovimentacoes() {
     const categoriasCache = new Map<string, string>((financeCategories as any[]).map(c => [`${c.tipo}::${c.nome.toLowerCase()}`, c.id]));
     const centrosCache = new Map<string, string>((financeCentrosCusto as any[]).map(c => [c.nome.toLowerCase(), c.id]));
 
+    // Liga o lançamento ao cliente cadastrado: pelo nome exato (case-insensitive) ou pelo documento quando
+    // o campo "Recebido de / Pago a" traz um CPF/CNPJ — só se houver exatamente um cadastro correspondente.
+    const soDigitos = (v: any) => String(v ?? "").replace(/\D/g, "");
+    const porNome = new Map<string, string[]>();
+    const porDoc = new Map<string, string[]>();
+    for (const c of (clienteBase || []) as any[]) {
+      const n = String(c.name || "").trim().toLowerCase();
+      if (n) porNome.set(n, [...(porNome.get(n) || []), c.id]);
+      const d = soDigitos(c.documento);
+      if (d.length >= 11) porDoc.set(d, [...(porDoc.get(d) || []), c.id]);
+    }
+    const resolverContato = (contato: string | null | undefined): string | null => {
+      const t = String(contato || "").trim();
+      if (!t) return null;
+      const d = soDigitos(t);
+      const idsDoc = d.length >= 11 ? porDoc.get(d) : undefined;
+      if (idsDoc?.length === 1) return idsDoc[0];
+      const ids = porNome.get(t.toLowerCase());
+      return ids?.length === 1 ? ids[0] : null;
+    };
+
     let ok = 0, falhas = 0;
     for (const r of validas) {
       try {
@@ -208,6 +229,7 @@ export default function FinanceiroImportarMovimentacoes() {
           conta_bancaria_id: contaId || null,
           centro_custo_id: centroCustoId,
           counterparty: r.contato,
+          contato_id: resolverContato(r.contato),
           notes: [r.detalhes, r.numeroDocumento ? `Doc: ${r.numeroDocumento}` : null].filter(Boolean).join(" — ") || null,
           numero_documento: r.numeroDocumento,
           payment_method: r.formaPagamento,

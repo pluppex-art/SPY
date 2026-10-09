@@ -38,6 +38,16 @@ import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 type RepeatMode = "none" | "recorrente" | "parcelado";
 
+// Converte "dd/mm/aaaa" ou "aaaa-mm-dd" (ou Date) em "aaaa-mm-dd" (coluna competencia_date é do tipo date).
+const toIsoDate = (v: unknown): string | null => {
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`;
+  const t = String(v ?? "").trim();
+  const br = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(t);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const iso = /^(\d{4}-\d{2}-\d{2})/.exec(t);
+  return iso ? iso[1] : null;
+};
+
 const PAYMENT_METHODS = ["Pix", "Boleto", "Cartão de Crédito", "Cartão de Débito", "Transferência/TED", "Dinheiro", "Cheque", "Outro"];
 
 
@@ -286,7 +296,15 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         status: d.pago ? "Pago" : "A Vencer",
         type,
         division_group_id: groupId,
-      }, { silent: i > 0 });
+        // Mantém o que o lançamento original já tinha (o rateio só divide valor/categoria/cliente).
+        conta_bancaria_id: (editingItem as any).conta_bancaria_id || null,
+        centro_custo_id: (editingItem as any).centro_custo_id || null,
+        tags: Array.isArray((editingItem as any).tags) ? (editingItem as any).tags : [],
+        payment_method: editingItem.payment_method || null,
+        notes: editingItem.notes || null,
+        numero_documento: (editingItem as any).numero_documento || null,
+        competencia_date: (editingItem as any).competencia_date || toIsoDate(d.date) || toIsoDate(editingItem.date),
+      } as any, { silent: i > 0 });
     }));
     await deleteFinanceEntry(parentId);
     setEditingItem(null);
@@ -422,6 +440,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
           ...baseFields,
           value: totalValor,
           date: dataOcorrencia.toLocaleDateString("pt-BR"),
+          competencia_date: toIsoDate(dataOcorrencia),
           is_recurring: true,
           recurring_frequency: newFrequency,
           recurring_group_id: groupId,
@@ -441,6 +460,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
           ...baseFields,
           value: valorParcela,
           date: dataParcela.toLocaleDateString("pt-BR"),
+          competencia_date: toIsoDate(dataParcela),
           installment_group_id: groupId,
           installment_number: i + 1,
           installment_total: numParcelas,
@@ -454,6 +474,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
         status: filtroStatus === "Pago" ? "Pago" : (defaultStatus ?? baseFields.status),
         value: totalValor,
         date: baseDate.toLocaleDateString("pt-BR"),
+        competencia_date: toIsoDate(baseDate),
       });
     }
 
@@ -496,6 +517,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       counterparty: item.counterparty || null,
       contato_id: (item as any).contato_id || null,
       payment_method: item.payment_method || null,
+      numero_documento: (item as any).numero_documento || null,
+      competencia_date: (item as any).competencia_date || toIsoDate(item.date),
       value: item.value,
       date: item.date,
       status: "A Vencer",
@@ -555,6 +578,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       numero_documento: editNumeroDocumento || null,
       value: parseFloat(editValue) || 0,
       date: editDate.trim() || editingItem.date,
+      // Só preenche a competência quando ainda não existe — nunca sobrescreve uma competência definida.
+      ...((editingItem as any).competencia_date ? {} : { competencia_date: toIsoDate(editDate) || toIsoDate(editingItem.date) }),
       status: editStatus,
       is_recurring: editIsRecurring,
       recurring_frequency: editIsRecurring ? editFrequency : null,

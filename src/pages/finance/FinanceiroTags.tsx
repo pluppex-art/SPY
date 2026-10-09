@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Tag, Plus, Eye, Edit2, Trash2, CheckCircle2, Layers, Download, FileText, Palette } from "lucide-react";
+import { Tag, Plus, Sparkles, Eye, Edit2, Trash2, CheckCircle2, Layers, Download, FileText, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -12,14 +12,14 @@ import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { ViewModal } from "./components/ViewModal";
 import { Field, FormSection, ModalFooter, ModalTitle, inputCls, textareaCls } from "./components/ModalKit";
 import { useRowOpen } from "./components/useRowOpen";
-import { useFinanceTags, fetchFinanceTagUsage, DEFAULT_TAG_COLOR, type FinanceTag } from "./hooks/useFinanceTags";
+import { useFinanceTags, fetchFinanceTagUsage, DEFAULT_TAG_COLOR, MAIN_FINANCE_TAGS, type FinanceTag } from "./hooks/useFinanceTags";
 
 const PALETTE = ["#6366f1", "#3b82f6", "#06b6d4", "#10b981", "#84cc16", "#eab308", "#f97316", "#ef4444", "#ec4899", "#a855f7", "#64748b", "#78350f"];
 const norm = (s: string) => s.trim().toLowerCase();
 
 export default function FinanceiroTags() {
   const { activeTenantId: tenantId, activeFilialId } = useAuth();
-  const { tags, loading, addTag, updateTag, removeTag, reload } = useFinanceTags();
+  const { tags, loading, addTag, createMainTags, updateTag, removeTag, reload } = useFinanceTags();
 
   const [usage, setUsage] = useState<{ counts: Record<string, number>; names: Record<string, string> } | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
@@ -31,6 +31,7 @@ export default function FinanceiroTags() {
   const [viewing, setViewing] = useState<FinanceTag | null>(null);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [creatingMain, setCreatingMain] = useState(false);
   const [tentou, setTentou] = useState(false);
 
   const [nome, setNome] = useState("");
@@ -135,6 +136,22 @@ export default function FinanceiroTags() {
     }
   };
 
+  const mainFaltantes = useMemo(() => {
+    const have = new Set(tags.map(t => norm(t.nome)));
+    return MAIN_FINANCE_TAGS.filter(t => !have.has(norm(t.nome))).length;
+  }, [tags]);
+
+  const handleCreateMain = async () => {
+    setCreatingMain(true);
+    try {
+      const n = await createMainTags();
+      if (n > 0) { toast.success(`${n} tag(s) principal(is) criada(s).`); loadUsage(); }
+      else if (mainFaltantes === 0) toast.info("As tags principais já estão cadastradas.");
+    } finally {
+      setCreatingMain(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = norm(search);
     return tags.filter(t => {
@@ -177,6 +194,11 @@ export default function FinanceiroTags() {
           <Button onClick={handleImport} disabled={importing || usageLoading || naoCadastradas.length === 0} variant="outline" className="h-9 px-3.5 text-xs font-bold gap-1.5 border-[var(--color-border-default)]"
             title={naoCadastradas.length === 0 ? "Nenhuma tag usada fora do cadastro" : `${naoCadastradas.length} tag(s) usada(s) nos lançamentos e ainda não cadastrada(s)`}>
             <Layers className="w-3.5 h-3.5" /> {importing ? "Importando..." : `Importar tags já usadas${naoCadastradas.length ? ` (${naoCadastradas.length})` : ""}`}
+          </Button>
+          <Button onClick={handleCreateMain} disabled={creatingMain || loading || mainFaltantes === 0}
+            variant="outline" className="h-9 px-3.5 text-xs font-bold gap-1.5 border-[var(--color-border-default)]"
+            title={mainFaltantes === 0 ? "Todas as tags principais já existem" : `Cria ${mainFaltantes} tag(s) principal(is) que ainda não existem`}>
+            <Sparkles className="w-3.5 h-3.5" /> {creatingMain ? "Criando..." : "Criar tags principais"}
           </Button>
           <Button onClick={handleOpenNew} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs bg-[var(--color-primary-blue)] text-white hover:opacity-95">
             <Plus className="w-3.5 h-3.5" /> Nova Tag
@@ -238,7 +260,14 @@ export default function FinanceiroTags() {
         </div>
         {filtered.length === 0 && (
           <div className="p-12 text-center text-xs text-[var(--color-text-muted)]">
-            {loading ? "Carregando tags..." : tags.length === 0 ? "Nenhuma tag cadastrada. Crie uma ou importe as já usadas nos lançamentos." : "Nenhuma tag encontrada com esses filtros."}
+            {loading ? "Carregando tags..." : tags.length === 0 ? (
+              <div className="flex flex-col items-center gap-3">
+                <span>Nenhuma tag cadastrada. Comece pelas tags principais, crie uma nova ou importe as já usadas nos lançamentos.</span>
+                <Button onClick={handleCreateMain} disabled={creatingMain} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs bg-[var(--color-primary-blue)] text-white hover:opacity-95">
+                  <Sparkles className="w-3.5 h-3.5" /> {creatingMain ? "Criando..." : "Criar tags principais"}
+                </Button>
+              </div>
+            ) : "Nenhuma tag encontrada com esses filtros."}
           </div>
         )}
       </div>

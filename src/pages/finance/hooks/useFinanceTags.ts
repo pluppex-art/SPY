@@ -24,6 +24,20 @@ export interface NewFinanceTag {
 export type FinanceTagPatch = Partial<Pick<FinanceTag, "nome" | "cor" | "descricao" | "ativo">>;
 
 export const DEFAULT_TAG_COLOR = "#6366f1";
+
+/** Tags principais sugeridas para o Financeiro. */
+export const MAIN_FINANCE_TAGS: { nome: string; cor: string; descricao: string }[] = [
+  { nome: "Recorrente", cor: "#6366f1", descricao: "Lançamento que se repete (mensalidade, assinatura, contrato)." },
+  { nome: "Parcelado", cor: "#0ea5e9", descricao: "Lançamento dividido em parcelas." },
+  { nome: "Proposta", cor: "#8b5cf6", descricao: "Gerado a partir de uma proposta aceita." },
+  { nome: "Contrato", cor: "#14b8a6", descricao: "Vinculado a um contrato." },
+  { nome: "Imposto", cor: "#ef4444", descricao: "Tributos e taxas." },
+  { nome: "Fornecedor", cor: "#f59e0b", descricao: "Pagamento a fornecedor." },
+  { nome: "Comissão", cor: "#ec4899", descricao: "Comissões de vendas e indicações." },
+  { nome: "Reembolso", cor: "#64748b", descricao: "Devoluções e reembolsos." },
+  { nome: "Urgente", cor: "#dc2626", descricao: "Exige atenção imediata." },
+  { nome: "Pessoal", cor: "#a855f7", descricao: "Retiradas e despesas pessoais dos sócios." },
+];
 const PAGE = 1000;
 
 const norm = (s: string) => s.trim().toLowerCase();
@@ -128,6 +142,19 @@ export function useFinanceTags() {
     return created;
   }, [tenantId, tags]);
 
+  /** Cria as tags principais que ainda não existem (case-insensitive) no tenant atual. Retorna quantas foram criadas. */
+  const createMainTags = useCallback(async (): Promise<number> => {
+    if (!tenantId) return 0;
+    const have = new Set(tags.map(t => norm(t.nome)));
+    const rows = MAIN_FINANCE_TAGS.filter(t => !have.has(norm(t.nome))).map(t => ({ tenant_id: tenantId, ...t, ativo: true }));
+    if (rows.length === 0) return 0;
+    const { data, error } = await supabase.from("finance_tags").insert(rows).select();
+    if (error) { toast.error(`Erro ao criar as tags principais: ${error.message}`); return 0; }
+    const created = (data as FinanceTag[]) || [];
+    setTags(prev => [...prev, ...created].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
+    return created.length;
+  }, [tenantId, tags]);
+
   const updateTag = useCallback(async (id: string, patch: FinanceTagPatch): Promise<boolean> => {
     const next: Record<string, unknown> = { ...patch, updated_at: new Date().toISOString() };
     if (patch.nome !== undefined) {
@@ -156,5 +183,5 @@ export function useFinanceTags() {
     return true;
   }, []);
 
-  return { tags, loading, addTag, updateTag, removeTag, reload };
+  return { tags, loading, addTag, createMainTags, updateTag, removeTag, reload };
 }

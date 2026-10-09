@@ -3116,7 +3116,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const contratoCategoryId = await resolveFinanceCategoryId("Contrato / Recorrente", "Receita");
     const implantacaoCategoryId = await resolveFinanceCategoryId("Implantação / Setup", "Receita");
     const leadForContato = prop.lead_id ? (leads || []).find((l: any) => l.id === prop.lead_id) : null;
-    const contatoId = leadForContato?.clientId || null;
+    // Fallback: sem cliente no lead, só liga por nome EXATO (sem inventar) e apenas se for único em clienteBase.
+    let contatoId = leadForContato?.clientId || null;
+    if (!contatoId && prop.cliente) {
+      const nomesIguais = (clienteBase || []).filter((c: any) => norm(c.name) === norm(prop.cliente));
+      if (nomesIguais.length === 1) contatoId = nomesIguais[0].id;
+    }
+    // Dados reais da proposta repassados ao lançamento (sem inventar nada: o que não existe fica de fora).
+    const pagamentoProp = (prop.pagamento || {}) as Record<string, any>;
+    const metodoPagamento = (Array.isArray(pagamentoProp.metodos) && pagamentoProp.metodos[0]) || null;
+    const obsPagamento = pagamentoProp.observacoes || null;
+    const dataLancamento = new Date().toISOString().slice(0, 10);
+    const camposComuns = {
+      counterparty: prop.cliente || null,
+      ...(metodoPagamento ? { payment_method: metodoPagamento } : {}),
+      ...(obsPagamento ? { notes: obsPagamento } : {}),
+      competencia_date: dataLancamento,
+    };
 
     addContract({
       client: prop.cliente || "Cliente",
@@ -3138,7 +3154,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       contato_id: contatoId,
       value: recurringTotalFinal,
       type: "Receber",
-      date: new Date().toISOString().slice(0, 10),
+      date: dataLancamento,
       status: "A Vencer",
       // Vincula à proposta que gerou esta cobrança — sem isso, excluir a
       // proposta não tinha como encontrar (e limpar) este lançamento.
@@ -3146,6 +3162,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }, { silent });
 
     // Implantação/setup é receita única — lançamento à parte, não recorrente,
+      ...camposComuns,
+      tags: ['Proposta', 'Recorrente'],
     // pra não poluir relatórios de MRR/receita recorrente com valor avulso.
     if (oneTimeTotalFinal > 0) {
       addFinanceEntry({
@@ -3155,7 +3173,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         contato_id: contatoId,
         value: oneTimeTotalFinal,
         type: "Receber",
-        date: new Date().toISOString().slice(0, 10),
+        date: dataLancamento,
         status: "A Vencer",
         proposal_id: prop.id,
       }, { silent });
@@ -3163,6 +3181,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (!silent) toast.success("🎉 Proposta Aceita! Contrato ativado e fatura a receber gerada no financeiro!");
     return true;
+        ...camposComuns,
+        tags: ['Proposta'],
   };
 
   // Reconciliação: propostas "Aceita" sem contrato correspondente (aceitas

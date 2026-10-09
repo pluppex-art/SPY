@@ -130,6 +130,10 @@ export default function OrdemServicoDetalhe() {
         date: os.data_prevista || new Date().toISOString().slice(0, 10),
         payment_method: os.forma_pagamento || null,
         notes: os.condicoes_pagamento || null,
+        counterparty: os.cliente_nome || null,
+        contato_id: os.campos?.cliente_id || null,
+        numero_documento: osCode(os.numero),
+        competencia_date: os.data_prevista || new Date().toISOString().slice(0, 10),
       } as any);
     }
     toast.success(novo === "Faturada" ? "Cobrança gerada no Financeiro." : `Status: ${novo}`);
