@@ -125,8 +125,8 @@ function MaxDataConnectionModal({
           automaticamente. Nesta etapa o SPY só LÊ dados do Max (entradas de nota fiscal); enviar vendas ou emitir
           NF-e não está ligado.
         </Alert>
-        <FormField label="URL base da API" required hint="Endereço da MaxAPI deste cliente — pedir à Max Data (a documentação não traz)">
-          <Input type="text" value={config.apiUrl} onChange={(e) => setConfig((p) => ({ ...p, apiUrl: e.target.value }))} placeholder="https://" />
+        <FormField label="URL base da API (opcional)" hint="Em branco usa o endereço padrão da MaxAPI. Só preencha se a Max Data informar outro (não é o link da documentação)">
+          <Input type="text" value={config.apiUrl} onChange={(e) => setConfig((p) => ({ ...p, apiUrl: e.target.value }))} placeholder="https://api.maxdata.com.br/v2" />
         </FormField>
         <FormField label="Nome da aplicação (application_name)" required>
           <Input type="text" value={config.clientId} onChange={(e) => setConfig((p) => ({ ...p, clientId: e.target.value }))} />
@@ -566,8 +566,8 @@ export function ConfigIntegracoesApps() {
     label: string
   ) => {
     const next = !cfg.connected;
-    if (next && (!cfg.apiUrl.trim() || !cfg.apiKey.trim() || !cfg.clientId.trim() || !cfg.applicationDescription.trim() || !cfg.terminal.trim() || !cfg.empId.trim())) {
-      toast.error("Preencha URL, nome/chave/descrição da aplicação, terminal e empresa antes de marcar como conectada.");
+    if (next && (!cfg.apiKey.trim() || !cfg.clientId.trim() || !cfg.applicationDescription.trim() || !cfg.terminal.trim() || !cfg.empId.trim())) {
+      toast.error("Preencha nome/chave/descrição da aplicação, terminal e empresa antes de marcar como conectada.");
       setSelectedConfigModal(modalId);
       return;
     }
@@ -874,8 +874,8 @@ export function ConfigIntegracoesApps() {
         description:
           "API que recebe e valida as notas fiscais de entrada. A conexão fica pronta aqui (URL, chave e ID da base); o envio das notas ainda não está ligado — entra quando a API for mapeada.",
         connected: maxdataConfig.connected,
-        statusText: maxdataConfig.connected ? "Conectado" : maxdataConfig.apiUrl ? "Credenciais Preenchidas" : "Não Conectado",
-        statusVariant: (maxdataConfig.connected ? "success" : maxdataConfig.apiUrl ? "info" : "neutral") as any,
+        statusText: maxdataConfig.connected ? "Conectado" : maxdataConfig.apiKey ? "Credenciais Preenchidas" : "Não Conectado",
+        statusVariant: (maxdataConfig.connected ? "success" : maxdataConfig.apiKey ? "info" : "neutral") as any,
         badgeText: maxdataConfig.connected ? maxdataConfig.environment.toUpperCase() : "Disponível",
         highlightInfo: maxdataConfig.clientId ? `Base: ${maxdataConfig.clientId}` : "Requer URL, chave e ID da base",
         onConfigure: () => setSelectedConfigModal("maxdata"),
@@ -890,8 +890,8 @@ export function ConfigIntegracoesApps() {
         description:
           "API de estoque: recebe a entrada dos produtos depois que a nota é validada. A conexão fica pronta aqui; a sincronização de estoque ainda não está ligada — entra quando a API for mapeada.",
         connected: maxdataEstoqueConfig.connected,
-        statusText: maxdataEstoqueConfig.connected ? "Conectado" : maxdataEstoqueConfig.apiUrl ? "Credenciais Preenchidas" : "Não Conectado",
-        statusVariant: (maxdataEstoqueConfig.connected ? "success" : maxdataEstoqueConfig.apiUrl ? "info" : "neutral") as any,
+        statusText: maxdataEstoqueConfig.connected ? "Conectado" : maxdataEstoqueConfig.apiKey ? "Credenciais Preenchidas" : "Não Conectado",
+        statusVariant: (maxdataEstoqueConfig.connected ? "success" : maxdataEstoqueConfig.apiKey ? "info" : "neutral") as any,
         badgeText: maxdataEstoqueConfig.connected ? maxdataEstoqueConfig.environment.toUpperCase() : "Disponível",
         highlightInfo: maxdataEstoqueConfig.clientId ? `Base: ${maxdataEstoqueConfig.clientId}` : "Requer URL, chave e ID da base",
         onConfigure: () => setSelectedConfigModal("maxdata-estoque"),
