@@ -7,7 +7,7 @@ import { useRHColaboradores } from "./hooks/useRHColaboradores";
 import { SquadsTabContent } from "./components/Squads/SquadsTabContent";
 import { NovoMembroModal } from "../../components/ui/modals/hr/NovoMembroModal";
 import { EditarColabModal } from "../../components/ui/modals/hr/EditarColabModal";
-import { supabase, createUserWithProfile, setUserPartnerTenantAccess } from "../../lib/supabase";
+import { supabase, createUserWithProfile, setUserPartnerTenantAccess, requestPasswordReset } from "../../lib/supabase";
 import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../contexts/AuthContext";
@@ -108,7 +108,11 @@ export default function RHColaboradores() {
       filial_id: data.filialId || null,
     });
     toast.success(`${data.nome} adicionado à equipe com sucesso!`);
-    if (userId) {
+    if (userId && data.modoAcesso === "convite") {
+      const sent = await requestPasswordReset(data.email);
+      if (sent.success) toast.info(`Convite enviado para ${data.email}`, { description: "O colaborador define a própria senha pelo link recebido por e-mail." });
+      else toast.error(`Colaborador criado, mas o convite não foi enviado: ${sent.error}`);
+    } else if (userId) {
       toast.info(`Senha de acesso de ${data.nome}: ${data.senha}`, {
         description: "Compartilhe com o colaborador por um canal seguro — essa senha não fica salva em nenhum outro lugar.",
         duration: 20000,

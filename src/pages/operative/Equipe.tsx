@@ -93,7 +93,7 @@ export default function Equipe() {
         )}
       </main>
 
-      <NovoMembroModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveMember} initialValue={null} />
+      <NovoMembroModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveMember} initialValue={null} showAccess={false} />
       <EditarMembroModal isOpen={editingMember !== null} onClose={() => setEditingMember(null)} onSave={handleEditMember} member={editingMember} squads={squads} />
     </div>
   );
