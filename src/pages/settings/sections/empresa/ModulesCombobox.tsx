@@ -13,14 +13,22 @@ export const ALL_MODULES: { id: string; label: string; desc: string }[] = [
   { id: "produtividade",label: "Tarefas & Kanban",       desc: "Afazeres e produtividade" },
   { id: "catalogo",     label: "Catálogo de Produtos",   desc: "Estoque, SKUs e iPhones" },
   { id: "dev",          label: "Dev & Tecnologia",       desc: "Projetos, sprints e repositórios" },
+  // Módulos de nicho (só aparecem para empresas que os têm ativos — ver PermissaoModal).
+  { id: "imobiliaria",  label: "Imobiliária",            desc: "Imóveis, visitas, corretores e propostas" },
+  { id: "automotivo",   label: "Concessionária & Automotivo", desc: "Estoque de veículos, trocas e consignações" },
+  { id: "solar",        label: "Energia Solar",          desc: "Dimensionamento e funil fotovoltaico" },
+  { id: "varejo",       label: "Varejo & PDV",           desc: "Frente de caixa, estoque, compras e fornecedores" },
+  { id: "aurora",       label: "Aurora (IA)",            desc: "Assistente executiva com inteligência" },
 ];
 
 interface ModulesComboboxProps {
   selected: string[];
   onChange: (v: string[]) => void;
+  /** Lista exibida (padrão: todos os módulos). Usada para mostrar só os módulos da empresa. */
+  options?: { id: string; label: string; desc: string }[];
 }
 
-export function ModulesCombobox({ selected, onChange }: ModulesComboboxProps) {
+export function ModulesCombobox({ selected, onChange, options = ALL_MODULES }: ModulesComboboxProps) {
   const [open, setOpen] = useState(false);
   const toggle = (id: string) =>
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
@@ -28,7 +36,7 @@ export function ModulesCombobox({ selected, onChange }: ModulesComboboxProps) {
   const displayText =
     selected.length === 0
       ? "Selecione os módulos..."
-      : selected.length === ALL_MODULES.length
+      : (selected.length === options.length && options.length > 0)
       ? "Todos os módulos"
       : `${selected.length} módulo${selected.length !== 1 ? "s" : ""} selecionado${selected.length !== 1 ? "s" : ""}`;
 
@@ -45,12 +53,12 @@ export function ModulesCombobox({ selected, onChange }: ModulesComboboxProps) {
       {open && (
         <div className="absolute z-50 mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-border-subtle)]">
-            <button type="button" onClick={() => onChange(ALL_MODULES.map((m) => m.id))} className="text-[10px] font-black uppercase tracking-widest text-[var(--color-primary-blue)] hover:opacity-80 transition-colors">Todos</button>
+            <button type="button" onClick={() => onChange(options.map((m) => m.id))} className="text-[10px] font-black uppercase tracking-widest text-[var(--color-primary-blue)] hover:opacity-80 transition-colors">Todos</button>
             <span className="text-[var(--color-text-faint)]">·</span>
             <button type="button" onClick={() => onChange([])} className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] transition-colors">Limpar</button>
           </div>
           <div className="max-h-56 overflow-y-auto">
-            {ALL_MODULES.map((mod) => {
+            {options.map((mod) => {
               const checked = selected.includes(mod.id);
               return (
                 <button

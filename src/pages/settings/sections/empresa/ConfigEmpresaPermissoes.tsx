@@ -5,6 +5,7 @@ import { Plus, ShieldCheck, Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { useData } from "../../../../contexts/DataContext";
 import { toast } from "sonner";
 import { PermissaoModal } from "./PermissaoModal";
+import { ALL_MODULES } from "./ModulesCombobox";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 
 const MODULE_LABELS: Record<string, string> = {
@@ -99,7 +100,7 @@ export function ConfigEmpresaPermissoes() {
                     {modulos.map((mod) => (
                       <span key={mod} className="text-[10px] font-bold px-2 py-0.5 rounded bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border border-[var(--color-primary-blue)]/20 flex items-center gap-1">
                         <CheckCircle2 className="w-2.5 h-2.5" />
-                        {MODULE_LABELS[mod] || mod}
+                        {MODULE_LABELS[mod] || ALL_MODULES.find((m) => m.id === mod)?.label || mod}
                       </span>
                     ))}
                   </div>
