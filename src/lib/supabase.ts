@@ -273,35 +273,33 @@ export async function createUserWithProfile(params: {
     return { success: false, error: 'Não foi possível conectar ao servidor.' };
   }
 
-  const isolatedClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
+  // O login é criado no servidor (Admin API, e-mail já confirmado) — o signUp público exige
+  // confirmação por e-mail e o colaborador criado pelo admin não conseguia entrar.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) return { success: false, error: 'Sessão expirada. Entre novamente.' };
 
-  const { data: authData, error: authError } = await isolatedClient.auth.signUp({
-    email: params.email,
-    password: params.password,
-  });
-
-  if (authError || !authData.user) {
-    return { success: false, error: authError?.message || 'Erro ao criar conta de acesso.' };
+  let res: Response;
+  try {
+    res = await fetch('/api/admin/team-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        email: params.email,
+        password: params.password,
+        name: params.name,
+        role: params.role,
+        targetTenantId: params.tenantId,
+      }),
+    });
+  } catch {
+    return { success: false, error: 'Não foi possível conectar ao servidor.' };
   }
-
-  const { error: profileError } = await supabase.from('users').insert({
-    id: authData.user.id,
-    tenant_id: params.tenantId,
-    name: params.name,
-    email: params.email,
-    role: params.role,
-    is_master: params.isMaster ?? false,
-    is_tenant_admin: params.isTenantAdmin ?? false,
-    active: true,
-  });
-
-  if (profileError) {
-    return { success: false, error: profileError.message };
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body?.userId) {
+    return { success: false, error: body?.error || 'Erro ao criar conta de acesso.' };
   }
-
-  return { success: true, userId: authData.user.id, needsEmailConfirmation: !authData.session };
+  return { success: true, userId: body.userId, needsEmailConfirmation: false };
 }
 
 /**

@@ -4741,6 +4741,77 @@ app.get("/api/admin/permission-check-log", requireUser, requireMaster, async (re
   res.json(data || []);
 });
 
+/**
+ * Cria o login de um membro da equipe (RH → Novo Colaborador) pela Admin API, já com o e-mail
+ * confirmado: o cadastro público (auth.signUp) exige confirmação por e-mail, então a pessoa criada
+ * pelo admin ficava sem conseguir entrar ("Email not confirmed") e uma segunda tentativa chegava a
+ * dar 500 por e-mail duplicado em users. Só master ou admin do tenant; o tenant vem do chamador
+ * (master pode indicar outro tenant), nunca flags de privilégio vindas do corpo.
+ */
+app.post("/api/admin/team-user", requireUser, async (req: any, res) => {
+  if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
+  const { email, password, name, role, targetTenantId } = req.body ?? {};
+  const cleanEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) return res.status(400).json({ error: "Informe um e-mail válido." });
+  if (typeof password !== "string" || password.length < 8) return res.status(400).json({ error: "A senha precisa ter pelo menos 8 caracteres." });
+  if (typeof name !== "string" || !name.trim()) return res.status(400).json({ error: "Informe o nome." });
+
+  const { data: caller } = await req.supabase.from("users").select("is_master, is_tenant_admin, tenant_id").eq("id", req.user.id).maybeSingle();
+  if (!caller || (!caller.is_master && !caller.is_tenant_admin)) {
+    return res.status(403).json({ error: "Você não tem permissão para criar novos usuários." });
+  }
+  const tenantId = caller.is_master && typeof targetTenantId === "string" && targetTenantId ? targetTenantId : caller.tenant_id;
+
+  try {
+    const { data: existingProfile } = await supabaseService.from("users").select("id").ilike("email", cleanEmail).maybeSingle();
+    if (existingProfile) return res.status(409).json({ error: "Este e-mail já está cadastrado no sistema." });
+
+    let userId: string | null = null;
+    let createdNow = false;
+    const { data: authData, error: authError } = await supabaseService.auth.admin.createUser({ email: cleanEmail, password, email_confirm: true });
+    if (authData?.user) {
+      userId = authData.user.id;
+      createdNow = true;
+    } else {
+      // Sobra de uma tentativa anterior que criou o login mas não chegou a criar o perfil: reaproveita.
+      let orphanId: string | null = null;
+      for (let page = 1; page <= 20 && !orphanId; page++) {
+        const { data: list } = await supabaseService.auth.admin.listUsers({ page, perPage: 1000 });
+        const found = list?.users?.find((u: any) => (u.email || "").toLowerCase() === cleanEmail);
+        if (found) orphanId = found.id;
+        if (!list?.users || list.users.length < 1000) break;
+      }
+      if (!orphanId) {
+        console.error("[team-user] Falha ao criar login:", authError?.message);
+        return res.status(500).json({ error: "Erro ao criar a conta de acesso." });
+      }
+      const { error: updError } = await supabaseService.auth.admin.updateUserById(orphanId, { password, email_confirm: true });
+      if (updError) return res.status(500).json({ error: "Erro ao reativar a conta de acesso." });
+      userId = orphanId;
+    }
+
+    const { error: profileError } = await supabaseService.from("users").insert({
+      id: userId,
+      tenant_id: tenantId,
+      name: name.trim(),
+      email: cleanEmail,
+      role: typeof role === "string" && role.trim() ? role.trim() : "Colaborador",
+      is_master: false,
+      is_tenant_admin: false,
+      active: true,
+    });
+    if (profileError) {
+      console.error("[team-user] Falha ao criar perfil:", profileError.message);
+      if (createdNow && userId) await supabaseService.auth.admin.deleteUser(userId);
+      return res.status(500).json({ error: "Erro ao criar o perfil do usuário." });
+    }
+    return res.status(201).json({ success: true, userId });
+  } catch (err: any) {
+    console.error("[team-user]", err?.message);
+    return res.status(500).json({ error: "Erro ao criar o usuário." });
+  }
+});
+
 app.get("/api/admin/tenant-admin-user/:tenantId", requireUser, requireMaster, async (req: any, res) => {
   try {
     if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });

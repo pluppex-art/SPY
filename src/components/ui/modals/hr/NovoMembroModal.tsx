@@ -23,7 +23,7 @@ export type NovoMembroPayload = {
 type NovoMembroModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (payload: NovoMembroPayload) => void;
+  onSave: (payload: NovoMembroPayload) => void | Promise<void>;
   title?: string;
   submitText?: string;
   initialValue?: Partial<NovoMembroPayload> | null;
@@ -103,14 +103,14 @@ export function NovoMembroModal({
   const temErro = Object.values(erros).some(Boolean);
   const canSubmit = !loading;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTentou(true);
     if (!canSubmit || temErro) return;
 
     setLoading(true);
     try {
-      onSave({
+      await onSave({
         nome: nome.trim(),
         email: email.trim(),
         phone: phone.trim(),

@@ -76,6 +76,9 @@ export default function RHColaboradores() {
         });
         if (created?.success) {
           userId = created.userId ?? null;
+        } else if (created) {
+          toast.error(`Não foi possível criar o acesso de ${data.nome}: ${created.error || "erro desconhecido."}`);
+          return;
         }
 
         // Só chega aqui marcado se o modal mostrou a opção (canGrantTenantAccess=master) —
