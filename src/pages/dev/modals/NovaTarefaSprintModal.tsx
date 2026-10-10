@@ -3,6 +3,7 @@ import { Kanban } from "lucide-react";
 import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
 import { useData } from "../../../contexts/DataContext";
+import { useDevConfig, pick, DEV_TIPOS_TAREFA, DEV_PRIORIDADES, DEV_COLUNAS_TAREFA } from "../../../lib/modules/devConfig";
 
 export type TarefaSprintPayload = {
   title: string;
@@ -39,20 +40,26 @@ const COLUMNS = ["Backlog", "A Fazer", "Em Progresso", "Em Review", "Concluído"
 const label = "text-[10px] font-bold text-slate-400 uppercase tracking-wider";
 const input = "w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all placeholder-slate-600";
 
-export function NovaTarefaSprintModal({ isOpen, onClose, onSave, defaultColumn = "Backlog" }: Props) {
+export function NovaTarefaSprintModal({ isOpen, onClose, onSave, defaultColumn }: Props) {
+  const { sprint: cfg } = useDevConfig();
+  const tipoPadrao = pick(cfg.tipoPadrao, DEV_TIPOS_TAREFA, "feature") as TarefaSprintPayload["type"];
+  const prioPadrao = pick(cfg.prioridadePadrao, DEV_PRIORIDADES, "média") as TarefaSprintPayload["priority"];
+  const colPadrao = defaultColumn ?? pick(cfg.colunaPadrao, DEV_COLUNAS_TAREFA, "Backlog");
+  const pontosMax = Math.max(1, Number(cfg.pontosMaximo) || 21);
+  const pontosPadrao = Math.min(pontosMax, Math.max(1, Number(cfg.pontosPadrao) || 1));
   const { colaboradores } = useData();
   const [title, setTitle] = useState("");
-  const [type, setType] = useState<TarefaSprintPayload["type"]>("feature");
-  const [priority, setPriority] = useState<TarefaSprintPayload["priority"]>("média");
-  const [points, setPoints] = useState(1);
+  const [type, setType] = useState<TarefaSprintPayload["type"]>(tipoPadrao);
+  const [priority, setPriority] = useState<TarefaSprintPayload["priority"]>(prioPadrao);
+  const [points, setPoints] = useState(pontosPadrao);
   const [assignee, setAssignee] = useState("");
-  const [column, setColumn] = useState(defaultColumn);
+  const [column, setColumn] = useState(colPadrao);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    setTitle(""); setType("feature"); setPriority("média"); setPoints(1); setAssignee(""); setColumn(defaultColumn); setLoading(false);
-  }, [isOpen, defaultColumn]);
+    setTitle(""); setType(tipoPadrao); setPriority(prioPadrao); setPoints(pontosPadrao); setAssignee(""); setColumn(colPadrao); setLoading(false);
+  }, [isOpen, colPadrao, tipoPadrao, prioPadrao, pontosPadrao]);
 
   const canSubmit = useMemo(() => !loading && Boolean(title.trim()), [loading, title]);
 
@@ -130,7 +137,7 @@ export function NovaTarefaSprintModal({ isOpen, onClose, onSave, defaultColumn =
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className={label}>Story Points</label>
-            <input type="number" min={1} max={21} value={points} onChange={e => setPoints(Number(e.target.value))} className={input} />
+            <input type="number" min={1} max={pontosMax} value={points} onChange={e => setPoints(Number(e.target.value))} className={input} />
           </div>
           <div className="space-y-2">
             <label className={label}>Coluna Destino</label>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { GitBranch } from "lucide-react";
 import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
+import { useDevConfig, pick, DEV_VISIBILIDADES } from "../../../lib/modules/devConfig";
 
 export type NovoRepositorioPayload = {
   name: string;
@@ -16,22 +17,25 @@ type Props = {
   onSave: (data: NovoRepositorioPayload) => void;
 };
 
-const LANGUAGES = ["TypeScript", "JavaScript", "Python", "Go", "Rust", "Java", "C#", "PHP", "Ruby", "Dart", "Swift", "Kotlin"];
 
 const lbl = "text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider";
 const inp = "w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-4 py-2.5 text-xs text-[var(--color-text-primary)] focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all placeholder-[var(--color-text-faint)]";
 
 export function NovoRepositorioDevModal({ isOpen, onClose, onSave }: Props) {
+  const { repositorios: cfg } = useDevConfig();
+  const LANGUAGES = cfg.linguagens.length ? cfg.linguagens : ["TypeScript"];
+  const langPadrao = LANGUAGES.includes(cfg.linguagemPadrao) ? cfg.linguagemPadrao : LANGUAGES[0];
+  const visPadrao = pick(cfg.visibilidadePadrao, DEV_VISIBILIDADES, "Privado") as "Público" | "Privado";
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [language, setLanguage] = useState("TypeScript");
-  const [visibility, setVisibility] = useState<"Público" | "Privado">("Privado");
+  const [language, setLanguage] = useState(langPadrao);
+  const [visibility, setVisibility] = useState<"Público" | "Privado">(visPadrao);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    setName(""); setDescription(""); setLanguage("TypeScript"); setVisibility("Privado"); setLoading(false);
-  }, [isOpen]);
+    setName(""); setDescription(""); setLanguage(langPadrao); setVisibility(visPadrao); setLoading(false);
+  }, [isOpen, langPadrao, visPadrao]);
 
   const canSubmit = useMemo(() => !loading && Boolean(name.trim()), [loading, name]);
 

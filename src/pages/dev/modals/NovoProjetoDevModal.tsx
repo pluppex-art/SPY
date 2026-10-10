@@ -3,8 +3,8 @@ import { FolderCode } from "lucide-react";
 import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
 import { useData } from "../../../contexts/DataContext";
+import { useDevConfig, pick, DEV_STATUS_PROJETO } from "../../../lib/modules/devConfig";
 
-const STACKS = ["React", "TypeScript", "Node.js", "Supabase", "PostgreSQL", "React Native", "Expo", "Fastify", "Redis", "Docker", "AWS", "Python", "Go", "Tailwind", "GraphQL", "Next.js"];
 const STATUSES = ["Em Planejamento", "Em Desenvolvimento", "Em Produção", "Pausado", "Concluído"];
 
 export type NovoProjetoPayload = {
@@ -25,9 +25,12 @@ const label = "text-[10px] font-bold text-[var(--color-text-muted)] uppercase tr
 const input = "w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-4 py-2.5 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-primary-blue)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-blue)] transition-all placeholder-[var(--color-text-faint)]";
 
 export function NovoProjetoDevModal({ isOpen, onClose, onSave }: Props) {
+  const { projetos: cfg } = useDevConfig();
+  const STACKS = cfg.stacksSugeridas;
+  const statusInicial = pick(cfg.statusInicial, DEV_STATUS_PROJETO, "Em Planejamento");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState("Em Planejamento");
+  const [status, setStatus] = useState(statusInicial);
   const [stack, setStack] = useState<string[]>([]);
   const [productId, setProductId] = useState<string | number | null>(null);
   const [loading, setLoading] = useState(false);
