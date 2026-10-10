@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { useClinicaConfig } from "../../lib/modules/clinicaConfig";
 
 interface PlanoTratamentoItem {
   id: string;
@@ -44,6 +45,7 @@ function rowToPlano(row: any): PlanoTratamentoItem {
 export default function PlanosTratamento() {
   const { activeTenantId } = useAuth();
 
+  const cfgPlanos = useClinicaConfig().planos;
   const [planos, setPlanos] = useState<PlanoTratamentoItem[]>([]);
 
   useEffect(() => {
@@ -73,8 +75,8 @@ export default function PlanosTratamento() {
   const [descricao, setDescricao] = useState("");
   const [profissional, setProfissional] = useState("");
   const [valorTotal, setValorTotal] = useState("");
-  const [totalSessoes, setTotalSessoes] = useState("4");
-  const [status, setStatus] = useState<PlanoTratamentoItem["status"]>("Aprovado pelo Paciente");
+  const [totalSessoes, setTotalSessoes] = useState(String(cfgPlanos.sessoesPadrao));
+  const [status, setStatus] = useState<PlanoTratamentoItem["status"]>(cfgPlanos.statusInicial as PlanoTratamentoItem["status"]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +125,8 @@ export default function PlanosTratamento() {
     setDescricao("");
     setProfissional("");
     setValorTotal("");
-    setTotalSessoes("4");
+    setTotalSessoes(String(cfgPlanos.sessoesPadrao));
+    setStatus(cfgPlanos.statusInicial as PlanoTratamentoItem["status"]);
   };
 
   const handleDelete = async (id: string) => {

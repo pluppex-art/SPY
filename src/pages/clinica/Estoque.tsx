@@ -11,12 +11,14 @@ import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { useEstoque } from './hooks/useEstoque';
+import { useClinicaConfig } from '../../lib/modules/clinicaConfig';
 import { toast } from 'sonner';
 import { useLocalization } from '../../contexts/LocalizationContext';
 
 export default function EstoqueClinico() {
   const { formatCurrency } = useLocalization();
   const { items: stockItems, addItem } = useEstoque();
+  const minPadrao = useClinicaConfig().estoque.minimoPadrao;
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -57,7 +59,7 @@ export default function EstoqueClinico() {
 
   const handleCreateItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!itemName.trim() || !itemQty || !itemMinQty) {
+    if (!itemName.trim() || !itemQty || (!itemMinQty && !(minPadrao > 0))) {
       toast.error("Preencha os campos obrigatórios.");
       return;
     }
@@ -66,7 +68,7 @@ export default function EstoqueClinico() {
       name: itemName.trim(),
       category: itemCategory,
       qty: parseInt(itemQty, 10) || 0,
-      minQty: parseInt(itemMinQty, 10) || 0,
+      minQty: itemMinQty === '' ? minPadrao : (parseInt(itemMinQty, 10) || 0),
       price: itemPrice.trim() ? (itemPrice.startsWith('R$') ? itemPrice : `R$ ${itemPrice}`) : 'R$ 0,00',
     });
 
@@ -302,15 +304,15 @@ export default function EstoqueClinico() {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Qtd Mínima (Alerta) *</label>
+              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1 block">Qtd Mínima (Alerta){minPadrao > 0 ? '' : ' *'}</label>
               <input
                 type="number"
                 min="0"
                 value={itemMinQty}
                 onChange={(e) => setItemMinQty(e.target.value)}
-                placeholder="20"
+                placeholder={minPadrao > 0 ? String(minPadrao) : "20"}
                 className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] font-mono"
-                required
+                required={!(minPadrao > 0)}
               />
             </div>
           </div>

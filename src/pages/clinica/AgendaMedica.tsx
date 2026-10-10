@@ -14,12 +14,8 @@ import { AgendaDetailPanel } from "./components/AgendaMedica/AgendaDetailPanel";
 import { BookingModal } from "./components/BookingModal";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { useClinicaConfig, buildSlots } from "../../lib/modules/clinicaConfig";
 
-const hourlySlots = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-  '11:00', '11:30', '13:00', '13:30', '14:00', '14:30',
-  '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'
-];
 
 type Appointment = {
   id: string; time: string; patient: string; drId: string; drName: string;
@@ -30,6 +26,8 @@ type Appointment = {
 export default function AgendaClinica() {
   const { appointments, addAppointment, updateAppointment, deleteAppointment, squads, leads, addTask } = useData();
   const { activeTenantId } = useAuth();
+  const cfg = useClinicaConfig();
+  const hourlySlots = useMemo(() => buildSlots(cfg.agenda), [cfg.agenda]);
 
   const doctors = useMemo(() => {
     if (!squads || squads.length === 0) return [];
@@ -194,7 +192,7 @@ export default function AgendaClinica() {
                   <div key={i} className={`flex group min-h-[80px] relative transition-colors ${apts.length > 0 ? '' : 'hover:bg-[var(--color-surface-sunken)]/40'}`}>
                     <div className={`w-20 p-4 border-r border-[var(--color-border-subtle)] flex flex-col items-center justify-center bg-[var(--color-surface-sunken)]/30 shrink-0 ${apts.length > 0 ? 'border-l-4 border-l-[var(--color-primary-blue)]' : ''}`}>
                       <span className="text-sm font-black text-[var(--color-text-primary)] font-mono">{slot}</span>
-                      <span className="text-[9px] text-[var(--color-text-faint)] font-medium mt-0.5">30min</span>
+                      <span className="text-[9px] text-[var(--color-text-faint)] font-medium mt-0.5">{cfg.agenda.intervaloMin}min</span>
                     </div>
                     <div className="flex-1 p-2.5 space-y-2">
                       <AnimatePresence>

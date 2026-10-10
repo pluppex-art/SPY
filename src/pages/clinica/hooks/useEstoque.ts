@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { toast } from 'sonner';
+import { useClinicaConfig } from '../../../lib/modules/clinicaConfig';
 
 export interface EstoqueItem {
   id: string | number;
@@ -13,9 +14,9 @@ export interface EstoqueItem {
   price: string;
 }
 
-function computeStatus(qty: number, minQty: number): string {
+function computeStatus(qty: number, minQty: number, pctCritico = 50): string {
   if (qty === 0) return 'Crítico';
-  if (qty < minQty) return qty < minQty * 0.5 ? 'Crítico' : 'Alerta';
+  if (qty < minQty) return qty < minQty * (pctCritico / 100) ? 'Crítico' : 'Alerta';
   return 'Normal';
 }
 
@@ -33,6 +34,7 @@ function rowToItem(row: any): EstoqueItem {
 
 export function useEstoque() {
   const { activeTenantId } = useAuth();
+  const pctCritico = useClinicaConfig().estoque.percentualCritico;
   const [items, setItems] = useState<EstoqueItem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -54,7 +56,7 @@ export function useEstoque() {
   }, [activeTenantId]);
 
   async function addItem(payload: { name: string; category: string; qty: number; minQty: number; price: string }) {
-    const status = computeStatus(payload.qty, payload.minQty);
+    const status = computeStatus(payload.qty, payload.minQty, pctCritico);
     if (!supabase || !activeTenantId) {
       setItems(prev => [...prev, { id: Date.now(), ...payload, status }]);
       toast.success('Item adicionado!');
