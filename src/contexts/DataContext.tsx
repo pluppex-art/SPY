@@ -503,6 +503,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     rows.map((r) => ({ ...r, leadId: r.leadId ?? r.lead_id }))
       .sort((a: any, b: any) => String(b.created_at || '').localeCompare(String(a.created_at || ''))) as LeadActivity[];
 
+  // O histórico de mudanças de etapa importado de outro CRM (id "kommo-evt-…") passa de dezenas de milhares
+  // de linhas por empresa: baixar tudo travava o carregamento (500 nas páginas fundas do banco) e inflava as
+  // métricas de atividade. Fica fora da carga geral e é carregado só ao abrir o lead (loadLeadHistory).
+  const isImportedHistory = (a: any) => String(a?.id ?? '').startsWith('kommo-evt-');
+  const withoutImportedHistory = (q: any) => q.not('id', 'like', 'kommo-evt-*');
+  const loadLeadHistory = async (leadId: string) => {
+    if (!supabase || !tenantId || !leadId) return;
+    const { data, error } = await supabase.from('lead_activities').select('*')
+      .eq('tenant_id', tenantId).eq('lead_id', leadId).like('id', 'kommo-evt-*')
+      .order('created_at', { ascending: false }).limit(500);
+    if (error || !data) return;
+    setLeadActivities(prev => normalizeActivities([...prev.filter(a => !(a.leadId === leadId && isImportedHistory(a))), ...data]));
+  };
+
   const [whatsappWebhookUrl, setWhatsappWebhookUrl] = useState<string>("");
 
   const [appointmentsRaw, setAppointments] = useState<Appointment[]>(() => getDefaultAppointments() as Appointment[]);
@@ -794,8 +808,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const fetchLeadActivities = async () => {
     if (!supabase || !tenantId) return;
-    const { data } = await fetchAllRowsForTenant('lead_activities', tenantId);
-    if (data) setLeadActivities(normalizeActivities(data));
+    const { data } = await fetchAllRowsForTenant('lead_activities', tenantId, withoutImportedHistory);
+    // Mantém o histórico já aberto de um lead (o refetch de realtime não o traz).
+    if (data) setLeadActivities(prev => normalizeActivities([...data, ...prev.filter(isImportedHistory)]));
   };
 
   // Mesma lógica do carregamento inicial (ver loadAll abaixo) — extraída pra
@@ -1193,7 +1208,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           // achar "nenhum contrato existente" toda vez e recriar um duplicado
           // + disparar notificação de novo contrato a cada entrada na tela.
           { name: 'contracts', promise: fetchAllRowsForTenant('contracts', tenantId), apply: (res) => { if (res.data) setContracts(res.data.map(rowToContract)); setContractsLoaded(true); } },
-          { name: 'lead_activities', promise: fetchAllRowsForTenant('lead_activities', tenantId), apply: (res) => { if (res.data) setLeadActivities(normalizeActivities(res.data)); } },
+          { name: 'lead_activities', promise: fetchAllRowsForTenant('lead_activities', tenantId, withoutImportedHistory), apply: (res) => { if (res.data) setLeadActivities(normalizeActivities(res.data)); } },
           { name: 'finance_entries', promise: fetchAllRowsForTenant('finance_entries', tenantId), apply: (res) => { if (res.data) setFinanceEntries((res.data as any[]).map(normalizeFinanceEntry)); financeEntriesAuthoritativeLoadedRef.current = true; } },
           { name: 'appointments', promise: fetchAllRowsForTenant('appointments', tenantId), apply: (res) => { if (res.data) setAppointments(res.data.map(mapAppointmentRow)); } },
           { name: 'squads', promise: cachedFetchAllRowsForTenant('squads', tenantId, true), apply: (res) => { if (res.data) setSquads(res.data.map(mapSquadRow)); } },
@@ -1333,7 +1348,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // (ver comentário no endpoint).
         const genericPreviewTables: [string, (data: any[]) => void][] = [
           ['proposal_items', setProposalItems],
-          ['lead_activities', (d: any[]) => setLeadActivities(normalizeActivities(d))],
+          ['lead_activities', (d: any[]) => setLeadActivities(normalizeActivities(d.filter((r: any) => !isImportedHistory(r))))],
           ['colaboradores', setColaboradores],
           ['students', setStudents],
           ['turmas', setTurmas],
@@ -3284,7 +3299,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      leads, avgWonTicket, tasks, contracts, notifications, leadActivities, financeEntries, appointments,
+      leads, avgWonTicket, tasks, contracts, notifications, leadActivities, loadLeadHistory, financeEntries, appointments,
       theme, toggleTheme,
       addLead, updateLead, deleteLead, moveLead,
       addTask, updateTask, deleteTask, addContract, updateContract, deleteContract,

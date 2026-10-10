@@ -179,6 +179,8 @@ export interface DataContextType {
   contracts: Contract[];
   notifications: Notification[];
   leadActivities: LeadActivity[];
+  /** Carrega (sob demanda) o histórico de mudanças de etapa importado de outro CRM para um lead. */
+  loadLeadHistory: (leadId: string) => Promise<void>;
   financeEntries: FinanceEntry[];
   appointments: Appointment[];
   theme: 'dark' | 'light';

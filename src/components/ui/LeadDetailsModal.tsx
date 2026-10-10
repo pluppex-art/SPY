@@ -35,12 +35,15 @@ interface LeadDetailsModalProps {
 }
 
 export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProps) {
-  const { updateLead, leadActivities, proposals, products, leads: allLeads } = useData();
+  const { updateLead, leadActivities, loadLeadHistory, proposals, products, leads: allLeads } = useData();
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
   const [currentTab, setCurrentTab] = useState("informacoes");
   const [showCopilot, setShowCopilot] = useState(false);
   const [showAgendarReuniao, setShowAgendarReuniao] = useState(false);
+
+  // Histórico de mudanças de etapa vem de outro CRM e não é baixado com a carga geral: busca ao abrir o lead.
+  useEffect(() => { if (isOpen && lead?.id) loadLeadHistory(lead.id); }, [isOpen, lead?.id]);
 
   const {
     isConfirmDeleteOpen, setIsConfirmDeleteOpen,
