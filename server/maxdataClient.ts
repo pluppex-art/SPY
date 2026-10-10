@@ -20,17 +20,12 @@ export interface MaxDataConn {
   idUser: number;
 }
 
-/**
- * Endereço padrão da MaxAPI Go (prefixo /v2 da coleção). O modal não pede mais a URL:
- * só é usada a `apiUrl` salva quando alguém a informou explicitamente.
- */
-export const MAXDATA_DEFAULT_BASE_URL = "https://api.maxdata.com.br/v2";
-
 /** Config de app_settings (tenantIntegrations) → conexão; devolve o que falta quando incompleta. */
 export function connFromConfig(cfg: any): { conn: MaxDataConn } | { error: string } {
   const missing: string[] = [];
   const s = (v: any) => (typeof v === "string" ? v.trim() : "");
   const apiUrl = s(cfg?.apiUrl), name = s(cfg?.clientId), key = s(cfg?.apiKey), desc = s(cfg?.applicationDescription), terminal = s(cfg?.terminal);
+  if (!apiUrl) missing.push("URL base da API");
   if (!name) missing.push("Nome da aplicação");
   if (!key) missing.push("Chave da aplicação");
   if (!desc) missing.push("Descrição da aplicação");
@@ -39,7 +34,7 @@ export function connFromConfig(cfg: any): { conn: MaxDataConn } | { error: strin
   if (missing.length) return { error: `Configuração da Max Data incompleta: ${missing.join(", ")}.` };
   return {
     conn: {
-      baseUrl: (apiUrl || MAXDATA_DEFAULT_BASE_URL).replace(/\/+$/, ""), applicationName: name, applicationKey: key, applicationDescription: desc,
+      baseUrl: apiUrl.replace(/\/+$/, ""), applicationName: name, applicationKey: key, applicationDescription: desc,
       terminal, empId: Number(s(cfg.empId)), idUser: /^\d+$/.test(s(cfg?.idUser)) ? Number(s(cfg.idUser)) : 0,
     },
   };

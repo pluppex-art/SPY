@@ -56,7 +56,7 @@ export async function readTenantSnapshot(db: any, tenantId: string): Promise<Ten
       { name: "Asaas", connected: !!pay.asaas?.connected },
     ],
     smtp: { server: str(smtp.smtpServer), user: str(smtp.smtpUser) },
-    maxdata: { clientId: str(maxdata.empId), configured: !!str(maxdata.apiKey), connected: !!maxdata.connected },
+    maxdata: { clientId: str(maxdata.empId), configured: !!(str(maxdata.apiUrl) && str(maxdata.apiKey)), connected: !!maxdata.connected },
     stages: stageNames,
     auroraActive: agentsR.count || 0,
   };
