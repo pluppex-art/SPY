@@ -9,6 +9,7 @@ import { useDevSprints, type Column } from './hooks/useDevSprints';
 import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_CLASS } from '../../hooks/useKanbanConfig';
 import { useDevProjectsForFilter } from './hooks/useDevProjectsForFilter';
 import { useData } from '../../contexts/DataContext';
+import { useDevConfig } from '../../lib/modules/devConfig';
 
 const PRIORITY_STYLE: Record<string, string> = {
   crítica: 'bg-red-500/15 text-red-400 border-red-500/25',
@@ -45,6 +46,7 @@ type DevProject = { id: string | number; name: string };
 export default function Sprints() {
   const { appSettings } = useData();
   const COLUMNS = getSprintColumns(appSettings);
+  const { sprint: sprintCfg } = useDevConfig();
 
   const projects = useDevProjectsForFilter() as DevProject[];
 
@@ -89,6 +91,10 @@ export default function Sprints() {
   const totalPoints = tasksFiltered.filter(t => t.column === 'done').reduce((s, t) => s + t.points, 0);
   const totalSprintPoints = tasksFiltered.reduce((s, t) => s + t.points, 0);
 
+  const capacidade = Number(sprintCfg.capacidadePontos) || 0;
+  const pontosPlanejados = tasks.reduce((s, t) => s + t.points, 0);
+  const acimaCapacidade = capacidade > 0 && pontosPlanejados > capacidade;
+
   const [draggedId, setDraggedId] = useState<string | number | null>(null);
   const [dragOverCol, setDragOverCol] = useState<Column | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -124,6 +130,16 @@ export default function Sprints() {
               {totalPoints}/{totalSprintPoints} pts concluídos
             </span>
           </div>
+          {capacidade > 0 && (
+            <div
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${acimaCapacidade ? 'bg-red-500/10 border-red-500/30' : 'bg-emerald-500/10 border-emerald-500/20'}`}
+              title={acimaCapacidade ? 'O planejado ultrapassa a capacidade do sprint' : 'Dentro da capacidade do sprint'}
+            >
+              <span className={`text-[10px] font-black uppercase tracking-widest ${acimaCapacidade ? 'text-red-400' : 'text-emerald-400'}`}>
+                Capacidade {pontosPlanejados}/{capacidade} pts
+              </span>
+            </div>
+          )}
           <Button
             onClick={() => setIsModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 px-5 text-[10px] font-black uppercase tracking-widest gap-2"

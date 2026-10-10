@@ -4,6 +4,7 @@ import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
 import { useDevProjects } from "../hooks/useDevProjects";
 import { useData } from "../../../contexts/DataContext";
+import { useDevConfig, pick, DEV_SEVERIDADES } from "../../../lib/modules/devConfig";
 
 export type NovaIssuePayload = {
   title: string;
@@ -27,17 +28,19 @@ const SEVERITIES: { value: NovaIssuePayload["severity"]; label: string; color: s
   { value: "baixo", label: "Baixo", color: "bg-slate-500/15 text-slate-400 border-slate-500/40" },
 ];
 
-const LABEL_SUGGESTIONS = ["backend", "frontend", "mobile", "auth", "performance", "ui", "api", "banco de dados", "email", "exportação", "segurança"];
 
 const lbl = "text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider";
 const inp = "w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-4 py-2.5 text-xs text-[var(--color-text-primary)] focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/20 transition-all placeholder-[var(--color-text-faint)]";
 
 export function NovaIssueDevModal({ isOpen, onClose, onSave }: Props) {
   const { projects } = useDevProjects();
+  const { issues: cfg } = useDevConfig();
+  const sevPadrao = pick(cfg.severidadePadrao, DEV_SEVERIDADES, "médio") as NovaIssuePayload["severity"];
+  const LABEL_SUGGESTIONS = cfg.labelsSugeridas;
   const { colaboradores } = useData();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [severity, setSeverity] = useState<NovaIssuePayload["severity"]>("médio");
+  const [severity, setSeverity] = useState<NovaIssuePayload["severity"]>(sevPadrao);
   const [project, setProject] = useState("");
   const [assignee, setAssignee] = useState("");
   const [labels, setLabels] = useState<string[]>([]);
@@ -46,8 +49,8 @@ export function NovaIssueDevModal({ isOpen, onClose, onSave }: Props) {
 
   useEffect(() => {
     if (!isOpen) return;
-    setTitle(""); setDescription(""); setSeverity("médio"); setProject(""); setAssignee(""); setLabels([]); setCustomLabel(""); setLoading(false);
-  }, [isOpen]);
+    setTitle(""); setDescription(""); setSeverity(sevPadrao); setProject(""); setAssignee(""); setLabels([]); setCustomLabel(""); setLoading(false);
+  }, [isOpen, sevPadrao]);
 
   const canSubmit = useMemo(() => !loading && Boolean(title.trim()), [loading, title]);
 
