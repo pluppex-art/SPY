@@ -9,6 +9,7 @@ import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } fro
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
+import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -57,6 +58,7 @@ function rowToCompra(row: any): CompraItem {
 export default function ComprasVarejo() {
   const { activeTenantId } = useAuth();
   const { products, setProducts } = useData();
+  const cfgVarejo = useVarejoConfig();
 
   const [compras, setCompras] = useState<CompraItem[]>([]);
 
@@ -234,7 +236,13 @@ export default function ComprasVarejo() {
       title="Ordens de Compra & Reposição"
       description="Emissão de pedidos a fornecedores, entrada de mercadorias e alimentação do saldo em estoque."
       actions={
-        <Button onClick={() => setModalOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
+        <Button onClick={() => {
+          if (!previsaoEntrega && cfgVarejo.compras.prazoEntregaPadraoDias > 0) {
+            const d = new Date(); d.setDate(d.getDate() + cfgVarejo.compras.prazoEntregaPadraoDias);
+            setPrevisaoEntrega(d.toISOString().slice(0, 10));
+          }
+          setModalOpen(true);
+        }} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
           <Plus className="w-3.5 h-3.5" /> Nova Ordem de Compra
         </Button>
       }

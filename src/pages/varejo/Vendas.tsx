@@ -16,6 +16,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Modal } from "../../components/ui/modal";
 import { useData } from "../../contexts/DataContext";
+import { useVarejoConfig, FORMAS_PAGAMENTO } from "../../lib/varejoConfig";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -141,6 +142,8 @@ export default function VarejoVendas() {
   const { products, setProducts, colaboradores, appSettings, appSettingsLoaded } = useData();
   const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId || "default";
+  // Regras configuráveis da loja (Configurações → Varejo & PDV).
+  const cfg = useVarejoConfig();
 
   // Dados oficiais da empresa do tenant ativo (mesma fonte de Configurações →
   // Dados da Empresa, app_settings key "empresa_dados") — usados no cabeçalho
@@ -183,12 +186,15 @@ export default function VarejoVendas() {
   const [bandeiraCartao, setBandeiraCartao] = useState<string>("Mastercard");
   const [pixConfirmado, setPixConfirmado] = useState(false);
   const [prazoDias, setPrazoDias] = useState<string>("30");
+  useEffect(() => { setPrazoDias(String(cfg.pagamentos.crediarioPrazoPadraoDias)); }, [cfg.pagamentos.crediarioPrazoPadraoDias]);
+  useEffect(() => { setFormaPagamento((f) => (cfg.pagamentos.habilitadas.includes(f) ? f : cfg.pagamentos.padrao)); }, [cfg.pagamentos.habilitadas, cfg.pagamentos.padrao]);
   const [finalizando, setFinalizando] = useState(false);
   // M4 (auditoria 2026-09-21): trava contra duplo-clique/duas abas no estorno
   // — sem isso, dois disparos concorrentes de handleEstornarVenda devolviam o
   // mesmo item ao estoque duas vezes.
   const [estornandoIds, setEstornandoIds] = useState<Set<string>>(new Set());
   const [soundEnabled, setSoundEnabled] = useState(true);
+  useEffect(() => { setSoundEnabled(cfg.pdv.sons); }, [cfg.pdv.sons]);
 
   // Pagamento Misto
   const [mistoDinheiro, setMistoDinheiro] = useState<string>("");
@@ -360,6 +366,9 @@ export default function VarejoVendas() {
     return Math.min(rawVal, subtotal);
   }, [descontoValor, descontoTipo, subtotal]);
 
+  const descontoPctEfetivo = subtotal > 0 ? (descontoCalculado / subtotal) * 100 : 0;
+  const descontoAcimaDoTeto = !cfg.pdv.descontoLivre && descontoPctEfetivo > cfg.pdv.descontoMaximoPct + 0.0001;
+
   const total = Math.max(0, subtotal - descontoCalculado);
 
   const troco = useMemo(() => {
@@ -386,7 +395,7 @@ export default function VarejoVendas() {
 
   // Adicionar ao carrinho
   const addToCart = (product: any) => {
-    const estoque = product.currentStock ?? 999;
+    const estoque = cfg.pdv.permitirVendaSemEstoque ? 999999 : (product.currentStock ?? 999);
     if (estoque <= 0) {
       if (soundEnabled) playPosSound("error");
       toast.error("Produto sem estoque disponível!");
@@ -642,6 +651,18 @@ export default function VarejoVendas() {
     if (!caixaAberto) {
       if (soundEnabled) playPosSound("error");
       toast.error("O caixa está fechado. Reabra o turno para registrar vendas.");
+      return;
+    }
+
+    const bloqueio =
+      descontoAcimaDoTeto ? `Desconto acima do limite da loja (${cfg.pdv.descontoMaximoPct}%).`
+      : cfg.pdv.exigirCliente && !clienteNome.trim() ? "Informe o cliente para finalizar a venda."
+      : cfg.pdv.exigirVendedor && vendedorSelecionado === VENDEDOR_BALCAO ? "Escolha o vendedor para finalizar a venda."
+      : formaPagamento === "A Prazo (Crediário)" && cfg.pagamentos.crediarioExigeCliente && !clienteNome.trim() ? "O crediário exige o cliente identificado."
+      : null;
+    if (bloqueio) {
+      if (soundEnabled) playPosSound("error");
+      toast.error(bloqueio);
       return;
     }
 
@@ -1515,14 +1536,7 @@ export default function VarejoVendas() {
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {(
-                    [
-                      "Dinheiro",
-                      "Pix",
-                      "Cartão de Crédito",
-                      "Cartão de Débito",
-                      "Misto",
-                      "A Prazo (Crediário)",
-                    ] as const
+                    FORMAS_PAGAMENTO.filter((f) => cfg.pagamentos.habilitadas.includes(f))
                   ).map((m) => (
                     <button
                       key={m}
@@ -2037,7 +2051,8 @@ export default function VarejoVendas() {
             {receiptTab === "termico" && (
               <div id="thermal-receipt" className="bg-white text-slate-900 rounded-xl p-4 font-mono text-xs shadow-inner space-y-2.5 border border-slate-200">
                 <div className="text-center border-b border-dashed border-slate-300 pb-2">
-                  {!appSettingsLoaded ? (
+                  {cfg.cupom.cabecalho && <p className="text-[10px] text-slate-700 whitespace-pre-line">{cfg.cupom.cabecalho}</p>}
+                  {!cfg.cupom.mostrarDadosEmpresa ? null : !appSettingsLoaded ? (
                     <p className="text-[10px] text-slate-500">Carregando dados da empresa...</p>
                   ) : (
                     <>
@@ -2060,7 +2075,7 @@ export default function VarejoVendas() {
                     <span>HORA: {new Date(receiptVenda.created_at).toLocaleTimeString("pt-BR")}</span>
                     <span>OP: {receiptVenda.operador || "Caixa 01"}</span>
                   </div>
-                  {receiptVenda.vendedor && (
+                  {cfg.cupom.mostrarVendedor && receiptVenda.vendedor && (
                     <div className="text-slate-600">
                       VENDEDOR: <strong>{receiptVenda.vendedor}</strong>
                     </div>
@@ -2117,8 +2132,8 @@ export default function VarejoVendas() {
 
                 {/* Mensagem Rodapé */}
                 <div className="text-center text-[9px] text-slate-600 pt-1 space-y-0.5">
-                  <p className="font-bold">OBRIGADO PELA PREFERÊNCIA!</p>
-                  <p className="text-[8px]">Trocas somente em até 7 dias com este comprovante.</p>
+                  <p className="font-bold whitespace-pre-line">{cfg.cupom.rodape}</p>
+                  {cfg.cupom.mensagemTroca && <p className="text-[8px] whitespace-pre-line">{cfg.cupom.mensagemTroca}</p>}
                   <div className="pt-1 flex justify-center">
                     <Barcode className="w-32 h-6 opacity-70" />
                   </div>

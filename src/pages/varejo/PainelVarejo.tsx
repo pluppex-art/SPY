@@ -9,6 +9,7 @@ import {
 import { Card } from "../../components/ui/card";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
@@ -45,6 +46,7 @@ export default function PainelVarejo() {
   const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId || user?.tenantId || (user as any)?.tenant_id || "default";
   const { products } = useData();
+  const cfgVarejo = useVarejoConfig();
 
   // 1. Vendas do PDV (banco real: vendas + venda_items)
   const [vendas, setVendas] = useState<VendaFinalizada[]>([]);
@@ -207,8 +209,9 @@ export default function PainelVarejo() {
 
   // Itens com estoque crítico
   const itensCriticos = useMemo(() => {
+    if (!cfgVarejo.estoque.alertaEstoqueBaixo) return [];
     return (products || [])
-      .filter(p => (Number(p.currentStock ?? p.current_stock ?? p.stock) || 0) <= (Number(p.minStock ?? p.min_stock) || 5))
+      .filter(p => (Number(p.currentStock ?? p.current_stock ?? p.stock) || 0) <= (Number(p.minStock ?? p.min_stock) || cfgVarejo.estoque.estoqueMinimoPadrao))
       .slice(0, 4)
       .map(p => {
         const stock = Number(p.currentStock ?? p.current_stock ?? p.stock) || 0;

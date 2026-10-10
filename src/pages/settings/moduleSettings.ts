@@ -22,6 +22,11 @@ export const MODULE_SETTINGS: ModuleSettingsDef[] = [
     title: "Varejo & PDV",
     icon: ShoppingCart,
     items: [
+      { title: "Caixa & PDV", path: "/app/configuracoes/varejo/pdv" },
+      { title: "Formas de pagamento", path: "/app/configuracoes/varejo/pagamentos" },
+      { title: "Estoque", path: "/app/configuracoes/varejo/estoque" },
+      { title: "Cupom & recibo", path: "/app/configuracoes/varejo/cupom" },
+      { title: "Compras & preços", path: "/app/configuracoes/varejo/compras" },
       { title: "Conexões (Max Data)", path: "/app/configuracoes/varejo/conexoes" },
     ],
   },

@@ -14,6 +14,7 @@ import { FormField } from "../../components/ui/form-field";
 import { EmptyState } from "../../components/ui/empty-state";
 import { Modal } from "../../components/ui/modal";
 import { useData } from "../../contexts/DataContext";
+import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
@@ -33,6 +34,8 @@ interface Movimentacao {
 
 export default function VarejoEstoque() {
   const { products, setProducts, addProduct, updateProduct, deleteProduct } = useData();
+  const cfg = useVarejoConfig();
+  const minPadrao = cfg.estoque.estoqueMinimoPadrao;
   const { user, activeTenantId } = useAuth();
   const { formatCurrency: formatPrice } = useLocalization();
   const tenantId = activeTenantId || "default";
@@ -104,7 +107,7 @@ export default function VarejoEstoque() {
       if (selectedCategory !== "Todas" && p.category !== selectedCategory) return false;
 
       const stock = Number(p.currentStock) || 0;
-      const minStock = Number(p.stockMin) || 5;
+      const minStock = Number(p.stockMin) || minPadrao;
 
       if (filterEstoqueStatus === "critico" && stock > 0) return false;
       if (filterEstoqueStatus === "baixo" && (stock <= 0 || stock > minStock)) return false;
@@ -137,7 +140,7 @@ export default function VarejoEstoque() {
       const stock = Number(p.currentStock) || 0;
       const cost = Number(p.cost) || 0;
       const price = Number(p.price) || 0;
-      const minStock = Number(p.stockMin) || 5;
+      const minStock = Number(p.stockMin) || minPadrao;
 
       unidadesTotais += stock;
       valorCustoTotal += stock * cost;
@@ -278,9 +281,12 @@ export default function VarejoEstoque() {
     const priceNum = parseFloat(formPrice.replace(",", ".")) || 0;
     const costNum = parseFloat(formCost.replace(",", ".")) || 0;
     const stockNum = parseInt(formCurrentStock, 10) || 0;
-    const stockMinNum = parseInt(formStockMin, 10) || 5;
+    const stockMinNum = parseInt(formStockMin, 10) || minPadrao;
 
     const marginCalc = priceNum > 0 ? ((priceNum - costNum) / priceNum) * 100 : 0;
+    if (cfg.compras.margemMinimaPct > 0 && priceNum > 0 && marginCalc < cfg.compras.margemMinimaPct) {
+      toast.warning(`Margem de ${marginCalc.toFixed(1)}% abaixo do mínimo da loja (${cfg.compras.margemMinimaPct}%).`);
+    }
 
     if (editingProduct) {
       // Editar
@@ -496,7 +502,7 @@ export default function VarejoEstoque() {
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">
                     {filteredProducts.map((p: any) => {
                       const stock = p.currentStock ?? 0;
-                      const min = p.stockMin || 5;
+                      const min = p.stockMin || minPadrao;
                       const isZero = stock <= 0;
                       const isLow = stock > 0 && stock <= min;
                       const margin = p.price > 0 ? (((p.price - (p.cost || 0)) / p.price) * 100).toFixed(1) : "0.0";
