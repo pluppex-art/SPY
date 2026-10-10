@@ -18,7 +18,7 @@ import {
   KommoError, type KommoConn, type KommoPipeline, type KommoUser,
 } from "./kommoClient.js";
 import {
-  buildStageIndex, buildLeadRows, loadLeadContext, syncLeadTags, noteRow, taskRow, upsertChunks, leadUuid, clip, digits, isPlaceholderName,
+  buildStageIndex, buildLeadRows, loadLeadContext, syncLeadTags, noteRow, taskRow, upsertChunks, leadUuid, clip, normalizePhoneBR, isPlaceholderName,
   type LeadCtx,
 } from "./kommoMap.js";
 
@@ -126,7 +126,7 @@ async function syncCompany(conn: KommoConn, sb: any, tenantId: string, companyId
   if (!c?.id || isPlaceholderName(String(c.name || ""))) return;
   await upsertChunks(sb, "clientes", [{
     id: `kommo-${tenantId.slice(0, 8)}-${c.id}`, tenant_id: tenantId, name: clip(c.name, 255),
-    phone: digits(kommoFieldValue(c, "PHONE")), email: kommoFieldValue(c, "EMAIL").toLowerCase(), status: "Ativo",
+    phone: normalizePhoneBR(kommoFieldValue(c, "PHONE")), email: kommoFieldValue(c, "EMAIL").toLowerCase(), status: "Ativo",
   }]);
 }
 

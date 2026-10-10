@@ -20,7 +20,7 @@ import {
 } from "./kommoClient.js";
 import {
   buildStageIndex, buildStatusNames, buildLeadRows, loadLeadContext, syncLeadTags, noteRow, taskRow, funilRow,
-  upsertChunks, leadUuid, productUuid, clip, digits, iso, brDate, isPlaceholderName, allValues,
+  upsertChunks, leadUuid, productUuid, clip, normalizePhoneBR, iso, brDate, isPlaceholderName, allValues,
   type LeadCtx,
 } from "./kommoMap.js";
 
@@ -194,7 +194,7 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
     if (step === "empresas") {
       const rows = items.filter((c) => !isPlaceholderName(String(c.name || ""))).map((c) => ({
         id: `kommo-${t8}-${c.id}`, tenant_id: tenantId, name: clip(c.name, 255),
-        phone: digits(kommoFieldValue(c, "PHONE")), email: kommoFieldValue(c, "EMAIL").toLowerCase(), status: "Ativo",
+        phone: normalizePhoneBR(kommoFieldValue(c, "PHONE")), email: kommoFieldValue(c, "EMAIL").toLowerCase(), status: "Ativo",
       }));
       const err = await upsertChunks(sb, "clientes", rows);
       if (err) return fail(vistos, saved, `Empresas não importadas: ${err}`);
@@ -221,7 +221,7 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
           contatos.push({
             id: `kommo-ct-${t8}-${c.id}`, tenant_id: tenantId, cliente_id: clienteId, nome: clip(c.name || `Contato ${c.id}`, 255),
             cargo: kommoFieldValue(c, "POSITION") || null, email: emails[0]?.toLowerCase() || null,
-            telefone: phones[0] ? digits(phones[0]) : null, whatsapp: phones[1] ? digits(phones[1]) : null,
+            telefone: phones[0] ? normalizePhoneBR(phones[0]) : null, whatsapp: phones[1] ? normalizePhoneBR(phones[1]) : null,
             observacoes: [emails.length > 1 ? `Outros e-mails: ${emails.slice(1).join(", ")}` : "", phones.length > 2 ? `Outros telefones: ${phones.slice(2).join(", ")}` : ""].filter(Boolean).join(" | ") || null,
             principal: false,
           });
@@ -230,7 +230,7 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
         } else if (!isPlaceholderName(String(c.name || ""))) {
           soltos.push({
             id: `kommo-ct-${t8}-${c.id}`, tenant_id: tenantId, name: clip(c.name, 255),
-            phone: phones[0] ? digits(phones[0]) : "", email: emails[0]?.toLowerCase() || "", status: "Ativo",
+            phone: phones[0] ? normalizePhoneBR(phones[0]) : "", email: emails[0]?.toLowerCase() || "", status: "Ativo",
           });
         } else add("sem nome (ignorados)", 1);
       }

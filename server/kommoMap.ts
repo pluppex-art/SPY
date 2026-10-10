@@ -140,7 +140,7 @@ export function buildLeadRows(ctx: LeadCtx, leads: any[], fallbackSource = "Não
     const company = (l._embedded?.companies || [])[0];
     const rawCompany = company ? (companies.get(company.id)?.name || company.name || "") : "";
     const createdIso = new Date((l.created_at || Date.now() / 1000) * 1000).toISOString();
-    const phone = digits(kommoFieldValue(contact, "PHONE"));
+    const phone = normalizePhoneBR(kommoFieldValue(contact, "PHONE"));
     const lossReason = l._embedded?.loss_reason?.[0]?.name ?? null;
     const tags = (l._embedded?.tags || []).map((t: any) => String(t.name)).filter(Boolean);
     if (tags.length) tagPairs.push({ leadId: id, tags });
@@ -267,4 +267,21 @@ export function taskRow(tenantId: string, t: any, users: Map<number, KommoUser>,
 export function allValues(entity: any, code: string): string[] {
   const f = (entity?.custom_fields_values || []).find((c: any) => c.field_code === code);
   return ((f?.values || []) as any[]).map((v) => String(v?.value ?? "").trim()).filter(Boolean);
+}
+
+/**
+ * Telefone brasileiro no formato canônico: 55 + DDD + número, com o celular em 9 dígitos.
+ *  - 10/11 dígitos (sem o 55)         → ganha o 55
+ *  - 12 dígitos 55+DDD+8, número começando em 6–9 (celular sem o nono dígito) → insere o 9
+ *  - fixo (começa em 2–5) e números que não casam com o padrão brasileiro → só limpa os símbolos
+ * Nunca descarta nada: o que não é reconhecível volta como vem (só dígitos). Quem chama guarda o
+ * valor original em outro lugar (customFields.kommo.fields) para poder desfazer.
+ */
+export function normalizePhoneBR(raw: string): string {
+  let d = String(raw ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  d = d.replace(/^0+/, ""); // 0 de tronco/operadora (ex.: 0 63 9…)
+  if (d.length === 10 || d.length === 11) d = "55" + d; // DDD + número, sem DDI (11 dígitos começando em 55 = DDD 55)
+  if (d.length === 12 && d.startsWith("55") && /[6-9]/.test(d[4])) d = d.slice(0, 4) + "9" + d.slice(4);
+  return d;
 }
