@@ -26,6 +26,7 @@ export const MODULE_SETTINGS: ModuleSettingsDef[] = [
       { title: "Formas de pagamento", path: "/app/configuracoes/varejo/pagamentos" },
       { title: "Estoque", path: "/app/configuracoes/varejo/estoque" },
       { title: "Cupom & recibo", path: "/app/configuracoes/varejo/cupom" },
+      { title: "Notas fiscais", path: "/app/configuracoes/varejo/fiscal" },
       { title: "Compras & preços", path: "/app/configuracoes/varejo/compras" },
       { title: "Conexões (Max Data)", path: "/app/configuracoes/varejo/conexoes" },
     ],

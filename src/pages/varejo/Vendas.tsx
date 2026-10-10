@@ -657,6 +657,7 @@ export default function VarejoVendas() {
     const bloqueio =
       descontoAcimaDoTeto ? `Desconto acima do limite da loja (${cfg.pdv.descontoMaximoPct}%).`
       : cfg.pdv.exigirCliente && !clienteNome.trim() ? "Informe o cliente para finalizar a venda."
+      : cfg.fiscal.exigirCpfNaNota && !clienteCpf.replace(/\D/g, "") ? "Informe o CPF/CNPJ do cliente para emitir a nota."
       : cfg.pdv.exigirVendedor && vendedorSelecionado === VENDEDOR_BALCAO ? "Escolha o vendedor para finalizar a venda."
       : formaPagamento === "A Prazo (Crediário)" && cfg.pagamentos.crediarioExigeCliente && !clienteNome.trim() ? "O crediário exige o cliente identificado."
       : null;
@@ -2034,7 +2035,7 @@ export default function VarejoVendas() {
               >
                 <Printer className="w-3.5 h-3.5" /> Cupom Balcão 80mm
               </button>
-              <button
+              {cfg.fiscal.mostrarEspelhoNfce && <button
                 type="button"
                 onClick={() => setReceiptTab("nfce")}
                 className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
@@ -2044,7 +2045,7 @@ export default function VarejoVendas() {
                 }`}
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> NFC-e Autorizada (SEFAZ)
-              </button>
+              </button>}
             </div>
 
             {/* ABA TÉRMICA 80mm */}
@@ -2142,7 +2143,7 @@ export default function VarejoVendas() {
             )}
 
             {/* ABA NFC-e AUTORIZADA SEFAZ */}
-            {receiptTab === "nfce" && (
+            {receiptTab === "nfce" && cfg.fiscal.mostrarEspelhoNfce && (
               <div className="p-4 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-3 text-xs">
                 <div className="flex items-center gap-2 text-emerald-500 font-bold pb-2 border-b border-[var(--color-border-subtle)]">
                   <ShieldCheck className="w-4 h-4" />

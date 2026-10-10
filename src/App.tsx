@@ -105,6 +105,7 @@ const ConfigVarejoPDV = lazy(() => import("./pages/settings/sections/varejo/Conf
 const ConfigVarejoPagamentos = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoPaginas").then(m => ({ default: m.ConfigVarejoPagamentos })));
 const ConfigVarejoEstoque = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoPaginas").then(m => ({ default: m.ConfigVarejoEstoque })));
 const ConfigVarejoCupom = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoPaginas").then(m => ({ default: m.ConfigVarejoCupom })));
+const ConfigVarejoFiscal = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoPaginas").then(m => ({ default: m.ConfigVarejoFiscal })));
 const ConfigVarejoCompras = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoPaginas").then(m => ({ default: m.ConfigVarejoCompras })));
 const ConfigVarejoConexoes = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoConexoes").then(m => ({ default: m.ConfigVarejoConexoes })));
 const ConfigIntegracoesApps = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigIntegracoesApps })));
@@ -552,6 +553,7 @@ function AppContent() {
             <Route path="varejo/pagamentos" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoPagamentos /></ProtectedRoute>} />
             <Route path="varejo/estoque" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoEstoque /></ProtectedRoute>} />
             <Route path="varejo/cupom" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoCupom /></ProtectedRoute>} />
+            <Route path="varejo/fiscal" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoFiscal /></ProtectedRoute>} />
             <Route path="varejo/compras" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoCompras /></ProtectedRoute>} />
             <Route path="varejo/conexoes" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoConexoes /></ProtectedRoute>} />
 

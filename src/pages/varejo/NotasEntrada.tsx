@@ -14,12 +14,14 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/apiClient";
 import { parseNFeXml, nfeTotalsMismatch } from "../../lib/nfe";
+import { useVarejoConfig } from "../../lib/varejoConfig";
 import { NOTA_STATUSES, NOTA_STATUS_TONE, defaultQtdEstoque, findProductForItem, type NotaStatus } from "../../lib/notaEntrada";
 import { cn } from "../../lib/utils";
 
 const MAX_XML_BYTES = 2 * 1024 * 1024;
 
 export default function NotasEntrada() {
+  const cfg = useVarejoConfig();
   const { activeTenantId, user } = useAuth();
   const { products } = useData();
   const { formatCurrency } = useLocalization();
@@ -120,7 +122,7 @@ export default function NotasEntrada() {
 
       let vinculados = 0;
       const itens = nfe.itens.map((i) => {
-        const match = findProductForItem(i, products as any[]);
+        const match = cfg.fiscal.vincularItensAutomaticamente ? findProductForItem(i, products as any[]) : null;
         if (match) vinculados++;
         return {
           tenant_id: activeTenantId, nota_id: nota.id, numero_item: i.numero_item,

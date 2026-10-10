@@ -83,3 +83,22 @@ export function ConfigVarejoCompras() {
     />
   );
 }
+
+export function ConfigVarejoFiscal() {
+  return (
+    <VarejoConfigForm
+      section="fiscal"
+      title="Notas fiscais"
+      subtitle="Como o módulo trata a nota fiscal de saída (NFC-e) na venda e a nota de entrada na compra."
+      validate={(d) => (!Number.isInteger(d.serieNfce) || d.serieNfce < 1 ? "A série deve ser um número inteiro a partir de 1." : null)}
+      fields={[
+        { kind: "toggle", key: "exigirCpfNaNota", label: "Exigir CPF/CNPJ do cliente na nota", hint: "O caixa só finaliza a venda com o documento preenchido." },
+        { kind: "toggle", key: "mostrarEspelhoNfce", label: "Mostrar espelho da NFC-e no cupom", hint: "Aba de pré-visualização da NFC-e depois da venda. É uma simulação: a emissão real na SEFAZ ainda não está ligada." },
+        { kind: "toggle", key: "vincularItensAutomaticamente", label: "Vincular itens da nota de entrada ao catálogo", hint: "Ao importar o XML, casa cada item com o produto por código de barras, SKU ou nome (só quando não há dúvida)." },
+        { kind: "select", key: "regimeTributario", label: "Regime tributário", options: ["Simples Nacional", "MEI", "Lucro Presumido", "Lucro Real"], hint: "Guardado para a emissão fiscal quando for ligada." },
+        { kind: "select", key: "ambiente", label: "Ambiente de emissão", options: ["Homologação", "Produção"], hint: "Guardado para a emissão fiscal quando for ligada. Use Homologação para testes." },
+        { kind: "number", key: "serieNfce", label: "Série da NFC-e", min: 1, hint: "Guardado para a emissão fiscal quando for ligada." },
+      ]}
+    />
+  );
+}
