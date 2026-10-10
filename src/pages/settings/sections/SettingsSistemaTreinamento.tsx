@@ -18,12 +18,12 @@ import { ConfigSistemaAprendizados } from "./SettingsSistemaAprendizados";
 const AGENTES = [
   {
     key: "sdr",
-    nome: "Agente de Vendas 1",
+    nome: "Agente de Pré-venda",
     resumo: "Atende e qualifica o lead no WhatsApp, agenda reunião e chama o Closer no fechamento.",
   },
   {
     key: "closer",
-    nome: "Agente de Vendas 2",
+    nome: "Agente Vendedor",
     resumo: "Orienta o SDR e os gestores em negociação: objeções, valor e próximo passo de fechamento.",
   },
   {
@@ -140,14 +140,14 @@ function EscopoVendas() {
     toast.success(escopo === "ate_reuniao" ? "Os agentes de vendas agora vão só até a reunião." : "Os agentes de vendas voltaram a conduzir até o fechamento.");
   };
   const opcoes = [
-    { v: "fechamento" as const, titulo: "Até o fechamento", desc: "O Agente de Vendas 1 conduz a venda e pode usar o Agente de Vendas 2 para fechar (proposta, negociação, próximo passo de pagamento conforme o cadastro)." },
-    { v: "ate_reuniao" as const, titulo: "Só até a reunião", desc: "Os agentes qualificam, tratam objeções e marcam a reunião com a equipe. Não enviam proposta, contrato, link de pagamento nem PIX e não negociam. O Agente de Vendas 2 passa a ajudar só a conseguir a reunião." },
+    { v: "fechamento" as const, titulo: "Até o fechamento", desc: "O Agente de Pré-venda conduz a venda e pode usar o Agente Vendedor para fechar (proposta, negociação, próximo passo de pagamento conforme o cadastro)." },
+    { v: "ate_reuniao" as const, titulo: "Só até a reunião", desc: "Os agentes qualificam, tratam objeções e marcam a reunião com a equipe. Não enviam proposta, contrato, link de pagamento nem PIX e não negociam. O Agente Vendedor passa a ajudar só a conseguir a reunião." },
   ];
   return (
     <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-3 shadow-sm">
       <div>
         <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Até onde os agentes de vendas vão ({activeTenantName ?? "empresa selecionada"})</h3>
-        <p className="text-[11px] text-[var(--color-text-muted)]">Vale para esta empresa. Para desligar o Agente de Vendas 2 por completo, use a chave dele em Sistema → Aurora.</p>
+        <p className="text-[11px] text-[var(--color-text-muted)]">Vale para esta empresa. Para desligar o Agente Vendedor por completo, use a chave dele em Sistema → Aurora.</p>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {opcoes.map((o) => (

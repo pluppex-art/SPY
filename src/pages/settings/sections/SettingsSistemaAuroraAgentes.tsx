@@ -31,6 +31,8 @@ const AURORA_CORE_ID = "aurora-core";
 // pra não duplicar controle nem ter um botão a mais que só repetia a mesma decisão.
 const EXECUTE_MODULE_BY_NAME: Record<string, string> = {
   "Radar de Oportunidades": "radar",
+  "Agente de Pré-venda": "sdr",
+  "Agente Vendedor": "closer",
   "Agente de Vendas 1": "sdr",
   "Agente de Vendas 2": "closer",
   // nomes antigos: mantidos para linhas já salvas no catálogo de cada empresa
@@ -47,10 +49,10 @@ const EXECUTE_MODULE_BY_NAME: Record<string, string> = {
 // negócio, não os nomes técnicos das AURORA_TOOLS (ferramentas internas que
 // a Aurora chama por trás; o agente é quem representa isso pro usuário).
 export const AURORA_AGENTS_DEFAULT: Array<Pick<AuroraAgent, "name" | "role" | "description">> = [
-  { name: "Agente de Vendas 1", role: "Vendas 1", description: "Passo 1 da venda: atende, qualifica o lead e agenda a reunião pelo WhatsApp." },
+  { name: "Agente de Pré-venda", role: "Pré-venda", description: "Passo 1 da venda: atende, qualifica o lead e agenda a reunião pelo WhatsApp." },
   { name: "Agente Secreto", role: "Inteligência", description: "Monitoramento e alertas de oportunidades ocultas no pipeline." },
   { name: "Radar de Oportunidades", role: "Prospecção", description: "Identifica leads quentes e sinais de compra em tempo real." },
-  { name: "Agente de Vendas 2", role: "Vendas 2", description: "Passo 2 da venda: conduz a negociação e o fechamento das propostas." },
+  { name: "Agente Vendedor", role: "Vendas", description: "Passo 2 da venda: conduz a negociação e o fechamento das propostas." },
   { name: "Agente Comercial", role: "Comercial", description: "Suporte geral ao time comercial no dia a dia do CRM." },
   { name: "Diretoria", role: "Executivo", description: "Resumos e recomendações estratégicas para a liderança." },
   { name: "Pesquisa", role: "Pesquisa", description: "Levantamento de dados de mercado e concorrência." },
@@ -63,6 +65,7 @@ export const AURORA_AGENTS_DEFAULT: Array<Pick<AuroraAgent, "name" | "role" | "d
 
 export const ROLE_ICONS: Record<string, typeof Bot> = {
   SDR: UserSearch,
+  "Pré-venda": UserSearch,
   "Vendas 1": UserSearch,
   "Vendas 2": Handshake,
   "Inteligência": Eye,
@@ -82,6 +85,7 @@ export const ROLE_ICONS: Record<string, typeof Bot> = {
 const ROLE_TONES: Record<string, { box: string; text: string; pill: string }> = {
   "Núcleo": { box: "bg-orange-500/10 border-orange-500/20", text: "text-orange-500", pill: "bg-orange-500/10 text-orange-600" },
   SDR: { box: "bg-blue-500/10 border-blue-500/20", text: "text-blue-500", pill: "bg-blue-500/10 text-blue-600" },
+  "Pré-venda": { box: "bg-blue-500/10 border-blue-500/20", text: "text-blue-500", pill: "bg-blue-500/10 text-blue-600" },
   "Vendas 1": { box: "bg-blue-500/10 border-blue-500/20", text: "text-blue-500", pill: "bg-blue-500/10 text-blue-600" },
   "Vendas 2": { box: "bg-rose-500/10 border-rose-500/20", text: "text-rose-500", pill: "bg-rose-500/10 text-rose-600" },
   "Inteligência": { box: "bg-violet-500/10 border-violet-500/20", text: "text-violet-500", pill: "bg-violet-500/10 text-violet-600" },
@@ -152,8 +156,8 @@ function displayNameForAgent(agent: Pick<AuroraAgent, "name">, promptByKey: Map<
 // Agentes que o CLIENTE enxerga (somente leitura): os 4 do modelo padrão. Ligar/desligar, editar,
 // remover e treinar (prompt) é só do master da plataforma — ver Sistema → Treinamento dos agentes.
 const MODULE_BY_AGENT: Record<string, "sdr" | "closer" | "radar" | "agente_secreto"> = {
-  "Agente de Vendas 1": "sdr", "Agente SDR": "sdr",
-  "Agente de Vendas 2": "closer", "Closer": "closer",
+  "Agente de Pré-venda": "sdr", "Agente de Vendas 1": "sdr", "Agente SDR": "sdr",
+  "Agente Vendedor": "closer", "Agente de Vendas 2": "closer", "Closer": "closer",
   "Radar de Oportunidades": "radar",
   "Agente Secreto": "agente_secreto",
 };
@@ -169,9 +173,9 @@ export function ConfigSistemaAuroraAgentes() {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const { prompts, loading: promptsLoading, savingKey: promptSavingKey, updatePrompt } = useAgentPrompts();
   const promptByKey = new Map(prompts.map((p) => [p.agentKey, p]));
-  // Apelido do Agente de Vendas 1 = nome com que ele se apresenta aos clientes (empresa_dados.ia_nome_agente).
+  // Apelido do Agente de Pré-venda = nome com que ele se apresenta aos clientes (empresa_dados.ia_nome_agente).
   const apelidoVendas1 = String(appSettings?.empresa_dados?.ia_nome_agente || "").trim();
-  // O Agente de Vendas 2 (Closer) não tem nome próprio: usa o mesmo apelido do Agente de Vendas 1.
+  // O Agente Vendedor (Closer) não tem nome próprio: usa o mesmo apelido do Agente de Pré-venda.
   if (apelidoVendas1) {
     for (const k of ["sdr", "closer"]) {
       promptByKey.set(k, { ...(promptByKey.get(k) ?? { agentKey: k, description: null, prompt: "", basePrompt: null, updatedAt: null, isCustomized: true }), name: apelidoVendas1 } as any);
@@ -316,7 +320,7 @@ export function ConfigSistemaAuroraAgentes() {
             <p className="text-sm text-[var(--color-text-muted)] mt-1 max-w-3xl">
               {isMaster
                 ? "Cada agente pode ser ativado ou desativado — a Aurora não age em nome de um agente inativo quando ele é citado diretamente na conversa."
-                : "Estes são os agentes contratados pela sua empresa. Você pode dar um apelido ao Agente de Vendas 1, que é o nome com que ele conversa com os seus clientes; o Agente de Vendas 2 usa o mesmo nome. Ativação e treinamento ficam com a equipe da plataforma."}
+                : "Estes são os agentes contratados pela sua empresa. Você pode dar um apelido ao Agente de Pré-venda, que é o nome com que ele conversa com os seus clientes; o Agente Vendedor usa o mesmo nome. Ativação e treinamento ficam com a equipe da plataforma."}
             </p>
           </div>
         </div>
