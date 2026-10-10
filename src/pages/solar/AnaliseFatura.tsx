@@ -12,6 +12,7 @@ import { analyzeFaturaSolar, FaturaAnalise } from "../../lib/solarOcr";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { friendlyError } from "../../lib/friendlyError";
+import { useSolarConfig } from "../../lib/modules/solarConfig";
 
 interface SolarAnalise extends FaturaAnalise {
   id: string;
@@ -27,13 +28,13 @@ const STATUS_FLOW = ["Análise Concluída", "Visita Técnica", "Proposta Enviada
 // Mesma fórmula usada no backend (/api/ai/solar-analyze-fatura) — reaplicada
 // aqui pra recalcular a estimativa em tempo real quando o usuário corrige o
 // consumo/valor extraído pela IA na etapa de revisão humana.
-const HSP_MEDIO_BRASIL = 4.5;
-const EFICIENCIA_SISTEMA = 0.8;
-function recalcularEstimativas(consumoMedioKwh: number | null, valorFatura: number | null) {
+// Parâmetros vêm de Configurações > Energia Solar > Dimensionamento (padrões: 4,5 HSP, 80% de eficiência, 85% de economia).
+interface ParamsDim { hsp: number; eficienciaPct: number; economiaPct: number }
+function recalcularEstimativas(consumoMedioKwh: number | null, valorFatura: number | null, p: ParamsDim) {
   const potenciaEstimadaKwp = consumoMedioKwh
-    ? Math.round((consumoMedioKwh / (HSP_MEDIO_BRASIL * 30 * EFICIENCIA_SISTEMA)) * 100) / 100
+    ? Math.round((consumoMedioKwh / (p.hsp * 30 * (p.eficienciaPct / 100))) * 100) / 100
     : null;
-  const economiaMensalEstimada = valorFatura ? Math.round(valorFatura * 0.85 * 100) / 100 : null;
+  const economiaMensalEstimada = valorFatura ? Math.round(valorFatura * (p.economiaPct / 100) * 100) / 100 : null;
   const economiaAnualEstimada = economiaMensalEstimada ? Math.round(economiaMensalEstimada * 12 * 100) / 100 : null;
   return { potenciaEstimadaKwp, economiaMensalEstimada, economiaAnualEstimada };
 }
@@ -48,6 +49,9 @@ export default function AnaliseFatura() {
   const navigate = useNavigate();
   const { addTask, createProposalWithItems } = useData();
   const { activeTenantId } = useAuth();
+  const solarCfg = useSolarConfig();
+  const dim = solarCfg.dimensionamento;
+  const params: ParamsDim = { hsp: Number(dim.hsp) || 4.5, eficienciaPct: Number(dim.eficienciaPct) || 80, economiaPct: Number(dim.economiaPct) || 85 };
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [cliente, setCliente] = useState("");
@@ -96,7 +100,11 @@ export default function AnaliseFatura() {
     setAnalyzing(true);
     try {
       const analise = await analyzeFaturaSolar(file);
-      setResultado(analise);
+      // Se os parâmetros diferem do padrão do backend, reaplica a fórmula com os da empresa.
+      const custom = params.hsp !== 4.5 || params.eficienciaPct !== 80 || params.economiaPct !== 85;
+      setResultado(custom
+        ? { ...analise, ...recalcularEstimativas(analise.consumoMedioKwh, analise.valorFatura, params) }
+        : analise);
       if (!analise.consumoMedioKwh && !analise.valorFatura) {
         toast.warning("Não consegui extrair os dados da fatura. Tente uma foto mais nítida.");
       } else {
@@ -273,7 +281,7 @@ export default function AnaliseFatura() {
                       value={resultado.consumoMedioKwh ?? ""}
                       onChange={(e) => {
                         const consumoMedioKwh = e.target.value ? Number(e.target.value) : null;
-                        setResultado({ ...resultado, consumoMedioKwh, ...recalcularEstimativas(consumoMedioKwh, resultado.valorFatura) });
+                        setResultado({ ...resultado, consumoMedioKwh, ...recalcularEstimativas(consumoMedioKwh, resultado.valorFatura, params) });
                       }}
                       placeholder="Não identificado"
                       className="bg-transparent text-right font-bold text-[var(--color-text-primary)] outline-none border-b border-transparent focus:border-amber-500/50 w-24"
@@ -286,7 +294,7 @@ export default function AnaliseFatura() {
                       value={resultado.valorFatura ?? ""}
                       onChange={(e) => {
                         const valorFatura = e.target.value ? Number(e.target.value) : null;
-                        setResultado({ ...resultado, valorFatura, ...recalcularEstimativas(resultado.consumoMedioKwh, valorFatura) });
+                        setResultado({ ...resultado, valorFatura, ...recalcularEstimativas(resultado.consumoMedioKwh, valorFatura, params) });
                       }}
                       placeholder="Não identificado"
                       className="bg-transparent text-right font-bold text-[var(--color-text-primary)] outline-none border-b border-transparent focus:border-amber-500/50 w-24"
@@ -301,7 +309,7 @@ export default function AnaliseFatura() {
                     <span className="font-black text-emerald-500">{resultado.economiaMensalEstimada ? `R$ ${resultado.economiaMensalEstimada.toFixed(2)}` : "—"}</span>
                   </div>
                   <p className="text-[9px] text-[var(--color-text-faint)] pt-1">
-                    Estimativa baseada em irradiação solar média nacional (4,5 HSP) e eficiência de sistema de 80%. Valor real varia por região, orientação do telhado e tarifa vigente. Potência e economia acima são recalculadas a partir do consumo revisado só ao salvar.
+                    Estimativa baseada em irradiação solar média ({String(params.hsp).replace(".", ",")} HSP) e eficiência de sistema de {params.eficienciaPct}%. Valor real varia por região, orientação do telhado e tarifa vigente. Potência e economia acima são recalculadas a partir do consumo revisado só ao salvar.
                   </p>
                   <Button onClick={handleSave} className="w-full mt-2 h-9 text-[10px] font-black uppercase tracking-widest gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5" /> Confirmar Revisão e Adicionar ao Funil

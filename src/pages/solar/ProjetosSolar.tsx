@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { useSolarConfig } from "../../lib/modules/solarConfig";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
 
 interface ProjetoSolarItem {
@@ -46,6 +47,7 @@ function rowToProjeto(row: any): ProjetoSolarItem {
 
 export default function ProjetosSolar() {
   const { activeTenantId } = useAuth();
+  const cfg = useSolarConfig();
 
   const [projetos, setProjetos] = useState<ProjetoSolarItem[]>([]);
 
@@ -82,7 +84,8 @@ export default function ProjetosSolar() {
   const [estadoUf, setEstadoUf] = useState("");
   const [cidadeNome, setCidadeNome] = useState("");
   const { estados, municipios, loadingMunicipios } = useIbgeLocalidades(estadoUf);
-  const [concessionaria, setConcessionaria] = useState("CPFL Paulista");
+  const [concessionariaSel, setConcessionaria] = useState("");
+  const concessionaria = concessionariaSel || cfg.distribuidoras.padrao;
   const [status, setStatus] = useState<ProjetoSolarItem["status"]>("Dimensionamento");
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -96,9 +99,9 @@ export default function ProjetosSolar() {
       return;
     }
 
-    const kwp = parseFloat(potenciaKwp.replace(/[^\d.]/g, "")) || 5.0;
-    const kwh = parseFloat(geracaoKwh.replace(/[^\d.]/g, "")) || Math.round(kwp * 125);
-    const val = parseFloat(valorContrato.replace(/[^\d]/g, "")) || Math.round(kwp * 3800);
+    const kwp = parseFloat(potenciaKwp.replace(/[^\d.]/g, "")) || Number(cfg.projetos.potenciaPadraoKwp) || 5.0;
+    const kwh = parseFloat(geracaoKwh.replace(/[^\d.]/g, "")) || Math.round(kwp * (Number(cfg.projetos.geracaoPorKwp) || 125));
+    const val = parseFloat(valorContrato.replace(/[^\d]/g, "")) || Math.round(kwp * (Number(cfg.projetos.precoPorKwp) || 3800));
 
     const { data, error } = await supabase
       .from("solar_projetos")
@@ -429,14 +432,7 @@ export default function ProjetosSolar() {
               onChange={e => setConcessionaria(e.target.value)}
               className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-amber-500"
             >
-              <option value="CPFL Paulista">CPFL Paulista</option>
-              <option value="CPFL Piratininga">CPFL Piratininga</option>
-              <option value="Enel SP">Enel SP</option>
-              <option value="Enel RJ">Enel RJ</option>
-              <option value="CEMIG">CEMIG</option>
-              <option value="Neoenergia Elektro">Neoenergia Elektro</option>
-              <option value="Light">Light</option>
-              <option value="Copel">Copel</option>
+              {cfg.distribuidoras.concessionarias.map((c: string) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </form>
