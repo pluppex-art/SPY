@@ -399,7 +399,10 @@ function CatalogIntegrationModal({
   );
 }
 
-export function ConfigIntegracoesApps() {
+/** Recorte da Central de Integrações usado pela configuração de um módulo (ex.: Varejo → Max Data). */
+export interface IntegrationsScope { onlyIds: string[]; title: string; subtitle: string }
+
+export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } = {}) {
   const navigate = useNavigate();
   const { activeTenantId } = useAuth();
   const { setWhatsappWebhookUrl, appSettings, appSettingsLoaded, saveAppSetting, globalWebhooks } = useData();
@@ -986,6 +989,7 @@ export function ConfigIntegracoesApps() {
   // Filtered integrations based on Category and Search Query
   const filteredIntegrations = useMemo(() => {
     return allIntegrations.filter((item) => {
+      if (scope && !scope.onlyIds.includes(item.id)) return false;
       if (activeCategory !== "todas" && item.category !== activeCategory) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -997,7 +1001,7 @@ export function ConfigIntegracoesApps() {
       }
       return true;
     });
-  }, [allIntegrations, activeCategory, searchQuery]);
+  }, [allIntegrations, activeCategory, searchQuery, scope]);
 
   const realIntegrations = allIntegrations.filter((i) => !i.credentialOnly);
   const connectedReal = realIntegrations.filter((i) => i.connected).length;
@@ -1010,23 +1014,24 @@ export function ConfigIntegracoesApps() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
-            Central de Integrações
+            {scope?.title ?? "Central de Integrações"}
             <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)] animate-pulse hidden sm:inline-block"></span>
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Conecte canais de anúncios, mensageria, gateways de pagamento, APIs e webhooks para potencializar o S.P.Y..
+            {scope?.subtitle ?? "Conecte canais de anúncios, mensageria, gateways de pagamento, APIs e webhooks para potencializar o S.P.Y.."}
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        {!scope && <div className="flex items-center gap-2.5">
           <Button
             onClick={() => setIsNovaIntegracaoModalOpen(true)}
             className="font-bold gap-2 text-xs h-10 shadow-sm"
           >
             <Plus className="w-4 h-4" /> Nova Integração Personalizada
           </Button>
-        </div>
+        </div>}
       </div>
 
+      {!scope && (<>
       {/* Resumo: integrações REAIS conectadas x catálogo de credenciais */}
       <div className="rounded-[var(--radius-panel)] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] p-4 space-y-3">
         <div>
@@ -1087,6 +1092,8 @@ export function ConfigIntegracoesApps() {
           />
         </div>
       </div>
+
+      </>)}
 
       {/* Integrations Grid */}
       {filteredIntegrations.length === 0 ? (

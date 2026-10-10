@@ -101,6 +101,7 @@ const ConfigProdutividadeCategorias = lazy(() => import("./pages/settings/Settin
 const ConfigFinanceiroCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroCategorias })));
 const ConfigEngajamentoModelos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEngajamentoModelos })));
 const ConfigEngajamentoAutomacoes = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEngajamentoAutomacoes })));
+const ConfigVarejoConexoes = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoConexoes").then(m => ({ default: m.ConfigVarejoConexoes })));
 const ConfigIntegracoesApps = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigIntegracoesApps })));
 const ConfigNotificacoesPreferencias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigNotificacoesPreferencias })));
 const ConfigPerfilUsuario = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigPerfilUsuario })));
@@ -541,6 +542,8 @@ function AppContent() {
 
             <Route path="engajamento/modelos" element={<ConfigEngajamentoModelos />} />
             <Route path="engajamento/automacoes" element={<ConfigEngajamentoAutomacoes />} />
+
+            <Route path="varejo/conexoes" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoConexoes /></ProtectedRoute>} />
 
             <Route path="integracoes/apps" element={<ConfigIntegracoesApps />} />
             <Route path="integracoes/smtp" element={<ConfigIntegracoesSMTP />} />

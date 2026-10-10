@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { Building, Plug, Columns3, Briefcase, Zap, Wallet, Bell, HardDrive } from "lucide-react";
+import { MODULE_SETTINGS } from "./moduleSettings";
 import { SectionSidebar, type SectionNavGroup } from "../../components/layout/SectionSidebar";
 
 export default function SettingsLayout() {
@@ -88,6 +89,8 @@ export default function SettingsLayout() {
         { title: "Automações", path: "/app/configuracoes/engajamento/automacoes" },
       ],
     }] : []),
+    // Configurações dos módulos verticais: só aparecem para quem tem o módulo ligado.
+    ...MODULE_SETTINGS.filter((m) => isModuleEnabled(m.moduleId)).map((m) => ({ title: m.title, icon: m.icon, items: m.items })),
     {
       title: "Integrações",
       icon: Plug,
