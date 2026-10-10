@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { Building, Plug, Columns3, Briefcase, Zap, Wallet, Bell, HardDrive } from "lucide-react";
 import { MODULE_SETTINGS } from "./moduleSettings";
+import { MODULE_SETTINGS_REGISTRY, moduleSettingsPath } from "./moduleSettingsRegistry";
 import { SectionSidebar, type SectionNavGroup } from "../../components/layout/SectionSidebar";
 
 export default function SettingsLayout() {
@@ -91,6 +92,9 @@ export default function SettingsLayout() {
     }] : []),
     // Configurações dos módulos verticais: só aparecem para quem tem o módulo ligado.
     ...MODULE_SETTINGS.filter((m) => isModuleEnabled(m.moduleId)).map((m) => ({ title: m.title, icon: m.icon, items: m.items })),
+    ...MODULE_SETTINGS_REGISTRY.filter((m) => m.sections.length > 0 && isModuleEnabled(m.moduleId)).map((m) => ({
+      title: m.title, icon: m.icon, items: m.sections.map((sec) => ({ title: sec.title, path: moduleSettingsPath(m.moduleId, sec.id) })),
+    })),
     {
       title: "Integrações",
       icon: Plug,

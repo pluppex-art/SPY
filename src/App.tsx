@@ -101,6 +101,7 @@ const ConfigProdutividadeCategorias = lazy(() => import("./pages/settings/Settin
 const ConfigFinanceiroCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroCategorias })));
 const ConfigEngajamentoModelos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEngajamentoModelos })));
 const ConfigEngajamentoAutomacoes = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEngajamentoAutomacoes })));
+const ModuleSettingsPage = lazy(() => import("./pages/settings/sections/modules/ModuleSettingsPage").then(m => ({ default: m.ModuleSettingsPage })));
 const ConfigVarejoPDV = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoPaginas").then(m => ({ default: m.ConfigVarejoPDV })));
 const ConfigVarejoPagamentos = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoPaginas").then(m => ({ default: m.ConfigVarejoPagamentos })));
 const ConfigVarejoEstoque = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoPaginas").then(m => ({ default: m.ConfigVarejoEstoque })));
@@ -549,6 +550,7 @@ function AppContent() {
             <Route path="engajamento/modelos" element={<ConfigEngajamentoModelos />} />
             <Route path="engajamento/automacoes" element={<ConfigEngajamentoAutomacoes />} />
 
+            <Route path="modulos/:moduleId/:sectionId" element={<ModuleSettingsPage />} />
             <Route path="varejo/pdv" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoPDV /></ProtectedRoute>} />
             <Route path="varejo/pagamentos" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoPagamentos /></ProtectedRoute>} />
             <Route path="varejo/estoque" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoEstoque /></ProtectedRoute>} />

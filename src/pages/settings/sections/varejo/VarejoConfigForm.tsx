@@ -5,15 +5,10 @@ import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { Switch } from "../../../../components/ui/switch";
 import { useData } from "../../../../contexts/DataContext";
+import type { FieldDef } from "../../../../lib/moduleConfig";
 import { VAREJO_CONFIG_KEY, mergeVarejoConfig, type VarejoConfig } from "../../../../lib/varejoConfig";
 
-export type FieldDef =
-  | { kind: "toggle"; key: string; label: string; hint?: string }
-  | { kind: "number"; key: string; label: string; hint?: string; min?: number; max?: number; suffix?: string }
-  | { kind: "text"; key: string; label: string; hint?: string; placeholder?: string; multiline?: boolean }
-  | { kind: "select"; key: string; label: string; hint?: string; options: string[] }
-  | { kind: "multi"; key: string; label: string; hint?: string; options: string[] }
-  | { kind: "tags"; key: string; label: string; hint?: string };
+export type { FieldDef };
 
 interface Props {
   section: keyof VarejoConfig;
