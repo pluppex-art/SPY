@@ -1,6 +1,7 @@
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
+import { useEducacaoConfig } from "../../../../lib/modules/educacaoConfig";
 import { Users, Calendar, Search, Share2, Check, X, MoreVertical } from "lucide-react";
 
 interface Student {
@@ -25,6 +26,7 @@ export function TurmaDetalhesPresenca({
   attendanceDate, onDateChange,
   onMarkAllPresent, onToggleAttendance,
 }: TurmaDetalhesPresencaProps) {
+  const freqMin = useEducacaoConfig().presenca.frequenciaMinima;
   return (
     <div className="space-y-6">
       <Card className="p-4 bg-[var(--color-surface-elevated)]/50 border-white/5 flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -101,9 +103,9 @@ export function TurmaDetalhesPresenca({
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
                       <div className="flex-1 max-w-[100px] h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${student.progress < 50 ? "bg-rose-500" : "bg-emerald-500"}`} style={{ width: `${student.progress}%` }} />
+                        <div className={`h-full rounded-full ${student.progress < freqMin ? "bg-rose-500" : "bg-emerald-500"}`} style={{ width: `${student.progress}%` }} />
                       </div>
-                      <span className={`text-[11px] font-black ${student.progress < 50 ? "text-rose-500" : "text-emerald-500"}`}>{student.progress}%</span>
+                      <span className={`text-[11px] font-black ${student.progress < freqMin ? "text-rose-500" : "text-emerald-500"}`}>{student.progress}%</span>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-right">

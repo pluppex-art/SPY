@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Brain, Zap, Plus, Trash2, Calculator, RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Button } from "../../button";
+import { useEducacaoConfig } from "../../../../lib/modules/educacaoConfig";
 
 interface Grade {
   subject: string;
@@ -37,13 +38,15 @@ function calcAvg(grades: Grade[]): string {
   return totalW > 0 ? (totalV / totalW).toFixed(2) : "0.0";
 }
 
-function GradeIndicator({ value }: { value: number }) {
-  if (value >= 7) return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
-  if (value >= 5) return <Minus className="w-3.5 h-3.5 text-yellow-400" />;
+function GradeIndicator({ value, aprov, recup }: { value: number; aprov: number; recup: number }) {
+  if (value >= aprov) return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
+  if (value >= recup) return <Minus className="w-3.5 h-3.5 text-yellow-400" />;
   return <TrendingDown className="w-3.5 h-3.5 text-rose-400" />;
 }
 
 export function AlunoGradesModal({ isOpen, student, onClose, onAddGrade, onRemoveGrade, onAnalyzeAI }: AlunoGradesModalProps) {
+  const { notas: cfgNotas } = useEducacaoConfig();
+  const corNota = (v: number) => (v >= cfgNotas.notaAprovacao ? "text-emerald-400" : v >= cfgNotas.notaRecuperacao ? "text-yellow-400" : "text-rose-400");
   const [subject, setSubject] = useState("");
   const [gradeValue, setGradeValue] = useState("");
   const [aiInsight, setAiInsight] = useState("");
@@ -56,7 +59,7 @@ export function AlunoGradesModal({ isOpen, student, onClose, onAddGrade, onRemov
     e.preventDefault();
     if (!subject || !gradeValue || !student) return;
     const val = parseFloat(gradeValue);
-    if (isNaN(val) || val < 0 || val > 10) return;
+    if (isNaN(val) || val < 0 || val > cfgNotas.notaMaxima) return;
     onAddGrade(student.id, { subject, value: val, weight: 1 });
     setSubject("");
     setGradeValue("");
@@ -190,10 +193,10 @@ export function AlunoGradesModal({ isOpen, student, onClose, onAddGrade, onRemov
                         </div>
                         <div className="flex items-center gap-5">
                           <div className="flex items-center gap-2">
-                            <GradeIndicator value={grade.value} />
+                            <GradeIndicator value={grade.value} aprov={cfgNotas.notaAprovacao} recup={cfgNotas.notaRecuperacao} />
                             <div className="text-right">
                               <p className="text-[9px] text-slate-500 font-black uppercase tracking-tighter">Nota</p>
-                              <p className={`text-sm font-black font-mono ${grade.value >= 7 ? "text-emerald-400" : grade.value >= 5 ? "text-yellow-400" : "text-rose-400"}`}>
+                              <p className={`text-sm font-black font-mono ${corNota(grade.value)}`}>
                                 {grade.value.toFixed(1)}
                               </p>
                             </div>
@@ -224,7 +227,7 @@ export function AlunoGradesModal({ isOpen, student, onClose, onAddGrade, onRemov
                 </div>
                 <div>
                   <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Média Ponderada</p>
-                  <p className={`text-xl font-black font-mono tracking-tighter ${avgNum >= 7 ? "text-emerald-400" : avgNum >= 5 ? "text-yellow-400" : "text-rose-400"}`}>
+                  <p className={`text-xl font-black font-mono tracking-tighter ${corNota(avgNum)}`}>
                     {avg}
                   </p>
                 </div>

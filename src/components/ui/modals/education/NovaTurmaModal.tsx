@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, GraduationCap, BookOpen, User, Users, Clock, Calendar, Loader2 } from "lucide-react";
 import { Button } from "../../button";
 import { useData } from "../../../../contexts/DataContext";
+import { useEducacaoConfig } from "../../../../lib/modules/educacaoConfig";
 
 interface NovaTurmaForm {
   nome: string;
@@ -22,17 +23,19 @@ interface NovaTurmaModalProps {
 const inputClass =
   "w-full bg-white/[0.04] text-white border border-white/10 rounded-xl h-12 px-4 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30 transition-all placeholder:text-slate-600";
 
-const DEFAULT: NovaTurmaForm = { nome: "", curso: "", professor: "", vagas: "30", shift: "Manhã", data_inicio: "" };
 
 export function NovaTurmaModal({ isOpen, onClose, onSubmit }: NovaTurmaModalProps) {
   const { colaboradores } = useData();
-  const [form, setForm] = useState<NovaTurmaForm>(DEFAULT);
+  const { turmas: cfg } = useEducacaoConfig();
+  const blank = (): NovaTurmaForm => ({ nome: "", curso: "", professor: "", vagas: String(cfg.vagasPadrao), shift: cfg.turnoPadrao, data_inicio: "" });
+  const [form, setForm] = useState<NovaTurmaForm>(blank);
+  useEffect(() => { if (isOpen) setForm(blank()); }, [isOpen, cfg.vagasPadrao, cfg.turnoPadrao]); // eslint-disable-line react-hooks/exhaustive-deps
   const [loading, setLoading] = useState(false);
 
   const set = (k: keyof NovaTurmaForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
-  const reset = () => setForm(DEFAULT);
+  const reset = () => setForm(blank());
   const handleClose = () => { reset(); onClose(); };
 
   const handleSubmit = async (e: React.FormEvent) => {

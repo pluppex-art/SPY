@@ -1,3 +1,4 @@
+import { useEducacaoConfig } from "../../lib/modules/educacaoConfig";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { GraduationCap, Users, BookOpen, CheckCircle2, Plus } from "lucide-react";
@@ -26,6 +27,7 @@ interface Turma {
 
 export default function Turmas() {
   const { turmas: rawTurmas, addTurma, students, ensureNicheModulesLoaded } = useData();
+  const { turmas: cfgTurmas } = useEducacaoConfig();
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -127,7 +129,7 @@ export default function Turmas() {
             id: Math.random().toString(36).substring(2, 9),
             nome: data.nome, curso: data.curso,
             professor: data.professor || "Não definido",
-            vagas: parseInt(data.vagas) || 30,
+            vagas: parseInt(data.vagas) || cfgTurmas.vagasPadrao,
             shift: data.shift, data_inicio: data.data_inicio,
             status: "Planejamento", progress: 0,
           });
