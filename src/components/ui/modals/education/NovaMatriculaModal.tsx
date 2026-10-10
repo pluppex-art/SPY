@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, GraduationCap, User, Mail, Phone, BookOpen, Loader2, Wallet } from "lucide-react";
 import { Button } from "../../button";
 import { useData } from "../../../../contexts/DataContext";
+import { useEducacaoConfig } from "../../../../lib/modules/educacaoConfig";
 
 interface NovaMatriculaModalProps {
   isOpen: boolean;
@@ -18,16 +19,19 @@ const inputClass =
 
 export function NovaMatriculaModal({ isOpen, onClose, onSubmit }: NovaMatriculaModalProps) {
   const { turmas } = useData();
-  const [form, setForm] = useState({
+  const { matricula: cfg } = useEducacaoConfig();
+  const blank = () => ({
     nome: "", email: "", telefone: "", curso: "",
-    valorMensalidade: "", diaVencimento: "10", quantidadeParcelas: "12",
+    valorMensalidade: "", diaVencimento: String(cfg.diaVencimentoPadrao), quantidadeParcelas: String(cfg.parcelasPadrao),
   });
+  const [form, setForm] = useState(blank);
+  useEffect(() => { if (isOpen) setForm(blank()); }, [isOpen, cfg.diaVencimentoPadrao, cfg.parcelasPadrao]); // eslint-disable-line react-hooks/exhaustive-deps
   const [loading, setLoading] = useState(false);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
-  const reset = () => setForm({ nome: "", email: "", telefone: "", curso: "", valorMensalidade: "", diaVencimento: "10", quantidadeParcelas: "12" });
+  const reset = () => setForm(blank());
 
   const handleClose = () => { reset(); onClose(); };
 

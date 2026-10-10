@@ -9,6 +9,7 @@ import { CertificadosKPIs } from "./components/Certificados/CertificadosKPIs";
 import { CertificadosFilters } from "./components/Certificados/CertificadosFilters";
 import { CertificadosGrid } from "./components/Certificados/CertificadosGrid";
 import { useData } from "../../contexts/DataContext";
+import { useEducacaoConfig } from "../../lib/modules/educacaoConfig";
 
 interface Certificate {
   id: string;
@@ -27,6 +28,7 @@ function rowToCert(r: any): Certificate {
 export default function Certificados() {
   const { certificates, addCertificate, ensureNicheModulesLoaded } = useData();
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
+  const { certificados: cfgCert } = useEducacaoConfig();
   const certs: Certificate[] = certificates.map(rowToCert);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -45,7 +47,7 @@ export default function Certificados() {
     const data = `${student}|${course}|${Date.now()}|${Math.random()}`;
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(data));
     const hex = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
-    return `AX-${hex.slice(0, 12).toUpperCase()}`;
+    return `${cfgCert.prefixoCodigo}${hex.slice(0, 12).toUpperCase()}`;
   }
 
   const handleSaveCertificate = async (e: { preventDefault(): void }) => {
