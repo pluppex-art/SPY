@@ -125,8 +125,8 @@ function MaxDataConnectionModal({
           automaticamente. Nesta etapa o SPY só LÊ dados do Max (entradas de nota fiscal); enviar vendas ou emitir
           NF-e não está ligado.
         </Alert>
-        <FormField label="URL base da API" required hint="Endereço da MaxAPI deste cliente — pedir à Max Data (a documentação não traz)">
-          <Input type="text" value={config.apiUrl} onChange={(e) => setConfig((p) => ({ ...p, apiUrl: e.target.value }))} placeholder="https://" />
+        <FormField label="URL base da API" required hint="Servidor da MaxAPI deste cliente com /v2 (ex.: http://IP:porta/v2) — pedir à Max Data. Não é o link da documentação">
+          <Input type="text" value={config.apiUrl} onChange={(e) => setConfig((p) => ({ ...p, apiUrl: e.target.value }))} placeholder="http://IP:porta/v2" />
         </FormField>
         <FormField label="Nome da aplicação (application_name)" required>
           <Input type="text" value={config.clientId} onChange={(e) => setConfig((p) => ({ ...p, clientId: e.target.value }))} />
