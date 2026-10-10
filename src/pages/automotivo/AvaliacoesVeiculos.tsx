@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Modal } from "../../components/ui/modal";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
 interface AvaliacaoItem {
@@ -43,6 +44,7 @@ function rowToAvaliacao(row: any): AvaliacaoItem {
 
 export default function AvaliacoesVeiculos() {
   const { activeTenantId } = useAuth();
+  const cfg = useAutomotivoConfig().avaliacoes;
 
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,10 +82,21 @@ export default function AvaliacoesVeiculos() {
   const [cliente, setCliente] = useState("");
   const [status, setStatus] = useState<AvaliacaoItem["status"]>("Em Avaliação");
 
+  // Ao abrir o formulário, preenche o vistoriador padrão configurado.
+  useEffect(() => { if (modalOpen) setAvaliador(cfg.avaliadorPadrao); }, [modalOpen]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!veiculo.trim() || !placa.trim()) {
       toast.error("Informe o modelo do veículo e a placa.");
+      return;
+    }
+    if (cfg.exigirFipe && !fipe.trim()) {
+      toast.error("Informe o valor da Tabela FIPE.");
+      return;
+    }
+    if (cfg.exigirProprietario && !cliente.trim()) {
+      toast.error("Informe o proprietário / cliente.");
       return;
     }
     if (!supabase || !activeTenantId) {
@@ -101,7 +114,7 @@ export default function AvaliacoesVeiculos() {
       return parseFloat(s.replace(/[^\d.]/g, "")) || 0;
     };
     const numFipe = cleanMoney(fipe);
-    const numOferta = cleanMoney(oferta) || (numFipe > 0 ? Math.round(numFipe * 0.88) : 0);
+    const numOferta = cleanMoney(oferta) || (numFipe > 0 ? Math.round(numFipe * (cfg.ofertaPctFipe / 100)) : 0);
 
     const { data, error } = await supabase
       .from("automotivo_avaliacoes")
@@ -112,8 +125,8 @@ export default function AvaliacoesVeiculos() {
         km: numKm,
         fipe: numFipe,
         oferta: numOferta,
-        avaliador: avaliador.trim() || "Vistoriador Interno",
-        cliente: cliente.trim() || "Cliente Balcão",
+        avaliador: avaliador.trim() || cfg.avaliadorPadrao,
+        cliente: cliente.trim() || cfg.clientePadrao,
         status,
       })
       .select()

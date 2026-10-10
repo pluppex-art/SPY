@@ -11,6 +11,7 @@ import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
 
@@ -54,6 +55,7 @@ function rowToTroca(r: any): TrocaItem {
 
 export default function TrocasVeiculos() {
   const { activeTenantId } = useAuth();
+  const cfg = useAutomotivoConfig().trocas;
 
   const [trocas, setTrocas] = useState<TrocaItem[]>([]);
   const [veiculosOptions, setVeiculosOptions] = useState<VeiculoOption[]>([]);
@@ -97,10 +99,21 @@ export default function TrocasVeiculos() {
   const [veiculoSaidaId, setVeiculoSaidaId] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("Financiamento Bancário");
 
+  // Ao abrir o formulário, aplica a forma de pagamento padrão configurada.
+  useEffect(() => { if (modalOpen) setFormaPagamento(cfg.formaPagamentoPadrao); }, [modalOpen]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cliente.trim() || !veiculoEntrada.trim() || !veiculoSaidaId) {
       toast.error("Preencha o cliente, o veículo de entrada e selecione o veículo de saída.");
+      return;
+    }
+    if (cfg.exigirTelefone && !telefone.trim()) {
+      toast.error("Informe o telefone do cliente.");
+      return;
+    }
+    if (cfg.exigirValorEntrada && !valorEntrada.trim()) {
+      toast.error("Informe o valor avaliado do veículo de entrada.");
       return;
     }
     if (!supabase || !activeTenantId) {

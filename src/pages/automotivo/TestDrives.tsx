@@ -12,6 +12,7 @@ import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
 
@@ -47,6 +48,7 @@ function rowToTestDrive(r: any): TestDriveItem {
 
 export default function TestDrives() {
   const { activeTenantId } = useAuth();
+  const cfg = useAutomotivoConfig().testdrive;
 
   const [testDrives, setTestDrives] = useState<TestDriveItem[]>([]);
   const [veiculosOptions, setVeiculosOptions] = useState<VeiculoOption[]>([]);
@@ -91,10 +93,25 @@ export default function TestDrives() {
   const [hora, setHora] = useState("");
   const [cnhValida, setCnhValida] = useState(true);
 
+  // Com "exigir CNH" ligado, a caixa começa desmarcada a cada novo agendamento.
+  useEffect(() => { if (modalOpen) setCnhValida(!cfg.exigirCnh); }, [modalOpen]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cliente.trim() || !veiculoId) {
       toast.error("Preencha o cliente e selecione o veículo.");
+      return;
+    }
+    if (cfg.exigirCnh && !cnhValida) {
+      toast.error("Confirme a validação da CNH do cliente antes de agendar.");
+      return;
+    }
+    if (cfg.exigirTelefone && !telefone.trim()) {
+      toast.error("Informe o telefone do cliente.");
+      return;
+    }
+    if (cfg.exigirConsultor && !vendedor.trim()) {
+      toast.error("Informe o consultor acompanhante.");
       return;
     }
     if (!supabase || !activeTenantId) {
@@ -113,7 +130,7 @@ export default function TestDrives() {
         telefone: telefone.trim() || null,
         corretor: vendedor.trim() || null,
         data: data || new Date().toISOString().split("T")[0],
-        hora: hora || "14:00",
+        hora: hora || cfg.horaPadrao,
         status: "Agendada",
       })
       .select("*, imobiliario_veiculos(marca,modelo)")

@@ -11,6 +11,7 @@ import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
 
@@ -64,6 +65,7 @@ function rowToConsignacao(r: any): ConsignacaoItem {
 
 export default function ConsignacoesVeiculos() {
   const { activeTenantId } = useAuth();
+  const cfg = useAutomotivoConfig().consignacao;
 
   const [consignacoes, setConsignacoes] = useState<ConsignacaoItem[]>([]);
 
@@ -96,10 +98,21 @@ export default function ConsignacoesVeiculos() {
   const [comissaoPercent, setComissaoPercent] = useState("5");
   const [status, setStatus] = useState<ConsignacaoItem["status"]>("No Pátio");
 
+  // Ao abrir o formulário, aplica a comissão padrão configurada.
+  useEffect(() => { if (modalOpen) setComissaoPercent(String(cfg.comissaoPadraoPct)); }, [modalOpen]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!marca.trim() || !veiculo.trim() || !consignante.trim()) {
       toast.error("Preencha a marca, o modelo do veículo e o nome do proprietário.");
+      return;
+    }
+    if (cfg.exigirTelefone && !telefone.trim()) {
+      toast.error("Informe o telefone do proprietário.");
+      return;
+    }
+    if (cfg.exigirValorPedido && !valorPedido.trim()) {
+      toast.error("Informe o valor pedido pelo proprietário.");
       return;
     }
     if (!supabase || !activeTenantId) {
@@ -116,7 +129,7 @@ export default function ConsignacoesVeiculos() {
       return parseFloat(s.replace(/[^\d.]/g, "")) || 0;
     };
     const numPedido = cleanMoney(valorPedido);
-    const pct = parseFloat(comissaoPercent.replace(",", ".")) || 5;
+    const pct = parseFloat(comissaoPercent.replace(",", ".")) || cfg.comissaoPadraoPct;
     const { status: dbStatus, repasse_realizado } = statusParaColunas(status);
 
     const { data, error } = await supabase

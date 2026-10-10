@@ -9,6 +9,7 @@ import { Card } from "../../components/ui/card";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 
 type VeiculoSummary = {
@@ -33,6 +34,7 @@ type TestDriveSummary = {
 
 export default function PainelAutomotivo() {
   const { user, activeTenantId } = useAuth();
+  const cfg = useAutomotivoConfig().painel;
 
   const [veiculos, setVeiculos] = useState<VeiculoSummary[]>([]);
   const [testDrives, setTestDrives] = useState<TestDriveSummary[]>([]);
@@ -68,7 +70,7 @@ export default function PainelAutomotivo() {
         .gte("data", hojeISO)
         .order("data", { ascending: true })
         .order("hora", { ascending: true })
-        .limit(5);
+        .limit(cfg.testDrivesProximos);
       if (!cancelled && visitasRows) {
         setTestDrives(visitasRows.map((v: any): TestDriveSummary => ({
           id: v.id,
@@ -82,7 +84,7 @@ export default function PainelAutomotivo() {
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTenantId, user]);
+  }, [activeTenantId, user, cfg.testDrivesProximos]);
 
   const [drillOpen, setDrillOpen] = useState(false);
   const veiculoColumns: DrillColumn[] = [
