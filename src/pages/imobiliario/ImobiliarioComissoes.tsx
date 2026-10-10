@@ -12,6 +12,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { Modal } from "../../components/ui/modal";
 import { supabase } from "../../lib/supabase";
+import { useImobiliariaConfig } from "../../lib/modules/imobiliariaConfig";
 
 type Comissao = {
   id: string;
@@ -45,6 +46,7 @@ function rowToComissao(row: any): Comissao {
 
 export default function ImobiliarioComissoes() {
   const { user, activeTenantId } = useAuth();
+  const cfg = useImobiliariaConfig().comissoes;
 
   const [comissoes, setComissoes] = useState<Comissao[]>([]);
 
@@ -73,9 +75,9 @@ export default function ImobiliarioComissoes() {
   const [imovel, setImovel] = useState("");
   const [corretor, setCorretor] = useState(user?.name || "");
   const [valorVenda, setValorVenda] = useState("");
-  const [percentualTotal, setPercentualTotal] = useState("6");
-  const [splitCorretor, setSplitCorretor] = useState("50");
-  const [status, setStatus] = useState<Comissao["status"]>("A Receber");
+  const [percentualTotal, setPercentualTotal] = useState(String(cfg.percentualTotal));
+  const [splitCorretor, setSplitCorretor] = useState(String(cfg.splitCorretor));
+  const [status, setStatus] = useState<Comissao["status"]>(cfg.statusInicial);
   const [previsao, setPrevisao] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
@@ -130,6 +132,9 @@ export default function ImobiliarioComissoes() {
 
     // Reset
     setImovel("");
+    setPercentualTotal(String(cfg.percentualTotal));
+    setSplitCorretor(String(cfg.splitCorretor));
+    setStatus(cfg.statusInicial);
     setValorVenda("");
     setObservacoes("");
   };

@@ -14,6 +14,7 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { Modal } from "../../components/ui/modal";
 import { useAuth } from "../../contexts/AuthContext";
 import { friendlyError } from "../../lib/friendlyError";
+import { useImobiliariaConfig } from "../../lib/modules/imobiliariaConfig";
 
 type Visita = {
   id: string;
@@ -60,6 +61,7 @@ function VisitaFormModal({ onClose, onSave, initial, ativos }: {
   initial?: Partial<Visita>;
   ativos: AtivoOption[];
 }) {
+  const cfgVisitas = useImobiliariaConfig().visitas;
   const initialAtivoKey = initial?.imovelId ? `imovel:${initial.imovelId}` : initial?.veiculoId ? `veiculo:${initial.veiculoId}` : "";
   const [form, setForm] = useState({
     imovel: initial?.imovel ?? "",
@@ -68,8 +70,8 @@ function VisitaFormModal({ onClose, onSave, initial, ativos }: {
     telefone: initial?.telefone ?? "",
     corretor: initial?.corretor ?? "",
     data: initial?.data ?? "",
-    hora: initial?.hora ?? "10:00",
-    status: initial?.status ?? "Agendada",
+    hora: initial?.hora ?? cfgVisitas.horaPadrao,
+    status: initial?.status ?? cfgVisitas.statusInicial,
     obs: initial?.obs ?? "",
     ativoKey: initialAtivoKey,
   });

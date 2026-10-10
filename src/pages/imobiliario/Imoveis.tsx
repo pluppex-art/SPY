@@ -16,12 +16,13 @@ import { Link } from "react-router-dom";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { friendlyError } from "../../lib/friendlyError";
+import { useImobiliariaConfig } from "../../lib/modules/imobiliariaConfig";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
 
 type Imovel = {
   id: string;
   titulo: string;
-  tipo: "Apartamento" | "Casa" | "Cobertura" | "Kitnet" | "Comercial" | "Terreno";
+  tipo: string;
   operacao: "Venda" | "Locação";
   status: "Disponível" | "Vendido" | "Locado" | "Reservado";
   valor: number;
@@ -40,7 +41,6 @@ type Imovel = {
 };
 
 
-const TIPOS = ["Todos", "Apartamento", "Casa", "Cobertura", "Kitnet", "Comercial", "Terreno"];
 const STATUS_LIST = ["Todos", "Disponível", "Vendido", "Locado", "Reservado"];
 const OPERACOES = ["Todos", "Venda", "Locação"];
 
@@ -82,10 +82,12 @@ function ImovelFormModal({ onClose, onSave, initial, corretoresNomes = [] }: {
   corretoresNomes?: string[];
 }) {
   const { formatCurrency } = useLocalization();
+  const cfgImoveis = useImobiliariaConfig().imoveis;
+  const tiposForm: string[] = initial?.tipo && !cfgImoveis.tipos.includes(initial.tipo) ? [initial.tipo, ...cfgImoveis.tipos] : cfgImoveis.tipos;
   const [form, setForm] = useState({
     titulo: initial?.titulo ?? "",
-    tipo: initial?.tipo ?? "Apartamento",
-    operacao: initial?.operacao ?? "Venda",
+    tipo: initial?.tipo ?? cfgImoveis.tipos[0] ?? "Apartamento",
+    operacao: initial?.operacao ?? cfgImoveis.operacaoPadrao,
     status: initial?.status ?? "Disponível",
     valor: String(initial?.valor ?? ""),
     bairro: initial?.bairro ?? "",
@@ -95,9 +97,9 @@ function ImovelFormModal({ onClose, onSave, initial, corretoresNomes = [] }: {
     cidade: initial?.cidade ?? "",
     estadoUf: "",
     area: String(initial?.area ?? ""),
-    quartos: String(initial?.quartos ?? "2"),
-    banheiros: String(initial?.banheiros ?? "1"),
-    vagas: String(initial?.vagas ?? "1"),
+    quartos: String(initial?.quartos ?? cfgImoveis.quartosPadrao),
+    banheiros: String(initial?.banheiros ?? cfgImoveis.banheirosPadrao),
+    vagas: String(initial?.vagas ?? cfgImoveis.vagasPadrao),
     condominio: String((initial as any)?.condominio ?? ""),
     iptu: String((initial as any)?.iptu ?? ""),
     corretor: initial?.corretor ?? "",
@@ -164,7 +166,7 @@ function ImovelFormModal({ onClose, onSave, initial, corretoresNomes = [] }: {
           <div>
             <label className={LABEL}>Tipo</label>
             <select value={form.tipo} onChange={e => set("tipo", e.target.value)} className={SELECT}>
-              {["Apartamento","Casa","Cobertura","Kitnet","Comercial","Terreno"].map(t => <option key={t}>{t}</option>)}
+              {tiposForm.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
           <div>
@@ -425,6 +427,7 @@ export default function Imoveis() {
   // gravação otimista silenciosa: erro de escrita agora aparece pro usuário.
   const { formatCurrency } = useLocalization();
   const { activeTenantId } = useAuth();
+  const TIPOS = ["Todos", ...(useImobiliariaConfig().imoveis.tipos as string[])];
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
   const [loading, setLoading] = useState(true);
 
