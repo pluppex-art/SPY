@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { useSolarConfig } from "../../lib/modules/solarConfig";
 
 interface ManutencaoSolarItem {
   id: string;
@@ -37,6 +38,7 @@ function rowToManutencao(row: any): ManutencaoSolarItem {
 
 export default function ManutencoesSolar() {
   const { activeTenantId } = useAuth();
+  const cfg = useSolarConfig();
 
   const [chamados, setChamados] = useState<ManutencaoSolarItem[]>([]);
 
@@ -63,7 +65,8 @@ export default function ManutencoesSolar() {
   // Form state
   const [usina, setUsina] = useState("");
   const [potencia, setPotencia] = useState("");
-  const [servico, setServico] = useState("Limpeza e Lavagem de Módulos");
+  const [servicoSel, setServico] = useState("");
+  const servico = servicoSel || cfg.operacao.servicos[0] || "Limpeza e Lavagem de Módulos";
   const [data, setData] = useState("");
   const [geracaoAtual, setGeracaoAtual] = useState("100% normal");
   const [status, setStatus] = useState<ManutencaoSolarItem["status"]>("Agendada");
@@ -84,7 +87,7 @@ export default function ManutencoesSolar() {
       .insert({
         tenant_id: activeTenantId,
         usina: usina.trim(),
-        potencia: potencia.trim() || "10 kWp",
+        potencia: potencia.trim() || cfg.operacao.potenciaPadrao,
         servico,
         data: data || new Date().toISOString().slice(0, 10),
         status,
@@ -317,11 +320,7 @@ export default function ManutencoesSolar() {
               onChange={e => setServico(e.target.value)}
               className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-amber-500"
             >
-              <option value="Limpeza e Lavagem de Módulos">Limpeza e Lavagem de Módulos</option>
-              <option value="Inspeção de Inversor & String Box">Inspeção de Inversor & String Box</option>
-              <option value="Termografia e Reaperto de Conexões">Termografia e Reaperto de Conexões</option>
-              <option value="Diagnóstico de Queda de Geração">Diagnóstico de Queda de Geração</option>
-              <option value="Substituição de Fusível / DPS">Substituição de Fusível / DPS</option>
+              {cfg.operacao.servicos.map((sv: string) => <option key={sv} value={sv}>{sv}</option>)}
             </select>
           </div>
         </form>

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { useSolarConfig } from "../../lib/modules/solarConfig";
 
 interface VistoriaSolarItem {
   id: string;
@@ -40,6 +41,7 @@ function rowToVistoria(row: any): VistoriaSolarItem {
 
 export default function VistoriasSolar() {
   const { activeTenantId } = useAuth();
+  const cfg = useSolarConfig();
 
   const [vistorias, setVistorias] = useState<VistoriaSolarItem[]>([]);
 
@@ -70,7 +72,8 @@ export default function VistoriasSolar() {
   const [endereco, setEndereco] = useState("");
   const [dataAgendada, setDataAgendada] = useState("");
   const [responsavel, setResponsavel] = useState("");
-  const [tipoTelhado, setTipoTelhado] = useState("Metálico");
+  const [tipoTelhadoSel, setTipoTelhado] = useState("");
+  const tipoTelhado = tipoTelhadoSel || cfg.operacao.tiposTelhado[0] || "Metálico";
   const [status, setStatus] = useState<VistoriaSolarItem["status"]>("Agendada");
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -92,7 +95,7 @@ export default function VistoriasSolar() {
         telefone: telefone.trim() || null,
         endereco: endereco.trim(),
         data_agendada: dataAgendada || new Date().toISOString().slice(0, 10),
-        responsavel: responsavel.trim() || "Eng. Responsável",
+        responsavel: responsavel.trim() || cfg.operacao.responsavelPadrao,
         tipo_telhado: tipoTelhado,
         status,
       })
@@ -339,11 +342,7 @@ export default function VistoriasSolar() {
                 onChange={e => setTipoTelhado(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-amber-500"
               >
-                <option value="Metálico Trapezoidal">Metálico Trapezoidal</option>
-                <option value="Cerâmico Colonial">Cerâmico Colonial</option>
-                <option value="Fibrocimento">Fibrocimento</option>
-                <option value="Laje de Concreto">Laje de Concreto</option>
-                <option value="Usinas em Solo">Usinas em Solo</option>
+                {cfg.operacao.tiposTelhado.map((t: string) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
