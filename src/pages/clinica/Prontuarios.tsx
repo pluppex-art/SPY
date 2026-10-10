@@ -35,6 +35,7 @@ const LABEL = "text-[10px] font-black text-[var(--color-text-faint)] uppercase t
 
 import { Modal } from "../../components/ui/modal";
 import { friendlyError } from "../../lib/friendlyError";
+import { useClinicaConfig, PRONTUARIO_CAMPOS } from "../../lib/modules/clinicaConfig";
 
 function NovaEntradaModal({ onClose, onSave }: { onClose: () => void; onSave: (d: any) => void }) {
   const [form, setForm] = useState({
@@ -42,6 +43,7 @@ function NovaEntradaModal({ onClose, onSave }: { onClose: () => void; onSave: (d
     diagnostico: "", prescricao: "", exames_solicitados: "", observacoes: "",
   });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const cfg = useClinicaConfig().prontuario;
 
   return (
     <Modal
@@ -55,8 +57,13 @@ function NovaEntradaModal({ onClose, onSave }: { onClose: () => void; onSave: (d
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button
             onClick={() => {
-              if (!form.queixa_principal.trim() && !form.diagnostico.trim()) {
+              if (cfg.exigirQueixaOuDiagnostico && !form.queixa_principal.trim() && !form.diagnostico.trim()) {
                 toast.error("Preencha ao menos a queixa principal ou o diagnóstico");
+                return;
+              }
+              const faltando = (cfg.camposObrigatorios || []).filter(l => PRONTUARIO_CAMPOS[l] && !(form as any)[PRONTUARIO_CAMPOS[l]].trim());
+              if (faltando.length) {
+                toast.error(`Preencha: ${faltando.join(", ")}`);
                 return;
               }
               onSave(form);

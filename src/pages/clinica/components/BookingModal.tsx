@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 import { useAuth } from "../../../contexts/AuthContext";
 import { supabase } from "../../../lib/supabase";
+import { useClinicaConfig, dentroDoHorario } from "../../../lib/modules/clinicaConfig";
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -16,7 +17,8 @@ interface BookingModalProps {
 }
 
 export function BookingModal({ isOpen, onClose, leads, addTask, addAppointment }: BookingModalProps) {
-  const { colaboradores } = useData();
+  const { colaboradores, appointments } = useData();
+  const cfg = useClinicaConfig();
   const { activeTenantId } = useAuth();
   const doctors = useMemo(() => {
     return (colaboradores || [])
@@ -75,6 +77,15 @@ export function BookingModal({ isOpen, onClose, leads, addTask, addAppointment }
       return;
     }
 
+    if (cfg.agenda.restringirAoHorario && !dentroDoHorario(cfg.agenda, bookingTime)) {
+      toast.error(`Horário fora do atendimento (${cfg.agenda.horaInicio} às ${cfg.agenda.horaFim}, exceto ${cfg.agenda.almocoInicio}–${cfg.agenda.almocoFim}).`);
+      return;
+    }
+    if (cfg.agenda.bloquearConflito && (appointments || []).some((a: any) => String(a.drId) === String(selectedDoctorId) && a.time === bookingTime && a.date === bookingDate)) {
+      toast.error('Este profissional já tem um agendamento neste horário.');
+      return;
+    }
+
     const doctor = doctors.find(d => d.id === selectedDoctorId);
     const specialty = selectedSpecialty || doctor?.specialty || 'Clínica Geral';
 
@@ -97,8 +108,8 @@ export function BookingModal({ isOpen, onClose, leads, addTask, addAppointment }
         drId: doctor?.id || '1',
         drName: doctor?.name || 'Médico',
         status: 'Confirmado',
-        type: 'Consulta',
-        room: 'Consultório 01',
+        type: cfg.agenda.tipoPadrao || 'Consulta',
+        room: cfg.agenda.salaPadrao || 'Consultório 01',
         specialty: specialty,
         date: bookingDate
       });
