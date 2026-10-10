@@ -89,16 +89,13 @@ export function ConfigVarejoFiscal() {
     <VarejoConfigForm
       section="fiscal"
       title="Notas fiscais"
-      subtitle="Como o módulo trata a nota fiscal de saída (NFC-e) na venda e a nota de entrada na compra."
-      validate={(d) => (!Number.isInteger(d.serieNfce) || d.serieNfce < 1 ? "A série deve ser um número inteiro a partir de 1." : null)}
+      subtitle="As notas fiscais vêm da Max Data e ficam disponíveis só para visualização: a emissão é feita lá, não aqui."
       fields={[
-        { kind: "toggle", key: "exigirCpfNaNota", label: "Exigir CPF/CNPJ do cliente na nota", hint: "O caixa só finaliza a venda com o documento preenchido." },
-        { kind: "toggle", key: "mostrarEspelhoNfce", label: "Mostrar espelho da NFC-e no cupom", hint: "Aba de pré-visualização da NFC-e depois da venda. É uma simulação: a emissão real na SEFAZ ainda não está ligada." },
-        { kind: "toggle", key: "vincularItensAutomaticamente", label: "Vincular itens da nota de entrada ao catálogo", hint: "Ao importar o XML, casa cada item com o produto por código de barras, SKU ou nome (só quando não há dúvida)." },
-        { kind: "select", key: "regimeTributario", label: "Regime tributário", options: ["Simples Nacional", "MEI", "Lucro Presumido", "Lucro Real"], hint: "Guardado para a emissão fiscal quando for ligada." },
-        { kind: "select", key: "ambiente", label: "Ambiente de emissão", options: ["Homologação", "Produção"], hint: "Guardado para a emissão fiscal quando for ligada. Use Homologação para testes." },
-        { kind: "number", key: "serieNfce", label: "Série da NFC-e", min: 1, hint: "Guardado para a emissão fiscal quando for ligada." },
+        { kind: "toggle", key: "vincularItensAutomaticamente", label: "Vincular itens das notas ao catálogo", hint: "Ao importar uma nota, casa cada item com o produto por código de barras, SKU ou nome (só quando não há dúvida)." },
+        { kind: "toggle", key: "exigirCpfNaNota", label: "Exigir CPF/CNPJ do cliente na venda", hint: "O caixa só finaliza a venda com o documento preenchido, para a nota sair com o cliente identificado." },
+        { kind: "toggle", key: "mostrarEspelhoNfce", label: "Mostrar o espelho da NFC-e no cupom", hint: "Aba de pré-visualização depois da venda. É uma simulação do layout, não uma nota emitida." },
       ]}
+      footer={<p className="text-xs text-[var(--color-text-muted)]">A conexão com a Max Data (chaves e teste) fica em <strong>Conexões (Max Data)</strong>, neste mesmo grupo.</p>}
     />
   );
 }
