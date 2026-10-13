@@ -625,6 +625,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     sdrDelayResposta: r.sdr_delay_resposta ?? 2,
     sdrMsgBoasVindas: r.sdr_msg_boas_vindas || '',
     sdrCriterioDesqualificacao: r.sdr_criterio_desqualificacao || 'sem_interesse',
+    produtoIds: r.produto_ids || [],
+    horarioInicio: r.horario_inicio || '',
+    horarioFim: r.horario_fim || '',
+    diasSemana: r.dias_semana || [],
+    contextoIA: r.contexto_ia || '',
   });
 
   const funilToRow = (f: any) => ({
@@ -641,6 +646,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     ...(f.sdrDelayResposta !== undefined ? { sdr_delay_resposta: f.sdrDelayResposta } : {}),
     ...(f.sdrMsgBoasVindas !== undefined ? { sdr_msg_boas_vindas: f.sdrMsgBoasVindas } : {}),
     ...(f.sdrCriterioDesqualificacao !== undefined ? { sdr_criterio_desqualificacao: f.sdrCriterioDesqualificacao } : {}),
+    ...(f.produtoIds !== undefined ? { produto_ids: f.produtoIds || [] } : {}),
+    ...(f.horarioInicio !== undefined ? { horario_inicio: f.horarioInicio || null } : {}),
+    ...(f.horarioFim !== undefined ? { horario_fim: f.horarioFim || null } : {}),
+    ...(f.diasSemana !== undefined ? { dias_semana: f.diasSemana || [] } : {}),
+    ...(f.contextoIA !== undefined ? { contexto_ia: f.contextoIA || '' } : {}),
   });
 
   const fetchFunis = async () => {

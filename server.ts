@@ -2991,6 +2991,17 @@ app.put("/api/implementations/:id/tenant-integrations/:integration", requireUser
   );
   if (error) return res.status(500).json({ error: "Não foi possível gravar a integração." });
   console.info("[impl-integration]", JSON.stringify({ actor: req.user?.id, implementation: impl.id, tenant: impl.linked_tenant_id, integration: def.id, fields: Object.keys(clean), connected }));
+  // IA com chave própria do cliente: avisa o n8n pra criar a credencial dedicada e trocar o agente
+  // dele automaticamente. Só dispara quando uma chave NOVA de verdade acabou de ser digitada nesta
+  // chamada (clean.apiKey só existe se veio no body) — nunca em regravações de outros campos. Valor
+  // nunca é logado (nem aqui, nem no [impl-integration] acima); falha aqui nunca derruba o save real.
+  if (def.id === "ia_provider" && clean.apiKey) {
+    axios.post("https://automacao-target-n8n.vr4mar.easypanel.host/webhook/spy-ia-provider-configurado", {
+      tenant_id: impl.linked_tenant_id,
+      provider: settingValue.provider || "",
+      api_key: clean.apiKey,
+    }, { timeout: 10_000 }).catch((e) => console.warn("[impl-integration] aviso ao n8n (ia_provider) falhou:", e?.message));
+  }
   return res.json({ ok: true, missingRequired, integration: implMaskedView(def, settingValue) });
 });
 
@@ -4975,17 +4986,22 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
     // (Radar/Closer/Júlia/Agente Secreto); se vier telefone (via implementação), também
     // inicia a conversa de onboarding no WhatsApp. Fire-and-forget: nunca atrasa nem
     // derruba a resposta real pro admin que provisionou o tenant.
-    fetch("https://automacao-target-n8n.vr4mar.easypanel.host/webhook/spy-agente-implementacao-tenant-criado", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Webhook-Secret": "2d4c3e77d5eadaaa7f32686cdefd3b4cc343baa62fd72da0b6ab565dc0db6f0d" },
-      body: JSON.stringify({
-        tenant_id: tenantData.id,
-        company: tenantName.trim(),
-        email: adminEmail.trim(),
-        phone: impl?.data?.resp_whatsapp || "",
-        implementation_id: impl?.id || "",
-      }),
-    }).catch((e: any) => console.error("[tenant-create] Falha ao notificar agente de implementacao:", e?.message));
+    const implWebhookSecret = process.env.SPY_IMPLEMENTACAO_WEBHOOK_SECRET;
+    if (!implWebhookSecret) {
+      console.error("[tenant-create] SPY_IMPLEMENTACAO_WEBHOOK_SECRET nao configurada — agente de implementacao NAO foi acionado.");
+    } else {
+      fetch("https://automacao-target-n8n.vr4mar.easypanel.host/webhook/spy-agente-implementacao-tenant-criado", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Webhook-Secret": implWebhookSecret },
+        body: JSON.stringify({
+          tenant_id: tenantData.id,
+          company: tenantName.trim(),
+          email: adminEmail.trim(),
+          phone: impl?.data?.resp_whatsapp || "",
+          implementation_id: impl?.id || "",
+        }),
+      }).catch((e: any) => console.error("[tenant-create] Falha ao notificar agente de implementacao:", e?.message));
+    }
 
     res.json({ success: true, tenantId: tenantData.id, ...(impl ? { empresaDadosSalvos, vinculada } : {}) });
   } catch (err: any) {

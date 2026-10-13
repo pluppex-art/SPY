@@ -3,9 +3,10 @@ import { Modal } from "../../../../components/ui/modal";
 import { Button } from "../../../../components/ui/button";
 import {
   Bot, Columns3, Save, ToggleLeft, ToggleRight, Zap, ArrowRight,
-  Star, Timer, XCircle, MessageSquare, Users,
+  Star, Timer, XCircle, MessageSquare, Users, Package, Clock, Sparkles,
 } from "lucide-react";
-import { Funil } from "./funisTypes";
+import { Funil, DIAS_SEMANA_LISTA } from "./funisTypes";
+import { useData } from "../../../../contexts/DataContext";
 
 interface FunilModalProps {
   funil: Funil | null;
@@ -16,6 +17,7 @@ interface FunilModalProps {
 
 export function FunilModal({ funil, onClose, onSave, availableClients }: FunilModalProps) {
   const isNew = funil === null;
+  const { products } = useData();
 
   const [nome, setNome] = useState(funil?.nome ?? "");
   const [tipo, setTipo] = useState<"sdr_ia" | "comercial">(funil?.tipo ?? "comercial");
@@ -28,10 +30,19 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
   const [sdrDelayResposta, setSdrDelayResposta] = useState(funil?.sdrDelayResposta ?? 2);
   const [sdrMsgBoasVindas, setSdrMsgBoasVindas] = useState(funil?.sdrMsgBoasVindas ?? "Olá! Sou a Aurora, assistente comercial da S.P.Y.. Poderia me contar um pouco sobre o seu desafio atual?");
   const [sdrCriterioDesqualificacao, setSdrCriterioDesqualificacao] = useState(funil?.sdrCriterioDesqualificacao ?? "sem_interesse");
+  const [produtoIds, setProdutoIds] = useState<string[]>(funil?.produtoIds ?? []);
+  const [horarioInicio, setHorarioInicio] = useState(funil?.horarioInicio ?? "");
+  const [horarioFim, setHorarioFim] = useState(funil?.horarioFim ?? "");
+  const [diasSemana, setDiasSemana] = useState<number[]>(funil?.diasSemana ?? []);
+  const [contextoIA, setContextoIA] = useState(funil?.contextoIA ?? "");
   const [saving, setSaving] = useState(false);
 
   const toggleClient = (t: string) =>
     setClientIds(prev => prev.includes(t) ? prev.filter((x: string) => x !== t) : [...prev, t]);
+  const toggleProduto = (id: string) =>
+    setProdutoIds(prev => prev.includes(id) ? prev.filter((x: string) => x !== id) : [...prev, id]);
+  const toggleDiaSemana = (valor: number) =>
+    setDiasSemana(prev => prev.includes(valor) ? prev.filter((x: number) => x !== valor) : [...prev, valor]);
 
   const etapas = etapasText.split("\n").map(s => s.trim()).filter(Boolean);
 
@@ -51,6 +62,7 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
       nome: nome.trim(), tipo, etapas, ativo, clientIds,
       sdrEtapaEntrada, sdrEtapaHandoff, sdrScoreMinimo,
       sdrDelayResposta, sdrMsgBoasVindas, sdrCriterioDesqualificacao,
+      produtoIds, horarioInicio, horarioFim, diasSemana, contextoIA,
     };
     onSave(result);
     setSaving(false);
@@ -158,6 +170,59 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
             </p>
           </div>
         )}
+
+        <div className="border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]/50 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="w-4 h-4 text-[var(--color-primary-blue)]" />
+            <span className="text-[11px] font-black text-[var(--color-text-primary)] uppercase tracking-widest">Direcionamento para IA (IA de vendas / Aurora)</span>
+          </div>
+          <p className="text-[10px] text-[var(--color-text-faint)] -mt-2">
+            Ajuda a IA e a Aurora a escolherem este funil certo quando o tenant tem mais de um — por produto, horário ou contexto da conversa.
+          </p>
+
+          {products.length > 0 && (
+            <div>
+              <label className={labelClass}><Package className="w-3 h-3 inline mr-1 text-[var(--color-primary-blue)]" />Produto(s) associado(s)</label>
+              <div className="grid grid-cols-2 gap-2 mt-1 max-h-40 overflow-y-auto pr-1">
+                {products.filter((p: any) => p.active).map((p: any) => (
+                  <label key={p.id}
+                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${produtoIds.includes(p.id) ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/30 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-default)]"}`}>
+                    <input type="checkbox" checked={produtoIds.includes(p.id)} onChange={() => toggleProduto(p.id)} className="accent-[var(--color-primary-blue)] w-3.5 h-3.5 shrink-0" />
+                    <span className="text-xs font-bold truncate">{p.name}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-[10px] text-[var(--color-text-faint)] mt-1.5">
+                {produtoIds.length === 0 ? "Nenhum produto vinculado — não entra no critério de escolha por produto." : `Vinculado a ${produtoIds.length} produto(s).`}
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className={labelClass}><Clock className="w-3 h-3 inline mr-1 text-[var(--color-primary-blue)]" />Janela de atendimento (opcional)</label>
+            <div className="grid grid-cols-2 gap-3">
+              <input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className={inputClass} placeholder="Início" />
+              <input type="time" value={horarioFim} onChange={e => setHorarioFim(e.target.value)} className={inputClass} placeholder="Fim" />
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {DIAS_SEMANA_LISTA.map(d => (
+                <button key={d.valor} type="button" onClick={() => toggleDiaSemana(d.valor)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${diasSemana.includes(d.valor) ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/30 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)]"}`}>
+                  {d.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-[var(--color-text-faint)] mt-1.5">
+              Sem horário e sem dias marcados = funil sempre disponível.
+            </p>
+          </div>
+
+          <div>
+            <label className={labelClass}><MessageSquare className="w-3 h-3 inline mr-1 text-[var(--color-primary-blue)]" />Contexto deste funil (para a IA entender quando usá-lo)</label>
+            <textarea value={contextoIA} onChange={e => setContextoIA(e.target.value)} rows={2} className={inputClass}
+              placeholder="Ex.: Leads interessados nos workshops presenciais de fim de semana." />
+          </div>
+        </div>
 
         {tipo === "sdr_ia" && (
           <div className="border border-[var(--color-primary-blue)]/20 bg-[var(--color-primary-blue)]/[0.03] rounded-2xl p-5 space-y-5">

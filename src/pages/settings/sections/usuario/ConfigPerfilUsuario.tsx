@@ -3,15 +3,23 @@ import { useState, useEffect } from "react";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";
+import { Switch } from "../../../../components/ui/switch";
 import {
   User, Mail, Phone, Briefcase, Camera,
   ShieldCheck, KeyRound, Smartphone, LogOut,
-  Save, CheckCircle2, AlertCircle, Sparkles, Building, Loader2
+  Save, CheckCircle2, AlertCircle, Sparkles, Building, Loader2,
+  Mic, Sunrise
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { supabase } from "../../../../lib/supabase";
 import { toast } from "sonner";
 import { friendlyError } from "../../../../lib/friendlyError";
+
+interface AuroraPrefs {
+  colaboradorId: string | null;
+  recebeBriefingDiario: boolean;
+  auroraRespondeAudio: boolean;
+}
 
 interface UserProfile {
   name: string;
@@ -45,6 +53,61 @@ export function ConfigPerfilUsuario() {
   useEffect(() => {
     setProfile(profileFromSession(user));
   }, [user?.id, user?.name, user?.email, user?.phone, user?.role, user?.bio, user?.avatarUrl, user?.twoFactorEnabled]);
+
+  // Preferências da Aurora: vivem em `colaboradores` (não em `users`), achadas pelo user_id
+  // do colaborador correspondente a esta conta nesta empresa — nem toda conta tem uma linha
+  // em colaboradores (ex: conta só-admin de plataforma sem registro de equipe), então a seção
+  // some quietamente quando não encontra, em vez de mostrar um toggle que não faz nada.
+  const [auroraPrefs, setAuroraPrefs] = useState<AuroraPrefs | null>(null);
+  const [loadingAuroraPrefs, setLoadingAuroraPrefs] = useState(true);
+  const [savingAuroraPrefs, setSavingAuroraPrefs] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!supabase || !user?.id || !activeTenantId) { setLoadingAuroraPrefs(false); return; }
+      setLoadingAuroraPrefs(true);
+      const { data, error } = await supabase
+        .from("colaboradores")
+        .select("id, recebe_briefing_diario, aurora_responde_audio")
+        .eq("user_id", user.id)
+        .eq("tenant_id", activeTenantId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!error && data) {
+        setAuroraPrefs({
+          colaboradorId: data.id,
+          recebeBriefingDiario: data.recebe_briefing_diario ?? false,
+          auroraRespondeAudio: data.aurora_responde_audio ?? true,
+        });
+      }
+      setLoadingAuroraPrefs(false);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, activeTenantId]);
+
+  const toggleAuroraPref = async (field: "recebeBriefingDiario" | "auroraRespondeAudio") => {
+    if (!auroraPrefs || !supabase) return;
+    const next = { ...auroraPrefs, [field]: !auroraPrefs[field] };
+    setAuroraPrefs(next);
+    setSavingAuroraPrefs(true);
+    const column = field === "recebeBriefingDiario" ? "recebe_briefing_diario" : "aurora_responde_audio";
+    const { error } = await supabase
+      .from("colaboradores")
+      .update({ [column]: next[field] })
+      .eq("id", auroraPrefs.colaboradorId);
+    setSavingAuroraPrefs(false);
+    if (error) {
+      setAuroraPrefs(auroraPrefs);
+      toast.error(`Erro ao salvar: ${friendlyError(error)}`);
+      return;
+    }
+    toast.success(
+      field === "recebeBriefingDiario"
+        ? (next.recebeBriefingDiario ? "Você voltou a receber o briefing diário." : "Briefing diário desativado.")
+        : (next.auroraRespondeAudio ? "A Aurora volta a responder com áudio pra você." : "A Aurora não vai mais te mandar áudio, só texto.")
+    );
+  };
 
   // Security Form
   const [currentPassword, setCurrentPassword] = useState("");
@@ -409,6 +472,49 @@ export function ConfigPerfilUsuario() {
           </div>
         </Card>
       </div>
+
+      {/* Preferências da Aurora (briefing diário / respostas em áudio) */}
+      {!loadingAuroraPrefs && auroraPrefs && (
+        <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2 pb-3 border-b border-[var(--color-border-subtle)]">
+            <Sparkles className="w-4 h-4 text-[var(--color-primary-blue)]" /> Preferências da Aurora
+          </h3>
+
+          <div className="flex items-center justify-between gap-3 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] p-4 rounded-xl">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center shrink-0">
+                <Sunrise className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-[var(--color-text-primary)]">Receber briefing diário</h4>
+                <p className="text-[10px] text-[var(--color-text-muted)]">O resumo automático que a Aurora manda toda manhã pelo WhatsApp.</p>
+              </div>
+            </div>
+            <Switch
+              checked={auroraPrefs.recebeBriefingDiario}
+              onCheckedChange={() => toggleAuroraPref("recebeBriefingDiario")}
+              disabled={savingAuroraPrefs}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] p-4 rounded-xl">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center shrink-0">
+                <Mic className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-[var(--color-text-primary)]">Aurora responder com áudio</h4>
+                <p className="text-[10px] text-[var(--color-text-muted)]">Quando desligado, a Aurora te responde só por texto no WhatsApp da equipe.</p>
+              </div>
+            </div>
+            <Switch
+              checked={auroraPrefs.auroraRespondeAudio}
+              onCheckedChange={() => toggleAuroraPref("auroraRespondeAudio")}
+              disabled={savingAuroraPrefs}
+            />
+          </div>
+        </Card>
+      )}
 
       <MfaCard />
     </div>

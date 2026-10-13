@@ -18,7 +18,22 @@ export interface Funil {
   sdrDelayResposta: number;
   sdrMsgBoasVindas: string;
   sdrCriterioDesqualificacao: string;
+  produtoIds: string[];
+  horarioInicio: string;
+  horarioFim: string;
+  diasSemana: number[];
+  contextoIA: string;
 }
+
+export const DIAS_SEMANA_LISTA = [
+  { valor: 1, label: "Seg" },
+  { valor: 2, label: "Ter" },
+  { valor: 3, label: "Qua" },
+  { valor: 4, label: "Qui" },
+  { valor: 5, label: "Sex" },
+  { valor: 6, label: "Sáb" },
+  { valor: 7, label: "Dom" },
+];
 
 export const FUNIS_DEFAULT: Funil[] = [
   {
@@ -33,6 +48,11 @@ export const FUNIS_DEFAULT: Funil[] = [
     sdrDelayResposta: 2,
     sdrMsgBoasVindas: "",
     sdrCriterioDesqualificacao: "sem_interesse",
+    produtoIds: [],
+    horarioInicio: "",
+    horarioFim: "",
+    diasSemana: [],
+    contextoIA: "",
   },
   {
     id: "funil-sdr-ia-default",
@@ -46,6 +66,11 @@ export const FUNIS_DEFAULT: Funil[] = [
     sdrDelayResposta: 2,
     sdrMsgBoasVindas: "Olá! Sou a Aurora, assistente comercial da S.P.Y.. Poderia me contar um pouco sobre o seu desafio atual?",
     sdrCriterioDesqualificacao: "sem_interesse",
+    produtoIds: [],
+    horarioInicio: "",
+    horarioFim: "",
+    diasSemana: [],
+    contextoIA: "",
   },
 ];
 

@@ -10,7 +10,7 @@
  * "definido / não definido"; e ao regravar, segredo vazio MANTÉM o existente.
  */
 
-export type IntegrationId = "maxdata" | "maxdata_estoque" | "meta" | "google" | "mercadopago" | "stripe" | "asaas";
+export type IntegrationId = "maxdata" | "maxdata_estoque" | "meta" | "google" | "mercadopago" | "stripe" | "asaas" | "ia_provider";
 export type IntegrationFieldKind = "text" | "secret" | "url" | "select";
 
 export interface IntegrationField {
@@ -83,6 +83,14 @@ export const DEFAULT_MAXDATA_CONFIG = {
   notes: "",
 };
 
+/** Cliente trazendo a própria chave de IA (Gemini/OpenAI/Claude) pro agente dele. Nunca pedida pelo formulário público de implementação (só por este painel master-only) — ver nota de segurança no topo de implementationForm.ts. */
+export const DEFAULT_IA_PROVIDER_CONFIG = {
+  connected: false,
+  provider: "",
+  /** Chave de API do cliente (segredo). */
+  apiKey: "",
+};
+
 const ENV = ["sandbox", "production"];
 
 /** Login da MaxAPI: POST /auth com application_name/key/description nos headers e {terminal, empId, idUser} no corpo. */
@@ -151,6 +159,13 @@ export const INTEGRATION_DEFS: IntegrationDef[] = [
       { prop: "webhookToken", label: "Webhook token", kind: "secret" },
     ],
   },
+  {
+    id: "ia_provider", label: "IA — chave própria do cliente", settingsKey: "integracoes_ia_provider",
+    fields: [
+      { prop: "provider", label: "Provedor de IA", kind: "select", options: ["Gemini", "OpenAI", "Claude"], required: true },
+      { prop: "apiKey", label: "Chave de API", kind: "secret", required: true, help: "Recebida do cliente por telefone ou e-mail — nunca pelo WhatsApp/CRM." },
+    ],
+  },
 ];
 
 export const INTEGRATION_SETTING_KEYS = Array.from(new Set(INTEGRATION_DEFS.map(d => d.settingsKey)));
@@ -165,6 +180,7 @@ function defaultConfigFor(def: IntegrationDef): Record<string, any> {
     case "maxdata_estoque": return { ...DEFAULT_MAXDATA_CONFIG };
     case "meta": return { ...DEFAULT_META_CONFIG, trackedEvents: { ...DEFAULT_META_CONFIG.trackedEvents } };
     case "google": return { ...DEFAULT_GOOGLE_CONFIG };
+    case "ia_provider": return { ...DEFAULT_IA_PROVIDER_CONFIG };
     default: return { ...DEFAULT_PAYMENT_CONFIG[def.nested!] };
   }
 }
