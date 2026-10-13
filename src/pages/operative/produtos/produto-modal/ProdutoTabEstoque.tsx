@@ -1,6 +1,7 @@
 import { Truck, ShieldAlert, Check } from "lucide-react";
-import { getTypeSchema, isUniqueAssetType } from "../typeSchemas";
-import { useAuth } from "../../../../contexts/AuthContext";
+import { getTypeSchema, isUniqueAssetType, NO_STOCK_TYPES } from "../typeSchemas";
+import { useNicheProfiles } from "../useNicheProfiles";
+import { hasStockFocus } from "../nicheProfiles";
 import { TypeFieldInput } from "./TypeFieldInput";
 
 interface ProdutoTabEstoqueProps {
@@ -32,12 +33,11 @@ export function ProdutoTabEstoque({
 }: ProdutoTabEstoqueProps) {
   const inputCls = "w-full bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#2563EB]/40 font-mono";
 
-  const { isModuleEnabled } = useAuth();
-  const varejoOn = (() => { try { return !!isModuleEnabled("varejo" as any); } catch { return false; } })();
-  const varejoFisico = varejoOn && formType === "Físico";
+  const profiles = useNicheProfiles();
+  const varejoFisico = hasStockFocus(profiles, formType);
   const extraFields = isUniqueAssetType(formType)
     ? []
-    : (getTypeSchema(formType)?.fields || []).filter(f => f.tab === "estoque" && f.key !== "statusAtivo" && (!f.showIf || f.showIf(formTypeAttributes)));
+    : (getTypeSchema(formType, profiles)?.fields || []).filter(f => f.tab === "estoque" && f.key !== "statusAtivo" && (!f.showIf || f.showIf(formTypeAttributes)));
   const setAttr = (key: string, value: string | number | boolean) => setFormTypeAttributes?.(prev => ({ ...prev, [key]: value }));
   const controlaEstoque = formTypeAttributes.controlaEstoque === undefined ? true : !!formTypeAttributes.controlaEstoque;
   const cur = parseInt(formCurrentStock) || 0;
@@ -85,6 +85,9 @@ export function ProdutoTabEstoque({
     );
   }
 
+  // Serviço/Curso/Assinatura/Digital normalmente não têm estoque: recolhe a seção, a menos que o registro já use estoque.
+  const usesStock = cur > 0 || formTypeAttributes.controlaEstoque === true || !!formDimensions || !!formWeight || !!formMaterial;
+  const collapseStock = !!formType && NO_STOCK_TYPES.includes(formType) && !usesStock;
   return (
     <div className="space-y-4">
       <div className="bg-[var(--color-surface-elevated)] border border-white/5 p-4 rounded-xl flex items-center gap-3">
@@ -95,6 +98,12 @@ export function ProdutoTabEstoque({
         </div>
       </div>
 
+      {collapseStock ? (
+        <details className="rounded-xl border border-white/5 bg-white/[0.01] p-4">
+          <summary className="cursor-pointer select-none text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            Este tipo normalmente não usa estoque — toque para controlar estoque mesmo assim
+          </summary>
+          <div className="space-y-4 pt-4">
       {extraFields.length > 0 && (
         <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${varejoFisico ? "p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5" : ""}`}>
           {extraFields.map(f => <TypeFieldInput key={f.key} field={f} attrs={formTypeAttributes} setAttr={setAttr} />)}
@@ -155,6 +164,72 @@ export function ProdutoTabEstoque({
           </div>
         </div>
       </div>
+          </div>
+        </details>
+      ) : (
+        <>
+      {extraFields.length > 0 && (
+        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${varejoFisico ? "p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5" : ""}`}>
+          {extraFields.map(f => <TypeFieldInput key={f.key} field={f} attrs={formTypeAttributes} setAttr={setAttr} />)}
+        </div>
+      )}
+
+      {controlaEstoque && (
+      <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 ${varejoFisico ? "p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5" : ""}`}>
+        <div className="space-y-1.5">
+          <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Estoque Mínimo Alerta</label>
+          <input type="number" value={formStockMin} onChange={(e) => setFormStockMin(e.target.value)} placeholder="Ex: 5" className={inputCls} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Estoque Atual Físico</label>
+          <input type="number" value={formCurrentStock} onChange={(e) => setFormCurrentStock(e.target.value)} placeholder="Ex: 50" className={inputCls} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Estoque Máximo Alvo</label>
+          <input type="number" value={formStockMax} onChange={(e) => setFormStockMax(e.target.value)} placeholder="Ex: 200" className={inputCls} />
+        </div>
+      </div>
+      )}
+
+      <div className="space-y-1.5">
+        <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Fornecedor / Distribuidor</label>
+        <input type="text" value={formProvider} onChange={(e) => setFormProvider(e.target.value)}
+          placeholder="Ex: Cisco Solutions Inc" className={`${inputCls} font-medium`} />
+      </div>
+
+      {controlaEstoque && <div className="bg-[var(--color-surface-elevated)]/40 border border-white/5 p-4 rounded-xl flex items-center gap-3 text-xs">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCritical ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+          {isCritical ? <ShieldAlert className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+        </div>
+        <div>
+          <span className="text-[9px] text-slate-500 uppercase font-black block">Status Operacional Logística</span>
+          <span className="font-semibold text-white">
+            {isCritical ? "Alerta de Estoque Crítico (Comprar do Fornecedor)" : "Nível do Estoque Adequado (Operando normal)"}
+          </span>
+        </div>
+      </div>}
+
+      <div className="pt-4 border-t border-white/5 space-y-4">
+        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+          <Truck className="w-3.5 h-3.5 text-[#2563EB]" /> Dimensões Físicas (Opcional)
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Dimensões (LxAxP)</label>
+            <input type="text" value={formDimensions} onChange={(e) => setFormDimensions(e.target.value)} placeholder="Ex: 10x15x20 cm" className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Peso Total (kg)</label>
+            <input type="number" step="any" value={formWeight} onChange={(e) => setFormWeight(e.target.value)} placeholder="Ex: 1.5" className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Material / Composição</label>
+            <input type="text" value={formMaterial} onChange={(e) => setFormMaterial(e.target.value)} placeholder="Ex: Alumínio Fundido" className={`${inputCls} font-medium`} />
+          </div>
+        </div>
+      </div>
+        </>
+      )}
     </div>
   );
 }

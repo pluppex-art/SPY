@@ -7,7 +7,8 @@ import { Product, ProductType, ProductAttachment } from "../../../types";
 import { ProdutoTabInfo } from "./produto-modal/ProdutoTabInfo";
 import { ProdutoTabComercial } from "./produto-modal/ProdutoTabComercial";
 import { ProdutoTabEstoque } from "./produto-modal/ProdutoTabEstoque";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useNicheProfiles } from "./useNicheProfiles";
+import { hasStockFocus } from "./nicheProfiles";
 import { ProdutoTabArquivos } from "./produto-modal/ProdutoTabArquivos";
 
 const TABS = [
@@ -80,9 +81,9 @@ export interface ProdutoModalProps {
 }
 
 export function ProdutoModal(props: ProdutoModalProps) {
-  const { isModuleEnabled } = useAuth();
+  const profiles = useNicheProfiles();
   if (!props.isOpen) return null;
-  const varejoFisico = (() => { try { return !!isModuleEnabled("varejo" as any); } catch { return false; } })() && props.formType === "Físico";
+  const varejoFisico = hasStockFocus(profiles, props.formType);
 
   // Aba Estoque sempre disponível para permitir controle de unidades/licenças de qualquer produto
   const visibleTabs = TABS;

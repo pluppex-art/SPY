@@ -2,7 +2,8 @@ import { Wand2, Building2, Search, ChevronDown, CheckCircle2, Building } from "l
 import { toast } from "sonner";
 import { ProductType } from "../../../../types";
 import { getTypeSchema, typeLabel, type TypeField } from "../typeSchemas";
-import { useAuth } from "../../../../contexts/AuthContext";
+import { useNicheProfiles } from "../useNicheProfiles";
+import { advancedSectionTitle, hasStockFocus } from "../nicheProfiles";
 import { TypeFieldInput } from "./TypeFieldInput";
 
 interface ProdutoTabInfoProps {
@@ -53,16 +54,20 @@ export function ProdutoTabInfo({
   const typeList: ProductType[] = typeOptions && typeOptions.length > 0
     ? typeOptions
     : ["Serviço", "Assinatura", "Digital", "Físico", "Curso/Turma"];
-  const schema = getTypeSchema(formType);
+  const profiles = useNicheProfiles();
+  const schema = getTypeSchema(formType, profiles);
   const schemaFields = (schema?.fields || []).filter(f => (f.tab || "info") === "info" && (!f.showIf || f.showIf(formTypeAttributes)));
-  const { isModuleEnabled } = useAuth();
 
   const renderField = (f: TypeField) => (
     <TypeFieldInput key={f.key} field={f} attrs={formTypeAttributes} setAttr={setAttr} />
   );
-  const varejoOn = (() => { try { return !!isModuleEnabled("varejo" as any); } catch { return false; } })();
-  const baseFields = schemaFields.filter(f => !f.advanced);
+  const advOpen = hasStockFocus(profiles, formType);
+  const baseFields = schemaFields.filter(f => !f.advanced && !f.group);
   const advFields = schemaFields.filter(f => f.advanced);
+  // campos extras dos perfis de nicho, agrupados pelo título do perfil
+  const groups = schemaFields.filter(f => !f.advanced && f.group).reduce<Record<string, TypeField[]>>((acc, f) => {
+    (acc[f.group as string] ||= []).push(f); return acc;
+  }, {});
   return (
     <div className="space-y-4">
       {/* Client Association */}
@@ -173,10 +178,16 @@ export function ProdutoTabInfo({
               </div>
             </div>
           )}
+          {Object.entries(groups).map(([title, fields]) => (
+            <div key={title} className="space-y-2 rounded-xl border border-white/5 bg-white/[0.01] p-4">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{fields.map(renderField)}</div>
+            </div>
+          ))}
           {advFields.length > 0 && (
-            <details open={varejoOn} key={`${formType}-${varejoOn}`} className="group rounded-xl border border-white/5 bg-white/[0.01] p-4 space-y-3">
+            <details open={advOpen} key={`${formType}-${advOpen}`} className="group rounded-xl border border-white/5 bg-white/[0.01] p-4 space-y-3">
               <summary className="cursor-pointer select-none text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                <span>Varejo — marca, grade, fiscal e promoção</span>
+                <span>{advancedSectionTitle(profiles)}</span>
                 <span className="text-[9px] font-bold normal-case text-slate-500 group-open:hidden">toque para expandir</span>
               </summary>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3">

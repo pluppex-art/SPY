@@ -3,7 +3,9 @@ import { Product, ProductType, ProductAttachment } from "../../../types";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 import { useAuth } from "../../../contexts/AuthContext";
-import { BASE_TYPES, getTypeSchema, isUniqueAssetType, statusToStock } from "./typeSchemas";
+import { BASE_TYPES, isUniqueAssetType, statusToStock } from "./typeSchemas";
+import { useNicheProfiles } from "./useNicheProfiles";
+import { getDefaultType, getDefaultCategory, profileCategories, hidesSubscription, persistDefaultsFor } from "./nicheProfiles";
 
 export function useProdutoForm() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -69,31 +71,30 @@ export function useProdutoForm() {
   const { products, addProduct, updateProduct, deleteProduct, setProducts, clienteBase } = useData();
   const { user, activeTenantId, isModuleEnabled } = useAuth();
 
-  // Tipos disponíveis conforme os módulos ativos do tenant. Um tipo que o registro
-  // em edição já possui continua visível mesmo com o módulo desligado.
-  const moduleOn = (mods?: string[]) =>
-    !mods || mods.length === 0 || mods.some(m => { try { return !!isModuleEnabled(m as any); } catch { return false; } });
+  // Perfis de nicho ativos (módulos do tenant + tenantNiche) — ver nicheProfiles.ts.
+  const profiles = useNicheProfiles();
+  const tenantNiche = user?.tenantNiche;
+  const defaultType = getDefaultType(profiles, tenantNiche);
+  const defaultCategory = getDefaultCategory(profiles, tenantNiche);
+  const varejoOn = profiles.some(p => p.key === "varejo");
+
+  // Tipos = base + tipos dos perfis ativos. O tipo do registro em edição continua visível.
   const typeOptions: ProductType[] = useMemo(() => {
     const list: ProductType[] = [...BASE_TYPES];
-    // Varejo: "Físico" vem sempre primeiro
-    if (moduleOn(["varejo"])) { list.splice(list.indexOf("Físico"), 1); list.unshift("Físico"); }
-    (["Imóvel", "Veículo"] as ProductType[]).forEach(t => {
-      if (moduleOn(getTypeSchema(t)?.modules) || editingProduct?.type === t) list.push(t);
-    });
+    profiles.forEach(p => p.offeredTypes.forEach(t => { if (!list.includes(t)) list.push(t); }));
+    // com perfil ativo, o tipo padrão do nicho vem primeiro
+    if (profiles.length > 0 && list.includes(defaultType)) { list.splice(list.indexOf(defaultType), 1); list.unshift(defaultType); }
     if (editingProduct && !list.includes(editingProduct.type)) list.push(editingProduct.type);
     return list;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingProduct, isModuleEnabled]);
-
-  const varejoOn = moduleOn(["varejo"]);
+  }, [editingProduct, profiles, defaultType]);
 
   const categories = useMemo(() => {
     const base = ["Todas", "Software", "Serviços", "Implantação", "Mentoria", "Físico"];
-    typeOptions.forEach(t => { if ((t === "Imóvel" || t === "Veículo") && !base.includes(t)) base.push(t); });
+    profileCategories(profiles).forEach(c => { if (!base.includes(c)) base.push(c); });
     // categorias já usadas por produtos existentes (ex.: migrados das verticais)
     products.forEach(pr => { if (pr.category && !base.includes(pr.category)) base.push(pr.category); });
     return base;
-  }, [typeOptions, products]);
+  }, [profiles, products]);
   const types = useMemo(() => ["Todos", ...typeOptions], [typeOptions]);
 
   const filteredClients = useMemo(() => {
@@ -123,8 +124,8 @@ export function useProdutoForm() {
     setDraftProductId(crypto.randomUUID());
     setFormName("");
     setFormSKU("PROD-" + Math.floor(1000 + Math.random() * 9000));
-    setFormCategory(varejoOn ? "Físico" : "Software");
-    setFormType(varejoOn ? "Físico" : "Digital");
+    setFormCategory(defaultCategory);
+    setFormType(defaultType);
     setFormTypeAttributes({});
     setFormPrice("");
     setFormCost("");
@@ -236,13 +237,11 @@ export function useProdutoForm() {
 
     const tenantName = user?.tenantName || "";
 
-    // Produto físico de varejo: persiste os padrões exibidos nos selects/toggles e não tem
-    // recorrência, implantação nem fidelidade.
-    const varejoFisico = varejoOn && formType === "Físico";
-    if (varejoFisico) {
-      if (formTypeAttributes.unidade === undefined) (enrichedTypeAttributes as Record<string, unknown>).unidade = "UN";
-      if (formTypeAttributes.controlaEstoque === undefined) (enrichedTypeAttributes as Record<string, unknown>).controlaEstoque = true;
-      if (formTypeAttributes.origemMercadoria === undefined) (enrichedTypeAttributes as Record<string, unknown>).origemMercadoria = "0";
+    // Perfis de nicho: persiste os padrões exibidos nos selects/toggles e esconde assinatura/implantação/fidelidade.
+    const noSubscription = hidesSubscription(profiles, formType);
+    if (noSubscription) {
+      const defs = persistDefaultsFor(profiles, formType);
+      Object.keys(defs).forEach(k => { if (formTypeAttributes[k] === undefined) (enrichedTypeAttributes as Record<string, unknown>)[k] = defs[k]; });
       Object.assign(enrichedTypeAttributes, { isRecurring: false, hasImplementation: false, implementationFee: 0, hasLoyalty: false });
     }
 
@@ -259,7 +258,7 @@ export function useProdutoForm() {
         hasLoyalty: false,
       });
     }
-    const hideSub = unique || varejoFisico;
+    const hideSub = unique || noSubscription;
     const finalRecurring = hideSub ? false : formIsRecurring;
     const finalHasImpl = hideSub ? false : formHasImplementation;
     const finalImplFee = hideSub ? 0 : implFeeNum;
@@ -463,7 +462,7 @@ export function useProdutoForm() {
     formLoyaltyMonths, setFormLoyaltyMonths,
     formEarlyTerminationFee, setFormEarlyTerminationFee,
     products, setProducts,
-    categories, types, typeOptions, varejoOn,
+    categories, types, typeOptions, varejoOn, profiles,
     handleOpenAddModal,
     handleOpenEditModal,
     handleSaveProduct,

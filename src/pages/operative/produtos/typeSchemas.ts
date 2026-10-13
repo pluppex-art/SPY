@@ -1,4 +1,5 @@
 import type { Product, ProductType } from "../../../types";
+import { NICHE_PROFILES, profileSubtitle, type NicheProfile } from "./nicheProfiles";
 
 /**
  * Registro de campos específicos por tipo de item do catálogo (Products).
@@ -28,6 +29,8 @@ export interface TypeField {
   width?: "half" | "full";
   /** onde renderizar: "info" (padrão) ou "estoque" (status de disponibilidade / logística) */
   tab?: "info" | "estoque";
+  /** grupo rotulado (título do perfil de nicho) onde o campo extra é exibido; vazio = corpo principal */
+  group?: string;
   /** só mostra o campo quando a condição for verdadeira */
   showIf?: (attrs: Record<string, string | number | boolean>) => boolean;
 }
@@ -60,8 +63,6 @@ const ORIGEM_LABELS: Record<string, string> = {
   "8": "8 - Nacional (import. acima de 70%)",
 };
 
-const STATUS_IMOVEL = ["Disponível", "Reservado", "Vendido", "Locado"];
-const STATUS_VEICULO = ["Disponível", "Reservado", "Vendido", "Em Preparação"];
 
 export const TYPE_SCHEMAS: Record<string, TypeSchema> = {
   "Serviço": {
@@ -116,57 +117,31 @@ export const TYPE_SCHEMAS: Record<string, TypeSchema> = {
       { key: "certificadoIncluso", label: "Inclui certificado", kind: "bool", width: "full" },
     ],
   },
-  "Imóvel": {
-    type: "Imóvel",
-    uniqueAsset: true,
-    modules: ["imobiliaria"],
-    sectionTitle: "Dados do imóvel",
-    fields: [
-      { key: "tipoImovel", label: "Tipo de imóvel", kind: "select", options: ["Apartamento", "Casa", "Cobertura", "Kitnet", "Terreno", "Comercial", "Sala Comercial", "Galpão", "Rural"], defaultValue: "Apartamento" },
-      { key: "operacao", label: "Operação", kind: "select", options: ["Venda", "Locação"], defaultValue: "Venda" },
-      { key: "endereco", label: "Endereço", kind: "text", placeholder: "Rua, número", width: "full" },
-      { key: "bairro", label: "Bairro", kind: "text" },
-      { key: "cidade", label: "Cidade", kind: "text" },
-      { key: "areaM2", label: "Área (m²)", kind: "number" },
-      { key: "quartos", label: "Quartos", kind: "number" },
-      { key: "banheiros", label: "Banheiros", kind: "number" },
-      { key: "suites", label: "Suítes", kind: "number" },
-      { key: "vagas", label: "Vagas de garagem", kind: "number" },
-      { key: "condominio", label: "Condomínio (R$/mês)", kind: "money" },
-      { key: "iptu", label: "IPTU (R$)", kind: "money" },
-      { key: "corretor", label: "Corretor responsável", kind: "text" },
-      { key: "statusAtivo", label: "Disponibilidade", kind: "select", options: STATUS_IMOVEL, defaultValue: "Disponível", tab: "estoque" },
-    ],
-  },
-  "Veículo": {
-    type: "Veículo",
-    uniqueAsset: true,
-    modules: ["automotivo", "concessionaria"],
-    sectionTitle: "Dados do veículo",
-    fields: [
-      { key: "marca", label: "Marca", kind: "text", placeholder: "Ex: Fiat" },
-      { key: "modelo", label: "Modelo", kind: "text", placeholder: "Ex: Argo Drive 1.3" },
-      { key: "anoFabricacao", label: "Ano de fabricação", kind: "number", placeholder: "2022" },
-      { key: "anoModelo", label: "Ano do modelo", kind: "number", placeholder: "2022" },
-      { key: "km", label: "Quilometragem (km)", kind: "number" },
-      { key: "placa", label: "Placa", kind: "text", placeholder: "ABC1D23" },
-      { key: "cor", label: "Cor", kind: "text" },
-      { key: "combustivel", label: "Combustível", kind: "select", options: ["Flex", "Gasolina", "Diesel", "Elétrico", "Híbrido"], defaultValue: "Flex" },
-      { key: "cambio", label: "Câmbio", kind: "select", options: ["Manual", "Automático", "CVT"], defaultValue: "Manual" },
-      { key: "vendedor", label: "Vendedor responsável", kind: "text" },
-      { key: "isConsignado", label: "Veículo consignado", kind: "bool", width: "full" },
-      { key: "consignanteNome", label: "Nome do consignante", kind: "text", showIf: (a) => !!a.isConsignado },
-      { key: "consignanteTelefone", label: "Telefone do consignante", kind: "text", showIf: (a) => !!a.isConsignado },
-      { key: "comissaoPercentual", label: "Comissão (%)", kind: "number", showIf: (a) => !!a.isConsignado },
-      { key: "repasseRealizado", label: "Repasse ao consignante realizado", kind: "bool", width: "full", showIf: (a) => !!a.isConsignado },
-      { key: "statusAtivo", label: "Disponibilidade", kind: "select", options: STATUS_VEICULO, defaultValue: "Disponível", tab: "estoque" },
-    ],
-  },
+  // Tipos de ativo único (Imóvel, Veículo...) vêm dos perfis de nicho (nicheProfiles.ts).
+  ...Object.fromEntries(Object.values(NICHE_PROFILES).flatMap(p => p.ownSchemas).map(sc => [sc.type, sc])),
 };
 
-export function getTypeSchema(type: string | undefined | null): TypeSchema | undefined {
-  return type ? TYPE_SCHEMAS[type] : undefined;
+/**
+ * Schema do tipo. Com `profiles` (perfis de nicho ativos), anexa os campos extras de cada perfil
+ * ao tipo, sem chaves duplicadas, marcados com `group` = título do perfil.
+ */
+export function getTypeSchema(type: string | undefined | null, profiles?: NicheProfile[]): TypeSchema | undefined {
+  const base = type ? TYPE_SCHEMAS[type] : undefined;
+  if (!base || !profiles || profiles.length === 0) return base;
+  const seen = new Set(base.fields.map(f => f.key));
+  const extra: TypeField[] = [];
+  profiles.forEach(p => {
+    (p.typeFieldExtras[base.type] || []).forEach(f => {
+      if (seen.has(f.key)) return;
+      seen.add(f.key);
+      extra.push({ ...f, group: f.group ?? p.sectionTitle });
+    });
+  });
+  return extra.length ? { ...base, fields: [...base.fields, ...extra] } : base;
 }
+
+/** Tipos que normalmente não têm estoque físico. */
+export const NO_STOCK_TYPES: string[] = ["Serviço", "Assinatura", "Digital", "Curso/Turma"];
 
 export function isUniqueAssetType(type: string | undefined | null): boolean {
   return !!getTypeSchema(type)?.uniqueAsset;
@@ -192,34 +167,7 @@ export function statusToStock(status: string | undefined) {
   };
 }
 
-const num = (v: unknown) => (typeof v === "number" ? v : parseFloat(String(v ?? "")) || 0);
-const fmtKm = (v: unknown) => `${num(v).toLocaleString("pt-BR")} km`;
-
-/** Subtítulo compacto para listas/grades (Imóvel, Veículo e Produto físico). Retorna "" para os demais tipos. */
+/** Subtítulo compacto para listas/grades — definido pelos perfis de nicho. Retorna "" quando não houver. */
 export function getProductSubtitle(p: Pick<Product, "type" | "typeAttributes">): string {
-  const a = (p.typeAttributes || {}) as TypeAttrs;
-  const parts: string[] = [];
-  if (p.type === "Imóvel") {
-    if (a.tipoImovel) parts.push(String(a.tipoImovel));
-    if (num(a.quartos)) parts.push(`${num(a.quartos)} qts`);
-    if (num(a.banheiros)) parts.push(`${num(a.banheiros)} banh`);
-    if (num(a.vagas)) parts.push(`${num(a.vagas)} vaga${num(a.vagas) > 1 ? "s" : ""}`);
-    if (num(a.areaM2)) parts.push(`${num(a.areaM2)} m²`);
-    if (a.bairro) parts.push(String(a.bairro));
-  } else if (p.type === "Veículo") {
-    const nome = [a.marca, a.modelo].filter(Boolean).join(" ");
-    const ano = a.anoModelo || a.anoFabricacao;
-    const head = [nome, ano].filter(Boolean).join(" ");
-    if (head) parts.push(head);
-    if (num(a.km)) parts.push(fmtKm(a.km));
-    if (a.placa) parts.push(String(a.placa));
-  }
-  else if (p.type === "Físico") {
-    if (a.marca) parts.push(String(a.marca));
-    if (a.tamanho) parts.push(`Tam ${a.tamanho}`);
-    if (a.cor) parts.push(String(a.cor));
-    const code = a.ean || a.barcode;
-    if (code) parts.push(`EAN ${code}`);
-  }
-  return parts.join(" · ");
+  return profileSubtitle(p);
 }
