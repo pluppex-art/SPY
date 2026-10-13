@@ -5,7 +5,7 @@ import { useData } from "../../../contexts/DataContext";
 import { useAuth } from "../../../contexts/AuthContext";
 import { BASE_TYPES, isUniqueAssetType, statusToStock } from "./typeSchemas";
 import { useNicheProfiles } from "./useNicheProfiles";
-import { getDefaultType, getDefaultCategory, profileCategories, hidesSubscription, persistDefaultsFor } from "./nicheProfiles";
+import { resolveTypeOptions, getDefaultType, getDefaultCategory, profileCategories, hidesSubscription, persistDefaultsFor } from "./nicheProfiles";
 
 export function useProdutoForm() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -80,13 +80,9 @@ export function useProdutoForm() {
 
   // Tipos = base + tipos dos perfis ativos. O tipo do registro em edição continua visível.
   const typeOptions: ProductType[] = useMemo(() => {
-    const list: ProductType[] = [...BASE_TYPES];
-    profiles.forEach(p => p.offeredTypes.forEach(t => { if (!list.includes(t)) list.push(t); }));
-    // com perfil ativo, o tipo padrão do nicho vem primeiro
-    if (profiles.length > 0 && list.includes(defaultType)) { list.splice(list.indexOf(defaultType), 1); list.unshift(defaultType); }
-    if (editingProduct && !list.includes(editingProduct.type)) list.push(editingProduct.type);
-    return list;
-  }, [editingProduct, profiles, defaultType]);
+    const used = Array.from(new Set(products.map(pr => pr.type)));
+    return resolveTypeOptions(profiles, BASE_TYPES, defaultType, [editingProduct?.type, ...used]);
+  }, [editingProduct, profiles, defaultType, products]);
 
   const categories = useMemo(() => {
     const base = ["Todas", "Software", "Serviços", "Implantação", "Mentoria", "Físico"];

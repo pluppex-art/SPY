@@ -1,5 +1,5 @@
 import type { Product, ProductType } from "../../../types";
-import { NICHE_PROFILES, profileSubtitle, type NicheProfile } from "./nicheProfiles";
+import { NICHE_PROFILES, VAREJO_FISICO_FIELDS, profileSubtitle, type NicheProfile } from "./nicheProfiles";
 
 /**
  * Registro de campos específicos por tipo de item do catálogo (Products).
@@ -48,22 +48,6 @@ export interface TypeSchema {
 
 export type TypeAttrs = Record<string, string | number | boolean>;
 
-const GENEROS = ["Unissex", "Masculino", "Feminino", "Infantil"];
-const UNIDADES = ["UN", "PAR", "CX", "KG", "L", "M", "PC"];
-const ORIGENS = ["0", "1", "2", "3", "4", "5", "6", "7", "8"];
-const ORIGEM_LABELS: Record<string, string> = {
-  "0": "0 - Nacional",
-  "1": "1 - Estrangeira (importação direta)",
-  "2": "2 - Estrangeira (mercado interno)",
-  "3": "3 - Nacional (import. 40-70%)",
-  "4": "4 - Nacional (proc. básicos)",
-  "5": "5 - Nacional (import. até 40%)",
-  "6": "6 - Estrangeira (s/ similar, direta)",
-  "7": "7 - Estrangeira (s/ similar, interna)",
-  "8": "8 - Nacional (import. acima de 70%)",
-};
-
-
 export const TYPE_SCHEMAS: Record<string, TypeSchema> = {
   "Serviço": {
     type: "Serviço",
@@ -92,21 +76,8 @@ export const TYPE_SCHEMAS: Record<string, TypeSchema> = {
     fields: [
       { key: "barcode", label: "Código de barras", kind: "text", placeholder: "Leia ou digite o código" },
       { key: "ean", label: "EAN", kind: "text", placeholder: "EAN-13" },
-      { key: "marca", label: "Marca", kind: "text", placeholder: "Ex: Nike", advanced: true },
-      { key: "colecao", label: "Linha / Coleção", kind: "text", placeholder: "Ex: Verão 2026", advanced: true },
-      { key: "tamanho", label: "Tamanho", kind: "text", placeholder: "Ex: 42, M, 500ml", advanced: true },
-      { key: "cor", label: "Cor", kind: "text", advanced: true },
-      { key: "genero", label: "Gênero", kind: "select", options: GENEROS, defaultValue: "Unissex", advanced: true },
-      { key: "unidade", label: "Unidade de medida", kind: "select", options: UNIDADES, defaultValue: "UN", advanced: true },
-      { key: "codigoInterno", label: "Código interno", kind: "text", advanced: true },
-      { key: "ncm", label: "NCM", kind: "text", placeholder: "8 dígitos", digitsOnly: true, maxLength: 8, advanced: true },
-      { key: "cest", label: "CEST", kind: "text", placeholder: "7 dígitos", digitsOnly: true, maxLength: 7, advanced: true },
-      { key: "origemMercadoria", label: "Origem da mercadoria", kind: "select", options: ORIGENS, optionLabels: ORIGEM_LABELS, defaultValue: "0", advanced: true },
-      { key: "precoPromocional", label: "Preço promocional (R$)", kind: "money", advanced: true },
-      { key: "promoAte", label: "Promoção válida até", kind: "date", advanced: true },
-      { key: "localizacao", label: "Localização (prateleira / depósito)", kind: "text", placeholder: "Ex: Corredor 3, Prateleira B", advanced: true, tab: "estoque", width: "full" },
-      { key: "controlaEstoque", label: "Controla estoque", kind: "bool", defaultBool: true, advanced: true, tab: "estoque", width: "full" },
-      { key: "permiteVendaSemEstoque", label: "Permite venda sem estoque", kind: "bool", advanced: true, tab: "estoque", width: "full" },
+      // marca, grade, fiscal e promoção: ver VAREJO_FISICO_FIELDS (perfil varejo; legado sem perfil)
+      ...VAREJO_FISICO_FIELDS,
     ],
   },
   "Curso/Turma": {
@@ -126,8 +97,10 @@ export const TYPE_SCHEMAS: Record<string, TypeSchema> = {
  * ao tipo, sem chaves duplicadas, marcados com `group` = título do perfil.
  */
 export function getTypeSchema(type: string | undefined | null, profiles?: NicheProfile[]): TypeSchema | undefined {
-  const base = type ? TYPE_SCHEMAS[type] : undefined;
+  let base = type ? TYPE_SCHEMAS[type] : undefined;
   if (!base || !profiles || profiles.length === 0) return base;
+  // com perfil ativo, os campos legados de varejo só valem se o perfil varejo estiver ativo (vêm dos extras dele)
+  if (base.type === "Físico") base = { ...base, fields: base.fields.filter(f => !VAREJO_FISICO_FIELDS.some(v => v.key === f.key)) };
   const seen = new Set(base.fields.map(f => f.key));
   const extra: TypeField[] = [];
   profiles.forEach(p => {

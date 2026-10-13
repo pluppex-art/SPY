@@ -31,6 +31,8 @@ export interface NicheProfile {
   /** usado como tipo padrão quando nenhum perfil é o nicho primário (ex.: varejo → Físico) */
   fallbackDefault?: boolean;
   offeredTypes: ProductType[];
+  /** tipos de item que este nicho enxerga (lista de tipos, filtros e seletor) — união entre perfis ativos */
+  allowedTypes: ProductType[];
   ownSchemas: TypeSchema[];
   typeFieldExtras: Partial<Record<ProductType, TypeField[]>>;
   /** título do grupo rotulado onde os campos extras aparecem */
@@ -50,6 +52,43 @@ const num = (v: unknown) => (typeof v === "number" ? v : parseFloat(String(v ?? 
 const fmtKm = (v: unknown) => `${num(v).toLocaleString("pt-BR")} km`;
 const txt = (v: unknown) => (v == null || v === "" ? "" : String(v));
 
+const GENEROS = ["Unissex", "Masculino", "Feminino", "Infantil"];
+const UNIDADES = ["UN", "PAR", "CX", "KG", "L", "M", "PC"];
+const ORIGENS = ["0", "1", "2", "3", "4", "5", "6", "7", "8"];
+const ORIGEM_LABELS: Record<string, string> = {
+  "0": "0 - Nacional",
+  "1": "1 - Estrangeira (importação direta)",
+  "2": "2 - Estrangeira (mercado interno)",
+  "3": "3 - Nacional (import. 40-70%)",
+  "4": "4 - Nacional (proc. básicos)",
+  "5": "5 - Nacional (import. até 40%)",
+  "6": "6 - Estrangeira (s/ similar, direta)",
+  "7": "7 - Estrangeira (s/ similar, interna)",
+  "8": "8 - Nacional (import. acima de 70%)",
+};
+
+/**
+ * Campos de varejo do tipo Físico (chaves gravadas em type_attributes — NÃO renomear).
+ * Pertencem ao perfil varejo; só aparecem para tenants sem nenhum perfil ativo (compatibilidade) ou com varejo.
+ */
+export const VAREJO_FISICO_FIELDS: TypeField[] = [
+  { key: "marca", label: "Marca", kind: "text", placeholder: "Ex: Nike", advanced: true },
+  { key: "colecao", label: "Linha / Coleção", kind: "text", placeholder: "Ex: Verão 2026", advanced: true },
+  { key: "tamanho", label: "Tamanho", kind: "text", placeholder: "Ex: 42, M, 500ml", advanced: true },
+  { key: "cor", label: "Cor", kind: "text", advanced: true },
+  { key: "genero", label: "Gênero", kind: "select", options: GENEROS, defaultValue: "Unissex", advanced: true },
+  { key: "unidade", label: "Unidade de medida", kind: "select", options: UNIDADES, defaultValue: "UN", advanced: true },
+  { key: "codigoInterno", label: "Código interno", kind: "text", advanced: true },
+  { key: "ncm", label: "NCM", kind: "text", placeholder: "8 dígitos", digitsOnly: true, maxLength: 8, advanced: true },
+  { key: "cest", label: "CEST", kind: "text", placeholder: "7 dígitos", digitsOnly: true, maxLength: 7, advanced: true },
+  { key: "origemMercadoria", label: "Origem da mercadoria", kind: "select", options: ORIGENS, optionLabels: ORIGEM_LABELS, defaultValue: "0", advanced: true },
+  { key: "precoPromocional", label: "Preço promocional (R$)", kind: "money", advanced: true },
+  { key: "promoAte", label: "Promoção válida até", kind: "date", advanced: true },
+  { key: "localizacao", label: "Localização (prateleira / depósito)", kind: "text", placeholder: "Ex: Corredor 3, Prateleira B", advanced: true, tab: "estoque", width: "full" },
+  { key: "controlaEstoque", label: "Controla estoque", kind: "bool", defaultBool: true, advanced: true, tab: "estoque", width: "full" },
+  { key: "permiteVendaSemEstoque", label: "Permite venda sem estoque", kind: "bool", advanced: true, tab: "estoque", width: "full" },
+];
+
 const STATUS_IMOVEL = ["Disponível", "Reservado", "Vendido", "Locado"];
 const STATUS_VEICULO = ["Disponível", "Reservado", "Vendido", "Em Preparação"];
 
@@ -60,6 +99,7 @@ const imobiliaria: NicheProfile = {
   niches: ["Imobiliária"],
   defaultType: "Imóvel",
   offeredTypes: ["Imóvel"],
+  allowedTypes: ["Imóvel", "Serviço"],
   ownSchemas: [{
     type: "Imóvel",
     uniqueAsset: true,
@@ -107,6 +147,7 @@ const automotivo: NicheProfile = {
   niches: ["Automotivo", "Concessionária"],
   defaultType: "Veículo",
   offeredTypes: ["Veículo"],
+  allowedTypes: ["Veículo", "Físico", "Serviço"],
   ownSchemas: [{
     type: "Veículo",
     uniqueAsset: true,
@@ -149,8 +190,8 @@ const automotivo: NicheProfile = {
   },
 };
 
-// Varejo: os campos de "Produto físico" (barcode, ean, marca, ncm...) já fazem parte do tipo base
-// Físico em typeSchemas.ts (todos os tenants os veem); o perfil acrescenta o comportamento de loja.
+// Varejo: barcode/ean ficam no tipo base Físico (PDV/NF usam); marca, grade, fiscal e promoção
+// são extras do perfil (VAREJO_FISICO_FIELDS). Sem nenhum perfil ativo o tipo base ainda os mostra.
 const varejo: NicheProfile = {
   key: "varejo",
   label: "Varejo",
@@ -159,8 +200,9 @@ const varejo: NicheProfile = {
   defaultType: "Físico",
   fallbackDefault: true,
   offeredTypes: [],
+  allowedTypes: ["Físico", "Serviço"],
   ownSchemas: [],
-  typeFieldExtras: {},
+  typeFieldExtras: { "Físico": VAREJO_FISICO_FIELDS },
   sectionTitle: "Varejo",
   advancedSectionTitle: "Varejo — marca, grade, fiscal e promoção",
   categories: [],
@@ -187,6 +229,7 @@ const clinica: NicheProfile = {
   niches: ["Clínica"],
   defaultType: "Serviço",
   offeredTypes: [],
+  allowedTypes: ["Serviço", "Físico"],
   ownSchemas: [],
   sectionTitle: "Clínica — atendimento e insumos",
   categories: ["Consultas", "Exames", "Procedimentos", "Insumos"],
@@ -218,6 +261,7 @@ const educacao: NicheProfile = {
   niches: ["Educação"],
   defaultType: "Curso/Turma",
   offeredTypes: [],
+  allowedTypes: ["Curso/Turma", "Digital", "Serviço"],
   ownSchemas: [],
   sectionTitle: "Educação — turma e calendário",
   categories: ["Cursos", "Turmas", "Mensalidades"],
@@ -248,6 +292,7 @@ const solar: NicheProfile = {
   niches: ["Solar"],
   defaultType: "Físico",
   offeredTypes: [],
+  allowedTypes: ["Físico", "Serviço"],
   ownSchemas: [],
   sectionTitle: "Energia solar — equipamento e serviço",
   categories: ["Painéis", "Inversores", "Estruturas", "Cabos e Conectores", "Baterias", "Kits", "Projetos", "Instalação"],
@@ -337,4 +382,26 @@ export function profileSubtitle(p: Pick<Product, "type" | "typeAttributes">): st
     }
   }
   return "";
+}
+
+/**
+ * Tipos de item visíveis. Sem perfil ativo: `base` (lista padrão). Com perfil(is): união dos allowedTypes
+ * (tipo padrão primeiro) + `keep` (tipo em edição e tipos já usados por produtos existentes).
+ */
+export function resolveTypeOptions(
+  profiles: NicheProfile[],
+  base: ProductType[],
+  defaultType: ProductType,
+  keep: Array<ProductType | undefined | null> = [],
+): ProductType[] {
+  if (profiles.length === 0) {
+    const list = [...base];
+    keep.forEach(t => { if (t && !list.includes(t)) list.push(t); });
+    return list;
+  }
+  const list: ProductType[] = [];
+  profiles.forEach(p => [...p.allowedTypes, ...p.offeredTypes].forEach(t => { if (!list.includes(t)) list.push(t); }));
+  if (list.includes(defaultType)) { list.splice(list.indexOf(defaultType), 1); list.unshift(defaultType); }
+  keep.forEach(t => { if (t && !list.includes(t)) list.push(t); });
+  return list;
 }
