@@ -170,16 +170,18 @@ export function useProdutoForm() {
   const handleOpenEditModal = (p: Product, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingProduct(p);
-    setFormName(p.name);
-    setFormSKU(p.sku);
-    setFormCategory(p.category);
+    // Produtos que vieram de integrações/importações podem ter campos nulos: nada aqui pode quebrar a abertura.
+    setFormName(p.name ?? "");
+    // Produto importado sem SKU: já sugere um para o salvamento não travar (a pessoa pode trocar).
+    setFormSKU((p.sku ?? "").trim() ? p.sku : "PROD-" + Math.floor(1000 + Math.random() * 9000));
+    setFormCategory(p.category ?? "");
     setFormType(p.type);
     setFormTypeAttributes(p.typeAttributes || {});
-    setFormPrice(p.price.toString());
-    setFormCost(p.cost.toString());
-    setFormCommission(p.commission.toString());
-    setFormStockMin(p.stockMin.toString());
-    setFormStockMax(p.stockMax.toString());
+    setFormPrice(String(p.price ?? 0));
+    setFormCost(String(p.cost ?? 0));
+    setFormCommission(String(p.commission ?? 0));
+    setFormStockMin(String(p.stockMin ?? 0));
+    setFormStockMax(String(p.stockMax ?? 0));
     setFormProvider(p.provider || "Interno");
     setFormTags((p.tags ?? []).join(", "));
     setFormIsBestSeller(!!p.isBestSeller);
@@ -187,7 +189,7 @@ export function useProdutoForm() {
     setFormWeight(p.weight?.toString() || "");
     setFormMaterial(p.material || "");
     setFormDescription(p.description || "");
-    setFormCurrentStock(p.currentStock.toString());
+    setFormCurrentStock(String(p.currentStock ?? 0));
 
     const isRec = !!(p.recurrence || p.typeAttributes?.isRecurring || p.type === "Assinatura");
     setFormIsRecurring(isRec);
@@ -215,9 +217,37 @@ export function useProdutoForm() {
 
   const handleSaveProduct = (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      saveProduct();
+    } catch (err: any) {
+      // Nunca falhar em silêncio: o botão "Salvar" sem resposta era a queixa.
+      console.error("[Produtos] erro ao salvar:", err);
+      toast.error(`Não foi possível salvar o produto: ${err?.message || "erro inesperado."}`);
+    }
+  };
 
-    if (!formName.trim() || !formSKU.trim() || !formPrice) {
-      toast.error("Por favor, preencha todos os campos obrigatórios (Nome, SKU e Preço Venda)");
+  const saveProduct = () => {
+    // Campos obrigatórios: se faltar algum, leva a pessoa até a aba certa e diz exatamente qual.
+    if (!(formName ?? "").trim()) {
+      setActiveTab("info");
+      toast.error("Informe o nome do produto (aba Cadastro).");
+      return;
+    }
+    if (!(formSKU ?? "").trim() && editingProduct) {
+      // Produto antigo sem SKU: gera um para não travar a edição.
+      setFormSKU("PROD-" + Math.floor(1000 + Math.random() * 9000));
+      setActiveTab("info");
+      toast.error("Este produto não tinha SKU — geramos um na aba Cadastro. Confira e salve de novo.");
+      return;
+    }
+    if (!(formSKU ?? "").trim()) {
+      setActiveTab("info");
+      toast.error("Informe o SKU do produto (aba Cadastro).");
+      return;
+    }
+    if (formPrice === "" || formPrice === null || formPrice === undefined || isNaN(Number(formPrice))) {
+      setActiveTab("comercial");
+      toast.error("Informe o preço de venda (aba Comercial & Margem).");
       return;
     }
 
