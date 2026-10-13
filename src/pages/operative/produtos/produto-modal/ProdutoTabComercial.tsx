@@ -1,6 +1,7 @@
 import { DollarSign, Coins, Percent, TrendingUp, RotateCw, Wrench, Calendar, Sparkles, Lock, AlertTriangle } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { isUniqueAssetType } from "../typeSchemas";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 interface ProdutoTabComercialProps {
   formPrice: string;
@@ -60,7 +61,10 @@ export function ProdutoTabComercial({
   const inputCls =
     "w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3.5 py-2.5 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-primary-blue)] font-mono font-bold transition-all";
 
-  const uniqueAsset = isUniqueAssetType(formType);
+  const { isModuleEnabled } = useAuth();
+  const varejoOn = (() => { try { return !!isModuleEnabled("varejo" as any); } catch { return false; } })();
+  // Item único (imóvel/veículo) ou produto físico de varejo: sem recorrência, implantação e fidelidade.
+  const uniqueAsset = isUniqueAssetType(formType) || (varejoOn && formType === "Físico");
   const p = parseFloat(formPrice) || 0;
   const c = parseFloat(formCost) || 0;
   const commPercent = parseFloat(formCommission) || 0;

@@ -288,7 +288,7 @@ export default function VarejoEstoque() {
           >
             <Download className="w-3.5 h-3.5 text-[var(--color-text-muted)]" /> Exportar CSV
           </Button>
-          <Link to="/app/produtos">
+          <Link to="/app/produtos?type=Físico&novo=1">
             <Button className="gap-1.5 font-bold text-xs bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white shadow-xs">
               <Plus className="w-4 h-4" /> Cadastrar produto
             </Button>

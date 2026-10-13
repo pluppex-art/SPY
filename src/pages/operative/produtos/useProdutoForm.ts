@@ -75,6 +75,8 @@ export function useProdutoForm() {
     !mods || mods.length === 0 || mods.some(m => { try { return !!isModuleEnabled(m as any); } catch { return false; } });
   const typeOptions: ProductType[] = useMemo(() => {
     const list: ProductType[] = [...BASE_TYPES];
+    // Varejo: "Físico" vem sempre primeiro
+    if (moduleOn(["varejo"])) { list.splice(list.indexOf("Físico"), 1); list.unshift("Físico"); }
     (["Imóvel", "Veículo"] as ProductType[]).forEach(t => {
       if (moduleOn(getTypeSchema(t)?.modules) || editingProduct?.type === t) list.push(t);
     });
@@ -82,6 +84,8 @@ export function useProdutoForm() {
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingProduct, isModuleEnabled]);
+
+  const varejoOn = moduleOn(["varejo"]);
 
   const categories = useMemo(() => {
     const base = ["Todas", "Software", "Serviços", "Implantação", "Mentoria", "Físico"];
@@ -119,16 +123,16 @@ export function useProdutoForm() {
     setDraftProductId(crypto.randomUUID());
     setFormName("");
     setFormSKU("PROD-" + Math.floor(1000 + Math.random() * 9000));
-    setFormCategory("Software");
-    setFormType("Digital");
+    setFormCategory(varejoOn ? "Físico" : "Software");
+    setFormType(varejoOn ? "Físico" : "Digital");
     setFormTypeAttributes({});
     setFormPrice("");
     setFormCost("");
     setFormCommission("5");
     setFormStockMin("5");
     setFormStockMax("100");
-    setFormProvider("Interno");
-    setFormTags("novo, crm");
+    setFormProvider(varejoOn ? "" : "Interno");
+    setFormTags(varejoOn ? "" : "novo, crm");
     setFormIsBestSeller(false);
     setFormDimensions("");
     setFormWeight("");
@@ -232,6 +236,16 @@ export function useProdutoForm() {
 
     const tenantName = user?.tenantName || "";
 
+    // Produto físico de varejo: persiste os padrões exibidos nos selects/toggles e não tem
+    // recorrência, implantação nem fidelidade.
+    const varejoFisico = varejoOn && formType === "Físico";
+    if (varejoFisico) {
+      if (formTypeAttributes.unidade === undefined) (enrichedTypeAttributes as Record<string, unknown>).unidade = "UN";
+      if (formTypeAttributes.controlaEstoque === undefined) (enrichedTypeAttributes as Record<string, unknown>).controlaEstoque = true;
+      if (formTypeAttributes.origemMercadoria === undefined) (enrichedTypeAttributes as Record<string, unknown>).origemMercadoria = "0";
+      Object.assign(enrichedTypeAttributes, { isRecurring: false, hasImplementation: false, implementationFee: 0, hasLoyalty: false });
+    }
+
     // Ativos únicos (imóvel, veículo): status de disponibilidade governa active/estoque,
     // sem recorrência, fidelidade ou taxa de implantação.
     const unique = isUniqueAssetType(formType);
@@ -245,10 +259,11 @@ export function useProdutoForm() {
         hasLoyalty: false,
       });
     }
-    const finalRecurring = unique ? false : formIsRecurring;
-    const finalHasImpl = unique ? false : formHasImplementation;
-    const finalImplFee = unique ? 0 : implFeeNum;
-    const finalHasLoyalty = unique ? false : formHasLoyalty;
+    const hideSub = unique || varejoFisico;
+    const finalRecurring = hideSub ? false : formIsRecurring;
+    const finalHasImpl = hideSub ? false : formHasImplementation;
+    const finalImplFee = hideSub ? 0 : implFeeNum;
+    const finalHasLoyalty = hideSub ? false : formHasLoyalty;
     const finalStockMin = uniqueInfo ? uniqueInfo.stockMin : stockMinNum;
     const finalStockMax = uniqueInfo ? uniqueInfo.stockMax : stockMaxNum;
     const finalCurrentStock = uniqueInfo ? uniqueInfo.currentStock : (parseInt(formCurrentStock) || 0);
@@ -448,7 +463,7 @@ export function useProdutoForm() {
     formLoyaltyMonths, setFormLoyaltyMonths,
     formEarlyTerminationFee, setFormEarlyTerminationFee,
     products, setProducts,
-    categories, types, typeOptions,
+    categories, types, typeOptions, varejoOn,
     handleOpenAddModal,
     handleOpenEditModal,
     handleSaveProduct,

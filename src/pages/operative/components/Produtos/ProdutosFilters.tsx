@@ -1,8 +1,10 @@
 import { Grid, List, Trash2, ArrowUpDown, CircleDot } from "lucide-react";
+import { typeLabel } from "../../produtos/typeSchemas";
 import { FilterBar, FilterSearch, FilterSelect } from "../../../../components/ui/kpi-filter-card";
 
 interface ProdutosFiltersProps {
   searchTerm: string;
+  searchPlaceholder?: string;
   onSearchChange: (v: string) => void;
   categories: string[];
   selectedCategories: string[];
@@ -24,7 +26,7 @@ interface ProdutosFiltersProps {
 }
 
 export function ProdutosFilters({
-  searchTerm, onSearchChange,
+  searchTerm, onSearchChange, searchPlaceholder,
   categories, selectedCategories, onCategoryToggle,
   types, selectedTypes, onTypeToggle,
   selectedStatus, onStatusChange,
@@ -37,7 +39,7 @@ export function ProdutosFilters({
   return (
     <div className="flex flex-col gap-4">
       <FilterBar>
-        <FilterSearch value={searchTerm} onChange={onSearchChange} placeholder="Pesquisar por SKU, nome ou fornecedor..." />
+        <FilterSearch value={searchTerm} onChange={onSearchChange} placeholder={searchPlaceholder || "Pesquisar por SKU, nome ou fornecedor..."} />
         <FilterSelect
           icon={CircleDot}
           value={selectedStatus}
@@ -86,7 +88,7 @@ export function ProdutosFilters({
                     onClick={() => onTypeToggle(tp)}
                     className={`px-2.5 py-1 text-[10px] rounded-full transition-colors ${selectedTypes.includes(tp) ? "bg-[var(--color-primary-blue)] !text-white" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
                   >
-                    {tp}
+                    {typeLabel(tp)}
                   </button>
                 ))}
               </div>

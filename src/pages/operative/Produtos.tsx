@@ -68,10 +68,15 @@ export default function Catalog() {
   const filteredProducts = useMemo(() => {
     return f.products
       .filter((p) => {
+        const q = f.searchTerm.toLowerCase();
+        const a = (p.typeAttributes || {}) as Record<string, unknown>;
         const matchesSearch =
-          p.name.toLowerCase().includes(f.searchTerm.toLowerCase()) ||
-          p.sku.toLowerCase().includes(f.searchTerm.toLowerCase()) ||
-          (p.provider && p.provider.toLowerCase().includes(f.searchTerm.toLowerCase()));
+          p.name.toLowerCase().includes(q) ||
+          p.sku.toLowerCase().includes(q) ||
+          (p.provider && p.provider.toLowerCase().includes(q)) ||
+          // Varejo: também busca por marca, códigos de barras/EAN, NCM, coleção e código interno
+          (f.varejoOn && ["marca", "barcode", "ean", "ncm", "colecao", "codigoInterno"].some(k => a[k] != null && String(a[k]).toLowerCase().includes(q))) ||
+          (f.varejoOn && !!p.category && p.category.toLowerCase().includes(q));
         const matchesCategory = f.selectedCategories.length === 0 || f.selectedCategories.includes(p.category);
         const matchesType = f.selectedTypes.length === 0 || f.selectedTypes.includes(p.type);
         const matchesStatus =
@@ -88,7 +93,7 @@ export default function Catalog() {
         if (f.sortBy === "margin-desc") return b.margin - a.margin;
         return 0;
       });
-  }, [f.products, f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy]);
+  }, [f.products, f.varejoOn, f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy]);
 
   // Grid/Tabela renderizavam TODOS os produtos filtrados de uma vez —
   // pagina só a exibição (os dados já estão em memória); export CSV e o
@@ -153,6 +158,7 @@ export default function Catalog() {
           onClear={clearFilters}
         >
         <ProdutosFilters
+          searchPlaceholder={f.varejoOn ? "Pesquisar por nome, SKU, marca, EAN/código de barras, NCM, categoria..." : undefined}
           searchTerm={f.searchTerm} onSearchChange={f.setSearchTerm}
           categories={f.categories} selectedCategories={f.selectedCategories}
           onCategoryToggle={(cat) => f.setSelectedCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])}

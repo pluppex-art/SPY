@@ -7,6 +7,7 @@ import { Product, ProductType, ProductAttachment } from "../../../types";
 import { ProdutoTabInfo } from "./produto-modal/ProdutoTabInfo";
 import { ProdutoTabComercial } from "./produto-modal/ProdutoTabComercial";
 import { ProdutoTabEstoque } from "./produto-modal/ProdutoTabEstoque";
+import { useAuth } from "../../../contexts/AuthContext";
 import { ProdutoTabArquivos } from "./produto-modal/ProdutoTabArquivos";
 
 const TABS = [
@@ -79,7 +80,9 @@ export interface ProdutoModalProps {
 }
 
 export function ProdutoModal(props: ProdutoModalProps) {
+  const { isModuleEnabled } = useAuth();
   if (!props.isOpen) return null;
+  const varejoFisico = (() => { try { return !!isModuleEnabled("varejo" as any); } catch { return false; } })() && props.formType === "Físico";
 
   // Aba Estoque sempre disponível para permitir controle de unidades/licenças de qualquer produto
   const visibleTabs = TABS;
@@ -123,6 +126,7 @@ export function ProdutoModal(props: ProdutoModalProps) {
                 }`}>
                 <IconComp className={`w-3.5 h-3.5 ${isActive ? "text-[#2563EB]" : "text-slate-400"}`} />
                 <span>{t.label}</span>
+                {varejoFisico && t.id === "estoque" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="Controle de estoque do varejo" />}
               </button>
             );
           })}

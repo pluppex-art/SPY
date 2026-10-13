@@ -1,5 +1,7 @@
 import { Truck, ShieldAlert, Check } from "lucide-react";
 import { getTypeSchema, isUniqueAssetType } from "../typeSchemas";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { TypeFieldInput } from "./TypeFieldInput";
 
 interface ProdutoTabEstoqueProps {
   formStockMin: string;
@@ -30,6 +32,14 @@ export function ProdutoTabEstoque({
 }: ProdutoTabEstoqueProps) {
   const inputCls = "w-full bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#2563EB]/40 font-mono";
 
+  const { isModuleEnabled } = useAuth();
+  const varejoOn = (() => { try { return !!isModuleEnabled("varejo" as any); } catch { return false; } })();
+  const varejoFisico = varejoOn && formType === "Físico";
+  const extraFields = isUniqueAssetType(formType)
+    ? []
+    : (getTypeSchema(formType)?.fields || []).filter(f => f.tab === "estoque" && f.key !== "statusAtivo" && (!f.showIf || f.showIf(formTypeAttributes)));
+  const setAttr = (key: string, value: string | number | boolean) => setFormTypeAttributes?.(prev => ({ ...prev, [key]: value }));
+  const controlaEstoque = formTypeAttributes.controlaEstoque === undefined ? true : !!formTypeAttributes.controlaEstoque;
   const cur = parseInt(formCurrentStock) || 0;
   const min = parseInt(formStockMin) || 0;
   const isCritical = cur <= min;
@@ -80,12 +90,19 @@ export function ProdutoTabEstoque({
       <div className="bg-[var(--color-surface-elevated)] border border-white/5 p-4 rounded-xl flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 font-black text-xs font-mono">3</div>
         <div>
-          <h4 className="text-xs font-black text-white uppercase tracking-wider">Controle Logístico & Fornecedor</h4>
-          <p className="text-[10px] text-slate-500">Insira limites de estoque para avisos automáticos.</p>
+          <h4 className="text-xs font-black text-white uppercase tracking-wider">{varejoFisico ? "Estoque da loja" : "Controle Logístico & Fornecedor"}</h4>
+          <p className="text-[10px] text-slate-500">{varejoFisico ? "Saldo atual, mínimo para alerta de reposição e máximo alvo. O PDV baixa daqui a cada venda." : "Insira limites de estoque para avisos automáticos."}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {extraFields.length > 0 && (
+        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${varejoFisico ? "p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5" : ""}`}>
+          {extraFields.map(f => <TypeFieldInput key={f.key} field={f} attrs={formTypeAttributes} setAttr={setAttr} />)}
+        </div>
+      )}
+
+      {controlaEstoque && (
+      <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 ${varejoFisico ? "p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5" : ""}`}>
         <div className="space-y-1.5">
           <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Estoque Mínimo Alerta</label>
           <input type="number" value={formStockMin} onChange={(e) => setFormStockMin(e.target.value)} placeholder="Ex: 5" className={inputCls} />
@@ -99,6 +116,7 @@ export function ProdutoTabEstoque({
           <input type="number" value={formStockMax} onChange={(e) => setFormStockMax(e.target.value)} placeholder="Ex: 200" className={inputCls} />
         </div>
       </div>
+      )}
 
       <div className="space-y-1.5">
         <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Fornecedor / Distribuidor</label>
@@ -106,7 +124,7 @@ export function ProdutoTabEstoque({
           placeholder="Ex: Cisco Solutions Inc" className={`${inputCls} font-medium`} />
       </div>
 
-      <div className="bg-[var(--color-surface-elevated)]/40 border border-white/5 p-4 rounded-xl flex items-center gap-3 text-xs">
+      {controlaEstoque && <div className="bg-[var(--color-surface-elevated)]/40 border border-white/5 p-4 rounded-xl flex items-center gap-3 text-xs">
         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCritical ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}>
           {isCritical ? <ShieldAlert className="w-4 h-4" /> : <Check className="w-4 h-4" />}
         </div>
@@ -116,7 +134,7 @@ export function ProdutoTabEstoque({
             {isCritical ? "Alerta de Estoque Crítico (Comprar do Fornecedor)" : "Nível do Estoque Adequado (Operando normal)"}
           </span>
         </div>
-      </div>
+      </div>}
 
       <div className="pt-4 border-t border-white/5 space-y-4">
         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">

@@ -5,19 +5,28 @@ import type { Product, ProductType } from "../../../types";
  * Os valores ficam em `products.type_attributes` (jsonb) sob as chaves abaixo.
  * ATENÇÃO: não renomeie chaves — outros módulos (PDV/varejo, n8n, migrações) leem estes nomes.
  */
-export type TypeFieldKind = "text" | "number" | "money" | "select" | "bool" | "textarea";
+export type TypeFieldKind = "text" | "number" | "money" | "select" | "bool" | "textarea" | "date";
 
 export interface TypeField {
   key: string;
   label: string;
   kind: TypeFieldKind;
   options?: string[];
+  /** rótulos curtos exibidos no lugar do valor gravado (chave = valor da option) */
+  optionLabels?: Record<string, string>;
+  /** só dígitos (ex.: NCM) */
+  digitsOnly?: boolean;
+  maxLength?: number;
+  /** valor assumido para campos bool quando a chave ainda não foi gravada */
+  defaultBool?: boolean;
+  /** campo "avançado": agrupado em "Varejo", expandido só quando o tenant tem o módulo varejo */
+  advanced?: boolean;
   placeholder?: string;
   /** valor exibido (e assumido) quando a chave ainda não foi gravada — mantém o comportamento antigo dos selects */
   defaultValue?: string;
   /** largura no grid de 2 colunas: "full" ocupa a linha inteira */
   width?: "half" | "full";
-  /** onde renderizar: "info" (padrão) ou "estoque" (status de disponibilidade) */
+  /** onde renderizar: "info" (padrão) ou "estoque" (status de disponibilidade / logística) */
   tab?: "info" | "estoque";
   /** só mostra o campo quando a condição for verdadeira */
   showIf?: (attrs: Record<string, string | number | boolean>) => boolean;
@@ -35,6 +44,21 @@ export interface TypeSchema {
 }
 
 export type TypeAttrs = Record<string, string | number | boolean>;
+
+const GENEROS = ["Unissex", "Masculino", "Feminino", "Infantil"];
+const UNIDADES = ["UN", "PAR", "CX", "KG", "L", "M", "PC"];
+const ORIGENS = ["0", "1", "2", "3", "4", "5", "6", "7", "8"];
+const ORIGEM_LABELS: Record<string, string> = {
+  "0": "0 - Nacional",
+  "1": "1 - Estrangeira (importação direta)",
+  "2": "2 - Estrangeira (mercado interno)",
+  "3": "3 - Nacional (import. 40-70%)",
+  "4": "4 - Nacional (proc. básicos)",
+  "5": "5 - Nacional (import. até 40%)",
+  "6": "6 - Estrangeira (s/ similar, direta)",
+  "7": "7 - Estrangeira (s/ similar, interna)",
+  "8": "8 - Nacional (import. acima de 70%)",
+};
 
 const STATUS_IMOVEL = ["Disponível", "Reservado", "Vendido", "Locado"];
 const STATUS_VEICULO = ["Disponível", "Reservado", "Vendido", "Em Preparação"];
@@ -67,6 +91,21 @@ export const TYPE_SCHEMAS: Record<string, TypeSchema> = {
     fields: [
       { key: "barcode", label: "Código de barras", kind: "text", placeholder: "Leia ou digite o código" },
       { key: "ean", label: "EAN", kind: "text", placeholder: "EAN-13" },
+      { key: "marca", label: "Marca", kind: "text", placeholder: "Ex: Nike", advanced: true },
+      { key: "colecao", label: "Linha / Coleção", kind: "text", placeholder: "Ex: Verão 2026", advanced: true },
+      { key: "tamanho", label: "Tamanho", kind: "text", placeholder: "Ex: 42, M, 500ml", advanced: true },
+      { key: "cor", label: "Cor", kind: "text", advanced: true },
+      { key: "genero", label: "Gênero", kind: "select", options: GENEROS, defaultValue: "Unissex", advanced: true },
+      { key: "unidade", label: "Unidade de medida", kind: "select", options: UNIDADES, defaultValue: "UN", advanced: true },
+      { key: "codigoInterno", label: "Código interno", kind: "text", advanced: true },
+      { key: "ncm", label: "NCM", kind: "text", placeholder: "8 dígitos", digitsOnly: true, maxLength: 8, advanced: true },
+      { key: "cest", label: "CEST", kind: "text", placeholder: "7 dígitos", digitsOnly: true, maxLength: 7, advanced: true },
+      { key: "origemMercadoria", label: "Origem da mercadoria", kind: "select", options: ORIGENS, optionLabels: ORIGEM_LABELS, defaultValue: "0", advanced: true },
+      { key: "precoPromocional", label: "Preço promocional (R$)", kind: "money", advanced: true },
+      { key: "promoAte", label: "Promoção válida até", kind: "date", advanced: true },
+      { key: "localizacao", label: "Localização (prateleira / depósito)", kind: "text", placeholder: "Ex: Corredor 3, Prateleira B", advanced: true, tab: "estoque", width: "full" },
+      { key: "controlaEstoque", label: "Controla estoque", kind: "bool", defaultBool: true, advanced: true, tab: "estoque", width: "full" },
+      { key: "permiteVendaSemEstoque", label: "Permite venda sem estoque", kind: "bool", advanced: true, tab: "estoque", width: "full" },
     ],
   },
   "Curso/Turma": {
@@ -134,6 +173,11 @@ export function isUniqueAssetType(type: string | undefined | null): boolean {
 }
 
 /** Tipos disponíveis para quem não tem restrição de módulo. */
+/** Rótulo visível do tipo (o valor gravado em products.type não muda). */
+export function typeLabel(t: string): string {
+  return t === "Físico" ? "Produto físico" : t;
+}
+
 export const BASE_TYPES: ProductType[] = ["Serviço", "Assinatura", "Digital", "Físico", "Curso/Turma"];
 
 /** Mapeia o status de disponibilidade para os campos nativos de products. */
@@ -151,7 +195,7 @@ export function statusToStock(status: string | undefined) {
 const num = (v: unknown) => (typeof v === "number" ? v : parseFloat(String(v ?? "")) || 0);
 const fmtKm = (v: unknown) => `${num(v).toLocaleString("pt-BR")} km`;
 
-/** Subtítulo compacto para listas/grades (Imóvel e Veículo). Retorna "" para os demais tipos. */
+/** Subtítulo compacto para listas/grades (Imóvel, Veículo e Produto físico). Retorna "" para os demais tipos. */
 export function getProductSubtitle(p: Pick<Product, "type" | "typeAttributes">): string {
   const a = (p.typeAttributes || {}) as TypeAttrs;
   const parts: string[] = [];
@@ -169,6 +213,13 @@ export function getProductSubtitle(p: Pick<Product, "type" | "typeAttributes">):
     if (head) parts.push(head);
     if (num(a.km)) parts.push(fmtKm(a.km));
     if (a.placa) parts.push(String(a.placa));
+  }
+  else if (p.type === "Físico") {
+    if (a.marca) parts.push(String(a.marca));
+    if (a.tamanho) parts.push(`Tam ${a.tamanho}`);
+    if (a.cor) parts.push(String(a.cor));
+    const code = a.ean || a.barcode;
+    if (code) parts.push(`EAN ${code}`);
   }
   return parts.join(" · ");
 }

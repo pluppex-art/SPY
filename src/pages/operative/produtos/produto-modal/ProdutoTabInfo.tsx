@@ -1,7 +1,9 @@
 import { Wand2, Building2, Search, ChevronDown, CheckCircle2, Building } from "lucide-react";
 import { toast } from "sonner";
 import { ProductType } from "../../../../types";
-import { getTypeSchema, type TypeField } from "../typeSchemas";
+import { getTypeSchema, typeLabel, type TypeField } from "../typeSchemas";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { TypeFieldInput } from "./TypeFieldInput";
 
 interface ProdutoTabInfoProps {
   clientSearch: string;
@@ -53,40 +55,14 @@ export function ProdutoTabInfo({
     : ["Serviço", "Assinatura", "Digital", "Físico", "Curso/Turma"];
   const schema = getTypeSchema(formType);
   const schemaFields = (schema?.fields || []).filter(f => (f.tab || "info") === "info" && (!f.showIf || f.showIf(formTypeAttributes)));
+  const { isModuleEnabled } = useAuth();
 
-  const renderField = (f: TypeField) => {
-    const wrap = f.width === "full" ? "sm:col-span-2 " : "";
-    if (f.kind === "bool") {
-      const id = `attr-${f.key}`;
-      return (
-        <div key={f.key} className={`${wrap}flex items-center gap-2.5 pt-1`}>
-          <input type="checkbox" id={id} checked={!!attr(f.key)} onChange={(e) => setAttr(f.key, e.target.checked)}
-            className="w-4 h-4 rounded border-white/20 bg-slate-900 focus:ring-[#2563EB] cursor-pointer" />
-          <label htmlFor={id} className="text-xs font-bold text-white cursor-pointer select-none">{f.label}</label>
-        </div>
-      );
-    }
-    return (
-      <div key={f.key} className={`${wrap}space-y-1.5`}>
-        <label className={labelCls}>{f.label}</label>
-        {f.kind === "select" ? (
-          <select value={(attr(f.key) as string) || f.defaultValue || ""} onChange={(e) => setAttr(f.key, e.target.value)} className={inputCls}>
-            {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        ) : f.kind === "textarea" ? (
-          <textarea value={(attr(f.key) as string) || ""} onChange={(e) => setAttr(f.key, e.target.value)} placeholder={f.placeholder} className={`${inputCls} h-16`} />
-        ) : f.kind === "number" || f.kind === "money" ? (
-          <input type="number" step={f.kind === "money" ? "any" : "any"} value={(attr(f.key) as number) ?? ""}
-            onChange={(e) => setAttr(f.key, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
-            placeholder={f.placeholder ?? (f.kind === "money" ? "R$ 0,00" : undefined)} className={inputCls} />
-        ) : (
-          <input type="text" value={(attr(f.key) as string) || ""} onChange={(e) => setAttr(f.key, e.target.value)}
-            placeholder={f.placeholder} className={inputCls} />
-        )}
-      </div>
-    );
-  };
-
+  const renderField = (f: TypeField) => (
+    <TypeFieldInput key={f.key} field={f} attrs={formTypeAttributes} setAttr={setAttr} />
+  );
+  const varejoOn = (() => { try { return !!isModuleEnabled("varejo" as any); } catch { return false; } })();
+  const baseFields = schemaFields.filter(f => !f.advanced);
+  const advFields = schemaFields.filter(f => f.advanced);
   return (
     <div className="space-y-4">
       {/* Client Association */}
@@ -179,20 +155,35 @@ export function ProdutoTabInfo({
             setFormType(t);
             if ((t === "Imóvel" || t === "Veículo") && categories.includes(t) && (!formCategory || formCategory === "Software")) setFormCategory(t);
           }} className={inputCls}>
-            {typeList.map(t => <option key={t} value={t}>{t}</option>)}
+            {typeList.map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
           </select>
         </div>
       </div>
 
       {/* Campos que variam conforme o tipo de item (registro em ../typeSchemas.ts) */}
       {schemaFields.length > 0 && (
-        <div className="space-y-2">
-          {schema?.sectionTitle && (
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{schema.sectionTitle}</h4>
+        <div className="space-y-3">
+          {baseFields.length > 0 && (
+            <div className="space-y-2">
+              {schema?.sectionTitle && (
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{schema.sectionTitle}</h4>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {baseFields.map(renderField)}
+              </div>
+            </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {schemaFields.map(renderField)}
-          </div>
+          {advFields.length > 0 && (
+            <details open={varejoOn} key={`${formType}-${varejoOn}`} className="group rounded-xl border border-white/5 bg-white/[0.01] p-4 space-y-3">
+              <summary className="cursor-pointer select-none text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                <span>Varejo — marca, grade, fiscal e promoção</span>
+                <span className="text-[9px] font-bold normal-case text-slate-500 group-open:hidden">toque para expandir</span>
+              </summary>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3">
+                {advFields.map(renderField)}
+              </div>
+            </details>
+          )}
         </div>
       )}
 
