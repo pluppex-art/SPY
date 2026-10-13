@@ -8,7 +8,21 @@ import { useNicheProfiles } from "./useNicheProfiles";
 import { resolveTypeOptions, getDefaultType, getDefaultCategory, profileCategories, hidesSubscription, persistDefaultsFor } from "./nicheProfiles";
 
 export function useProdutoForm() {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  // A visualização escolhida (cards ou lista) fica salva por usuário em users.preferences.
+  const { user: prefUser, updatePreferences } = useAuth();
+  const savedViewMode = prefUser?.preferences?.produtosViewMode;
+  const [viewMode, setViewModeState] = useState<"grid" | "list">(savedViewMode === "list" ? "list" : "grid");
+  // As preferências podem chegar depois do primeiro render (sessão carregando): aplica uma vez.
+  const viewModeApplied = React.useRef(savedViewMode === "grid" || savedViewMode === "list");
+  React.useEffect(() => {
+    if (viewModeApplied.current) return;
+    if (savedViewMode === "grid" || savedViewMode === "list") { viewModeApplied.current = true; setViewModeState(savedViewMode); }
+  }, [savedViewMode]);
+  const setViewMode = (mode: "grid" | "list") => {
+    viewModeApplied.current = true;
+    setViewModeState(mode);
+    updatePreferences({ produtosViewMode: mode });
+  };
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
