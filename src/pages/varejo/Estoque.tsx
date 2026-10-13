@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 import {
   Boxes, ArrowUpCircle, ArrowDownCircle, Settings2, History,
   Search, Plus, Filter, AlertTriangle, CheckCircle2, TrendingUp,
-  DollarSign, Package, Barcode, Edit3, Trash2, X, RefreshCw,
+  DollarSign, Package, Barcode, ExternalLink, X, RefreshCw,
   Layers, ArrowUpDown, Download
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
@@ -18,7 +19,6 @@ import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
-import { confirmDialog } from "../../components/ui/confirm-dialog";
 
 type TipoMov = "entrada" | "saida" | "ajuste" | "venda";
 
@@ -33,7 +33,7 @@ interface Movimentacao {
 }
 
 export default function VarejoEstoque() {
-  const { products, setProducts, addProduct, updateProduct, deleteProduct } = useData();
+  const { products, setProducts } = useData();
   const cfg = useVarejoConfig();
   const minPadrao = cfg.estoque.estoqueMinimoPadrao;
   const { user, activeTenantId } = useAuth();
@@ -52,19 +52,6 @@ export default function VarejoEstoque() {
   const [ajusteQtd, setAjusteQtd] = useState("");
   const [ajusteMotivo, setAjusteMotivo] = useState("Compra de Fornecedor");
   const [ajusteSaving, setAjusteSaving] = useState(false);
-
-  // Modal de Novo / Editar Produto
-  const [modalProdutoOpen, setModalProdutoOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [formName, setFormName] = useState("");
-  const [formSku, setFormSku] = useState("");
-  const [formBarcode, setFormBarcode] = useState("");
-  const [formCategory, setFormCategory] = useState("Eletrônicos");
-  const [formCost, setFormCost] = useState("");
-  const [formPrice, setFormPrice] = useState("");
-  const [formCurrentStock, setFormCurrentStock] = useState("");
-  const [formStockMin, setFormStockMin] = useState("5");
-  const [formProvider, setFormProvider] = useState("");
 
   // Histórico de Movimentações — vem só da tabela real `estoque_movimentacoes`,
   // filtrado explicitamente pelo tenant ativo (achado A7, auditoria
@@ -243,114 +230,6 @@ export default function VarejoEstoque() {
     }
   };
 
-  // Handlers para Cadastro / Edição de Produto
-  const handleOpenNovoProduto = () => {
-    setEditingProduct(null);
-    setFormName("");
-    setFormSku(`SKU-${Math.floor(100 + Math.random() * 900)}`);
-    setFormBarcode(`789123456${Math.floor(1000 + Math.random() * 9000)}`);
-    setFormCategory("Eletrônicos");
-    setFormCost("");
-    setFormPrice("");
-    setFormCurrentStock("10");
-    setFormStockMin("5");
-    setFormProvider("");
-    setModalProdutoOpen(true);
-  };
-
-  const handleOpenEditarProduto = (prod: any) => {
-    setEditingProduct(prod);
-    setFormName(prod.name || "");
-    setFormSku(prod.sku || "");
-    setFormBarcode(prod.typeAttributes?.barcode || prod.typeAttributes?.ean || "");
-    setFormCategory(prod.category || "Eletrônicos");
-    setFormCost(String(prod.cost ?? ""));
-    setFormPrice(String(prod.price ?? ""));
-    setFormCurrentStock(String(prod.currentStock ?? "0"));
-    setFormStockMin(String(prod.stockMin ?? "5"));
-    setFormProvider(prod.provider || "");
-    setModalProdutoOpen(true);
-  };
-
-  const handleSalvarProduto = () => {
-    if (!formName.trim()) {
-      toast.error("Informe o nome do produto.");
-      return;
-    }
-
-    const priceNum = parseFloat(formPrice.replace(",", ".")) || 0;
-    const costNum = parseFloat(formCost.replace(",", ".")) || 0;
-    const stockNum = parseInt(formCurrentStock, 10) || 0;
-    const stockMinNum = parseInt(formStockMin, 10) || minPadrao;
-
-    const marginCalc = priceNum > 0 ? ((priceNum - costNum) / priceNum) * 100 : 0;
-    if (cfg.compras.margemMinimaPct > 0 && priceNum > 0 && marginCalc < cfg.compras.margemMinimaPct) {
-      toast.warning(`Margem de ${marginCalc.toFixed(1)}% abaixo do mínimo da loja (${cfg.compras.margemMinimaPct}%).`);
-    }
-
-    if (editingProduct) {
-      // Editar
-      const updated = {
-        ...editingProduct,
-        name: formName.trim(),
-        sku: formSku.trim(),
-        category: formCategory,
-        price: priceNum,
-        cost: costNum,
-        margin: Math.round(marginCalc * 10) / 10,
-        currentStock: stockNum,
-        stockMin: stockMinNum,
-        provider: formProvider.trim(),
-        typeAttributes: {
-          ...editingProduct.typeAttributes,
-          barcode: formBarcode.trim(),
-          ean: formBarcode.trim(),
-        },
-      };
-      updateProduct(editingProduct.id, updated);
-      toast.success("Produto atualizado com sucesso!");
-    } else {
-      // Criar
-      const newProd = {
-        id: `prod-${Math.random().toString(36).substring(2, 9)}`,
-        name: formName.trim(),
-        sku: formSku.trim(),
-        category: formCategory,
-        type: "Físico" as const,
-        price: priceNum,
-        cost: costNum,
-        margin: Math.round(marginCalc * 10) / 10,
-        commission: 5,
-        active: true,
-        currentStock: stockNum,
-        stockMin: stockMinNum,
-        stockMax: stockMinNum * 5,
-        provider: formProvider.trim() || "Distribuidor Padrão",
-        tags: ["varejo"],
-        typeAttributes: {
-          barcode: formBarcode.trim(),
-          ean: formBarcode.trim(),
-        },
-      };
-      addProduct(newProd);
-      toast.success("Produto cadastrado no estoque!");
-    }
-
-    setModalProdutoOpen(false);
-  };
-
-  const handleDeleteProduto = async (prod: any) => {
-    const ok = await confirmDialog({
-      title: "Excluir Produto",
-      message: `Deseja realmente remover o produto "${prod.name}" do catálogo e do estoque?`,
-      confirmText: "Sim, Excluir",
-      variant: "danger",
-    });
-    if (ok) {
-      deleteProduct(prod.id);
-      toast.success("Produto removido do estoque.");
-    }
-  };
 
   const handleExportCSV = () => {
     if (!products || products.length === 0) {
@@ -395,10 +274,10 @@ export default function VarejoEstoque() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
-            Gestão & Controle de Estoque <Boxes className="w-6 h-6 text-blue-500" />
+            Movimentações de Estoque <Boxes className="w-6 h-6 text-blue-500" />
           </h1>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">
-            Acompanhamento de saldos, custos de aquisição, margem bruta de varejo e histórico de movimentações.
+            Entradas, saídas e ajustes de saldo, alertas de estoque baixo e histórico de movimentações. O cadastro de produtos fica em Produtos.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -409,9 +288,11 @@ export default function VarejoEstoque() {
           >
             <Download className="w-3.5 h-3.5 text-[var(--color-text-muted)]" /> Exportar CSV
           </Button>
-          <Button onClick={handleOpenNovoProduto} className="gap-1.5 font-bold text-xs bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white shadow-xs">
-            <Plus className="w-4 h-4" /> Novo Produto
-          </Button>
+          <Link to="/app/produtos">
+            <Button className="gap-1.5 font-bold text-xs bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white shadow-xs">
+              <Plus className="w-4 h-4" /> Cadastrar produto
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -480,7 +361,7 @@ export default function VarejoEstoque() {
             <EmptyState
               icon={Package}
               title="Nenhum item encontrado"
-              description="Tente ajustar os filtros de busca ou cadastre um novo produto."
+              description="Tente ajustar os filtros de busca ou cadastre um novo produto em Produtos."
               className="py-12"
             />
           ) : (
@@ -577,21 +458,13 @@ export default function VarejoEstoque() {
                                 <ArrowUpDown className="w-3 h-3" /> Ajustar Saldo
                               </Button>
 
-                              <button
-                                onClick={() => handleOpenEditarProduto(p)}
-                                className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
-                                title="Editar Produto"
+                              <Link
+                                to="/app/produtos"
+                                className="h-7 px-2 inline-flex items-center gap-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] text-[11px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+                                title="Editar cadastro em Produtos"
                               >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-
-                              <button
-                                onClick={() => handleDeleteProduto(p)}
-                                className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-red-500/10 hover:border-red-500/25 text-red-400 hover:text-red-300 transition-colors"
-                                title="Excluir Produto"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                                <ExternalLink className="w-3 h-3" /> Editar
+                              </Link>
                             </div>
                           </td>
                         </tr>
@@ -773,164 +646,6 @@ export default function VarejoEstoque() {
         </Modal>
       )}
 
-      {/* MODAL 2: CADASTRO / EDIÇÃO DE PRODUTO */}
-      <Modal
-        isOpen={modalProdutoOpen}
-        onClose={() => setModalProdutoOpen(false)}
-        maxWidth="max-w-lg"
-        title={
-          <div>
-            <h3 className="text-base font-bold text-[var(--color-text-primary)]">
-              {editingProduct ? "Editar Produto" : "Novo Produto no Estoque"}
-            </h3>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-              Preencha os dados de catálogo, custos e estoque do item.
-            </p>
-          </div>
-        }
-        footer={
-          <div className="flex justify-end gap-2 w-full">
-            <Button variant="outline" size="sm" onClick={() => setModalProdutoOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSalvarProduto}
-              className="font-bold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white"
-            >
-              {editingProduct ? "Salvar Alterações" : "Cadastrar Produto"}
-            </Button>
-          </div>
-        }
-      >
-        <div className="space-y-3.5 py-1">
-          <div>
-            <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-              Nome do Produto *
-            </label>
-            <Input
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              placeholder="Ex: Smartwatch Ultra Pro"
-              className="text-xs"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-                Código SKU
-              </label>
-              <Input
-                value={formSku}
-                onChange={(e) => setFormSku(e.target.value)}
-                placeholder="Ex: TECH-001"
-                className="text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-                Código de Barras (EAN)
-              </label>
-              <Input
-                value={formBarcode}
-                onChange={(e) => setFormBarcode(e.target.value)}
-                placeholder="Ex: 7891234560012"
-                className="text-xs font-mono"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-                Categoria
-              </label>
-              <select
-                value={formCategory}
-                onChange={(e) => setFormCategory(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl px-3 py-2 text-xs font-medium text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              >
-                <option value="Eletrônicos">Eletrônicos</option>
-                <option value="Acessórios">Acessórios</option>
-                <option value="Vestuário">Vestuário</option>
-                <option value="Utilidades">Utilidades</option>
-                <option value="Alimentos & Bebidas">Alimentos & Bebidas</option>
-                <option value="Informática">Informática</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-                Fornecedor Principal
-              </label>
-              <Input
-                value={formProvider}
-                onChange={(e) => setFormProvider(e.target.value)}
-                placeholder="Ex: Global Imports"
-                className="text-xs"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-                Preço de Custo (R$)
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formCost}
-                onChange={(e) => setFormCost(e.target.value)}
-                placeholder="0,00"
-                className="text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-                Preço de Venda no PDV (R$) *
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formPrice}
-                onChange={(e) => setFormPrice(e.target.value)}
-                placeholder="0,00"
-                className="text-xs font-mono font-bold text-emerald-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-                Saldo Inicial / Estoque Atual
-              </label>
-              <Input
-                type="number"
-                min={0}
-                value={formCurrentStock}
-                onChange={(e) => setFormCurrentStock(e.target.value)}
-                placeholder="0"
-                className="text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-                Estoque Mínimo de Alerta
-              </label>
-              <Input
-                type="number"
-                min={1}
-                value={formStockMin}
-                onChange={(e) => setFormStockMin(e.target.value)}
-                placeholder="5"
-                className="text-xs font-mono"
-              />
-            </div>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

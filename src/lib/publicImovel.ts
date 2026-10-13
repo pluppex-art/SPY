@@ -22,10 +22,10 @@ export interface PublicImovel {
 }
 
 // Busca um imóvel pelo id via RPC SECURITY DEFINER (get_public_imovel) — nunca
-// faz select direto em imobiliario_imoveis/imobiliario_corretores, então não
+// faz select direto em products/imobiliario_corretores, então não
 // depende de RLS/grants anon nessas tabelas. Cada chamada também incrementa
 // o contador `visitas` do imóvel no banco (é a mesma métrica exibida na
-// tela interna de Imóveis).
+// tela interna de Produtos (tipo Imóvel)).
 export async function fetchPublicImovel(id: string): Promise<PublicImovel | null> {
   if (!supabase || !id) return null;
   const { data, error } = await supabase.rpc("get_public_imovel", { p_id: id });

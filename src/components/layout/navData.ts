@@ -136,7 +136,6 @@ export const navSections = [
     reqModule: "imobiliaria",
     items: [
       { name: "Painel Imobiliário", path: "/app/imobiliario/dashboard", icon: Building2 },
-      { name: "Catálogo de Imóveis", path: "/app/imobiliario/imoveis", icon: KeySquare },
       { name: "Proprietários", path: "/app/imobiliario/proprietarios", icon: Users },
       { name: "Captações", path: "/app/imobiliario/captacoes", icon: ClipboardList },
       { name: "Empreendimentos", path: "/app/imobiliario/empreendimentos", icon: Building2 },
@@ -162,7 +161,6 @@ export const navSections = [
     reqModule: "automotivo",
     items: [
       { name: "Painel Concessionária", path: "/app/automotivo/dashboard", icon: Building2 },
-      { name: "Estoque de Veículos", path: "/app/automotivo/veiculos", icon: Car },
       { name: "Captações", path: "/app/automotivo/captacoes", icon: ClipboardList },
       { name: "Avaliações de Usados", path: "/app/automotivo/avaliacoes", icon: CheckSquare },
       { name: "Consignações", path: "/app/automotivo/consignacoes", icon: Handshake },
@@ -177,7 +175,7 @@ export const navSections = [
     items: [
       { name: "Painel de Varejo", path: "/app/varejo/dashboard", icon: LayoutDashboard },
       { name: "Frente de Caixa (PDV)", path: "/app/varejo/vendas", icon: ShoppingCart },
-      { name: "Controle de Estoque", path: "/app/varejo/estoque", icon: Boxes },
+      { name: "Movimentações de Estoque", path: "/app/varejo/estoque", icon: Boxes },
       { name: "Fornecedores", path: "/app/varejo/fornecedores", icon: Truck },
       { name: "Pedidos de Compra", path: "/app/varejo/compras", icon: ClipboardList },
       { name: "Notas de Entrada", path: "/app/varejo/notas-entrada", icon: FileText },
@@ -193,7 +191,6 @@ export const navSections = [
       { name: "Prontuários EHR", path: "/app/clinicas/prontuarios", icon: FileText },
       { name: "Telemedicina", path: "/app/clinicas/telemedicina", icon: Video },
       { name: "Faturamento Clínico", path: "/app/clinicas/faturamento", icon: Wallet },
-      { name: "Estoque de Insumos", path: "/app/clinicas/estoque", icon: Archive },
       { name: "Exames & Labs", path: "/app/clinicas/exames", icon: FlaskConical },
       { name: "Base de Exames", path: "/app/clinicas/base-exames", icon: Boxes },
       { name: "Comparação de Tabelas", path: "/app/clinicas/comparacao-tabelas", icon: GitCompare },

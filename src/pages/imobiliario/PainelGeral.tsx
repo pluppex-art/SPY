@@ -10,8 +10,10 @@ import {
   Calendar, ArrowUpRight, Target, Columns3,
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { fetchImoveisCatalogo } from "../../lib/ativosCatalogo";
 import { useAuth } from "../../contexts/AuthContext";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
+import { fetchVeiculosCatalogo } from "../../lib/veiculosCatalogo";
 
 type ImovelRow = {
   id: string; titulo: string; tipo: string; status: string;
@@ -94,13 +96,13 @@ export default function ImobiliarioPainel() {
     // visitas, usado só pra não poluir a lista "Próximas Visitas", também
     // capava o KPI de contagem e o gráfico semanal, que precisam do total real.
     Promise.all([
-      supabase.from("imobiliario_imoveis").select("id,titulo,tipo,status,valor,bairro,cidade,visitas,created_at,operacao").eq("tenant_id", activeTenantId),
-      supabase.from("imobiliario_veiculos").select("id,marca,modelo,status,valor").eq("tenant_id", activeTenantId),
+      fetchImoveisCatalogo(supabase, activeTenantId),
+      fetchVeiculosCatalogo(supabase, activeTenantId),
       supabase.from("imobiliario_corretores").select("nome,vendas_mes,vgv_mes,meta,avaliacao").eq("tenant_id", activeTenantId).order("vendas_mes", { ascending: false }),
       supabase.from("imobiliario_visitas").select("data,hora,imovel,cliente,corretor,status").eq("tenant_id", activeTenantId).gte("data", today).order("data"),
       supabase.from("imobiliario_leads").select("etapa,orcamento,status").eq("tenant_id", activeTenantId),
     ]).then(([im, vei, cor, vis, lea]) => {
-      setImoveis(im.data ?? []);
+      setImoveis(im ?? []);
       setVeiculos(vei.data ?? []);
       setCorretores(cor.data ?? []);
       setVisitas(vis.data ?? []);

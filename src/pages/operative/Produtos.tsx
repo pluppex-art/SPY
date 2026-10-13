@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Package, FileSpreadsheet, Activity, TrendingUp, Sparkles } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -24,6 +25,24 @@ export default function Catalog() {
   const f = useProdutoForm();
   const { createProposalWithItems } = useData();
   const { user } = useAuth();
+
+  // Deep-link: /app/produtos?type=Imóvel (ou ?tipo=) pré-seleciona o filtro de
+  // tipo; &novo=1 abre o modal de novo produto já com esse tipo.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const t = searchParams.get("type") || searchParams.get("tipo");
+    const novo = searchParams.get("novo") === "1";
+    if (!t && !novo) return;
+    if (t) f.setSelectedTypes([t]);
+    if (novo) {
+      f.handleOpenAddModal();
+      if (t) f.setFormType(t as any);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("novo");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [sellingProduct, setSellingProduct] = useState<Product | null>(null);
 

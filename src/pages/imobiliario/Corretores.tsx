@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
+import { fetchImoveisCatalogo } from "../../lib/ativosCatalogo";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { Modal } from "../../components/ui/modal";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -340,8 +341,8 @@ export default function Corretores() {
     if (!supabase || !activeTenantId) return;
     Promise.all([
       supabase.from("imobiliario_corretores").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }),
-      supabase.from("imobiliario_imoveis").select("corretor,status,valor,updated_at").eq("tenant_id", activeTenantId),
-    ]).then(([{ data }, { data: imoveis }]) => {
+      fetchImoveisCatalogo(supabase, activeTenantId),
+    ]).then(([{ data }, imoveis]) => {
       if (!data) return;
       const now = new Date();
       const normalize = (s: string) => s.trim().toLowerCase();

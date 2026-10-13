@@ -15,6 +15,7 @@ import { supabase } from "../../lib/supabase";
 import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
+import { fetchVeiculosCatalogo, veiculoLabelFromEmbed, VEICULO_EMBED } from "../../lib/veiculosCatalogo";
 
 interface TestDriveItem {
   id: string;
@@ -35,7 +36,7 @@ function rowToTestDrive(r: any): TestDriveItem {
     id: r.id,
     cliente: r.cliente,
     telefone: r.telefone || "",
-    carro: r.imobiliario_veiculos ? `${r.imobiliario_veiculos.marca} ${r.imobiliario_veiculos.modelo}` : r.imovel,
+    carro: veiculoLabelFromEmbed(r.products) ?? r.imovel,
     vendedor: r.corretor || "",
     data: r.data ? new Date(r.data + "T00:00:00").toLocaleDateString("pt-BR") : "",
     hora: r.hora || "10:00",
@@ -57,7 +58,7 @@ export default function TestDrives() {
     if (!supabase || !activeTenantId) return;
     supabase
       .from("imobiliario_visitas")
-      .select("*, imobiliario_veiculos(marca,modelo)")
+      .select(`*, ${VEICULO_EMBED}`)
       .eq("tenant_id", activeTenantId)
       .not("veiculo_id", "is", null)
       .order("data", { ascending: false })
@@ -70,13 +71,9 @@ export default function TestDrives() {
   useEffect(() => {
     refetch();
     if (!supabase || !activeTenantId) return;
-    supabase
-      .from("imobiliario_veiculos")
-      .select("id,marca,modelo")
-      .eq("tenant_id", activeTenantId)
-      .then(({ data }) => {
-        if (data) setVeiculosOptions(data.map((v: any) => ({ id: v.id, label: `${v.marca} ${v.modelo}` })));
-      });
+    fetchVeiculosCatalogo(supabase, activeTenantId).then(({ data }) => {
+      setVeiculosOptions(data.map(v => ({ id: v.id, label: `${v.marca} ${v.modelo}`.trim() })));
+    });
   }, [activeTenantId]);
 
   const [search, setSearch] = useState("");
@@ -133,7 +130,7 @@ export default function TestDrives() {
         hora: hora || cfg.horaPadrao,
         status: "Agendada",
       })
-      .select("*, imobiliario_veiculos(marca,modelo)")
+      .select(`*, ${VEICULO_EMBED}`)
       .maybeSingle();
 
     if (error) {

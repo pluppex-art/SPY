@@ -30,7 +30,7 @@ export interface PublicCorretorPortfolio {
 
 // Busca o portfólio de um corretor pelo slug público via RPC SECURITY DEFINER
 // (get_public_corretor_portfolio) — nunca faz select direto em
-// imobiliario_corretores/imobiliario_imoveis, então não depende de RLS/grants
+// imobiliario_corretores/products, então não depende de RLS/grants
 // anon nessas tabelas para funcionar com segurança.
 export async function fetchPublicCorretorPortfolio(slug: string): Promise<PublicCorretorPortfolio | null> {
   if (!supabase || !slug) return null;

@@ -14,6 +14,7 @@ import { supabase } from "../../lib/supabase";
 import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
+import { fetchVeiculosCatalogo, updateVeiculoAtributos, mapProductToVeiculo, TIPO_VEICULO } from "../../lib/veiculosCatalogo";
 
 interface ConsignacaoItem {
   id: string;
@@ -29,7 +30,7 @@ interface ConsignacaoItem {
 }
 
 // Deriva o status "de negócio" (exibido nesta tela) a partir das colunas reais
-// de imobiliario_veiculos: status (Disponível/Reservado/Vendido/Em Preparação)
+// do veículo (products.type_attributes): statusAtivo (Disponível/Reservado/Vendido/Em Preparação)
 // + repasse_realizado. Não existe uma coluna própria pra esses 4 rótulos.
 function derivarStatus(dbStatus: string, repasseRealizado: boolean): ConsignacaoItem["status"] {
   if (dbStatus === "Vendido") return repasseRealizado ? "Repassado & Finalizado" : "Vendido / Repasse Pendente";
@@ -71,19 +72,22 @@ export default function ConsignacoesVeiculos() {
 
   const refetch = () => {
     if (!supabase || !activeTenantId) return;
-    supabase
-      .from("imobiliario_veiculos")
-      .select("*")
-      .eq("tenant_id", activeTenantId)
-      .eq("is_consignado", true)
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) toast.error(`Erro ao carregar consignações: ${friendlyError(error)}`);
-        else if (data) setConsignacoes(data.map(rowToConsignacao));
-      });
+    fetchVeiculosCatalogo(supabase, activeTenantId).then(({ data, error }) => {
+      if (error) toast.error(`Erro ao carregar consignações: ${friendlyError(error)}`);
+      else setConsignacoes(data.filter(v => v.is_consignado).map(rowToConsignacao));
+    });
   };
 
   useEffect(() => { refetch(); }, [activeTenantId]);
+
+  // Gera a conta a pagar do repasse ao consignante (RPC) e marca o repasse como realizado.
+  const handleRegistrarRepasse = async (id: string) => {
+    if (!supabase) return;
+    const { error } = await supabase.rpc("registrar_repasse_consignacao", { p_veiculo_id: id });
+    if (error) { toast.error(`Erro ao registrar repasse: ${friendlyError(error)}`); return; }
+    toast.success("Repasse registrado no financeiro (Contas a Pagar).");
+    refetch();
+  };
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
@@ -132,18 +136,35 @@ export default function ConsignacoesVeiculos() {
     const pct = parseFloat(comissaoPercent.replace(",", ".")) || cfg.comissaoPadraoPct;
     const { status: dbStatus, repasse_realizado } = statusParaColunas(status);
 
+    const newId = crypto.randomUUID();
     const { data, error } = await supabase
-      .from("imobiliario_veiculos")
+      .from("products")
       .insert({
-        marca: marca.trim(),
-        modelo: veiculo.trim(),
-        valor: numPedido,
-        status: dbStatus,
-        is_consignado: true,
-        consignante_nome: consignante.trim(),
-        consignante_telefone: telefone.trim() || null,
-        comissao_percentual: pct,
-        repasse_realizado,
+        id: newId,
+        tenant_id: activeTenantId,
+        sku: `S/PLACA-${newId.slice(0, 8)}`,
+        name: `${marca.trim()} ${veiculo.trim()}`,
+        category: "Veículos",
+        type: TIPO_VEICULO,
+        price: numPedido,
+        cost: 0,
+        margin: 0,
+        commission: 0,
+        active: dbStatus !== "Vendido",
+        stockMin: 0,
+        stockMax: 1,
+        currentStock: dbStatus === "Disponível" ? 1 : 0,
+        type_attributes: {
+          marca: marca.trim(),
+          modelo: veiculo.trim(),
+          statusAtivo: dbStatus,
+          isConsignado: true,
+          consignanteNome: consignante.trim(),
+          consignanteTelefone: telefone.trim() || null,
+          comissaoPercentual: pct,
+          repasseRealizado: repasse_realizado,
+          visitas: 0,
+        },
       })
       .select()
       .maybeSingle();
@@ -153,7 +174,7 @@ export default function ConsignacoesVeiculos() {
       return;
     }
 
-    if (data) setConsignacoes(prev => [rowToConsignacao(data), ...prev]);
+    if (data) setConsignacoes(prev => [rowToConsignacao(mapProductToVeiculo(data)), ...prev]);
     toast.success("Veículo consignado com sucesso!");
     setModalOpen(false);
 
@@ -173,10 +194,9 @@ export default function ConsignacoesVeiculos() {
       title: "Remover consignação",
       description: `Remover a consignação de "${consignacao?.veiculo || "este veículo"}"? Essa ação não pode ser desfeita.`,
     }))) return;
-    const { error } = await supabase
-      .from("imobiliario_veiculos")
-      .update({ is_consignado: false, consignante_nome: null, consignante_telefone: null, comissao_percentual: null, repasse_realizado: false })
-      .eq("id", id);
+    const { error } = await updateVeiculoAtributos(supabase, id, {
+      isConsignado: false, consignanteNome: null, consignanteTelefone: null, comissaoPercentual: null, repasseRealizado: false,
+    });
     if (error) { toast.error(`Erro ao remover consignação: ${friendlyError(error)}`); return; }
     setConsignacoes(prev => prev.filter(c => c.id !== id));
     toast.info("Consignação removida (o veículo permanece no estoque).");
@@ -185,10 +205,7 @@ export default function ConsignacoesVeiculos() {
   const handleUpdateStatus = async (id: string, newStatus: ConsignacaoItem["status"]) => {
     if (!supabase) return;
     const { status: dbStatus, repasse_realizado } = statusParaColunas(newStatus);
-    const { error } = await supabase
-      .from("imobiliario_veiculos")
-      .update({ status: dbStatus, repasse_realizado })
-      .eq("id", id);
+    const { error } = await updateVeiculoAtributos(supabase, id, { statusAtivo: dbStatus, repasseRealizado: repasse_realizado });
     if (error) { toast.error(`Erro ao atualizar status: ${friendlyError(error)}`); return; }
     setConsignacoes(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
     toast.success(`Status atualizado para: ${newStatus}`);
@@ -294,6 +311,11 @@ export default function ConsignacoesVeiculos() {
                 <option value="Repassado & Finalizado">Repassado & Finalizado</option>
               </select>
 
+              {c.status === "Vendido / Repasse Pendente" && (
+                <Button size="sm" onClick={() => handleRegistrarRepasse(c.id)} className="h-8 px-3 text-[10px] font-bold gap-1">
+                  <DollarSign className="w-3 h-3" /> Registrar repasse
+                </Button>
+              )}
               <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id)} className="h-8 w-8 p-0 text-red-500 hover:bg-red-500/10 rounded-xl">
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>

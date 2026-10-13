@@ -10,6 +10,8 @@ import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } fro
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
+import { fetchImoveisCatalogo } from "../../lib/ativosCatalogo";
+import { fetchVeiculosCatalogo } from "../../lib/veiculosCatalogo";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { Modal } from "../../components/ui/modal";
 import { useAuth } from "../../contexts/AuthContext";
@@ -354,14 +356,14 @@ export default function Visitas() {
     });
 
     Promise.all([
-      supabase.from("imobiliario_imoveis").select("id, titulo, bairro").eq("tenant_id", activeTenantId),
-      supabase.from("imobiliario_veiculos").select("id, marca, modelo").eq("tenant_id", activeTenantId),
+      fetchImoveisCatalogo(supabase, activeTenantId),
+      fetchVeiculosCatalogo(supabase, activeTenantId),
     ]).then(([imoveisRes, veiculosRes]) => {
-      const imoveis: AtivoOption[] = (imoveisRes.data ?? []).map(i => ({
+      const imoveis: AtivoOption[] = (imoveisRes ?? []).map(i => ({
         id: i.id, tipo: "imovel", label: `${i.titulo}${i.bairro ? ` — ${i.bairro}` : ""}`,
       }));
       const veiculos: AtivoOption[] = (veiculosRes.data ?? []).map(v => ({
-        id: v.id, tipo: "veiculo", label: `${v.marca} ${v.modelo}`,
+        id: v.id, tipo: "veiculo", label: `${v.marca} ${v.modelo}`.trim(),
       }));
       setAtivos([...imoveis, ...veiculos]);
     });

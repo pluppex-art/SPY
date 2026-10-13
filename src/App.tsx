@@ -21,7 +21,6 @@ const AnaliseFatura = lazy(() => import("./pages/solar/AnaliseFatura"));
 const PainelSolar = lazy(() => import("./pages/solar/PainelSolar"));
 const Prontuarios = lazy(() => import("./pages/clinica/Prontuarios"));
 const Faturamento = lazy(() => import("./pages/clinica/Faturamento"));
-const Estoque = lazy(() => import("./pages/clinica/Estoque"));
 const Telemedicina = lazy(() => import("./pages/clinica/Telemedicina"));
 const Exames = lazy(() => import("./pages/clinica/Exames"));
 const EstatisticasClinicas = lazy(() => import("./pages/clinica/Estatisticas"));
@@ -153,8 +152,6 @@ const ReunioesList = lazy(() => import("./pages/reunioes/index"));
 const ReuniaoRoom = lazy(() => import("./pages/reunioes/ReuniaoRoom"));
 
 const ImobiliarioPainel = lazy(() => import("./pages/imobiliario/PainelGeral"));
-const ImobiliariosImoveis = lazy(() => import("./pages/imobiliario/Imoveis"));
-const ImobiliariosVeiculos = lazy(() => import("./pages/imobiliario/Veiculos"));
 const ImobiliariosCorretores = lazy(() => import("./pages/imobiliario/Corretores"));
 const ImobiliariosVisitas = lazy(() => import("./pages/imobiliario/Visitas"));
 const Proprietarios = lazy(() => import("./pages/imobiliario/Proprietarios"));
@@ -188,7 +185,6 @@ const NotaEntradaDetalhe = lazy(() => import("./pages/varejo/NotaEntradaDetalhe"
 const PedidosVarejo = lazy(() => import("./pages/varejo/PedidosVarejo"));
 
 const ProfissionaisClinica = lazy(() => import("./pages/clinica/ProfissionaisClinica"));
-const ServicosClinica = lazy(() => import("./pages/clinica/ServicosClinica"));
 const PlanosTratamento = lazy(() => import("./pages/clinica/PlanosTratamento"));
 
 const PortfolioCorretor = lazy(() => import("./pages/imobiliario/PortfolioCorretor"));
@@ -382,7 +378,7 @@ function AppContent() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<ImobiliarioPainel />} />
             <Route path="painel" element={<ImobiliarioPainel />} />
-            <Route path="imoveis" element={<ImobiliariosImoveis />} />
+            <Route path="imoveis" element={<Navigate to="/app/produtos?type=Imóvel" replace />} />
             <Route path="proprietarios" element={<Proprietarios />} />
             <Route path="captacoes" element={<Captacoes />} />
             <Route path="empreendimentos" element={<Empreendimentos />} />
@@ -426,7 +422,7 @@ function AppContent() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<PainelAutomotivo />} />
             <Route path="painel" element={<PainelAutomotivo />} />
-            <Route path="veiculos" element={<ImobiliariosVeiculos />} />
+            <Route path="veiculos" element={<Navigate to="/app/produtos?type=Veículo" replace />} />
             <Route path="captacoes" element={<Captacoes />} />
             <Route path="avaliacoes" element={<AvaliacoesVeiculos />} />
             <Route path="consignacoes" element={<ConsignacoesVeiculos />} />
@@ -440,7 +436,7 @@ function AppContent() {
             <Route index element={<Navigate to="/app/automotivo/dashboard" replace />} />
             <Route path="dashboard" element={<PainelAutomotivo />} />
             <Route path="painel" element={<PainelAutomotivo />} />
-            <Route path="veiculos" element={<ImobiliariosVeiculos />} />
+            <Route path="veiculos" element={<Navigate to="/app/produtos?type=Veículo" replace />} />
             <Route path="captacoes" element={<Captacoes />} />
             <Route path="avaliacoes" element={<AvaliacoesVeiculos />} />
             <Route path="consignacoes" element={<ConsignacoesVeiculos />} />
@@ -471,12 +467,12 @@ function AppContent() {
             <Route path="painel" element={<PainelGeral />} />
             <Route path="agenda" element={<AgendaMedica />} />
             <Route path="profissionais" element={<ProfissionaisClinica />} />
-            <Route path="servicos" element={<ServicosClinica />} />
+            <Route path="servicos" element={<Navigate to="/app/produtos?type=Serviço" replace />} />
             <Route path="tratamentos" element={<PlanosTratamento />} />
             <Route path="pacientes" element={<Pacientes />} />
             <Route path="prontuarios" element={<ProtectedRoute requireModule="clinica"><Prontuarios /></ProtectedRoute>} />
             <Route path="faturamento" element={<Faturamento />} />
-            <Route path="estoque" element={<Estoque />} />
+            <Route path="estoque" element={<Navigate to="/app/produtos?type=Físico" replace />} />
             <Route path="telemedicina" element={<Telemedicina />} />
             <Route path="exames" element={<Exames />} />
             <Route path="base-exames" element={<BaseExames />} />
@@ -491,12 +487,12 @@ function AppContent() {
             <Route path="painel" element={<PainelGeral />} />
             <Route path="agenda" element={<AgendaMedica />} />
             <Route path="profissionais" element={<ProfissionaisClinica />} />
-            <Route path="servicos" element={<ServicosClinica />} />
+            <Route path="servicos" element={<Navigate to="/app/produtos?type=Serviço" replace />} />
             <Route path="tratamentos" element={<PlanosTratamento />} />
             <Route path="pacientes" element={<Pacientes />} />
             <Route path="prontuarios" element={<ProtectedRoute requireModule="clinica"><Prontuarios /></ProtectedRoute>} />
             <Route path="faturamento" element={<Faturamento />} />
-            <Route path="estoque" element={<Estoque />} />
+            <Route path="estoque" element={<Navigate to="/app/produtos?type=Físico" replace />} />
             <Route path="telemedicina" element={<Telemedicina />} />
             <Route path="exames" element={<Exames />} />
             <Route path="bi" element={<EstatisticasClinicas />} />

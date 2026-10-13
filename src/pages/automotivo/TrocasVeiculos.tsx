@@ -14,6 +14,7 @@ import { supabase } from "../../lib/supabase";
 import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
+import { fetchVeiculosCatalogo, veiculoLabelFromEmbed, VEICULO_EMBED } from "../../lib/veiculosCatalogo";
 
 // Status alinhado ao CHECK constraint real de veiculo_financiamentos —
 // não existe um "Contrato Assinado" separado no banco; usamos os mesmos
@@ -44,7 +45,7 @@ function rowToTroca(r: any): TrocaItem {
     telefone: r.telefone || "",
     veiculoEntrada: r.veiculo_troca_descricao || "",
     valorEntrada: valorTroca,
-    veiculoSaida: r.imobiliario_veiculos ? `${r.imobiliario_veiculos.marca} ${r.imobiliario_veiculos.modelo}` : "Veículo",
+    veiculoSaida: veiculoLabelFromEmbed(r.products) ?? "Veículo",
     valorSaida: valorVeiculo,
     diferenca: Number(r.valor_financiado) || 0,
     formaPagamento: r.observacoes?.replace(/^Forma de pagamento:\s*/, "") || r.banco_financeira || "",
@@ -64,7 +65,7 @@ export default function TrocasVeiculos() {
     if (!supabase || !activeTenantId) return;
     supabase
       .from("veiculo_financiamentos")
-      .select("*, imobiliario_veiculos(marca,modelo)")
+      .select(`*, ${VEICULO_EMBED}`)
       .eq("tenant_id", activeTenantId)
       .not("veiculo_troca_descricao", "is", null)
       .order("created_at", { ascending: false })
@@ -77,13 +78,9 @@ export default function TrocasVeiculos() {
   useEffect(() => {
     refetch();
     if (!supabase || !activeTenantId) return;
-    supabase
-      .from("imobiliario_veiculos")
-      .select("id,marca,modelo,valor")
-      .eq("tenant_id", activeTenantId)
-      .then(({ data }) => {
-        if (data) setVeiculosOptions(data.map((v: any) => ({ id: v.id, label: `${v.marca} ${v.modelo}`, valor: Number(v.valor) || 0 })));
-      });
+    fetchVeiculosCatalogo(supabase, activeTenantId).then(({ data }) => {
+      setVeiculosOptions(data.map(v => ({ id: v.id, label: `${v.marca} ${v.modelo}`.trim(), valor: v.valor })));
+    });
   }, [activeTenantId]);
 
   const [search, setSearch] = useState("");
@@ -149,7 +146,7 @@ export default function TrocasVeiculos() {
         observacoes: `Forma de pagamento: ${formaPagamento}`,
         status: "Em Análise",
       })
-      .select("*, imobiliario_veiculos(marca,modelo)")
+      .select(`*, ${VEICULO_EMBED}`)
       .maybeSingle();
 
     if (error) {

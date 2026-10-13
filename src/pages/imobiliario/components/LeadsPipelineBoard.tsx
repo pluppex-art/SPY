@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../../lib/supabase";
+import { fetchImoveisCatalogo } from "../../../lib/ativosCatalogo";
+import { fetchVeiculosCatalogo } from "../../../lib/veiculosCatalogo";
 import { cn, parseCurrencyBR } from "../../../lib/utils";
 import { useData } from "../../../contexts/DataContext";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -1004,12 +1006,12 @@ export function LeadsPipelineBoard({ tipo }: { tipo: "imovel" | "veiculo" }) {
     // do tipo deste funil (imóveis para o board de Imóveis, veículos para o
     // de Veículos), já que os dois módulos agora são independentes.
     if (tipo === "veiculo") {
-      supabase.from("imobiliario_veiculos").select("id, marca, modelo").eq("tenant_id", activeTenantId).then(({ data }) => {
-        setAtivos((data ?? []).map(v => ({ id: v.id, tipo: "veiculo" as const, label: `${v.marca} ${v.modelo}` })));
+      fetchVeiculosCatalogo(supabase, activeTenantId).then(({ data }) => {
+        setAtivos(data.map(v => ({ id: v.id, tipo: "veiculo" as const, label: `${v.marca} ${v.modelo}`.trim() })));
       });
     } else {
-      supabase.from("imobiliario_imoveis").select("id, titulo, bairro").eq("tenant_id", activeTenantId).then(({ data }) => {
-        setAtivos((data ?? []).map(i => ({ id: i.id, tipo: "imovel" as const, label: `${i.titulo}${i.bairro ? ` — ${i.bairro}` : ""}` })));
+      fetchImoveisCatalogo(supabase, activeTenantId).then((data) => {
+        setAtivos(data.map(i => ({ id: i.id, tipo: "imovel" as const, label: `${i.titulo}${i.bairro ? ` — ${i.bairro}` : ""}` })));
       });
     }
   }, [tipo, activeTenantId]);

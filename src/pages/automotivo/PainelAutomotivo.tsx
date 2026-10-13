@@ -11,6 +11,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
+import { fetchVeiculosCatalogo, veiculoLabelFromEmbed, VEICULO_EMBED } from "../../lib/veiculosCatalogo";
 
 type VeiculoSummary = {
   id: string;
@@ -43,11 +44,7 @@ export default function PainelAutomotivo() {
     if (!supabase || !activeTenantId) return;
     let cancelled = false;
     (async () => {
-      const { data: veiculosRows } = await supabase
-        .from("imobiliario_veiculos")
-        .select("id,marca,modelo,ano_modelo,valor,status,km")
-        .eq("tenant_id", activeTenantId)
-        .order("created_at", { ascending: false });
+      const { data: veiculosRows } = await fetchVeiculosCatalogo(supabase, activeTenantId);
       if (!cancelled && veiculosRows) {
         setVeiculos(veiculosRows.map((v: any): VeiculoSummary => ({
           id: v.id,
@@ -63,7 +60,7 @@ export default function PainelAutomotivo() {
       const hojeISO = new Date().toISOString().split("T")[0];
       const { data: visitasRows } = await supabase
         .from("imobiliario_visitas")
-        .select("id,cliente,data,hora,corretor,status,imobiliario_veiculos(marca,modelo)")
+        .select(`id,cliente,data,hora,corretor,status,${VEICULO_EMBED}`)
         .eq("tenant_id", activeTenantId)
         .not("veiculo_id", "is", null)
         .neq("status", "Cancelada")
@@ -75,7 +72,7 @@ export default function PainelAutomotivo() {
         setTestDrives(visitasRows.map((v: any): TestDriveSummary => ({
           id: v.id,
           cliente: v.cliente,
-          veiculo: v.imobiliario_veiculos ? `${v.imobiliario_veiculos.marca} ${v.imobiliario_veiculos.modelo}` : "Veículo",
+          veiculo: veiculoLabelFromEmbed(v.products) ?? "Veículo",
           data: new Date(v.data + "T00:00:00").toLocaleDateString("pt-BR"),
           hora: v.hora,
           consultor: v.corretor || user?.name || "Consultor",
