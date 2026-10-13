@@ -286,6 +286,7 @@ export default function Catalog() {
           formEarlyTerminationFee={f.formEarlyTerminationFee}
           setFormEarlyTerminationFee={f.setFormEarlyTerminationFee}
           categories={f.categories}
+          typeOptions={f.typeOptions}
           handleSaveProduct={f.handleSaveProduct}
         />
       </div>

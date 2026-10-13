@@ -15,6 +15,8 @@ interface ProdutosTableProps {
   handleVender: (p: Product, e: React.MouseEvent) => void;
 }
 
+import { getProductSubtitle } from "./typeSchemas";
+
 export function ProdutosTable({
   filteredProducts,
   selectedIds,
@@ -75,6 +77,9 @@ export function ProdutosTable({
                       <div className="min-w-0">
                         <span className="block font-black hover:text-blue-400 truncate">{p.name}</span>
                         <span className="text-[10px] font-mono text-slate-500 font-medium">SKU: {p.sku}</span>
+                        {getProductSubtitle(p) && (
+                          <span className="block text-[10px] text-slate-400 truncate">{getProductSubtitle(p)}</span>
+                        )}
                       </div>
                     </div>
                   </td>

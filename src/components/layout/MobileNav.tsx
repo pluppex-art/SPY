@@ -31,6 +31,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
     : null;
   const checkModule = (mod: string) => {
     if (mod === "automotivo" || mod === "concessionaria") return isModuleEnabled("automotivo") || isModuleEnabled("concessionaria");
+    if (mod === "catalogo-produtos") return isModuleEnabled("catalogo") || isModuleEnabled("imobiliaria") || isModuleEnabled("automotivo") || isModuleEnabled("concessionaria") || isModuleEnabled("varejo");
     if (mod === "agenda") return isModuleEnabled("agenda") || isModuleEnabled("crm");
     if (mod === "documentos") return isModuleEnabled("documentos") || isModuleEnabled("crm");
     return isModuleEnabled(mod as any);
@@ -38,7 +39,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
   const canAccessModule = (mod: string) => {
     if (user?.isMaster) return checkModule(mod);
     if (!cargoModulos) return checkModule(mod);
-    return checkModule(mod) && cargoModulos.some((m: string) => m === mod || ((mod === "automotivo" || mod === "concessionaria") && (m === "automotivo" || m === "concessionaria")));
+    return checkModule(mod) && cargoModulos.some((m: string) => m === mod || (mod === "catalogo-produtos" && m === "catalogo") || (mod === "catalogo-produtos" && ["imobiliaria", "automotivo", "concessionaria", "varejo"].includes(m)) || ((mod === "automotivo" || mod === "concessionaria") && (m === "automotivo" || m === "concessionaria")));
   };
 
   const handleLogout = () => {

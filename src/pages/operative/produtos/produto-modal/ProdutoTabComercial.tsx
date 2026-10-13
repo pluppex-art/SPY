@@ -1,5 +1,6 @@
 import { DollarSign, Coins, Percent, TrendingUp, RotateCw, Wrench, Calendar, Sparkles, Lock, AlertTriangle } from "lucide-react";
 import { cn } from "../../../../lib/utils";
+import { isUniqueAssetType } from "../typeSchemas";
 
 interface ProdutoTabComercialProps {
   formPrice: string;
@@ -26,6 +27,7 @@ interface ProdutoTabComercialProps {
   setFormLoyaltyMonths?: (v: string) => void;
   formEarlyTerminationFee?: string;
   setFormEarlyTerminationFee?: (v: string) => void;
+  formType?: string;
 }
 
 export function ProdutoTabComercial({
@@ -53,10 +55,12 @@ export function ProdutoTabComercial({
   setFormLoyaltyMonths,
   formEarlyTerminationFee = "0",
   setFormEarlyTerminationFee,
+  formType,
 }: ProdutoTabComercialProps) {
   const inputCls =
     "w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl px-3.5 py-2.5 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-primary-blue)] font-mono font-bold transition-all";
 
+  const uniqueAsset = isUniqueAssetType(formType);
   const p = parseFloat(formPrice) || 0;
   const c = parseFloat(formCost) || 0;
   const commPercent = parseFloat(formCommission) || 0;
@@ -103,6 +107,7 @@ export function ProdutoTabComercial({
       </div>
 
       {/* ── PARÂMETROS DE RECORRÊNCIA E IMPLANTAÇÃO (SOFTWARE / SISTEMA) ── */}
+      {!uniqueAsset && (
       <div className="bg-violet-500/5 border border-violet-500/25 p-4.5 rounded-2xl space-y-4">
         <div className="flex items-center justify-between border-b border-violet-500/15 pb-3">
           <div className="flex items-center gap-2">
@@ -344,6 +349,7 @@ export function ProdutoTabComercial({
           </div>
         )}
       </div>
+      )}
 
       {/* ── PREÇO DE VENDA, CUSTO E COMISSÃO ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

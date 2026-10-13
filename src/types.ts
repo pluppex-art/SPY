@@ -1,4 +1,4 @@
-export type ProductType = "Serviço" | "Assinatura" | "Digital" | "Físico" | "Imóvel" | "Curso/Turma";
+export type ProductType = "Serviço" | "Assinatura" | "Digital" | "Físico" | "Imóvel" | "Veículo" | "Curso/Turma";
 
 export interface ProductAttachment {
     name: string;

@@ -114,7 +114,7 @@ export const navSections = [
   {
     title: "Operações & Catálogo",
     items: [
-      { name: "Catálogo de Produtos", path: "/app/produtos", icon: FolderOpen, reqModule: "catalogo" },
+      { name: "Catálogo de Produtos", path: "/app/produtos", icon: FolderOpen, reqModule: "catalogo-produtos" },
       { name: "Ordens de Serviço", path: "/app/ordens-servico", icon: Wrench, reqModule: "catalogo" },
     ],
   },

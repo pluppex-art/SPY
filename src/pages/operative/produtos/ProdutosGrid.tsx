@@ -16,6 +16,8 @@ interface ProdutosGridProps {
   handleVender: (p: Product, e: React.MouseEvent) => void;
 }
 
+import { getProductSubtitle } from "./typeSchemas";
+
 export function ProdutosGrid({
   filteredProducts,
   selectedIds,
@@ -115,6 +117,9 @@ export function ProdutosGrid({
                 <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mt-0.5">
                   {p.category} • SKU: <span className="font-mono text-slate-400">{p.sku}</span>
                 </p>
+                {getProductSubtitle(p) && (
+                  <p className="text-[11px] text-slate-400 mt-0.5 truncate">{getProductSubtitle(p)}</p>
+                )}
               </div>
             </div>
 

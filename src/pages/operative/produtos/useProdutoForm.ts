@@ -3,6 +3,7 @@ import { Product, ProductType, ProductAttachment } from "../../../types";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 import { useAuth } from "../../../contexts/AuthContext";
+import { BASE_TYPES, getTypeSchema, isUniqueAssetType, statusToStock } from "./typeSchemas";
 
 export function useProdutoForm() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -66,10 +67,30 @@ export function useProdutoForm() {
   const [formEarlyTerminationFee, setFormEarlyTerminationFee] = useState("0");
 
   const { products, addProduct, updateProduct, deleteProduct, setProducts, clienteBase } = useData();
-  const { user, activeTenantId } = useAuth();
+  const { user, activeTenantId, isModuleEnabled } = useAuth();
 
-  const categories = ["Todas", "Software", "Serviços", "Implantação", "Mentoria", "Físico"];
-  const types = ["Todos", "Serviço", "Assinatura", "Digital", "Físico", "Imóvel", "Curso/Turma"];
+  // Tipos disponíveis conforme os módulos ativos do tenant. Um tipo que o registro
+  // em edição já possui continua visível mesmo com o módulo desligado.
+  const moduleOn = (mods?: string[]) =>
+    !mods || mods.length === 0 || mods.some(m => { try { return !!isModuleEnabled(m as any); } catch { return false; } });
+  const typeOptions: ProductType[] = useMemo(() => {
+    const list: ProductType[] = [...BASE_TYPES];
+    (["Imóvel", "Veículo"] as ProductType[]).forEach(t => {
+      if (moduleOn(getTypeSchema(t)?.modules) || editingProduct?.type === t) list.push(t);
+    });
+    if (editingProduct && !list.includes(editingProduct.type)) list.push(editingProduct.type);
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingProduct, isModuleEnabled]);
+
+  const categories = useMemo(() => {
+    const base = ["Todas", "Software", "Serviços", "Implantação", "Mentoria", "Físico"];
+    typeOptions.forEach(t => { if ((t === "Imóvel" || t === "Veículo") && !base.includes(t)) base.push(t); });
+    // categorias já usadas por produtos existentes (ex.: migrados das verticais)
+    products.forEach(pr => { if (pr.category && !base.includes(pr.category)) base.push(pr.category); });
+    return base;
+  }, [typeOptions, products]);
+  const types = useMemo(() => ["Todos", ...typeOptions], [typeOptions]);
 
   const filteredClients = useMemo(() => {
     if (!clienteBase) return [];
@@ -211,6 +232,27 @@ export function useProdutoForm() {
 
     const tenantName = user?.tenantName || "";
 
+    // Ativos únicos (imóvel, veículo): status de disponibilidade governa active/estoque,
+    // sem recorrência, fidelidade ou taxa de implantação.
+    const unique = isUniqueAssetType(formType);
+    const uniqueInfo = unique ? statusToStock(formTypeAttributes.statusAtivo as string | undefined) : null;
+    if (uniqueInfo) {
+      Object.assign(enrichedTypeAttributes, {
+        statusAtivo: uniqueInfo.status,
+        isRecurring: false,
+        hasImplementation: false,
+        implementationFee: 0,
+        hasLoyalty: false,
+      });
+    }
+    const finalRecurring = unique ? false : formIsRecurring;
+    const finalHasImpl = unique ? false : formHasImplementation;
+    const finalImplFee = unique ? 0 : implFeeNum;
+    const finalHasLoyalty = unique ? false : formHasLoyalty;
+    const finalStockMin = uniqueInfo ? uniqueInfo.stockMin : stockMinNum;
+    const finalStockMax = uniqueInfo ? uniqueInfo.stockMax : stockMaxNum;
+    const finalCurrentStock = uniqueInfo ? uniqueInfo.currentStock : (parseInt(formCurrentStock) || 0);
+
     if (editingProduct) {
       updateProduct(editingProduct.id, {
         sku: formSKU,
@@ -218,21 +260,21 @@ export function useProdutoForm() {
         category: formCategory,
         type: formType,
         typeAttributes: enrichedTypeAttributes,
-        recurrence: formIsRecurring,
+        recurrence: finalRecurring,
         billingCycle: formBillingCycle as any,
         contractMonths: contractMonthsNum,
-        hasImplementation: formHasImplementation,
-        implementationFee: implFeeNum,
-        hasLoyalty: formHasLoyalty,
+        hasImplementation: finalHasImpl,
+        implementationFee: finalImplFee,
+        hasLoyalty: finalHasLoyalty,
         loyaltyMonths: loyaltyMonthsNum,
         earlyTerminationFeePercent: earlyTerminationFeeNum,
         price: priceNum,
         cost: costNum,
         margin: marginRatio,
         commission: commNum,
-        stockMin: stockMinNum,
-        stockMax: stockMaxNum,
-        currentStock: parseInt(formCurrentStock) || 0,
+        stockMin: finalStockMin,
+        stockMax: finalStockMax,
+        currentStock: finalCurrentStock,
         provider: formProvider,
         tags: parsedTags,
         isBestSeller: formIsBestSeller,
@@ -244,6 +286,7 @@ export function useProdutoForm() {
         clientId: clientId || undefined,
         clientName: clientName || undefined,
         tenantName,
+        ...(uniqueInfo ? { active: uniqueInfo.active } : {}),
       });
       toast.success("Produto atualizado com sucesso!");
     } else {
@@ -254,22 +297,22 @@ export function useProdutoForm() {
         category: formCategory,
         type: formType,
         typeAttributes: enrichedTypeAttributes,
-        recurrence: formIsRecurring,
+        recurrence: finalRecurring,
         billingCycle: formBillingCycle as any,
         contractMonths: contractMonthsNum,
-        hasImplementation: formHasImplementation,
-        implementationFee: implFeeNum,
-        hasLoyalty: formHasLoyalty,
+        hasImplementation: finalHasImpl,
+        implementationFee: finalImplFee,
+        hasLoyalty: finalHasLoyalty,
         loyaltyMonths: loyaltyMonthsNum,
         earlyTerminationFeePercent: earlyTerminationFeeNum,
         price: priceNum,
         cost: costNum,
         margin: marginRatio,
         commission: commNum,
-        active: true,
-        stockMin: stockMinNum,
-        stockMax: stockMaxNum,
-        currentStock: parseInt(formCurrentStock) || 0,
+        active: uniqueInfo ? uniqueInfo.active : true,
+        stockMin: finalStockMin,
+        stockMax: finalStockMax,
+        currentStock: finalCurrentStock,
         provider: formProvider,
         isBestSeller: formIsBestSeller,
         tags: parsedTags,
@@ -405,7 +448,7 @@ export function useProdutoForm() {
     formLoyaltyMonths, setFormLoyaltyMonths,
     formEarlyTerminationFee, setFormEarlyTerminationFee,
     products, setProducts,
-    categories, types,
+    categories, types, typeOptions,
     handleOpenAddModal,
     handleOpenEditModal,
     handleSaveProduct,

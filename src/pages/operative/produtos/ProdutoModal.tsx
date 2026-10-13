@@ -74,6 +74,7 @@ export interface ProdutoModalProps {
   formLoyaltyMonths?: string; setFormLoyaltyMonths?: (v: string) => void;
   formEarlyTerminationFee?: string; setFormEarlyTerminationFee?: (v: string) => void;
   categories: string[];
+  typeOptions?: ProductType[];
   handleSaveProduct: (e: React.FormEvent<HTMLFormElement>) => void;
 }
 
@@ -150,6 +151,7 @@ export function ProdutoModal(props: ProdutoModalProps) {
                 formHasLoyalty={props.formHasLoyalty} setFormHasLoyalty={props.setFormHasLoyalty}
                 formLoyaltyMonths={props.formLoyaltyMonths} setFormLoyaltyMonths={props.setFormLoyaltyMonths}
                 formEarlyTerminationFee={props.formEarlyTerminationFee} setFormEarlyTerminationFee={props.setFormEarlyTerminationFee}
+                formType={props.formType}
               />
             )}
             {props.activeTab === "estoque" && (
@@ -161,6 +163,8 @@ export function ProdutoModal(props: ProdutoModalProps) {
                 formDimensions={props.formDimensions} setFormDimensions={props.setFormDimensions}
                 formWeight={props.formWeight} setFormWeight={props.setFormWeight}
                 formMaterial={props.formMaterial} setFormMaterial={props.setFormMaterial}
+                formType={props.formType}
+                formTypeAttributes={props.formTypeAttributes} setFormTypeAttributes={props.setFormTypeAttributes}
               />
             )}
             {props.activeTab === "arquivos" && (

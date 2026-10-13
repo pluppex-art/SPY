@@ -1,6 +1,7 @@
 import { Wand2, Building2, Search, ChevronDown, CheckCircle2, Building } from "lucide-react";
 import { toast } from "sonner";
 import { ProductType } from "../../../../types";
+import { getTypeSchema, type TypeField } from "../typeSchemas";
 
 interface ProdutoTabInfoProps {
   clientSearch: string;
@@ -29,6 +30,7 @@ interface ProdutoTabInfoProps {
   formTags: string;
   setFormTags: (v: string) => void;
   categories: string[];
+  typeOptions?: ProductType[];
 }
 
 export function ProdutoTabInfo({
@@ -36,7 +38,7 @@ export function ProdutoTabInfo({
   filteredClients, handleSelectClient, clearClient,
   formName, setFormName, formSKU, setFormSKU, formCategory, setFormCategory,
   formType, setFormType, formTypeAttributes, setFormTypeAttributes, formIsBestSeller, setFormIsBestSeller,
-  formDescription, setFormDescription, formTags, setFormTags, categories,
+  formDescription, setFormDescription, formTags, setFormTags, categories, typeOptions,
 }: ProdutoTabInfoProps) {
   const inputCls = "w-full bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-[#2563EB]/40 font-medium transition-all";
   const labelCls = "text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider";
@@ -45,6 +47,45 @@ export function ProdutoTabInfo({
     setFormTypeAttributes(prev => ({ ...prev, [key]: value }));
   };
   const attr = (key: string) => formTypeAttributes[key];
+
+  const typeList: ProductType[] = typeOptions && typeOptions.length > 0
+    ? typeOptions
+    : ["Serviço", "Assinatura", "Digital", "Físico", "Curso/Turma"];
+  const schema = getTypeSchema(formType);
+  const schemaFields = (schema?.fields || []).filter(f => (f.tab || "info") === "info" && (!f.showIf || f.showIf(formTypeAttributes)));
+
+  const renderField = (f: TypeField) => {
+    const wrap = f.width === "full" ? "sm:col-span-2 " : "";
+    if (f.kind === "bool") {
+      const id = `attr-${f.key}`;
+      return (
+        <div key={f.key} className={`${wrap}flex items-center gap-2.5 pt-1`}>
+          <input type="checkbox" id={id} checked={!!attr(f.key)} onChange={(e) => setAttr(f.key, e.target.checked)}
+            className="w-4 h-4 rounded border-white/20 bg-slate-900 focus:ring-[#2563EB] cursor-pointer" />
+          <label htmlFor={id} className="text-xs font-bold text-white cursor-pointer select-none">{f.label}</label>
+        </div>
+      );
+    }
+    return (
+      <div key={f.key} className={`${wrap}space-y-1.5`}>
+        <label className={labelCls}>{f.label}</label>
+        {f.kind === "select" ? (
+          <select value={(attr(f.key) as string) || f.defaultValue || ""} onChange={(e) => setAttr(f.key, e.target.value)} className={inputCls}>
+            {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : f.kind === "textarea" ? (
+          <textarea value={(attr(f.key) as string) || ""} onChange={(e) => setAttr(f.key, e.target.value)} placeholder={f.placeholder} className={`${inputCls} h-16`} />
+        ) : f.kind === "number" || f.kind === "money" ? (
+          <input type="number" step={f.kind === "money" ? "any" : "any"} value={(attr(f.key) as number) ?? ""}
+            onChange={(e) => setAttr(f.key, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+            placeholder={f.placeholder ?? (f.kind === "money" ? "R$ 0,00" : undefined)} className={inputCls} />
+        ) : (
+          <input type="text" value={(attr(f.key) as string) || ""} onChange={(e) => setAttr(f.key, e.target.value)}
+            placeholder={f.placeholder} className={inputCls} />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -133,121 +174,24 @@ export function ProdutoTabInfo({
         </div>
         <div className="space-y-1.5">
           <label className={labelCls}>Tipo de Item</label>
-          <select value={formType} onChange={(e) => setFormType(e.target.value as ProductType)} className={inputCls}>
-            <option value="Serviço">Serviço</option>
-            <option value="Assinatura">Assinatura</option>
-            <option value="Digital">Digital</option>
-            <option value="Físico">Físico</option>
-            <option value="Imóvel">Imóvel</option>
-            <option value="Curso/Turma">Curso/Turma</option>
+          <select value={formType} onChange={(e) => {
+            const t = e.target.value as ProductType;
+            setFormType(t);
+            if ((t === "Imóvel" || t === "Veículo") && categories.includes(t) && (!formCategory || formCategory === "Software")) setFormCategory(t);
+          }} className={inputCls}>
+            {typeList.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Campos que variam conforme o tipo de item escolhido acima */}
-      {formType === "Serviço" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className={labelCls}>Duração estimada</label>
-            <input type="text" value={(attr("duracao") as string) || ""} onChange={(e) => setAttr("duracao", e.target.value)}
-              placeholder="Ex: 1h, 3 sessões" className={inputCls} />
-          </div>
-          <div className="space-y-1.5">
-            <label className={labelCls}>Modalidade de atendimento</label>
-            <select value={(attr("modalidadeAtendimento") as string) || "Presencial"} onChange={(e) => setAttr("modalidadeAtendimento", e.target.value)} className={inputCls}>
-              <option value="Presencial">Presencial</option>
-              <option value="Remoto">Remoto</option>
-              <option value="Híbrido">Híbrido</option>
-            </select>
-          </div>
-        </div>
-      )}
-
-      {formType === "Assinatura" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className={labelCls}>Ciclo de cobrança</label>
-            <select value={(attr("cicloCobranca") as string) || "Mensal"} onChange={(e) => setAttr("cicloCobranca", e.target.value)} className={inputCls}>
-              <option value="Mensal">Mensal</option>
-              <option value="Trimestral">Trimestral</option>
-              <option value="Anual">Anual</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className={labelCls}>Dias de trial</label>
-            <input type="number" value={(attr("diasTrial") as number) ?? ""} onChange={(e) => setAttr("diasTrial", parseInt(e.target.value) || 0)}
-              placeholder="Ex: 7" className={inputCls} />
-          </div>
-        </div>
-      )}
-
-      {formType === "Digital" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className={labelCls}>Tipo de entrega</label>
-            <select value={(attr("tipoEntrega") as string) || "Download"} onChange={(e) => setAttr("tipoEntrega", e.target.value)} className={inputCls}>
-              <option value="Download">Download</option>
-              <option value="Chave de Licença">Chave de Licença</option>
-              <option value="Acesso por Login">Acesso por Login</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className={labelCls}>Link de entrega</label>
-            <input type="text" value={(attr("linkEntrega") as string) || ""} onChange={(e) => setAttr("linkEntrega", e.target.value)}
-              placeholder="https://..." className={inputCls} />
-          </div>
-        </div>
-      )}
-
-      {formType === "Imóvel" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2 space-y-1.5">
-            <label className={labelCls}>Endereço</label>
-            <input type="text" value={(attr("endereco") as string) || ""} onChange={(e) => setAttr("endereco", e.target.value)}
-              placeholder="Rua, número, bairro, cidade" className={inputCls} />
-          </div>
-          <div className="space-y-1.5">
-            <label className={labelCls}>Área (m²)</label>
-            <input type="number" value={(attr("areaM2") as number) ?? ""} onChange={(e) => setAttr("areaM2", parseFloat(e.target.value) || 0)}
-              className={inputCls} />
-          </div>
-          <div className="space-y-1.5">
-            <label className={labelCls}>Quartos</label>
-            <input type="number" value={(attr("quartos") as number) ?? ""} onChange={(e) => setAttr("quartos", parseInt(e.target.value) || 0)}
-              className={inputCls} />
-          </div>
-          <div className="sm:col-span-2 space-y-1.5">
-            <label className={labelCls}>Tipo de imóvel</label>
-            <select value={(attr("tipoImovel") as string) || "Apartamento"} onChange={(e) => setAttr("tipoImovel", e.target.value)} className={inputCls}>
-              <option value="Apartamento">Apartamento</option>
-              <option value="Casa">Casa</option>
-              <option value="Comercial">Comercial</option>
-              <option value="Terreno">Terreno</option>
-            </select>
-          </div>
-        </div>
-      )}
-
-      {formType === "Curso/Turma" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className={labelCls}>Carga horária (horas)</label>
-            <input type="number" value={(attr("cargaHoraria") as number) ?? ""} onChange={(e) => setAttr("cargaHoraria", parseInt(e.target.value) || 0)}
-              className={inputCls} />
-          </div>
-          <div className="space-y-1.5">
-            <label className={labelCls}>Modalidade</label>
-            <select value={(attr("modalidadeCurso") as string) || "Presencial"} onChange={(e) => setAttr("modalidadeCurso", e.target.value)} className={inputCls}>
-              <option value="Presencial">Presencial</option>
-              <option value="EAD">EAD</option>
-              <option value="Híbrido">Híbrido</option>
-            </select>
-          </div>
-          <div className="sm:col-span-2 flex items-center gap-2.5 pt-1">
-            <input type="checkbox" id="checkboxCertificado" checked={!!attr("certificadoIncluso")}
-              onChange={(e) => setAttr("certificadoIncluso", e.target.checked)}
-              className="w-4 h-4 rounded border-white/20 bg-slate-900 focus:ring-[#2563EB] cursor-pointer" />
-            <label htmlFor="checkboxCertificado" className="text-xs font-bold text-white cursor-pointer select-none">Inclui certificado</label>
+      {/* Campos que variam conforme o tipo de item (registro em ../typeSchemas.ts) */}
+      {schemaFields.length > 0 && (
+        <div className="space-y-2">
+          {schema?.sectionTitle && (
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{schema.sectionTitle}</h4>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {schemaFields.map(renderField)}
           </div>
         </div>
       )}
