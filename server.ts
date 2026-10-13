@@ -4940,15 +4940,36 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
       return res.status(500).json({ error: "Erro ao criar empresa." });
     }
 
-    const { data: authData, error: authError } = await supabaseService.auth.admin.createUser({
+    let authData: { user: { id: string } | null } = { user: null };
+    let authReused = false;
+    const created = await supabaseService.auth.admin.createUser({
       email: adminEmail.trim(),
       password: adminPassword,
       email_confirm: true,
     });
-    if (authError || !authData.user) {
-      console.error("[tenant-create] Falha ao criar conta de acesso:", authError?.message);
+    if (created.data?.user) {
+      authData = { user: created.data.user };
+    } else {
+      // Login que sobrou de uma tentativa anterior (existe no Auth, mas sem perfil em users — o perfil já foi
+      // checado acima): reaproveita, definindo a senha informada e confirmando o e-mail.
+      const wanted = adminEmail.trim().toLowerCase();
+      let orphanId: string | null = null;
+      for (let page = 1; page <= 20 && !orphanId; page++) {
+        const { data: list } = await supabaseService.auth.admin.listUsers({ page, perPage: 1000 });
+        const found = list?.users?.find((u: any) => (u.email || "").toLowerCase() === wanted);
+        if (found) orphanId = found.id;
+        if (!list?.users || list.users.length < 1000) break;
+      }
+      if (orphanId) {
+        const { error: updError } = await supabaseService.auth.admin.updateUserById(orphanId, { password: adminPassword, email_confirm: true });
+        if (!updError) { authData = { user: { id: orphanId } }; authReused = true; }
+        else console.error("[tenant-create] Falha ao reaproveitar login existente:", updError.message);
+      }
+    }
+    if (!authData.user) {
+      console.error("[tenant-create] Falha ao criar conta de acesso:", created.error?.message);
       await supabaseService.from("tenants").delete().eq("id", tenantData.id);
-      return res.status(500).json({ error: "Erro ao criar conta de acesso do administrador." });
+      return res.status(500).json({ error: `Erro ao criar conta de acesso do administrador${created.error?.message ? `: ${created.error.message}` : "."}` });
     }
 
     const { error: profileError } = await supabaseService.from("users").insert({
@@ -4964,7 +4985,7 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
     if (profileError) {
       console.error("[tenant-create] Falha ao criar perfil do admin:", profileError.message);
       await supabaseService.from("tenants").delete().eq("id", tenantData.id);
-      await supabaseService.auth.admin.deleteUser(authData.user.id);
+      if (!authReused) await supabaseService.auth.admin.deleteUser(authData.user.id);
       return res.status(500).json({ error: "Erro ao criar o perfil do administrador." });
     }
 
