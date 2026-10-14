@@ -7,7 +7,7 @@ const STEPS = [
 
 export function ProcessSection() {
   return (
-    <section id="implantacao" className="sp-section" style={{ paddingTop: 0 }} aria-labelledby="sp-impl-title">
+    <section id="implantacao" className="sp-section" aria-labelledby="sp-impl-title">
       <div className="sp-wrap">
         <h2 id="sp-impl-title" className="sp-h2">
           Como é implantar o S.P.Y.

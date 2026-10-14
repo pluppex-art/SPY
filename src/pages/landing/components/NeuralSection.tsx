@@ -1,3 +1,4 @@
+import { ProductShot, shotUrl } from "./ProductShot";
 import { MessageSquareText, ClipboardCheck, Headphones, UserRoundCheck, ShieldCheck, Route } from "lucide-react";
 
 const CAPS = [
@@ -32,7 +33,11 @@ export function NeuralSection() {
           </ul>
         </div>
 
-        <figure style={{ margin: 0 }}>
+        <ProductShot
+          slot="aurora"
+          alt="Conversa com a Aurora, assistente de IA do S.P.Y."
+          fallback={
+            <figure style={{ margin: 0 }}>
           <div className="sp-chat" role="img" aria-label="Exemplo ilustrativo de conversa com a Aurora">
             <div className="sp-chat__head" aria-hidden="true">
               <img src="/avatar-ia.png" alt="" width={40} height={40} loading="lazy" />
@@ -54,6 +59,8 @@ export function NeuralSection() {
           </div>
           <figcaption className="sp-caption">Exemplo ilustrativo. Agenda e tarefas aparecem quando o Google está conectado.</figcaption>
         </figure>
+          }
+        />
       </div>
     </section>
   );

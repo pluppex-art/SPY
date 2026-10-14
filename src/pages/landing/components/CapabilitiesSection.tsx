@@ -1,3 +1,4 @@
+import { ProductShot } from "./ProductShot";
 import {
   Columns3,
   Radar,
@@ -93,6 +94,8 @@ export function CapabilitiesSection() {
             </div>
           ))}
         </div>
+
+        <ProductShot slot="financeiro" className="sp-shot--wide" alt="Painel financeiro do S.P.Y." />
       </div>
     </section>
   );

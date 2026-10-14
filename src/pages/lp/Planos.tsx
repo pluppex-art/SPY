@@ -18,95 +18,15 @@ import {
 } from "lucide-react";
 import { Section, FONT_DISPLAY, FONT_MONO } from "./shared";
 import { useLpTheme } from "./theme/LpThemeContext";
+import { PLANS as PLANS_DATA, TOKEN_TIERS, CREDITS_COPY } from "./plansData";
 
-interface PlanItem {
-  id: string;
-  name: string;
-  badgeTop?: string;
-  tagline: string;
-  monthlyPrice: string;
-  setupPrice: string;
-  featuresHeader: string;
-  features: string[];
-  ctaText: string;
-  icon: typeof Rocket;
-  highlight?: boolean;
-}
+const PLAN_ICONS: Record<string, typeof Rocket> = {
+  start: Rocket,
+  autopilot: Send,
+  autonomous: Zap,
+};
 
-const PLANS: PlanItem[] = [
-  {
-    id: "start",
-    name: "START",
-    tagline: "Para empresas que querem organizar e enxergar melhor sua operação comercial.",
-    monthlyPrice: "997",
-    setupPrice: "R$ 2.997",
-    featuresHeader: "Inclui:",
-    features: [
-      "CRM",
-      "Gestão de leads",
-      "Pipeline comercial",
-      "Gestão de clientes",
-      "Histórico de interações",
-      "Integração WhatsApp",
-      "Inteligência sobre leads",
-      "Identificação de oportunidades",
-      "Análise de conversas",
-      "Score de oportunidade",
-      "Próxima melhor ação",
-    ],
-    ctaText: "Começar Agora",
-    icon: Rocket,
-  },
-  {
-    id: "autopilot",
-    name: "AUTOPILOT",
-    badgeTop: "★ MAIS ESCOLHIDO",
-    tagline: "Para empresas que querem que a inteligência comece a trabalhar as oportunidades.",
-    monthlyPrice: "1.997",
-    setupPrice: "R$ 4.997",
-    featuresHeader: "Tudo do START +",
-    features: [
-      "Agentes de IA",
-      "Qualificação automática",
-      "Follow-up automático",
-      "Recuperação de oportunidades",
-      "Agendamento automático",
-      "Distribuição de leads",
-      "Ações comerciais automatizadas",
-    ],
-    ctaText: "Quero o Autopilot",
-    icon: Send,
-    highlight: true,
-  },
-  {
-    id: "autonomous",
-    name: "AUTONOMOUS",
-    tagline: "Para transformar o S.P.Y. em parte ativa e autônoma da sua operação comercial.",
-    monthlyPrice: "3.997",
-    setupPrice: "R$ 9.997",
-    featuresHeader: "Tudo do AUTOPILOT +",
-    features: [
-      "Múltiplos agentes especializados",
-      "Propostas comerciais",
-      "Negociação com regras",
-      "Reativação de clientes",
-      "Expansão de carteira",
-      "Operação comercial autônoma",
-      "Maior capacidade de processamento",
-      "Configurações avançadas",
-    ],
-    ctaText: "Quero Conhecer",
-    icon: Zap,
-  },
-];
-
-const TOKEN_TIERS = [
-  { credits: "10.000 créditos", price: "R$ 199" },
-  { credits: "30.000 créditos", price: "R$ 497" },
-  { credits: "75.000 créditos", price: "R$ 997" },
-  { credits: "150.000 créditos", price: "R$ 1.797" },
-  { credits: "300.000 créditos", price: "R$ 2.997" },
-];
+const PLANS = PLANS_DATA.map((p) => ({ ...p, icon: PLAN_ICONS[p.id] ?? Rocket }));
 
 export function PlanosSection({ onCta }: { onCta: () => void }) {
   const { theme, glow } = useLpTheme();
@@ -287,12 +207,12 @@ export function PlanosSection({ onCta }: { onCta: () => void }) {
                 className="text-sm font-black text-slate-900 tracking-wider uppercase leading-tight"
                 style={{ fontFamily: FONT_DISPLAY }}
               >
-                Créditos de Inteligência
+                {CREDITS_COPY.title}
               </h3>
             </div>
 
             <p className="text-[12px] text-slate-500 mb-3.5 leading-snug min-h-[34px]">
-              Unidade de consumo de IA sob demanda utilizada pelos agentes do S.P.Y.
+              {CREDITS_COPY.description}
             </p>
 
             {/* Tabela de Valores de Créditos */}
@@ -313,11 +233,11 @@ export function PlanosSection({ onCta }: { onCta: () => void }) {
               <div className="flex items-start gap-1.5">
                 <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: theme.primaryDark }} />
                 <span className="font-semibold text-slate-700 text-[11px]">
-                  Consumo adicional conforme utilização.
+                  {CREDITS_COPY.extraUsage}
                 </span>
               </div>
               <p className="pl-5 text-[10px] text-slate-400 leading-tight">
-                Os créditos representam a unidade de processamento. O fluxo real pode utilizar múltiplos modelos.
+                {CREDITS_COPY.disclaimer}
               </p>
             </div>
 
@@ -325,7 +245,7 @@ export function PlanosSection({ onCta }: { onCta: () => void }) {
             <div className="border-t border-slate-100 pt-3.5">
               <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-800 mb-2.5">
                 <SlidersHorizontal className="w-3.5 h-3.5" style={{ color: theme.primaryDark }} />
-                <span>Você tem controle total</span>
+                <span>{CREDITS_COPY.controlTitle}</span>
               </div>
 
               <div className="space-y-2.5 text-xs">
@@ -337,9 +257,9 @@ export function PlanosSection({ onCta }: { onCta: () => void }) {
                     <Key className="w-2.5 h-2.5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800 text-[11px] leading-tight">Use sua própria API</h4>
+                    <h4 className="font-bold text-slate-800 text-[11px] leading-tight">{CREDITS_COPY.controlItems[0].title}</h4>
                     <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
-                      OpenAI, Google Gemini ou provedores compatíveis.
+                      {CREDITS_COPY.controlItems[0].text}
                     </p>
                   </div>
                 </div>
@@ -352,9 +272,9 @@ export function PlanosSection({ onCta }: { onCta: () => void }) {
                     <Scale className="w-2.5 h-2.5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800 text-[11px] leading-tight">Defina suas regras</h4>
+                    <h4 className="font-bold text-slate-800 text-[11px] leading-tight">{CREDITS_COPY.controlItems[1].title}</h4>
                     <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
-                      Você dita o limite e como a inteligência age na sua operação.
+                      {CREDITS_COPY.controlItems[1].text}
                     </p>
                   </div>
                 </div>
@@ -367,9 +287,9 @@ export function PlanosSection({ onCta }: { onCta: () => void }) {
                     <Sparkles className="w-2.5 h-2.5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800 text-[11px] leading-tight">Pague pelo que utiliza</h4>
+                    <h4 className="font-bold text-slate-800 text-[11px] leading-tight">{CREDITS_COPY.controlItems[2].title}</h4>
                     <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
-                      Transparência, previsibilidade e sem surpresas na fatura.
+                      {CREDITS_COPY.controlItems[2].text}
                     </p>
                   </div>
                 </div>

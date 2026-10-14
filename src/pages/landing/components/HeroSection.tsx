@@ -1,3 +1,4 @@
+import { ProductShot, shotUrl } from "./ProductShot";
 import { motion, useReducedMotion } from "motion/react";
 import { Link } from "react-router-dom";
 import {
@@ -77,7 +78,12 @@ export function HeroSection() {
                 transition: { duration: 0.6, ease: EASE, delay: 0.2 },
               })}
         >
-          <div className="sp-app" role="img" aria-label="Exemplo ilustrativo da tela de Leads e Pipeline do S.P.Y.">
+          <ProductShot
+            slot="pipeline"
+            eager
+            alt="Tela de Leads e Pipeline do S.P.Y."
+            fallback={
+              <div className="sp-app" role="img" aria-label="Exemplo ilustrativo da tela de Leads e Pipeline do S.P.Y.">
             <div className="sp-app__bar" aria-hidden="true">
               <Columns3 size={16} strokeWidth={1.75} />
               <strong>Leads & Pipeline</strong>
@@ -116,7 +122,9 @@ export function HeroSection() {
               <span>Aurora: pergunte sobre o pipeline, a agenda ou as tarefas da equipe.</span>
             </div>
           </div>
-          <figcaption className="sp-caption">Ilustração com dados de exemplo.</figcaption>
+            }
+          />
+          {!shotUrl("pipeline") && <figcaption className="sp-caption">Ilustração com dados de exemplo.</figcaption>}
         </motion.figure>
       </div>
     </section>

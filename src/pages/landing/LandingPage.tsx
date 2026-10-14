@@ -4,6 +4,9 @@ import { CapabilitiesSection } from "./components/CapabilitiesSection";
 import { NeuralSection } from "./components/NeuralSection";
 import { NichesSection } from "./components/NichesSection";
 import { ProcessSection } from "./components/ProcessSection";
+import { TrustRow } from "./components/TrustRow";
+import { PlansSection } from "./components/PlansSection";
+import { FaqSection } from "./components/FaqSection";
 import { FinalCta } from "./components/FinalCta";
 import { SiteFooter } from "./components/SiteFooter";
 import "./landing.css";
@@ -17,10 +20,13 @@ export default function LandingPage() {
       <SiteHeader />
       <main id="conteudo">
         <HeroSection />
+        <TrustRow />
         <CapabilitiesSection />
         <NeuralSection />
         <NichesSection />
+        <PlansSection />
         <ProcessSection />
+        <FaqSection />
         <FinalCta />
       </main>
       <SiteFooter />

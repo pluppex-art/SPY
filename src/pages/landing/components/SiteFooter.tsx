@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Logo } from "../../../components/ui/Logo";
 
 export function SiteFooter() {
   return (
@@ -6,10 +7,7 @@ export function SiteFooter() {
       <div className="sp-wrap">
         <div className="sp-footer__grid">
           <div className="sp-footer__brand">
-            <strong>
-              <img src="/logo-icon.png" alt="" width={32} height={32} loading="lazy" />
-              S.P.Y.
-            </strong>
+            <Logo variant="full" color="orange" size={32} />
             <p>CRM e ERP multiempresa, com a Aurora, assistente de IA.</p>
           </div>
           <nav aria-label="Navegação do rodapé">
@@ -17,7 +15,9 @@ export function SiteFooter() {
             <ul>
               <li><a href="#recursos">O que faz</a></li>
               <li><a href="#aurora">Aurora</a></li>
+              <li><a href="#planos">Planos</a></li>
               <li><a href="#implantacao">Implantação</a></li>
+              <li><a href="#faq">Perguntas frequentes</a></li>
             </ul>
           </nav>
           <nav aria-label="Segmentos">

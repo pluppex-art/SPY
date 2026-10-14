@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
+import { Logo } from "../../../components/ui/Logo";
 
 export const NAV_LINKS = [
   { href: "#recursos", label: "O que faz" },
   { href: "#aurora", label: "Aurora" },
-  { href: "#nichos", label: "Por segmento" },
-  { href: "#implantacao", label: "Implantação" },
+  { href: "#nichos", label: "Segmentos" },
+  { href: "#planos", label: "Planos" },
+  { href: "#faq", label: "Perguntas" },
 ];
 
 export function SiteHeader() {
@@ -17,8 +19,7 @@ export function SiteHeader() {
       <div className="sp-wrap">
         <div className="sp-header__bar">
           <Link to="/landing" className="sp-brand" aria-label="S.P.Y. — página inicial">
-            <img src="/logo-icon.png" alt="" width={32} height={32} />
-            S.P.Y.
+            <Logo variant="full" color="orange" size={32} />
           </Link>
 
           <nav className="sp-nav" aria-label="Principal">
