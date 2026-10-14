@@ -1,6 +1,8 @@
 /**
- * Fonte única dos planos comerciais do S.P.Y. (landing /lp e landing /landing).
- * Os valores são comerciais e vivem aqui — a tabela `subscription_plans` (cobrança SaaS) NÃO é lida pelas landings.
+ * Planos comerciais do S.P.Y. — FALLBACK OFFLINE das landings (/lp e /landing).
+ * A fonte da verdade são as tabelas `subscription_plans` e `credit_tiers`, gerenciadas em Admin → Assinaturas
+ * e servidas por GET /api/billing/public-plans (ver src/lib/usePublicPlans.ts). Estes valores só aparecem
+ * enquanto a API carrega ou se ela falhar/vier vazia. Mantenha-os próximos dos valores reais.
  * Sem ícones React: cada tela mapeia o ícone pelo `id`.
  */
 
@@ -43,7 +45,7 @@ export const PLANS: PlanData[] = [
   {
     id: "autopilot",
     name: "AUTOPILOT",
-    badgeTop: "★ MAIS ESCOLHIDO",
+    badgeTop: "MAIS ESCOLHIDO",
     tagline: "Para empresas que querem que a inteligência comece a trabalhar as oportunidades.",
     monthlyPrice: "1.997",
     setupPrice: "R$ 4.997",

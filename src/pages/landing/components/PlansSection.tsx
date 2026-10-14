@@ -1,9 +1,11 @@
 import { rv } from "../reveal";
 import { Link } from "react-router-dom";
 import { Check, Star, ArrowRight } from "lucide-react";
-import { PLANS, TOKEN_TIERS, CREDITS_COPY } from "../../lp/plansData";
+import { CREDITS_COPY } from "../../lp/plansData";
+import { usePublicPlans } from "../../../lib/usePublicPlans";
 
 export function PlansSection() {
+  const { plans: PLANS, tokenTiers: TOKEN_TIERS } = usePublicPlans();
   return (
     <section id="planos" className="sp-section sp-band" aria-labelledby="sp-planos-title">
       <div className="sp-wrap">
@@ -28,9 +30,11 @@ export function PlansSection() {
                 <span>R$ </span>
                 <strong>{p.monthlyPrice}</strong>
                 <span> /mês</span>
-                <small>
-                  Implantação: <b>{p.setupPrice}</b>
-                </small>
+                {p.setupPrice && (
+                  <small>
+                    Implantação: <b>{p.setupPrice}</b>
+                  </small>
+                )}
               </div>
               <p className="sp-plan__head">{p.featuresHeader}</p>
               <ul>

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, RefreshCw, CheckCircle2, Play } from "lucide-react";
+import { Plus, RefreshCw, CheckCircle2, Play, Trash2, X } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Badge } from "../../../components/ui/badge";
 import { supabase } from "../../../lib/supabase";
-import { saasApi, brl, fmtDate, STATUS_LABEL, type Plan, type Subscription } from "../../../lib/saasApi";
+import { saasApi, brl, fmtDate, STATUS_LABEL, parseMoneyToCents, centsToInput, type Plan, type Subscription, type CreditTier } from "../../../lib/saasApi";
 import { invalidateBillingStatus } from "../../../hooks/useBillingStatus";
 
 type TenantRow = { id: string; name: string };
@@ -15,6 +15,8 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "destructive" | "in
   active: "success", trial: "info", past_due: "warning", suspended: "destructive", canceled: "destructive",
 };
 const inputCls = "w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] px-3 py-2 text-sm";
+const EMPTY_PLAN = { id: "", code: "", name: "", price: "", interval: "monthly", trialDays: "14", users: "", leads: "", features: "", tagline: "", setup: "", badge: "", featuresHeader: "", ctaText: "", highlight: false, showOnSite: false, sortOrder: "0", active: true };
+const EMPTY_TIER = { id: "", credits: "", price: "", sortOrder: "0", active: true };
 const toLocalDate = (iso?: string | null) => (iso ? iso.slice(0, 10) : "");
 
 export function AdminAssinaturasTab() {
@@ -26,7 +28,9 @@ export function AdminAssinaturasTab() {
   const [busy, setBusy] = useState(false);
 
   // formulário de plano
-  const [planForm, setPlanForm] = useState({ code: "", name: "", price: "", interval: "monthly", trialDays: "14", users: "", leads: "", features: "" });
+  const [planForm, setPlanForm] = useState(EMPTY_PLAN);
+  const [tiers, setTiers] = useState<CreditTier[]>([]);
+  const [tierForm, setTierForm] = useState(EMPTY_TIER);
   // formulário de assinatura do tenant selecionado
   const [subForm, setSubForm] = useState({ planId: "", status: "trial", trialEnd: "", periodEnd: "", graceDays: "7", notes: "" });
   const [budgetForm, setBudgetForm] = useState({ limit: "", warnPct: "80", hardStop: true });
@@ -34,13 +38,15 @@ export function AdminAssinaturasTab() {
 
   const load = useCallback(async () => {
     if (!supabase) return;
-    const [p, t, s, b] = await Promise.all([
+    const [p, t, s, b, ct] = await Promise.all([
       saasApi.plans().catch(() => [] as Plan[]),
       supabase.from("tenants").select("id, name").is("deleted_at", null).order("name"),
       supabase.from("tenant_subscriptions").select("*"),
       supabase.from("tenant_ai_budget").select("*"),
+      saasApi.creditTiers().catch(() => [] as CreditTier[]),
     ]);
     setPlans(p);
+    setTiers(ct);
     setTenants((t.data as TenantRow[]) || []);
     setSubs(Object.fromEntries(((s.data as Subscription[]) || []).map((x) => [x.tenant_id, x])));
     setBudgets(Object.fromEntries(((b.data as BudgetRow[]) || []).map((x) => [x.tenant_id, x])));
@@ -65,12 +71,31 @@ export function AdminAssinaturasTab() {
     finally { setBusy(false); }
   };
 
+  const editPlan = (p: Plan) => setPlanForm({
+    id: p.id, code: p.code, name: p.name, price: centsToInput(p.price_cents), interval: p.billing_interval, trialDays: String(p.trial_days ?? 0),
+    users: p.limits?.users != null ? String(p.limits.users) : "", leads: p.limits?.leads != null ? String(p.limits.leads) : "",
+    features: (p.features || []).join("\n"), tagline: p.tagline ?? "", setup: p.setup_price_cents ? centsToInput(p.setup_price_cents) : "",
+    badge: p.badge ?? "", featuresHeader: p.features_header ?? "", ctaText: p.cta_text ?? "", highlight: !!p.highlight,
+    showOnSite: !!p.show_on_site, sortOrder: String(p.sort_order ?? 0), active: p.active,
+  });
+
   const savePlan = () => run(() => saasApi.savePlan({
-    code: planForm.code, name: planForm.name, priceCents: Math.round(parseFloat(planForm.price.replace(",", ".")) * 100) || 0,
-    billingInterval: planForm.interval, trialDays: Number(planForm.trialDays) || 0,
-    limits: { ...(planForm.users ? { users: Number(planForm.users) } : {}), ...(planForm.leads ? { leads: Number(planForm.leads) } : {}) },
+    id: planForm.id || undefined, code: planForm.code, name: planForm.name, priceCents: parseMoneyToCents(planForm.price),
+    billingInterval: planForm.interval, trialDays: Number(planForm.trialDays) || 0, active: planForm.active,
+    // preserva limites que o formulário não edita (ex.: outras chaves) ao editar em place
+    limits: { ...Object.fromEntries(Object.entries(plans.find((x) => x.id === planForm.id)?.limits || {}).filter(([k]) => k !== "users" && k !== "leads")), ...(planForm.users ? { users: Number(planForm.users) } : {}), ...(planForm.leads ? { leads: Number(planForm.leads) } : {}) },
     features: planForm.features.split("\n").map((x) => x.trim()).filter(Boolean),
-  }).then(() => setPlanForm({ code: "", name: "", price: "", interval: "monthly", trialDays: "14", users: "", leads: "", features: "" })), "Plano salvo.");
+    tagline: planForm.tagline, setupPriceCents: parseMoneyToCents(planForm.setup), badge: planForm.badge, featuresHeader: planForm.featuresHeader,
+    ctaText: planForm.ctaText, highlight: planForm.highlight, showOnSite: planForm.showOnSite, sortOrder: Number(planForm.sortOrder) || 0,
+  }).then(() => setPlanForm(EMPTY_PLAN)), planForm.id ? "Plano atualizado." : "Plano criado.");
+
+  const saveTier = () => run(() => saasApi.saveCreditTier({
+    id: tierForm.id || undefined, credits: Number(tierForm.credits.replace(/\D/g, "")), priceCents: parseMoneyToCents(tierForm.price),
+    sortOrder: Number(tierForm.sortOrder) || 0, active: tierForm.active,
+  }).then(() => setTierForm(EMPTY_TIER)), "Faixa de créditos salva.");
+
+  const previewPrice = parseMoneyToCents(planForm.price);
+  const previewSetup = parseMoneyToCents(planForm.setup);
 
   const saveSub = () => run(() => saasApi.saveSubscription(selected, {
     planId: subForm.planId || undefined, status: subForm.status, graceDays: Number(subForm.graceDays),
@@ -95,32 +120,82 @@ export function AdminAssinaturasTab() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-[var(--color-text-muted)]"><th className="py-1.5">Plano</th><th>Preço</th><th>Teste</th><th>Limites</th><th>Status</th></tr></thead>
+            <thead><tr className="text-left text-[var(--color-text-muted)]"><th className="py-1.5">Plano</th><th>Preço</th><th>Teste</th><th>Limites</th><th>Site</th><th>Status</th></tr></thead>
             <tbody>
               {plans.map((p) => (
-                <tr key={p.id} className="border-t border-[var(--color-border-default)]">
+                <tr key={p.id} onClick={() => editPlan(p)} className={`border-t border-[var(--color-border-default)] cursor-pointer hover:bg-[var(--color-surface-sunken)] ${planForm.id === p.id ? "bg-[var(--color-surface-sunken)]" : ""}`}>
                   <td className="py-1.5 font-semibold">{p.name} <span className="text-xs text-[var(--color-text-muted)]">({p.code})</span></td>
                   <td>{brl(p.price_cents)}/{p.billing_interval === "yearly" ? "ano" : "mês"}</td>
                   <td>{p.trial_days}d</td>
                   <td className="text-xs">{Object.entries(p.limits || {}).map(([k, v]) => `${k}: ${v}`).join(" · ") || "—"}</td>
+                  <td>{p.show_on_site ? <Badge variant="info">No site</Badge> : <span className="text-xs text-[var(--color-text-muted)]">—</span>}</td>
                   <td><Badge variant={p.active ? "success" : "neutral"}>{p.active ? "Ativo" : "Inativo"}</Badge></td>
                 </tr>
               ))}
-              {plans.length === 0 && <tr><td colSpan={5} className="py-3 text-[var(--color-text-muted)]">Nenhum plano ainda. Crie o primeiro abaixo.</td></tr>}
+              {plans.length === 0 && <tr><td colSpan={6} className="py-3 text-[var(--color-text-muted)]">Nenhum plano ainda. Crie o primeiro abaixo.</td></tr>}
             </tbody>
           </table>
         </div>
+        <p className="text-xs text-[var(--color-text-muted)]">Clique num plano para editar. Os preços e textos marcados com "Mostrar no site" alimentam as landings. As mudanças aparecem na landing em até 1 minuto.</p>
         <div className="grid gap-2 md:grid-cols-4 border-t border-[var(--color-border-default)] pt-4">
+          <h4 className="md:col-span-4 text-xs font-black uppercase tracking-wider text-[var(--color-text-muted)]">{planForm.id ? `Editando: ${planForm.name}` : "Novo plano"}</h4>
           <input className={inputCls} placeholder="Código (ex.: pro)" value={planForm.code} onChange={(e) => setPlanForm({ ...planForm, code: e.target.value })} />
           <input className={inputCls} placeholder="Nome (ex.: Profissional)" value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} />
-          <input className={inputCls} placeholder="Preço em R$ (ex.: 297,00)" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })} />
+          <input className={inputCls} placeholder="Preço mensal em R$ (ex.: 1.997,00)" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })} />
           <select className={inputCls} value={planForm.interval} onChange={(e) => setPlanForm({ ...planForm, interval: e.target.value })}><option value="monthly">Mensal</option><option value="yearly">Anual</option></select>
+          <input className={inputCls} placeholder="Implantação em R$ (ex.: 2.997,00)" value={planForm.setup} onChange={(e) => setPlanForm({ ...planForm, setup: e.target.value })} />
           <input className={inputCls} placeholder="Dias de teste" value={planForm.trialDays} onChange={(e) => setPlanForm({ ...planForm, trialDays: e.target.value })} />
           <input className={inputCls} placeholder="Limite de usuários" value={planForm.users} onChange={(e) => setPlanForm({ ...planForm, users: e.target.value })} />
           <input className={inputCls} placeholder="Limite de leads" value={planForm.leads} onChange={(e) => setPlanForm({ ...planForm, leads: e.target.value })} />
-          <Button disabled={busy || !planForm.code || !planForm.name} onClick={savePlan}><Plus className="w-4 h-4 mr-1" /> Criar plano</Button>
-          <textarea className={`${inputCls} md:col-span-4`} rows={2} placeholder="Recursos incluídos (um por linha)" value={planForm.features} onChange={(e) => setPlanForm({ ...planForm, features: e.target.value })} />
+          <input className={`${inputCls} md:col-span-2`} maxLength={300} placeholder="Frase de apoio (tagline)" value={planForm.tagline} onChange={(e) => setPlanForm({ ...planForm, tagline: e.target.value })} />
+          <input className={inputCls} maxLength={40} placeholder="Selo (ex.: MAIS ESCOLHIDO)" value={planForm.badge} onChange={(e) => setPlanForm({ ...planForm, badge: e.target.value })} />
+          <input className={inputCls} maxLength={60} placeholder="Texto do botão (ex.: Começar Agora)" value={planForm.ctaText} onChange={(e) => setPlanForm({ ...planForm, ctaText: e.target.value })} />
+          <input className={`${inputCls} md:col-span-2`} maxLength={80} placeholder="Título da lista (ex.: Inclui: / Tudo do START +)" value={planForm.featuresHeader} onChange={(e) => setPlanForm({ ...planForm, featuresHeader: e.target.value })} />
+          <input className={inputCls} type="number" min={0} placeholder="Ordem no site" value={planForm.sortOrder} onChange={(e) => setPlanForm({ ...planForm, sortOrder: e.target.value })} />
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={planForm.highlight} onChange={(e) => setPlanForm({ ...planForm, highlight: e.target.checked })} /> Destacar</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={planForm.showOnSite} onChange={(e) => setPlanForm({ ...planForm, showOnSite: e.target.checked })} /> Mostrar no site</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={planForm.active} onChange={(e) => setPlanForm({ ...planForm, active: e.target.checked })} /> Ativo</label>
+          </div>
+          <textarea className={`${inputCls} md:col-span-4`} rows={5} placeholder="Recursos incluídos (um por linha)" value={planForm.features} onChange={(e) => setPlanForm({ ...planForm, features: e.target.value })} />
+          <div className="md:col-span-4 flex flex-wrap items-center gap-2">
+            <Badge variant="info">Aparece no site como: {brl(previewPrice).replace(/\u00a0/g, " ")}/{planForm.interval === "yearly" ? "ano" : "mês"}{previewSetup ? ` · implantação ${brl(previewSetup).replace(/\u00a0/g, " ")}` : ""}{planForm.showOnSite ? "" : " (oculto no site)"}</Badge>
+            <div className="flex-1" />
+            {planForm.id && <Button variant="outline" disabled={busy} onClick={() => setPlanForm(EMPTY_PLAN)}><X className="w-4 h-4 mr-1" /> Cancelar edição</Button>}
+            <Button disabled={busy || !planForm.code || !planForm.name} onClick={savePlan}>{planForm.id ? "Salvar alterações" : <><Plus className="w-4 h-4 mr-1" /> Criar plano</>}</Button>
+          </div>
         </div>
+      </Card>
+
+      <Card className="p-5 space-y-4">
+        <h3 className="font-black text-sm">Créditos de IA (vitrine)</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-[var(--color-text-muted)]"><th className="py-1.5">Créditos</th><th>Preço</th><th>Ordem</th><th>Status</th><th /></tr></thead>
+            <tbody>
+              {tiers.map((t) => (
+                <tr key={t.id} onClick={() => setTierForm({ id: t.id, credits: String(t.credits), price: centsToInput(t.price_cents), sortOrder: String(t.sort_order), active: t.active })} className={`border-t border-[var(--color-border-default)] cursor-pointer hover:bg-[var(--color-surface-sunken)] ${tierForm.id === t.id ? "bg-[var(--color-surface-sunken)]" : ""}`}>
+                  <td className="py-1.5 font-semibold">{t.credits.toLocaleString("pt-BR")}</td>
+                  <td>{brl(t.price_cents)}</td><td>{t.sort_order}</td>
+                  <td><Badge variant={t.active ? "success" : "neutral"}>{t.active ? "Ativa" : "Inativa"}</Badge></td>
+                  <td className="text-right"><Button size="sm" variant="outline" disabled={busy} onClick={(e) => { e.stopPropagation(); if (window.confirm("Remover esta faixa de créditos?")) void run(() => saasApi.deleteCreditTier(t.id), "Faixa removida."); }}><Trash2 className="w-3.5 h-3.5" /></Button></td>
+                </tr>
+              ))}
+              {tiers.length === 0 && <tr><td colSpan={5} className="py-3 text-[var(--color-text-muted)]">Nenhuma faixa cadastrada (a landing usa os valores padrão).</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <div className="grid gap-2 md:grid-cols-5 border-t border-[var(--color-border-default)] pt-4">
+          <input className={inputCls} inputMode="numeric" placeholder="Créditos (ex.: 10000)" value={tierForm.credits} onChange={(e) => setTierForm({ ...tierForm, credits: e.target.value })} />
+          <input className={inputCls} placeholder="Preço em R$ (ex.: 199,00)" value={tierForm.price} onChange={(e) => setTierForm({ ...tierForm, price: e.target.value })} />
+          <input className={inputCls} type="number" min={0} placeholder="Ordem" value={tierForm.sortOrder} onChange={(e) => setTierForm({ ...tierForm, sortOrder: e.target.value })} />
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={tierForm.active} onChange={(e) => setTierForm({ ...tierForm, active: e.target.checked })} /> Ativa</label>
+          <div className="flex gap-2">
+            {tierForm.id && <Button variant="outline" disabled={busy} onClick={() => setTierForm(EMPTY_TIER)}><X className="w-4 h-4" /></Button>}
+            <Button disabled={busy || !Number(tierForm.credits.replace(/\D/g, "")) || !parseMoneyToCents(tierForm.price)} onClick={saveTier}>{tierForm.id ? "Salvar faixa" : "Adicionar faixa"}</Button>
+          </div>
+        </div>
+        <p className="text-xs text-[var(--color-text-muted)]">As mudanças aparecem na landing em até 1 minuto.</p>
       </Card>
 
       <Card className="p-5 space-y-4">

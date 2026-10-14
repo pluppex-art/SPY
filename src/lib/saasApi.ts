@@ -3,7 +3,10 @@ import { apiFetch } from "./apiClient";
 export type Plan = {
   id: string; code: string; name: string; price_cents: number; billing_interval: "monthly" | "yearly";
   trial_days: number; limits: Record<string, any>; features: string[]; active: boolean;
+  tagline?: string; setup_price_cents?: number; badge?: string | null; features_header?: string; cta_text?: string;
+  highlight?: boolean; show_on_site?: boolean; sort_order?: number;
 };
+export type CreditTier = { id: string; credits: number; price_cents: number; sort_order: number; active: boolean };
 export type Subscription = {
   id: string; tenant_id: string; plan_id: string | null; status: "trial" | "active" | "past_due" | "suspended" | "canceled";
   trial_ends_at: string | null; current_period_end: string | null; grace_days: number; gateway: string | null;
@@ -28,6 +31,9 @@ export const saasApi = {
   plans: () => apiFetch("/api/billing/plans").then(json<Plan[]>),
   status: (tenantId?: string) => apiFetch(`/api/billing/status${tq(tenantId)}`).then(json<BillingStatus>),
   savePlan: (plan: Record<string, any>) => send("POST", "/api/billing/plans", plan).then(json<Plan>),
+  creditTiers: () => apiFetch("/api/billing/credit-tiers").then(json<CreditTier[]>),
+  saveCreditTier: (t: Record<string, any>) => send("POST", "/api/billing/credit-tiers", t).then(json<CreditTier>),
+  deleteCreditTier: (id: string) => send("DELETE", `/api/billing/credit-tiers/${encodeURIComponent(id)}`).then(json<{ ok: boolean }>),
   saveSubscription: (tenantId: string, body: Record<string, any>) => send("PUT", `/api/billing/subscriptions/${tenantId}`, body).then(json<Subscription>),
   markPaid: (tenantId: string) => send("POST", `/api/billing/subscriptions/${tenantId}/mark-paid`).then(json<Subscription>),
   createAsaas: (tenantId: string, body: Record<string, any>) => send("POST", `/api/billing/subscriptions/${tenantId}/asaas`, body).then(json<{ subscriptionId: string }>),
@@ -49,3 +55,15 @@ export const saasApi = {
 export const brl = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 export const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
 export const STATUS_LABEL: Record<string, string> = { trial: "Em teste", active: "Ativa", past_due: "Em atraso", suspended: "Suspensa", canceled: "Cancelada", none: "Sem assinatura" };
+
+/** "1.997,50" / "1997.5" / "997" -> centavos (NaN-safe, nunca negativo). */
+export function parseMoneyToCents(input: string): number {
+  let s = String(input ?? "").replace(/[^\d.,]/g, "");
+  if (!s) return 0;
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+  const n = Math.round(parseFloat(s) * 100);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+/** centavos -> "1.997,50" (sem R$), para preencher inputs. */
+export const centsToInput = (c: number) => (c / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

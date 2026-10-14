@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { AsyncLocalStorage } from "async_hooks";
 import { timingSafeEqual } from "crypto";
 import axios from "axios";
+import rateLimit from "express-rate-limit";
 
 // ── Contexto de IA por requisição (quem está gastando) ──────────────────────
 export const aiContext = new AsyncLocalStorage<{ tenantId: string }>();
@@ -194,13 +195,71 @@ export function createSaas(deps: Deps) {
       limits: typeof b.limits === "object" && b.limits ? b.limits : {},
       features: Array.isArray(b.features) ? b.features.map(String).slice(0, 30) : [],
       active: b.active !== false,
+      tagline: String(b.tagline ?? "").trim().slice(0, 300),
+      setup_price_cents: Math.min(100_000_000, Math.max(0, Math.round(Number(b.setupPriceCents) || 0))),
+      badge: String(b.badge ?? "").trim().slice(0, 40) || null,
+      features_header: String(b.featuresHeader ?? "").trim().slice(0, 80),
+      cta_text: String(b.ctaText ?? "").trim().slice(0, 60),
+      highlight: b.highlight === true,
+      show_on_site: b.showOnSite === true,
+      sort_order: Math.min(9999, Math.max(0, Math.round(Number(b.sortOrder) || 0))),
       updated_at: new Date().toISOString(),
     };
+    row.price_cents = Math.min(100_000_000, row.price_cents);
+    row.features = row.features.map((f: string) => f.trim().slice(0, 120)).filter(Boolean);
     const { data, error } = b.id
       ? await req.supabase.from("subscription_plans").update(row).eq("id", b.id).select().single()
       : await req.supabase.from("subscription_plans").insert(row).select().single();
     if (error) return res.status(400).json({ error: error.code === "23505" ? "Já existe um plano com esse código." : "Erro ao salvar o plano." });
     res.json(data);
+  });
+
+  // Vitrine pública de preços (landings /lp e /landing). Sem auth; só campos de vitrine.
+  const publicPlansLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
+  router.get("/public-plans", publicPlansLimiter, async (_req, res) => {
+    if (!supabaseService) return res.status(503).json({ error: "Indisponível." });
+    const [plans, tiers] = await Promise.all([
+      supabaseService.from("subscription_plans")
+        .select("code,name,price_cents,billing_interval,setup_price_cents,tagline,badge,features_header,features,cta_text,highlight,sort_order")
+        .eq("active", true).eq("show_on_site", true)
+        .order("sort_order", { ascending: true }).order("price_cents", { ascending: true }),
+      supabaseService.from("credit_tiers").select("credits,price_cents,sort_order").eq("active", true).order("sort_order", { ascending: true }),
+    ]);
+    if (plans.error || tiers.error) return res.status(500).json({ error: "Erro ao carregar planos." });
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.json({
+      plans: (plans.data || []).map((p: any) => ({
+        code: p.code, name: p.name, priceCents: p.price_cents, billingInterval: p.billing_interval,
+        setupPriceCents: p.setup_price_cents ?? 0, tagline: p.tagline ?? "", badge: p.badge ?? null,
+        featuresHeader: p.features_header ?? "", features: Array.isArray(p.features) ? p.features : [],
+        ctaText: p.cta_text ?? "", highlight: !!p.highlight, sortOrder: p.sort_order ?? 0,
+      })),
+      creditTiers: (tiers.data || []).map((t: any) => ({ credits: t.credits, priceCents: t.price_cents, sortOrder: t.sort_order ?? 0 })),
+    });
+  });
+
+  // Faixas de créditos de IA da vitrine (CRUD master; RLS limita a escrita a super admin).
+  router.get("/credit-tiers", requireUser, requireMaster, async (req: any, res) => {
+    const { data, error } = await req.supabase.from("credit_tiers").select("*").order("sort_order", { ascending: true });
+    if (error) return res.status(500).json({ error: "Erro ao carregar faixas de créditos." });
+    res.json(data || []);
+  });
+  router.post("/credit-tiers", requireUser, requireMaster, async (req: any, res) => {
+    const b = req.body || {};
+    const credits = Math.round(Number(b.credits));
+    const price = Math.round(Number(b.priceCents));
+    if (!(credits > 0) || !(price >= 0) || credits > 1_000_000_000 || price > 100_000_000) return res.status(400).json({ error: "Informe créditos e preço válidos." });
+    const row = { credits, price_cents: price, sort_order: Math.min(9999, Math.max(0, Math.round(Number(b.sortOrder) || 0))), active: b.active !== false };
+    const { data, error } = b.id
+      ? await req.supabase.from("credit_tiers").update(row).eq("id", b.id).select().single()
+      : await req.supabase.from("credit_tiers").insert(row).select().single();
+    if (error) return res.status(400).json({ error: "Erro ao salvar a faixa de créditos." });
+    res.json(data);
+  });
+  router.delete("/credit-tiers/:id", requireUser, requireMaster, async (req: any, res) => {
+    const { error } = await req.supabase.from("credit_tiers").delete().eq("id", req.params.id);
+    if (error) return res.status(400).json({ error: "Erro ao remover a faixa de créditos." });
+    res.json({ ok: true });
   });
 
   async function logEvent(tenantId: string, type: string, extra: Record<string, any> = {}) {

@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import { Section, FONT_DISPLAY, FONT_MONO } from "./shared";
 import { useLpTheme } from "./theme/LpThemeContext";
-import { PLANS as PLANS_DATA, TOKEN_TIERS, CREDITS_COPY } from "./plansData";
+import { CREDITS_COPY } from "./plansData";
+import { usePublicPlans } from "../../lib/usePublicPlans";
 
 const PLAN_ICONS: Record<string, typeof Rocket> = {
   start: Rocket,
@@ -26,10 +27,11 @@ const PLAN_ICONS: Record<string, typeof Rocket> = {
   autonomous: Zap,
 };
 
-const PLANS = PLANS_DATA.map((p) => ({ ...p, icon: PLAN_ICONS[p.id] ?? Rocket }));
 
 export function PlanosSection({ onCta }: { onCta: () => void }) {
   const { theme, glow } = useLpTheme();
+  const { plans, tokenTiers: TOKEN_TIERS } = usePublicPlans();
+  const PLANS = plans.map((p) => ({ ...p, icon: PLAN_ICONS[p.id] ?? Rocket }));
 
   return (
     <Section id="planos" className="bg-slate-50/80 border-t border-slate-200/90 py-16 sm:py-20" glow>
@@ -140,7 +142,7 @@ export function PlanosSection({ onCta }: { onCta: () => void }) {
                     <span className="text-xs font-medium text-slate-400">/mês</span>
                   </div>
 
-                  <div className="text-[11px] font-medium text-slate-500 mt-1 flex items-center gap-1.5">
+                  {p.setupPrice && <div className="text-[11px] font-medium text-slate-500 mt-1 flex items-center gap-1.5">
                     <span className="text-slate-400">Implantação:</span>
                     <span
                       className="font-bold px-1.5 py-0.5 rounded text-[10.5px]"
@@ -148,7 +150,7 @@ export function PlanosSection({ onCta }: { onCta: () => void }) {
                     >
                       {p.setupPrice}
                     </span>
-                  </div>
+                  </div>}
                 </div>
 
                 {/* Lista de Features — Direta e Compacta */}
