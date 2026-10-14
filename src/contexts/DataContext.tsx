@@ -1765,6 +1765,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Ao ganhar um lead (status -> "Fechado"), cria (ou vincula, se já existir por
   // e-mail/CNPJ) o registro correspondente na Base de Clientes, evitando duplicar
   // clientes quando mais de um lead da mesma empresa fecha negócio.
+  // Setor de Atuação do lead -> campo Setor do cliente. Só grava quando o lead tem um setor real e o cliente
+  // ainda está em branco ou com o "Tecnologia" que o padrão antigo do banco colocava em todo mundo; nunca apaga
+  // nem troca um setor que alguém definiu à mão no cliente.
+  const syncClienteSetorFromLead = (lead: any, clienteIdOverride?: string | null) => {
+    const clienteId = clienteIdOverride || lead?.clientId;
+    const setor = typeof lead?.customFields?.setor === "string" ? lead.customFields.setor.trim() : "";
+    if (!supabase || !clienteId || !setor) return;
+    const atual = (clienteBase as any[]).find((c: any) => c.id === clienteId);
+    if (atual && atual.industry && atual.industry !== "Tecnologia" && atual.industry === setor) return;
+    if (atual && atual.industry && atual.industry !== "Tecnologia") return;
+    supabase.from("clientes").update({ industry: setor }).eq("id", clienteId).then(({ error }) => {
+      if (!error) setClienteBase(prev => prev.map((c: any) => c.id === clienteId ? { ...c, industry: setor } : c));
+    });
+  };
+
   const createClientFromWonLead = async (lead: Lead) => {
     // BUG real (visto em produção: lead "Fabiano Fagundes" — To Na Pista
     // Boliche — sumido da Base de Clientes): `lead.clientId` confiava cego
@@ -1811,7 +1826,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // "São Paulo" fixo é um dado errado.
         const newClient = {
           name: lead.company || lead.name,
-          industry: "Tecnologia",
+          // Setor de Atuação do lead (CNAE do CNPJ ou digitado). Sem ele, fica em branco: um "Tecnologia"
+          // fixo fazia a base inteira parecer do mesmo setor.
+          industry: (typeof (lead.customFields as any)?.setor === "string" && (lead.customFields as any).setor.trim()) ? (lead.customFields as any).setor.trim() : null,
           city: null,
           state: null,
           phone: lead.phone || null,
@@ -1830,6 +1847,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (clientId) {
+        syncClienteSetorFromLead(lead, clientId);
         updateLead(lead.id, { clientId, clientName });
         // BUG real (achado 2026-10-06: modal "Contatos, Decisores &
         // Stakeholders" de "To Na Pista Boliche" vazio mesmo com o lead
@@ -2610,6 +2628,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         value: totalValue,
         ...(mergedProductIds.length > 0 ? { productIds: mergedProductIds } : {}),
       });
+      // Proposta comercial: o cliente (vinculado ao lead ou de mesmo nome na base) recebe o Setor de Atuação do lead.
+      if (currentLead) {
+        const nomeProposta = String(payload.cliente || "").trim().toLowerCase();
+        const clientePorNome = nomeProposta
+          ? (clienteBase as any[]).find((c: any) => String(c.name || "").trim().toLowerCase() === nomeProposta)
+          : null;
+        syncClienteSetorFromLead(currentLead, currentLead.clientId || clientePorNome?.id || null);
+      }
     }
     return proposalId;
   };
