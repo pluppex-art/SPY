@@ -240,3 +240,49 @@ export const SECURITY = [
   "Trilha de auditoria financeira",
   "Tratamento de dados conforme a LGPD",
 ];
+
+export const PROBLEM_PAINS = ["WhatsApp separado", "Planilhas soltas", "CRM isolado", "Leads esquecidos", "Equipe sem contexto", "Gestor sem visão da operação", "Decisões no achismo"];
+export const PROBLEM_WITHOUT = ["O lead chega pelo WhatsApp", "Alguém responde e o interesse aparece", "A conversa para e o follow-up não acontece", "O lead esfria e some do radar"];
+export const PROBLEM_WITH = [
+  "O lead entra no pipeline, com score e temperatura",
+  "O rodízio entrega o lead a um vendedor",
+  "O follow-up vira tarefa e compromisso na agenda",
+  "A Aurora aponta os leads sem contato",
+  "A proposta segue por link, com aceite online",
+];
+
+export const AURORA_AGENTS: { name: string; role: string; text: string }[] = [
+  { name: "Agente de Pré-venda", role: "Pré-venda", text: "Atende, qualifica o lead e agenda a reunião, pelo WhatsApp configurado na implantação." },
+  { name: "Agente Vendedor", role: "Vendas", text: "Conduz a negociação e o fechamento das propostas." },
+  { name: "Agente Comercial", role: "Comercial", text: "Suporte ao time comercial no dia a dia do CRM." },
+  { name: "Diretoria", role: "Executivo", text: "Resumos e recomendações para a liderança." },
+  { name: "Financeiro", role: "Financeiro", text: "Resumos de fluxo de caixa, contas e inadimplência." },
+  { name: "Marketing", role: "Marketing", text: "Leitura de campanhas, landing pages e origem dos leads." },
+  { name: "Organização", role: "Operações", text: "Tarefas pendentes, agenda e follow-ups do dia." },
+  { name: "Atendimento", role: "Suporte", text: "Acompanhamento de clientes ativos e chamados." },
+  { name: "Pesquisa", role: "Pesquisa", text: "Levantamento de dados de mercado e concorrência." },
+  { name: "Briefing Diário", role: "Briefing", text: "Resumo do dia com as prioridades de cada pessoa." },
+];
+
+export const EXAMPLE_MESSAGE = "Estou pensando em trocar o sistema da empresa ainda este mês. Quanto custa?";
+export const EXAMPLE_ANALYSIS: [string, string][] = [
+  ["Intenção de compra", "Alta"],
+  ["Prazo", "Este mês"],
+  ["Contexto", "Possível troca de sistema"],
+  ["Próxima ação sugerida", "Aprofundar a necessidade e agendar um diagnóstico"],
+];
+
+export const START_STEPS: [string, string][] = [
+  ["Conversa inicial", "Você conta como vende hoje pelo formulário e a equipe entende o seu segmento."],
+  ["Ambiente e módulos", "Criamos a empresa no S.P.Y. e ligamos os módulos que fazem sentido para o seu negócio."],
+  ["Conexão da operação", "Conectamos o que você já usa (Google, WhatsApp, formulários) e importamos leads e clientes por CSV."],
+  ["Equipe em operação", "Usuários e permissões definidos, rodízio e automações configurados, e o time passa a vender dentro do sistema."],
+  ["Aurora e indicadores", "A Aurora passa a consultar os dados e o gestor acompanha pipeline, financeiro e relatórios."],
+];
+
+export const FAQ_EXTRA: [string, string][] = [
+  ["O S.P.Y. substitui o meu CRM e as planilhas?", "Ele centraliza no mesmo ambiente o pipeline de vendas, a base de clientes, a agenda sincronizada com o Google, propostas e contratos e o financeiro com DRE. Na prática, dispensa o CRM isolado e as planilhas soltas."],
+  ["Posso importar meus contatos de uma planilha?", "Sim. Leads e clientes podem ser importados por arquivo CSV, e o cadastro evita duplicidade na base de clientes."],
+  ["O S.P.Y. gera propostas e contratos?", "Sim. A proposta é multi-produto, com recorrência, parcelamento, desconto e implantação. O contrato tem editor de cláusulas e PDF, e o cliente aceita a proposta online por um link público."],
+  ["Como funciona o rodízio de leads?", "Os leads que entram pelo formulário ou pela API são distribuídos entre os vendedores em rodízio, para que ninguém fique sem atendimento."],
+];

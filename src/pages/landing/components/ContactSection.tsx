@@ -19,8 +19,8 @@ export function ContactSection() {
               </li>
             ))}
           </ul>
-          <Link to="/f/spy" className="sp-link">
-            Abrir o formulário em tela cheia <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
+          <Link to="/contato" className="sp-link">
+            Abrir a página de contato <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
           </Link>
         </div>
         <div className="sp-contact__card" {...rv(1)}>

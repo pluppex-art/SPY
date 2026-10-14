@@ -1,7 +1,7 @@
 import { rv } from "../reveal";
 import { Link } from "react-router-dom";
 import { Check, Star, ArrowRight } from "lucide-react";
-import { CREDITS_COPY } from "../../lp/plansData";
+import { CREDITS_COPY } from "../plansData";
 import { usePublicPlans } from "../../../lib/usePublicPlans";
 
 export function PlansSection() {

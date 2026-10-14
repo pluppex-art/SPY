@@ -13,12 +13,28 @@ import { TrustRow } from "./components/TrustRow";
 import { PlansSection } from "./components/PlansSection";
 import { FaqSection } from "./components/FaqSection";
 import { SiteFooter } from "./components/SiteFooter";
+import { ProblemSection } from "./components/ProblemSection";
+import { RoiSimulator } from "./components/RoiSimulator";
+import { useDocumentMeta } from "./useDocumentMeta";
+import { useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { useRevealOnScroll } from "./useRevealOnScroll";
 import "./landing.css";
 
 export default function LandingPage() {
   const rootRef = useRef<HTMLDivElement>(null);
   useRevealOnScroll(rootRef);
+  useDocumentMeta(
+    "S.P.Y. — CRM e ERP com IA para pequenas e médias empresas",
+    "Do lead ao financeiro em um só sistema: pipeline de vendas, propostas e contratos, financeiro completo, módulos por segmento e a Aurora, assistente de IA.",
+  );
+  const { hash } = useLocation();
+  // âncoras vindas de outra página (ex.: /lp#planos redirecionado, /landing#contato)
+  useEffect(() => {
+    if (!hash) return;
+    const t = window.setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" }), 120);
+    return () => window.clearTimeout(t);
+  }, [hash]);
   return (
     <div className="sp-root" ref={rootRef}>
       <a href="#conteudo" className="sp-skip">
@@ -28,10 +44,12 @@ export default function LandingPage() {
       <main id="conteudo">
         <HeroSection />
         <TrustRow />
+        <ProblemSection />
         <LifecycleSection />
         <ModuleExplorer />
         <NeuralSection />
         <FinanceSection />
+        <RoiSimulator />
         <SegmentsSection />
         <TrustSecuritySection />
         <PlansSection />

@@ -164,7 +164,7 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
   border-bottom: 1px solid transparent;
   padding-top: env(safe-area-inset-top);
   transition: border-color 200ms var(--sp-ease), box-shadow 200ms var(--sp-ease);
@@ -1471,3 +1471,97 @@ html:has(.sp-root) {
 .sp-root .sp-field input:not([type="checkbox"]), .sp-root .sp-field textarea { border-color: var(--sp-line-strong) !important; color: var(--sp-text) !important; background: #fff !important; }
 .sp-root .sp-field[data-invalid="true"] input, .sp-root .sp-field[data-invalid="true"] textarea { border-color: #b91c1c !important; }
 .sp-form--done h2 { line-height: 1.15; max-width: none; }
+
+/* =====================================================================
+   Seções portadas da LP antiga + páginas institucionais
+   ===================================================================== */
+/* problema */
+.sp-prob { display: grid; gap: 16px; margin-top: 40px; }
+.sp-prob__col { background: var(--sp-bg-2); border: 1px solid var(--sp-line); border-radius: 16px; padding: 24px; }
+.sp-prob__col--good { background: var(--sp-warm); border-color: #fed7aa; }
+.sp-prob h3 { font-size: 20px; margin-bottom: 12px; }
+.sp-prob ol li { display: grid; grid-template-columns: 20px 1fr; gap: 4px 10px; align-items: start; padding-block: 6px; }
+.sp-prob ol li > svg:first-child { margin-top: 5px; color: #b91c1c; }
+.sp-prob__col--good ol li > svg:first-child { color: var(--sp-brand-text); }
+.sp-prob__arrow { grid-column: 1; color: #94a3b8; margin-top: 2px; }
+@media (min-width: 900px) { .sp-prob { grid-template-columns: 1fr 1fr; gap: 24px; } }
+.sp-pains { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.sp-pains li { background: #fff; border: 1px solid var(--sp-line-strong); border-radius: 999px; padding: 8px 14px; font-size: 15px; color: var(--sp-body); }
+
+/* simulador */
+.sp-sim { display: grid; gap: 24px; margin-top: 40px; }
+.sp-sim__in { background: #fff; border: 1px solid var(--sp-line); border-radius: 16px; padding: 24px; display: grid; gap: 4px; }
+.sp-sim__out { background: #fff; border: 2px solid var(--sp-brand); border-radius: 16px; padding: 24px; align-self: start; }
+.sp-sim__label { color: var(--sp-muted); font-size: 15px; font-weight: 500; }
+.sp-sim__num { font: 700 36px/1.1 var(--sp-display); letter-spacing: -0.02em; margin-top: 4px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sp-sim__num--hl { color: var(--sp-brand-text); }
+.sp-sim__small { color: var(--sp-body); font-size: 15px; margin-top: 4px; }
+.sp-sim__out hr { border: 0; border-top: 1px solid var(--sp-line); margin: 20px 0; }
+.sp-sim__note { margin-top: 16px; padding: 10px 12px; border-radius: 10px; background: var(--sp-bg-2); font-size: 14px; color: var(--sp-body); }
+.sp-numfield { position: relative; }
+.sp-numfield span { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--sp-muted); pointer-events: none; font-weight: 600; }
+.sp-numfield input { padding-right: 44px !important; font-variant-numeric: tabular-nums; }
+@media (min-width: 900px) { .sp-sim { grid-template-columns: 1.1fr 1fr; gap: 32px; } .sp-sim__in { padding: 32px; } .sp-sim__out { padding: 32px; } }
+
+/* aurora: agentes e exemplo */
+.sp-aurora__more { display: grid; gap: 64px; margin-top: 72px; }
+.sp-agents h3, .sp-example h3 { font-size: clamp(24px, 3.2vw, 32px); letter-spacing: -0.02em; max-width: 24ch; }
+.sp-agents > p { color: var(--sp-muted); margin-top: 8px; }
+.sp-agents ul { display: grid; gap: 0 32px; margin-top: 24px; }
+.sp-agents li { display: grid; gap: 2px; padding: 14px 0; border-top: 1px solid #fed7aa; color: var(--sp-body); }
+.sp-agents li strong { color: var(--sp-text); font-weight: 600; }
+.sp-agents__role { font-size: 14px; color: var(--sp-brand-tint-text); font-weight: 600; }
+@media (min-width: 760px) { .sp-agents ul { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1100px) { .sp-agents ul { grid-template-columns: 1fr 1fr 1fr; } }
+.sp-example__grid { display: grid; gap: 24px; margin-top: 24px; }
+.sp-example__who { font-size: 14px; color: var(--sp-muted); font-weight: 600; margin-bottom: 8px; }
+.sp-example blockquote { margin: 0; background: #fff; border-radius: 16px 16px 16px 4px; padding: 16px 18px; font-size: 18px; line-height: 1.5; box-shadow: var(--sp-shadow-card); max-width: 40ch; }
+.sp-example dl { margin: 0; background: #fff; border-radius: 16px; padding: 8px 20px; box-shadow: var(--sp-shadow-card); }
+.sp-example dl > div { padding: 12px 0; border-top: 1px solid var(--sp-line); }
+.sp-example dl > div:first-child { border-top: 0; }
+.sp-example dt { font-size: 14px; color: var(--sp-muted); font-weight: 600; }
+.sp-example dd { margin: 2px 0 0; font-weight: 600; }
+@media (min-width: 900px) { .sp-example__grid { grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; } }
+
+/* implantação com 5 etapas */
+@media (min-width: 900px) { .sp-steps { grid-template-columns: repeat(5, 1fr); gap: 24px; } }
+
+/* páginas institucionais */
+.sp-doc__hero { background: linear-gradient(180deg, var(--sp-warm) 0%, #fff 100%); border-bottom: 1px solid var(--sp-line); padding-block: 48px; }
+.sp-doc__hero h1 { font-size: clamp(32px, 5.2vw, 52px); line-height: 1.08; letter-spacing: -0.02em; max-width: 20ch; }
+.sp-doc__hero p { color: var(--sp-body); margin-top: 12px; max-width: 58ch; font-size: 18px; }
+.sp-doc__date { font-size: 15px; color: var(--sp-muted) !important; margin-top: 16px !important; }
+.sp-doc__grid { display: grid; gap: 40px; padding-block: 48px 80px; }
+.sp-doc__toc { display: none; }
+.sp-doc__toc nav { position: sticky; top: 96px; }
+.sp-doc__toc b { display: block; font-size: 14px; color: var(--sp-muted); margin-bottom: 8px; }
+.sp-doc__toc a { display: block; padding: 8px 12px; border-radius: 8px; font-size: 15px; color: var(--sp-muted); line-height: 1.35; }
+.sp-doc__toc a[aria-current="true"] { background: var(--sp-brand-tint); color: var(--sp-brand-tint-text); font-weight: 600; }
+@media (hover: hover) and (pointer: fine) { .sp-doc__toc a:hover { color: var(--sp-text); } }
+.sp-doc__body { max-width: 72ch; min-width: 0; }
+.sp-doc__body section { scroll-margin-top: 96px; padding-bottom: 32px; margin-bottom: 32px; border-bottom: 1px solid var(--sp-line); }
+.sp-doc__body section:last-child { border-bottom: 0; }
+.sp-doc__body h2 { font-size: clamp(22px, 3vw, 28px); letter-spacing: -0.015em; line-height: 1.2; margin-bottom: 16px; }
+.sp-doc__body p, .sp-doc__body li { color: var(--sp-body); line-height: 1.7; }
+.sp-doc__body p + p, .sp-doc__body p + ul, .sp-doc__body ul + p { margin-top: 14px; }
+.sp-doc__body ul { padding-left: 0; }
+.sp-doc__body li { position: relative; padding: 4px 0 4px 20px; }
+.sp-doc__body li::before { content: ""; position: absolute; left: 4px; top: 15px; width: 6px; height: 6px; border-radius: 50%; background: var(--sp-brand); }
+.sp-doc__body a { color: var(--sp-brand-text); text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }
+.sp-doc__body strong { color: var(--sp-text); }
+@media (min-width: 1000px) { .sp-doc__grid { grid-template-columns: 260px minmax(0, 1fr); gap: 56px; } .sp-doc__toc { display: block; } }
+.sp-contactpage { display: grid; gap: 40px; padding-block: 48px 80px; }
+.sp-contactpage__card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: var(--sp-shadow-window); align-self: start; }
+.sp-after ol { counter-reset: a; margin-top: 16px; }
+.sp-after li { counter-increment: a; position: relative; padding: 10px 0 10px 40px; color: var(--sp-body); }
+.sp-after li::before { content: counter(a); position: absolute; left: 0; top: 10px; width: 26px; height: 26px; border-radius: 50%; background: var(--sp-brand-tint); color: var(--sp-brand-tint-text); font: 700 14px/26px var(--sp-display); text-align: center; }
+.sp-after h2 { font-size: 24px; letter-spacing: -0.015em; }
+.sp-other { margin-top: 32px; }
+.sp-other h2 { font-size: 20px; margin-bottom: 8px; }
+.sp-other p { color: var(--sp-body); }
+.sp-other .sp-chips { margin-top: 12px; }
+.sp-other .sp-chips a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--sp-line-strong); border-radius: 999px; background: #fff; font-weight: 500; font-size: 15px; }
+@media (hover: hover) and (pointer: fine) { .sp-other .sp-chips a:hover { border-color: var(--sp-brand); } }
+@media (min-width: 1000px) { .sp-contactpage { grid-template-columns: 5fr 6fr; gap: 64px; padding-block: 64px 96px; } .sp-contactpage__card { padding: 32px; } }
+.sp-agents li { align-content: start; }
+.sp-agents h3, .sp-example h3 { line-height: 1.2; }

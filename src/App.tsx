@@ -1,11 +1,13 @@
 import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { requestNotificationPermission } from "./lib/notifications";
+import { LpRedirect } from "./pages/landing/LpRedirect";
 const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
-// Lazy: página de marketing pública, sem nenhuma dependência do app autenticado — fica no
-// próprio chunk pra quem visita /lp não baixar o bundle inteiro do CRM.
-const SPYLandingPage = lazy(() => import("./pages/lp/SPYLandingPage"));
-const PoliticaPrivacidade = lazy(() => import("./pages/lp/PoliticaPrivacidade"));
+// Lazy: páginas públicas de marketing/institucionais, sem dependência do app autenticado — ficam no
+// próprio chunk pra quem visita /landing não baixar o bundle inteiro do CRM.
+const PoliticaPrivacidade = lazy(() => import("./pages/landing/pages/PoliticaPrivacidade"));
+const Termos = lazy(() => import("./pages/landing/pages/Termos"));
+const Contato = lazy(() => import("./pages/landing/pages/Contato"));
 // "Central de Receita" — redesenho do Dashboard principal (/app/dashboard),
 // pedido explícito do usuário. O Dashboard.tsx antigo continua no repo (não
 // apagado) só não está mais roteado aqui — reversível se precisar. As outras
@@ -235,22 +237,15 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Navigate to="/app" replace />} />
         <Route path="/landing" element={<LandingPage />} />
-        <Route
-          path="/lp"
-          element={
-            <Suspense fallback={<div className="min-h-screen bg-white" />}>
-              <SPYLandingPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/privacidade"
-          element={
-            <Suspense fallback={<div className="min-h-screen bg-white" />}>
-              <PoliticaPrivacidade />
-            </Suspense>
-          }
-        />
+        {/* A landing antiga (/lp) foi unificada em /landing; mantém links e âncoras antigos. */}
+        <Route path="/lp" element={<LpRedirect />} />
+        <Route path="/lp/*" element={<LpRedirect />} />
+        <Route path="/privacidade" element={<PoliticaPrivacidade />} />
+        <Route path="/termos" element={<Termos />} />
+        <Route path="/contato" element={<Contato />} />
+        <Route path="/politica-de-privacidade" element={<Navigate to="/privacidade" replace />} />
+        <Route path="/termos-de-uso" element={<Navigate to="/termos" replace />} />
+        <Route path="/fale-conosco" element={<Navigate to="/contato" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/redefinir-senha" element={<ResetPassword />} />
         {/* Auto-cadastro público desativado: S.P.Y. não é mais um SaaS de self-signup —

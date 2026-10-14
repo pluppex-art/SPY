@@ -1,6 +1,8 @@
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Check } from "lucide-react";
-import { Logo } from "../../../components/ui/Logo";
+import { useParams } from "react-router-dom";
+import { Check } from "lucide-react";
+import { SiteHeader } from "../components/SiteHeader";
+import { SiteFooter } from "../components/SiteFooter";
+import { useDocumentMeta } from "../useDocumentMeta";
 import { LeadForm } from "./LeadForm";
 import { NICHES } from "./formConfig";
 import "../landing.css";
@@ -10,22 +12,13 @@ export default function FormPage() {
   const { niche } = useParams();
   const cfg = NICHES[niche || ""] ?? NICHES.spy;
   const Icon = cfg.icon;
+  useDocumentMeta(`${cfg.title} — S.P.Y.`, cfg.intro);
 
   return (
     <div className="sp-root sp-formpage">
-      <header className="sp-header" data-scrolled="true">
-        <div className="sp-wrap">
-          <div className="sp-header__bar">
-            <Link to="/landing" className="sp-brand" aria-label="S.P.Y. — voltar ao site">
-              <Logo variant="full" color="orange" size={32} />
-            </Link>
-            <Link to="/landing" className="sp-link">
-              <ArrowLeft size={16} strokeWidth={1.75} aria-hidden="true" /> Voltar ao site
-            </Link>
-          </div>
-        </div>
-      </header>
-      <main className="sp-wrap sp-formpage__grid">
+      <a href="#conteudo" className="sp-skip">Ir para o conteúdo</a>
+      <SiteHeader />
+      <main id="conteudo" className="sp-wrap sp-formpage__grid">
         <div className="sp-formpage__intro">
           <span className="sp-formpage__icon" aria-hidden="true">
             <Icon size={28} strokeWidth={1.75} />
@@ -44,6 +37,7 @@ export default function FormPage() {
           <LeadForm nicheKey={cfg.key} />
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

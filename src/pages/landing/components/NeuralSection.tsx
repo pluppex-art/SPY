@@ -1,5 +1,6 @@
 import { ProductShot } from "./ProductShot";
 import { AuroraChat } from "./AuroraChat";
+import { AuroraAgents, OpportunityExample } from "./AuroraExtras";
 import { rv } from "../reveal";
 import { MessageSquareText, UserRoundCheck, ClipboardCheck, Newspaper, ShieldCheck, Gauge } from "lucide-react";
 import { AURORA_CAPS } from "../content";
@@ -38,6 +39,10 @@ export function NeuralSection() {
             <figcaption className="sp-caption">Exemplo ilustrativo de conversa. Agenda e tarefas aparecem quando o Google está conectado.</figcaption>
           </figure>
         </div>
+      </div>
+      <div className="sp-wrap sp-aurora__more">
+        <AuroraAgents />
+        <OpportunityExample />
       </div>
     </section>
   );

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Logo } from "../../../components/ui/Logo";
 
@@ -11,6 +11,13 @@ export const NAV_LINKS = [
   { href: "#planos", label: "Planos" },
   { href: "#faq", label: "Perguntas" },
 ];
+
+/** Âncoras da landing: na própria /landing viram <a href="#x">; nas outras páginas, link para /landing#x. */
+function AnchorLink({ href, children, onClick }: { href: string; children: React.ReactNode; onClick?: () => void }) {
+  const { pathname } = useLocation();
+  if (pathname === "/landing") return <a href={href} onClick={onClick}>{children}</a>;
+  return <Link to={`/landing${href}`} onClick={onClick}>{children}</Link>;
+}
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -90,9 +97,9 @@ export function SiteHeader() {
 
           <nav className="sp-nav" aria-label="Principal">
             {NAV_LINKS.map((l) => (
-              <a key={l.href} href={l.href}>
+              <AnchorLink key={l.href} href={l.href}>
                 {l.label}
-              </a>
+              </AnchorLink>
             ))}
           </nav>
 
@@ -119,10 +126,13 @@ export function SiteHeader() {
 
       <nav id="sp-drawer" ref={drawerRef} className="sp-drawer" aria-label="Menu" data-open={open}>
         {NAV_LINKS.map((l) => (
-          <a key={l.href} href={l.href} onClick={() => close()}>
+          <AnchorLink key={l.href} href={l.href} onClick={() => close()}>
             {l.label}
-          </a>
+          </AnchorLink>
         ))}
+        <Link to="/contato" onClick={() => close()}>
+          Contato
+        </Link>
         <Link to="/login" onClick={() => close()}>
           Acessar o sistema
         </Link>

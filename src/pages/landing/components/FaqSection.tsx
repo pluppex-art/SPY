@@ -1,14 +1,16 @@
 import { rv } from "../reveal";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { CREDITS_COPY } from "../../lp/plansData";
+import { CREDITS_COPY } from "../plansData";
+import { FAQ_EXTRA } from "../content";
 
 const FAQ = [
   ["Os dados da minha empresa ficam separados das outras?", "Sim. O S.P.Y. é multiempresa: cada empresa tem o seu ambiente isolado, e o acesso respeita as permissões de cada usuário."],
   ["Preciso usar todos os módulos?", "Não. Além do CRM e do financeiro, cada empresa liga apenas os módulos do seu segmento: varejo, automotivo, energia solar, imobiliária, clínica ou educação."],
   ["Como funciona a implantação?", "Você começa pelo formulário, contando como vende hoje. A equipe configura o ambiente, liga os módulos e as integrações e libera o acesso da sua equipe. Cada plano tem um valor de implantação, informado na seção Planos."],
   ["O que são créditos de inteligência?", `${CREDITS_COPY.description} Também é possível usar a sua própria API (OpenAI, Google Gemini ou provedores compatíveis).`],
-  ["Com o que o S.P.Y. se integra?", "Com WhatsApp, Google Agenda e Google Tarefas (leitura), além de automações via n8n e webhooks. Tudo é conectado pela Central de Integrações."],
+  ["Com o que o S.P.Y. se integra?", "Com Google Agenda e Google Meet, Google Tarefas (leitura), Kommo, n8n e webhooks, API pública com chave e e-mail por SMTP. O WhatsApp entra por uma integração configurada na implantação."],
+  ...FAQ_EXTRA,
   ["Existe fidelidade? Como é o suporte?", "Não há fidelidade: você cancela quando quiser. O suporte é humano, com acompanhamento ativo da equipe do S.P.Y."],
 ];
 

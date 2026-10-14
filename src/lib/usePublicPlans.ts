@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PLANS, TOKEN_TIERS, type PlanData } from "../pages/lp/plansData";
+import { PLANS, TOKEN_TIERS, type PlanData } from "../pages/landing/plansData";
 
 type ApiPlan = {
   code: string; name: string; priceCents: number; billingInterval?: string; setupPriceCents?: number; tagline?: string;

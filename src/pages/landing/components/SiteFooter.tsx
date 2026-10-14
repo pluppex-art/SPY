@@ -1,7 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Logo } from "../../../components/ui/Logo";
 
 export function SiteFooter() {
+  const { pathname } = useLocation();
+  const A = ({ href, children }: { href: string; children: React.ReactNode }) =>
+    pathname === "/landing" ? <a href={href}>{children}</a> : <Link to={`/landing${href}`}>{children}</Link>;
   return (
     <footer className="sp-footer">
       <div className="sp-wrap">
@@ -13,15 +16,15 @@ export function SiteFooter() {
           <nav aria-label="Navegação do rodapé">
             <h2>Produto</h2>
             <ul>
-              <li><a href="#recursos">O que faz</a></li>
-              <li><a href="#modulos">Módulos</a></li>
-              <li><a href="#aurora">Aurora</a></li>
-              <li><a href="#financeiro">Financeiro</a></li>
-              <li><a href="#integracoes">Integrações e segurança</a></li>
-              <li><a href="#planos">Planos</a></li>
-              <li><a href="#implantacao">Implantação</a></li>
-              <li><a href="#faq">Perguntas frequentes</a></li>
-              <li><a href="#contato">Falar com a equipe</a></li>
+              <li><A href="#recursos">O que faz</A></li>
+              <li><A href="#modulos">Módulos</A></li>
+              <li><A href="#aurora">Aurora</A></li>
+              <li><A href="#financeiro">Financeiro</A></li>
+              <li><A href="#integracoes">Integrações e segurança</A></li>
+              <li><A href="#planos">Planos</A></li>
+              <li><A href="#implantacao">Implantação</A></li>
+              <li><A href="#faq">Perguntas frequentes</A></li>
+              <li><A href="#contato">Falar com a equipe</A></li>
             </ul>
           </nav>
           <nav aria-label="Segmentos">
@@ -40,7 +43,9 @@ export function SiteFooter() {
             <ul>
               <li><Link to="/login">Acessar o sistema</Link></li>
               <li><Link to="/f/spy">Implantar o S.P.Y.</Link></li>
+              <li><Link to="/contato">Contato</Link></li>
               <li><Link to="/privacidade">Política de privacidade</Link></li>
+              <li><Link to="/termos">Termos de uso</Link></li>
             </ul>
           </nav>
         </div>

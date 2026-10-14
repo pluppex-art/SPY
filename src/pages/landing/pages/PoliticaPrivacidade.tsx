@@ -1,11 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
-import { Logo } from "../../components/ui/Logo";
-import { FooterSection } from "./FooterSection";
-import { LpThemeProvider, useLpTheme } from "./theme/LpThemeContext";
-import { FONT_BODY, FONT_DISPLAY } from "./shared";
-import type { LpTheme } from "./theme/LP_THEMES";
+import { InstitutionalPage } from "./InstitutionalPage";
+import type { Sec } from "./InstitutionalPage";
 
 /**
  * Dados da empresa responsável. Preencha quando quiser exibi-los na página —
@@ -18,16 +13,11 @@ const COMPANY = {
 };
 
 const LAST_UPDATE = "6 de outubro de 2026";
-const FONTS_HREF =
-  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@600;700;800;900&display=swap";
-const VALID_THEMES: LpTheme["id"][] = ["blue", "purple", "orange", "green"];
 
-type Block = { type: "p"; text: ReactNode } | { type: "ul"; items: ReactNode[] };
-interface Sec { id: string; title: string; blocks: Block[] }
 
 const contatoTexto = COMPANY.emailPrivacidade
-  ? <>pelo e-mail <a className="underline underline-offset-2 font-semibold" href={`mailto:${COMPANY.emailPrivacidade}`}>{COMPANY.emailPrivacidade}</a> ou pelo formulário de contato do site</>
-  : <>pelo <Link className="underline underline-offset-2 font-semibold" to="/lp#contato">formulário de contato do site</Link></>;
+  ? <>pelo e-mail <a href={`mailto:${COMPANY.emailPrivacidade}`}>{COMPANY.emailPrivacidade}</a> ou pelo formulário de contato do site</>
+  : <>pelo <Link to="/contato">formulário de contato do site</Link></>;
 
 const SECTIONS: Sec[] = [
   {
@@ -172,139 +162,16 @@ const SECTIONS: Sec[] = [
   },
 ];
 
-function usePrivacySeo() {
-  useEffect(() => {
-    const prevTitle = document.title;
-    document.title = "Política de Privacidade — S.P.Y.";
-    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    const created = !meta;
-    if (!meta) { meta = document.createElement("meta"); meta.name = "description"; document.head.appendChild(meta); }
-    const prevDesc = meta.getAttribute("content");
-    meta.setAttribute("content", "Como o S.P.Y. coleta, usa, compartilha e protege dados pessoais, em conformidade com a LGPD, e como exercer seus direitos como titular.");
-    const font = document.createElement("link");
-    font.rel = "stylesheet"; font.href = FONTS_HREF;
-    document.head.appendChild(font);
-    const prevHtml = document.documentElement.style.backgroundColor;
-    const prevBody = document.body.style.backgroundColor;
-    document.documentElement.style.backgroundColor = "#FFFFFF";
-    document.body.style.backgroundColor = "#FFFFFF";
-    window.scrollTo({ top: 0 });
-    return () => {
-      document.title = prevTitle;
-      if (created) meta!.remove(); else if (prevDesc !== null) meta!.setAttribute("content", prevDesc);
-      font.remove();
-      document.documentElement.style.backgroundColor = prevHtml;
-      document.body.style.backgroundColor = prevBody;
-    };
-  }, []);
-}
-
-function Content() {
-  const { theme } = useLpTheme();
-  const [active, setActive] = useState(SECTIONS[0].id);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (visible) setActive(visible.target.id);
-      },
-      { rootMargin: "-90px 0px -65% 0px" }
-    );
-    SECTIONS.forEach((s) => { const el = document.getElementById(s.id); if (el) obs.observe(el); });
-    return () => obs.disconnect();
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-white text-slate-900 antialiased" style={{ fontFamily: FONT_BODY }}>
-      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-slate-200">
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-5 sm:px-8 h-16">
-          <Link to="/lp" className="flex items-center gap-2.5" aria-label="S.P.Y. — página inicial">
-            <Logo variant="full" size={30} color={theme.logoColor} />
-          </Link>
-          <Link to="/lp" className="flex items-center gap-1.5 text-[13px] font-medium text-slate-500 hover:text-slate-900 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Voltar ao site
-          </Link>
-        </div>
-      </header>
-
-      <section className="border-b border-slate-200" style={{ background: `linear-gradient(180deg, ${theme.primaryLight} 0%, #ffffff 100%)` }}>
-        <div className="max-w-6xl mx-auto px-5 sm:px-8 py-14 sm:py-20">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-semibold" style={{ color: theme.primary, background: "#fff", border: `1px solid ${theme.primary}33` }}>
-            <ShieldCheck className="w-4 h-4" /> Privacidade e LGPD
-          </div>
-          <h1 className="mt-5 text-4xl sm:text-5xl font-black tracking-tight" style={{ fontFamily: FONT_DISPLAY }}>
-            Política de Privacidade
-          </h1>
-          <p className="mt-4 max-w-2xl text-base sm:text-lg text-slate-600 leading-relaxed">
-            Transparência sobre quais dados tratamos, por que tratamos e como você mantém o controle sobre eles.
-          </p>
-          <p className="mt-4 text-[13px] text-slate-500">Última atualização: {LAST_UPDATE}</p>
-        </div>
-      </section>
-
-      <div className="max-w-6xl mx-auto px-5 sm:px-8 py-12 grid lg:grid-cols-[260px_minmax(0,1fr)] gap-12">
-        <aside className="hidden lg:block">
-          <nav className="sticky top-24" aria-label="Sumário">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">Nesta página</p>
-            <ul className="space-y-1">
-              {SECTIONS.map((s) => (
-                <li key={s.id}>
-                  <a
-                    href={`#${s.id}`}
-                    onClick={(e) => { e.preventDefault(); document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
-                    className={`block px-3 py-1.5 rounded-lg text-[13px] leading-snug transition-colors ${active === s.id ? "font-semibold" : "text-slate-500 hover:text-slate-900"}`}
-                    style={active === s.id ? { color: theme.primary, background: theme.primaryLight } : undefined}
-                  >
-                    {s.title.replace(/^\d+\.\s*/, "")}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </aside>
-
-        <main className="max-w-3xl">
-          {SECTIONS.map((s) => (
-            <section key={s.id} id={s.id} className="scroll-mt-24 pb-10 mb-10 border-b border-slate-100 last:border-0">
-              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight mb-4" style={{ fontFamily: FONT_DISPLAY }}>{s.title}</h2>
-              <div className="space-y-4 text-[15px] leading-7 text-slate-600">
-                {s.blocks.map((b, i) =>
-                  b.type === "p" ? (
-                    <p key={i}>{b.text}</p>
-                  ) : (
-                    <ul key={i} className="space-y-2.5">
-                      {b.items.map((it, j) => (
-                        <li key={j} className="flex gap-3">
-                          <span className="mt-2.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: theme.primary }} />
-                          <span>{it}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )
-                )}
-              </div>
-            </section>
-          ))}
-        </main>
-      </div>
-
-      <FooterSection />
-    </div>
-  );
-}
 
 export default function PoliticaPrivacidade() {
-  usePrivacySeo();
-  const urlTheme = (() => {
-    try {
-      const p = new URLSearchParams(window.location.search).get("theme");
-      return p && VALID_THEMES.includes(p as LpTheme["id"]) ? (p as LpTheme["id"]) : undefined;
-    } catch { return undefined; }
-  })();
   return (
-    <LpThemeProvider initialTheme={urlTheme}>
-      <Content />
-    </LpThemeProvider>
+    <InstitutionalPage
+      metaTitle="Política de Privacidade — S.P.Y."
+      metaDescription="Como o S.P.Y. coleta, usa, compartilha e protege dados pessoais, em conformidade com a LGPD, e como exercer seus direitos como titular."
+      title="Política de Privacidade"
+      intro="Transparência sobre quais dados tratamos, por que tratamos e como você mantém o controle sobre eles."
+      updated={LAST_UPDATE}
+      sections={SECTIONS}
+    />
   );
 }
