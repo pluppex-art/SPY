@@ -1,5 +1,5 @@
 import { snapshotClearAll } from "../lib/tableCache";
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { supabase, fetchTenants, fetchTenantIdMap, fetchUserProfile, updateTenantModulesInDB } from "../lib/supabase";
 
 export type TenantNiche = "Master" | "Solar" | "Imobiliária" | "Clínica" | "Tecnologia" | "Parceira";
@@ -61,6 +61,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // esteja configurado no ambiente.
 const SPY_SESSION_KEY = "spy_user_session";
 
+// Cliente (tenant) e filial que um master/parceiro escolheu no seletor: guardados por aba
+// (sessionStorage) para sobreviverem ao recarregar a página — sem isso, todo F5 voltava para a
+// empresa do próprio usuário e a tela em que ele estava (de outro cliente) caía num redirecionamento.
+const SPY_OVERRIDE_KEY = "spy_active_override";
+type SavedOverride = { userId: string; tenant: { id: string; name: string } | null; filial: { id: string; name: string } | null };
+
+function readSavedOverride(): SavedOverride | null {
+  try {
+    const raw = sessionStorage.getItem(SPY_OVERRIDE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as SavedOverride;
+    return v && typeof v.userId === "string" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSavedOverride(v: SavedOverride | null) {
+  try {
+    if (v && (v.tenant || v.filial)) sessionStorage.setItem(SPY_OVERRIDE_KEY, JSON.stringify(v));
+    else sessionStorage.removeItem(SPY_OVERRIDE_KEY);
+  } catch { /* storage indisponível */ }
+}
+
 function readSavedSession(): UserSession | null {
   try {
     const raw = sessionStorage.getItem(SPY_SESSION_KEY);
@@ -106,16 +130,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Override de tenant/filial "ativos" — só divergem do tenant/sem-filial do próprio
   // usuário quando um master troca de cliente (switchTenant) ou um admin do tenant
   // troca de filial (switchFilial). Resetados sempre que a sessão muda (login/logout).
-  const [tenantOverride, setTenantOverride] = useState<{ id: string; name: string } | null>(null);
-  const [filialOverride, setFilialOverride] = useState<{ id: string; name: string } | null>(null);
+  // Restaurados do sessionStorage no primeiro render (antes de o usuário carregar) para o app já nascer
+  // no cliente certo; só valem para o mesmo usuário que os gravou (conferido abaixo).
+  const savedOverrideRef = useRef<SavedOverride | null>(readSavedOverride());
+  const [tenantOverride, setTenantOverride] = useState<{ id: string; name: string } | null>(savedOverrideRef.current?.tenant ?? null);
+  const [filialOverride, setFilialOverride] = useState<{ id: string; name: string } | null>(savedOverrideRef.current?.filial ?? null);
+  const sawUserRef = useRef(false);
 
   useEffect(() => {
-    setTenantOverride(null);
-    setFilialOverride(null);
+    if (user?.id) {
+      sawUserRef.current = true;
+      // Sessão de OUTRO usuário (login novo no mesmo navegador): descarta o que sobrou.
+      if (savedOverrideRef.current && savedOverrideRef.current.userId !== user.id) {
+        savedOverrideRef.current = null;
+        setTenantOverride(null);
+        setFilialOverride(null);
+        writeSavedOverride(null);
+      }
+    } else if (sawUserRef.current) {
+      // Logout / sessão encerrada depois de ter existido: limpa tudo.
+      savedOverrideRef.current = null;
+      setTenantOverride(null);
+      setFilialOverride(null);
+      writeSavedOverride(null);
+    }
   }, [user?.id]);
 
-  const activeTenantId = tenantOverride?.id ?? user?.tenantId;
-  const activeTenantName = tenantOverride?.name ?? user?.tenantName;
+  // Sem usuário carregado não existe "cliente ativo" (evita buscar dados de um cliente sem sessão).
+  const activeTenantId = user ? (tenantOverride?.id ?? user.tenantId) : undefined;
+  const activeTenantName = user ? (tenantOverride?.name ?? user.tenantName) : undefined;
   const activeFilialId = filialOverride?.id ?? null;
   const activeFilialName = filialOverride?.name ?? null;
 
@@ -125,13 +168,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // não tem nenhum dos dois papéis.
   const switchTenant = (id: string, name: string) => {
     if (!user?.isMaster && !user?.partnerId) return;
-    setTenantOverride(id === user.tenantId ? null : { id, name });
+    const next = id === user.tenantId ? null : { id, name };
+    setTenantOverride(next);
     setFilialOverride(null);
+    savedOverrideRef.current = { userId: user.id, tenant: next, filial: null };
+    writeSavedOverride(savedOverrideRef.current);
   };
 
   const switchFilial = (filial: { id: string; name: string } | null) => {
     if (!(user?.isMaster || user?.isTenantAdmin)) return;
     setFilialOverride(filial);
+    savedOverrideRef.current = { userId: user!.id, tenant: tenantOverride, filial };
+    writeSavedOverride(savedOverrideRef.current);
   };
 
   // Fonte de verdade da sessão: Supabase Auth (JWT real), não mais localStorage
@@ -217,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     sessionStorage.removeItem(SPY_SESSION_KEY);
+    writeSavedOverride(null);
     // Tokens do Google (GIS) e caches por tenant não devem sobreviver ao logout do SPY.
     try {
       Object.keys(localStorage).filter((k) => k.startsWith("axis_google_token:")).forEach((k) => localStorage.removeItem(k));
