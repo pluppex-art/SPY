@@ -1,16 +1,11 @@
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import type { DocContent } from "./docTypes";
 import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
 import { useDocumentMeta } from "../useDocumentMeta";
 import "../landing.css";
-
-export type Block = { type: "p"; text: ReactNode } | { type: "ul"; items: ReactNode[] };
-export interface Sec {
-  id: string;
-  title: string;
-  blocks: Block[];
-}
 
 /** Moldura das páginas institucionais (mesmo header, footer e tema claro da landing). */
 export function InstitutionalShell({ children }: { children: ReactNode }) {
@@ -26,27 +21,31 @@ export function InstitutionalShell({ children }: { children: ReactNode }) {
   );
 }
 
-/** Documento longo com sumário lateral: política de privacidade, termos de uso. */
-export function InstitutionalPage({
-  metaTitle,
-  metaDescription,
-  title,
-  intro,
-  updated,
-  sections,
-}: {
-  metaTitle: string;
-  metaDescription: string;
-  title: string;
-  intro: string;
-  updated: string;
-  sections: Sec[];
-}) {
+/** Documento longo com sumário lateral: política de privacidade, termos de uso. O texto vem de um módulo de conteúdo sem React (também usado no pré-render estático). */
+export function InstitutionalPage({ doc }: { doc: DocContent }) {
+  const { metaTitle, metaDescription, title, intro, updated, sections } = doc;
+  const navigate = useNavigate();
+  // links internos escritos como <a href="/contato"> navegam pelo router, sem recarregar a página
+  const onBodyClick = (e: MouseEvent<HTMLElement>) => {
+    const a = (e.target as HTMLElement).closest("a");
+    const href = a?.getAttribute("href");
+    if (!a || !href || a.target === "_blank" || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    if (href.startsWith("/") && !href.startsWith("//")) {
+      e.preventDefault();
+      navigate(href);
+    } else if (href.startsWith("#")) {
+      e.preventDefault();
+      document.getElementById(href.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.replaceState(null, "", href);
+    }
+  };
   useDocumentMeta(metaTitle, metaDescription);
   const [active, setActive] = useState(sections[0].id);
 
   useEffect(() => {
-    if (!window.location.hash) window.scrollTo({ top: 0 });
+    const h = window.location.hash.slice(1);
+    if (!h) window.scrollTo({ top: 0 });
+    else window.setTimeout(() => document.getElementById(h)?.scrollIntoView({ block: "start" }), 100);
   }, []);
 
   useEffect(() => {
@@ -95,21 +94,11 @@ export function InstitutionalPage({
           </nav>
         </aside>
 
-        <article className="sp-doc__body">
+        <article className="sp-doc__body" onClick={onBodyClick}>
           {sections.map((s) => (
             <section key={s.id} id={s.id}>
               <h2>{s.title}</h2>
-              {s.blocks.map((b, i) =>
-                b.type === "p" ? (
-                  <p key={i}>{b.text}</p>
-                ) : (
-                  <ul key={i}>
-                    {b.items.map((it, j) => (
-                      <li key={j}>{it}</li>
-                    ))}
-                  </ul>
-                ),
-              )}
+              <div className="sp-doc__rich" dangerouslySetInnerHTML={{ __html: s.html.filter(Boolean).join("") }} />
             </section>
           ))}
         </article>
