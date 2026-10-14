@@ -6,7 +6,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { signIn, requestPasswordReset, verifyMfaAndFinish } from "../../../lib/supabase";
 import { toast } from "sonner";
 import { persistTenantTheme } from "../hooks/useLoginTheme";
-import { DEFAULT_BRAND_COLOR } from "../../../lib/theme";
+import { LOGIN_DEFAULT_COLOR } from "../../../lib/theme";
 
 interface LoginFormProps {
   /** Cor primária do tenant (resolvida pelo useLoginTheme) */
@@ -69,7 +69,7 @@ function FieldInput({
   );
 }
 
-export function LoginForm({ primaryColor = DEFAULT_BRAND_COLOR, onEmailChange }: LoginFormProps) {
+export function LoginForm({ primaryColor = LOGIN_DEFAULT_COLOR, onEmailChange }: LoginFormProps) {
   const [email, setEmail]                   = useState("");
   const [password, setPassword]             = useState("");
   const [showPassword, setShowPassword]     = useState(false);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../../lib/supabase";
 import {
-  DEFAULT_BRAND_COLOR,
+  LOGIN_DEFAULT_COLOR,
   applyThemeColor,
 } from "../../../lib/theme";
 
@@ -48,7 +48,7 @@ function extractHostTokens(host: string): string[] {
 }
 
 export function useLoginTheme(): LoginTheme {
-  const [primaryColor, setPrimaryColor] = useState<string>(DEFAULT_BRAND_COLOR);
+  const [primaryColor, setPrimaryColor] = useState<string>(LOGIN_DEFAULT_COLOR);
   const [tenantName, setTenantName] = useState<string>("");
 
   const [tenants, setTenants] = useState<TenantOption[]>([]);
