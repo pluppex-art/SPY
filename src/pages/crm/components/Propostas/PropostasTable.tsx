@@ -23,6 +23,7 @@ import {
   PropostaEditorWordModal,
   PropostaEditorData,
 } from "../../../../components/ui/modals/crm/PropostaEditorWordModal";
+import { NovaPropostaWizard } from "../../../../components/ui/modals/crm/NovaPropostaWizard";
 
 interface Proposta {
   id: string;
@@ -42,6 +43,8 @@ interface Proposta {
   last_viewed_at?: string | null;
   decisor_nome?: string | null;
   decisor_cargo?: string | null;
+  lead_id?: string | null;
+  [k: string]: any;
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -102,16 +105,21 @@ interface PropostasTableProps {
   onUpdateStatus: (id: string, status: Proposta["status"]) => void;
   onDelete: (id: string) => void | Promise<boolean>;
   updateProposal?: (id: string, updates: any) => Promise<void> | void;
+  /** Recarrega a lista depois que o modal de edição salva/exclui. */
+  onRefetch?: () => void;
 }
 
 // `propostas` já chega paginada/filtrada do servidor (ver
 // src/pages/crm/usePropostasList.ts) — este componente só renderiza a
 // página atual, sem filtrar/paginar de novo no cliente. Busca e filtros
 // ficam na barra unificada de Propostas.tsx, não aqui.
-export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDelete, updateProposal }: PropostasTableProps) {
+export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDelete, updateProposal, onRefetch }: PropostasTableProps) {
   const [editingProposal, setEditingProposal] = useState<PropostaEditorData | null>(null);
   const [isWordModalOpen, setIsWordModalOpen] = useState(false);
-  const { appSettings, contracts } = useData();
+  // Editar proposta = tela única de revisão (NovaPropostaWizard em modo edição).
+  // O editor de cláusulas (Modo Word) só abre por cima, pelo card "Contrato e cláusulas".
+  const [editingRow, setEditingRow] = useState<{ row: Proposta; itens: any[] } | null>(null);
+  const { appSettings, contracts, products, leads } = useData();
   const { activeTenantName } = useAuth();
   const { formatCurrency } = useLocalization();
   const empresaDados = appSettings?.empresa_dados || {};
@@ -278,30 +286,9 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
                         </button>
                       )}
                         <button
-                          onClick={() => {
-                            setEditingProposal({
-                              id: item.id,
-                              cliente: item.cliente,
-                              titulo: item.titulo,
-                              valor: item.valor,
-                              validade: item.validade,
-                              status: item.status,
-                              vendedor: item.vendedor,
-                              conteudo_texto: item.conteudo_texto,
-                              view_token: item.view_token,
-                              decisor_nome: item.decisor_nome,
-                              decisor_cargo: item.decisor_cargo,
-                              itens: itens.map((i) => ({
-                                product_name: i.product_name,
-                                quantidade: i.quantidade,
-                                preco_unitario: i.preco_unitario,
-                                billing_type: i.billing_type,
-                              })),
-                            });
-                            setIsWordModalOpen(true);
-                          }}
-                          title="Visualizar / Editar no Modo Word (Diretrizes e Contrato)"
-                          aria-label="Visualizar / Editar no Modo Word (Diretrizes e Contrato)"
+                          onClick={() => setEditingRow({ row: item, itens })}
+                          title="Editar proposta"
+                          aria-label="Editar proposta"
                           className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors"
                         >
                           <Edit3 className="w-4 h-4" />
@@ -345,12 +332,55 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
             </TableBody>
           </Table>
         )}
+      {editingRow && (() => {
+        const r = editingRow.row;
+        const lead = r.lead_id ? (leads as any[] || []).find((l: any) => l.id === r.lead_id) : null;
+        return (
+          <NovaPropostaWizard
+            isOpen
+            onClose={() => setEditingRow(null)}
+            availableProducts={products || []}
+            existingProposal={r as any}
+            existingItems={editingRow.itens}
+            leadId={r.lead_id || undefined}
+            leadName={lead?.name}
+            companyName={lead?.company || r.cliente}
+            seller={r.vendedor}
+            onDone={() => onRefetch?.()}
+            onEditContract={() => {
+              setEditingProposal({
+                id: r.id,
+                cliente: r.cliente,
+                titulo: r.titulo,
+                valor: r.valor,
+                validade: r.validade,
+                status: r.status,
+                vendedor: r.vendedor,
+                conteudo_texto: r.conteudo_texto,
+                view_token: r.view_token,
+                decisor_nome: r.decisor_nome,
+                decisor_cargo: r.decisor_cargo,
+                itens: editingRow.itens.map((i: any) => ({
+                  product_name: i.product_name,
+                  quantidade: i.quantidade,
+                  preco_unitario: i.preco_unitario,
+                  billing_type: i.billing_type,
+                })),
+              });
+              setIsWordModalOpen(true);
+            }}
+          />
+        );
+      })()}
       <PropostaEditorWordModal
         isOpen={isWordModalOpen}
         onClose={() => setIsWordModalOpen(false)}
         proposalData={editingProposal}
         onSaveProposal={async (updated) => {
           setEditingProposal(updated);
+          // Mantém o card "Contrato e cláusulas" do modal de revisão em dia
+          // (a linha da lista só é recarregada depois) — sem sobrescrita velha.
+          setEditingRow((cur) => cur ? { ...cur, row: { ...cur.row, conteudo_texto: updated.conteudo_texto } } : cur);
           if (updated.id && updateProposal) {
             await updateProposal(updated.id, {
               titulo: updated.titulo,

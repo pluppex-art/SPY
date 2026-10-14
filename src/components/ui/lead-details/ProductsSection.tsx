@@ -146,7 +146,14 @@ export function ProductsSection({
   };
   const isProposalAccepted = existingProposal?.status === "Aceita";
 
+  // "Ver / Editar Proposta" abre a tela única de revisão (NovaPropostaWizard em
+  // modo edição); o editor de cláusulas (Modo Word) abre pelo card "Contrato e cláusulas".
   const handleOpenExistingProposal = () => {
+    if (!existingProposal) return;
+    setIsEditWizardOpen(true);
+  };
+
+  const handleEditContract = () => {
     if (!existingProposal) return;
     setCurrentProposalData({
       id: existingProposal.id,
@@ -490,6 +497,7 @@ export function ProductsSection({
         companyName={companyName}
         seller={seller}
         onDone={handleAddProdutoDone}
+        onEditContract={handleEditContract}
       />
 
       <PropostaEditorWordModal

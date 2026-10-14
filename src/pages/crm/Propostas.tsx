@@ -354,6 +354,7 @@ export default function Propostas() {
               }
               return ok;
             }}
+            onRefetch={refetchPropostas}
             updateProposal={async (id, updates) => {
               await updateProposal(id, updates);
               refetchPropostas();

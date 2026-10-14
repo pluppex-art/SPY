@@ -89,19 +89,26 @@ interface NovaPropostaWizardProps {
     condicoes?: Record<string, any> | null; pagamento?: Record<string, any> | null;
     equipe_interna?: { id: string; nome: string }[] | null; tags?: string[] | null;
     view_token?: string | null; view_count?: number | null;
+    /** Só leitura (card "Contrato e cláusulas"): o wizard NUNCA grava este campo. */
+    conteudo_texto?: string | null;
   } | null;
   existingItems?: any[];
   onDone?: (summary: string) => void;
+  /** Modo edição: abre o editor de cláusulas/contrato (Modo Word) por cima desta tela. */
+  onEditContract?: () => void;
 }
 
 export function NovaPropostaWizard({
   isOpen, onClose, leadId, leadName, companyName, seller, availableProducts,
-  initialProductIds, existingProposal, existingItems, onDone,
+  initialProductIds, existingProposal, existingItems, onDone, onEditContract,
 }: NovaPropostaWizardProps) {
   const { clienteBase, colaboradores, leads, contracts, createProposalWithItems, updateProposal, replaceProposalItems, deleteProposal, updateLead } = useData();
   const { formatCurrency } = useLocalization();
 
   const [step, setStep] = useState(1);
+  // Modo edição = tela única de revisão (sem stepper): o `step` 1-4 vira só o
+  // "painel da seção" aberto pelo lápis do card; 5 = revisão.
+  const isEdit = !!existingProposal;
 
   // ── Etapa 1: Contexto ──────────────────────────────────────────────────────
   const [clienteSearch, setClienteSearch] = useState("");
@@ -515,16 +522,22 @@ export function NovaPropostaWizard({
                 Propostas <span className="mx-1">›</span> {existingProposal ? "Editar proposta" : "Nova proposta"}
               </p>
               <h2 className="text-xl font-black text-[var(--color-text-primary)]">
-                {step === 5 ? (existingProposal ? "Revisar e salvar proposta" : "Revisar e enviar proposta") : (existingProposal ? "Editar Proposta Comercial" : "Nova Proposta Comercial")}
+                {isEdit && step < 5 ? `Editar: ${SECTION_LABEL[step]}` : step === 5 ? (existingProposal ? "Revisar e salvar proposta" : "Revisar e enviar proposta") : "Nova Proposta Comercial"}
               </h2>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                {step === 5
+                {isEdit && step < 5
+                  ? "Ajuste os campos e volte à revisão — o resumo financeiro atualiza na hora."
+                  : step === 5
                   ? (existingProposal ? "Confira as alterações antes de salvar." : "Confira todas as informações antes de enviar para o cliente.")
                   : (existingProposal ? "Ajuste as informações desta proposta." : "Crie uma proposta comercial completa para o seu cliente.")}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {step > 1 && (
+              {isEdit ? (step < 5 && (
+                <Button variant="outline" className="h-9 px-3 text-xs" onClick={() => setStep(5)}>
+                  ← Voltar à revisão
+                </Button>
+              )) : step > 1 && (
                 <Button variant="outline" className="h-9 px-3 text-xs" onClick={() => setStep((s) => Math.max(1, s - 1))}>
                   ← Voltar
                 </Button>
@@ -548,8 +561,8 @@ export function NovaPropostaWizard({
             </div>
           </div>
 
-          {/* Stepper horizontal */}
-          <div className="flex items-center mt-5">
+          {/* Stepper horizontal (só no fluxo de criação) */}
+          {!isEdit && <div className="flex items-center mt-5">
             {STEP_DEFS.map((s, idx) => {
               const isDone = step > s.n;
               const isActive = step === s.n;
@@ -580,7 +593,7 @@ export function NovaPropostaWizard({
                 </div>
               );
             })}
-          </div>
+          </div>}
         </div>
 
         {/* Body */}
@@ -657,6 +670,9 @@ export function NovaPropostaWizard({
               dataVencimentoEntrada={dataVencimentoEntrada} diaDoMes={diaDoMes}
               primeiroCiclo={primeiroCiclo} totalEmNMeses={totalEmNMeses}
               setStep={setStep}
+              isEdit={isEdit}
+              conteudoTexto={existingProposal?.conteudo_texto}
+              onEditContract={onEditContract}
               formatCurrency={formatCurrency}
             />
           )}
@@ -664,11 +680,11 @@ export function NovaPropostaWizard({
 
         {/* Footer */}
         <div className="shrink-0 px-6 py-4 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/40 flex items-center justify-between">
-          <Button variant="outline" className="h-9 px-4 text-xs" onClick={() => step > 1 ? setStep((s) => s - 1) : onClose()}>
-            ← Voltar
+          <Button variant="outline" className="h-9 px-4 text-xs" onClick={() => isEdit ? (step < 5 ? setStep(5) : onClose()) : (step > 1 ? setStep((s) => s - 1) : onClose())}>
+            {isEdit ? (step < 5 ? "← Voltar à revisão" : "Fechar") : "← Voltar"}
           </Button>
           <div className="flex items-center gap-2">
-            {step === 5 ? (
+            {step === 5 || isEdit ? (
               <>
                 {!existingProposal && (
                   <Button variant="outline" className="h-9 px-4 text-xs gap-1.5" disabled={saving} onClick={() => handleSave("Rascunho")}>
@@ -1201,6 +1217,8 @@ function StepPagamento(props: any) {
   );
 }
 
+const SECTION_LABEL: Record<number, string> = { 1: "Cliente e oportunidade", 2: "Itens da proposta", 3: "Condições comerciais", 4: "Pagamento" };
+
 // ─── Etapa 5: Revisão ───────────────────────────────────────────────────────
 
 function StepRevisao(props: any) {
@@ -1210,6 +1228,7 @@ function StepRevisao(props: any) {
     validadeDias, prazoImplantacao, prazoContratoMeses, renovacaoAutomatica, reajusteIndice, reajustePeriodicidade,
     formaPagamento, metodosPagamento, entradaValor, numeroParcelas, parcelaValor, primeiroVencimentoParcela,
     dataVencimentoEntrada, diaDoMes, primeiroCiclo, totalEmNMeses, setStep, formatCurrency,
+    isEdit, conteudoTexto, onEditContract,
   } = props;
 
   const clientName = cliente?.name || clienteSearch || companyName || "—";
@@ -1260,6 +1279,21 @@ function StepRevisao(props: any) {
             <SummaryRow label="Métodos de pagamento" value={metodosPagamento.join(", ") || "—"} />
           </SectionCard>
         </div>
+
+        {isEdit && (
+          <SectionCard icon={FileText} title="Contrato e cláusulas" onEdit={onEditContract}>
+            {conteudoTexto && String(conteudoTexto).trim() ? (
+              <>
+                <p className="text-xs text-[var(--color-text-secondary)] line-clamp-3 whitespace-pre-line">
+                  {String(conteudoTexto).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 240)}
+                </p>
+                <p className="text-[10px] text-[var(--color-text-faint)] mt-1.5">{String(conteudoTexto).length.toLocaleString("pt-BR")} caracteres</p>
+              </>
+            ) : (
+              <p className="text-xs text-[var(--color-text-secondary)]">Modelo padrão</p>
+            )}
+          </SectionCard>
+        )}
       </div>
 
       <div>
