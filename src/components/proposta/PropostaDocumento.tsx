@@ -440,7 +440,7 @@ export function PropostaDocumento({
             )}
           </div>
 
-          <div className="text-left sm:text-right space-y-1 text-xs text-[var(--color-text-muted)]">
+          <div className="text-left sm:text-right space-y-1 text-xs text-[var(--color-text-muted)] sm:shrink-0 sm:whitespace-nowrap">
             <p>
               Emissão:{" "}
               <span className="font-semibold text-[var(--color-text-primary)]">{formatDate(proposta.criadaEm)}</span>

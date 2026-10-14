@@ -3,11 +3,13 @@ import { Card } from "../card";
 import { Button } from "../button";
 import { Badge } from "../badge";
 import { EmptyState } from "../empty-state";
-import { FileText, Plus, Pencil, Edit3, Check, Package, Search, Tag, X, Info, FilePlus2, Trash2 } from "lucide-react";
+import { FileText, Plus, Pencil, Eye, Download, Check, Package, Search, Tag, X, Info, FilePlus2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
-import { handleDownloadPdf } from "../../../pages/crm/utils/proposalPdf";
+import { downloadPropostaClientePdf, propostaParaDocumento } from "../../../pages/crm/utils/proposalClientPdf";
+import { usePropostaBranding } from "../../proposta/usePropostaBranding";
+import { PropostaClienteViewModal } from "../modals/crm/PropostaClienteViewModal";
 import { PropostaEditorWordModal, PropostaEditorData } from "../modals/crm/PropostaEditorWordModal";
 import { AddProdutoLeadModal } from "../modals/crm/AddProdutoLeadModal";
 import { NovaPropostaWizard } from "../modals/crm/NovaPropostaWizard";
@@ -54,6 +56,8 @@ export function ProductsSection({
   // produto único, "+ Novo Produto" rápido — não o lápis, ver acima).
   const [editingExistingProposal, setEditingExistingProposal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const branding = usePropostaBranding();
+  const [isClientViewOpen, setIsClientViewOpen] = useState(false);
   const [isWordModalOpen, setIsWordModalOpen] = useState(false);
   const [currentProposalData, setCurrentProposalData] = useState<PropostaEditorData | null>(null);
 
@@ -146,12 +150,13 @@ export function ProductsSection({
   };
   const isProposalAccepted = existingProposal?.status === "Aceita";
 
-  // "Ver / Editar Proposta" abre a tela única de revisão (NovaPropostaWizard em
-  // modo edição); o editor de cláusulas (Modo Word) abre pelo card "Contrato e cláusulas".
-  const handleOpenExistingProposal = () => {
-    if (!existingProposal) return;
-    setIsEditWizardOpen(true);
-  };
+  // Documento do cliente (mesma fonte do modo cliente / PDF). Se `valor` veio 0/vazio,
+  // mostra a soma dos itens (regra recorrente) — só exibição, nada é gravado.
+  const clientDoc = useMemo(
+    () => (existingProposal ? propostaParaDocumento(existingProposal, existingProposalItems, seller) : null),
+    [existingProposal, existingProposalItems, seller]
+  );
+  const displayTotal = clientDoc?.data.valor || 0;
 
   const handleEditContract = () => {
     if (!existingProposal) return;
@@ -178,25 +183,8 @@ export function ProductsSection({
   };
 
   const handleDownloadExistingProposalPdf = () => {
-    if (!existingProposal) return;
-    handleDownloadPdf(
-      {
-        id: existingProposal.id,
-        cliente: existingProposal.cliente,
-        titulo: existingProposal.titulo,
-        valor: existingProposal.valor,
-        validade: existingProposal.validade,
-        vendedor: existingProposal.vendedor || seller || "Consultor S.P.Y.",
-        status: existingProposal.status || "Aceita",
-      },
-      existingProposalItems.map((p: any) => ({
-        product_name: p.product_name,
-        quantidade: p.quantidade,
-        preco_unitario: p.preco_unitario,
-      })),
-      { logoUrl: empresaDadosBranding?.logoUrl }
-    );
-    toast.success("PDF da proposta gerado com sucesso!");
+    if (!clientDoc) return;
+    void downloadPropostaClientePdf(clientDoc.data, clientDoc.itens, branding);
   };
 
   // Pedido explícito do usuário: lixeira direto neste card tambem, não só
@@ -247,6 +235,7 @@ export function ProductsSection({
                 type="button"
                 onClick={() => setIsEditWizardOpen(true)}
                 title="Editar proposta"
+                aria-label="Editar proposta"
                 className="p-1.5 rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 transition-colors"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -254,45 +243,47 @@ export function ProductsSection({
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-3">
             <div className="min-w-0">
-              <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{existingProposal.titulo}</p>
-              <p className="text-[10px] text-[var(--color-text-faint)] mt-0.5">
+              <p className="text-sm font-bold leading-snug text-[var(--color-text-primary)] break-words">{existingProposal.titulo}</p>
+              <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
                 {existingProposalItems.length} {existingProposalItems.length === 1 ? "item" : "itens"}
                 {existingProposal.validade && (
                   <> · Válida até {new Date(existingProposal.validade + "T12:00:00").toLocaleDateString("pt-BR")}</>
                 )}
               </p>
             </div>
-            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-              <span className="text-sm font-mono font-black text-success">
-                {formatCurrency(existingProposal.valor || 0)}
-              </span>
+            <div className="flex items-baseline justify-between gap-3 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] px-3 py-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Total da proposta</span>
+              <span className="text-base font-mono font-black text-success">{formatCurrency(displayTotal)}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleOpenExistingProposal}
-                className="h-8 text-xs font-bold gap-1.5 border-success/30 hover:bg-success/10 text-success cursor-pointer"
+                onClick={() => setIsClientViewOpen(true)}
+                className="h-9 text-xs font-bold gap-1.5 border-success/30 hover:bg-success/10 text-success cursor-pointer"
               >
-                <Edit3 className="w-3.5 h-3.5" /> Ver / Editar Proposta
+                <Eye className="w-4 h-4" /> Ver como cliente
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleDownloadExistingProposalPdf}
-                className="h-8 text-xs font-bold gap-1.5 border-[var(--color-primary-blue)]/30 hover:bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] cursor-pointer"
+                className="h-9 text-xs font-bold gap-1.5 border-[var(--color-primary-blue)]/30 hover:bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] cursor-pointer"
               >
-                <FileText className="w-3.5 h-3.5" /> Baixar PDF
+                <Download className="w-4 h-4" /> Baixar PDF
               </Button>
               <button
                 type="button"
                 onClick={handleDeleteExistingProposal}
                 title="Excluir proposta"
-                className="h-8 w-8 flex items-center justify-center rounded-lg border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 hover:border-danger/30 transition-colors cursor-pointer shrink-0"
+                aria-label="Excluir proposta"
+                className="h-9 w-9 ml-auto flex items-center justify-center rounded-lg border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 hover:border-danger/30 transition-colors cursor-pointer shrink-0"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -306,22 +297,39 @@ export function ProductsSection({
             </div>
           )}
 
-          {isProposalAccepted && existingProposalItems.length > 0 && (
-            <div className="space-y-1.5 pt-1 border-t border-[var(--color-border-subtle)]">
-              <span className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] block">Itens da Proposta Aprovada:</span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto scrollbar-thin">
-                {existingProposalItems.map((item: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)]">
-                    <span className="text-[var(--color-text-primary)] font-medium truncate text-[11px]">{item.product_name}</span>
-                    <span className="font-mono text-success text-[11px] font-bold shrink-0 ml-2">
-                      {item.quantidade}x {formatCurrency(item.preco_unitario)}
-                    </span>
-                  </div>
-                ))}
+          {existingProposalItems.length > 0 && (
+            <div className="space-y-1.5 pt-2 border-t border-[var(--color-border-subtle)]">
+              <span className="text-[10px] uppercase font-bold tracking-wide text-[var(--color-text-faint)] block">
+                {isProposalAccepted ? "Itens da proposta aprovada" : "Itens da proposta"}
+              </span>
+              <div className="space-y-1.5 max-h-[260px] overflow-y-auto scrollbar-thin">
+                {existingProposalItems.map((item: any, idx: number) => {
+                  const recorrente = !!item.billing_type && item.billing_type !== "one_time";
+                  return (
+                    <div key={idx} className="flex items-start justify-between gap-3 text-xs py-2 px-2.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)]">
+                      <span className="text-[var(--color-text-primary)] font-medium text-xs leading-snug break-words min-w-0">{item.product_name}</span>
+                      <span className="font-mono text-success text-[11px] font-bold shrink-0 text-right whitespace-nowrap">
+                        {recorrente
+                          ? `1x ${formatCurrency(item.preco_unitario)}/ciclo`
+                          : `${item.quantidade}x ${formatCurrency(item.preco_unitario)}`}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
         </Card>
+      )}
+
+      {clientDoc && (
+        <PropostaClienteViewModal
+          isOpen={isClientViewOpen}
+          onClose={() => setIsClientViewOpen(false)}
+          data={clientDoc.data}
+          itens={clientDoc.itens}
+          viewToken={existingProposal?.view_token}
+        />
       )}
 
       <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-2.5">

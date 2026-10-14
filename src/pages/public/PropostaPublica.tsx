@@ -13,7 +13,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { fetchPublicProposal, acceptPublicProposal, PublicProposal } from "../../lib/publicProposal";
-import { handleDownloadPdf } from "../crm/utils/proposalPdf";
+import { downloadPropostaClientePdf } from "../crm/utils/proposalClientPdf";
 import { toast } from "sonner";
 import { PropostaDocumento } from "../../components/proposta/PropostaDocumento";
 
@@ -115,27 +115,21 @@ export default function PropostaPublica() {
   };
 
   const handleDownloadDocPdf = () => {
-    handleDownloadPdf(
+    void downloadPropostaClientePdf(
       {
-        id: `prop-${token?.slice(0, 8) || "public"}`,
-        cliente: proposta.cliente || "Cliente",
+        id: `${token?.slice(0, 8) || "public"}`,
         titulo: proposta.titulo,
-        valor: proposta.valor || 0,
+        cliente: proposta.cliente || "Cliente",
+        valor: proposta.valor,
+        status: isAccepted ? "Aceita" : proposta.status,
+        validade: proposta.validade,
+        conteudoTexto: proposta.conteudoTexto,
+        criadaEm: proposta.criadaEm,
         vendedor: proposta.vendedor || tenantName,
-        validade: proposta.validade || undefined,
-        status: isAccepted ? "Aceita" : (proposta.status as any) || "Enviada",
-        tipo: "texto",
-        conteudo_texto: proposta.conteudoTexto,
       },
-      proposta.itens?.map((i) => ({
-        product_name: i.productName,
-        quantidade: i.quantidade,
-        preco_unitario: i.precoUnitario,
-        billing_type: i.billingType ?? null,
-      })) || [],
-      { logoUrl: proposta.empresaDados?.logoUrl, tenantName }
+      proposta.itens || [],
+      { brandColor, tenantName, empresaDados: proposta.empresaDados, logoUrl: proposta.empresaDados?.logoUrl }
     );
-    toast.success("PDF do documento gerado com sucesso!");
   };
 
   return (

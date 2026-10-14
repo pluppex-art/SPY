@@ -10,10 +10,12 @@ import {
   TableCell,
 } from "../../../../components/ui/table";
 import {
-  FileText, Clock, CheckCircle2, XCircle, Download, Trash2, History, Send, Link2, Eye, Edit3,
+  FileText, Clock, CheckCircle2, XCircle, Download, Trash2, History, Send, Link2, Eye, Edit3, ScanEye,
 } from "lucide-react";
 import { toast } from "sonner";
-import { handleDownloadPdf } from "../../utils/proposalPdf";
+import { downloadPropostaClientePdf, propostaParaDocumento } from "../../utils/proposalClientPdf";
+import { usePropostaBranding } from "../../../../components/proposta/usePropostaBranding";
+import { PropostaClienteViewModal } from "../../../../components/ui/modals/crm/PropostaClienteViewModal";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
@@ -123,6 +125,8 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
   const { activeTenantName } = useAuth();
   const { formatCurrency } = useLocalization();
   const empresaDados = appSettings?.empresa_dados || {};
+  const branding = usePropostaBranding();
+  const [viewingRow, setViewingRow] = useState<{ row: Proposta; itens: any[] } | null>(null);
 
   const paged = propostas;
 
@@ -286,6 +290,14 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
                         </button>
                       )}
                         <button
+                          onClick={() => setViewingRow({ row: item, itens })}
+                          title="Ver como cliente"
+                          aria-label="Ver como cliente"
+                          className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-success hover:bg-success/10 rounded-lg transition-colors"
+                        >
+                          <ScanEye className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => setEditingRow({ row: item, itens })}
                           title="Editar proposta"
                           aria-label="Editar proposta"
@@ -296,8 +308,11 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
                         <button
                           onClick={() => item.tipo === "arquivo" && item.link_pdf
                             ? window.open(item.link_pdf, "_blank", "noopener,noreferrer")
-                            : handleDownloadPdf(item as any, itens, { logoUrl: empresaDados?.logoUrl, tenantName: activeTenantName })}
-                          title={item.tipo === "arquivo" ? "Abrir Arquivo Anexado" : "Baixar Contrato (PDF)"}
+                            : (() => {
+                                const doc = propostaParaDocumento(item, itens);
+                                void downloadPropostaClientePdf(doc.data, doc.itens, branding);
+                              })()}
+                          title={item.tipo === "arquivo" ? "Abrir Arquivo Anexado" : "Baixar Proposta (PDF)"}
                           className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors"
                         >
                           <Download className="w-4 h-4" />
@@ -332,6 +347,18 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
             </TableBody>
           </Table>
         )}
+      {viewingRow && (() => {
+        const doc = propostaParaDocumento(viewingRow.row, viewingRow.itens);
+        return (
+          <PropostaClienteViewModal
+            isOpen
+            onClose={() => setViewingRow(null)}
+            data={doc.data}
+            itens={doc.itens}
+            viewToken={(viewingRow.row as any).view_token}
+          />
+        );
+      })()}
       {editingRow && (() => {
         const r = editingRow.row;
         const lead = r.lead_id ? (leads as any[] || []).find((l: any) => l.id === r.lead_id) : null;

@@ -17,7 +17,7 @@ import { Button } from "../../button";
 import { toast } from "sonner";
 import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
-import { handleDownloadPdf } from "../../../../pages/crm/utils/proposalPdf";
+import { downloadPropostaClientePdf } from "../../../../pages/crm/utils/proposalClientPdf";
 import { cn } from "../../../../lib/utils";
 import { PropostaDocumento } from "../../../proposta/PropostaDocumento";
 
@@ -245,22 +245,28 @@ export function PropostaEditorWordModal({
   };
 
   const handleExportPdf = () => {
-    handleDownloadPdf(
+    void downloadPropostaClientePdf(
       {
-        id: proposalData.id || `prop-${Date.now()}`,
-        cliente,
+        id: proposalData.id || null,
         titulo,
+        cliente,
         valor,
+        status,
+        validade: validade || null,
+        conteudoTexto: conteudoTexto,
+        criadaEm: emissao,
         vendedor,
-        validade: validade || undefined,
-        status: (status as any) || "Enviada",
-        tipo: "texto",
-        conteudo_texto: conteudoTexto,
+        decisorNome,
+        decisorCargo,
       },
-      itens,
-      { logoUrl: empresaDados?.logoUrl, tenantName }
+      itens.map((i) => ({
+        productName: i.product_name,
+        quantidade: i.quantidade,
+        precoUnitario: i.preco_unitario,
+        billingType: i.billing_type,
+      })),
+      { brandColor, tenantName, empresaDados, logoUrl: empresaDados?.logoUrl }
     );
-    toast.success("PDF da Proposta gerado com sucesso!");
   };
 
   return (
