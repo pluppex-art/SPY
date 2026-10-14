@@ -1,3 +1,4 @@
+import { rv } from "../reveal";
 import { ProductShot } from "./ProductShot";
 import {
   Columns3,
@@ -58,17 +59,17 @@ export function CapabilitiesSection() {
   return (
     <section id="recursos" className="sp-section" aria-labelledby="sp-recursos-title">
       <div className="sp-wrap">
-        <h2 id="sp-recursos-title" className="sp-h2">
+        <h2 id="sp-recursos-title" className="sp-h2" {...rv()}>
           O ciclo comercial inteiro, ligado de ponta a ponta.
         </h2>
-        <p className="sp-lede">
+        <p className="sp-lede" {...rv(1)}>
           Vendas, atendimento e financeiro compartilham a mesma base de dados. O que acontece no pipeline chega ao
           financeiro sem digitar duas vezes.
         </p>
 
         <ol className="sp-flow" aria-label="Ciclo comercial">
-          {FLOW.map(([name, text]) => (
-            <li key={name}>
+          {FLOW.map(([name, text], i) => (
+            <li key={name} {...rv(i)}>
               <strong>{name}</strong>
               <span>{text}</span>
             </li>
@@ -76,8 +77,8 @@ export function CapabilitiesSection() {
         </ol>
 
         <div className="sp-groups">
-          {GROUPS.map((g) => (
-            <div className="sp-group" key={g.title}>
+          {GROUPS.map((g, i) => (
+            <div className="sp-group" key={g.title} {...rv(i)}>
               <h3>{g.title}</h3>
               <p>{g.intro}</p>
               <dl>

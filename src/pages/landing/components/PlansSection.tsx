@@ -1,3 +1,4 @@
+import { rv } from "../reveal";
 import { Link } from "react-router-dom";
 import { Check, Star, ArrowRight } from "lucide-react";
 import { PLANS, TOKEN_TIERS, CREDITS_COPY } from "../../lp/plansData";
@@ -6,14 +7,15 @@ export function PlansSection() {
   return (
     <section id="planos" className="sp-section sp-band" aria-labelledby="sp-planos-title">
       <div className="sp-wrap">
-        <h2 id="sp-planos-title" className="sp-h2">
+        <h2 id="sp-planos-title" className="sp-h2" {...rv()}>
           Escolha o nível de autonomia da sua operação.
         </h2>
-        <p className="sp-lede">Encontra, entende e age sobre oportunidades de vendas. Valores mensais, mais a implantação de cada plano.</p>
+        <p className="sp-lede" {...rv(1)}>Encontra, entende e age sobre oportunidades de vendas. Valores mensais, mais a implantação de cada plano.</p>
 
         <div className="sp-plans">
-          {PLANS.map((p) => (
-            <article key={p.id} className={`sp-plan${p.highlight ? " sp-plan--hl" : ""}`} aria-labelledby={`sp-plan-${p.id}`}>
+          {PLANS.map((p, i) => (
+            <div key={p.id} {...rv(i)}>
+            <article className={`sp-plan${p.highlight ? " sp-plan--hl" : ""}`} aria-labelledby={`sp-plan-${p.id}`}>
               {p.badgeTop && (
                 <span className="sp-plan__badge">
                   <Star size={14} strokeWidth={1.75} aria-hidden="true" />
@@ -44,10 +46,11 @@ export function PlansSection() {
                 <ArrowRight size={18} strokeWidth={1.75} aria-hidden="true" />
               </Link>
             </article>
+            </div>
           ))}
         </div>
 
-        <div className="sp-credits">
+        <div className="sp-credits" {...rv()}>
           <div>
             <h3>{CREDITS_COPY.title}</h3>
             <p>{CREDITS_COPY.description}</p>

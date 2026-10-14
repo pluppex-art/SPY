@@ -1,3 +1,4 @@
+import { rv } from "../reveal";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { CREDITS_COPY } from "../../lp/plansData";
@@ -17,14 +18,14 @@ export function FaqSection() {
   return (
     <section id="faq" className="sp-section" aria-labelledby="sp-faq-title">
       <div className="sp-wrap">
-        <h2 id="sp-faq-title" className="sp-h2">
+        <h2 id="sp-faq-title" className="sp-h2" {...rv()}>
           Perguntas frequentes.
         </h2>
         <div className="sp-faq">
           {FAQ.map(([q, a], i) => {
             const isOpen = open === i;
             return (
-              <div className="sp-faq__item" key={q}>
+              <div className="sp-faq__item" key={q} {...rv(i)}>
                 <h3 style={{ font: "inherit" }}>
                   <button
                     type="button"
@@ -38,8 +39,10 @@ export function FaqSection() {
                     <ChevronDown size={20} strokeWidth={1.75} aria-hidden="true" />
                   </button>
                 </h3>
-                <div id={`sp-faq-a-${i}`} role="region" aria-labelledby={`sp-faq-q-${i}`} hidden={!isOpen}>
-                  <p className="sp-faq__a">{a}</p>
+                <div className="sp-faq__panel" data-open={isOpen} id={`sp-faq-a-${i}`} role="region" aria-labelledby={`sp-faq-q-${i}`}>
+                  <div>
+                    <p className="sp-faq__a">{a}</p>
+                  </div>
                 </div>
               </div>
             );

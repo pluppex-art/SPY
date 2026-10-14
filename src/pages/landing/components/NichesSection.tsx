@@ -1,3 +1,4 @@
+import { rv } from "../reveal";
 import { Link } from "react-router-dom";
 import { ShoppingCart, Car, Sun, Building2, Stethoscope, GraduationCap, ArrowRight } from "lucide-react";
 
@@ -14,17 +15,17 @@ export function NichesSection() {
   return (
     <section id="nichos" className="sp-section" aria-labelledby="sp-nichos-title">
       <div className="sp-wrap">
-        <h2 id="sp-nichos-title" className="sp-h2">
+        <h2 id="sp-nichos-title" className="sp-h2" {...rv()}>
           Módulos prontos para o seu segmento.
         </h2>
-        <p className="sp-lede">
+        <p className="sp-lede" {...rv(1)}>
           Além do CRM e do financeiro, cada empresa liga os módulos do seu nicho. Cada link abaixo abre o formulário de
           contato daquele segmento.
         </p>
 
         <div className="sp-niches">
-          {NICHES.map(({ icon: Icon, name, to, mods, text }) => (
-            <article className="sp-niche" key={name}>
+          {NICHES.map(({ icon: Icon, name, to, mods, text }, i) => (
+            <article className="sp-niche" key={name} {...rv(i)}>
               <h3>
                 <Icon size={22} strokeWidth={1.75} aria-hidden="true" />
                 {name}

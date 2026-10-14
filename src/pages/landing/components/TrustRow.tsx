@@ -1,3 +1,4 @@
+import { rv } from "../reveal";
 import { ShieldCheck, PlugZap, Blocks, CalendarX2 } from "lucide-react";
 
 const ITEMS = [
@@ -12,8 +13,8 @@ export function TrustRow() {
     <div className="sp-trust">
       <div className="sp-wrap">
         <ul aria-label="Pontos de confiança">
-          {ITEMS.map(([Icon, text]) => (
-            <li key={text}>
+          {ITEMS.map(([Icon, text], i) => (
+            <li key={text} {...rv(i)}>
               <Icon size={22} strokeWidth={1.75} aria-hidden="true" />
               {text}
             </li>
