@@ -1,16 +1,10 @@
 import { ProductShot } from "./ProductShot";
 import { AuroraChat } from "./AuroraChat";
 import { rv } from "../reveal";
-import { MessageSquareText, ClipboardCheck, Headphones, UserRoundCheck, ShieldCheck, Route } from "lucide-react";
+import { MessageSquareText, UserRoundCheck, ClipboardCheck, Newspaper, ShieldCheck, Gauge } from "lucide-react";
+import { AURORA_CAPS } from "../content";
 
-const CAPS = [
-  [MessageSquareText, "Chat com a sua operação", "Pergunte em linguagem natural sobre agenda, tarefas e pipeline."],
-  [UserRoundCheck, "Copiloto do lead", "Apoio ao vendedor na qualificação e na próxima ação de cada lead."],
-  [ClipboardCheck, "Auditoria de pipeline e performance", "Revisa o funil e o desempenho do time e aponta o que merece atenção."],
-  [Headphones, "Análise de calls", "Apoio na leitura das ligações comerciais."],
-  [Route, "Rodízio de leads de formulário", "Distribuição automática entre os vendedores, via automação com n8n."],
-  [ShieldCheck, "Auditoria de configurações", "Confere o ambiente do tenant e sugere ajustes."],
-] as const;
+const CAP_ICONS = [MessageSquareText, UserRoundCheck, ClipboardCheck, Newspaper, ShieldCheck, Gauge];
 
 export function NeuralSection() {
   return (
@@ -21,30 +15,29 @@ export function NeuralSection() {
             Aurora, a assistente de IA que conhece o seu CRM.
           </h2>
           <p className="sp-lede" {...rv(1)}>
-            Ela consulta os dados do seu ambiente e respeita as permissões de quem pergunta. Você escolhe quais agentes
-            ficam ligados em cada empresa.
+            A Aurora responde com os dados do seu ambiente: pipeline, reuniões, tarefas, financeiro, propostas, clientes e produtos. Pergunte em linguagem natural.
           </p>
           <ul className="sp-aurora__list">
-            {CAPS.map(([Icon, title, text], i) => (
+            {AURORA_CAPS.map(([title, text], i) => {
+              const Icon = CAP_ICONS[i];
+              return (
               <li key={title} {...rv(i + 2)}>
                 <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
                 <strong>{title}</strong>
                 <span>{text}</span>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
 
-        <ProductShot
-          slot="aurora"
-          alt="Conversa com a Aurora, assistente de IA do S.P.Y."
-          fallback={
-            <figure style={{ margin: 0 }} {...rv(1)}>
-              <AuroraChat />
-              <figcaption className="sp-caption">Exemplo ilustrativo. Agenda e tarefas aparecem quando o Google está conectado.</figcaption>
-            </figure>
-          }
-        />
+        <div className="sp-aurora__visual">
+          <ProductShot slot="aurora" alt="Tela da Aurora, assistente de IA do S.P.Y., respondendo perguntas sobre a operação" />
+          <figure style={{ margin: 0 }} {...rv(1)}>
+            <AuroraChat />
+            <figcaption className="sp-caption">Exemplo ilustrativo de conversa. Agenda e tarefas aparecem quando o Google está conectado.</figcaption>
+          </figure>
+        </div>
       </div>
     </section>
   );

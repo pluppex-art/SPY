@@ -23,11 +23,11 @@ export function HeroSection() {
       <div className="sp-wrap sp-hero__grid">
         <div>
           <motion.h1 id="sp-hero-title" {...item(0)}>
-            Do lead ao financeiro, em um só sistema.
+            <span className="sp-nowrap">Do lead ao financeiro,</span> <span className="sp-nowrap">em um só sistema.</span>
           </motion.h1>
           <motion.p className="sp-hero__sub" {...item(1)}>
-            O S.P.Y. é o CRM e ERP para pequenas e médias empresas: pipeline de vendas, propostas, contratos,
-            contas a pagar e a receber, e a Aurora, assistente de IA que trabalha com os dados da sua operação.
+            O S.P.Y. é o CRM e ERP para pequenas e médias empresas. Reúne pipeline de vendas, propostas,
+            contratos e financeiro, e conta com a Aurora, uma assistente de IA que trabalha com os dados da sua operação.
           </motion.p>
           <motion.div className="sp-hero__actions" {...item(2)}>
             <Link to="/f/spy" className="sp-btn sp-btn--primary">
@@ -56,10 +56,10 @@ export function HeroSection() {
           <ProductShot
             slot="pipeline"
             eager
-            alt="Tela de Leads e Pipeline do S.P.Y."
+            alt="Tela de Leads e Pipeline do S.P.Y. em kanban, com leads por etapa, score e valor"
             fallback={<PipelineDemo />}
           />
-          {!shotUrl("pipeline") && <figcaption className="sp-caption">Ilustração com dados de exemplo.</figcaption>}
+          {!shotUrl("pipeline") && <figcaption className="sp-caption">Exemplo ilustrativo, com dados fictícios.</figcaption>}
         </motion.figure>
       </div>
     </section>

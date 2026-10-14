@@ -5,6 +5,7 @@ import { Logo } from "../../../components/ui/Logo";
 
 export const NAV_LINKS = [
   { href: "#recursos", label: "O que faz" },
+  { href: "#modulos", label: "Módulos" },
   { href: "#aurora", label: "Aurora" },
   { href: "#nichos", label: "Segmentos" },
   { href: "#planos", label: "Planos" },

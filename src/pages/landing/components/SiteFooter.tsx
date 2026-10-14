@@ -14,10 +14,14 @@ export function SiteFooter() {
             <h2>Produto</h2>
             <ul>
               <li><a href="#recursos">O que faz</a></li>
+              <li><a href="#modulos">Módulos</a></li>
               <li><a href="#aurora">Aurora</a></li>
+              <li><a href="#financeiro">Financeiro</a></li>
+              <li><a href="#integracoes">Integrações e segurança</a></li>
               <li><a href="#planos">Planos</a></li>
               <li><a href="#implantacao">Implantação</a></li>
               <li><a href="#faq">Perguntas frequentes</a></li>
+              <li><a href="#contato">Falar com a equipe</a></li>
             </ul>
           </nav>
           <nav aria-label="Segmentos">

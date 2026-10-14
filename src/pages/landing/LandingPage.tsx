@@ -1,14 +1,17 @@
 import { useRef } from "react";
 import { SiteHeader } from "./components/SiteHeader";
 import { HeroSection } from "./components/HeroSection";
-import { CapabilitiesSection } from "./components/CapabilitiesSection";
+import { LifecycleSection } from "./components/LifecycleSection";
+import { ModuleExplorer } from "./components/ModuleExplorer";
+import { FinanceSection } from "./components/FinanceSection";
+import { SegmentsSection } from "./components/SegmentsSection";
+import { TrustSecuritySection } from "./components/TrustSecuritySection";
+import { ContactSection } from "./components/ContactSection";
 import { NeuralSection } from "./components/NeuralSection";
-import { NichesSection } from "./components/NichesSection";
 import { ProcessSection } from "./components/ProcessSection";
 import { TrustRow } from "./components/TrustRow";
 import { PlansSection } from "./components/PlansSection";
 import { FaqSection } from "./components/FaqSection";
-import { FinalCta } from "./components/FinalCta";
 import { SiteFooter } from "./components/SiteFooter";
 import { useRevealOnScroll } from "./useRevealOnScroll";
 import "./landing.css";
@@ -25,13 +28,16 @@ export default function LandingPage() {
       <main id="conteudo">
         <HeroSection />
         <TrustRow />
-        <CapabilitiesSection />
+        <LifecycleSection />
+        <ModuleExplorer />
         <NeuralSection />
-        <NichesSection />
+        <FinanceSection />
+        <SegmentsSection />
+        <TrustSecuritySection />
         <PlansSection />
         <ProcessSection />
         <FaqSection />
-        <FinalCta />
+        <ContactSection />
       </main>
       <SiteFooter />
     </div>
