@@ -336,6 +336,29 @@ html:not(.dark) textarea:focus {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
 }
 
+/* Edição inline do documento da proposta (PropostaDocumento): os controles devem
+   parecer texto final — sem o visual de campo de formulário imposto acima. */
+html:not(.dark) .pd-inline,
+html:not(.dark) .pd-inline:focus {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: inherit !important;
+  box-shadow: none !important;
+}
+html:not(.dark) .pd-inline::placeholder {
+  color: var(--color-text-faint) !important;
+}
+html:not(.dark) .pd-clausulas {
+  background-color: var(--color-surface-sunken) !important;
+  border-color: var(--color-border-default) !important;
+  color: var(--color-text-primary) !important;
+}
+html:not(.dark) .pd-clausulas:focus {
+  background-color: var(--color-surface-sunken) !important;
+  border-color: transparent !important;
+  box-shadow: 0 0 0 2px var(--pd-brand, #2563EB) !important;
+}
+
 /* Bandeja da logo: transparente no modo claro, e azul do sistema no modo escuro */
 html:not(.dark) .sidebar-logo-header,
 html:not(.dark) .sidebar-logo-header div {

@@ -3185,7 +3185,7 @@ app.get("/api/public-proposal/:token", async (req, res) => {
     // 3. Busca itens da proposta
     const { data: items } = await client
       .from("proposal_items")
-      .select("product_name, quantidade, preco_unitario")
+      .select("product_name, quantidade, preco_unitario, billing_type")
       .eq("proposal_id", proposal.id)
       .order("created_at", { ascending: true });
 
@@ -3248,6 +3248,8 @@ app.get("/api/public-proposal/:token", async (req, res) => {
         productName: i.product_name,
         quantidade: i.quantidade,
         precoUnitario: i.preco_unitario,
+        // Item recorrente: a quantidade guarda ciclos×unidades, então a página precisa saber o tipo para mostrar 1x por ciclo.
+        billingType: i.billing_type ?? null,
       })),
     });
   } catch (err: any) {

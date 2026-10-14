@@ -1,35 +1,25 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  FileText,
   Save,
   Download,
   Link2,
   ExternalLink,
   Eye,
   Edit3,
-  ShieldCheck,
-  Calendar,
-  CreditCard,
-  Building2,
   CheckCircle2,
   X,
   Sparkles,
-  Printer,
-  Copy,
   Maximize2,
   Minimize2,
-  ZoomIn,
-  ZoomOut,
-  HelpCircle,
 } from "lucide-react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
-import { Badge } from "../../badge";
 import { toast } from "sonner";
 import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { handleDownloadPdf } from "../../../../pages/crm/utils/proposalPdf";
 import { cn } from "../../../../lib/utils";
+import { PropostaDocumento } from "../../../proposta/PropostaDocumento";
 
 export interface PropostaEditorData {
   id?: string;
@@ -65,6 +55,8 @@ interface PropostaEditorWordModalProps {
   proposalData: PropostaEditorData | null;
   onSaveProposal?: (data: PropostaEditorData) => Promise<void> | void;
 }
+
+const STATUS_OPTIONS = ["Rascunho", "Enviada", "Aceita", "Recusada"];
 
 const DEFAULT_TERMS_TEMPLATE = (tenantName: string) => `CLÁUSULA 1ª – DO OBJETO E ESCOPO
 O presente instrumento tem por finalidade a prestação dos serviços especializados e o fornecimento das soluções discriminadas na Tabela de Itens e Escopo Financeiro deste documento, em estrita consonância com os padrões técnicos de excelência da ${tenantName}.
@@ -126,11 +118,12 @@ export function PropostaEditorWordModal({
     Array<{ product_name: string; quantidade: number; preco_unitario: number; billing_type?: string | null }>
   >([]);
   const [viewToken, setViewToken] = useState<string | null>(null);
+  // Data de emissão exibida no documento (a proposta ainda não traz criada_em aqui).
+  const [emissao] = useState(() => new Date().toISOString());
 
   // View state & ergonomics
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [isMaximized, setIsMaximized] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [isSaving, setIsSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -157,6 +150,8 @@ export function PropostaEditorWordModal({
   }, [isOpen, proposalData, tenantName]);
 
   if (!isOpen || !proposalData) return null;
+
+  const isVencida = validade ? new Date(validade) < new Date() : false;
 
   // Insert helper clause at cursor position
   const insertClauseAtCursor = (clauseText: string) => {
@@ -317,7 +312,7 @@ export function PropostaEditorWordModal({
               )}
             </div>
             <p className="text-[11px] text-[var(--color-text-muted)] truncate">
-              Ambiente de Redação Contratual & Diretrizes Executivas
+              Edite o documento direto na página — é exatamente o que o cliente vê
             </p>
           </div>
         </div>
@@ -334,7 +329,7 @@ export function PropostaEditorWordModal({
 
       {/* ── BARRA DE FERRAMENTAS: VISUALIZAÇÃO + AÇÕES ── */}
       <div className="px-6 py-2.5 border-b border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] flex flex-wrap items-center justify-between gap-2.5 shrink-0">
-        {/* Visualização & zoom */}
+        {/* Modo de visualização */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="p-0.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] flex items-center">
             <button
@@ -347,7 +342,7 @@ export function PropostaEditorWordModal({
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
               )}
             >
-              <Edit3 className="w-3.5 h-3.5" /> Edição
+              <Edit3 className="w-3.5 h-3.5" /> Editando
             </button>
             <button
               type="button"
@@ -359,27 +354,7 @@ export function PropostaEditorWordModal({
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
               )}
             >
-              <Eye className="w-3.5 h-3.5" /> Visualização A4
-            </button>
-          </div>
-
-          <div className="hidden md:flex items-center gap-1 px-2 py-1 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] text-xs font-mono font-bold">
-            <button
-              type="button"
-              onClick={() => setZoomLevel((z) => Math.max(80, z - 10))}
-              className="p-0.5 hover:text-[var(--color-primary-blue)] cursor-pointer"
-              title="Reduzir Zoom"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <span className="w-10 text-center">{zoomLevel}%</span>
-            <button
-              type="button"
-              onClick={() => setZoomLevel((z) => Math.min(130, z + 10))}
-              className="p-0.5 hover:text-[var(--color-primary-blue)] cursor-pointer"
-              title="Aumentar Zoom"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
+              <Eye className="w-3.5 h-3.5" /> Pré-visualizar
             </button>
           </div>
 
@@ -531,336 +506,69 @@ export function PropostaEditorWordModal({
         </div>
       )}
 
-      {/* ── DESK ENVIRONMENT / FOLHA A4 CENTRALIZADA ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-10 scrollbar-thin bg-[var(--color-surface-sunken)]">
-        {/* A4 PAPER CANVAS — sempre branca, simulando uma folha impressa independente do tema do app */}
-        <div
-          style={{
-            transform: zoomLevel !== 100 ? `scale(${zoomLevel / 100})` : undefined,
-            transformOrigin: "top center",
-          }}
-          className="bg-white text-slate-900 shadow-2xl shadow-slate-400/30 rounded-sm p-8 sm:p-14 max-w-4xl mx-auto border border-slate-300/80 min-h-[1050px] relative font-sans transition-all"
-        >
-          {/* HEADER DO DOCUMENTO (COM IDENTIDADE DO TENANT) */}
-          <div
-            className="pb-5 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2"
-            style={{ borderColor: brandColor }}
-          >
-            <div className="flex items-center gap-3">
-              {empresaDados?.logoUrl && (
-                <img
-                  src={empresaDados.logoUrl}
-                  alt={tenantName}
-                  className="h-10 max-w-[140px] object-contain shrink-0"
-                />
-              )}
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className="text-xl font-black tracking-tight"
-                    style={{ color: brandColor }}
-                  >
-                    {tenantName.toUpperCase()}
-                  </span>
-                  <span
-                    className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border"
-                    style={{
-                      backgroundColor: `${brandColor}15`,
-                      color: brandColor,
-                      borderColor: `${brandColor}30`,
-                    }}
-                  >
-                    Documento Comercial Oficial
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500">
-                  {empresaDados?.razaoSocial || "Sistema Integrado de Gestão & Contratos Comerciais"}
-                </p>
-              </div>
-            </div>
-
-            <div className="text-left sm:text-right space-y-0.5 text-xs text-slate-600">
-              <p className="font-bold text-slate-800">
-                PROPOSTA REF:{" "}
-                <span className="font-mono" style={{ color: brandColor }}>
-                  PROP-{proposalData.id?.slice(0, 8) || "NOVA"}
+      {/* ── DOCUMENTO: o mesmo que o cliente vê em /proposta/:token, editável no lugar ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin bg-[var(--color-surface)] text-[var(--color-text-primary)] font-sans">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+          <PropostaDocumento
+            proposta={{
+              titulo: titulo,
+              cliente: cliente,
+              valor,
+              status,
+              validade: validade || null,
+              conteudoTexto: conteudoTexto,
+              criadaEm: emissao,
+              vendedor,
+              decisorNome,
+              decisorCargo,
+              itens: itens.map((i) => ({
+                productName: i.product_name,
+                quantidade: i.quantidade,
+                precoUnitario: i.preco_unitario,
+                billingType: i.billing_type,
+              })),
+            }}
+            brandColor={brandColor}
+            tenantName={tenantName}
+            empresaDados={empresaDados}
+            isAccepted={false}
+            isVencida={isVencida}
+            refId={`PROP-${proposalData.id?.slice(0, 8) || "NOVA"}`}
+            editable={
+              mode === "edit"
+                ? {
+                    onTitulo: setTitulo,
+                    onCliente: setCliente,
+                    onDecisorNome: setDecisorNome,
+                    onDecisorCargo: setDecisorCargo,
+                    onValidade: setValidade,
+                    onValor: setValor,
+                    onStatus: setStatus,
+                    onVendedor: setVendedor,
+                    onConteudo: setConteudoTexto,
+                    clausulasRef: textareaRef,
+                    statusOptions: STATUS_OPTIONS,
+                  }
+                : undefined
+            }
+            acceptSlot={
+              <div className="flex flex-col sm:items-end gap-1.5 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled
+                  style={{ backgroundColor: brandColor }}
+                  className="w-full sm:w-auto text-xs font-black uppercase tracking-wider h-11 px-6 text-white shadow-xl opacity-40 cursor-not-allowed"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Aceitar Proposta Comercial
+                </Button>
+                <span className="text-[10px] text-[var(--color-text-muted)] italic">
+                  O cliente verá aqui o botão de aceite
                 </span>
-              </p>
-              <p>
-                Data de Emissão:{" "}
-                <span className="font-medium text-slate-700">
-                  {new Date().toLocaleDateString("pt-BR")}
-                </span>
-              </p>
-              <p>
-                Status:{" "}
-                <span className="font-bold text-emerald-600 uppercase">
-                  {status}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          {/* DADOS CADASTRAIS (EDITÁVEIS) */}
-          <div className="bg-slate-50 rounded-xl p-5 border border-slate-200 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div>
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block mb-1">
-                Identificação do Cliente (Contratante)
-              </span>
-              {mode === "edit" ? (
-                <input
-                  type="text"
-                  value={cliente}
-                  onChange={(e) => setCliente(e.target.value)}
-                  placeholder="Nome do Cliente / Razão Social"
-                  className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 font-bold text-slate-900 text-sm focus:outline-none focus:border-blue-600 shadow-xs"
-                />
-              ) : (
-                <p className="text-base font-bold text-slate-900">{cliente}</p>
-              )}
-            </div>
-
-            <div>
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block mb-1">
-                Título do Projeto / Objeto
-              </span>
-              {mode === "edit" ? (
-                <input
-                  type="text"
-                  value={titulo}
-                  onChange={(e) => setTitulo(e.target.value)}
-                  placeholder="Título da Proposta"
-                  className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 font-bold text-slate-900 text-sm focus:outline-none focus:border-blue-600 shadow-xs"
-                />
-              ) : (
-                <p className="text-base font-bold text-slate-900">{titulo}</p>
-              )}
-            </div>
-
-            <div>
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block mb-1">
-                Consultor Responsável (Proponente)
-              </span>
-              {mode === "edit" ? (
-                <input
-                  type="text"
-                  value={vendedor}
-                  onChange={(e) => setVendedor(e.target.value)}
-                  placeholder="Nome do Consultor"
-                  className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 font-medium text-slate-800 focus:outline-none focus:border-blue-600 shadow-xs"
-                />
-              ) : (
-                <p className="font-semibold text-slate-800">{vendedor}</p>
-              )}
-            </div>
-
-            <div>
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block mb-1">
-                Vigência / Validade da Proposta
-              </span>
-              {mode === "edit" ? (
-                <input
-                  type="date"
-                  value={validade}
-                  onChange={(e) => setValidade(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 font-medium text-slate-800 focus:outline-none focus:border-blue-600 shadow-xs"
-                />
-              ) : (
-                <p className="font-semibold text-slate-800">
-                  {validade
-                    ? new Date(validade).toLocaleDateString("pt-BR")
-                    : "15 dias a contar da emissão"}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block mb-1">
-                Decisor (Contato Responsável)
-              </span>
-              {mode === "edit" ? (
-                <input
-                  type="text"
-                  value={decisorNome}
-                  onChange={(e) => setDecisorNome(e.target.value)}
-                  placeholder="Nome do decisor"
-                  className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 font-medium text-slate-800 focus:outline-none focus:border-blue-600 shadow-xs"
-                />
-              ) : (
-                <p className="font-semibold text-slate-800">{decisorNome || "Não informado"}</p>
-              )}
-            </div>
-
-            <div>
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block mb-1">
-                Cargo do Decisor
-              </span>
-              {mode === "edit" ? (
-                <input
-                  type="text"
-                  value={decisorCargo}
-                  onChange={(e) => setDecisorCargo(e.target.value)}
-                  placeholder="Ex: Diretor Financeiro"
-                  className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 font-medium text-slate-800 focus:outline-none focus:border-blue-600 shadow-xs"
-                />
-              ) : (
-                <p className="font-semibold text-slate-800">{decisorCargo || "Não informado"}</p>
-              )}
-            </div>
-          </div>
-
-          {/* TABELA DE PRODUTOS E ESCOPO FINANCEIRO */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5" style={{ color: brandColor }} />
-                Escopo Financeiro & Itens de Fornecimento
-              </h4>
-              <span className="text-[11px] text-slate-500 font-mono">
-                {itens.length} {itens.length === 1 ? "item contratado" : "itens contratados"}
-              </span>
-            </div>
-
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-100 text-slate-600 font-black uppercase tracking-wider text-[10px] border-b border-slate-200">
-                  <tr>
-                    <th className="py-2.5 px-4">Item / Solução</th>
-                    <th className="py-2.5 px-3 text-center">Qtd</th>
-                    <th className="py-2.5 px-3 text-right">Preço Unit.</th>
-                    <th className="py-2.5 px-4 text-right">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-800">
-                  {itens.length > 0 ? (
-                    itens.map((item, idx) => {
-                      // Item recorrente: `quantidade` guarda ciclos×unidades (não "quantas
-                      // unidades"), então multiplicar aqui infla a linha pro valor do
-                      // contrato inteiro — a recorrência já está descrita no nome do item.
-                      // Mostra 1x pelo valor do ciclo; o total do contrato já aparece à
-                      // parte no rodapé (Investimento Total da Proposta).
-                      const isRecurringItem = !!item.billing_type && item.billing_type !== "one_time";
-                      const displayQty = isRecurringItem ? 1 : item.quantidade;
-                      const displaySubtotal = isRecurringItem ? item.preco_unitario : item.quantidade * item.preco_unitario;
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-2.5 px-4 font-semibold text-slate-900">
-                            {item.product_name}
-                          </td>
-                          <td className="py-2.5 px-3 text-center font-bold">
-                            {displayQty}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono text-slate-600">
-                            R$ {item.preco_unitario.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                            {isRecurringItem && <span className="text-[10px] text-slate-400">/ciclo</span>}
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900">
-                            R$ {displaySubtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="py-4 text-center text-slate-400 italic">
-                        Nenhum produto cadastrado nesta proposta.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                <tfoot className="bg-slate-50 border-t-2 border-slate-200 font-bold">
-                  <tr>
-                    <td colSpan={3} className="py-3 px-4 text-right uppercase text-[11px] text-slate-600">
-                      Investimento Total da Proposta:
-                      {mode === "edit" && (
-                        <span className="block normal-case font-normal text-[10px] text-slate-400 mt-0.5">
-                          Editar aqui atualiza automaticamente o valor no pipeline, no card do lead e nos detalhes.
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-base font-black" style={{ color: brandColor }}>
-                      {mode === "edit" ? (
-                        <div className="flex items-center justify-end gap-1">
-                          <span className="text-sm">R$</span>
-                          <input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={valor}
-                            onChange={(e) => setValor(Math.max(0, parseFloat(e.target.value) || 0))}
-                            className="w-32 bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono text-base font-black focus:outline-none focus:border-blue-600 shadow-xs"
-                            style={{ color: brandColor }}
-                          />
-                        </div>
-                      ) : (
-                        <>R$ {valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</>
-                      )}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
-          {/* DIRETRIZES E TERMOS CONTRATUAIS (O "WORD" PRINCIPAL) */}
-          <div className="mb-10">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" style={{ color: brandColor }} />
-                Diretrizes, Cláusulas e Termos Contratuais
-              </h4>
-              <span className="text-[10px] text-slate-400">
-                {mode === "edit"
-                  ? "Edite o texto diretamente na área abaixo"
-                  : "Documento formatado para leitura oficial"}
-              </span>
-            </div>
-
-            {mode === "edit" ? (
-              <textarea
-                ref={textareaRef}
-                value={conteudoTexto}
-                onChange={(e) => setConteudoTexto(e.target.value)}
-                rows={18}
-                placeholder="Insira as cláusulas, termos, condições e diretrizes desta proposta..."
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-5 text-xs font-sans text-slate-800 leading-relaxed focus:outline-none focus:border-blue-600 focus:bg-white transition-all resize-y shadow-xs"
-              />
-            ) : (
-              <div className="bg-slate-50/60 border border-slate-200 rounded-xl p-6 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap font-sans text-justify">
-                {conteudoTexto}
               </div>
-            )}
-          </div>
-
-          {/* TERMO DE ACEITE E ASSINATURAS */}
-          <div className="mt-12 pt-8 border-t-2 border-slate-200">
-            <p className="text-center text-[11px] text-slate-500 mb-10 italic">
-              E por estarem justas e contratadas, as partes firmam o presente termo para que produza todos os efeitos legais.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 text-center text-xs">
-              <div>
-                <div className="border-t border-slate-400 pt-2 w-3/4 mx-auto">
-                  <p className="font-bold text-slate-900">{cliente}</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">CONTRATANTE</p>
-                </div>
-              </div>
-
-              <div>
-                <div className="border-t border-slate-400 pt-2 w-3/4 mx-auto">
-                  <p className="font-bold text-slate-900">{vendedor}</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-                    {tenantName.toUpperCase()} (CONTRATADA)
-                  </p>
-                  {empresaDados?.cnpj && (
-                    <p className="text-[9px] text-slate-400 font-mono">
-                      CNPJ: {empresaDados.cnpj}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+            }
+          />
         </div>
       </div>
     </Modal>

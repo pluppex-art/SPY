@@ -4,6 +4,7 @@ export interface PublicProposalItem {
   productName: string;
   quantidade: number;
   precoUnitario: number;
+  billingType?: string | null;
 }
 
 export interface PublicProposalEmpresaDados {
