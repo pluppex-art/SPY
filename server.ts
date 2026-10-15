@@ -4971,6 +4971,9 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
     if (!authData.user) {
       console.error("[tenant-create] Falha ao criar conta de acesso:", created.error?.message);
       await supabaseService.from("tenants").delete().eq("id", tenantData.id);
+      if ((created.error as any)?.code === "email_exists") {
+        return res.status(409).json({ error: "Este e-mail já possui um login no sistema. Use outro e-mail para o administrador." });
+      }
       return res.status(500).json({ error: `Erro ao criar conta de acesso do administrador${created.error?.message ? `: ${created.error.message}` : "."}` });
     }
 
