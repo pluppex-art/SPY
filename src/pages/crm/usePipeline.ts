@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -66,6 +67,17 @@ export function usePipeline() {
   const comercialFunis = useMemo(() => allActiveFunis.filter((f) => f.tipo === "comercial"), [allActiveFunis]);
   const sdrFunis      = useMemo(() => allActiveFunis.filter((f) => f.tipo === "sdr_ia"),   [allActiveFunis]);
   const isSdrEnabled  = sdrFunis.length > 0;
+
+  // Funil escolhido na sidebar (?funil=<id>) — vale se existir no pool atual.
+  const [searchParams] = useSearchParams();
+  const funilParam = searchParams.get("funil");
+  useEffect(() => {
+    if (!funilParam) return;
+    const f = [...comercialFunis, ...sdrFunis].find((x) => x.id === funilParam);
+    if (!f) return;
+    setCurrentPipeline(f.tipo === "sdr_ia" ? "sdr" : "comercial");
+    setSelectedFunilId(f.id);
+  }, [funilParam, comercialFunis, sdrFunis]);
 
   // Keep selectedFunilId pointing to a valid funil when the pool changes —
   // "__todos__" nunca é "corrigido" de volta pra um funil específico, já que

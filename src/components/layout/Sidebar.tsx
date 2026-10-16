@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Building2, MapPin, ChevronDown } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -28,7 +28,12 @@ export function Sidebar({
     activeTenantId, activeTenantName, switchTenant,
     activeFilialId, switchFilial,
   } = useAuth();
-  const { cargos, empresaFiliais, tenantPrimaryColor } = useData();
+  const { cargos, empresaFiliais, tenantPrimaryColor, funis } = useData();
+  const navigate = useNavigate();
+  const [funisOpen, setFunisOpen] = useState(false);
+  // Funis comerciais ativos: com mais de um, "Leads & Pipeline" vira um combo com a lista.
+  const pipelineFunis = ((funis as any[]) || []).filter((f) => f.ativo !== false && f.tipo === "comercial");
+  const activeFunilParam = new URLSearchParams(location.search).get("funil");
   // Com o departamento Implementação na OS, o trabalho de implementar vive lá (não há segundo lugar no menu).
   const usaOsImplementacao = useUsaOsImplementacao();
   const { t } = useLocalization();
@@ -227,6 +232,45 @@ export function Sidebar({
                         }}
                       >
                         {btnContent}
+                      </div>
+                    );
+                  }
+
+                  if (item.path === "/app/crm/pipeline" && pipelineFunis.length > 1 && !isSidebarCollapsed) {
+                    const expanded = funisOpen || isActive;
+                    return (
+                      <div key={item.name}>
+                        <div className="flex items-center gap-0.5">
+                          <Link to={item.path} onClick={() => setIsMobileSidebarOpen(false)} className="block flex-1 min-w-0">
+                            {btnContent}
+                          </Link>
+                          <button
+                            type="button"
+                            aria-label={t("Escolher funil")}
+                            aria-expanded={expanded}
+                            onClick={() => setFunisOpen(!expanded)}
+                            className="p-2 rounded-[var(--radius-control)] cursor-pointer border-none bg-transparent text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"
+                          >
+                            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                          </button>
+                        </div>
+                        {expanded && (
+                          <div className="ml-6 mt-0.5 mb-1 pl-2 border-l border-[var(--color-border-default)] space-y-0.5">
+                            {pipelineFunis.map((f: any) => {
+                              const sel = isActive && (activeFunilParam ? activeFunilParam === f.id : f.id === pipelineFunis[0].id);
+                              return (
+                                <button
+                                  key={f.id}
+                                  type="button"
+                                  onClick={() => { navigate(`${item.path}?funil=${encodeURIComponent(f.id)}`); setIsMobileSidebarOpen(false); }}
+                                  className={`w-full text-left truncate px-2.5 py-1.5 text-[11px] font-semibold rounded-[var(--radius-control)] cursor-pointer border-none transition-colors ${sel ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : "bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"}`}
+                                >
+                                  {f.nome || f.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   }
