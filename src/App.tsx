@@ -17,6 +17,7 @@ const Contato = lazy(() => import("./pages/landing/pages/Contato"));
 // rotas separadas — por isso não têm lazy import/rota próprios aqui.
 const Dashboard = lazy(() => import("./pages/dashboard/CentralReceita"));
 const PerformanceIA = lazy(() => import("./pages/dashboard/PerformanceIA"));
+const ConhecimentoSurfSense = lazy(() => import("./pages/admin/ConhecimentoSurfSense"));
 const PainelGeral = lazy(() => import("./pages/clinica/PainelGeral"));
 const AgendaMedica = lazy(() => import("./pages/clinica/AgendaMedica"));
 const AnaliseFatura = lazy(() => import("./pages/solar/AnaliseFatura"));
@@ -266,6 +267,7 @@ function AppContent() {
           <Route path="propostas" element={<Navigate to="/app/crm/propostas" replace />} />
           <Route path="documentos" element={<Contracts />} />
           <Route path="performance-ia" element={<PerformanceIA />} />
+          <Route path="conhecimento" element={<ConhecimentoSurfSense />} />
 
           {/* Módulo CRM (Núcleo Central do S.P.Y.) */}
           <Route path="crm">
