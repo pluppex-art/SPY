@@ -226,11 +226,6 @@ export function LeadCard({
             <div className="w-6 h-6 rounded-full bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center text-[9px] font-black text-[var(--color-primary-blue)] shrink-0">
               {initials(item.seller || item.name)}
             </div>
-            {item.seller && (
-              <span className="text-[10px] font-semibold text-[var(--color-text-muted)] truncate max-w-[110px]" title={`Responsável: ${item.seller}`}>
-                {item.seller}
-              </span>
-            )}
 
             {/* Temperature dropdown */}
             <div className="relative">
@@ -395,6 +390,12 @@ export function LeadCard({
               </span>
             )}
           </div>
+        )}
+
+        {item.seller && (
+          <p className="text-[9px] font-medium text-[var(--color-text-muted)] leading-tight" title="Responsável">
+            {item.seller}
+          </p>
         )}
 
         {/* Footer — value + creation date + idle */}
