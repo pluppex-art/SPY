@@ -33,6 +33,9 @@ export function Sidebar({
   const [funisOpen, setFunisOpen] = useState(false);
   // Funis comerciais ativos: com mais de um, "Leads & Pipeline" vira um combo com a lista.
   const pipelineFunis = ((funis as any[]) || []).filter((f) => f.ativo !== false && f.tipo === "comercial");
+  // Abre sozinho ao entrar no pipeline, mas o usuário pode fechar/abrir à vontade depois.
+  const onPipelineRoute = location.pathname.startsWith("/app/crm/pipeline");
+  useEffect(() => { if (onPipelineRoute) setFunisOpen(true); }, [onPipelineRoute]);
   const activeFunilParam = new URLSearchParams(location.search).get("funil");
   // Com o departamento Implementação na OS, o trabalho de implementar vive lá (não há segundo lugar no menu).
   const usaOsImplementacao = useUsaOsImplementacao();
@@ -237,7 +240,7 @@ export function Sidebar({
                   }
 
                   if (item.path === "/app/crm/pipeline" && pipelineFunis.length > 1 && !isSidebarCollapsed) {
-                    const expanded = funisOpen || isActive;
+                    const expanded = funisOpen;
                     return (
                       <div key={item.name}>
                         <div className="flex items-center gap-0.5">
