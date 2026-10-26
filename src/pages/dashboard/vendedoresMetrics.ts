@@ -1,5 +1,6 @@
 import { parseCurrencyBR } from "../../lib/utils";
 import { nomeConfere, normNome } from "../../lib/sellerScope";
+import { getProposalItemMonthlyValue, getProposalItemRealValue, getProposalDiscountRatio } from "../../lib/saleCalculator";
 
 /** Números por vendedor da Central de Receita › Mapa da Receita › Vendedores.
  *  Tudo sai dos dados reais já carregados (leads, propostas, contratos,
@@ -81,6 +82,10 @@ export interface DadosVendedores {
   contracts: any[];
   colaboradores: any[];
   cargos: any[];
+  /** Itens das propostas — de onde saem os produtos vendidos. */
+  proposalItems?: any[];
+  /** Catálogo de produtos (nome limpo, pelo id do item). */
+  products?: any[];
 }
 
 export interface VendedorLinha {
@@ -100,7 +105,11 @@ export interface VendedorLinha {
   tendencia: number | null; // % receita vs período anterior
   receitaAnterior: number;
   leadsDoVendedor: any[]; // coorte do período (pra "Ver detalhes")
+  /** Produtos vendidos no período (receita = mensalidade nos recorrentes). */
+  produtos: ProdutoVendido[];
 }
+
+export interface ProdutoVendido { id: string; nome: string; vendas: number; receita: number }
 
 export const COR_VENDEDOR = ["#f97316", "#3b82f6", "#a855f7", "#10b981", "#ec4899", "#14b8a6", "#f59e0b", "#6366f1"];
 
@@ -139,9 +148,21 @@ const NAO_ATRIBUIDO = "__sem_atribuicao__";
 export function computeVendedores(
   dados: DadosVendedores,
   periodo: Faixa,
-  hoje = new Date(),
+  opts: { produtoId?: string | null; hoje?: Date } = {},
 ): { linhas: VendedorLinha[]; vendasNoPeriodo: { vendedorKey: string; iso: string; valor: number }[]; faixas: ReturnType<typeof faixaAnterior> } {
+  const hoje = opts.hoje ?? new Date();
+  const produtoId = opts.produtoId ?? null;
   const faixas = faixaAnterior(periodo, hoje);
+
+  // Propostas/itens por lead (a mais recente primeiro) e produtos de cada lead.
+  const itensPorProposta = new Map<string, any[]>();
+  (dados.proposalItems || []).forEach((i) => {
+    const arr = itensPorProposta.get(i.proposal_id) ?? [];
+    arr.push(i);
+    itensPorProposta.set(i.proposal_id, arr);
+  });
+  const nomeDoProduto = new Map<string, string>((dados.products || []).map((pr: any) => [pr.id, pr.name]));
+  const limpaNome = (n: string) => String(n || "Produto").replace(/\s*\((Assinatura|Taxa)[^)]*\)\s*$/i, "").replace(/^Taxa de Implanta[^—]*—\s*/i, "Implantação — ").trim();
 
   const cargosVendedor = new Set((dados.cargos || []).filter((c) => c.restringir_aos_proprios_dados).map((c) => c.nome));
   const colabVend = (dados.colaboradores || []).filter((c) => cargosVendedor.has(c.cargo) && (c.status || "Ativo") === "Ativo");
@@ -156,6 +177,53 @@ export function computeVendedores(
       arr.push(p);
       propostasPorLead.set(p.lead_id, arr);
     });
+
+  // Propostas que contam como venda de um lead: as aceitas; sem nenhuma aceita, a mais recente.
+  const propostasVendidas = (l: any): any[] => {
+    const todas = propostasPorLead.get(l.id) ?? [];
+    const aceitas = todas.filter((p) => p.status === "Aceita");
+    return aceitas.length > 0 ? aceitas : todas.slice(0, 1);
+  };
+  // Valor de UM item como o resto do sistema mostra: mensalidade nos recorrentes, total nos pontuais,
+  // já com o desconto negociado da proposta.
+  const valorItem = (p: any, itens: any[], i: any) =>
+    (getProposalItemMonthlyValue(i) ?? getProposalItemRealValue(i)) * getProposalDiscountRatio(p.valor, itens);
+  const produtosDoLead = (l: any): Set<string> => {
+    const ids = new Set<string>();
+    (propostasPorLead.get(l.id) ?? []).forEach((p) => (itensPorProposta.get(p.id) ?? []).forEach((i) => i.product_id && ids.add(i.product_id)));
+    (l.productIds ?? []).forEach((id: string) => ids.add(id));
+    return ids;
+  };
+  // Com filtro de produto, só entram os leads que envolvem aquele produto.
+  const leadsBase = produtoId ? dados.leads.filter((l) => produtosDoLead(l).has(produtoId)) : dados.leads;
+  // Venda de um lead: o valor do lead; com filtro de produto, só o que aquele produto vale na venda.
+  const valorVenda = (l: any): number => {
+    if (!produtoId) return valorDoLead(l, propostasPorLead);
+    let soma = 0;
+    let achou = false;
+    for (const p of propostasVendidas(l)) {
+      const itens = itensPorProposta.get(p.id) ?? [];
+      for (const i of itens) if (i.product_id === produtoId) { soma += valorItem(p, itens, i); achou = true; }
+    }
+    return achou ? soma : valorDoLead(l, propostasPorLead);
+  };
+  // Produtos vendidos por vendedor (chave do vendedor → chave do produto → acumulado).
+  const prodAcc = new Map<string, Map<string, { id: string; nome: string; leads: Set<string>; receita: number }>>();
+  const registrarProdutos = (key: string, l: any) => {
+    for (const p of propostasVendidas(l)) {
+      const itens = itensPorProposta.get(p.id) ?? [];
+      for (const i of itens) {
+        if (produtoId && i.product_id !== produtoId) continue;
+        const pk = i.product_id || limpaNome(i.product_name);
+        const mapa = prodAcc.get(key) ?? new Map();
+        prodAcc.set(key, mapa);
+        const cur = mapa.get(pk) ?? { id: i.product_id || pk, nome: (i.product_id && nomeDoProduto.get(i.product_id)) || limpaNome(i.product_name), leads: new Set<string>(), receita: 0 };
+        cur.leads.add(l.id);
+        cur.receita += valorItem(p, itens, i);
+        mapa.set(pk, cur);
+      }
+    }
+  };
 
   const contratoPorProposta = new Map<string, string>();
   (dados.contracts || []).forEach((c) => {
@@ -185,7 +253,7 @@ export function computeVendedores(
     if (!r) {
       r = {
         key, nome, avatar: null, cor: "", leads: 0, oportunidades: 0, propostas: 0, vendas: 0, receita: 0, ticket: 0,
-        conversao: 0, meta: 0, metaPct: null, tendencia: null, receitaAnterior: 0, leadsDoVendedor: [],
+        conversao: 0, meta: 0, metaPct: null, tendencia: null, receitaAnterior: 0, leadsDoVendedor: [], produtos: [],
       };
       base.set(key, r);
     }
@@ -195,7 +263,7 @@ export function computeVendedores(
 
   const vendas: { vendedorKey: string; iso: string; valor: number }[] = [];
 
-  for (const l of dados.leads) {
+  for (const l of leadsBase) {
     const key = chaveDe(l);
     const r = garantir(key, key === NAO_ATRIBUIDO ? "Sem atribuição" : (clusters.find((c) => c.key === key)?.nome ?? String(l.seller)));
 
@@ -207,11 +275,12 @@ export function computeVendedores(
     }
     if (l.status === "Fechado") {
       const iso = dataDaVenda(l);
-      const valor = valorDoLead(l, propostasPorLead);
+      const valor = valorVenda(l);
       if (dentro(iso, faixas.atual)) {
         r.vendas += 1;
         r.receita += valor;
         vendas.push({ vendedorKey: key, iso, valor });
+        registrarProdutos(key, l);
       } else if (dentro(iso, faixas.anterior)) {
         r.receitaAnterior += valor;
       }
@@ -229,6 +298,9 @@ export function computeVendedores(
         ...r,
         nome: colab?.nome || r.nome,
         avatar: colab?.avatar || null,
+        produtos: [...(prodAcc.get(r.key)?.values() ?? [])]
+          .map((p) => ({ id: p.id, nome: p.nome, vendas: p.leads.size, receita: p.receita }))
+          .sort((a, b) => b.receita - a.receita || b.vendas - a.vendas),
         ticket: r.vendas > 0 ? r.receita / r.vendas : 0,
         conversao: r.leads > 0 ? Math.round((r.vendas / r.leads) * 1000) / 10 : 0,
         meta,

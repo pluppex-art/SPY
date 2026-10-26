@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
 } from "recharts";
 import {
-  Crown, Users, Target, FileText, ShoppingCart, ChevronRight, TrendingUp, TrendingDown, Search, Calendar,
+  Crown, Users, Target, FileText, ShoppingCart, ChevronRight, TrendingUp, TrendingDown, Search, Calendar, Package,
 } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { DrillDownPanel } from "../../../components/ui/DrillDownPanel";
@@ -50,12 +50,18 @@ function Tendencia({ pct }: { pct: number | null }) {
   );
 }
 
+function visiveisProdutos(linhas: VendedorLinha[], vendedorSel: string, busca: string) {
+  const q = busca.trim().toLowerCase();
+  return linhas.filter((l) => (vendedorSel === "todos" || l.key === vendedorSel) && (!q || l.nome.toLowerCase().includes(q)));
+}
+
 export default function VendedoresPanel({ dashboard }: { dashboard: DashboardData }) {
-  const { leads, proposals, contracts, colaboradores, cargos, sellerRestricted } = useData() as any;
+  const { leads, proposals, proposalItems, products, contracts, colaboradores, cargos, sellerRestricted } = useData() as any;
   const { formatCurrency } = useLocalization();
 
   const [periodo, setPeriodo] = useState<PeriodoOpcao>("mes");
   const [vendedorSel, setVendedorSel] = useState<string>("todos");
+  const [produtoSel, setProdutoSel] = useState<string>("todos");
   const [busca, setBusca] = useState("");
   const [acumulada, setAcumulada] = useState(true);
   const [funilSel, setFunilSel] = useState<string>("todos");
@@ -67,9 +73,34 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
   );
 
   const { linhas, vendasNoPeriodo } = useMemo(
-    () => computeVendedores({ leads, proposals, contracts, colaboradores, cargos }, faixa),
-    [leads, proposals, contracts, colaboradores, cargos, faixa],
+    () => computeVendedores(
+      { leads, proposals, proposalItems, products, contracts, colaboradores, cargos },
+      faixa,
+      { produtoId: produtoSel === "todos" ? null : produtoSel },
+    ),
+    [leads, proposals, proposalItems, products, contracts, colaboradores, cargos, faixa, produtoSel],
   );
+
+  // Catálogo pro filtro: produtos ativos, em ordem alfabética.
+  const opcoesProduto = useMemo(
+    () => [...((products as any[]) || [])]
+      .filter((p) => p.active !== false)
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR")),
+    [products],
+  );
+  const produtoNome = produtoSel === "todos" ? null : (opcoesProduto.find((p) => p.id === produtoSel)?.name ?? null);
+
+  // Produtos vendidos somando os vendedores visíveis (ranking de produtos).
+  const produtosGeral = useMemo(() => {
+    const m = new Map<string, { id: string; nome: string; vendas: number; receita: number }>();
+    visiveisProdutos(linhas, vendedorSel, busca).forEach((l) => l.produtos.forEach((p) => {
+      const cur = m.get(p.id) ?? { id: p.id, nome: p.nome, vendas: 0, receita: 0 };
+      cur.vendas += p.vendas;
+      cur.receita += p.receita;
+      m.set(p.id, cur);
+    }));
+    return [...m.values()].sort((a, b) => b.receita - a.receita || b.vendas - a.vendas);
+  }, [linhas, vendedorSel, busca]);
 
   const visiveis = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -114,6 +145,13 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
               <Calendar className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
               <select value={periodo} onChange={(e) => setPeriodo(e.target.value as PeriodoOpcao)} className={`${selectCls} pl-8`}>
                 {(Object.keys(PERIODO_LABEL) as PeriodoOpcao[]).map((p) => <option key={p} value={p}>{PERIODO_LABEL[p]}</option>)}
+              </select>
+            </label>
+            <label className="relative">
+              <Package className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
+              <select value={produtoSel} onChange={(e) => setProdutoSel(e.target.value)} className={`${selectCls} pl-8 max-w-[220px]`}>
+                <option value="todos">Todos os produtos</option>
+                {opcoesProduto.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </label>
             {!sellerRestricted && (
@@ -288,6 +326,70 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
             </div>
           </Card>
         </div>
+
+        {produtoNome && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-primary-blue)]/30 bg-[var(--color-primary-blue)]/8 px-4 py-2.5 text-xs">
+            <span className="text-[var(--color-text-primary)]">
+              Filtrando pelo produto <strong>{produtoNome}</strong>: só entram os leads que envolvem esse produto, e a receita é a parte desse produto nas vendas.
+            </span>
+            <button type="button" onClick={() => setProdutoSel("todos")} className="font-bold text-[var(--color-primary-blue)] hover:underline cursor-pointer shrink-0">Limpar</button>
+          </div>
+        )}
+
+        {/* Produtos vendidos */}
+        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <div className="p-4 border-b border-[var(--color-border-subtle)]">
+            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Produtos vendidos{sellerRestricted ? "" : " por vendedor"}</h4>
+            <p className="text-[11px] text-[var(--color-text-muted)]">Quais produtos cada {sellerRestricted ? "venda sua trouxe" : "vendedor vendeu"} no período. Recorrente mostra a mensalidade.</p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12">
+            <div className="lg:col-span-4 p-4 border-b lg:border-b-0 lg:border-r border-[var(--color-border-subtle)]">
+              <p className="text-[9px] font-black uppercase tracking-wider text-[var(--color-text-faint)] mb-3">Mais vendidos</p>
+              {produtosGeral.length === 0 ? (
+                <p className="text-xs text-[var(--color-text-faint)] italic py-4">Nenhuma venda com produto no período.</p>
+              ) : (
+                <div className="space-y-3">
+                  {produtosGeral.slice(0, 6).map((p) => (
+                    <div key={p.id}>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">{p.nome}</span>
+                        <span className="text-xs font-black font-mono text-[var(--color-text-primary)] shrink-0">{formatCurrency(p.receita)}</span>
+                      </div>
+                      <div className="h-1.5 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1">
+                        <div className="h-full rounded-full bg-[var(--color-primary-blue)]" style={{ width: `${Math.max(4, (p.receita / (produtosGeral[0].receita || 1)) * 100)}%` }} />
+                      </div>
+                      <span className="text-[9px] text-[var(--color-text-faint)]">{p.vendas} venda{p.vendas === 1 ? "" : "s"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="lg:col-span-8 divide-y divide-[var(--color-border-subtle)]">
+              {visiveis.map((v) => (
+                <div key={v.key} className="flex items-start gap-3 px-4 py-3">
+                  <Avatar v={v} size={30} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{v.nome}</p>
+                    {v.produtos.length === 0 ? (
+                      <p className="text-[11px] text-[var(--color-text-faint)] mt-1">Sem produtos vendidos no período.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {v.produtos.map((p) => (
+                          <span key={p.id} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-2 py-1 text-[11px]">
+                            <span className="font-bold text-[var(--color-text-primary)]">{p.nome}</span>
+                            <span className="text-[var(--color-text-muted)]">× {p.vendas}</span>
+                            <span className="font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(p.receita)}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {visiveis.length === 0 && <p className="px-4 py-8 text-center text-xs text-[var(--color-text-faint)]">Nenhum vendedor encontrado.</p>}
+            </div>
+          </div>
+        </Card>
 
         {/* Desempenho por vendedor */}
         <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
