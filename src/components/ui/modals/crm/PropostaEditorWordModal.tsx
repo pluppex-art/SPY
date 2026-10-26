@@ -46,7 +46,11 @@ export interface PropostaEditorData {
      * de R$997/mês por 12 meses aparecer como "12x R$997 = R$11.964", como
      * se fosse uma compra avulsa de 12 unidades em vez de uma recorrência. */
     billing_type?: string | null;
+    /** Prazo do contrato em meses (item recorrente). */
+    contract_months?: number | null;
   }>;
+  /** Forma de pagamento da proposta (parcelas, entrada, recorrência). */
+  pagamento?: Record<string, any> | null;
 }
 
 interface PropostaEditorWordModalProps {
@@ -258,12 +262,14 @@ export function PropostaEditorWordModal({
         vendedor,
         decisorNome,
         decisorCargo,
+        pagamento: proposalData.pagamento ?? null,
       },
       itens.map((i) => ({
         productName: i.product_name,
         quantidade: i.quantidade,
         precoUnitario: i.preco_unitario,
         billingType: i.billing_type,
+        contractMonths: i.contract_months ?? null,
       })),
       { brandColor, tenantName, empresaDados, logoUrl: empresaDados?.logoUrl }
     );
@@ -532,7 +538,9 @@ export function PropostaEditorWordModal({
                 quantidade: i.quantidade,
                 precoUnitario: i.preco_unitario,
                 billingType: i.billing_type,
+                contractMonths: i.contract_months ?? null,
               })),
+              pagamento: proposalData.pagamento ?? null,
             }}
             brandColor={brandColor}
             tenantName={tenantName}

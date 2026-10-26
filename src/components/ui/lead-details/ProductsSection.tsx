@@ -172,11 +172,13 @@ export function ProductsSection({
       view_token: existingProposal.view_token,
       decisor_nome: existingProposal.decisor_nome,
       decisor_cargo: existingProposal.decisor_cargo,
+      pagamento: existingProposal.pagamento ?? null,
       itens: existingProposalItems.map((i: any) => ({
         product_name: i.product_name,
         quantidade: i.quantidade,
         preco_unitario: i.preco_unitario,
         billing_type: i.billing_type,
+        contract_months: i.contract_months ?? null,
       })),
     });
     setIsWordModalOpen(true);

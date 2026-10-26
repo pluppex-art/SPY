@@ -3185,7 +3185,7 @@ app.get("/api/public-proposal/:token", async (req, res) => {
     // 3. Busca itens da proposta
     const { data: items } = await client
       .from("proposal_items")
-      .select("product_name, quantidade, preco_unitario, billing_type")
+      .select("product_name, quantidade, preco_unitario, billing_type, contract_months")
       .eq("proposal_id", proposal.id)
       .order("created_at", { ascending: true });
 
@@ -3250,7 +3250,17 @@ app.get("/api/public-proposal/:token", async (req, res) => {
         precoUnitario: i.preco_unitario,
         // Item recorrente: a quantidade guarda ciclos×unidades, então a página precisa saber o tipo para mostrar 1x por ciclo.
         billingType: i.billing_type ?? null,
+        // Prazo do contrato (meses) e forma de pagamento: a página mostra a mensalidade, o prazo ou as parcelas.
+        contractMonths: i.contract_months ?? null,
       })),
+      // Só o que o cliente precisa ver (forma, parcelas, valores, datas) — as observações de
+      // pagamento podem ser internas e NÃO vão para a página pública.
+      pagamento: (() => {
+        const pg: any = proposal.pagamento;
+        if (!pg || typeof pg !== "object") return null;
+        const { formaPagamento, parcelas, parcelasRecorrentes, valorEntrada, valorParcela, metodos, dataVencimentoEntrada, primeiroVencimentoParcela, diaDoMes, diaFixoVencimento } = pg;
+        return { formaPagamento, parcelas, parcelasRecorrentes, valorEntrada, valorParcela, metodos, dataVencimentoEntrada, primeiroVencimentoParcela, diaDoMes, diaFixoVencimento };
+      })(),
     });
   } catch (err: any) {
     console.error("[public-proposal] Erro ao carregar proposta:", err?.message);

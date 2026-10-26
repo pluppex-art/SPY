@@ -5,6 +5,7 @@ export interface PublicProposalItem {
   quantidade: number;
   precoUnitario: number;
   billingType?: string | null;
+  contractMonths?: number | null;
 }
 
 export interface PublicProposalEmpresaDados {
@@ -35,6 +36,8 @@ export interface PublicProposal {
   tenantPrimaryColor?: string | null;
   tenantNiche?: string | null;
   empresaDados?: PublicProposalEmpresaDados | null;
+  /** Forma de pagamento da proposta (parcelas, entrada, recorrência). */
+  pagamento?: Record<string, any> | null;
   itens: PublicProposalItem[];
 }
 

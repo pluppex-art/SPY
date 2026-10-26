@@ -1,3 +1,4 @@
+import { resumoValorProposta } from "../../lib/propostaValor";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { Calendar, CreditCard, ShieldCheck, CheckCircle2, Mail, MapPin, Phone, Pencil } from "lucide-react";
 import { Card } from "../ui/card";
@@ -22,6 +23,8 @@ export interface PropostaDocumentoItem {
    * endpoint público ainda não envia esse campo; quando ausente, vale o
    * comportamento antigo (quantidade × preço). */
   billingType?: string | null;
+  /** Prazo do contrato em meses (itens recorrentes). */
+  contractMonths?: number | null;
 }
 
 export interface PropostaDocumentoData {
@@ -35,6 +38,8 @@ export interface PropostaDocumentoData {
   vendedor?: string | null;
   decisorNome?: string | null;
   decisorCargo?: string | null;
+  /** Forma de pagamento (parcelas, entrada…) — define se mostra "Nx de R$ Y". */
+  pagamento?: Record<string, any> | null;
   itens: PropostaDocumentoItem[];
 }
 
@@ -336,6 +341,8 @@ export function PropostaDocumento({
 }: PropostaDocumentoProps) {
   const ed = editable;
   const itens = proposta.itens || [];
+  // Como o valor é apresentado: recorrente = mensalidade (nunca o total do contrato), parcelado = "Nx de R$ Y".
+  const resumo = resumoValorProposta(proposta.valor, itens, proposta.pagamento);
   const statusLabel = isAccepted ? "Aceita & Formalizada" : proposta.status || "Enviada";
   const brandVar = { ["--pd-brand" as string]: brandColor } as React.CSSProperties;
   const showDecisor = !!ed || !!proposta.decisorNome || !!proposta.decisorCargo;
@@ -466,15 +473,24 @@ export function PropostaDocumento({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-8">
           <div className="p-5 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]">
             <span className="text-[10px] font-black uppercase tracking-wider block mb-1 text-[var(--color-text-muted)]">
-              Investimento Total
+              {resumo.rotulo}
             </span>
             <p className="text-2xl font-mono font-black" style={{ color: brandColor }}>
               {ed ? (
-                <InlineMoney value={proposta.valor ?? 0} onChange={ed.onValor} ariaLabel="Investimento total" />
+                <InlineMoney value={proposta.valor ?? 0} onChange={ed.onValor} ariaLabel={resumo.rotulo} />
               ) : (
-                formatMoney(proposta.valor)
+                formatMoney(resumo.valor)
               )}
+              {resumo.sufixo && <span className="text-sm font-bold text-[var(--color-text-muted)]"> {resumo.sufixo}</span>}
             </p>
+            <span className="text-[10px] font-bold block mt-1" style={{ color: brandColor }}>
+              {resumo.detalhe}
+            </span>
+            {resumo.adicional && (
+              <span className="text-[10px] text-slate-500 block mt-0.5">
+                + {formatMoney(resumo.adicional.valor)} · {resumo.adicional.rotulo}
+              </span>
+            )}
             <span className="text-[10px] text-slate-400 block mt-1">
               Condições e formas de pagamento descritas abaixo
             </span>
@@ -595,7 +611,7 @@ export function PropostaDocumento({
                       colSpan={3}
                       className="py-3.5 px-4 text-right uppercase text-[11px] text-[var(--color-text-muted)]"
                     >
-                      Total do Fornecimento:
+                      {resumo.tipo === "recorrente" ? "Valor mensal (recorrente):" : "Total do Fornecimento:"}
                     </td>
                     <td
                       className="py-3.5 px-4 text-right font-mono text-base font-black"
@@ -609,10 +625,27 @@ export function PropostaDocumento({
                           className="text-right"
                         />
                       ) : (
-                        formatMoney(proposta.valor)
+                        <>
+                          {formatMoney(resumo.valor)}
+                          {resumo.sufixo && <span className="text-xs font-bold text-[var(--color-text-muted)]"> {resumo.sufixo}</span>}
+                        </>
                       )}
                     </td>
                   </tr>
+                  {resumo.adicional && (
+                    <tr>
+                      <td colSpan={3} className="py-2 px-4 text-right uppercase text-[11px] text-[var(--color-text-muted)]">
+                        {resumo.adicional.rotulo}:
+                      </td>
+                      <td className="py-2 px-4 text-right font-mono text-sm font-bold">{formatMoney(resumo.adicional.valor)}</td>
+                    </tr>
+                  )}
+                  {resumo.tipo === "parcelado" && (
+                    <tr>
+                      <td colSpan={3} className="py-2 px-4 text-right uppercase text-[11px] text-[var(--color-text-muted)]">Parcelamento:</td>
+                      <td className="py-2 px-4 text-right font-mono text-sm font-bold">{resumo.detalhe}</td>
+                    </tr>
+                  )}
                 </tfoot>
               </table>
             </div>

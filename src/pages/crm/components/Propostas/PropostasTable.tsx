@@ -400,11 +400,13 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
                 view_token: r.view_token,
                 decisor_nome: r.decisor_nome,
                 decisor_cargo: r.decisor_cargo,
+                pagamento: r.pagamento ?? null,
                 itens: editingRow.itens.map((i: any) => ({
                   product_name: i.product_name,
                   quantidade: i.quantidade,
                   preco_unitario: i.preco_unitario,
                   billing_type: i.billing_type,
+                  contract_months: i.contract_months ?? null,
                 })),
               });
               setIsWordModalOpen(true);

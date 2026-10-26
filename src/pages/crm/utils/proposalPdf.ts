@@ -1,3 +1,4 @@
+import { resumoValorProposta } from "../../../lib/propostaValor";
 import jsPDF from "jspdf";
 
 export interface Proposta {
@@ -11,12 +12,16 @@ export interface Proposta {
   vendedor: string;
   tipo?: "itens" | "texto" | "arquivo";
   conteudo_texto?: string | null;
+  /** Forma de pagamento (parcelas, entrada, recorrência) — define "Nx de R$ Y". */
+  pagamento?: Record<string, any> | null;
 }
 
 export interface PropostaItemPdf {
   product_name: string;
   quantidade: number;
   preco_unitario: number;
+  billing_type?: string | null;
+  contract_months?: number | null;
 }
 
 export const INITIAL_PROPOSTAS: Proposta[] = [];
@@ -96,20 +101,35 @@ export const handleDownloadPdf = async (
   doc.setFont("helvetica", "bold");
   doc.text("CONDIÇÕES COMERCIAIS", 20, 90);
 
+  // Recorrente mostra a MENSALIDADE (nunca o total do contrato); parcelado, "Nx de R$ Y"; à vista, o total.
+  const resumo = resumoValorProposta(
+    proposta.valor,
+    itens.map((i: any) => ({ quantidade: Number(i.quantidade) || 0, precoUnitario: Number(i.preco_unitario) || 0, billingType: i.billing_type ?? null, contractMonths: i.contract_months ?? null })),
+    proposta.pagamento,
+  );
   doc.setFont("helvetica", "normal");
-  doc.text(`Valor Total do Investimento:`, 20, 100);
+  doc.text(`${resumo.rotulo}:`, 20, 100);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(16, 185, 129); // Emerald 500
   doc.setFontSize(14);
-  doc.text(fmtCurrency(proposta.valor), 80, 100);
+  doc.text(`${fmtCurrency(resumo.valor)}${resumo.sufixo ? ` ${resumo.sufixo}` : ""}`, 80, 100);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.text(resumo.adicional ? `${resumo.detalhe}  •  + ${fmtCurrency(resumo.adicional.valor)} (${resumo.adicional.rotulo})` : resumo.detalhe, 20, 106);
 
   if (itens.length > 0) {
     doc.setFontSize(9);
     doc.setTextColor(71, 85, 105); // Slate 600
     doc.setFont("helvetica", "normal");
-    const itensText = itens.map(i => `${i.quantidade}x ${i.product_name} (${fmtCurrency(i.preco_unitario)}/un)`).join("  •  ");
-    doc.text(itensText, 20, 108, { maxWidth: 170 });
+    // Item recorrente: o preço é o do ciclo (a quantidade guarda ciclos × unidades) — não "72x … /un".
+    const itensText = itens
+      .map((i: any) => (i.billing_type && i.billing_type !== "one_time"
+        ? `${i.product_name} (${fmtCurrency(i.preco_unitario)}/mês)`
+        : `${i.quantidade}x ${i.product_name} (${fmtCurrency(i.preco_unitario)}/un)`))
+      .join("  •  ");
+    doc.text(itensText, 20, 114, { maxWidth: 170 });
   }
 
   // Escopo e Obrigações

@@ -46,6 +46,7 @@ export function propostaParaDocumento(
     quantidade: Number(i.quantidade) || 0,
     precoUnitario: Number(i.preco_unitario) || 0,
     billingType: i.billing_type ?? null,
+    contractMonths: i.contract_months ?? null,
   }));
   const valor = Number(row?.valor) > 0 ? Number(row.valor) : somaItensDocumento(itens);
   return {
@@ -62,6 +63,7 @@ export function propostaParaDocumento(
       vendedor: row?.vendedor || fallbackVendedor || null,
       decisorNome: row?.decisor_nome ?? null,
       decisorCargo: row?.decisor_cargo ?? null,
+      pagamento: row?.pagamento ?? null,
     },
   };
 }

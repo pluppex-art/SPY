@@ -126,6 +126,7 @@ export default function PropostaPublica() {
         conteudoTexto: proposta.conteudoTexto,
         criadaEm: proposta.criadaEm,
         vendedor: proposta.vendedor || tenantName,
+        pagamento: proposta.pagamento ?? null,
       },
       proposta.itens || [],
       { brandColor, tenantName, empresaDados: proposta.empresaDados, logoUrl: proposta.empresaDados?.logoUrl }
@@ -222,6 +223,7 @@ export default function PropostaPublica() {
             conteudoTexto: proposta.conteudoTexto,
             criadaEm: proposta.criadaEm,
             vendedor: proposta.vendedor,
+            pagamento: proposta.pagamento ?? null,
             itens: proposta.itens || [],
           }}
           brandColor={brandColor}
