@@ -331,6 +331,17 @@ export function NovaPropostaWizard({
     : formaPagamento === "recorrencia"
       ? parcelaValor * numeroParcelas
       : entradaValor + parcelaValor * numeroParcelas;
+  // Valor TOTAL do negócio (o que vira proposals.valor / leads.value no resto do
+  // sistema): recorrente × meses do contrato + itens pontuais − desconto geral.
+  // `totalProposta` acima é só UM ciclo (mensalidade + pontuais) e, gravado como
+  // valor, o card do pipeline o tratava como total e dividia pelos meses
+  // (R$ 2.000/mês por 6 meses aparecia como R$ 333,33/mês).
+  const mesesContrato = Math.max(1, Number(prazoContratoMeses) || 1);
+  // Valor da proposta: recorrente guarda a MENSALIDADE (R$ 1.500 = R$ 1.500 todo
+  // mês), nunca o total do contrato; sem item recorrente, é o total da venda.
+  const valorProposta = recurringTotal > 0
+    ? Math.max(0, recurringTotal - descontoCalc)
+    : totalProposta;
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -386,7 +397,7 @@ export function NovaPropostaWizard({
     return {
       titulo: tituloProposta.trim() || `Proposta Comercial — ${clientName}`,
       cliente: clientName,
-      valor: totalProposta,
+      valor: valorProposta,
       validade: new Date(Date.now() + validadeDias * 86400000).toISOString().slice(0, 10),
       status,
       vendedor: seller || "Consultor S.P.Y.",
@@ -404,7 +415,11 @@ export function NovaPropostaWizard({
         return {
           productId: i.productId,
           descricao: i.nome,
-          quantidade: qty,
+          // Mesma convenção do AddProdutoLeadModal/saleCalculator: item recorrente
+          // grava quantidade = ciclos × unidades (preco_unitario × quantidade =
+          // total do contrato). Leitores (card do pipeline, aceite de proposta,
+          // financeiro) dividem por contract_months pra achar a mensalidade.
+          quantidade: i.isRecurring ? qty * mesesContrato : qty,
           precoUnitario: itemLineTotal(i) / qty,
           billingType: i.isRecurring ? ("recurring" as const) : ("one_time" as const),
           contractMonths: i.isRecurring ? prazoContratoMeses : null,

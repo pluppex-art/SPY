@@ -25,7 +25,7 @@ import { isDateLocked } from "../pages/finance/lib/financeEngine";
 import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
 import { friendlyError } from "../lib/friendlyError";
-import { OPEN_ENDED_BATCH_CYCLES } from "../lib/saleCalculator";
+import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio } from "../lib/saleCalculator";
 
 export { useData };
 export type { DataContextType, LeadActivity, Notification, Appointment, GlobalWebhook, FinanceEntry, Reuniao };
@@ -3079,10 +3079,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // Murilo (Geplan Contabilidade) — contrato anual negociado a R$4.367
     // reaparecendo como R$11.964 (preço de catálogo) assim que a proposta
     // era aceita.
-    const undiscountedItemsTotal = recurringTotal + oneTimeTotal;
-    const discountRatio = undiscountedItemsTotal > 0 && prop.valor
-      ? Math.min(1, prop.valor / undiscountedItemsTotal)
-      : 1;
+    // `prop.valor` de proposta recorrente guarda a MENSALIDADE (propostas antigas:
+    // o total do contrato) — getProposalDiscountRatio compara com a base certa.
+    const discountRatio = linkedItems.length > 0 ? getProposalDiscountRatio(prop.valor, linkedItems as any[]) : 1;
     const recurringTotalFinal = recurringTotal * discountRatio;
     const oneTimeTotalFinal = oneTimeTotal * discountRatio;
     // `mrr` precisa ser a mensalidade de verdade. `recurringTotalFinal` é o

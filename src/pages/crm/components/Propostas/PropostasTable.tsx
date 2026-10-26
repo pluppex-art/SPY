@@ -20,7 +20,7 @@ import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
-import { getProposalItemRealValue, getProposalItemMonthlyValue } from "../../../../lib/saleCalculator";
+import { getProposalItemRealValue, getProposalItemMonthlyValue, getProposalDiscountRatio } from "../../../../lib/saleCalculator";
 import {
   PropostaEditorWordModal,
   PropostaEditorData,
@@ -170,8 +170,7 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
               // AddProdutoLeadModal.tsx) — sem isso, `undiscountedTotal`
               // ficava inflado e o `discountRatio` saía errado pra proposta
               // inteira, mesmo pros itens não-recorrentes dela.
-              const undiscountedTotal = itens.reduce((s, i) => s + getProposalItemRealValue(i), 0);
-              const discountRatio = undiscountedTotal > 0 && item.valor ? Math.min(1, item.valor / undiscountedTotal) : 1;
+              const discountRatio = getProposalDiscountRatio(item.valor, itens);
               // Achado real (pedido do usuário): a coluna "Valor" só mostrava o
               // TOTAL da proposta — pra proposta com item recorrente, o valor
               // do CICLO (a cobrança que se repete de verdade) não aparecia em
@@ -181,16 +180,21 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
               // prazo fechado (total ÷ contract_months) E item sem prazo
               // (getProposalItemMonthlyValue já cai pro lote/12 nesse caso).
               let valorCiclo = 0;
+              let valorUnico = 0;
               const itensResumo = itens.map((i) => {
                 const itemTotal = getProposalItemRealValue(i) * discountRatio;
                 const months = Number(i.contract_months) || 0;
                 const monthlyRaw = getProposalItemMonthlyValue(i);
                 const monthly = monthlyRaw !== null ? monthlyRaw * discountRatio : null;
                 if (monthly !== null) valorCiclo += monthly;
+                else valorUnico += itemTotal;
+                // Recorrente: só a mensalidade e o prazo — o total do contrato não é
+                // dinheiro que entra de uma vez. (`quantidade` em item recorrente é
+                // ciclos × unidades, então também não aparece como "6x".)
                 return monthly
                   ? (months > 0
-                      ? `${i.quantidade}x ${i.product_name} — ${formatCurrency(monthly)}/mês (${months}x, total ${formatCurrency(itemTotal)})`
-                      : `${i.quantidade}x ${i.product_name} — ${formatCurrency(monthly)}/mês (sem prazo)`)
+                      ? `${i.product_name} — ${formatCurrency(monthly)}/mês (${months} meses)`
+                      : `${i.product_name} — ${formatCurrency(monthly)}/mês (sem prazo)`)
                   : `${i.quantidade}x ${i.product_name} — ${formatCurrency(itemTotal)}`;
               });
               return (
@@ -222,11 +226,20 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm font-black text-[var(--color-text-primary)]">{formatCurrency(item.valor || 0)}</div>
-                    {valorCiclo > 0 && (
-                      <div className="text-[10px] font-bold text-[var(--color-primary-blue)] font-mono mt-0.5" title="Valor da cobrança recorrente (soma dos itens recorrentes da proposta)">
-                        {formatCurrency(valorCiclo)}/mês
-                      </div>
+                    {valorCiclo > 0 ? (
+                      <>
+                        <div className="text-sm font-black text-[var(--color-text-primary)]" title="Cobrança recorrente: o mesmo valor todo mês (soma dos itens recorrentes da proposta)">
+                          {formatCurrency(valorCiclo)}
+                        </div>
+                        <div className="text-[10px] font-bold text-[var(--color-primary-blue)] mt-0.5">Recorrente</div>
+                        {valorUnico > 0 && (
+                          <div className="text-[10px] font-bold text-[var(--color-text-muted)] font-mono mt-0.5" title="Itens pontuais (implantação etc.), cobrados uma vez">
+                            + {formatCurrency(valorUnico)} único
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-sm font-black text-[var(--color-text-primary)]">{formatCurrency(item.valor || 0)}</div>
                     )}
                   </TableCell>
                   <TableCell>

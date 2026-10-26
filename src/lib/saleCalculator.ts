@@ -191,6 +191,33 @@ export function getProposalItemMonthlyValue(item: { preco_unitario: any; quantid
   return isBatchScaled ? raw / OPEN_ENDED_BATCH_CYCLES : raw;
 }
 
+type ProposalItemLike = { preco_unitario: any; quantidade: any; billing_type?: string | null; contract_months?: number | null };
+
+/** Soma da MENSALIDADE dos itens recorrentes de uma proposta (0 se não há). É o
+ * que o sistema mostra como valor de um negócio recorrente — o total do contrato
+ * (mensalidade × meses) não é dinheiro que entra de uma vez. */
+export function getProposalMonthlyTotal(items: ProposalItemLike[]): number {
+  return items.reduce((s, i) => s + (getProposalItemMonthlyValue(i) ?? 0), 0);
+}
+
+/** Soma dos itens pontuais (implantação, setup, venda única). */
+export function getProposalOneTimeTotal(items: ProposalItemLike[]): number {
+  return items.reduce((s, i) => (getProposalItemMonthlyValue(i) === null ? s + getProposalItemRealValue(i) : s), 0);
+}
+
+/** Proporção de desconto negociado da proposta (1 = sem desconto). `valor` pode
+ * estar gravado de dois jeitos: como MENSALIDADE (convenção atual: recorrente
+ * guarda o valor mensal) ou como TOTAL do contrato (propostas antigas). Compara
+ * com a base certa em cada caso. */
+export function getProposalDiscountRatio(valor: any, items: ProposalItemLike[]): number {
+  const v = Number(valor) || 0;
+  if (v <= 0) return 1;
+  const monthly = getProposalMonthlyTotal(items);
+  if (monthly > 0 && v <= monthly + 0.01) return Math.min(1, v / monthly);
+  const total = items.reduce((s, i) => s + getProposalItemRealValue(i), 0);
+  return total > 0 ? Math.min(1, v / total) : 1;
+}
+
 export function calculateSale(input: SaleCalculationInput): SaleCalculationResult {
   const { unitPrice, quantity, billingType, setupFee, discountType, discountValue, firstDueDate } = input;
   const baseAmount = Math.max(0, unitPrice) * Math.max(1, quantity);

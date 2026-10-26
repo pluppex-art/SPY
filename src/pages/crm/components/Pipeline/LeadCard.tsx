@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn, parseCurrencyBR } from '../../../../lib/utils';
 import { leadInterestEstimate } from '../../../../components/ui/lead-details/LeadDetailsModal.helpers';
+import { getProposalMonthlyTotal, getProposalDiscountRatio } from '../../../../lib/saleCalculator';
 
 interface LeadCardProps {
   item: any;
@@ -163,8 +164,19 @@ export function LeadCard({
   // recorrentes daqui) — nunca calculado em cima de uma ESTIMATIVA, só de
   // valor real, e só quando há mais de 1 mês de contrato (com 1 mês, mensal
   // = total, não precisa de um segundo número).
-  const monthlyValue = realNumericValue !== null && !!contractMonths && contractMonths > 1
-    ? realNumericValue / contractMonths
+  // Recorrente ≠ parcelado. Recorrente (mensalidade, tipo Netflix): o valor do card É
+  // a mensalidade ("R$ 1.500") com o rótulo "Recorrente" embaixo — nunca o total do
+  // contrato. Calculado a partir dos itens da proposta, então vale tanto pra proposta
+  // gravada com a mensalidade quanto pras antigas gravadas com o total.
+  // Parcelado (valor total dividido, ex.: cartão) mostra o total e "Nx de R$ Y".
+  const proposalMonthly = latestLeadProposal && latestLeadProposalItems.length > 0
+    ? getProposalMonthlyTotal(latestLeadProposalItems) * getProposalDiscountRatio(latestLeadProposal.valor, latestLeadProposalItems)
+    : 0;
+  const isRecurringDeal = proposalMonthly > 0;
+  const monthlyValue = isRecurringDeal ? proposalMonthly : null;
+  const installmentsCount = Number(item.customFields?.installments ?? item.customFields?.parcelas) || 0;
+  const installmentValue = !isRecurringDeal && !isOpenEndedRecurring && installmentsCount > 1 && realNumericValue !== null
+    ? (Number(item.customFields?.valorParcela) || realNumericValue / installmentsCount)
     : null;
 
   // Tags de produto do card: seguem o estado ATUAL do lead — sem proposta = os produtos de
@@ -416,24 +428,21 @@ export function LeadCard({
                   : undefined
               }
             >
-              {displayValue}
+              {isRecurringDeal ? formatCurrency(monthlyValue as number) : displayValue}
               {!!contractMonths && (
                 <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded-full border", NEUTRAL_BADGE)} title="Duração do contrato vendida">
                   {contractMonths}m
                 </span>
               )}
-              {isOpenEndedRecurring && (
-                <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded-full border", NEUTRAL_BADGE)} title="Recorrência sem prazo fixo — este valor já é a cobrança mensal">
-                  /mês
-                </span>
-              )}
             </span>
-            {/* Achado real: o valor acima é o TOTAL do contrato inteiro — pra
-                produto recorrente, o número que entra no caixa TODO MÊS
-                nunca aparecia em lugar nenhum do card. */}
-            {monthlyValue !== null && (
-              <span className="text-[9px] font-bold text-[var(--color-text-muted)] font-mono leading-none" title="Valor da cobrança recorrente mensal (total ÷ meses de contrato)">
-                {formatCurrency(monthlyValue)}/mês
+            {isRecurringDeal && (
+              <span className="text-[9px] font-bold text-[var(--color-text-muted)] leading-none" title="Cobrança recorrente: o mesmo valor todo mês">
+                Recorrente
+              </span>
+            )}
+            {installmentValue !== null && (
+              <span className="text-[9px] font-bold text-[var(--color-text-muted)] font-mono leading-none" title="Venda parcelada (cartão/parcelamento) — não é recorrência">
+                {installmentsCount}x de {formatCurrency(installmentValue)}
               </span>
             )}
             {createdLabel && (
