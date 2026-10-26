@@ -3,7 +3,7 @@ import { Briefcase, Info, Tag, Layers, FileText, Save } from "lucide-react";
 import { Modal } from "../../../../components/ui/modal";
 import { Button } from "../../../../components/ui/button";
 
-interface CargoFormData { nome: string; nivel: string; descricao: string }
+interface CargoFormData { nome: string; nivel: string; descricao: string; restringir_aos_proprios_dados: boolean }
 
 interface CargoModalProps {
   isOpen: boolean;
@@ -35,6 +35,7 @@ export function CargoModal({ isOpen, onClose, onSave, editing }: CargoModalProps
   const [nome, setNome] = useState("");
   const [nivel, setNivel] = useState("Operacional");
   const [descricao, setDescricao] = useState("");
+  const [restringir, setRestringir] = useState(false);
   const [tentou, setTentou] = useState(false);
 
   React.useEffect(() => {
@@ -42,6 +43,7 @@ export function CargoModal({ isOpen, onClose, onSave, editing }: CargoModalProps
     setNome(editing?.nome ?? "");
     setNivel(editing?.nivel ?? "Operacional");
     setDescricao(editing?.descricao ?? "");
+    setRestringir(!!editing?.restringir_aos_proprios_dados);
     setTentou(false);
   }, [isOpen, editing]);
 
@@ -51,7 +53,7 @@ export function CargoModal({ isOpen, onClose, onSave, editing }: CargoModalProps
     e.preventDefault();
     setTentou(true);
     if (erroNome) return;
-    onSave({ nome: nome.trim(), nivel, descricao: descricao.trim() });
+    onSave({ nome: nome.trim(), nivel, descricao: descricao.trim(), restringir_aos_proprios_dados: restringir });
     onClose();
   };
 
@@ -120,6 +122,22 @@ export function CargoModal({ isOpen, onClose, onSave, editing }: CargoModalProps
             <span>{descricao.length}/{DESC_MAX}</span>
           </div>
         </div>
+
+        <label className="flex items-start gap-3 px-4 py-3 rounded-xl border border-[var(--color-border-default)] cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors">
+          <input
+            type="checkbox"
+            checked={restringir}
+            onChange={(e) => setRestringir(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-[var(--color-primary-blue)]"
+          />
+          <span className="text-xs">
+            <span className="block font-bold text-[var(--color-text-primary)]">Restringir aos próprios dados (vendedor)</span>
+            <span className="block text-[var(--color-text-muted)] mt-0.5">
+              Quem tem este cargo vê só os leads, propostas, tarefas e números que são dele — no pipeline, no dashboard e em todo o sistema.
+              Administradores e donos continuam vendo tudo.
+            </span>
+          </span>
+        </label>
 
         <div className="flex items-center justify-end gap-2 pt-4 border-t border-[var(--color-border-subtle)]">
           <Button type="button" variant="outline" onClick={onClose} className="h-10 px-5 text-xs font-bold border-[var(--color-border-default)]">

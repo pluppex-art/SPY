@@ -174,6 +174,8 @@ export interface ReuniaoInsights {
 
 export interface DataContextType {
   leads: Lead[];
+  /** true = o usuário tem cargo com "Restringir aos próprios dados": leads, propostas, tarefas etc. já chegam filtrados ao que é dele. */
+  sellerRestricted: boolean;
   avgWonTicket: number;
   tasks: Task[];
   contracts: Contract[];

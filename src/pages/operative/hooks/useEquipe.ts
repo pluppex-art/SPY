@@ -13,6 +13,8 @@ export interface TeamMember {
   revenue: string;
   status: string;
   squad: string;
+  /** Meta mensal de receita (R$) — alimenta "meta x realizado" em Central de Receita > Vendedores. */
+  metaMensal?: number;
 }
 
 export interface Squad {
@@ -38,6 +40,7 @@ function rowToMember(row: any, idx: number): TeamMember {
     revenue: row.revenue || 'R$ 0',
     status: row.status || 'Ativo',
     squad: row.squad || 'Sem squad',
+    metaMensal: Number(row.meta_mensal) || 0,
   };
 }
 
@@ -88,6 +91,7 @@ export function useEquipe() {
       revenue: member.revenue || "R$ 0",
       status: member.status || "Ativo",
       squad: member.squad || "Sem squad",
+      meta_mensal: member.metaMensal || 0,
     });
   };
 
@@ -99,6 +103,7 @@ export function useEquipe() {
       ...(member.phone !== undefined ? { phone: member.phone } : {}),
       ...(member.status !== undefined ? { status: member.status } : {}),
       ...(member.squad !== undefined ? { squad: member.squad } : {}),
+      ...(member.metaMensal !== undefined ? { meta_mensal: member.metaMensal } : {}),
     });
   };
 

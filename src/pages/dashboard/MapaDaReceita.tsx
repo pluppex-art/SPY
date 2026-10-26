@@ -13,6 +13,7 @@ import { leadDrillColumns, contractDrillColumns, isContractAtivo } from "../../c
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
+import VendedoresPanel from "./components/VendedoresPanel";
 import { computeChannelRevenue, computeProductRevenue, computeSegmentRevenue, type DashboardData } from "./revenueInsights";
 
 type DrillKey = "leads" | "oportunidades" | "vendas" | "receita" | "retencao" | "emRisco";
@@ -235,31 +236,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           )}
         </Card>
       ) : subAba === "vendedores" ? (
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por Vendedor</h3>
-            <Badge variant="secondary">{salesRanking.length}</Badge>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
-                <tr><th className="px-4 py-2.5">Vendedor</th><th className="px-4 py-2.5">Receita</th><th className="px-4 py-2.5">Negócios</th><th className="px-4 py-2.5">Ticket Médio</th><th className="px-4 py-2.5">Taxa</th></tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                {salesRanking.map((v) => (
-                  <tr key={v.name}>
-                    <td className="px-4 py-2.5 font-bold text-[var(--color-text-primary)]">{v.name}</td>
-                    <td className="px-4 py-2.5 font-mono text-[var(--color-text-primary)]">{formatCurrency(v.total)}</td>
-                    <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{v.deals}</td>
-                    <td className="px-4 py-2.5 font-mono text-[var(--color-text-muted)]">{formatCurrency(v.deals > 0 ? v.total / v.deals : 0)}</td>
-                    <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{v.rate}%</td>
-                  </tr>
-                ))}
-                {salesRanking.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--color-text-faint)]">Nenhum negócio fechado ainda.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        <VendedoresPanel dashboard={dashboard} />
       ) : (
       <>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

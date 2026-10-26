@@ -24,6 +24,7 @@ export function EditarMembroModal({ isOpen, onClose, onSave, member, squads }: E
   const [cargo, setCargo] = useState("");
   const [status, setStatus] = useState("Ativo");
   const [squad, setSquad] = useState("");
+  const [metaMensal, setMetaMensal] = useState("");
   const [loading, setLoading] = useState(false);
   const { cargos } = useData();
 
@@ -35,6 +36,7 @@ export function EditarMembroModal({ isOpen, onClose, onSave, member, squads }: E
     setCargo(member.role || "");
     setStatus(member.status || "Ativo");
     setSquad(member.squad || "");
+    setMetaMensal(member.metaMensal ? String(member.metaMensal) : "");
     setLoading(false);
   }, [isOpen, member]);
 
@@ -50,6 +52,7 @@ export function EditarMembroModal({ isOpen, onClose, onSave, member, squads }: E
         role: cargo.trim(),
         status,
         squad,
+        metaMensal: Number(String(metaMensal).replace(/\./g, "").replace(",", ".")) || 0,
       });
       onClose();
     } finally {
@@ -133,6 +136,19 @@ export function EditarMembroModal({ isOpen, onClose, onSave, member, squads }: E
               <option value="Afastado">Afastado</option>
             </select>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className={labelClass}>Meta mensal de receita (R$)</label>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={metaMensal}
+            onChange={e => setMetaMensal(e.target.value)}
+            className={inputBaseClass}
+            placeholder="Ex: 25000"
+          />
+          <p className="text-[11px] text-[var(--color-text-faint)]">Usada na barra "meta x realizado" da Central de Receita › Vendedores.</p>
         </div>
       </form>
     </Modal>

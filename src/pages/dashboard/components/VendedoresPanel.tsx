@@ -1,0 +1,373 @@
+import { useMemo, useState } from "react";
+import {
+  ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
+} from "recharts";
+import {
+  Crown, Users, Target, FileText, ShoppingCart, ChevronRight, TrendingUp, TrendingDown, Search, Calendar,
+} from "lucide-react";
+import { Card } from "../../../components/ui/card";
+import { DrillDownPanel } from "../../../components/ui/DrillDownPanel";
+import { leadDrillColumns } from "../../../components/ui/drillColumns";
+import { useData } from "../../../contexts/DataContext";
+import { useLocalization } from "../../../contexts/LocalizationContext";
+import type { DashboardData } from "../revenueInsights";
+import {
+  computeVendedores, resolverPeriodo, serieDiaria, PERIODO_LABEL,
+  type PeriodoOpcao, type VendedorLinha,
+} from "../vendedoresMetrics";
+
+const selectCls =
+  "h-9 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-3 text-xs font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)] cursor-pointer";
+
+function iniciais(nome: string) {
+  const p = nome.trim().split(/\s+/).filter(Boolean);
+  if (p.length === 0) return "?";
+  return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase();
+}
+
+function Avatar({ v, size = 36 }: { v: Pick<VendedorLinha, "nome" | "avatar" | "cor">; size?: number }) {
+  if (v.avatar && /^(https?:|data:)/.test(v.avatar)) {
+    return <img src={v.avatar} alt={v.nome} className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
+  }
+  return (
+    <div
+      className="rounded-full flex items-center justify-center font-black text-white shrink-0"
+      style={{ width: size, height: size, backgroundColor: v.cor, fontSize: size * 0.34 }}
+    >
+      {iniciais(v.nome)}
+    </div>
+  );
+}
+
+function Tendencia({ pct }: { pct: number | null }) {
+  if (pct === null) return <span className="text-[var(--color-text-faint)]">—</span>;
+  const up = pct >= 0;
+  const Icon = up ? TrendingUp : TrendingDown;
+  return (
+    <span className={`inline-flex items-center gap-1 font-bold ${up ? "text-emerald-500" : "text-rose-500"}`}>
+      <Icon className="w-3.5 h-3.5" /> {up ? "+" : ""}{pct}%
+    </span>
+  );
+}
+
+export default function VendedoresPanel({ dashboard }: { dashboard: DashboardData }) {
+  const { leads, proposals, contracts, colaboradores, cargos, sellerRestricted } = useData() as any;
+  const { formatCurrency } = useLocalization();
+
+  const [periodo, setPeriodo] = useState<PeriodoOpcao>("mes");
+  const [vendedorSel, setVendedorSel] = useState<string>("todos");
+  const [busca, setBusca] = useState("");
+  const [acumulada, setAcumulada] = useState(true);
+  const [funilSel, setFunilSel] = useState<string>("todos");
+  const [detalhe, setDetalhe] = useState<VendedorLinha | null>(null);
+
+  const faixa = useMemo(
+    () => resolverPeriodo(periodo, dashboard.dateFrom, dashboard.dateTo),
+    [periodo, dashboard.dateFrom, dashboard.dateTo],
+  );
+
+  const { linhas, vendasNoPeriodo } = useMemo(
+    () => computeVendedores({ leads, proposals, contracts, colaboradores, cargos }, faixa),
+    [leads, proposals, contracts, colaboradores, cargos, faixa],
+  );
+
+  const visiveis = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return linhas.filter((l) => (vendedorSel === "todos" || l.key === vendedorSel) && (!q || l.nome.toLowerCase().includes(q)));
+  }, [linhas, vendedorSel, busca]);
+
+  const ranking = useMemo(() => visiveis.filter((l) => l.receita > 0 || l.vendas > 0), [visiveis]);
+  const podio = ranking.slice(0, 3);
+  const resto = ranking.slice(3, 7);
+  const maxReceita = ranking[0]?.receita || 1;
+
+  const serie = useMemo(
+    () => serieDiaria(vendasNoPeriodo, visiveis.slice(0, 4), faixa, acumulada),
+    [vendasNoPeriodo, visiveis, faixa, acumulada],
+  );
+
+  const funilBase = funilSel === "todos" ? visiveis : visiveis.filter((l) => l.key === funilSel);
+  const f = funilBase.reduce(
+    (a, l) => ({ leads: a.leads + l.leads, oportunidades: a.oportunidades + l.oportunidades, propostas: a.propostas + l.propostas, vendas: a.vendas + l.vendas }),
+    { leads: 0, oportunidades: 0, propostas: 0, vendas: 0 },
+  );
+  const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 1000) / 10}%` : "—");
+  const etapasFunil = [
+    { label: "Leads", icon: Users, valor: f.leads, sub: "100%", cor: "#3b82f6" },
+    { label: "Oportunidades", icon: Target, valor: f.oportunidades, sub: pct(f.oportunidades, f.leads), cor: "#a855f7" },
+    { label: "Propostas", icon: FileText, valor: f.propostas, sub: pct(f.propostas, f.oportunidades), cor: "#3b82f6" },
+    { label: "Vendas", icon: ShoppingCart, valor: f.vendas, sub: pct(f.vendas, f.propostas), cor: "#10b981" },
+  ];
+
+  const comMeta = visiveis.filter((l) => l.meta > 0);
+  const seriesVendedores = visiveis.slice(0, 4);
+  const titulo = sellerRestricted ? "Meus números" : "Receita por vendedor";
+
+  return (
+    <div className="space-y-5">
+      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5">
+        {/* Cabeçalho + filtros */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">{titulo}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="relative">
+              <Calendar className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
+              <select value={periodo} onChange={(e) => setPeriodo(e.target.value as PeriodoOpcao)} className={`${selectCls} pl-8`}>
+                {(Object.keys(PERIODO_LABEL) as PeriodoOpcao[]).map((p) => <option key={p} value={p}>{PERIODO_LABEL[p]}</option>)}
+              </select>
+            </label>
+            {!sellerRestricted && (
+              <>
+                <label className="relative">
+                  <Users className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
+                  <select value={vendedorSel} onChange={(e) => setVendedorSel(e.target.value)} className={`${selectCls} pl-8`}>
+                    <option value="todos">Todos os vendedores</option>
+                    {linhas.map((l) => <option key={l.key} value={l.key}>{l.nome}</option>)}
+                  </select>
+                </label>
+                <label className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
+                  <input
+                    value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar vendedor..."
+                    className={`${selectCls} pl-8 w-44 cursor-text font-normal`}
+                  />
+                </label>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Ranking + Meta x realizado */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {!sellerRestricted && (
+            <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+              <h4 className="text-sm font-black text-[var(--color-text-primary)]">Ranking de Vendas</h4>
+              <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Top vendedores por receita no período selecionado.</p>
+              {ranking.length === 0 ? (
+                <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhuma venda concluída no período.</p>
+              ) : (
+                <div className="flex flex-col md:flex-row gap-6 items-stretch">
+                  <div className="flex items-end justify-center gap-2 flex-1 min-h-[210px]">
+                    {[1, 0, 2].map((pos) => {
+                      const v = podio[pos];
+                      if (!v) return <div key={pos} className="w-24" />;
+                      const alturas = [150, 112, 84];
+                      const cores = ["from-amber-300 to-amber-500", "from-indigo-300 to-indigo-500", "from-orange-400 to-orange-600"];
+                      return (
+                        <div key={v.key} className="flex flex-col items-center w-28">
+                          <div className="relative mb-1.5">
+                            {pos === 0 && <Crown className="w-5 h-5 text-amber-400 absolute -top-5 left-1/2 -translate-x-1/2" />}
+                            <Avatar v={v} size={pos === 0 ? 44 : 38} />
+                          </div>
+                          <p className="text-[10px] font-black uppercase text-[var(--color-text-primary)] text-center leading-tight truncate w-full">{v.nome}</p>
+                          <p className="text-sm font-black font-mono text-[var(--color-text-primary)]">{formatCurrency(v.receita)}</p>
+                          <p className="text-[10px] text-[var(--color-text-muted)] mb-1">{v.vendas} venda{v.vendas === 1 ? "" : "s"}</p>
+                          <div className={`w-full rounded-t-lg bg-gradient-to-b ${cores[pos]} flex items-center justify-center text-white font-black text-3xl`} style={{ height: alturas[pos] }}>
+                            {pos + 1}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {resto.length > 0 && (
+                    <div className="md:w-60 space-y-3 self-center">
+                      {resto.map((v, i) => (
+                        <div key={v.key} className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-full bg-[var(--color-surface-sunken)] text-[10px] font-black flex items-center justify-center text-[var(--color-text-muted)] shrink-0">{i + 4}</span>
+                          <Avatar v={v} size={30} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">{v.nome}</span>
+                              <span className="text-xs font-black font-mono text-[var(--color-text-primary)]">{formatCurrency(v.receita)}</span>
+                            </div>
+                            <div className="h-1.5 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1">
+                              <div className="h-full rounded-full" style={{ width: `${Math.max(4, (v.receita / maxReceita) * 100)}%`, backgroundColor: v.cor }} />
+                            </div>
+                            <span className="text-[9px] text-[var(--color-text-faint)]">{v.vendas} venda{v.vendas === 1 ? "" : "s"}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          )}
+
+          <Card className={`${sellerRestricted ? "lg:col-span-12" : "lg:col-span-5"} p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]`}>
+            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Meta x realizado{sellerRestricted ? "" : " por vendedor"}</h4>
+            <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Acompanhe o progresso da meta de receita.</p>
+            {comMeta.length === 0 ? (
+              <p className="text-xs text-[var(--color-text-faint)] italic py-8 text-center">
+                Nenhuma meta definida. Cadastre a meta mensal em Equipe › Editar colaborador.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {comMeta.map((v) => (
+                  <div key={v.key} className="flex items-center gap-3">
+                    <Avatar v={v} size={32} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-[11px] font-black uppercase text-[var(--color-text-primary)] truncate">{v.nome}</span>
+                        <span className="text-[10px] font-mono text-[var(--color-text-muted)] shrink-0">{formatCurrency(v.receita)} / {formatCurrency(v.meta)}</span>
+                      </div>
+                      <div className="h-2 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1.5">
+                        <div className="h-full rounded-full" style={{ width: `${Math.min(100, v.metaPct ?? 0)}%`, backgroundColor: v.cor }} />
+                      </div>
+                    </div>
+                    <span className="text-sm font-black tabular-nums w-12 text-right" style={{ color: v.cor }}>{v.metaPct}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Evolução + Funil */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <h4 className="text-sm font-black text-[var(--color-text-primary)]">Evolução da receita{sellerRestricted ? "" : " por vendedor"}</h4>
+                <p className="text-[11px] text-[var(--color-text-muted)]">Receita diária no período selecionado.</p>
+              </div>
+              <select value={acumulada ? "acumulada" : "diaria"} onChange={(e) => setAcumulada(e.target.value === "acumulada")} className={selectCls}>
+                <option value="acumulada">Receita acumulada</option>
+                <option value="diaria">Receita diária</option>
+              </select>
+            </div>
+            {seriesVendedores.length === 0 ? (
+              <p className="text-xs text-[var(--color-text-faint)] italic py-12 text-center">Sem vendas no período.</p>
+            ) : (
+              <div className="h-[230px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={serie} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
+                    <XAxis dataKey="dia" tick={{ fontSize: 10, fill: "var(--color-text-faint)" }} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
+                    <YAxis tick={{ fontSize: 10, fill: "var(--color-text-faint)" }} tickLine={false} axisLine={false} width={64} tickFormatter={(v: number) => formatCurrency(v)} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: 12, fontSize: 11 }}
+                      formatter={(v: number, k: string) => [formatCurrency(v), seriesVendedores.find((s) => s.key === k)?.nome ?? k]}
+                    />
+                    <Legend formatter={(k: string) => seriesVendedores.find((s) => s.key === k)?.nome ?? k} wrapperStyle={{ fontSize: 11 }} />
+                    {seriesVendedores.map((v) => (
+                      <Line key={v.key} type="monotone" dataKey={v.key} stroke={v.cor} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </Card>
+
+          <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h4 className="text-sm font-black text-[var(--color-text-primary)]">Funil{sellerRestricted ? "" : " por vendedor"}</h4>
+                <p className="text-[11px] text-[var(--color-text-muted)]">Quantidade de leads em cada etapa.</p>
+              </div>
+              {!sellerRestricted && (
+                <select value={funilSel} onChange={(e) => setFunilSel(e.target.value)} className={selectCls}>
+                  <option value="todos">Todos os vendedores</option>
+                  {linhas.map((l) => <option key={l.key} value={l.key}>{l.nome}</option>)}
+                </select>
+              )}
+            </div>
+            <div className="grid grid-cols-4 gap-1.5 items-stretch">
+              {etapasFunil.map((e, i) => (
+                <div key={e.label} className="relative">
+                  <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-2.5 text-center h-full">
+                    <e.icon className="w-5 h-5 mx-auto mb-1" style={{ color: e.cor }} />
+                    <p className="text-[8px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{e.label}</p>
+                    <p className="text-xl font-black text-[var(--color-text-primary)] font-mono">{e.valor}</p>
+                    <p className="text-[10px] font-bold" style={{ color: e.cor }}>{e.sub}</p>
+                    {i > 0 && <p className="text-[8px] text-[var(--color-text-faint)]">de conversão</p>}
+                  </div>
+                  {i < etapasFunil.length - 1 && <ChevronRight className="absolute top-1/2 -right-2.5 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)] z-10" />}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* Desempenho por vendedor */}
+        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <div className="p-4 border-b border-[var(--color-border-subtle)]">
+            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Desempenho {sellerRestricted ? "" : "por vendedor"}</h4>
+            <p className="text-[11px] text-[var(--color-text-muted)]">Detalhamento do desempenho {sellerRestricted ? "dos seus números" : "de cada vendedor"} no período.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
+                <tr>
+                  <th className="px-4 py-2.5 w-8">#</th>
+                  <th className="px-4 py-2.5">Vendedor</th>
+                  <th className="px-4 py-2.5 text-right">Leads</th>
+                  <th className="px-4 py-2.5 text-right">Oportunidades</th>
+                  <th className="px-4 py-2.5 text-right">Vendas</th>
+                  <th className="px-4 py-2.5 text-right">Receita</th>
+                  <th className="px-4 py-2.5 text-right">Ticket médio</th>
+                  <th className="px-4 py-2.5 text-right">Conversão</th>
+                  <th className="px-4 py-2.5">Meta</th>
+                  <th className="px-4 py-2.5">Tendência</th>
+                  <th className="px-4 py-2.5 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-border-subtle)]">
+                {visiveis.map((v, i) => (
+                  <tr key={v.key} className="hover:bg-[var(--color-surface-sunken)]/50">
+                    <td className="px-4 py-2.5 font-black text-[var(--color-text-muted)]">{i + 1}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Avatar v={v} size={28} />
+                        <span className="font-bold text-[var(--color-text-primary)] truncate max-w-[180px]">{v.nome}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{v.leads}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{v.oportunidades}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-bold text-[var(--color-text-primary)]">{v.vendas}</td>
+                    <td className="px-4 py-2.5 text-right font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(v.receita)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-[var(--color-text-muted)]">{formatCurrency(v.ticket)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{v.conversao}%</td>
+                    <td className="px-4 py-2.5 min-w-[130px]">
+                      {v.metaPct === null ? (
+                        <span className="text-[var(--color-text-faint)]">sem meta</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${Math.min(100, v.metaPct)}%`, backgroundColor: v.cor }} />
+                          </div>
+                          <span className="font-bold tabular-nums" style={{ color: v.cor }}>{v.metaPct}%</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5"><Tendencia pct={v.tendencia} /></td>
+                    <td className="px-4 py-2.5 text-right">
+                      <button
+                        type="button" onClick={() => setDetalhe(v)}
+                        className="px-3 h-7 rounded-lg border border-[var(--color-border-default)] text-[11px] font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] cursor-pointer"
+                      >
+                        Ver detalhes
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {visiveis.length === 0 && (
+                  <tr><td colSpan={11} className="px-4 py-8 text-center text-[var(--color-text-faint)]">Nenhum vendedor encontrado.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </Card>
+
+      <DrillDownPanel
+        isOpen={detalhe !== null}
+        onClose={() => setDetalhe(null)}
+        title={detalhe ? `Leads de ${detalhe.nome}` : undefined}
+        subtitle={detalhe ? `${detalhe.leadsDoVendedor.length} lead${detalhe.leadsDoVendedor.length === 1 ? "" : "s"} criado${detalhe.leadsDoVendedor.length === 1 ? "" : "s"} no período` : undefined}
+        rows={detalhe ? detalhe.leadsDoVendedor : []}
+        columns={leadDrillColumns(formatCurrency)}
+      />
+    </div>
+  );
+}

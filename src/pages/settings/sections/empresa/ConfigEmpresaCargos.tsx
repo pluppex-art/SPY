@@ -13,7 +13,7 @@ const NIVEL_COLORS: Record<string, string> = {
   "Operacional": "text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-[var(--color-border-default)]",
 };
 
-type CargoFormData = { nome: string; nivel: string; descricao: string };
+type CargoFormData = { nome: string; nivel: string; descricao: string; restringir_aos_proprios_dados: boolean };
 
 export function ConfigEmpresaCargos() {
   const { cargos, addCargo, updateCargo, deleteCargo } = useData();
@@ -22,10 +22,10 @@ export function ConfigEmpresaCargos() {
 
   const handleSave = (data: CargoFormData) => {
     if (editingCargo) {
-      updateCargo(editingCargo.id, { nome: data.nome, nivel: data.nivel, descricao: data.descricao });
+      updateCargo(editingCargo.id, { nome: data.nome, nivel: data.nivel, descricao: data.descricao, restringir_aos_proprios_dados: data.restringir_aos_proprios_dados });
       toast.success(`Cargo "${data.nome}" atualizado!`);
     } else {
-      addCargo({ nome: data.nome, nivel: data.nivel, descricao: data.descricao, modulos: [] });
+      addCargo({ nome: data.nome, nivel: data.nivel, descricao: data.descricao, restringir_aos_proprios_dados: data.restringir_aos_proprios_dados, modulos: [] });
       toast.success(`Cargo "${data.nome}" cadastrado!`);
     }
     setEditingCargo(null);

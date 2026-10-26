@@ -26,6 +26,7 @@ import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
 import { friendlyError } from "../lib/friendlyError";
 import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio } from "../lib/saleCalculator";
+import { isSellerRestricted, scopeToSeller } from "../lib/sellerScope";
 
 export { useData };
 export type { DataContextType, LeadActivity, Notification, Appointment, GlobalWebhook, FinanceEntry, Reuniao };
@@ -3332,9 +3333,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Escopo de vendedor: cargo com "Restringir aos próprios dados" enxerga só o que é
+  // dele (leads, propostas, tarefas, atividades, reuniões, contratos). Master/admin
+  // do tenant nunca são restringidos. O banco aplica o mesmo critério por RLS.
+  const sellerRestricted = isSellerRestricted(user, cargos);
+  const vis = useMemo(() => {
+    if (!sellerRestricted || !user) return null;
+    return scopeToSeller({
+      user, colaboradores: colaboradoresRaw,
+      leads, proposals, proposalItems, tasks, leadActivities, reunioes, contracts,
+    });
+  }, [sellerRestricted, user, colaboradoresRaw, leads, proposals, proposalItems, tasks, leadActivities, reunioes, contracts]);
+
   return (
     <DataContext.Provider value={{
-      leads, avgWonTicket, tasks, contracts, notifications, leadActivities, loadLeadHistory, financeEntries, appointments,
+      leads: vis?.leads ?? leads, avgWonTicket, tasks: vis?.tasks ?? tasks, contracts: vis?.contracts ?? contracts, notifications, leadActivities: vis?.leadActivities ?? leadActivities, loadLeadHistory, financeEntries, appointments,
+      sellerRestricted,
       theme, toggleTheme,
       addLead, updateLead, deleteLead, moveLead,
       addTask, updateTask, deleteTask, addContract, updateContract, deleteContract,
@@ -3460,12 +3474,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addProduct: productCrud.add,
       updateProduct: productCrud.update,
       deleteProduct: productCrud.del,
-      proposals,
+      proposals: vis?.proposals ?? proposals,
       setProposals,
       addProposal: proposalCrud.add,
       updateProposal,
       deleteProposal,
-      proposalItems,
+      proposalItems: vis?.proposalItems ?? proposalItems,
       createProposalWithItems,
       addItemsToProposal,
       editProposalItems,
@@ -3478,7 +3492,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addTurma: turmaCrud.add,
       updateTurma: turmaCrud.update,
       deleteTurma: turmaCrud.del,
-      reunioes,
+      reunioes: vis?.reunioes ?? reunioes,
       addReuniao: (r: Omit<Reuniao, 'id' | 'createdAt'>) => reuniaoCrud.add({ ...r, createdAt: new Date().toISOString() }),
       updateReuniao: reuniaoCrud.update,
       deleteReuniao: reuniaoCrud.del,
