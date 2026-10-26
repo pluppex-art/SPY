@@ -860,18 +860,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateFunil = async (id: string, updates: any) => {
+    const anterior = funis.find(f => f.id === id);
     setFunis(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
     if (supabase) {
       const { error } = await supabase.from('crm_funis').update(funilToRow(updates)).eq('id', id);
-      if (error) console.error('[Supabase] update crm_funis error:', error.message);
+      if (error) {
+        console.error('[Supabase] update crm_funis error:', error.message);
+        if (anterior) setFunis(prev => prev.map(f => f.id === id ? anterior : f));
+        toast.error(`Erro ao salvar funil: ${friendlyError(error)}`);
+      }
     }
   };
 
   const deleteFunil = async (id: string) => {
+    const removido = funis.find(f => f.id === id);
     setFunis(prev => prev.filter(f => f.id !== id));
     if (supabase) {
-      const { error } = await supabase.from('crm_funis').delete().eq('id', id);
-      if (error) console.error('[Supabase] delete crm_funis error:', error.message);
+      const { data, error } = await supabase.from('crm_funis').delete().eq('id', id).select('id');
+      if (error || !data || data.length === 0) {
+        console.error('[Supabase] delete crm_funis error:', error?.message ?? 'nenhuma linha afetada');
+        if (removido) setFunis(prev => [...prev, removido]);
+        toast.error(error ? `Erro ao excluir funil: ${friendlyError(error)}` : 'Não foi possível excluir o funil — sem permissão ou não encontrado.');
+      }
     }
   };
 
@@ -2197,15 +2207,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteTask = async (id: string) => {
+    const removida = tasks.find(t => t.id === id);
     setTasks(prev => prev.filter(t => t.id !== id));
-    toast.info('Tarefa removida.');
     if (supabase) {
-      try {
-        await supabase.from('tasks').delete().eq('id', id);
-      } catch (err) {
-        console.error("Supabase delete task failed:", err);
+      const { data, error } = await supabase.from('tasks').delete().eq('id', id).select('id');
+      if (error || !data || data.length === 0) {
+        console.error("[Supabase] delete tasks error:", error?.message ?? 'nenhuma linha afetada');
+        if (removida) setTasks(prev => [removida, ...prev]);
+        toast.error(error ? `Erro ao remover tarefa: ${friendlyError(error)}` : 'Não foi possível remover — sem permissão ou tarefa não encontrada.');
+        return;
       }
     }
+    toast.info('Tarefa removida.');
   };
 
   const addContract = async (contract: Omit<Contract, 'id'>, options: { silent?: boolean } = {}) => {
@@ -2330,15 +2343,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteContract = async (id: string) => {
+    const removido = contracts.find(c => c.id === id);
     setContracts(prev => prev.filter(c => c.id !== id));
-    toast.info('Contrato removido.');
     if (supabase) {
-      try {
-        await supabase.from('contracts').delete().eq('id', id);
-      } catch (err) {
-        console.error("Supabase delete contract failed:", err);
+      const { data, error } = await supabase.from('contracts').delete().eq('id', id).select('id');
+      if (error || !data || data.length === 0) {
+        console.error("[Supabase] delete contracts error:", error?.message ?? 'nenhuma linha afetada');
+        if (removido) setContracts(prev => [removido, ...prev]);
+        toast.error(error ? `Erro ao remover contrato: ${friendlyError(error)}` : 'Não foi possível remover — sem permissão ou contrato não encontrado.');
+        return;
       }
     }
+    toast.info('Contrato removido.');
   };
 
   // Antes só existia em memória (setNotifications, sem nenhuma escrita no
@@ -2818,12 +2834,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // limpeza (que apagaria o contrato) nunca rodava porque dependia do sucesso
     // que ela mesma deveria ter viabilizado. Precisa tirar o que bloqueia a FK
     // ANTES de tentar apagar a proposta, não depois.
-    const linkedEntryIds = (financeEntries as any[])
-      .filter((f: any) => f.proposal_id === id)
-      .map((f: any) => f.id);
+    // Lançamentos já pagos são histórico de caixa: ficam (o banco desvincula da proposta);
+    // só os em aberto somem junto com ela.
+    const linkedEntries = (financeEntries as any[]).filter((f: any) => f.proposal_id === id);
+    const linkedEntryIds = linkedEntries.filter((f: any) => f.status !== 'Pago').map((f: any) => f.id);
+    const paidEntryIds = linkedEntries.filter((f: any) => f.status === 'Pago').map((f: any) => f.id);
     if (linkedEntryIds.length > 0 && supabase) {
       const { error } = await supabase.from('finance_entries').delete().in('id', linkedEntryIds);
-      if (error) console.error('[Supabase] delete finance_entries by proposal_id error:', error.message);
+      if (error) {
+        console.error('[Supabase] delete finance_entries by proposal_id error:', error.message);
+        toast.error(`Não foi possível excluir os lançamentos da proposta: ${friendlyError(error)}`);
+        return false;
+      }
     }
 
     const linkedContractIds = (contracts as any[])
@@ -2841,7 +2863,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const ok = await proposalCrud.del(id);
     if (ok) {
       setProposalItems(prev => prev.filter((pi: any) => pi.proposal_id !== id));
-      if (linkedEntryIds.length > 0) setFinanceEntries(prev => prev.filter((f: any) => !linkedEntryIds.includes(f.id)));
+      if (linkedEntryIds.length > 0 || paidEntryIds.length > 0) {
+        setFinanceEntries(prev => prev
+          .filter((f: any) => !linkedEntryIds.includes(f.id))
+          .map((f: any) => paidEntryIds.includes(f.id) ? { ...f, proposal_id: null } : f));
+      }
+      if (paidEntryIds.length > 0) toast.info(`${paidEntryIds.length} lançamento(s) já pago(s) foram mantidos no financeiro.`);
       if (linkedContractIds.length > 0) setContracts(prev => prev.filter((c: any) => !linkedContractIds.includes(c.id)));
 
       if (prop?.lead_id) {
@@ -2888,7 +2915,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // do Kanban e o cabeçalho do lead ficam mostrando o valor antigo até o
   // usuário mexer em outra coisa que dispare uma re-sincronização.
   const updateProposal = async (id: string, updates: any) => {
+    const anterior = proposalsRef.current.find((p: any) => p.id === id);
     await proposalCrud.update(id, updates);
+    // Tirar uma proposta de "Aceita" não desfaz o contrato nem as cobranças já geradas: avisa em vez de deixar
+    // a tela sugerir que voltou tudo ao estado anterior.
+    if (anterior?.status === 'Aceita' && updates.status !== undefined && updates.status !== 'Aceita') {
+      const temContrato = (contracts as any[]).some((c: any) => c.proposalId === id);
+      if (temContrato) toast.warning('O contrato e os lançamentos gerados no aceite continuam ativos — cancele-os em Contratos/Financeiro se for o caso.');
+    }
     if (updates.valor !== undefined) {
       const prop = proposalsRef.current.find((p: any) => p.id === id);
       const leadId = prop?.lead_id;
@@ -3446,15 +3480,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteAppointment = async (id: string) => {
+    const removido = appointments.find(a => a.id === id);
     setAppointments(prev => prev.filter(a => a.id !== id));
-    toast.info('Agendamento removido.');
     if (supabase) {
-      try {
-        await supabase.from('appointments').delete().eq('id', id);
-      } catch (err) {
-        console.error("Supabase delete appointment failed:", err);
+      const { data, error } = await supabase.from('appointments').delete().eq('id', id).select('id');
+      if (error || !data || data.length === 0) {
+        console.error("[Supabase] delete appointments error:", error?.message ?? 'nenhuma linha afetada');
+        if (removido) setAppointments(prev => [removido, ...prev]);
+        toast.error(error ? `Erro ao remover agendamento: ${friendlyError(error)}` : 'Não foi possível remover — sem permissão ou agendamento não encontrado.');
+        return;
       }
     }
+    toast.info('Agendamento removido.');
   };
 
   // Escopo de vendedor: cargo com "Restringir aos próprios dados" enxerga só o que é

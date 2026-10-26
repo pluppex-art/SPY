@@ -48,9 +48,14 @@ export async function fetchPublicProposal(token: string): Promise<PublicProposal
   if (!token) return null;
 
   try {
-    const res = await fetch(`/api/public-proposal/${token}`, {
-      headers: { Accept: "application/json" },
-    });
+    // Se quem abre está logado, manda a sessão: o servidor então não conta como visualização do cliente
+    // (a equipe conferindo o link não pode inflar o "visualizado Nx" nem marcar "Aberta").
+    const headers: Record<string, string> = { Accept: "application/json" };
+    try {
+      const { data: sess } = (await supabase?.auth.getSession()) ?? { data: null };
+      if (sess?.session?.access_token) headers.Authorization = `Bearer ${sess.session.access_token}`;
+    } catch { /* sem sessão: visitante externo */ }
+    const res = await fetch(`/api/public-proposal/${token}`, { headers });
     if (res.ok) {
       const data = await res.json();
       if (data && data.titulo) {

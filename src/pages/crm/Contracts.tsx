@@ -14,7 +14,7 @@ import { isContractAtivo } from "../../components/ui/drillColumns";
 import type { Contract } from "../../types";
 import { FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "../finance/components/FinanceKpiFilter";
-import { normalizeText } from "../../lib/utils";
+import { normalizeText, parseCurrencyBR, dataLocalISO } from "../../lib/utils";
 
 export default function Contracts() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -108,6 +108,21 @@ export default function Contracts() {
 
   const valorContratosAtivos = getFaturamentoContratado(contractsFiltrados);
 
+  // Exporta exatamente o que está filtrado na tela (CSV com ; e BOM, abre direto no Excel pt-BR).
+  const exportarCsv = () => {
+    if (contractsFiltrados.length === 0) { toast.info("Nenhum contrato para exportar com os filtros atuais."); return; }
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const cab = ["Cliente", "Plano", "Status", "Mensalidade (MRR)", "Valor total", "Início", "Término", "Responsável"];
+    const linhas = contractsFiltrados.map((c: any) => [
+      c.client, c.plan, c.status, parseCurrencyBR(c.mrr), c.totalValue ?? "", c.date, c.endDate ?? "", c.responsavel ?? "",
+    ].map(esc).join(";"));
+    const blob = new Blob(["\uFEFF" + [cab.map(esc).join(";"), ...linhas].join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `contratos-${dataLocalISO()}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -116,7 +131,7 @@ export default function Contracts() {
           <p className="text-sm text-[var(--color-text-muted)]">Contratos ativos, MRR e saúde financeira.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="gap-2">Exportar CSV</Button>
+          <Button variant="outline" className="gap-2" onClick={exportarCsv}>Exportar CSV</Button>
           <Button onClick={() => { setEditingContract(null); setIsModalOpen(true); }} className="gap-2">
             <Plus className="w-4 h-4" /> Novo Contrato
           </Button>

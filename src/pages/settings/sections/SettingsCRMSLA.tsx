@@ -54,6 +54,10 @@ export function ConfigCRMSLA() {
         </Button>
       </div>
 
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-600 dark:text-amber-400">
+        <strong className="font-black">Ainda não aplicado automaticamente.</strong> Estas regras ficam salvas, mas o sistema ainda não gera alertas nem cobra a equipe com base nelas.
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left editor: form controls */}
         <Card className="lg:col-span-3 p-4 sm:p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col justify-between rounded-2xl relative overflow-hidden shadow-sm">

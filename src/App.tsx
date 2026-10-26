@@ -523,13 +523,13 @@ function AppContent() {
             <Route path="empresa/permissoes" element={<ProtectedRoute requireTenantAdmin><ConfigEmpresaPermissoes /></ProtectedRoute>} />
             <Route path="empresa/cargos" element={<ProtectedRoute requireTenantAdmin><ConfigEmpresaCargos /></ProtectedRoute>} />
 
-            <Route path="crm/funis" element={<ConfigCRMFunis />} />
-            <Route path="crm/origens" element={<ConfigCRMOrigens />} />
-            <Route path="crm/produtos" element={<ConfigCRMProdutos />} />
-            <Route path="crm/campos" element={<ConfigCRMCampos />} />
-            <Route path="crm/sla" element={<ConfigCRMSLA />} />
-            <Route path="crm/gatilhos-ia" element={<ConfigCRMGatilhosIA />} />
-            <Route path="crm/rodizio" element={<ConfigRodizioLeads />} />
+            <Route path="crm/funis" element={<ProtectedRoute requireTenantAdmin><ConfigCRMFunis /></ProtectedRoute>} />
+            <Route path="crm/origens" element={<ProtectedRoute requireTenantAdmin><ConfigCRMOrigens /></ProtectedRoute>} />
+            <Route path="crm/produtos" element={<ProtectedRoute requireTenantAdmin><ConfigCRMProdutos /></ProtectedRoute>} />
+            <Route path="crm/campos" element={<ProtectedRoute requireTenantAdmin><ConfigCRMCampos /></ProtectedRoute>} />
+            <Route path="crm/sla" element={<ProtectedRoute requireTenantAdmin><ConfigCRMSLA /></ProtectedRoute>} />
+            <Route path="crm/gatilhos-ia" element={<ProtectedRoute requireTenantAdmin><ConfigCRMGatilhosIA /></ProtectedRoute>} />
+            <Route path="crm/rodizio" element={<ProtectedRoute requireTenantAdmin><ConfigRodizioLeads /></ProtectedRoute>} />
 
             <Route path="produtividade/categorias" element={<ConfigProdutividadeCategorias />} />
             <Route path="kanbans" element={<ConfigKanbanBoards />} />

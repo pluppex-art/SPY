@@ -490,7 +490,6 @@ function TaskCard({ task, onToggle, onDelete, dimmed, colaboradores }: {
             description: `Excluir a tarefa "${task.title}"? Essa ação não pode ser desfeita.`,
           }))) return;
           onDelete(task.id);
-          toast.info("Tarefa removida.");
         }}
         className="shrink-0 p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-danger/10 rounded text-[var(--color-text-faint)] hover:text-danger transition-all cursor-pointer"
         title="Remover Tarefa"

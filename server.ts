@@ -3171,16 +3171,31 @@ app.get("/api/public-proposal/:token", async (req, res) => {
       return res.status(404).json({ error: "Proposta não encontrada ou link expirado." });
     }
 
-    // 2. Incrementa contador de visualização e timestamp de auditoria
+    // 2. Incrementa contador de visualização e timestamp de auditoria — só para visitante externo:
+    // usuário logado da mesma empresa (equipe conferindo o link) não conta como visualização.
     // TODO: view_count ler-e-somar não é atômico; exige RPC/migration para incremento atômico.
-    await client
-      .from("proposals")
-      .update({
-        view_count: (proposal.view_count || 0) + 1,
-        last_viewed_at: new Date().toISOString(),
-        first_viewed_at: proposal.first_viewed_at || new Date().toISOString(),
-      })
-      .eq("id", proposal.id);
+    let visitanteInterno = false;
+    try {
+      const authHeader = req.headers["authorization"] as string | undefined;
+      const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+      if (bearer && supabase && proposal.tenant_id) {
+        const { data: au } = await supabase.auth.getUser(bearer);
+        if (au?.user) {
+          const { data: membro } = await client.from("users").select("id").eq("id", au.user.id).eq("tenant_id", proposal.tenant_id).maybeSingle();
+          visitanteInterno = !!membro;
+        }
+      }
+    } catch { /* falha ao identificar: trata como externo */ }
+    if (!visitanteInterno) {
+      await client
+        .from("proposals")
+        .update({
+          view_count: (proposal.view_count || 0) + 1,
+          last_viewed_at: new Date().toISOString(),
+          first_viewed_at: proposal.first_viewed_at || new Date().toISOString(),
+        })
+        .eq("id", proposal.id);
+    }
 
     // 3. Busca itens da proposta
     const { data: items } = await client

@@ -259,14 +259,6 @@ export default function Propostas() {
       actions={
         <div className="flex items-center gap-3">
           <Button
-            variant="outline"
-            size="lg"
-            className="font-bold uppercase tracking-widest text-[10px] bg-[var(--color-surface-elevated)] border-[var(--color-border-default)]"
-            onClick={() => toast.info("Apenas modelos premium de engenharia e tecnologia estão ativos no plano.")}
-          >
-            Modelos
-          </Button>
-          <Button
             size="lg"
             onClick={() => setIsPropostaModalOpen(true)}
             className="font-black uppercase tracking-widest text-[10px] bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 !text-white"
