@@ -119,7 +119,7 @@ export function PropostaEditorWordModal({
   const [decisorCargo, setDecisorCargo] = useState("");
   const [conteudoTexto, setConteudoTexto] = useState("");
   const [itens, setItens] = useState<
-    Array<{ product_name: string; quantidade: number; preco_unitario: number; billing_type?: string | null }>
+    Array<{ product_name: string; quantidade: number; preco_unitario: number; billing_type?: string | null; contract_months?: number | null }>
   >([]);
   const [viewToken, setViewToken] = useState<string | null>(null);
   // Data de emissão exibida no documento (a proposta ainda não traz criada_em aqui).

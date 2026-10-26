@@ -356,7 +356,8 @@ export interface DataContextType {
     tipo?: 'itens' | 'texto' | 'arquivo';
     conteudoTexto?: string | null;
     linkPdf?: string | null;
-    itens?: Array<{ productId?: string | null; descricao: string; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null }>;
+    itens?: Array<{ productId?: string | null; descricao: string; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null; frequency?: string | null }>;
+    pagamento?: Record<string, any> | null;
   }) => Promise<string>;
   addItemsToProposal: (proposalId: string, itens: Array<{ productId?: string | null; descricao: string; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null; frequency?: string | null }>, addedValor: number) => Promise<void>;
   replaceProposalItems: (proposalId: string, removeIds: string[], itens: Array<{ productId?: string | null; descricao: string; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null; frequency?: string | null }>, valorDelta: number | null) => Promise<void>;
