@@ -187,10 +187,10 @@ export interface DataContextType {
   appointments: Appointment[];
   theme: 'dark' | 'light';
   toggleTheme: () => void;
-  addLead: (lead: Omit<Lead, 'id'>) => void;
-  updateLead: (id: string, updates: Partial<Lead>) => void;
-  deleteLead: (id: string) => void;
-  moveLead: (leadId: string, destStageId: string, index: number) => void;
+  addLead: (lead: Omit<Lead, 'id'>) => Promise<boolean>;
+  updateLead: (id: string, updates: Partial<Lead>) => Promise<boolean>;
+  deleteLead: (id: string) => Promise<boolean>;
+  moveLead: (leadId: string, destStageId: string, index: number) => Promise<void>;
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;

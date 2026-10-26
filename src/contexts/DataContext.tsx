@@ -978,7 +978,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
           // Patch incremental em vez de refetch da tabela inteira — ver
           // applyRealtimeUpsert acima. INSERT ainda mostra o toast de aviso.
-          if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId) {
+          if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId && !createdLeadIdsRef.current.has((payload.new as any).id)) {
             toast.info(`Novo lead: ${payload.new.name}`, { description: 'Recebido via Realtime' });
           }
           applyRealtimeUpsert(setLeads, payload, (r) => mapLeadRow(r) as Lead, tenantId);
@@ -1701,18 +1701,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addLead = async (lead: Omit<Lead, 'id'>) => {
+  // Leads que ESTE navegador acabou de criar: o aviso "Novo lead … Recebido via Realtime" não
+  // deve aparecer pra quem criou (já viu "lead adicionado").
+  const createdLeadIdsRef = React.useRef<Set<string>>(new Set());
+
+  const addLead = async (lead: Omit<Lead, 'id'>): Promise<boolean> => {
     const effectiveTenantId = tenantId || user?.tenantId || "default";
     const newId = crypto.randomUUID();
     const newLead = { ...lead, id: newId, scoreIA: 50 };
+    createdLeadIdsRef.current.add(newId);
     setLeads(prev => [newLead, ...prev]);
-    toast.success('Novo lead adicionado com sucesso!');
-    addNotification({
-      title: "Novo Lead",
-      description: `${lead.name} da empresa ${lead.company || "lead"} foi adicionado.`,
-      link_url: `/app/crm/pipeline?leadId=${newId}`,
-      type: "success"
-    });
 
     if (supabase) {
       try {
@@ -1727,7 +1725,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           cnpj: lead.cnpj ?? '',
           seller: lead.seller ?? '',
           title: lead.title ?? '',
-          date: lead.date ?? '',
+          // `date` é a data de cadastro e precisa ser ISO (AAAA-MM-DD): o formulário mandava o
+          // texto "Hoje", que quebrava todo filtro/ordenação por data.
+          date: lead.date && /^\d{4}-\d{2}-\d{2}/.test(lead.date) ? lead.date : new Date().toISOString().slice(0, 10),
           status: lead.status ?? 'Novo',
           priority: lead.priority ?? 'Média',
           temperature: lead.temperature ?? undefined,
@@ -1744,17 +1744,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           clientName: lead.clientName ?? '',
           source: lead.source ?? '',
           productIds: lead.productIds ?? [],
+          notes: (lead as any).notes ?? '',
         };
 
         const { error } = await supabase.from('leads').insert(dbPayload);
         if (error) {
           console.error("Supabase add lead failed:", error.message, error.details);
+          // Não deixa na tela um lead que o banco recusou: desfaz e avisa.
+          setLeads(prev => prev.filter(l => l.id !== newId));
+          createdLeadIdsRef.current.delete(newId);
+          toast.error(`Não foi possível criar o lead: ${friendlyError(error)}`);
+          return false;
         }
       } catch (err) {
         console.error("Supabase add lead failed:", err);
+        setLeads(prev => prev.filter(l => l.id !== newId));
+        createdLeadIdsRef.current.delete(newId);
+        toast.error("Não foi possível criar o lead.");
+        return false;
       }
     }
+    // Só avisa sucesso depois que o banco confirmou.
+    toast.success('Novo lead adicionado com sucesso!');
+    addNotification({
+      title: "Novo Lead",
+      description: `${lead.name} da empresa ${lead.company || "lead"} foi adicionado.`,
+      link_url: `/app/crm/pipeline?leadId=${newId}`,
+      type: "success"
+    });
     setTimeout(() => { triggerScoreRecalculation(newLead.id, [newLead]); }, 400);
+    return true;
   };
 
   // Trava contra corrida assíncrona: `!lead.clientId` (usado tanto aqui quanto
@@ -1898,8 +1917,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // ~400ms depois, revertendo silenciosamente qualquer mudança de coluna do
     // Kanban (ex: soltar em "Ganho" e o lead voltar pra "Contrato" ao recarregar).
     let mergedLead: Lead | undefined;
+    let previousLead: Lead | undefined; // pra desfazer se o banco recusar
+    let saved = true;
     setLeads(prev => {
       const target = prev.find(l => l.id === id);
+      previousLead = target;
       if (target && (
         (updates.status !== undefined && updates.status !== target.status) ||
         (updates.stageId !== undefined && updates.stageId !== target.stageId)
@@ -1924,13 +1946,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             });
           }
           if (updates.status === 'Fechado' && l.status !== 'Fechado') {
+            // (Removido o aviso "E-mail de Boas Vindas enviado!": nenhum e-mail era enviado.)
             becameWon = true;
-            addNotification({
-              title: "Automação: E-mail de Boas Vindas",
-              description: `Boas vindas enviadas para ${updatedLead.name} por ter se tornado cliente!`,
-              type: "success",
-            });
-            toast.success("E-mail de Boas Vindas enviado!");
           }
           return updatedLead;
         }
@@ -1956,10 +1973,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           console.error("Supabase update lead failed:", error.message);
           toast.error(`Erro ao salvar lead: ${friendlyError(error)}`);
+          saved = false;
         }
       } catch (err) {
         console.error("Supabase update lead failed:", err);
         toast.error("Erro ao salvar lead.");
+        saved = false;
+      }
+      // Banco recusou: volta os campos ao valor anterior em vez de deixar a tela mostrando algo que não foi salvo.
+      if (!saved && previousLead) {
+        const anterior = previousLead as any;
+        setLeads(prev => prev.map(l => {
+          if (l.id !== id) return l;
+          const restaurado: any = { ...l };
+          for (const k of Object.keys(updates)) restaurado[k] = anterior[k];
+          return restaurado;
+        }));
       }
     }
     if (hasStatusOrStageChange) {
@@ -2016,10 +2045,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // consultas "cliente já existe" corriam antes de qualquer INSERT
     // commitar, nenhuma via a outra, as duas inseriam. Marcar a guard AQUI
     // (síncrono, antes do primeiro await) fecha a corrida pros dois lados.
-    if (becameWon && mergedLead && !reconciledWonLeadIdsRef.current.has(mergedLead.id)) {
+    if (saved && becameWon && mergedLead && !reconciledWonLeadIdsRef.current.has(mergedLead.id)) {
       reconciledWonLeadIdsRef.current.add(mergedLead.id);
       createClientFromWonLead(mergedLead);
     }
+    return saved;
   };
 
   // Reconciliação: leads "Fechado" sem cliente vinculado ainda (relatado pela
@@ -2055,7 +2085,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leads, clienteBase]);
 
-  const deleteLead = async (id: string) => {
+  const deleteLead = async (id: string): Promise<boolean> => {
     const removed = leads.find(l => l.id === id);
     setLeads(prev => prev.filter(l => l.id !== id));
     if (supabase) {
@@ -2064,16 +2094,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         console.error("Supabase delete lead failed:", error?.message ?? 'nenhuma linha afetada');
         toast.error(error ? `Erro ao remover lead: ${friendlyError(error)}` : 'Não foi possível remover o lead — sem permissão ou registro não encontrado.');
         if (removed) setLeads(prev => prev.some(l => l.id === id) ? prev : [removed, ...prev]);
-        return;
+        return false;
       }
     }
     toast.info('Lead removido.');
+    return true;
   };
 
   const moveLead = async (leadId: string, destStageId: string, index: number) => {
+    let etapaAnterior: string | undefined;
     setLeads(prev => {
       const lead = prev.find(l => l.id === leadId);
       if (!lead) return prev;
+      etapaAnterior = lead.stageId;
       const otherLeads = prev.filter(l => l.id !== leadId);
       const updatedLead = { ...lead, stageId: destStageId };
 
@@ -2089,10 +2122,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (supabase) {
+      let falhou = false;
       try {
-        await supabase.from('leads').update({ stageId: destStageId }).eq('id', leadId);
+        const { error } = await supabase.from('leads').update({ stageId: destStageId }).eq('id', leadId);
+        if (error) { console.error("Supabase move lead failed:", error.message); falhou = true; }
       } catch (err) {
         console.error("Supabase move lead failed:", err);
+        falhou = true;
+      }
+      if (falhou) {
+        // Volta o card pra etapa anterior e avisa — antes o card ficava na coluna nova sem ter sido salvo.
+        if (etapaAnterior !== undefined) setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stageId: etapaAnterior as string } : l));
+        toast.error('Não foi possível mover o lead — a etapa não foi salva.');
+        return;
       }
     }
     setTimeout(() => { triggerScoreRecalculation(leadId); }, 400);

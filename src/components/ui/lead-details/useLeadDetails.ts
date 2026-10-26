@@ -357,15 +357,17 @@ export function useLeadDetails(lead: any, onClose: () => void) {
     toast.success("Histórico atualizado com sucesso!");
   };
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
     // `value` NÃO entra aqui de propósito: o valor do lead é derivado (soma das
     // propostas vinculadas, recalculado em DataContext.tsx) e só pode ser
     // alterado editando a proposta em si — ver ProfileDataForm ("Valor da
     // Proposta", campo trancado).
-    updateLead(lead.id, {
+    const salvou = await updateLead(lead.id, {
       name: leadName, company: companyName, cnpj, phone, email, title, seller, priority,
       customFields: customFieldsState, productIds: linkedProductIds,
     });
+    // Se o banco recusou, o updateLead já avisou o erro e desfez a tela: não mostra "salvo".
+    if (!salvou) return;
     setAlterationLogs(prev => [
       { id: Date.now().toString(), author: seller || "Sistema", desc: "Informações do lead atualizadas", time: "Agora" },
       ...prev,
@@ -374,10 +376,10 @@ export function useLeadDetails(lead: any, onClose: () => void) {
     setIsEditingInline(false);
   };
 
-  const handleConfirmDelete = () => {
-    deleteLead(lead.id);
-    toast.success("Lead removido.");
-    onClose();
+  const handleConfirmDelete = async () => {
+    // deleteLead já avisa o resultado (sucesso ou erro) e devolve o lead à lista se falhar.
+    const removido = await deleteLead(lead.id);
+    if (removido) onClose();
   };
 
   const applyMessageTemplate = (tpl: string) =>
