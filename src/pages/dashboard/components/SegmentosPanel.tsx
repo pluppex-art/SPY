@@ -63,7 +63,7 @@ function MetaEditavel({ valor, editavel, onSalvar, formatCurrency }: {
 }
 
 export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData }) {
-  const { contracts, clienteBase, proposals, appSettings, saveAppSetting, sellerRestricted } = useData() as any;
+  const { contracts, proposals, proposalItems, products, appSettings, saveAppSetting, sellerRestricted } = useData() as any;
   const { formatCurrency } = useLocalization();
 
   const [metrica, setMetrica] = useState<MetricaSegmento>("receita");
@@ -83,8 +83,8 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
   );
 
   const { linhas, eventos, totalReceita } = useMemo(
-    () => computeSegmentos({ contracts, clienteBase, proposals, metas }, faixa),
-    [contracts, clienteBase, proposals, metas, faixa],
+    () => computeSegmentos({ contracts, proposals, proposalItems, products, metas }, faixa),
+    [contracts, proposals, proposalItems, products, metas, faixa],
   );
 
   const visiveis = useMemo(() => linhas.filter((l) => segSel === "todos" || l.key === segSel), [linhas, segSel]);
@@ -116,7 +116,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por segmento</h3>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">Analise a distribuição da receita, evolução e desempenho de cada segmento de negócio.</p>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">Os segmentos são as categorias dos seus produtos e serviços (Catálogo). Veja a receita, a evolução e o desempenho de cada um.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select value={metrica} onChange={(e) => setMetrica(e.target.value as MetricaSegmento)} className={selectCls}>
@@ -316,7 +316,8 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
           </Card>
         </div>
         <p className="text-[10px] text-[var(--color-text-faint)]">
-          Segmento = ramo do cliente no cadastro. Receita e negócios contam os contratos assinados no período; conversão é o aceite das propostas do segmento.
+          Segmento = categoria do produto vendido (cadastre e organize em Catálogo › Produtos). Cada contrato é repartido pelos itens da proposta; receita e negócios contam os contratos assinados no período;
+          conversão é o aceite das propostas com item do segmento. Contratos sem proposta com itens entram em "Sem categoria".
           {totalReceita > 0 ? "" : " Ainda não há contratos assinados no período selecionado."}
         </p>
       </Card>
