@@ -13,7 +13,7 @@ import { useLocalization } from "../../../../contexts/LocalizationContext";
 import { cn } from "../../../../lib/utils";
 import { toast } from "sonner";
 import {
-  calculateSale, FREQUENCY_LABELS, cycleMonthsFor, OPEN_ENDED_BATCH_CYCLES, getSaleRealValue,
+  calculateSale, FREQUENCY_LABELS, cycleMonthsFor, OPEN_ENDED_BATCH_CYCLES, getSaleRealValue, getSalesHeadlineValue,
   type Frequencia, type BillingType, type DiscountType,
 } from "../../../../lib/saleCalculator";
 
@@ -627,7 +627,7 @@ export function AddProdutoLeadModal({
       // verdade somada em TODO o sistema — Kanban, ranking, ticket médio,
       // Propostas, BI) — corrigir aqui evita ter que corrigir cada um
       // desses lugares separadamente.
-      const totalValor = allItems.reduce((sum, ci) => sum + getSaleRealValue(ci.sale), 0);
+      const totalValor = getSalesHeadlineValue(allItems.map((ci) => ({ isRecurring: ci.isRecurring, sale: ci.sale })));
 
       let proposalId: string;
       if (existingProposal?.id) {

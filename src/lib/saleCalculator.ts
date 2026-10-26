@@ -151,8 +151,21 @@ export const OPEN_ENDED_BATCH_CYCLES = 12;
  * ganho"), Propostas, ranking de vendas, ticket médio etc. — em vez de
  * corrigir cada um desses ~20 lugares, corrige na origem: o valor que sai
  * daqui pra `proposals.valor`/`leads.value` já nasce certo. */
-export function getSaleRealValue(sale: Pick<SaleCalculationResult, "isOpenEnded" | "cycleAmount" | "totalProjectedAmount">): number {
-  return sale.isOpenEnded ? sale.cycleAmount : sale.totalProjectedAmount;
+export function getSaleRealValue(sale: Pick<SaleCalculationResult, "isOpenEnded" | "cycleAmount" | "totalProjectedAmount"> & { numberOfCycles?: number }): number {
+  // Regra do produto: recorrente (mensalidade, tipo Netflix) vale SEMPRE a mensalidade — com ou sem
+  // prazo — nunca o total do contrato (R$ 2.000/mês por 6 meses é "R$ 2.000", não "R$ 12 mil").
+  // Venda pontual (à vista ou parcelada) vale o total.
+  if (sale.isOpenEnded || (sale.numberOfCycles ?? 1) > 1) return sale.cycleAmount;
+  return sale.totalProjectedAmount;
+}
+
+/** Valor da proposta a partir dos itens de uma venda que está sendo montada: se há item
+ * recorrente, é a soma das MENSALIDADES; senão, o total dos itens pontuais. */
+export function getSalesHeadlineValue(entries: { isRecurring: boolean; sale: Parameters<typeof getSaleRealValue>[0] }[]): number {
+  const recorrentes = entries.filter((e) => e.isRecurring);
+  return recorrentes.length > 0
+    ? recorrentes.reduce((s, e) => s + e.sale.cycleAmount, 0)
+    : entries.reduce((s, e) => s + getSaleRealValue(e.sale), 0);
 }
 
 /** Mesma correção que `getSaleRealValue`, só que a partir de uma linha já
@@ -203,6 +216,13 @@ export function getProposalMonthlyTotal(items: ProposalItemLike[]): number {
 /** Soma dos itens pontuais (implantação, setup, venda única). */
 export function getProposalOneTimeTotal(items: ProposalItemLike[]): number {
   return items.reduce((s, i) => (getProposalItemMonthlyValue(i) === null ? s + getProposalItemRealValue(i) : s), 0);
+}
+
+/** Valor da proposta calculado dos itens JÁ gravados (mesma regra de getSalesHeadlineValue):
+ * com item recorrente, a soma das mensalidades; senão, o total dos itens pontuais. */
+export function getProposalHeadlineFromItems(items: ProposalItemLike[]): number {
+  const mensal = getProposalMonthlyTotal(items);
+  return mensal > 0 ? mensal : getProposalOneTimeTotal(items);
 }
 
 /** Proporção de desconto negociado da proposta (1 = sem desconto). `valor` pode

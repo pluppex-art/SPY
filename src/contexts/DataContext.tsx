@@ -25,7 +25,7 @@ import { isDateLocked } from "../pages/finance/lib/financeEngine";
 import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
 import { friendlyError } from "../lib/friendlyError";
-import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio } from "../lib/saleCalculator";
+import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio, getProposalHeadlineFromItems } from "../lib/saleCalculator";
 import { isSellerRestricted, scopeToSeller } from "../lib/sellerScope";
 
 export { useData };
@@ -932,7 +932,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // preciso sem risco de duplicar ou "esquecer" de subtrair valor.
   const sumProposalsValueForLead = (leadId: string, snapshot: any[]) =>
     snapshot
-      .filter((p: any) => p.lead_id === leadId)
+      // Proposta recusada, rascunho ou cancelada não é negócio em andamento nem fechado:
+      // somar o valor dela inflava o lead.
+      .filter((p: any) => p.lead_id === leadId && !['Recusada', 'Rascunho', 'Cancelada'].includes(p.status))
       .reduce((sum: number, p: any) => sum + (Number(p.valor) || 0), 0);
 
   // Persistence & Supabase Synchronization
@@ -2537,6 +2539,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // Cria uma proposta e seus itens (produtos do catálogo ou avulsos) numa única chamada —
   // usado tanto pela tela de Propostas quanto pelo botão "Vender" no catálogo de Produtos.
+  // Tipo de cobrança de um item quando quem chama não informa: segue o cadastro do produto
+  // (recorrente só se o produto é recorrente). Antes tudo caía em "recorrente", então uma venda
+  // pontual do catálogo aparecia como "R$ X/mês – sem prazo".
+  const resolveBillingType = (item: { productId?: string | null; billingType?: 'recurring' | 'one_time' }): 'recurring' | 'one_time' => {
+    if (item.billingType) return item.billingType;
+    const prod = item.productId ? (products as any[]).find((p: any) => p.id === item.productId) : undefined;
+    const recorrente = prod && (prod.isRecurring ?? prod.is_recurring ?? prod.typeAttributes?.isRecurring);
+    return recorrente ? 'recurring' : 'one_time';
+  };
+
+  // Valor da proposta recalculado dos itens que ficam depois de uma edição: recorrente =
+  // mensalidade, pontual = total — mantendo o desconto negociado (proporção atual valor/itens).
+  // Antes somava/subtraía "preço × quantidade" bruto, que para recorrente é o total do contrato
+  // e errava o valor (mensalidade) por número de ciclos.
+  const valorDaPropostaApos = (prop: any, itensFinais: any[]) => {
+    const atuais = (proposalItems || []).filter((pi: any) => pi.proposal_id === prop.id);
+    const proporcao = getProposalDiscountRatio(prop.valor, atuais);
+    return Math.round(getProposalHeadlineFromItems(itensFinais) * proporcao * 100) / 100;
+  };
+  const linhaDoPayload = (it: { productId?: string | null; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null }) => ({
+    preco_unitario: it.precoUnitario, quantidade: it.quantidade, billing_type: resolveBillingType(it), contract_months: it.contractMonths ?? null,
+  });
+
   const createProposalWithItems = async (payload: {
     titulo: string;
     cliente: string;
@@ -2600,7 +2625,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         preco_unitario: item.precoUnitario,
         // Sem isso, todo item cai no default 'recurring' da coluna e uma taxa
         // de implantação/setup entra somando no MRR igual a uma mensalidade.
-        billing_type: item.billingType || 'recurring',
+        billing_type: resolveBillingType(item),
         // Prazo REAL fechado nesta venda (pode ser diferente da duração padrão
         // do catálogo do produto) — usado depois pra calcular a data de
         // término do contrato com o prazo que foi de fato negociado.
@@ -2660,12 +2685,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         product_name: item.descricao,
         quantidade: item.quantidade,
         preco_unitario: item.precoUnitario,
-        billing_type: item.billingType || 'recurring',
+        billing_type: resolveBillingType(item),
         contract_months: item.contractMonths ?? null,
         frequency: item.frequency ?? null,
       });
     }
-    await updateProposal(proposalId, { valor: (Number(prop.valor) || 0) + addedValor });
+    // `addedValor` é ignorado de propósito: o valor é recalculado dos itens (ver valorDaPropostaApos).
+    const atuais = (proposalItems || []).filter((pi: any) => pi.proposal_id === proposalId);
+    await updateProposal(proposalId, { valor: valorDaPropostaApos(prop, [...atuais, ...itens.map(linhaDoPayload)]) });
   };
 
   // Troca itens de uma proposta existente: apaga `removeIds`, insere `itens` e ajusta o
@@ -2674,7 +2701,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     proposalId: string,
     removeIds: string[],
     itens: Array<{ productId?: string | null; descricao: string; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null; frequency?: string | null }>,
-    valorDelta: number,
+    valorDelta: number | null,
   ) => {
     const prop = proposalsRef.current.find((p: any) => p.id === proposalId);
     if (!prop) throw new Error('Proposta não encontrada.');
@@ -2687,12 +2714,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         product_name: item.descricao,
         quantidade: item.quantidade,
         preco_unitario: item.precoUnitario,
-        billing_type: item.billingType || 'recurring',
+        billing_type: resolveBillingType(item),
         contract_months: item.contractMonths ?? null,
         frequency: item.frequency ?? null,
       });
     }
-    if (valorDelta !== 0) await updateProposal(proposalId, { valor: Math.max(0, (Number(prop.valor) || 0) + valorDelta) });
+    // `valorDelta` numérico é ignorado de propósito: o valor é recalculado dos itens que sobram + os novos.
+    // `null` = quem chamou já gravou o valor certo (ex.: assistente de proposta) e não deve ser sobrescrito.
+    if (valorDelta === null) return;
+    const sobram = (proposalItems || []).filter((pi: any) => pi.proposal_id === proposalId && !removeIds.includes(pi.id));
+    await updateProposal(proposalId, { valor: valorDaPropostaApos(prop, [...sobram, ...itens.map(linhaDoPayload)]) });
   };
 
   // Edita itens que JÁ estão numa proposta (quantidade/preço) e/ou remove itens, e
@@ -2706,20 +2737,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const prop = proposalsRef.current.find((p: any) => p.id === proposalId);
     if (!prop) throw new Error('Proposta não encontrada.');
-    let delta = 0;
+    const atuais = (proposalItems || []).filter((pi: any) => pi.proposal_id === proposalId);
     for (const e of edits) {
-      const old = (proposalItems || []).find((pi: any) => pi.id === e.id && pi.proposal_id === proposalId);
-      if (!old) continue;
-      delta += e.quantidade * e.preco_unitario - (Number(old.quantidade) || 0) * (Number(old.preco_unitario) || 0);
+      if (!atuais.some((pi: any) => pi.id === e.id)) continue;
       await proposalItemCrud.update(e.id, { quantidade: e.quantidade, preco_unitario: e.preco_unitario });
     }
     for (const id of removedIds) {
-      const old = (proposalItems || []).find((pi: any) => pi.id === id && pi.proposal_id === proposalId);
-      if (!old) continue;
-      delta -= (Number(old.quantidade) || 0) * (Number(old.preco_unitario) || 0);
+      if (!atuais.some((pi: any) => pi.id === id)) continue;
       await proposalItemCrud.del(id);
     }
-    if (delta !== 0) await updateProposal(proposalId, { valor: Math.max(0, (Number(prop.valor) || 0) + delta) });
+    const finais = atuais
+      .filter((pi: any) => !removedIds.includes(pi.id))
+      .map((pi: any) => {
+        const e = edits.find((x) => x.id === pi.id);
+        return e ? { ...pi, quantidade: e.quantidade, preco_unitario: e.preco_unitario } : pi;
+      });
+    // Recalcula dos itens finais (recorrente = mensalidade), em vez de somar/subtrair diferenças brutas.
+    await updateProposal(proposalId, { valor: valorDaPropostaApos(prop, finais) });
   };
 
   // Excluir uma proposta precisa limpar TUDO que só existe por causa dela —

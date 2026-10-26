@@ -359,7 +359,7 @@ export interface DataContextType {
     itens?: Array<{ productId?: string | null; descricao: string; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null }>;
   }) => Promise<string>;
   addItemsToProposal: (proposalId: string, itens: Array<{ productId?: string | null; descricao: string; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null; frequency?: string | null }>, addedValor: number) => Promise<void>;
-  replaceProposalItems: (proposalId: string, removeIds: string[], itens: Array<{ productId?: string | null; descricao: string; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null; frequency?: string | null }>, valorDelta: number) => Promise<void>;
+  replaceProposalItems: (proposalId: string, removeIds: string[], itens: Array<{ productId?: string | null; descricao: string; quantidade: number; precoUnitario: number; billingType?: 'recurring' | 'one_time'; contractMonths?: number | null; frequency?: string | null }>, valorDelta: number | null) => Promise<void>;
   editProposalItems: (proposalId: string, edits: Array<{ id: string; quantidade: number; preco_unitario: number }>, removedIds: string[]) => Promise<void>;
   /** Sincroniza contrato + fatura pra uma proposta aceita (chamada tanto no momento
    * do aceite quanto pela reconciliação global — ver DataContext.tsx). Retorna

@@ -474,7 +474,7 @@ export function NovaPropostaWizard({
           equipe_interna: payload.equipeInterna,
           tags: payload.tags,
         });
-        await replaceProposalItems(existingProposal.id, (existingItems || []).map((it: any) => it.id), payload.itens, 0);
+        await replaceProposalItems(existingProposal.id, (existingItems || []).map((it: any) => it.id), payload.itens, null);
       } else {
         await createProposalWithItems(payload);
       }
