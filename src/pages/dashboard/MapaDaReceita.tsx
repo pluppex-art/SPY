@@ -14,6 +14,7 @@ import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import VendedoresPanel from "./components/VendedoresPanel";
+import SegmentosPanel from "./components/SegmentosPanel";
 import { computeChannelRevenue, computeProductRevenue, computeSegmentRevenue, type DashboardData } from "./revenueInsights";
 
 type DrillKey = "leads" | "oportunidades" | "vendas" | "receita" | "retencao" | "emRisco";
@@ -202,39 +203,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           </div>
         </Card>
       ) : subAba === "segmentos" ? (
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Receita por Segmento</h3>
-          {segmentos.length === 0 ? (
-            <p className="text-xs text-[var(--color-text-faint)] italic">Sem contratos ativos ainda.</p>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-center gap-8">
-              <div className="relative h-[160px] w-[160px] shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={segmentos} cx="50%" cy="50%" innerRadius={52} outerRadius={78} paddingAngle={3} dataKey="receita" stroke="none">
-                      {segmentos.map((s, i) => <Cell key={i} fill={s.color} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: 12, fontSize: 11 }} formatter={(v: number) => formatCurrency(v)} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-sm font-black text-[var(--color-text-primary)] font-mono">{formatCurrency(segmentoTotal)}</span>
-                  <span className="text-[9px] text-[var(--color-text-faint)] font-bold uppercase">total</span>
-                </div>
-              </div>
-              <div className="flex-1 w-full space-y-2.5">
-                {segmentos.map((s) => (
-                  <div key={s.segmento} className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                    <span className="text-xs text-[var(--color-text-muted)] font-semibold truncate flex-1">{s.segmento}</span>
-                    <span className="text-xs font-mono text-[var(--color-text-primary)]">{formatCurrency(s.receita)}</span>
-                    <span className="text-xs font-bold text-[var(--color-text-primary)] tabular-nums w-10 text-right">{s.pct}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </Card>
+        <SegmentosPanel dashboard={dashboard} />
       ) : subAba === "vendedores" ? (
         <VendedoresPanel dashboard={dashboard} />
       ) : (
