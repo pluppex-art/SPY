@@ -17,7 +17,7 @@ import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { isLeadOpen } from "../../lib/leadStatus";
-import { parseCurrencyBR } from "../../lib/utils";
+import { parseCurrencyBR, whatsappDigits } from "../../lib/utils";
 import { downloadCsv } from "../../lib/csvExport";
 import { buildStagesForFunil } from "../../lib/funilStages";
 import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
@@ -66,7 +66,7 @@ function initials(name?: string | null): string {
 }
 
 export default function Radar() {
-  const { leads, funis, addTask } = useData();
+  const { leads, funis, addTask, sellerRestricted } = useData();
   const { activeTenantId } = useAuth();
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
@@ -140,7 +140,9 @@ export default function Radar() {
   // honesto de mostrar tendência: timeIdle é sempre o estado agora, não um
   // retrato do passado.
   useEffect(() => {
-    if (!supabase || !activeTenantId) return;
+    // Vendedor restrito enxerga só os leads dele: gravar essas contagens como se fossem da empresa
+    // sobrescreveria o histórico de tendência de todo mundo.
+    if (!supabase || !activeTenantId || sellerRestricted) return;
     const hoje = new Date().toISOString().slice(0, 10);
     supabase
       .from("lead_risk_snapshots")
@@ -149,10 +151,11 @@ export default function Radar() {
         { onConflict: "tenant_id,snapshot_date" }
       )
       .then(({ error }) => { if (error) console.error("[Radar] snapshot upsert:", error.message); });
-  }, [activeTenantId, counts.critico, counts.alto, counts.atencao, totalEmRisco, valorEmRisco]);
+  }, [activeTenantId, sellerRestricted, counts.critico, counts.alto, counts.atencao, totalEmRisco, valorEmRisco]);
 
   useEffect(() => {
-    if (!supabase || !activeTenantId) { setHistorico([]); return; }
+    // O histórico é da empresa toda; o vendedor restrito só vê os números dos próprios leads, ao vivo.
+    if (!supabase || !activeTenantId || sellerRestricted) { setHistorico([]); return; }
     let cancelled = false;
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - janela);
     supabase
@@ -453,7 +456,7 @@ export default function Radar() {
                         {r.l.phone && (
                           <>
                             <a href={`tel:${r.l.phone}`} onClick={(e) => e.stopPropagation()} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]" title="Ligar"><Phone className="w-3.5 h-3.5" /></a>
-                            <a href={`https://wa.me/55${String(r.l.phone).replace(/\D/g, "")}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]" title="WhatsApp"><MessageCircle className="w-3.5 h-3.5" /></a>
+                            <a href={`https://wa.me/${whatsappDigits(r.l.phone)}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]" title="WhatsApp"><MessageCircle className="w-3.5 h-3.5" /></a>
                           </>
                         )}
                         <button type="button" onClick={() => navigate(`/app/crm/pipeline?lead=${r.l.id}`)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]" title="Abrir no pipeline"><ExternalLink className="w-3.5 h-3.5" /></button>

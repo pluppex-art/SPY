@@ -1,3 +1,4 @@
+import { useAuth } from "../../contexts/AuthContext";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AgendarReuniaoModal } from "./modals/crm/AgendarReuniaoModal";
@@ -37,6 +38,7 @@ interface LeadDetailsModalProps {
 export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProps) {
   const { updateLead, leadActivities, loadLeadHistory, proposals, products, leads: allLeads } = useData();
   const { formatCurrency } = useLocalization();
+  const { activeTenantId } = useAuth();
   const navigate = useNavigate();
   const [currentTab, setCurrentTab] = useState("informacoes");
   const [showCopilot, setShowCopilot] = useState(false);
@@ -102,6 +104,9 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
           .from("app_settings")
           .select("value")
           .eq("key", "axis_reuniao_config")
+          // Sem o filtro, conta master/parceira (que enxerga vários clientes) lia a config de outro cliente
+          // ou falhava em silêncio com mais de uma linha.
+          .eq("tenant_id", activeTenantId ?? "")
           .maybeSingle();
         if (data?.value) {
           const cfg = typeof data.value === "string" ? JSON.parse(data.value) : data.value;

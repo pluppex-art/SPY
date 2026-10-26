@@ -156,3 +156,12 @@ export function timeAgo(iso: string | number | Date): string {
   return `há ${mo} ${mo === 1 ? "mês" : "meses"}`;
 }
 
+
+
+/** Número para link do WhatsApp (wa.me): só dígitos, com o 55 do Brasil uma única vez.
+ *  O código fixava "55" na frente, então telefone que já vinha com DDI virava "5555…". */
+export function whatsappDigits(raw: unknown): string {
+  const d = String(raw ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  return d.length >= 12 && d.startsWith("55") ? d : `55${d}`;
+}

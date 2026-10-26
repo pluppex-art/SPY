@@ -12,7 +12,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { friendlyError } from "../../lib/friendlyError";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
 import { useData } from "../../contexts/DataContext";
-import { normalizeText } from "../../lib/utils";
+import { normalizeText, whatsappDigits } from "../../lib/utils";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
 export default function Empresas() {
@@ -208,7 +208,7 @@ export default function Empresas() {
 
               {emp.phone && (
                 <a
-                  href={`https://wa.me/55${emp.phone.replace(/\D/g, '')}`}
+                  href={`https://wa.me/${whatsappDigits(emp.phone)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="text-xs font-bold text-[var(--color-primary-blue)] hover:underline flex items-center gap-1"

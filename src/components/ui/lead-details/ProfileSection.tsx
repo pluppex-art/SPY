@@ -8,7 +8,7 @@ import { Button } from "../button";
 import { Badge } from "../badge";
 import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
-import { parseCurrencyBR } from "../../../lib/utils";
+import { parseCurrencyBR, whatsappDigits } from "../../../lib/utils";
 import { getMRR } from "../../../lib/revenueMetrics";
 import { toast } from "sonner";
 import { ProfileDataForm } from "./ProfileDataForm";
@@ -177,7 +177,7 @@ export function ProfileSection({
       label: "WhatsApp",
       icon: MessageSquare,
       color: "text-[var(--color-text-muted)]",
-      action: () => window.open(`https://wa.me/55${phone.replace(/\D/g, "")}`, "_blank"),
+      action: () => window.open(`https://wa.me/${whatsappDigits(phone)}`, "_blank"),
     },
     {
       label: "Ligação VoIP",
@@ -316,7 +316,7 @@ export function ProfileSection({
               mesmo destino do botão "WhatsApp" em Ações Rápidas acima. */}
           <button
             type="button"
-            onClick={() => window.open(`https://wa.me/55${phone.replace(/\D/g, "")}`, "_blank")}
+            onClick={() => window.open(`https://wa.me/${whatsappDigits(phone)}`, "_blank")}
             disabled={!phone}
             className="text-xs text-[var(--color-primary-blue)] font-bold hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
           >

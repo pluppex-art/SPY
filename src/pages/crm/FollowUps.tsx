@@ -10,7 +10,7 @@ import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import { isLeadOpen } from "../../lib/leadStatus";
-import { normalizeText } from "../../lib/utils";
+import { normalizeText, whatsappDigits } from "../../lib/utils";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
 const PAGE_SIZE = 50;
@@ -128,7 +128,7 @@ export default function FollowUps() {
             <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
               {item.phone && (
                 <a
-                  href={`https://wa.me/55${item.phone.replace(/\D/g, '')}`}
+                  href={`https://wa.me/${whatsappDigits(item.phone)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/25 text-xs font-bold flex items-center gap-1.5 transition-all"

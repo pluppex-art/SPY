@@ -10,7 +10,7 @@ import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../contexts/AuthContext";
 import { friendlyError } from "../../lib/friendlyError";
-import { normalizeText } from "../../lib/utils";
+import { normalizeText, whatsappDigits } from "../../lib/utils";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
 type Contato = {
@@ -264,7 +264,7 @@ export default function Contatos() {
                     <div className="flex items-center gap-2">
                       {c.telefone && (
                         <a
-                          href={`https://wa.me/55${c.telefone.replace(/\D/g, '')}`}
+                          href={`https://wa.me/${whatsappDigits(c.telefone)}`}
                           target="_blank"
                           rel="noreferrer"
                           className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] hover:bg-[var(--color-primary-blue)]/10 text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] transition-colors"
