@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Papa from "papaparse";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -13,6 +13,7 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { friendlyError } from "../../lib/friendlyError";
+import { getStageId, funilStageNames, pipelineIdDoFunil, phoneKey } from "../../lib/funnelIds";
 
 // FASE 5.5 do mandato "Aurora + S.P.Y. + Integração com Sistemas Externos" (2026-09-19).
 // Substitui o importador anterior, que tinha 3 bugs reais confirmados por leitura de código:
@@ -66,8 +67,15 @@ interface ImportResult {
 }
 
 export default function CRMImportacao() {
-  const { user, activeTenantId } = useAuth();
-  const { refetchLeads } = useData() as any;
+  const { user, activeTenantId, activeFilialId } = useAuth() as any;
+  const { refetchLeads, leads, funis } = useData() as any;
+
+  // Funil e etapa de destino: o importador jogava tudo no funil SDR (etapa fixa "sdr-1"), que some
+  // do Pipeline se a empresa não tem funil SDR, e a tela prometia o funil comercial.
+  const funisAtivos = useMemo(() => (funis as any[]).filter((f) => f.ativo !== false && funilStageNames(f).length > 0), [funis]);
+  const [funilDestinoId, setFunilDestinoId] = useState<string>("");
+  const [etapaDestinoIdx, setEtapaDestinoIdx] = useState<number>(0);
+  const funilDestino = funisAtivos.find((f) => f.id === funilDestinoId) ?? funisAtivos.find((f) => f.tipo !== "sdr_ia") ?? funisAtivos[0];
 
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -146,40 +154,28 @@ export default function CRMImportacao() {
     setCheckingDuplicates(true);
     setStep("review");
     try {
-      if (!supabase || !activeTenantId) {
-        setDuplicateRowIndexes(new Set());
-        return;
+      // Compara por e-mail (minúsculo) e telefone normalizado (DDD + 8 últimos dígitos), contra os
+      // leads já carregados da empresa E contra as linhas anteriores do próprio arquivo. Antes era
+      // texto cru e uma consulta .or() que estourava a URL em arquivo grande (e o erro virava
+      // "sem duplicados", importando tudo duplicado sem avisar).
+      const emailsExistentes = new Set<string>();
+      const telefonesExistentes = new Set<string>();
+      for (const l of (leads as any[]) || []) {
+        if (l.email) emailsExistentes.add(String(l.email).trim().toLowerCase());
+        for (const t of [l.phone, l.mobile_wa]) { const k = phoneKey(t); if (k.length >= 8) telefonesExistentes.add(k); }
       }
-      const emails = rows.map((r) => r.email).filter(Boolean);
-      const phones = rows.map((r) => r.phone).filter(Boolean);
-      if (emails.length === 0 && phones.length === 0) {
-        setDuplicateRowIndexes(new Set());
-        return;
-      }
-      const orFilters = [
-        emails.length > 0 ? `email.in.(${emails.map((e) => `"${e}"`).join(",")})` : null,
-        phones.length > 0 ? `phone.in.(${phones.map((p) => `"${p}"`).join(",")})` : null,
-      ].filter(Boolean).join(",");
-
-      const { data: existing, error } = await supabase
-        .from("leads")
-        .select("email, phone")
-        .eq("tenant_id", activeTenantId)
-        .or(orFilters);
-
-      if (error) {
-        console.error("[Importação] Erro ao checar duplicados:", error.message);
-        setDuplicateRowIndexes(new Set());
-        return;
-      }
-
-      const existingEmails = new Set((existing ?? []).map((l: any) => l.email).filter(Boolean));
-      const existingPhones = new Set((existing ?? []).map((l: any) => l.phone).filter(Boolean));
       const dupIndexes = new Set<number>();
+      const vistosEmail = new Set<string>();
+      const vistosTel = new Set<string>();
       rows.forEach((r, idx) => {
-        if ((r.email && existingEmails.has(r.email)) || (r.phone && existingPhones.has(r.phone))) {
+        const em = String(r.email || "").trim().toLowerCase();
+        const tk = phoneKey(r.phone);
+        const telValido = tk.length >= 8;
+        if ((em && (emailsExistentes.has(em) || vistosEmail.has(em))) || (telValido && (telefonesExistentes.has(tk) || vistosTel.has(tk)))) {
           dupIndexes.add(idx);
         }
+        if (em) vistosEmail.add(em);
+        if (telValido) vistosTel.add(tk);
       });
       setDuplicateRowIndexes(dupIndexes);
     } finally {
@@ -190,6 +186,10 @@ export default function CRMImportacao() {
   const handleImport = async () => {
     if (!supabase || !activeTenantId) {
       toast.error("Sem conexão com o banco ou tenant ativo.");
+      return;
+    }
+    if (!funilDestino) {
+      toast.error("Nenhum funil encontrado — crie um funil em Configurações › CRM › Funis antes de importar.");
       return;
     }
     setIsImporting(true);
@@ -207,8 +207,9 @@ export default function CRMImportacao() {
         source: row.source || "Importação CSV",
         lead_interesse_cliente: row.lead_interesse_cliente,
         status: "Novo",
-        stageId: "sdr-1",
-        pipelineId: "sdr",
+        stageId: funilDestino ? getStageId(funilDestino.id, etapaDestinoIdx) : "1",
+        pipelineId: funilDestino ? pipelineIdDoFunil(funilDestino) : "comercial",
+        filial_id: activeFilialId ?? null,
         seller: user?.name || "Sistema",
         tenant_id: activeTenantId,
         scoreIA: 50,
@@ -360,13 +361,35 @@ export default function CRMImportacao() {
               <div className="text-center py-8 text-[var(--color-text-faint)] text-xs">Checando duplicados...</div>
             ) : (
               <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <label className="space-y-1">
+                    <span className="font-bold text-[var(--color-text-primary)]">Funil de destino</span>
+                    <select
+                      value={funilDestino?.id ?? ""}
+                      onChange={(e) => { setFunilDestinoId(e.target.value); setEtapaDestinoIdx(0); }}
+                      className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 py-1.5 text-xs"
+                    >
+                      {funisAtivos.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="font-bold text-[var(--color-text-primary)]">Etapa inicial</span>
+                    <select
+                      value={etapaDestinoIdx}
+                      onChange={(e) => setEtapaDestinoIdx(Number(e.target.value))}
+                      className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 py-1.5 text-xs"
+                    >
+                      {(funilDestino ? funilStageNames(funilDestino) : []).map((n, i) => <option key={i} value={i}>{n}</option>)}
+                    </select>
+                  </label>
+                </div>
                 <div className="flex items-center gap-3 text-xs">
                   <Badge variant="secondary">{mappedRows.length} linha(s) mapeada(s)</Badge>
                   {duplicateRowIndexes.size > 0 && <Badge variant="destructive">{duplicateRowIndexes.size} duplicado(s) encontrado(s)</Badge>}
                   {duplicateRowIndexes.size > 0 && (
                     <label className="flex items-center gap-1.5 font-bold text-[var(--color-text-primary)] cursor-pointer">
                       <input type="checkbox" checked={skipDuplicates} onChange={(e) => setSkipDuplicates(e.target.checked)} />
-                      Pular duplicados (já existem por e-mail/telefone)
+                      Pular duplicados (já existem, ou se repetem no arquivo, por e-mail/telefone)
                     </label>
                   )}
                 </div>
