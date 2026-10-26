@@ -13,7 +13,7 @@ import { generateJitsiLink } from "../../JitsiEmbed";
 import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { toast } from "sonner";
-import { cn } from "../../../../lib/utils";
+import { cn, dataLocalISO, dataHoraLocalISO } from "../../../../lib/utils";
 
 interface AgendarReuniaoModalProps {
   isOpen: boolean;
@@ -42,7 +42,7 @@ export function AgendarReuniaoModal({ isOpen, onClose, lead, onConfirm }: Agenda
 
   const [closerName, setCloserName] = useState(lead.seller || user?.name || "");
   const [closerEmail, setCloserEmail] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => dataLocalISO());
   const [time, setTime] = useState("09:00");
   const [duration, setDuration] = useState(60);
   const [leadEmail, setLeadEmail] = useState(lead.email || "");
@@ -142,7 +142,7 @@ export function AgendarReuniaoModal({ isOpen, onClose, lead, onConfirm }: Agenda
     const startISO = `${date}T${time}:00`;
     const endDate = new Date(`${date}T${time}:00`);
     endDate.setMinutes(endDate.getMinutes() + duration);
-    const endISO = endDate.toISOString().slice(0, 19);
+    const endISO = dataHoraLocalISO(endDate);
     const reuniaoId = `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     const allAttendees = Array.from(new Set([leadEmail, closerEmail, ...convidados].filter(Boolean)));
 
@@ -532,7 +532,7 @@ export function AgendarReuniaoModal({ isOpen, onClose, lead, onConfirm }: Agenda
             <input
               type="date"
               value={date}
-              min={new Date().toISOString().slice(0, 10)}
+              min={dataLocalISO()}
               onChange={(e) => setDate(e.target.value)}
               className={inputCls}
             />

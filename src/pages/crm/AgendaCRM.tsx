@@ -38,7 +38,7 @@ import { Reuniao } from "../../contexts/DataContextTypes";
 import { connectGoogleCalendar, consumeGoogleCalendarRedirectResult, disconnectGoogleCalendar, formatGoogleCalendarError, syncGoogleCalendar } from "../../lib/google-auth";
 import { getGoogleIntegrationsStatus } from "../../lib/googleIntegrations";
 import { supabase } from "../../lib/supabase";
-import { normalizeText } from "../../lib/utils";
+import { normalizeText, dataLocalISO } from "../../lib/utils";
 
 type TipoFiltro = "Todos" | TipoCompromisso;
 
@@ -147,7 +147,7 @@ export default function AgendaCRM() {
   );
 
   // Today metrics
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = dataLocalISO();
   const todayMeetings = all.filter((r) => r.scheduledAt?.startsWith(todayStr));
   const todayConfirmed = todayMeetings.filter((r) => r.status === "Agendada" || r.status === "Em Andamento");
 
@@ -918,7 +918,7 @@ export default function AgendaCRM() {
 
               {/* Day slots list */}
               {(() => {
-                const dayDateStr = selectedDayDate.toISOString().slice(0, 10);
+                const dayDateStr = dataLocalISO(selectedDayDate);
                 const dayMeetings = filteredReunioes.filter((r) => r.scheduledAt?.startsWith(dayDateStr));
 
                 if (dayMeetings.length === 0) {

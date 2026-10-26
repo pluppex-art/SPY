@@ -165,3 +165,13 @@ export function whatsappDigits(raw: unknown): string {
   if (!d) return "";
   return d.length >= 12 && d.startsWith("55") ? d : `55${d}`;
 }
+
+/** Data (YYYY-MM-DD) e hora (YYYY-MM-DDTHH:mm:ss) no fuso LOCAL — toISOString() usa UTC e, à noite no Brasil, vira o dia seguinte. */
+export function dataLocalISO(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+export function dataHoraLocalISO(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${dataLocalISO(d)}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
