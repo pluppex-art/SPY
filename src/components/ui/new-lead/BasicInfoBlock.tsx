@@ -15,12 +15,14 @@ interface BasicInfoBlockProps {
   sellerCargoLabel: string;
   valueEstimate?: string;
   setValueEstimate?: (v: string) => void;
+  /** Origens configuradas em Configurações › CRM › Origens (+ as já usadas nos leads). */
+  origemOptions?: string[];
 }
 
 export function BasicInfoBlock({
   emailValue, setEmailValue, phoneValue, handlePhoneChange, isEmailDuplicate,
   selectedSeller, setSelectedSeller, sellerOptions, sellerPipelineId, sellerCargoLabel,
-  valueEstimate, setValueEstimate,
+  valueEstimate, setValueEstimate, origemOptions = [],
 }: BasicInfoBlockProps) {
   return (
     <div className="space-y-4">
@@ -78,13 +80,9 @@ export function BasicInfoBlock({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[var(--color-border-subtle)]">
         <FormField label="Origem de Aquisição">
-          <select className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] h-9">
-            <option>Site (Orgânico)</option>
-            <option>Google Ads</option>
-            <option>Meta Ads (Facebook / Instagram)</option>
-            <option>Indicação</option>
-            <option>Prospecção Ativa (Outbound)</option>
-            <option>WhatsApp Direto</option>
+          <select name="source" defaultValue="" className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] h-9">
+            <option value="">Selecione a origem…</option>
+            {origemOptions.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         </FormField>
 

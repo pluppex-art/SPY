@@ -26,7 +26,7 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
   const [loading, setLoading] = useState(false);
   const [tags, setTags] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const { leads, addLead, customLeadFields, clienteBase, colaboradores } = useData();
+  const { leads, addLead, customLeadFields, clienteBase, colaboradores, appSettings } = useData();
   const { user, allTenantModules, tenantIdMap } = useAuth();
   const isMaster = user?.isMaster;
 
@@ -49,8 +49,15 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
   const [teamSize, setTeamSize] = useState("");
   const [valueEstimate, setValueEstimate] = useState("");
 
-  const isEmailDuplicate = leads.some(l => l.email.toLowerCase() === emailValue.toLowerCase() && emailValue !== "");
+  // `email` pode vir nulo em leads importados/integrados — não pode derrubar o formulário.
+  const isEmailDuplicate = leads.some(l => (l.email || "").toLowerCase() === emailValue.toLowerCase() && emailValue !== "");
   const isCnpjDuplicate = leads.some(l => l.cnpj === cnpjValue && cnpjValue !== "");
+
+  const origemOptions = useMemo<string[]>(() => {
+    const configuradas: string[] = Array.isArray(appSettings?.crm_lead_origins) ? appSettings.crm_lead_origins : [];
+    const usadas = (leads as any[]).map((l) => String(l.source || "").trim()).filter(Boolean);
+    return [...new Set([...configuradas, ...usadas])];
+  }, [appSettings, leads]);
 
   const [selectedSeller, setSelectedSeller] = useState(user?.name || "");
 
@@ -188,7 +195,9 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
       value: valueEstimate.trim()
         ? formatCurrencyBR(parseCurrencyBR(valueEstimate))
         : "R$ 0",
-      date: "Hoje",
+      date: new Date().toISOString().slice(0, 10),
+      source: ((formData.get("source") as string) || "").trim(),
+      notes: ((formData.get("notes") as string) || "").trim(),
       seller: selectedSeller || sellerOptions[0] || "Não Atribuído",
       title: "Novo Negócio", priority: "Média",
       pipelineId: sellerPipelineId,
@@ -196,7 +205,12 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
       lead_interesse_cliente: formData.get("lead_interesse_cliente") as string,
       tenantId: tenantIdMap[selectedTenant], tenantName: selectedTenant,
       clientId: selectedClientId || undefined, clientName: selectedClientName || undefined,
-      customFields: { linkedinLink, currentRole, teamSize, cidade: cidadeValue || undefined, setor: setorValue || undefined },
+      customFields: {
+        linkedinLink, currentRole, teamSize, cidade: cidadeValue || undefined, setor: setorValue || undefined,
+        // Valores dos campos personalizados (eram validados mas não gravados) e as tags.
+        ...Object.fromEntries(customLeadFields.map((f: any) => [f.name, (formData.get(f.name) as string) || ""]).filter(([, v]) => v !== "")),
+        ...(tags.trim() ? { tags: tags.split(",").map((t) => t.trim()).filter(Boolean) } : {}),
+      },
     });
 
     setLoading(false);
@@ -256,6 +270,7 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
           selectedSeller={selectedSeller} setSelectedSeller={setSelectedSeller}
           sellerOptions={sellerOptions} sellerPipelineId={sellerPipelineId} sellerCargoLabel={sellerCargoLabel}
           valueEstimate={valueEstimate} setValueEstimate={setValueEstimate}
+          origemOptions={origemOptions}
         />
         <CompanyBlock
           cnpjValue={cnpjValue} handleCnpjChange={handleCnpjChange}
