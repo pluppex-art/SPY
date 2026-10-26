@@ -1868,6 +1868,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           documento,
           status: "Ativo",
           tenant_id: tenantId,
+          // Vendedor restrito vira dono do cliente que fechou; admin/gestor deixa sem dono (base compartilhada).
+          seller_id: isSellerRestricted(user, cargos) ? user?.id ?? null : null,
         };
         const { data: inserted, error } = await supabase.from('clientes').insert(newClient).select().maybeSingle();
         if (error) { console.error("Erro ao criar cliente a partir do lead ganho:", error.message); return; }
@@ -3594,7 +3596,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const igual = (clienteBase as any[]).find((c: any) => String(c.documento ?? '').replace(/\D/g, '') === digitos);
           if (igual) { toast.error(`Já existe um cliente com este documento: ${igual.name}.`); return undefined; }
         }
-        return clienteBaseCrud.add(cliente);
+        const dono = cliente?.seller_id ?? (isSellerRestricted(user, cargos) ? user?.id ?? null : null);
+        return clienteBaseCrud.add(dono ? { ...cliente, seller_id: dono } : cliente);
       },
       updateClienteBase: clienteBaseCrud.update,
       deleteClienteBase,
