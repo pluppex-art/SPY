@@ -22,6 +22,8 @@ export default function PropostaPublica() {
   const [proposta, setProposta] = useState<PublicProposal | null | undefined>(undefined);
   const [isAccepted, setIsAccepted] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [aceiteNome, setAceiteNome] = useState("");
+  const [aceiteDoc, setAceiteDoc] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(false); // Default to clean Executive Light theme
 
   // Página pública, sem sessão logada — não há tema de app pra herdar, então o
@@ -96,7 +98,8 @@ export default function PropostaPublica() {
     setIsAccepting(true);
     try {
       const ok = await acceptPublicProposal(token, {
-        clientName: proposta.cliente || undefined,
+        clientName: aceiteNome.trim(),
+        clientDoc: aceiteDoc.trim() || undefined,
       });
       if (ok) {
         setIsAccepted(true);
@@ -233,10 +236,29 @@ export default function PropostaPublica() {
           isVencida={isVencida}
           acceptSlot={
             !isAccepted ? (
+              <div className="w-full space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+                  <label className="space-y-1 text-left">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Seu nome completo *</span>
+                    <input
+                      value={aceiteNome} onChange={(e) => setAceiteNome(e.target.value)} maxLength={120} autoComplete="name"
+                      placeholder="Quem está aceitando"
+                      className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-500"
+                    />
+                  </label>
+                  <label className="space-y-1 text-left">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">CPF ou CNPJ (opcional)</span>
+                    <input
+                      value={aceiteDoc} onChange={(e) => setAceiteDoc(e.target.value)} maxLength={30}
+                      placeholder="000.000.000-00"
+                      className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-500"
+                    />
+                  </label>
+                </div>
               <Button
                 type="button"
                 size="lg"
-                disabled={isAccepting || isVencida}
+                disabled={isAccepting || isVencida || aceiteNome.trim().length < 3}
                 onClick={handleAcceptProposal}
                 style={{ backgroundColor: brandColor }}
                 className="w-full sm:w-auto text-xs font-black uppercase tracking-wider h-11 px-6 text-white shadow-xl hover:brightness-110 cursor-pointer disabled:opacity-40"
@@ -244,6 +266,7 @@ export default function PropostaPublica() {
                 <CheckCircle2 className="w-4 h-4 mr-2" />
                 {isAccepting ? "Registrando Aceite..." : "Aceitar Proposta Comercial"}
               </Button>
+              </div>
             ) : (
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 text-xs font-bold">
                 <CheckCircle2 className="w-4 h-4" /> Proposta Aceita com Sucesso

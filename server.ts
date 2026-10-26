@@ -3283,7 +3283,7 @@ app.post("/api/public-proposal/:token/accept", async (req, res) => {
 
     const { data: proposal, error: propErr } = await client
       .from("proposals")
-      .select("id, status, tenant_id, titulo, cliente, validade")
+      .select("id, status, tenant_id, titulo, cliente, validade, vendedor")
       .eq("view_token", token)
       .maybeSingle();
 
@@ -3304,12 +3304,21 @@ app.post("/api/public-proposal/:token/accept", async (req, res) => {
       }
     }
 
-    // Guarda de status no UPDATE evita aceite duplo/concorrente; sem coluna de "quem aceitou" (sem migration).
+    // Quem aceitou: nome e documento informados na página + IP e data/hora do servidor.
+    const aceiteNome = typeof clientName === "string" ? clientName.trim().slice(0, 120) : "";
+    const aceiteDoc = typeof clientDoc === "string" ? clientDoc.trim().slice(0, 30) : "";
+    const aceiteIp = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "").split(",")[0].trim().slice(0, 64);
+
+    // Guarda de status no UPDATE evita aceite duplo/concorrente.
     const { data: updated, error: updateErr } = await client
       .from("proposals")
       .update({
         status: "Aceita",
         updated_at: new Date().toISOString(),
+        aceite_nome: aceiteNome || null,
+        aceite_documento: aceiteDoc || null,
+        aceite_ip: aceiteIp || null,
+        aceite_em: new Date().toISOString(),
       })
       .eq("id", proposal.id)
       .in("status", ["Enviada", "Aberta"])
@@ -3322,6 +3331,39 @@ app.post("/api/public-proposal/:token/accept", async (req, res) => {
     if (updateErr) {
       console.error("[public-proposal] Erro ao registrar aceite:", updateErr);
       return res.status(500).json({ error: "Erro ao registrar aceite no banco de dados." });
+    }
+
+    // Avisa a equipe de verdade (a página diz "a equipe foi notificada"): o vendedor da proposta e os
+    // administradores da empresa; se ninguém casar, todos os usuários ativos.
+    try {
+      if (proposal.tenant_id) {
+        const { data: usuarios } = await client
+          .from("users")
+          .select("id, name, active, is_tenant_admin")
+          .eq("tenant_id", proposal.tenant_id);
+        const tokens = (t: string) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+        const mesmoNome = (a: string, b: string) => {
+          const ta = tokens(a), tb = tokens(b);
+          if (!ta.length || !tb.length) return false;
+          const [curto, longo] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+          return curto.every((x) => longo.includes(x));
+        };
+        const ativos = (usuarios || []).filter((u: any) => u.active !== false);
+        let alvos = ativos.filter((u: any) => u.is_tenant_admin || mesmoNome(u.name, proposal.vendedor));
+        if (alvos.length === 0) alvos = ativos;
+        if (alvos.length > 0) {
+          await client.from("notifications").insert(alvos.map((u: any) => ({
+            tenant_id: proposal.tenant_id,
+            user_id: u.id,
+            title: "Proposta aceita pelo cliente",
+            description: `${proposal.cliente || "O cliente"} aceitou "${proposal.titulo}"${aceiteNome ? ` (aceite por ${aceiteNome})` : ""}.`,
+            type: "success",
+            link_url: "/app/crm/propostas",
+          })));
+        }
+      }
+    } catch (notifErr: any) {
+      console.error("[public-proposal] Aceite registrado, mas falhou ao notificar a equipe:", notifErr?.message);
     }
 
     return res.json({ success: true, status: "Aceita", proposal: updated });
