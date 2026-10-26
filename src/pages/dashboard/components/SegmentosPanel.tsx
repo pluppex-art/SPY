@@ -89,14 +89,14 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
 
   const visiveis = useMemo(() => linhas.filter((l) => segSel === "todos" || l.key === segSel), [linhas, segSel]);
 
-  const valorDe = (l: SegmentoLinha) => (metrica === "receita" ? l.receita : metrica === "mrr" ? l.mrr : l.negocios);
+  const valorDe = (l: SegmentoLinha) => (metrica === "receita" ? l.receita : metrica === "mrr" ? l.mrr : metrica === "total" ? l.total : l.negocios);
   const fmt = (n: number) => (metrica === "negocios" ? `${n}` : formatCurrency(n));
   const donut = visiveis.filter((l) => valorDe(l) > 0);
   const totalMetrica = visiveis.reduce((s, l) => s + valorDe(l), 0);
 
   const serie = useMemo(() => {
     const top = visiveis.filter((l) => valorDe(l) > 0).slice(0, 5);
-    const ev = eventos.map((e) => ({ vendedorKey: e.vendedorKey, iso: e.iso, valor: metrica === "receita" ? e.valor : metrica === "mrr" ? e.mrr : e.negocios }));
+    const ev = eventos.map((e) => ({ vendedorKey: e.vendedorKey, iso: e.iso, valor: metrica === "receita" ? e.valor : metrica === "mrr" ? e.mrr : metrica === "total" ? e.total : e.negocios }));
     return { top, pontos: serieDiaria(ev, top.map((t) => ({ key: t.key, nome: t.nome })), faixa, acumulada) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visiveis, eventos, metrica, faixa, acumulada]);
@@ -159,7 +159,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-base font-black text-[var(--color-text-primary)] font-mono">{fmt(totalMetrica)}</span>
-                    <span className="text-[9px] text-[var(--color-text-faint)] font-bold uppercase">{METRICA_LABEL[metrica]} total</span>
+                    <span className="text-[9px] text-[var(--color-text-faint)] font-bold uppercase">{METRICA_LABEL[metrica].split(" (")[0]} total</span>
                   </div>
                 </div>
                 <div className="flex-1 w-full space-y-2">
@@ -316,7 +316,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
           </Card>
         </div>
         <p className="text-[10px] text-[var(--color-text-faint)]">
-          Segmento = categoria do produto vendido (cadastre e organize em Catálogo › Produtos). Cada contrato é repartido pelos itens da proposta; receita e negócios contam os contratos assinados no período;
+          Segmento = categoria do produto vendido (cadastre e organize em Catálogo › Produtos). Cada contrato é repartido pelos itens da proposta; recorrente conta só a mensalidade e venda pontual (à vista ou parcelada) o valor todo; receita e negócios contam os contratos assinados no período;
           conversão é o aceite das propostas com item do segmento. Contratos sem proposta com itens entram em "Sem categoria".
           {totalReceita > 0 ? "" : " Ainda não há contratos assinados no período selecionado."}
         </p>

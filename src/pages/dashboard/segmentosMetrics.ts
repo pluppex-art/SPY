@@ -8,9 +8,11 @@ import { dentro, faixaAnterior, type Faixa } from "./vendedoresMetrics";
  *  do sistema, em Catálogo › Produtos. Cada contrato é repartido entre os
  *  segmentos pelos itens da proposta que o originou.
  *
- *  - Receita: valor dos itens vendidos (contratos assinados no período), já com o
- *    desconto negociado da proposta.
- *  - MRR: a parte recorrente (mensalidade) desses itens.
+ *  - Receita: o que o sistema mostra como valor da venda — item RECORRENTE conta só a
+ *    mensalidade (o total do contrato não entra no caixa de uma vez), item pontual
+ *    (à vista/parcelado) conta o valor todo; já com o desconto negociado da proposta.
+ *  - MRR: só a mensalidade dos itens recorrentes.
+ *  - Total do contrato: mensalidade × meses + pontuais (projeção, métrica à parte).
  *  - Negócios: contratos assinados no período que têm item do segmento.
  *  - Ticket médio = receita ÷ negócios.
  *  - Conversão = propostas aceitas ÷ propostas criadas no período com item do segmento.
@@ -20,10 +22,11 @@ import { dentro, faixaAnterior, type Faixa } from "./vendedoresMetrics";
 
 export const COR_SEGMENTO = ["#f97316", "#14b8a6", "#a855f7", "#3b82f6", "#eab308", "#ec4899", "#64748b", "#22c55e"];
 
-export type MetricaSegmento = "receita" | "mrr" | "negocios";
+export type MetricaSegmento = "receita" | "mrr" | "total" | "negocios";
 export const METRICA_LABEL: Record<MetricaSegmento, string> = {
-  receita: "Receita",
+  receita: "Receita (mensalidade + pontual)",
   mrr: "Recorrente (MRR)",
+  total: "Total do contrato",
   negocios: "Negócios",
 };
 
@@ -46,6 +49,8 @@ export interface SegmentoLinha {
   cor: string;
   receita: number;
   mrr: number;
+  /** Total do contrato (mensalidade × meses + pontuais) — projeção. */
+  total: number;
   negocios: number;
   ticket: number;
   conversao: number | null; // %
@@ -57,7 +62,7 @@ export interface SegmentoLinha {
   contratos: any[];
 }
 
-export interface EventoSegmento { vendedorKey: string; iso: string; valor: number; mrr: number; negocios: number }
+export interface EventoSegmento { vendedorKey: string; iso: string; valor: number; mrr: number; total: number; negocios: number }
 
 export interface DadosSegmentos {
   contracts: any[];
@@ -89,7 +94,7 @@ export function computeSegmentos(dados: DadosSegmentos, periodo: Faixa, hoje = n
     let r = base.get(nome);
     if (!r) {
       r = {
-        key: nome, nome, cor: "", receita: 0, mrr: 0, negocios: 0, ticket: 0, conversao: null, participacao: 0,
+        key: nome, nome, cor: "", receita: 0, mrr: 0, total: 0, negocios: 0, ticket: 0, conversao: null, participacao: 0,
         tendencia: null, receitaAnterior: 0, meta: Number(dados.metas?.[nome]) || 0, metaPct: null, contratos: [],
         propostas: 0, aceitas: 0, idsContratos: new Set(),
       };
@@ -103,15 +108,16 @@ export function computeSegmentos(dados: DadosSegmentos, periodo: Faixa, hoje = n
   categoriaDoProduto.forEach((nome) => garantir(nome));
 
   const eventos: EventoSegmento[] = [];
-  const somar = (nome: string, iso: string, total: number, mrr: number, contrato: any) => {
+  const somar = (nome: string, iso: string, valor: number, mrr: number, total: number, contrato: any) => {
     const r = garantir(nome);
     if (dentro(iso, faixas.atual)) {
-      r.receita += total;
+      r.receita += valor;
       r.mrr += mrr;
+      r.total += total;
       if (!r.idsContratos.has(contrato.id)) { r.idsContratos.add(contrato.id); r.negocios += 1; r.contratos.push(contrato); }
-      eventos.push({ vendedorKey: nome, iso, valor: total, mrr, negocios: 0 });
+      eventos.push({ vendedorKey: nome, iso, valor, mrr, total, negocios: 0 });
     } else if (dentro(iso, faixas.anterior)) {
-      r.receitaAnterior += total;
+      r.receitaAnterior += valor;
     }
   };
 
@@ -127,20 +133,22 @@ export function computeSegmentos(dados: DadosSegmentos, periodo: Faixa, hoje = n
       for (const i of itens) {
         const nome = segDoItem(i);
         const total = getProposalItemRealValue(i) * ratio;
-        const mrr = (getProposalItemMonthlyValue(i) ?? 0) * ratio;
-        somar(nome, iso, total, mrr, c);
+        const mensal = getProposalItemMonthlyValue(i);
+        const mrr = (mensal ?? 0) * ratio;
+        const valor = (mensal ?? getProposalItemRealValue(i)) * ratio; // recorrente = mensalidade; pontual = valor todo
+        somar(nome, iso, valor, mrr, total, c);
         if (!vistos.has(nome) && dentro(iso, faixas.atual)) {
           vistos.add(nome);
           // uma ocorrência de "negócio" por segmento no gráfico de Negócios
-          eventos.push({ vendedorKey: nome, iso, valor: 0, mrr: 0, negocios: 1 });
+          eventos.push({ vendedorKey: nome, iso, valor: 0, mrr: 0, total: 0, negocios: 1 });
         }
       }
     } else {
       // Contrato sem itens de proposta (manual/legado): não dá pra saber o que foi vendido.
       const mrr = parseCurrencyBR(c.mrr);
       const total = Math.max(c.totalValue !== undefined && c.totalValue !== null ? Number(c.totalValue) : mrr, mrr);
-      somar(SEM_CATEGORIA, iso, total, mrr, c);
-      if (dentro(iso, faixas.atual)) eventos.push({ vendedorKey: SEM_CATEGORIA, iso, valor: 0, mrr: 0, negocios: 1 });
+      somar(SEM_CATEGORIA, iso, mrr > 0 ? mrr : total, mrr, total, c);
+      if (dentro(iso, faixas.atual)) eventos.push({ vendedorKey: SEM_CATEGORIA, iso, valor: 0, mrr: 0, total: 0, negocios: 1 });
     }
   }
 
@@ -159,7 +167,7 @@ export function computeSegmentos(dados: DadosSegmentos, periodo: Faixa, hoje = n
   const linhas: SegmentoLinha[] = [...base.values()]
     .filter((r) => r.nome !== SEM_CATEGORIA || r.receita > 0 || r.negocios > 0 || r.meta > 0)
     .map((r) => ({
-      key: r.key, nome: r.nome, cor: "", receita: r.receita, mrr: r.mrr, negocios: r.negocios,
+      key: r.key, nome: r.nome, cor: "", receita: r.receita, mrr: r.mrr, total: r.total, negocios: r.negocios,
       ticket: r.negocios > 0 ? r.receita / r.negocios : 0,
       conversao: r.propostas > 0 ? Math.round((r.aceitas / r.propostas) * 1000) / 10 : null,
       participacao: totalReceita > 0 ? Math.round((r.receita / totalReceita) * 1000) / 10 : 0,
