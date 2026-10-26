@@ -140,11 +140,11 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
 
         {/* Donut + evolução */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="lg:col-span-5 min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
             {donut.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-16 text-center">Sem contratos assinados no período.</p>
             ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-5">
+              <div className="flex flex-col 2xl:flex-row items-center gap-5 min-w-0">
                 <div className="relative h-[190px] w-[190px] shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -162,15 +162,15 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
                     <span className="text-[9px] text-[var(--color-text-faint)] font-bold uppercase">{METRICA_LABEL[metrica].split(" (")[0]} total</span>
                   </div>
                 </div>
-                <div className="flex-1 w-full space-y-2">
+                <div className="flex-1 w-full min-w-0 space-y-2">
                   {visiveis.map((l) => {
                     const v = valorDe(l);
                     return (
-                      <div key={l.key} className="flex items-center gap-2">
+                      <div key={l.key} className="flex items-center gap-2 min-w-0">
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: l.cor }} />
-                        <span className="text-xs text-[var(--color-text-primary)] font-semibold truncate flex-1" title={l.nome}>{l.nome}</span>
-                        <span className="text-xs font-mono text-[var(--color-text-primary)]">{fmt(v)}</span>
-                        <span className="text-xs font-bold text-[var(--color-text-muted)] tabular-nums w-12 text-right">
+                        <span className="text-xs text-[var(--color-text-primary)] font-semibold truncate min-w-0 flex-1" title={l.nome}>{l.nome}</span>
+                        <span className="text-xs font-mono text-[var(--color-text-primary)] shrink-0 whitespace-nowrap">{fmt(v)}</span>
+                        <span className="text-xs font-bold text-[var(--color-text-muted)] tabular-nums w-12 shrink-0 text-right">
                           {totalMetrica > 0 ? `${Math.round((v / totalMetrica) * 1000) / 10}%` : "0%"}
                         </span>
                       </div>
@@ -181,7 +181,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
             )}
           </Card>
 
-          <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="lg:col-span-7 min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
             <div className="flex items-start justify-between gap-3 mb-3">
               <h4 className="text-sm font-black text-[var(--color-text-primary)]">Evolução da receita por segmento</h4>
               <select value={acumulada ? "acumulada" : "diaria"} onChange={(e) => setAcumulada(e.target.value === "acumulada")} className={selectCls}>
