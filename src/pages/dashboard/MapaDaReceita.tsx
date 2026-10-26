@@ -15,6 +15,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import VendedoresPanel from "./components/VendedoresPanel";
 import SegmentosPanel from "./components/SegmentosPanel";
+import ProdutosPanel from "./components/ProdutosPanel";
 import { computeChannelRevenue, computeProductRevenue, computeSegmentRevenue, type DashboardData } from "./revenueInsights";
 
 type DrillKey = "leads" | "oportunidades" | "vendas" | "receita" | "retencao" | "emRisco";
@@ -178,30 +179,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           </div>
         </Card>
       ) : subAba === "produtos" ? (
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por Produto/Serviço</h3>
-            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Quais produtos geram mais receita e margem.</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
-                <tr><th className="px-4 py-2.5">Produto</th><th className="px-4 py-2.5">Receita</th><th className="px-4 py-2.5">% do total</th><th className="px-4 py-2.5">Margem</th></tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                {produtos.map((p) => (
-                  <tr key={p.produto}>
-                    <td className="px-4 py-2.5 font-bold text-[var(--color-text-primary)]">{p.produto}</td>
-                    <td className="px-4 py-2.5 font-mono text-[var(--color-text-primary)]">{formatCurrency(p.receita)}</td>
-                    <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{p.pct}%</td>
-                    <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{p.margem !== null ? `${p.margem}%` : "—"}</td>
-                  </tr>
-                ))}
-                {produtos.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-[var(--color-text-faint)]">Nenhuma proposta aceita com itens ainda.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        <ProdutosPanel dashboard={dashboard} />
       ) : subAba === "segmentos" ? (
         <SegmentosPanel dashboard={dashboard} />
       ) : subAba === "vendedores" ? (
