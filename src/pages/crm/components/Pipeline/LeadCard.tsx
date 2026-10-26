@@ -68,13 +68,29 @@ export function LeadCard({
   setSelectedLead, handleTransferToComercial, handleExportIAResume,
   setWebhookModalLead, currentPipeline,
 }: LeadCardProps) {
-  const { products, squads, proposals, proposalItems } = useData();
+  const { products, squads, proposals, proposalItems, appSettings, leadActivities, reunioes } = useData();
   const { formatCurrency } = useLocalization();
 
   const isDragging    = draggedLeadId === item.id;
   const hasDelayedTask = tasks.some(
     t => t.lead_id === item.id && t.status === 'Atrasado'
   );
+  // SLA de primeiro contato (Configurações › CRM › SLA): lead aberto, criado há pouco, sem nenhuma
+  // atividade/reunião/tarefa registrada e além do limite da prioridade. Só aparece com regra salva e ativa.
+  const slaEstourado = (() => {
+    const regras: any[] | undefined = (appSettings as any)?.crm_sla_rules;
+    if (!Array.isArray(regras) || item.status === 'Fechado' || item.status === 'Perdido') return false;
+    const regra = regras.find((r) => r.priority === (item.priority || 'Média'));
+    const criado = new Date(item.date).getTime();
+    if (!regra?.active || !Number.isFinite(criado)) return false;
+    const horas = (Date.now() - criado) / 3600000;
+    if (horas <= regra.limitHours || horas > 24 * 30) return false; // mais antigo que 30 dias: sem histórico confiável
+    const teveContato =
+      (leadActivities || []).some((a: any) => (a.leadId ?? a.lead_id) === item.id) ||
+      (reunioes || []).some((r: any) => (r.leadId ?? r.lead_id) === item.id) ||
+      tasks.some((t) => t.lead_id === item.id);
+    return !teveContato;
+  })();
   const temp      = (item.temperature || 'frio').toLowerCase();
   const score     = item.scoreIA ?? 45;
   const tags      = Array.isArray(item.tags) ? item.tags : [];
@@ -224,6 +240,9 @@ export function LeadCard({
         isDragging && "opacity-40 scale-[0.97] ring-2 ring-[var(--color-primary-blue)]",
       )}
     >
+      {slaEstourado && (
+        <span title="SLA de primeiro contato estourado" className="absolute top-2 left-2 z-10 pointer-events-none text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-danger/10 text-danger border border-danger/30">SLA</span>
+      )}
       {hasDelayedTask && (
         <span className="absolute top-2.5 right-2.5 flex h-2 w-2 z-10 pointer-events-none">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger opacity-75" />
