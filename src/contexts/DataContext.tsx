@@ -3587,7 +3587,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       financeAttachments,
       addFinanceAttachment: financeAttachmentCrud.add,
       deleteFinanceAttachment: financeAttachmentCrud.del,
-      addClienteBase: clienteBaseCrud.add,
+      addClienteBase: async (cliente: any) => {
+        // Mesmo CPF/CNPJ (ignorando pontuação) não pode virar dois cadastros.
+        const digitos = String(cliente?.documento ?? '').replace(/\D/g, '');
+        if (digitos.length >= 11) {
+          const igual = (clienteBase as any[]).find((c: any) => String(c.documento ?? '').replace(/\D/g, '') === digitos);
+          if (igual) { toast.error(`Já existe um cliente com este documento: ${igual.name}.`); return undefined; }
+        }
+        return clienteBaseCrud.add(cliente);
+      },
       updateClienteBase: clienteBaseCrud.update,
       deleteClienteBase,
       financeCommissionEntries,

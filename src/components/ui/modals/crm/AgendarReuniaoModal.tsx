@@ -23,7 +23,7 @@ interface AgendarReuniaoModalProps {
 }
 
 export function AgendarReuniaoModal({ isOpen, onClose, lead, onConfirm }: AgendarReuniaoModalProps) {
-  const { colaboradores, leads, addReuniao } = useData();
+  const { colaboradores, leads, addReuniao, appSettings } = useData();
   const { activeTenantId, user } = useAuth();
 
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
@@ -137,6 +137,20 @@ export function AgendarReuniaoModal({ isOpen, onClose, lead, onConfirm }: Agenda
     if (videoProvider === "presencial" && !localEndereco.trim()) {
       toast.error("Informe o endereço ou local da reunião presencial.");
       return;
+    }
+
+    // Grade de disponibilidade (Agenda › Disponibilidade), quando configurada.
+    const grade = (appSettings as any)?.agenda_disponibilidade;
+    if (grade?.dias?.length) {
+      const idDia = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"][new Date(`${date}T12:00:00`).getDay()];
+      const dia = grade.dias.find((d: any) => d.id === idDia);
+      const fimMin = (() => { const [h, m] = time.split(":").map(Number); return h * 60 + m + duration; })();
+      const ini = (() => { const [h, m] = time.split(":").map(Number); return h * 60 + m; })();
+      const min = (t?: string) => { const [h, m] = String(t || "").split(":").map(Number); return Number.isFinite(h) ? h * 60 + (m || 0) : NaN; };
+      if (dia && !dia.ativo) { toast.error(`Não há atendimento neste dia (${dia.label}) na grade de disponibilidade.`); return; }
+      if (dia && (ini < min(dia.inicio) || fimMin > min(dia.fim))) { toast.error(`Fora do horário de atendimento (${dia.inicio}–${dia.fim}).`); return; }
+      const aIni = min(grade["almoçoInicio"]), aFim = min(grade["almoçoFim"]);
+      if (Number.isFinite(aIni) && Number.isFinite(aFim) && ini < aFim && fimMin > aIni) { toast.error(`Horário cai no intervalo de almoço (${grade["almoçoInicio"]}–${grade["almoçoFim"]}).`); return; }
     }
 
     const startISO = `${date}T${time}:00`;

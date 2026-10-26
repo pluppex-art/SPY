@@ -41,6 +41,8 @@ export default function Disponibilidade() {
       setDias(saved.dias || DEFAULT_DIAS);
       setDuracaoPadrao(saved.duracaoPadrao || "45");
       setIntervalo(saved.intervalo || "15");
+      if (saved["almoçoInicio"]) setAlmocoInicio(saved["almoçoInicio"]);
+      if (saved["almoçoFim"]) setAlmocoFim(saved["almoçoFim"]);
     }
   }, [appSettings, appSettingsLoaded]);
 
@@ -68,7 +70,7 @@ export default function Disponibilidade() {
   return (
     <PageContainer
       title="Disponibilidade & Horários de Atendimento"
-      description="Configure janelas de agendamento para reuniões de SDR, closers, visitas a imóveis e vistorias."
+      description="Janelas de atendimento: o agendamento de reuniões avisa e bloqueia horários fora desta grade e no intervalo de almoço."
       actions={
         <Button
           onClick={handleSave}
@@ -79,9 +81,6 @@ export default function Disponibilidade() {
       }
     >
       <div className="max-w-3xl space-y-6">
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-600 dark:text-amber-400">
-        <strong className="font-black">Ainda não aplicado automaticamente.</strong> Esta grade fica salva, mas o agendamento de reuniões ainda não bloqueia horários fora dela.
-      </div>
         {/* Duração e Buffer */}
         <div className="p-6 bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl space-y-4 shadow-xs">
           <h4 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
