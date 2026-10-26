@@ -53,10 +53,10 @@ function MetaEditavel({ valor, editavel, onSalvar, formatCurrency }: {
     <button
       type="button" disabled={!editavel}
       onClick={() => { setTxt(valor ? String(valor) : ""); setEditando(true); }}
-      className={`inline-flex items-center gap-1 font-mono ${editavel ? "hover:text-[var(--color-primary-blue)] cursor-pointer" : "cursor-default"}`}
+      className={`inline-flex items-center gap-1 font-mono whitespace-nowrap ${editavel ? "hover:text-[var(--color-primary-blue)] cursor-pointer" : "cursor-default"}`}
       title={editavel ? "Clique para definir a meta" : undefined}
     >
-      {valor > 0 ? formatCurrency(valor) : <span className="text-[var(--color-text-faint)]">definir meta</span>}
+      {valor > 0 ? formatCurrency(valor) : <span className="whitespace-nowrap text-[var(--color-text-faint)]">definir meta</span>}
       {editavel && <Pencil className="w-3 h-3 opacity-50" />}
     </button>
   );
@@ -214,8 +214,8 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
         </div>
 
         {/* Desempenho + Metas */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <Card className="lg:col-span-8 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+        <div className="grid grid-cols-1 2xl:grid-cols-12 gap-4">
+          <Card className="2xl:col-span-7 min-w-0 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
             <div className="p-4 border-b border-[var(--color-border-subtle)]">
               <h4 className="text-sm font-black text-[var(--color-text-primary)]">Desempenho por segmento</h4>
               <p className="text-[11px] text-[var(--color-text-muted)]">Principais indicadores de cada segmento.</p>
@@ -224,34 +224,34 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
               <table className="w-full text-xs text-left">
                 <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
                   <tr>
-                    <th className="px-4 py-2.5 w-8">#</th>
-                    <th className="px-4 py-2.5">Segmento</th>
-                    <th className="px-4 py-2.5 text-right">Receita</th>
-                    <th className="px-4 py-2.5 text-right">Negócios</th>
-                    <th className="px-4 py-2.5 text-right">Ticket médio</th>
-                    <th className="px-4 py-2.5 text-right">Conversão</th>
-                    <th className="px-4 py-2.5 text-right">Participação</th>
-                    <th className="px-4 py-2.5">Tendência</th>
-                    <th className="px-4 py-2.5 text-right">Ações</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 w-8">#</th>
+                    <th className="whitespace-nowrap px-3 py-2.5">Segmento</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 text-right">Receita</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 text-right">Negócios</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 text-right">Ticket médio</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 text-right">Conversão</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 text-right">Participação</th>
+                    <th className="whitespace-nowrap px-3 py-2.5">Tendência</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border-subtle)]">
                   {visiveis.map((l, i) => (
                     <tr key={l.key} className="hover:bg-[var(--color-surface-sunken)]/50">
-                      <td className="px-4 py-2.5">
+                      <td className="px-3 py-2.5">
                         <span className="w-5 h-5 rounded-full text-[10px] font-black text-white flex items-center justify-center" style={{ backgroundColor: l.cor }}>{i + 1}</span>
                       </td>
-                      <td className="px-4 py-2.5 font-bold text-[var(--color-text-primary)] max-w-[200px] truncate" title={l.nome}>{l.nome}</td>
-                      <td className="px-4 py-2.5 text-right font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(l.receita)}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{l.negocios}</td>
-                      <td className="px-4 py-2.5 text-right font-mono text-[var(--color-text-muted)]">{formatCurrency(l.ticket)}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{l.conversao === null ? "—" : `${l.conversao}%`}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{l.participacao}%</td>
-                      <td className="px-4 py-2.5"><Tendencia pct={l.tendencia} /></td>
-                      <td className="px-4 py-2.5 text-right">
+                      <td className="px-3 py-2.5 font-bold text-[var(--color-text-primary)] max-w-[220px] truncate" title={l.nome}>{l.nome}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(l.receita)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{l.negocios}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-[var(--color-text-muted)]">{formatCurrency(l.ticket)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{l.conversao === null ? "—" : `${l.conversao}%`}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{l.participacao}%</td>
+                      <td className="px-3 py-2.5"><Tendencia pct={l.tendencia} /></td>
+                      <td className="px-3 py-2.5 text-right">
                         <button
                           type="button" onClick={() => setDetalhe(l)}
-                          className="px-3 h-7 rounded-lg border border-[var(--color-border-default)] text-[11px] font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] cursor-pointer"
+                          className="whitespace-nowrap px-3 h-7 rounded-lg border border-[var(--color-border-default)] text-[11px] font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] cursor-pointer"
                         >
                           Ver detalhes
                         </button>
@@ -266,7 +266,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
             </div>
           </Card>
 
-          <Card className="lg:col-span-4 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="2xl:col-span-5 min-w-0 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
             <div className="p-4 border-b border-[var(--color-border-subtle)]">
               <h4 className="text-sm font-black text-[var(--color-text-primary)]">Metas por segmento</h4>
               <p className="text-[11px] text-[var(--color-text-muted)]">
@@ -277,26 +277,26 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
               <table className="w-full text-xs text-left">
                 <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
                   <tr>
-                    <th className="px-4 py-2.5">Segmento</th>
-                    <th className="px-4 py-2.5 text-right">Meta</th>
-                    <th className="px-4 py-2.5 text-right">Realizado</th>
-                    <th className="px-4 py-2.5">Progresso</th>
+                    <th className="whitespace-nowrap px-3 py-2.5">Segmento</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 text-right">Meta</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 text-right">Realizado</th>
+                    <th className="whitespace-nowrap px-3 py-2.5">Progresso</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border-subtle)]">
                   {comMeta.map((l) => (
                     <tr key={l.key}>
-                      <td className="px-4 py-2.5">
+                      <td className="px-3 py-2.5">
                         <span className="inline-flex items-center gap-2 font-bold text-[var(--color-text-primary)] max-w-[130px]">
                           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: l.cor }} />
                           <span className="truncate" title={l.nome}>{l.nome}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-right">
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right">
                         <MetaEditavel valor={l.meta} editavel={!sellerRestricted} onSalvar={(v) => salvarMeta(l.nome, v)} formatCurrency={formatCurrency} />
                       </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-[var(--color-text-muted)]">{formatCurrency(l.receita)}</td>
-                      <td className="px-4 py-2.5 min-w-[110px]">
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-[var(--color-text-muted)]">{formatCurrency(l.receita)}</td>
+                      <td className="px-3 py-2.5 min-w-[120px]">
                         {l.metaPct === null ? (
                           <span className="text-[var(--color-text-faint)]">—</span>
                         ) : (

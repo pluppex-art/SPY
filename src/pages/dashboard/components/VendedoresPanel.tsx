@@ -401,36 +401,36 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
             <table className="w-full text-xs text-left">
               <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
                 <tr>
-                  <th className="px-4 py-2.5 w-8">#</th>
-                  <th className="px-4 py-2.5">Vendedor</th>
-                  <th className="px-4 py-2.5 text-right">Leads</th>
-                  <th className="px-4 py-2.5 text-right">Oportunidades</th>
-                  <th className="px-4 py-2.5 text-right">Vendas</th>
-                  <th className="px-4 py-2.5 text-right">Receita</th>
-                  <th className="px-4 py-2.5 text-right">Ticket médio</th>
-                  <th className="px-4 py-2.5 text-right">Conversão</th>
-                  <th className="px-4 py-2.5">Meta</th>
-                  <th className="px-4 py-2.5">Tendência</th>
-                  <th className="px-4 py-2.5 text-right">Ações</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 w-8">#</th>
+                  <th className="whitespace-nowrap px-3 py-2.5">Vendedor</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-right">Leads</th>
+                  <th className="hidden xl:table-cell whitespace-nowrap px-3 py-2.5 text-right">Oportunidades</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-right">Vendas</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-right">Receita</th>
+                  <th className="hidden xl:table-cell whitespace-nowrap px-3 py-2.5 text-right">Ticket médio</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-right">Conversão</th>
+                  <th className="whitespace-nowrap px-3 py-2.5">Meta</th>
+                  <th className="whitespace-nowrap px-3 py-2.5">Tendência</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
                 {visiveis.map((v, i) => (
                   <tr key={v.key} className="hover:bg-[var(--color-surface-sunken)]/50">
-                    <td className="px-4 py-2.5 font-black text-[var(--color-text-muted)]">{i + 1}</td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5 font-black text-[var(--color-text-muted)]">{i + 1}</td>
+                    <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Avatar v={v} size={28} />
                         <span className="font-bold text-[var(--color-text-primary)] truncate max-w-[180px]">{v.nome}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{v.leads}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{v.oportunidades}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-bold text-[var(--color-text-primary)]">{v.vendas}</td>
-                    <td className="px-4 py-2.5 text-right font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(v.receita)}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-[var(--color-text-muted)]">{formatCurrency(v.ticket)}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{v.conversao}%</td>
-                    <td className="px-4 py-2.5 min-w-[130px]">
+                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{v.leads}</td>
+                    <td className="hidden xl:table-cell px-3 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{v.oportunidades}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-bold text-[var(--color-text-primary)]">{v.vendas}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(v.receita)}</td>
+                    <td className="hidden xl:table-cell whitespace-nowrap px-3 py-2.5 text-right font-mono text-[var(--color-text-muted)]">{formatCurrency(v.ticket)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{v.conversao}%</td>
+                    <td className="px-3 py-2.5 min-w-[120px]">
                       {v.metaPct === null ? (
                         <span className="text-[var(--color-text-faint)]">sem meta</span>
                       ) : (
@@ -442,11 +442,11 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-2.5"><Tendencia pct={v.tendencia} /></td>
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="px-3 py-2.5"><Tendencia pct={v.tendencia} /></td>
+                    <td className="px-3 py-2.5 text-right">
                       <button
                         type="button" onClick={() => setDetalhe(v)}
-                        className="px-3 h-7 rounded-lg border border-[var(--color-border-default)] text-[11px] font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] cursor-pointer"
+                        className="whitespace-nowrap px-3 h-7 rounded-lg border border-[var(--color-border-default)] text-[11px] font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] cursor-pointer"
                       >
                         Ver detalhes
                       </button>
