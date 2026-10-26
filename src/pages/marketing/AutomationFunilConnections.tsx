@@ -28,10 +28,13 @@ interface ConnectionRow {
   id: string;
   nome: string;
   ativo: boolean;
-  gatilho_tipo: "funil_etapa" | "produto_categoria";
+  gatilho_tipo: "funil_etapa" | "produto_categoria" | "os_etapa";
   gatilho_funil_id: string | null;
   gatilho_etapa_idx: number | null;
   gatilho_categoria: string | null;
+  /** Gatilho "OS mudou de etapa": departamento e etapa (id estável) da OS de origem. */
+  gatilho_os_departamento_id?: string | null;
+  gatilho_os_etapa_id?: string | null;
   os_departamento_id: string;
   condicao: CondicaoConfig | null;
 }
@@ -107,17 +110,37 @@ function CategoriasNode({ data }: NodeProps) {
   );
 }
 
-// ── Nó: departamento da Operação (OS) — um alvo só ──────────────────────────
+// ── Nó: departamento da Operação (OS) ───────────────────────────────────────
+// Recebe conexões (alvo, à esquerda) e mostra o funil do departamento, uma
+// linha por etapa. Cada etapa também é um ponto de SAÍDA: arrastar dela até outro
+// departamento cria o gatilho "quando a OS chegar nesta etapa" (ex.: CONTRATO ›
+// Concluída → Implementação).
+const COR_ETAPA_OS: Record<string, string> = {
+  slate: "#94a3b8", blue: "#3b82f6", amber: "#f59e0b", indigo: "#6366f1",
+  emerald: "#10b981", rose: "#f43f5e", purple: "#a855f7", cyan: "#06b6d4",
+};
+
 function DepartamentoNode({ data }: NodeProps) {
-  const { nome, qtd } = data as unknown as { nome: string; qtd: number };
+  const { nome, qtd, etapas } = data as unknown as { nome: string; qtd: number; etapas: { id: string; nome: string; cor: string }[] };
   return (
-    <div className="rounded-xl border-2 border-success/30 bg-[var(--color-surface-elevated)] shadow-md w-52 px-3 py-2.5 relative">
-      <Handle type="target" position={Position.Left} className="!bg-success !w-2.5 !h-2.5 !border-2 !border-[var(--color-surface-elevated)]" />
-      <div className="flex items-center gap-1.5">
+    <div className="rounded-xl border-2 border-success/30 bg-[var(--color-surface-elevated)] shadow-md w-56 overflow-hidden relative">
+      <Handle type="target" position={Position.Left} style={{ top: HEADER_H / 2 }} className="!bg-success !w-2.5 !h-2.5 !border-2 !border-[var(--color-surface-elevated)]" />
+      <div className="px-3 py-2 bg-success/10 border-b border-success/20 flex items-center gap-1.5" style={{ height: HEADER_H }}>
         <Building2 className="w-3.5 h-3.5 text-success shrink-0" />
-        <span className="text-[11px] font-bold text-[var(--color-text-primary)] truncate">{nome}</span>
+        <span className="text-[11px] font-bold text-[var(--color-text-primary)] truncate flex-1">{nome}</span>
+        {qtd > 0 && <span className="text-[9px] text-[var(--color-text-faint)] shrink-0">{qtd} conexão{qtd > 1 ? "ões" : ""}</span>}
       </div>
-      {qtd > 0 && <span className="text-[9px] text-[var(--color-text-faint)] mt-0.5 block">{qtd} conexão{qtd > 1 ? "ões" : ""}</span>}
+      {etapas.map((e) => (
+        <div key={e.id} className="relative px-3 flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: COR_ETAPA_OS[e.cor] ?? COR_ETAPA_OS.slate }} />
+          <span className="truncate">{e.nome}</span>
+          <Handle
+            type="source" id={`os:${e.id}`} position={Position.Right}
+            style={{ top: "50%", transform: "translateY(-50%)" }}
+            className="!bg-success !w-2.5 !h-2.5 !border-2 !border-[var(--color-surface-elevated)]"
+          />
+        </div>
+      ))}
     </div>
   );
 }
@@ -156,7 +179,7 @@ const edgeTypes = { conexao: ConnectionEdge };
 export function AutomationFunilConnections() {
   const { activeTenantId } = useAuth();
   const { leads, funis, products } = useData();
-  const { departamentos: osDepartamentos, ordens: ordensOS } = useOS();
+  const { departamentos: osDepartamentos, ordens: ordensOS, funilPadraoDe } = useOS();
 
   const [rows, setRows] = useState<ConnectionRow[]>([]);
   const [acoes, setAcoes] = useState<AcaoRow[]>([]);
@@ -265,17 +288,21 @@ export function AutomationFunilConnections() {
       });
       y += HEADER_H + categorias.length * ROW_H + 24;
     }
-    departamentosAtivos.forEach((d, i) => {
+    // Departamentos empilhados pela altura real (header + uma linha por etapa do funil).
+    let yDep = 0;
+    departamentosAtivos.forEach((d) => {
       const qtd = rows.filter((r) => r.os_departamento_id === d.id).length;
+      const etapas = (funilPadraoDe(d.id)?.etapas ?? []).map((e) => ({ id: e.id, nome: e.nome, cor: e.cor }));
       out.push({
         id: `dep:${d.id}`, type: "departamento",
-        position: { x: 560, y: i * 90 },
-        data: { nome: d.nome, qtd },
+        position: { x: 560, y: yDep },
+        data: { nome: d.nome, qtd, etapas },
         draggable: true,
       });
+      yDep += HEADER_H + etapas.length * ROW_H + 24;
     });
     return out;
-  }, [funisOrigem, categorias, departamentosAtivos, rows]);
+  }, [funisOrigem, categorias, departamentosAtivos, rows, funilPadraoDe]);
 
   // Estado "de verdade" dos nós (React Flow precisa disso pra arrastar um nó
   // e ele FICAR onde foi solto — sem isso, qualquer recálculo de `rows`
@@ -299,8 +326,10 @@ export function AutomationFunilConnections() {
   // ─── Monta arestas a partir das conexões salvas ────────────────────────
   const edges: Edge[] = useMemo(() => {
     return rows.map((row) => {
-      const source = row.gatilho_tipo === "funil_etapa" ? `funil:${row.gatilho_funil_id}` : "categorias";
-      const sourceHandle = row.gatilho_tipo === "funil_etapa" ? `etapa:${row.gatilho_etapa_idx}` : `cat:${row.gatilho_categoria}`;
+      const source = row.gatilho_tipo === "os_etapa" ? `dep:${row.gatilho_os_departamento_id}`
+        : row.gatilho_tipo === "funil_etapa" ? `funil:${row.gatilho_funil_id}` : "categorias";
+      const sourceHandle = row.gatilho_tipo === "os_etapa" ? `os:${row.gatilho_os_etapa_id}`
+        : row.gatilho_tipo === "funil_etapa" ? `etapa:${row.gatilho_etapa_idx}` : `cat:${row.gatilho_categoria}`;
       const selecionada = row.id === selectedId;
       return {
         id: row.id, type: "conexao",
@@ -323,7 +352,18 @@ export function AutomationFunilConnections() {
     if (!dep) return;
 
     let payload: Partial<ConnectionRow> & { nome: string };
-    if (conn.source === "categorias") {
+    if (conn.source.startsWith("dep:")) {
+      // Etapa de um departamento → outro departamento: "quando a OS chegar nesta etapa".
+      const origem = departamentosAtivos.find((d) => `dep:${d.id}` === conn.source);
+      const etapaId = conn.sourceHandle.replace(/^os:/, "");
+      if (!origem) return;
+      if (origem.id === dep.id) { toast.error("Escolha outro departamento como destino."); return; }
+      const etapaNome = funilPadraoDe(origem.id)?.etapas.find((e) => e.id === etapaId)?.nome ?? etapaId;
+      payload = {
+        nome: `${origem.nome} › ${etapaNome} → ${dep.nome}`,
+        gatilho_tipo: "os_etapa", gatilho_os_departamento_id: origem.id, gatilho_os_etapa_id: etapaId, os_departamento_id: dep.id,
+      };
+    } else if (conn.source === "categorias") {
       const cat = conn.sourceHandle.replace(/^cat:/, "");
       payload = { nome: `${cat} → ${dep.nome}`, gatilho_tipo: "produto_categoria", gatilho_categoria: cat, os_departamento_id: dep.id };
     } else {
@@ -337,10 +377,13 @@ export function AutomationFunilConnections() {
     const { data, error } = await supabase.from("automation_connections").insert({
       tenant_id: activeTenantId, ativo: true, ...payload,
     }).select().maybeSingle();
-    if (error || !data) { toast.error("Não foi possível criar a conexão."); return; }
+    if (error || !data) {
+      toast.error(/gatilho_os_/.test(error?.message ?? "") ? "O gatilho de OS ainda não foi habilitado no banco (migração pendente)." : "Não foi possível criar a conexão.");
+      return;
+    }
     setRows((prev) => [data as ConnectionRow, ...prev]);
     toast.success(`Conectado: ${payload.nome}`);
-  }, [activeTenantId, departamentosAtivos, funisOrigem]);
+  }, [activeTenantId, departamentosAtivos, funisOrigem, funilPadraoDe]);
 
   // Clicar numa linha agora SELECIONA a conexão (abre o painel de Propriedades
   // à esquerda, com condição + ações) em vez de pausar direto — pausar virou
