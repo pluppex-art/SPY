@@ -49,7 +49,20 @@ const TIMEOUT_MS = 15_000;
 const tokenCache = new Map<string, { token: string; expiresAt: number }>();
 const cacheKey = (c: MaxDataConn) => `${c.baseUrl}|${c.applicationName}|${c.empId}|${c.idUser}|${c.terminal}|${c.applicationKey.length}:${c.applicationKey.slice(-4)}`;
 
-async function request(url: string, init: RequestInit): Promise<Response> {
+/**
+ * A Max Data só aceita IPs liberados e o S.P.Y. roda em nuvem sem IP fixo. Com
+ * MAXDATA_RELAY_URL + MAXDATA_RELAY_SECRET definidos, as chamadas passam por um
+ * repasse (VPS de IP fixo) que só aceita leitura (GET) e o login (POST /v2/auth).
+ */
+function viaRelay(url: string, init: RequestInit): { url: string; init: RequestInit } {
+  const relay = (process.env.MAXDATA_RELAY_URL || "").trim().replace(/\/+$/, "");
+  const secret = process.env.MAXDATA_RELAY_SECRET || "";
+  if (!relay || !secret) return { url, init };
+  return { url: `${relay}/fwd`, init: { ...init, headers: { ...(init.headers as Record<string, string>), "x-relay-secret": secret, "x-relay-target": url } } };
+}
+
+async function request(rawUrl: string, rawInit: RequestInit): Promise<Response> {
+  const { url, init } = viaRelay(rawUrl, rawInit);
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
