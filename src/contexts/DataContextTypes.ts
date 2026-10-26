@@ -194,7 +194,7 @@ export interface DataContextType {
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
-  addContract: (contract: Omit<Contract, 'id'>, options?: { silent?: boolean }) => void;
+  addContract: (contract: Omit<Contract, 'id'>, options?: { silent?: boolean }) => Promise<boolean>;
   updateContract: (id: string, updates: Partial<Contract>, options?: { silent?: boolean }) => void;
   deleteContract: (id: string) => void;
   addNotification: (notification: Omit<Notification, 'id' | 'is_read' | 'created_at'>, push?: boolean) => void;

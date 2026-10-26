@@ -629,6 +629,16 @@ export function AddProdutoLeadModal({
       // desses lugares separadamente.
       const totalValor = getSalesHeadlineValue(allItems.map((ci) => ({ isRecurring: ci.isRecurring, sale: ci.sale })));
 
+      const maiorParcelamento = Math.max(1, ...allItems.filter((ci) => !ci.isRecurring).map((ci) => ci.sale.numberOfCycles || 1));
+      const primeiroVencParcela = allItems.find((ci) => !ci.isRecurring && (ci.sale.numberOfCycles || 1) === maiorParcelamento)?.sale.paymentSchedule?.[0]?.dueDate;
+      const pagamentoParcelado = maiorParcelamento > 1
+        ? {
+            formaPagamento: "parcelado",
+            parcelas: maiorParcelamento,
+            ...(primeiroVencParcela ? { primeiroVencimentoParcela: new Date(primeiroVencParcela).toISOString().slice(0, 10) } : {}),
+          }
+        : undefined;
+
       let proposalId: string;
       if (existingProposal?.id) {
         // Modo "editar proposta": troca os itens editados/removidos e acrescenta os novos na
@@ -653,6 +663,9 @@ export function AddProdutoLeadModal({
           tipo: "itens",
           conteudoTexto: null,
           itens: items,
+          // Venda pontual em parcelas (cartão etc.): registra na proposta pra o aceite dividir o
+          // valor em parcelas no financeiro. (Recorrente é outra coisa: um lançamento por mês.)
+          pagamento: pagamentoParcelado,
         });
       }
 

@@ -25,7 +25,7 @@ import { isDateLocked } from "../pages/finance/lib/financeEngine";
 import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
 import { friendlyError } from "../lib/friendlyError";
-import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio, getProposalHeadlineFromItems } from "../lib/saleCalculator";
+import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio, getProposalHeadlineFromItems, addMonthsClamped, splitInstallments } from "../lib/saleCalculator";
 import { isSellerRestricted, scopeToSeller } from "../lib/sellerScope";
 
 export { useData };
@@ -2167,6 +2167,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addContract = async (contract: Omit<Contract, 'id'>, options: { silent?: boolean } = {}) => {
+    let criado = true; // false quando o banco recusa (ex.: já existe contrato dessa proposta)
     const newContract: any = { ...contract, id: crypto.randomUUID() };
     if (tenantId) newContract.tenant_id = tenantId;
     newContract.filial_id = activeFilialId;
@@ -2216,6 +2217,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) {
         console.error("Supabase add contract failed:", error.message);
+        criado = false;
         // Corrida real (achado 2026-10-05): a reconciliação em segundo plano
         // (syncAcceptedProposal) decide "essa proposta já tem contrato?" olhando só o
         // array `contracts` em memória — se esse array ainda não tinha o contrato (ex.:
@@ -2235,6 +2237,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
+    return criado;
   };
 
   const updateContract = async (id: string, updates: Partial<Contract>, options: { silent?: boolean } = {}) => {
@@ -3219,7 +3222,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       competencia_date: dataLancamento,
     };
 
-    addContract({
+    // O contrato é criado PRIMEIRO e é a trava da idempotência: se o banco recusar (já existe
+    // contrato dessa proposta — outra aba, outro usuário, reabertura), NÃO cria lançamentos.
+    const contratoCriado = await addContract({
       client: prop.cliente || "Cliente",
       plan: planLabel || prop.titulo || "Proposta Comercial",
       description: prop.titulo || null,
@@ -3231,42 +3236,85 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       progress: 100,
       proposalId: prop.id,
     }, { silent });
+    if (!contratoCriado) return false;
 
-    addFinanceEntry({
-      description: `Contrato: ${prop.titulo} (${prop.cliente})`,
-      category: "Contrato / Recorrente",
-      category_id: contratoCategoryId,
-      contato_id: contatoId,
-      ...camposComuns,
-      tags: ['Proposta', 'Recorrente'],
-      value: recurringTotalFinal,
-      type: "Receber",
-      date: dataLancamento,
-      status: "A Vencer",
-      // Vincula à proposta que gerou esta cobrança — sem isso, excluir a
-      // proposta não tinha como encontrar (e limpar) este lançamento.
-      proposal_id: prop.id,
-    }, { silent });
-
-    // Implantação/setup é receita única — lançamento à parte, não recorrente,
-    // pra não poluir relatórios de MRR/receita recorrente com valor avulso.
-    if (oneTimeTotalFinal > 0) {
-      addFinanceEntry({
-        description: `Implantação/Setup: ${prop.titulo} (${prop.cliente})`,
-        category: "Implantação / Setup",
-        category_id: implantacaoCategoryId,
-        contato_id: contatoId,
-        ...camposComuns,
-        tags: ['Proposta'],
-        value: oneTimeTotalFinal,
-        type: "Receber",
-        date: dataLancamento,
-        status: "A Vencer",
-        proposal_id: prop.id,
-      }, { silent });
+    // Segunda trava: se esta proposta já tem lançamentos (no estado ou no banco), não gera de novo.
+    let jaTemLancamentos = (financeEntries || []).some((e: any) => e.proposal_id === prop.id);
+    if (!jaTemLancamentos && supabase) {
+      const { count } = await supabase.from('finance_entries').select('id', { count: 'exact', head: true }).eq('proposal_id', prop.id);
+      jaTemLancamentos = (count ?? 0) > 0;
     }
 
-    if (!silent) toast.success("🎉 Proposta Aceita! Contrato ativado e fatura a receber gerada no financeiro!");
+    if (!jaTemLancamentos) {
+      // ── Lançamentos no financeiro, no mesmo padrão do módulo Financeiro ─────────────
+      // Recorrente = UM lançamento por mês (mesmo valor, mesmo recurring_group_id), nunca o
+      // total do contrato de uma vez. Pontual parcelado = valor dividido em parcelas
+      // (installment_group_id). Entrada = lançamento à parte.
+      const isoLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const isoValido = (v: any) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
+      const primeiroVenc = isoValido(pagamentoProp.primeiroVencimentoParcela) || dataLancamento;
+      const diaFixo = pagamentoProp.diaFixoVencimento ? Number(pagamentoProp.diaDoMes) || 0 : 0;
+      const vencimento = (i: number) => {
+        const d = addMonthsClamped(new Date(`${primeiroVenc}T12:00:00`), i);
+        if (diaFixo > 0) d.setDate(Math.min(diaFixo, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+        return isoLocal(d);
+      };
+      const nomeBase = `${prop.titulo} (${prop.cliente})`;
+      const lanca = (e: any) => addFinanceEntry({ ...camposComuns, contato_id: contatoId, type: "Receber", status: "A Vencer", proposal_id: prop.id, ...e }, { silent: true });
+
+      // Entrada (forma "entrada + recorrência"): lançamento próprio, na data combinada.
+      const entradaValor = pagamentoProp.formaPagamento === 'entrada_recorrencia' ? Number(pagamentoProp.valorEntrada) || 0 : 0;
+      if (entradaValor > 0) {
+        const dEntrada = isoValido(pagamentoProp.dataVencimentoEntrada) || dataLancamento;
+        await lanca({
+          description: `Entrada: ${nomeBase}`, category: "Contrato / Recorrente", category_id: contratoCategoryId,
+          tags: ['Proposta', 'Entrada'], value: entradaValor, date: dEntrada, competencia_date: dEntrada,
+        });
+      }
+
+      if (recurringTotalFinal > 0) {
+        const semItens = linkedItems.length === 0;
+        const nCiclos = semItens ? 1 : (contractMonths && contractMonths > 0 ? contractMonths : OPEN_ENDED_BATCH_CYCLES);
+        const valorMensal = Math.round((semItens ? recurringTotalFinal : monthlyMrr) * 100) / 100;
+        const grupo = crypto.randomUUID();
+        const semPrazo = !semItens && !(contractMonths && contractMonths > 0);
+        for (let i = 0; i < nCiclos; i++) {
+          const venc = vencimento(i);
+          await lanca({
+            description: semItens ? `Contrato: ${nomeBase}` : `Contrato: ${nomeBase} — mensalidade ${i + 1}/${nCiclos}`,
+            category: "Contrato / Recorrente", category_id: contratoCategoryId, tags: ['Proposta', 'Recorrente'],
+            value: valorMensal, date: venc, competencia_date: venc,
+            ...(semItens ? {} : { is_recurring: true, recurring_frequency: 'mensal', recurring_group_id: grupo }),
+            ...(semPrazo ? { notes: [obsPagamento, `Contrato sem prazo: foram gerados os primeiros ${nCiclos} meses; gere os próximos conforme o contrato seguir.`].filter(Boolean).join(' · ') } : {}),
+          });
+        }
+      }
+
+      // Implantação/setup e vendas pontuais: receita única (à parte do recorrente, pra não
+      // poluir o MRR). Parcelada quando a proposta foi fechada em parcelas.
+      if (oneTimeTotalFinal > 0) {
+        const nParcelas = pagamentoProp.formaPagamento === 'parcelado' ? Math.max(1, Math.round(Number(pagamentoProp.parcelas)) || 1) : 1;
+        if (nParcelas > 1) {
+          const valores = splitInstallments(oneTimeTotalFinal, nParcelas);
+          const grupoParcelas = crypto.randomUUID();
+          for (let i = 0; i < valores.length; i++) {
+            const venc = vencimento(i);
+            await lanca({
+              description: `Implantação/Setup: ${nomeBase} — parcela ${i + 1}/${nParcelas}`, category: "Implantação / Setup",
+              category_id: implantacaoCategoryId, tags: ['Proposta'], value: valores[i], date: venc, competencia_date: venc,
+              installment_group_id: grupoParcelas, installment_number: i + 1, installment_total: nParcelas,
+            });
+          }
+        } else {
+          await lanca({
+            description: `Implantação/Setup: ${nomeBase}`, category: "Implantação / Setup", category_id: implantacaoCategoryId,
+            tags: ['Proposta'], value: oneTimeTotalFinal, date: dataLancamento, competencia_date: dataLancamento,
+          });
+        }
+      }
+    }
+
+    if (!silent) toast.success("🎉 Proposta Aceita! Contrato ativado e cobranças geradas no financeiro!");
     return true;
   };
 
