@@ -23,7 +23,8 @@ export interface MaxDataConn {
 /** Config de app_settings (tenantIntegrations) → conexão; devolve o que falta quando incompleta. */
 export function connFromConfig(cfg: any): { conn: MaxDataConn } | { error: string } {
   const missing: string[] = [];
-  const s = (v: any) => (typeof v === "string" ? v.trim() : "");
+  // Tira espaços e aspas de colagem ("chave" copiada com aspas é recusada pela Max Data como "Aplicação não autorizada").
+  const s = (v: any) => (typeof v === "string" ? v.trim().replace(/^["'“”‘’\s]+|["'“”‘’\s]+$/g, "") : "");
   const apiUrl = s(cfg?.apiUrl), name = s(cfg?.clientId), key = s(cfg?.apiKey), desc = s(cfg?.applicationDescription), terminal = s(cfg?.terminal);
   if (!apiUrl) missing.push("URL base da API");
   if (!name) missing.push("Nome da aplicação");

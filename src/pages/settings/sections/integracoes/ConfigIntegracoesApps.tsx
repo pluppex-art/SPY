@@ -54,6 +54,70 @@ type IntegrationCategory = "todas" | "anuncios" | "mensageria" | "pagamentos" | 
 
 type MaxDataConfig = typeof DEFAULT_MAXDATA_CONFIG;
 
+const SYNC_LABELS: Record<string, string> = { clientes: "Clientes", produtos: "Produtos e estoque", vendas: "Vendas (itens e pagamentos)" };
+type SyncRow = { entidade: string; status: string; total: number | null; sincronizados: number; erro: string | null };
+
+/** Traz tudo da Max Data para o S.P.Y. (só leitura na Max Data). Roda em lotes e retoma de onde parou. */
+function MaxDataSyncPanel({ which, tenantId }: { which: "notas" | "estoque"; tenantId: string | null }) {
+  const [rows, setRows] = useState<Record<string, SyncRow>>({});
+  const [running, setRunning] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const stopRef = React.useRef(false);
+  const qs = tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : "";
+
+  const load = async () => {
+    try {
+      const res = await apiFetch(`/api/integrations/maxdata/sync?which=${which}${qs}`);
+      const d = await res.json().catch(() => ({}));
+      setRows(Object.fromEntries((d.estados || []).map((r: SyncRow) => [r.entidade, r])));
+    } catch { /* sem progresso salvo ainda */ }
+  };
+  useEffect(() => { load(); return () => { stopRef.current = true; }; }, [which, tenantId]);
+
+  const run = async () => {
+    stopRef.current = false; setRunning(true); setMsg(null);
+    try {
+      for (const entity of ["clientes", "produtos", "vendas"]) {
+        let guard = 0;
+        while (!stopRef.current && guard++ < 5000) {
+          const res = await apiFetch(`/api/integrations/maxdata/sync${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ which, entity }),
+          });
+          const d = await res.json().catch(() => ({}));
+          if (!res.ok && !d?.entidade) { setMsg(d?.error || "Falha ao sincronizar."); return; }
+          setRows((p) => ({ ...p, [entity]: d }));
+          if (d.status === "erro") { setMsg(`${SYNC_LABELS[entity]}: ${d.erro || "erro"}. Clique em Sincronizar para retomar.`); return; }
+          if (d.status === "concluida") break;
+        }
+        if (stopRef.current) return;
+      }
+      setMsg("Sincronização concluída.");
+    } finally { setRunning(false); }
+  };
+
+  return (
+    <div className="space-y-2 rounded-[var(--radius-control)] border border-[var(--color-border-default)] p-3">
+      <p className="text-xs font-bold text-[var(--color-text-primary)]">Sincronizar dados para o S.P.Y.</p>
+      <p className="text-[11px] text-[var(--color-text-muted)]">Traz tudo da Max Data (só leitura lá). Pode levar muito tempo com muitas vendas: mantenha esta janela aberta ou clique de novo depois — retoma de onde parou.</p>
+      {["clientes", "produtos", "vendas"].map((e) => {
+        const r = rows[e];
+        const pct = r?.total ? Math.min(100, Math.round((r.sincronizados / r.total) * 100)) : 0;
+        return (
+          <div key={e} className="text-[11px] flex justify-between gap-2">
+            <span>{SYNC_LABELS[e]}</span>
+            <span className="text-[var(--color-text-muted)]">{r ? `${r.status === "concluida" ? "concluída" : r.status} · ${r.sincronizados.toLocaleString("pt-BR")}${r.total ? ` / ${r.total.toLocaleString("pt-BR")} (${pct}%)` : ""}` : "não iniciada"}</span>
+          </div>
+        );
+      })}
+      {msg && <p className="text-[11px] text-[var(--color-text-secondary)]">{msg}</p>}
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={run} disabled={running} className="flex-1 text-xs font-bold">{running ? "Sincronizando…" : "Sincronizar tudo"}</Button>
+        {running && <Button variant="outline" onClick={() => { stopRef.current = true; }} className="text-xs">Pausar</Button>}
+      </div>
+    </div>
+  );
+}
+
 /** Modal de uma conexão Max Data (a mesma tela serve às duas APIs: notas fiscais e estoque). */
 function MaxDataConnectionModal({
   title, subtitle, which, tenantId, config, setConfig, onClose, onToggleConnected,
@@ -169,6 +233,7 @@ function MaxDataConnectionModal({
             {result.text}
           </div>
         )}
+        <MaxDataSyncPanel which={which} tenantId={tenantId} />
         <div className="flex items-center justify-between rounded-[var(--radius-control)] border border-[var(--color-border-default)] p-3">
           <div>
             <p className="text-xs font-bold text-[var(--color-text-primary)]">Marcar como conectada</p>

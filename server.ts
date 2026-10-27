@@ -27,6 +27,7 @@ import { registerFinancialReportRoutes } from "./server/financialReportPdf.js";
 import { registerMessageTriggerRoutes } from "./server/messageTriggers.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
+import { runSyncChunk, SYNC_ENTITIES, type SyncEntity } from "./server/maxdataSync.js";
 import { extractDocs as maxExtractDocs, mapMaxEntryToNota, type MaxEntry, type MaxEntryItem } from "./src/lib/maxdataEntry.js";
 import { findProductForItem, defaultQtdEstoque } from "./src/lib/notaEntrada.js";
 import { isLeadOpen, isLeadLost } from "./src/lib/leadStatus.js";
@@ -3039,6 +3040,31 @@ app.post("/api/integrations/maxdata/test", requireUser, async (req: any, res) =>
   } catch (e: any) {
     return res.status(maxErrorStatus(e)).json({ ok: false, error: e?.message || "Falha ao conectar à Max Data." });
   }
+});
+
+// Sincronização completa (clientes, produtos, vendas+itens+pagamentos) da Max Data para o
+// S.P.Y. Só lê da Max Data. Cada chamada processa um pedaço e devolve o progresso; o
+// navegador chama de novo até "concluida". A escrita usa o service client, mas só depois
+// de resolveRequestedTenantId validar o tenant do usuário.
+app.post("/api/integrations/maxdata/sync", requireUser, async (req: any, res) => {
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+  if (!supabaseService) return res.status(503).json({ error: "Sincronização indisponível (service key ausente)." });
+  const which = req.body?.which === "estoque" ? "estoque" : "notas";
+  const entity = String(req.body?.entity || "") as SyncEntity;
+  if (!SYNC_ENTITIES.includes(entity)) return res.status(400).json({ error: "Entidade inválida." });
+  const conn = await loadMaxdataConn(req, res, tenantId, which);
+  if (!conn) return;
+  const state = await runSyncChunk({ svc: supabaseService, conn, tenantId, fonte: `maxdata:${which}`, entity });
+  return res.status(state.status === "erro" ? 502 : 200).json(state);
+});
+
+app.get("/api/integrations/maxdata/sync", requireUser, async (req: any, res) => {
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+  const which = req.query?.which === "estoque" ? "estoque" : "notas";
+  const { data } = await req.supabase.from("integracao_sync_state").select("entidade,status,total,sincronizados,erro,atualizado_em").eq("tenant_id", tenantId).eq("fonte", `maxdata:${which}`);
+  return res.json({ estados: data ?? [] });
 });
 
 const kommoLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
