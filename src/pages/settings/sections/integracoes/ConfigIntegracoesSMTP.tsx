@@ -55,6 +55,23 @@ export function ConfigIntegracoesSMTP() {
     }
   };
 
+  const [sending, setSending] = useState(false);
+
+  // Envia um e-mail real pro usuário logado usando o SMTP JÁ SALVO (não o do formulário).
+  const sendTestEmail = async () => {
+    setSending(true);
+    try {
+      const res = await apiFetch("/api/integrations/smtp-send-test", { method: "POST" });
+      const data = await res.json();
+      if (data.ok) toast.success(`E-mail de teste enviado para ${data.to}. Confira a caixa de entrada (e o spam).`);
+      else toast.error(data.error || "Falha ao enviar o e-mail de teste.");
+    } catch {
+      toast.error("Falha ao contatar o servidor para enviar o teste.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleSave = async () => {
     setHydrated(true);
     await saveAppSetting(SETTING_KEY, config);
@@ -69,7 +86,7 @@ export function ConfigIntegracoesSMTP() {
           <Server className="w-5 h-5 text-[var(--color-primary-blue)]" />
         </h1>
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Configure seu servidor SMTP e valide a conexão com "Testar Conexão TLS" (handshake e autenticação reais). Estas credenciais ainda não são usadas para enviar e-mails do sistema (propostas, faturas, avisos) — só para o teste de conexão.
+          Configure seu servidor SMTP e valide a conexão com "Testar Conexão TLS" (handshake e autenticação reais). Salve a configuração e use "Enviar e-mail de teste" para receber uma mensagem real na sua caixa. Funciona com qualquer servidor SMTP (Postal, Amazon SES, Brevo, Postfix…).
         </p>
       </div>
 
@@ -152,6 +169,15 @@ export function ConfigIntegracoesSMTP() {
             className="font-bold text-xs gap-2"
           >
             <Send className="w-3.5 h-3.5" /> Testar Conexão TLS
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={sendTestEmail}
+            loading={sending}
+            className="font-bold text-xs gap-2"
+          >
+            <Mail className="w-3.5 h-3.5" /> Enviar e-mail de teste
           </Button>
           <Button
             type="button"

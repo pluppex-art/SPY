@@ -15,6 +15,7 @@ import { createSaas, aiContext } from "./server/saas.js";
 import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./server/whatsappProvider.js";
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
+import { sendTenantEmail } from "./server/mailer.js";
 import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { registerKommoRoutes } from "./server/kommoSync.js";
@@ -5991,6 +5992,25 @@ app.post("/api/integrations/smtp-test", requireUser, async (req: any, res) => {
     res.json({ ok: true });
   } catch (err: any) {
     res.json({ ok: false, error: err?.message || "Falha na autenticação SMTP." });
+  }
+});
+
+// Envia um e-mail de verdade pelo SMTP salvo do tenant, sempre para o e-mail do
+// próprio usuário logado (nunca destinatário livre: evita virar relay de spam).
+app.post("/api/integrations/smtp-send-test", requireUser, requireTenantAdmin, async (req: any, res) => {
+  if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
+  const to = String(req.user?.email || "").trim();
+  if (!to) return res.status(400).json({ ok: false, error: "Seu usuário não tem e-mail cadastrado." });
+  try {
+    await sendTenantEmail(supabaseService, req.tenantId, {
+      to,
+      subject: "Teste de envio — S.P.Y.",
+      text: "Se você recebeu esta mensagem, o servidor SMTP do seu ambiente está enviando e-mails corretamente.",
+      html: "<p>Se você recebeu esta mensagem, o servidor SMTP do seu ambiente está <strong>enviando e-mails corretamente</strong>.</p>",
+    });
+    res.json({ ok: true, to });
+  } catch (err: any) {
+    res.json({ ok: false, error: err?.message || "Falha ao enviar o e-mail de teste." });
   }
 });
 
