@@ -226,19 +226,38 @@ export async function verifyMfaAndFinish(factorId: string, code: string): Promis
 }
 
 /**
- * Envia o e-mail de recuperação de senha do Supabase Auth. O link do e-mail
- * leva o usuário de volta pra /redefinir-senha, onde updatePassword() é chamado.
+ * Pede o e-mail de recuperação de senha. O servidor do S.P.Y. gera o link de recuperação e envia
+ * um e-mail com o layout do sistema (não o e-mail padrão do Supabase). O link leva o usuário de
+ * volta pra /redefinir-senha, onde updatePassword() é chamado.
  */
 export async function requestPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
-  if (!supabase) return { success: false, error: 'Não foi possível conectar ao servidor.' };
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/redefinir-senha`,
-  });
-  // Nunca revela se o e-mail existe ou não (evita enumeração de contas) — o
-  // Supabase já se comporta assim por padrão, mas mantemos a mensagem genérica
-  // mesmo em erro de rede para não vazar esse detalhe por um caminho diferente.
-  if (error) return { success: false, error: 'Não foi possível enviar o e-mail agora. Tente novamente em instantes.' };
-  return { success: true };
+  try {
+    const res = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    // Nunca revela se o e-mail existe ou não (evita enumeração de contas): o servidor responde
+    // igual nos dois casos, e erro de rede/limite usa uma mensagem genérica.
+    if (!res.ok) return { success: false, error: 'Não foi possível enviar o e-mail agora. Tente novamente em instantes.' };
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Não foi possível enviar o e-mail agora. Tente novamente em instantes.' };
+  }
+}
+
+/**
+ * Pede ao servidor o aviso "sua senha foi alterada" pro e-mail da sessão atual. Best effort:
+ * nunca falha a troca de senha por causa disso.
+ */
+export async function notifyPasswordChanged(): Promise<void> {
+  try {
+    if (!supabase) return;
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+    await fetch('/api/auth/password-changed', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+  } catch { /* aviso é opcional */ }
 }
 
 /**
@@ -249,6 +268,7 @@ export async function updatePassword(newPassword: string): Promise<{ success: bo
   if (!supabase) return { success: false, error: 'Não foi possível conectar ao servidor.' };
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) return { success: false, error: error.message };
+  void notifyPasswordChanged();
   return { success: true };
 }
 

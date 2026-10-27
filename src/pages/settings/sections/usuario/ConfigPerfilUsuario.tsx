@@ -11,7 +11,7 @@ import {
   Mic, Sunrise
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
-import { supabase } from "../../../../lib/supabase";
+import { supabase, notifyPasswordChanged } from "../../../../lib/supabase";
 import { toast } from "sonner";
 import { friendlyError } from "../../../../lib/friendlyError";
 
@@ -211,6 +211,7 @@ export function ConfigPerfilUsuario() {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+    void notifyPasswordChanged();
     toast.success("Senha alterada com sucesso!");
   };
 

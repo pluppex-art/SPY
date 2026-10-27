@@ -15,7 +15,8 @@ import { createSaas, aiContext } from "./server/saas.js";
 import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./server/whatsappProvider.js";
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
-import { sendTenantEmail } from "./server/mailer.js";
+import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
+import { testEmail, passwordResetEmail, passwordChangedEmail } from "./server/emailTemplates.js";
 import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { registerKommoRoutes } from "./server/kommoSync.js";
@@ -6002,16 +6003,61 @@ app.post("/api/integrations/smtp-send-test", requireUser, requireTenantAdmin, as
   const to = String(req.user?.email || "").trim();
   if (!to) return res.status(400).json({ ok: false, error: "Seu usuário não tem e-mail cadastrado." });
   try {
-    const sent = await sendTenantEmail(supabaseService, req.tenantId, {
-      to,
-      subject: "Teste de envio — S.P.Y.",
-      text: "Se você recebeu esta mensagem, o servidor SMTP do seu ambiente está enviando e-mails corretamente.",
-      html: "<p>Se você recebeu esta mensagem, o servidor SMTP do seu ambiente está <strong>enviando e-mails corretamente</strong>.</p>",
-    });
+    const mail = testEmail();
+    const sent = await sendTenantEmail(supabaseService, req.tenantId, { to, ...mail });
     res.json({ ok: true, to, via: sent.via });
   } catch (err: any) {
     res.json({ ok: false, error: err?.message || "Falha ao enviar o e-mail de teste." });
   }
+});
+
+// "Esqueci a senha": gera o link de recuperação pela Admin API do Supabase e envia um e-mail do
+// S.P.Y. (layout próprio, em português) pelo SMTP da plataforma — em vez do e-mail padrão do
+// Supabase. Resposta é sempre a mesma (existindo a conta ou não) pra não revelar quem tem cadastro.
+const forgotPasswordLimiter = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: true, legacyHeaders: false });
+const forgotPasswordRecent = new Map<string, number>();
+app.post("/api/auth/forgot-password", forgotPasswordLimiter, async (req: any, res) => {
+  // Termina o envio ANTES de responder (em serverless o processo pode congelar logo após a resposta).
+  try {
+    if (!supabaseService) throw new Error("sem service role");
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("e-mail inválido");
+    const last = forgotPasswordRecent.get(email) || 0;
+    if (Date.now() - last < 60_000) throw new Error("cooldown"); // um e-mail por minuto por endereço
+    forgotPasswordRecent.set(email, Date.now());
+    if (forgotPasswordRecent.size > 5000) forgotPasswordRecent.clear();
+
+    // Só redireciona pra origem conhecida (CORS) ou pra URL pública configurada — nunca pra um host qualquer.
+    const origin = String(req.headers.origin || "").replace(/\/+$/, "");
+    const base = allowedOrigins.includes(origin) ? origin : PUBLIC_APP_URL;
+    const { data, error } = await supabaseService.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo: `${base}/redefinir-senha` },
+    });
+    const link = data?.properties?.action_link;
+    if (error || !link) throw new Error("sem link (conta inexistente?)");
+
+    const { data: profile } = await supabaseService.from("users").select("name").eq("email", email).is("deleted_at", null).limit(1).maybeSingle();
+    await sendPlatformEmail({ to: email, ...passwordResetEmail(link, profile?.name) });
+  } catch (err: any) {
+    console.error("[forgot-password]", err?.message);
+  }
+  res.json({ ok: true });
+});
+
+// Aviso de segurança depois de trocar a senha (pelo perfil ou pelo link de recuperação). Vai sempre
+// pro e-mail da própria sessão; falha de envio nunca impede a troca.
+app.post("/api/auth/password-changed", requireUser, async (req: any, res) => {
+  try {
+    const to = String(req.user?.email || "").trim();
+    if (!to || !supabaseService) throw new Error("sem destinatário");
+    const { data: profile } = await supabaseService.from("users").select("name").eq("id", req.user.id).maybeSingle();
+    await sendPlatformEmail({ to, ...passwordChangedEmail(profile?.name, new Date().toISOString()) });
+  } catch (err: any) {
+    console.error("[password-changed]", err?.message);
+  }
+  res.json({ ok: true });
 });
 
 // Meta Conversions API (CAPI) — dispara um evento de teste real contra a
