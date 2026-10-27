@@ -3,6 +3,8 @@
  * só GET). Cada chamada processa um pedaço (até `budgetMs`) e grava o cursor em
  * integracao_sync_state, então dá para retomar de onde parou — a função
  * serverless tem teto de 60 s e a base tem centenas de milhares de registros.
+ * Os dados ficam em tabelas próprias (maxdata_*), fora do Realtime e do carregamento
+ * integral de clientes/products do app, que não escala para dezenas de milhares de linhas.
  * Tudo é upsert por (tenant, externo_sistema, externo_id): rodar de novo não duplica.
  */
 import { maxdataGet, type MaxDataConn } from "./maxdataClient.js";
@@ -85,15 +87,15 @@ async function syncVendasPage(svc: any, conn: MaxDataConn, tenantId: string, fon
       externo_dados: { cpfCnpj: s.cpfCnpj ?? null, atendenteId: s.atendenteId ?? null, cfop: s.cfop ?? null, statusEntrega: s.statusEntrega ?? null, status: s.status ?? null, pagamentos: e.pays.map((p: any) => ({ forma: p.formaPgto, valor: p.valor, parcela: p.parcela })) },
     });
   }
-  await upsert(svc, "vendas", vendaRows, "tenant_id,externo_sistema,externo_id");
+  await upsert(svc, "maxdata_vendas", vendaRows, "tenant_id,externo_sistema,externo_id");
 
   const ids = docs.map((d) => String(d.id));
-  const { data: vendas } = await svc.from("vendas").select("id, externo_id").eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("externo_id", ids);
+  const { data: vendas } = await svc.from("maxdata_vendas").select("id, externo_id").eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("externo_id", ids);
   const vendaUuid = new Map<string, string>((vendas ?? []).map((v: any) => [v.externo_id, v.id]));
   const prodIds = [...new Set([...extras.values()].flatMap((x) => x.items.map((i: any) => String(i.produtoId))))];
   const prodUuid = new Map<string, string>();
   for (const part of chunk(prodIds, 200)) {
-    const { data } = await svc.from("products").select("id, externo_id").eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("externo_id", part);
+    const { data } = await svc.from("maxdata_produtos").select("id, externo_id").eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("externo_id", part);
     for (const p of data ?? []) prodUuid.set(p.externo_id, p.id);
   }
   const itemRows: any[] = [];
@@ -108,7 +110,7 @@ async function syncVendasPage(svc: any, conn: MaxDataConn, tenantId: string, fon
       });
     }
   }
-  await upsert(svc, "venda_items", itemRows, "venda_id,externo_id");
+  await upsert(svc, "maxdata_venda_itens", itemRows, "venda_id,externo_id");
 }
 
 /** Processa páginas da entidade até estourar o orçamento de tempo; devolve o estado gravado. */
@@ -129,8 +131,8 @@ export async function runSyncChunk(opts: { svc: any; conn: MaxDataConn; tenantId
       const docs: any[] = body?.docs ?? [];
       total = num(body?.total) || total;
       if (docs.length) {
-        if (entity === "clientes") await upsert(svc, "clientes", docs.map((d) => mapCliente(d, tenantId, fonte)), "tenant_id,externo_sistema,externo_id");
-        else if (entity === "produtos") await upsert(svc, "products", docs.map((d) => mapProduto(d, tenantId, fonte)), "tenant_id,externo_sistema,externo_id");
+        if (entity === "clientes") await upsert(svc, "maxdata_clientes", docs.map((d) => mapCliente(d, tenantId, fonte)), "tenant_id,externo_sistema,externo_id");
+        else if (entity === "produtos") await upsert(svc, "maxdata_produtos", docs.map((d) => mapProduto(d, tenantId, fonte)), "tenant_id,externo_sistema,externo_id");
         else await syncVendasPage(svc, conn, tenantId, fonte, docs);
         sincronizados += docs.length;
       }
