@@ -16,9 +16,13 @@ import { ClientesList } from "./components/Clientes/ClientesList";
 import { ClientesResumo } from "./components/Clientes/ClientesResumo";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { normalizeText } from "../../lib/utils";
+import { Pagination } from "../../components/ui/Pagination";
+import { useMaxdataPage, MAXDATA_ORIGENS } from "../../lib/useMaxdataPage";
+
+const MAX_PAGE_SIZE = 50;
 
 export default function Clientes() {
-  const { activeTenantId } = useAuth();
+  const { activeTenantId, isModuleEnabled } = useAuth();
   // `clienteBase` (renomeado aqui pra `clientes`, resto do arquivo não muda)
   // é o mesmo estado compartilhado que Contracts.tsx e o resto do sistema já
   // usam — assinado no canal de realtime único do DataContext (achado real:
@@ -41,6 +45,14 @@ export default function Clientes() {
   const [sectorFilter, setSectorFilter] = useState("Todos os setores");
   const [contratoStatusFilter, setContratoStatusFilter] = useState("Todos os status");
   const [searchQuery, setSearchQuery] = useState("");
+  // Origem: base do CRM (em memória) ou os clientes da Max Data, lidos do servidor página a página
+  // (dezenas de milhares de clientes não cabem no carregamento integral do navegador).
+  const [origem, setOrigem] = useState("");
+  const [maxPage, setMaxPage] = useState(0);
+  const mx = useMaxdataPage({ table: "maxdata_clientes", origem, tenantId: activeTenantId, term: searchQuery, page: maxPage, pageSize: MAX_PAGE_SIZE, searchCols: ["name", "documento", "email", "phone"], orderBy: "name" });
+  useEffect(() => { setMaxPage(0); }, [searchQuery, origem]);
+  const maxRows = useMemo(() => mx.rows.map((c: any) => ({ ...c, responsavel: null, contratoStatus: null, mrr: 0 })), [mx.rows]);
+  const somenteConsulta = () => { toast.info("Cliente vindo da Max Data: somente consulta."); };
 
   // Decisor por cliente, pra mostrar na tabela junto com o Documento — vem do
   // contato marcado como "principal" em cliente_contatos (a mesma tabela do
@@ -242,34 +254,52 @@ export default function Clientes() {
       {/* Card "KPIs & Filtros" compartilhado. Os KPIs de Clientes mantêm drill-down e sparkline
           (ClientesKPIs), agora dentro do card e calculados sobre a lista filtrada. */}
       <KpiFilterCard className="mb-4" id="crmClientes" activeCount={activeCount} onClear={clearFilters}>
-        <ClientesKPIs {...kpis} clientes={clientesFiltrados} />
+        {!mx.ativo && <ClientesKPIs {...kpis} clientes={clientesFiltrados} />}
         <FilterBar>
           <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por cliente, documento, responsável, e-mail ou telefone..." />
+          {isModuleEnabled("varejo") && <FilterSelect icon={Building2} value={origem} onChange={setOrigem} options={MAXDATA_ORIGENS.filter((o) => o.value)} allLabel="Base do CRM" allValue="" />}
           <FilterSelect icon={Building2} value={sectorFilter} onChange={setSectorFilter} options={setoresDisponiveis} allLabel={NEUTRO_SETOR} allValue={NEUTRO_SETOR} />
           <FilterSelect icon={CheckCircle2} value={statusFilter} onChange={setStatusFilter} options={["Ativo", "Em Implantação", "Inativo"]} allLabel={NEUTRO_SITUACAO} allValue={NEUTRO_SITUACAO} />
           <FilterSelect icon={FileText} value={contratoStatusFilter} onChange={setContratoStatusFilter} options={["Em dia", "Inadimplente", "Cancelado", "Sem contrato"]} allLabel={NEUTRO_CONTRATO} allValue={NEUTRO_CONTRATO} />
         </FilterBar>
       </KpiFilterCard>
 
-      <ClientesList
-        clientes={clientesFiltrados}
-        decisorPorCliente={decisorPorCliente}
-        onDelete={handleDeleteCliente}
-        onEdit={(c) => {
-          const hasDeal = (leads || []).some((l: any) => l.clientId === c.id);
-          if (hasDeal) openClienteOrLead(c.id);
-          else setEditingCliente(c); // sem lead vinculado — só dá pra editar os dados básicos mesmo
-        }}
-        onManageContatos={setContatosClienteId}
-        onOpenDetalhes={openClienteOrLead}
-      />
+      {mx.ativo ? (
+        <>
+          {mx.error && <p className="text-xs text-danger mb-2">Não foi possível carregar: {mx.error}</p>}
+          <ClientesList
+            clientes={maxRows}
+            decisorPorCliente={{}}
+            onDelete={somenteConsulta}
+            onEdit={somenteConsulta}
+            onManageContatos={somenteConsulta}
+            onOpenDetalhes={somenteConsulta}
+          />
+          <Pagination page={maxPage} totalPages={Math.max(1, Math.ceil(mx.total / MAX_PAGE_SIZE))} total={mx.total} pageSize={MAX_PAGE_SIZE} onPageChange={setMaxPage} itemLabel="cliente" />
+        </>
+      ) : (
+        <>
+          <ClientesList
+            clientes={clientesFiltrados}
+            decisorPorCliente={decisorPorCliente}
+            onDelete={handleDeleteCliente}
+            onEdit={(c) => {
+              const hasDeal = (leads || []).some((l: any) => l.clientId === c.id);
+              if (hasDeal) openClienteOrLead(c.id);
+              else setEditingCliente(c); // sem lead vinculado — só dá pra editar os dados básicos mesmo
+            }}
+            onManageContatos={setContatosClienteId}
+            onOpenDetalhes={openClienteOrLead}
+          />
 
-      <ClientesResumo
-        clientes={clientes}
-        contracts={contracts}
-        onFilterSetor={setSectorFilter}
-        onFilterStatus={setStatusFilter}
-      />
+          <ClientesResumo
+            clientes={clientes}
+            contracts={contracts}
+            onFilterSetor={setSectorFilter}
+            onFilterStatus={setStatusFilter}
+          />
+        </>
+      )}
 
       <NovoClienteModal
         isOpen={isModalOpen || !!editingCliente}

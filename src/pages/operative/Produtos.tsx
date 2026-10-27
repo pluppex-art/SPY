@@ -18,13 +18,14 @@ import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 import type { Product } from "../../types";
 import { downloadCsv } from "../../lib/csvExport";
+import { useMaxdataPage, MAXDATA_ORIGENS } from "../../lib/useMaxdataPage";
 
 const PAGE_SIZE = 60;
 
 export default function Catalog() {
   const f = useProdutoForm();
   const { createProposalWithItems } = useData();
-  const { user } = useAuth();
+  const { user, activeTenantId } = useAuth();
 
   // Deep-link: /app/produtos?type=Imóvel (ou ?tipo=) pré-seleciona o filtro de
   // tipo; &novo=1 abre o modal de novo produto já com esse tipo.
@@ -99,12 +100,18 @@ export default function Catalog() {
   // pagina só a exibição (os dados já estão em memória); export CSV e o
   // contador do filtro continuam usando `filteredProducts` completo.
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy]);
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
-  const pageProducts = filteredProducts.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  // Origem: catálogo normal (em memória) ou os produtos da Max Data, lidos do servidor página a página
+  // (dezenas de milhares de SKUs não cabem no carregamento integral do navegador).
+  const [origem, setOrigem] = useState("");
+  const mx = useMaxdataPage({ table: "maxdata_produtos", origem, tenantId: activeTenantId, term: f.searchTerm, page, pageSize: PAGE_SIZE, searchCols: ["name", "sku"], orderBy: "name" });
+  useEffect(() => { setPage(0); }, [f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy, origem]);
+  const viewTotal = mx.ativo ? mx.total : filteredProducts.length;
+  const totalPages = Math.max(1, Math.ceil(viewTotal / PAGE_SIZE));
+  const pageProducts = mx.ativo ? mx.rows : filteredProducts.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  const somenteConsulta = () => { toast.info("Produto vindo da Max Data: somente consulta."); };
 
-  const totalSkuCount = filteredProducts.length;
-  const activeSkuCount = filteredProducts.filter(p => p.active).length;
+  const totalSkuCount = viewTotal;
+  const activeSkuCount = mx.ativo ? pageProducts.filter((p: any) => p.active).length : filteredProducts.filter(p => p.active).length;
   const averageMarginVal = useMemo(() => {
     const list = filteredProducts.filter(p => p.active);
     if (list.length === 0) return 0;
@@ -146,6 +153,16 @@ export default function Catalog() {
       }
     >
       <div className="space-y-6 pb-20">
+        {f.varejoOn && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-[var(--color-text-muted)] font-bold">Origem:</span>
+            <select value={origem} onChange={(e) => setOrigem(e.target.value)} className="h-9 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-transparent px-2 text-xs">
+              {MAXDATA_ORIGENS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            {mx.ativo && mx.loading && <span className="text-[var(--color-text-muted)]">Carregando…</span>}
+            {mx.ativo && mx.error && <span className="text-danger">Erro: {mx.error}</span>}
+          </div>
+        )}
         <KpiFilterCard
           id="opsProdutos"
           kpis={[
@@ -174,7 +191,7 @@ export default function Catalog() {
         />
         </KpiFilterCard>
 
-        {filteredProducts.length === 0 ? (
+        {viewTotal === 0 ? (
           <Card className="p-16 flex flex-col items-center justify-center text-center bg-[var(--color-surface-elevated)]/40 border-[var(--color-border-subtle)]">
             <Package className="w-16 h-16 text-slate-700 mb-4 animate-pulse" />
             <h3 className="text-[var(--color-text-primary)] font-bold text-lg mb-1">Nenhum SKU encontrado</h3>
@@ -191,29 +208,29 @@ export default function Catalog() {
               <ProdutosGrid
                 filteredProducts={pageProducts}
                 selectedIds={f.selectedIds}
-                handleToggleSelection={f.handleToggleSelection}
-                toggleActiveStatus={f.toggleActiveStatus}
-                handleOpenEditModal={f.handleOpenEditModal}
-                duplicateProduct={f.duplicateProduct}
-                deleteProduct={f.deleteProduct}
+                handleToggleSelection={mx.ativo ? somenteConsulta : f.handleToggleSelection}
+                toggleActiveStatus={mx.ativo ? somenteConsulta : f.toggleActiveStatus}
+                handleOpenEditModal={mx.ativo ? somenteConsulta : f.handleOpenEditModal}
+                duplicateProduct={mx.ativo ? somenteConsulta : f.duplicateProduct}
+                deleteProduct={mx.ativo ? somenteConsulta : f.deleteProduct}
                 setSelectedCategories={f.setSelectedCategories}
                 setSearchTerm={f.setSearchTerm}
-                handleVender={handleVender}
+                handleVender={mx.ativo ? (_p: Product, e: React.MouseEvent) => { e.stopPropagation(); somenteConsulta(); } : handleVender}
               />
             ) : (
               <ProdutosTable
                 filteredProducts={pageProducts}
                 selectedIds={f.selectedIds}
-                handleToggleSelection={f.handleToggleSelection}
-                handleSelectAll={f.handleSelectAll}
-                toggleActiveStatus={f.toggleActiveStatus}
-                handleOpenEditModal={f.handleOpenEditModal}
-                duplicateProduct={f.duplicateProduct}
-                deleteProduct={f.deleteProduct}
-                handleVender={handleVender}
+                handleToggleSelection={mx.ativo ? somenteConsulta : f.handleToggleSelection}
+                handleSelectAll={mx.ativo ? somenteConsulta : f.handleSelectAll}
+                toggleActiveStatus={mx.ativo ? somenteConsulta : f.toggleActiveStatus}
+                handleOpenEditModal={mx.ativo ? somenteConsulta : f.handleOpenEditModal}
+                duplicateProduct={mx.ativo ? somenteConsulta : f.duplicateProduct}
+                deleteProduct={mx.ativo ? somenteConsulta : f.deleteProduct}
+                handleVender={mx.ativo ? (_p: Product, e: React.MouseEvent) => { e.stopPropagation(); somenteConsulta(); } : handleVender}
               />
             )}
-            <Pagination page={page} totalPages={totalPages} total={filteredProducts.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="produto" />
+            <Pagination page={page} totalPages={totalPages} total={viewTotal} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="produto" />
           </>
         )}
 
