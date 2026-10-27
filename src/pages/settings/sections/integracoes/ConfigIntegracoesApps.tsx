@@ -80,9 +80,23 @@ function MaxDataSyncPanel({ which, tenantId }: { which: "notas" | "estoque"; ten
       for (const entity of ["clientes", "produtos", "vendas"]) {
         let guard = 0;
         while (!stopRef.current && guard++ < 5000) {
-          const res = await apiFetch(`/api/integrations/maxdata/sync${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ which, entity }),
-          });
+          // Falha de rede (ex.: ERR_NETWORK_CHANGED ao trocar de Wi-Fi/VPN) não derruba a carga: tenta de novo,
+          // e o servidor retoma do cursor salvo, então repetir a chamada é seguro.
+          let res: Response | null = null;
+          for (let tentativa = 0; tentativa < 8 && !stopRef.current; tentativa++) {
+            try {
+              res = await apiFetch(`/api/integrations/maxdata/sync${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ which, entity }),
+              });
+              break;
+            } catch {
+              setMsg(`Conexão instável, tentando de novo (${tentativa + 1}/8)…`);
+              await new Promise((r) => setTimeout(r, Math.min(15000, 2000 * (tentativa + 1))));
+            }
+          }
+          if (stopRef.current) return;
+          if (!res) { setMsg("Sem conexão com o servidor. Clique em Sincronizar para retomar de onde parou."); return; }
+          setMsg(null);
           const d = await res.json().catch(() => ({}));
           if (!res.ok && !d?.entidade) { setMsg(d?.error || "Falha ao sincronizar."); return; }
           setRows((p) => ({ ...p, [entity]: d }));
