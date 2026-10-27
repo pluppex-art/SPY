@@ -17,6 +17,7 @@ import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
 import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
 import { emailNotifyTenant } from "./server/emailNotify.js";
+import { getTenantBrand, getBrandForEmail } from "./server/emailBrand.js";
 import { testEmail, passwordResetEmail, passwordChangedEmail } from "./server/emailTemplates.js";
 import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
@@ -6012,7 +6013,7 @@ app.post("/api/integrations/smtp-send-test", requireUser, requireTenantAdmin, as
   const to = String(req.user?.email || "").trim();
   if (!to) return res.status(400).json({ ok: false, error: "Seu usuário não tem e-mail cadastrado." });
   try {
-    const mail = testEmail();
+    const mail = testEmail(await getTenantBrand(supabaseService, req.tenantId));
     const sent = await sendTenantEmail(supabaseService, req.tenantId, { to, ...mail });
     res.json({ ok: true, to, via: sent.via });
   } catch (err: any) {
@@ -6047,8 +6048,8 @@ app.post("/api/auth/forgot-password", forgotPasswordLimiter, async (req: any, re
     const link = data?.properties?.action_link;
     if (error || !link) throw new Error("sem link (conta inexistente?)");
 
-    const { data: profile } = await supabaseService.from("users").select("name").eq("email", email).is("deleted_at", null).limit(1).maybeSingle();
-    await sendPlatformEmail({ to: email, ...passwordResetEmail(link, profile?.name) });
+    const { brand, name } = await getBrandForEmail(supabaseService, email);
+    await sendPlatformEmail({ to: email, ...passwordResetEmail(link, name, brand) });
   } catch (err: any) {
     console.error("[forgot-password]", err?.message);
   }
@@ -6061,8 +6062,9 @@ app.post("/api/auth/password-changed", requireUser, async (req: any, res) => {
   try {
     const to = String(req.user?.email || "").trim();
     if (!to || !supabaseService) throw new Error("sem destinatário");
-    const { data: profile } = await supabaseService.from("users").select("name").eq("id", req.user.id).maybeSingle();
-    await sendPlatformEmail({ to, ...passwordChangedEmail(profile?.name, new Date().toISOString()) });
+    const { data: profile } = await supabaseService.from("users").select("name, tenant_id").eq("id", req.user.id).maybeSingle();
+    const brand = await getTenantBrand(supabaseService, profile?.tenant_id);
+    await sendPlatformEmail({ to, ...passwordChangedEmail(profile?.name, new Date().toISOString(), brand) });
   } catch (err: any) {
     console.error("[password-changed]", err?.message);
   }

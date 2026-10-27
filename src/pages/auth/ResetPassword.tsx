@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, ArrowRight } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { updatePassword } from "../../lib/supabase";
+import { updatePassword, supabase } from "../../lib/supabase";
+import { applyThemeColor, isValidBrandHex, relativeLuminance } from "../../lib/theme";
 import { toast } from "sonner";
 import { Logo } from "../../components/ui/Logo";
 
@@ -13,6 +14,33 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  // Identidade da empresa do usuário (cor, nome, logo): o link do e-mail abre direto aqui, sem host da
+  // empresa, então a marca vem da sessão de recuperação que o próprio link estabelece.
+  const [brand, setBrand] = useState<{ name: string; logoUrl: string; color: string }>({ name: "", logoUrl: "", color: "" });
+
+  useEffect(() => {
+    if (!supabase) return;
+    let cancelled = false;
+    const loadBrand = async (userId: string) => {
+      try {
+        const { data: u } = await supabase!.from("users").select("tenant_id").eq("id", userId).maybeSingle();
+        if (!u?.tenant_id) return;
+        const [{ data: t }, { data: emp }] = await Promise.all([
+          supabase!.from("tenants").select("name, primary_color").eq("id", u.tenant_id).maybeSingle(),
+          supabase!.from("app_settings").select("value").eq("tenant_id", u.tenant_id).eq("key", "empresa_dados").maybeSingle(),
+        ]);
+        if (cancelled || !t) return;
+        const color = isValidBrandHex(t.primary_color || "") ? t.primary_color : "";
+        const logo = typeof emp?.value?.logoUrl === "string" && /^https?:\/\//i.test(emp.value.logoUrl) ? emp.value.logoUrl : "";
+        if (color) applyThemeColor(color, t.name);
+        setBrand({ name: t.name || "", logoUrl: logo, color });
+      } catch { /* sem marca: fica no padrão do S.P.Y. */ }
+    };
+    supabase.auth.getSession().then(({ data }) => { if (data.session?.user) void loadBrand(data.session.user.id); });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { if (session?.user) void loadBrand(session.user.id); });
+    return () => { cancelled = true; sub.subscription.unsubscribe(); };
+  }, []);
+  const onBrand = brand.color && relativeLuminance(brand.color) > 0.4 ? "#0f172a" : "#ffffff";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +66,9 @@ export default function ResetPassword() {
       <div className="w-full max-w-xl p-6 relative z-10">
         <div className="text-center mb-8">
           <div className="relative inline-block bg-[#0B1120] rounded-2xl overflow-hidden p-6 shadow-lg shadow-blue-500/10 mb-6">
-            <Logo variant="full" size={56} className="mx-auto justify-center" />
+            {brand.logoUrl
+              ? <img src={brand.logoUrl} alt={brand.name} className="mx-auto max-h-14 max-w-[220px] object-contain" />
+              : <Logo variant="full" size={56} className="mx-auto justify-center" />}
           </div>
           <h1 className="text-3xl font-bold tracking-tight mb-2 text-[var(--color-text-primary)]">Redefinir senha</h1>
           <p className="text-[var(--color-text-muted)] text-sm">Escolha uma nova senha para sua conta.</p>
@@ -54,7 +84,7 @@ export default function ResetPassword() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] transition-colors"
+                  className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary-blue)] focus:ring-1 focus:ring-[var(--color-primary-blue)] transition-colors"
                   placeholder="••••••••"
                 />
               </div>
@@ -68,7 +98,7 @@ export default function ResetPassword() {
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] transition-colors"
+                  className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary-blue)] focus:ring-1 focus:ring-[var(--color-primary-blue)] transition-colors"
                   placeholder="••••••••"
                 />
               </div>
@@ -76,7 +106,7 @@ export default function ResetPassword() {
 
             {error && <div className="text-sm text-rose-600 bg-rose-500/10 border border-rose-500/20 rounded-lg px-4 py-3">{error}</div>}
 
-            <Button type="submit" disabled={loading} className="w-full py-6 bg-[#2563EB] hover:bg-blue-600 text-white rounded-lg text-md font-semibold group">
+            <Button type="submit" disabled={loading} className="w-full py-6 bg-[var(--color-primary-blue)] hover:opacity-90 rounded-lg text-md font-semibold group" style={{ color: onBrand }}>
               {loading ? "Salvando..." : "Redefinir senha"} <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </form>

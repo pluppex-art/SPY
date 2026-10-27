@@ -9,6 +9,24 @@ const COLOR_PRIMARY = "#2563eb";
 const COLOR_TEXT = "#0f172a";
 const COLOR_MUTED = "#64748b";
 
+/** Identidade visual da empresa (tenant) dona do destinatário. Tudo opcional: sem marca, vale o padrão do S.P.Y. */
+export interface EmailBrand {
+  name?: string | null;
+  /** "#RRGGBB" (tenants.primary_color). */
+  color?: string | null;
+  /** URL https pública da logo (empresa_dados.logoUrl). Data URI não funciona em e-mail. */
+  logoUrl?: string | null;
+}
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const luminance = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+/** Branco ou quase-preto, o que tiver mais contraste sobre a cor da marca (verde claro leva texto escuro). */
+const textOn = (hex: string) => (luminance(hex) > 0.4 ? "#0f172a" : "#ffffff");
+
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -25,6 +43,7 @@ interface LayoutInput {
   tag?: { label: string; color: string };
   /** Link discreto no rodapé (ex.: "Ajustar notificações"). */
   footerLink?: { label: string; url: string };
+  brand?: EmailBrand;
 }
 
 export interface RenderedEmail {
@@ -34,15 +53,22 @@ export interface RenderedEmail {
 }
 
 function layout(subject: string, input: LayoutInput): RenderedEmail {
+  const brandColor = input.brand?.color && HEX.test(input.brand.color) ? input.brand.color : COLOR_PRIMARY;
+  const onBrand = textOn(brandColor);
+  const brandName = (input.brand?.name || "").trim() || BRAND;
+  const logoOk = !!input.brand?.logoUrl && /^https:\/\//i.test(input.brand.logoUrl);
+  const headerHtml = logoOk
+    ? `<img src="${esc(input.brand!.logoUrl!)}" alt="${esc(brandName)}" height="36" style="display:block;max-height:36px;max-width:220px;border:0;">`
+    : `<span style="font-size:20px;font-weight:800;letter-spacing:${input.brand?.name ? "0.5px" : "2px"};color:${onBrand};">${esc(brandName)}</span>`;
   const paragraphsHtml = input.paragraphs
     .map((p) => `<p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:${COLOR_TEXT};">${esc(p)}</p>`)
     .join("");
 
   const buttonHtml = input.button
-    ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0 8px 0;"><tr><td style="background:${COLOR_PRIMARY};border-radius:8px;">
-         <a href="${esc(input.button.url)}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${esc(input.button.label)}</a>
+    ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0 8px 0;"><tr><td style="background:${brandColor};border-radius:8px;">
+         <a href="${esc(input.button.url)}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:${onBrand};text-decoration:none;">${esc(input.button.label)}</a>
        </td></tr></table>
-       <p style="margin:12px 0 0 0;font-size:12px;line-height:1.5;color:${COLOR_MUTED};">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="${esc(input.button.url)}" style="color:${COLOR_PRIMARY};word-break:break-all;">${esc(input.button.url)}</a></p>`
+       <p style="margin:12px 0 0 0;font-size:12px;line-height:1.5;color:${COLOR_MUTED};">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="${esc(input.button.url)}" style="color:${brandColor};word-break:break-all;">${esc(input.button.url)}</a></p>`
     : "";
 
   const noteHtml = input.note
@@ -57,8 +83,8 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:32px 12px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:${COLOR_PRIMARY};padding:22px 32px;">
-          <span style="font-size:20px;font-weight:800;letter-spacing:2px;color:#ffffff;">${BRAND}</span>
+        <tr><td style="background:${brandColor};padding:22px 32px;">
+          ${headerHtml}
         </td></tr>
         <tr><td style="padding:32px;">
           ${input.tag ? `<span style="display:inline-block;margin:0 0 14px 0;padding:4px 10px;border-radius:999px;background:${input.tag.color}1a;color:${input.tag.color};font-size:12px;font-weight:700;letter-spacing:.3px;">${esc(input.tag.label)}</span>` : ""}
@@ -68,8 +94,8 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
           ${noteHtml}
         </td></tr>
         <tr><td style="padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;">
-          <p style="margin:0;font-size:12px;line-height:1.5;color:${COLOR_MUTED};">Você recebeu este e-mail porque ele está ligado à sua conta no ${BRAND}. Se não foi você, pode ignorá-lo com segurança.</p>
-          ${input.footerLink ? `<p style="margin:10px 0 0 0;font-size:12px;"><a href="${esc(input.footerLink.url)}" style="color:${COLOR_PRIMARY};">${esc(input.footerLink.label)}</a></p>` : ""}
+          <p style="margin:0;font-size:12px;line-height:1.5;color:${COLOR_MUTED};">Você recebeu este e-mail porque ele está ligado à sua conta${input.brand?.name ? ` na ${esc(brandName)}` : ` no ${BRAND}`}. Se não foi você, pode ignorá-lo com segurança.${input.brand?.name ? ` Enviado pelo ${BRAND}.` : ""}</p>
+          ${input.footerLink ? `<p style="margin:10px 0 0 0;font-size:12px;"><a href="${esc(input.footerLink.url)}" style="color:${brandColor};">${esc(input.footerLink.label)}</a></p>` : ""}
         </td></tr>
       </table>
     </td></tr>
@@ -94,15 +120,16 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
 const firstName = (name?: string | null) => (name || "").trim().split(/\s+/)[0] || "";
 const greeting = (name?: string | null) => (firstName(name) ? `Olá, ${firstName(name)}!` : "Olá!");
 
-export function testEmail(): RenderedEmail {
+export function testEmail(brand?: EmailBrand): RenderedEmail {
   return layout("Teste de envio — S.P.Y.", {
     preheader: "Seu servidor de e-mail está funcionando.",
     title: "Tudo certo com o envio de e-mails",
     paragraphs: ["Se você recebeu esta mensagem, o servidor SMTP do seu ambiente está enviando e-mails corretamente."],
+    brand,
   });
 }
 
-export function passwordResetEmail(link: string, name?: string | null): RenderedEmail {
+export function passwordResetEmail(link: string, name?: string | null, brand?: EmailBrand): RenderedEmail {
   return layout("Redefinir sua senha do S.P.Y.", {
     preheader: "Use o link para criar uma nova senha.",
     title: "Redefinir sua senha",
@@ -112,10 +139,11 @@ export function passwordResetEmail(link: string, name?: string | null): Rendered
     ],
     button: { label: "Criar nova senha", url: link },
     note: "Por segurança, este link expira em pouco tempo e só pode ser usado uma vez. Se você não pediu a redefinição, ignore este e-mail — sua senha continua a mesma.",
+    brand,
   });
 }
 
-export function passwordChangedEmail(name: string | null | undefined, whenIso: string): RenderedEmail {
+export function passwordChangedEmail(name: string | null | undefined, whenIso: string, brand?: EmailBrand): RenderedEmail {
   const when = new Date(whenIso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "long", timeStyle: "short" });
   return layout("Sua senha do S.P.Y. foi alterada", {
     preheader: "A senha da sua conta acabou de ser alterada.",
@@ -125,6 +153,7 @@ export function passwordChangedEmail(name: string | null | undefined, whenIso: s
       `A senha da sua conta no ${BRAND} foi alterada em ${when} (horário de Brasília).`,
       "Se foi você, não precisa fazer nada. Se não reconhece essa alteração, redefina sua senha imediatamente pela opção “Esqueci a senha” e avise o administrador da sua empresa.",
     ],
+    brand,
   });
 }
 
@@ -144,6 +173,7 @@ export function notificationEmail(n: {
   linkUrl?: string;
   settingsUrl?: string;
   name?: string | null;
+  brand?: EmailBrand;
 }): RenderedEmail {
   const style = KIND_STYLE[n.kind] || KIND_STYLE.info;
   return layout(n.title, {
@@ -153,5 +183,6 @@ export function notificationEmail(n: {
     paragraphs: [greeting(n.name), n.description],
     button: n.linkUrl ? { label: "Abrir no S.P.Y.", url: n.linkUrl } : undefined,
     footerLink: n.settingsUrl ? { label: "Ajustar quais avisos você recebe por e-mail", url: n.settingsUrl } : undefined,
+    brand: n.brand,
   });
 }

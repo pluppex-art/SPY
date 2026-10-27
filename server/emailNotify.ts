@@ -1,5 +1,6 @@
 import { sendTenantEmail } from "./mailer.js";
 import { notificationEmail, type NotificationKind } from "./emailTemplates.js";
+import { getTenantBrand } from "./emailBrand.js";
 
 // Espelha DEFAULT_NOTIFICATION_PREFS (SettingsNotificacoes.tsx): vale quando o usuário nunca mexeu
 // nas preferências. O id também funciona como allowlist de quais avisos podem virar e-mail.
@@ -50,6 +51,7 @@ export async function emailNotifyTenant(db: any, tenantId: string, baseUrl: stri
       .filter((u: any) => u.active !== false && !u.is_master && typeof u.email === "string" && u.email.includes("@") && wants(u))
       .slice(0, MAX_RECIPIENTS);
 
+    const brand = await getTenantBrand(db, tenantId);
     const path = typeof n.linkPath === "string" && /^\/app\/[\w\-./?=&%]*$/.test(n.linkPath) ? n.linkPath : "";
     for (const u of recipients) {
       try {
@@ -60,6 +62,7 @@ export async function emailNotifyTenant(db: any, tenantId: string, baseUrl: stri
           linkUrl: path ? `${baseUrl}${path}` : `${baseUrl}/app`,
           settingsUrl: `${baseUrl}/app/configuracoes/usuario/notificacoes`,
           name: u.name,
+          brand,
         });
         await sendTenantEmail(db, tenantId, { to: u.email, ...mail });
         out.sent++;

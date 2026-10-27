@@ -76,6 +76,7 @@ export function LoginForm({ primaryColor = LOGIN_DEFAULT_COLOR, onEmailChange }:
   const [loading, setLoading]               = useState(false);
   const [error, setError]                   = useState("");
   const [showForgotPassword, setShowForgot] = useState(false);
+  const [showForgotEmail, setShowForgotEmail] = useState(false);
   const [resetEmail, setResetEmail]         = useState("");
   const [sendingReset, setSendingReset]     = useState(false);
 
@@ -165,6 +166,43 @@ export function LoginForm({ primaryColor = LOGIN_DEFAULT_COLOR, onEmailChange }:
         <Button type="submit" disabled={loading || mfaCode.length !== 6} className="w-full">{loading ? "Verificando…" : "Verificar e entrar"}</Button>
         <button type="button" className="text-xs underline" style={{ color: "#64748B" }} onClick={() => { setMfaFactorId(null); setMfaCode(""); setError(""); }}>Voltar</button>
       </form>
+    );
+  }
+
+  /* ── Tela "esqueci meu e-mail" ── */
+  // Não existe busca de conta por nome/telefone de propósito: qualquer resposta revelaria quem tem
+  // cadastro. O e-mail de acesso é o que o administrador da empresa cadastrou, então a saída é ele.
+  if (showForgotEmail) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center gap-2 mb-2">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-700"
+            style={{ background: alpha(0.2), border: `1px solid ${alpha(0.3)}` }}
+          >
+            <Mail className="w-4 h-4 transition-colors duration-700" style={{ color: primaryColor, filter: "brightness(1.4)" }} />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold" style={{ color: "#F8FAFC" }}>Esqueci meu e-mail</h3>
+            <p className="text-[11px]" style={{ color: "#64748B" }}>Veja como descobrir o e-mail do seu acesso.</p>
+          </div>
+        </div>
+        <ul className="space-y-3 text-xs leading-relaxed" style={{ color: "#94A3B8" }}>
+          <li>• Procure na sua caixa de entrada (e no spam) por mensagens do <strong style={{ color: "#F8FAFC" }}>S.P.Y.</strong> — o e-mail que as recebeu é o do seu acesso.</li>
+          <li>• Peça ao <strong style={{ color: "#F8FAFC" }}>administrador da sua empresa</strong> para abrir <em>Configurações → Equipe &amp; convites</em>: lá aparece o e-mail cadastrado para você.</li>
+          <li>• Se você é o administrador, fale com o suporte do S.P.Y. informando o nome da empresa.</li>
+        </ul>
+        <button
+          type="button"
+          onClick={() => setShowForgotEmail(false)}
+          className="w-full text-xs text-center transition-colors duration-200 py-1"
+          style={{ color: "#475569" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#94A3B8")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#475569")}
+        >
+          ← Voltar para o login
+        </button>
+      </div>
     );
   }
 
@@ -259,6 +297,17 @@ export function LoginForm({ primaryColor = LOGIN_DEFAULT_COLOR, onEmailChange }:
           <label htmlFor="login-password" className="text-xs font-semibold" style={{ color: "#94A3B8" }}>
             Senha
           </label>
+          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowForgotEmail(true)}
+            className="text-xs transition-colors duration-200"
+            style={{ color: "#64748B" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#94A3B8")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#64748B")}
+          >
+            Esqueci meu e-mail
+          </button>
           <button
             type="button"
             onClick={() => { setShowForgot(true); setResetEmail(email); }}
@@ -269,6 +318,7 @@ export function LoginForm({ primaryColor = LOGIN_DEFAULT_COLOR, onEmailChange }:
           >
             Esqueci a senha
           </button>
+          </div>
         </div>
         <FieldInput
           id="login-password"
