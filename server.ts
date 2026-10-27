@@ -334,7 +334,9 @@ const tenantThemeLimiter = rateLimit({ windowMs: 60_000, limit: 20, standardHead
 const publicImplementationLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
 app.use("/api/public-proposal", publicProposalLimiter);
 app.use("/api/public-implementation", publicImplementationLimiter);
-const maxdataLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
+// A rota de sincronização (autenticada, uma chamada de ~15 s por vez) fica fora do teto: com retries de rede
+// e várias etapas, 30/min travava a carga. As demais rotas da Max Data continuam limitadas.
+const maxdataLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false, skip: (req) => req.path === "/sync" });
 app.use("/api/integrations/maxdata", maxdataLimiter);
 app.use("/api/varejo/maxdata", maxdataLimiter);
 const tableComparisonLimiter = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false });

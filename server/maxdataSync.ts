@@ -152,7 +152,7 @@ async function runItensVendas(opts: { svc: any; conn: MaxDataConn; tenantId: str
 /** Processa páginas da entidade até estourar o orçamento de tempo; devolve o estado gravado. */
 export async function runSyncChunk(opts: { svc: any; conn: MaxDataConn; tenantId: string; fonte: string; entity: SyncEntity; budgetMs?: number; restart?: boolean }): Promise<SyncState> {
   const { svc, conn, tenantId, fonte, entity } = opts;
-  const deadline = Date.now() + (opts.budgetMs ?? 25_000);
+  const deadline = Date.now() + (opts.budgetMs ?? 15_000);
   if (entity === "itens_vendas") return runItensVendas({ svc, conn, tenantId, fonte, deadline });
   const key = { tenant_id: tenantId, fonte, entidade: entity };
   const { data: cur } = await svc.from("integracao_sync_state").select("*").match(key).maybeSingle();
