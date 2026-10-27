@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
 } from "recharts";
 import {
-  Crown, Users, Target, FileText, ShoppingCart, ChevronRight, TrendingUp, TrendingDown, Search, Calendar, Package,
+  Crown, Users, Target, FileText, ShoppingCart, ChevronRight, TrendingUp, TrendingDown, Calendar, Package,
 } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { DrillDownPanel } from "../../../components/ui/DrillDownPanel";
@@ -50,11 +50,6 @@ function Tendencia({ pct }: { pct: number | null }) {
   );
 }
 
-function visiveisProdutos(linhas: VendedorLinha[], vendedorSel: string, busca: string) {
-  const q = busca.trim().toLowerCase();
-  return linhas.filter((l) => (vendedorSel === "todos" || l.key === vendedorSel) && (!q || l.nome.toLowerCase().includes(q)));
-}
-
 export default function VendedoresPanel({ dashboard }: { dashboard: DashboardData }) {
   const { leads, proposals, proposalItems, products, contracts, colaboradores, cargos, sellerRestricted } = useData() as any;
   const { formatCurrency } = useLocalization();
@@ -62,9 +57,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
   const [periodo, setPeriodo] = useState<PeriodoOpcao>("mes");
   const [vendedorSel, setVendedorSel] = useState<string>("todos");
   const [produtoSel, setProdutoSel] = useState<string>("todos");
-  const [busca, setBusca] = useState("");
   const [acumulada, setAcumulada] = useState(true);
-  const [funilSel, setFunilSel] = useState<string>("todos");
   const [detalhe, setDetalhe] = useState<VendedorLinha | null>(null);
 
   const faixa = useMemo(
@@ -90,24 +83,28 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
   );
   const produtoNome = produtoSel === "todos" ? null : (opcoesProduto.find((p) => p.id === produtoSel)?.name ?? null);
 
+  const visiveis = useMemo(
+    () => linhas.filter((l) => vendedorSel === "todos" || l.key === vendedorSel),
+    [linhas, vendedorSel],
+  );
+  const vendedorAtual = vendedorSel === "todos" ? null : (linhas.find((l) => l.key === vendedorSel) ?? null);
+  // Clicar de novo no vendedor já escolhido volta para "todos".
+  const escolherVendedor = (key: string) => setVendedorSel((cur) => (cur === key ? "todos" : key));
+
   // Produtos vendidos somando os vendedores visíveis (ranking de produtos).
   const produtosGeral = useMemo(() => {
     const m = new Map<string, { id: string; nome: string; vendas: number; receita: number }>();
-    visiveisProdutos(linhas, vendedorSel, busca).forEach((l) => l.produtos.forEach((p) => {
+    visiveis.forEach((l) => l.produtos.forEach((p) => {
       const cur = m.get(p.id) ?? { id: p.id, nome: p.nome, vendas: 0, receita: 0 };
       cur.vendas += p.vendas;
       cur.receita += p.receita;
       m.set(p.id, cur);
     }));
     return [...m.values()].sort((a, b) => b.receita - a.receita || b.vendas - a.vendas);
-  }, [linhas, vendedorSel, busca]);
+  }, [visiveis]);
 
-  const visiveis = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    return linhas.filter((l) => (vendedorSel === "todos" || l.key === vendedorSel) && (!q || l.nome.toLowerCase().includes(q)));
-  }, [linhas, vendedorSel, busca]);
-
-  const ranking = useMemo(() => visiveis.filter((l) => l.receita > 0 || l.vendas > 0), [visiveis]);
+  // O ranking mostra sempre todos (é por onde se escolhe o vendedor); o resto da tela segue a escolha.
+  const ranking = useMemo(() => linhas.filter((l) => l.receita > 0 || l.vendas > 0), [linhas]);
   const podio = ranking.slice(0, 3);
   const resto = ranking.slice(3, 7);
   const maxReceita = ranking[0]?.receita || 1;
@@ -117,8 +114,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
     [vendasNoPeriodo, visiveis, faixa, acumulada],
   );
 
-  const funilBase = funilSel === "todos" ? visiveis : visiveis.filter((l) => l.key === funilSel);
-  const f = funilBase.reduce(
+  const f = visiveis.reduce(
     (a, l) => ({ leads: a.leads + l.leads, oportunidades: a.oportunidades + l.oportunidades, propostas: a.propostas + l.propostas, vendas: a.vendas + l.vendas }),
     { leads: 0, oportunidades: 0, propostas: 0, vendas: 0 },
   );
@@ -154,26 +150,31 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                 {opcoesProduto.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </label>
-            {!sellerRestricted && (
-              <>
-                <label className="relative">
-                  <Users className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
-                  <select value={vendedorSel} onChange={(e) => setVendedorSel(e.target.value)} className={`${selectCls} pl-8`}>
-                    <option value="todos">Todos os vendedores</option>
-                    {linhas.map((l) => <option key={l.key} value={l.key}>{l.nome}</option>)}
-                  </select>
-                </label>
-                <label className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
-                  <input
-                    value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar vendedor..."
-                    className={`${selectCls} pl-8 w-44 cursor-text font-normal`}
-                  />
-                </label>
-              </>
-            )}
           </div>
         </div>
+
+        {/* Filtro rápido de vendedor: um clique filtra a tela toda */}
+        {!sellerRestricted && linhas.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)] shrink-0">Vendedor</span>
+            {[{ key: "todos", nome: "Todos" } as const, ...linhas].map((l) => {
+              const ativo = vendedorSel === l.key;
+              return (
+                <button
+                  key={l.key} type="button" onClick={() => (l.key === "todos" ? setVendedorSel("todos") : escolherVendedor(l.key))}
+                  className={`shrink-0 inline-flex items-center gap-1.5 h-8 rounded-full border px-3 text-xs font-bold cursor-pointer transition-colors ${
+                    ativo
+                      ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]"
+                      : "border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                  }`}
+                >
+                  {"cor" in l && <Avatar v={l as VendedorLinha} size={20} />}
+                  {l.nome}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Ranking + Meta x realizado */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -192,7 +193,10 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                       const alturas = [150, 112, 84];
                       const cores = ["from-amber-300 to-amber-500", "from-indigo-300 to-indigo-500", "from-orange-400 to-orange-600"];
                       return (
-                        <div key={v.key} className="flex flex-col items-center w-28">
+                        <button
+                          key={v.key} type="button" onClick={() => escolherVendedor(v.key)} title="Filtrar por este vendedor"
+                          className={`flex flex-col items-center w-28 rounded-xl p-1 cursor-pointer bg-transparent border-none ${vendedorSel === v.key ? "ring-2 ring-[var(--color-primary-blue)]" : "hover:bg-[var(--color-surface-sunken)]"}`}
+                        >
                           <div className="relative mb-1.5">
                             {pos === 0 && <Crown className="w-5 h-5 text-amber-400 absolute -top-5 left-1/2 -translate-x-1/2" />}
                             <Avatar v={v} size={pos === 0 ? 44 : 38} />
@@ -203,14 +207,17 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                           <div className={`w-full rounded-t-lg bg-gradient-to-b ${cores[pos]} flex items-center justify-center text-white font-black text-3xl`} style={{ height: alturas[pos] }}>
                             {pos + 1}
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
                   {resto.length > 0 && (
                     <div className="md:w-60 space-y-3 self-center">
                       {resto.map((v, i) => (
-                        <div key={v.key} className="flex items-center gap-2.5">
+                        <button
+                          key={v.key} type="button" onClick={() => escolherVendedor(v.key)} title="Filtrar por este vendedor"
+                          className={`w-full text-left flex items-center gap-2.5 rounded-lg p-1 cursor-pointer bg-transparent border-none ${vendedorSel === v.key ? "ring-2 ring-[var(--color-primary-blue)]" : "hover:bg-[var(--color-surface-sunken)]"}`}
+                        >
                           <span className="w-6 h-6 rounded-full bg-[var(--color-surface-sunken)] text-[10px] font-black flex items-center justify-center text-[var(--color-text-muted)] shrink-0">{i + 4}</span>
                           <Avatar v={v} size={30} />
                           <div className="flex-1 min-w-0">
@@ -223,7 +230,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                             </div>
                             <span className="text-[9px] text-[var(--color-text-faint)]">{v.vendas} venda{v.vendas === 1 ? "" : "s"}</span>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -260,136 +267,6 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
             )}
           </Card>
         </div>
-
-        {/* Evolução + Funil */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div>
-                <h4 className="text-sm font-black text-[var(--color-text-primary)]">Evolução da receita{sellerRestricted ? "" : " por vendedor"}</h4>
-                <p className="text-[11px] text-[var(--color-text-muted)]">Receita diária no período selecionado.</p>
-              </div>
-              <select value={acumulada ? "acumulada" : "diaria"} onChange={(e) => setAcumulada(e.target.value === "acumulada")} className={selectCls}>
-                <option value="acumulada">Receita acumulada</option>
-                <option value="diaria">Receita diária</option>
-              </select>
-            </div>
-            {seriesVendedores.length === 0 ? (
-              <p className="text-xs text-[var(--color-text-faint)] italic py-12 text-center">Sem vendas no período.</p>
-            ) : (
-              <div className="h-[230px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={serie} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
-                    <XAxis dataKey="dia" tick={{ fontSize: 10, fill: "var(--color-text-faint)" }} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
-                    <YAxis tick={{ fontSize: 10, fill: "var(--color-text-faint)" }} tickLine={false} axisLine={false} width={64} tickFormatter={(v: number) => formatCurrency(v)} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: 12, fontSize: 11 }}
-                      formatter={(v: number, k: string) => [formatCurrency(v), seriesVendedores.find((s) => s.key === k)?.nome ?? k]}
-                    />
-                    <Legend formatter={(k: string) => seriesVendedores.find((s) => s.key === k)?.nome ?? k} wrapperStyle={{ fontSize: 11 }} />
-                    {seriesVendedores.map((v) => (
-                      <Line key={v.key} type="monotone" dataKey={v.key} stroke={v.cor} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </Card>
-
-          <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <h4 className="text-sm font-black text-[var(--color-text-primary)]">Funil{sellerRestricted ? "" : " por vendedor"}</h4>
-                <p className="text-[11px] text-[var(--color-text-muted)]">Quantidade de leads em cada etapa.</p>
-              </div>
-              {!sellerRestricted && (
-                <select value={funilSel} onChange={(e) => setFunilSel(e.target.value)} className={selectCls}>
-                  <option value="todos">Todos os vendedores</option>
-                  {linhas.map((l) => <option key={l.key} value={l.key}>{l.nome}</option>)}
-                </select>
-              )}
-            </div>
-            <div className="grid grid-cols-4 gap-1.5 items-stretch">
-              {etapasFunil.map((e, i) => (
-                <div key={e.label} className="relative">
-                  <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-2.5 text-center h-full">
-                    <e.icon className="w-5 h-5 mx-auto mb-1" style={{ color: e.cor }} />
-                    <p className="text-[8px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{e.label}</p>
-                    <p className="text-xl font-black text-[var(--color-text-primary)] font-mono">{e.valor}</p>
-                    <p className="text-[10px] font-bold" style={{ color: e.cor }}>{e.sub}</p>
-                    {i > 0 && <p className="text-[8px] text-[var(--color-text-faint)]">de conversão</p>}
-                  </div>
-                  {i < etapasFunil.length - 1 && <ChevronRight className="absolute top-1/2 -right-2.5 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)] z-10" />}
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        {produtoNome && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-primary-blue)]/30 bg-[var(--color-primary-blue)]/8 px-4 py-2.5 text-xs">
-            <span className="text-[var(--color-text-primary)]">
-              Filtrando pelo produto <strong>{produtoNome}</strong>: só entram os leads que envolvem esse produto, e a receita é a parte desse produto nas vendas.
-            </span>
-            <button type="button" onClick={() => setProdutoSel("todos")} className="font-bold text-[var(--color-primary-blue)] hover:underline cursor-pointer shrink-0">Limpar</button>
-          </div>
-        )}
-
-        {/* Produtos vendidos */}
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
-          <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Produtos vendidos{sellerRestricted ? "" : " por vendedor"}</h4>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Quais produtos cada {sellerRestricted ? "venda sua trouxe" : "vendedor vendeu"} no período. Recorrente mostra a mensalidade.</p>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-12">
-            <div className="lg:col-span-4 p-4 border-b lg:border-b-0 lg:border-r border-[var(--color-border-subtle)]">
-              <p className="text-[9px] font-black uppercase tracking-wider text-[var(--color-text-faint)] mb-3">Mais vendidos</p>
-              {produtosGeral.length === 0 ? (
-                <p className="text-xs text-[var(--color-text-faint)] italic py-4">Nenhuma venda com produto no período.</p>
-              ) : (
-                <div className="space-y-3">
-                  {produtosGeral.slice(0, 6).map((p) => (
-                    <div key={p.id}>
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">{p.nome}</span>
-                        <span className="text-xs font-black font-mono text-[var(--color-text-primary)] shrink-0">{formatCurrency(p.receita)}</span>
-                      </div>
-                      <div className="h-1.5 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1">
-                        <div className="h-full rounded-full bg-[var(--color-primary-blue)]" style={{ width: `${Math.max(4, (p.receita / (produtosGeral[0].receita || 1)) * 100)}%` }} />
-                      </div>
-                      <span className="text-[9px] text-[var(--color-text-faint)]">{p.vendas} venda{p.vendas === 1 ? "" : "s"}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="lg:col-span-8 divide-y divide-[var(--color-border-subtle)]">
-              {visiveis.map((v) => (
-                <div key={v.key} className="flex items-start gap-3 px-4 py-3">
-                  <Avatar v={v} size={30} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{v.nome}</p>
-                    {v.produtos.length === 0 ? (
-                      <p className="text-[11px] text-[var(--color-text-faint)] mt-1">Sem produtos vendidos no período.</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {v.produtos.map((p) => (
-                          <span key={p.id} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-2 py-1 text-[11px]">
-                            <span className="font-bold text-[var(--color-text-primary)]">{p.nome}</span>
-                            <span className="text-[var(--color-text-muted)]">× {p.vendas}</span>
-                            <span className="font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(p.receita)}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {visiveis.length === 0 && <p className="px-4 py-8 text-center text-xs text-[var(--color-text-faint)]">Nenhum vendedor encontrado.</p>}
-            </div>
-          </div>
-        </Card>
 
         {/* Desempenho por vendedor */}
         <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
@@ -460,6 +337,130 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
             </table>
           </div>
         </Card>
+
+        {produtoNome && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-primary-blue)]/30 bg-[var(--color-primary-blue)]/8 px-4 py-2.5 text-xs">
+            <span className="text-[var(--color-text-primary)]">
+              Filtrando pelo produto <strong>{produtoNome}</strong>: só entram os leads que envolvem esse produto, e a receita é a parte desse produto nas vendas.
+            </span>
+            <button type="button" onClick={() => setProdutoSel("todos")} className="font-bold text-[var(--color-primary-blue)] hover:underline cursor-pointer shrink-0">Limpar</button>
+          </div>
+        )}
+
+        {/* Produtos vendidos */}
+        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <div className="p-4 border-b border-[var(--color-border-subtle)]">
+            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Produtos vendidos{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"}</h4>
+            <p className="text-[11px] text-[var(--color-text-muted)]">Quais produtos cada {sellerRestricted ? "venda sua trouxe" : "vendedor vendeu"} no período. Recorrente mostra a mensalidade.</p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12">
+            <div className="lg:col-span-4 p-4 border-b lg:border-b-0 lg:border-r border-[var(--color-border-subtle)]">
+              <p className="text-[9px] font-black uppercase tracking-wider text-[var(--color-text-faint)] mb-3">Mais vendidos</p>
+              {produtosGeral.length === 0 ? (
+                <p className="text-xs text-[var(--color-text-faint)] italic py-4">Nenhuma venda com produto no período.</p>
+              ) : (
+                <div className="space-y-3">
+                  {produtosGeral.slice(0, 6).map((p) => (
+                    <div key={p.id}>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">{p.nome}</span>
+                        <span className="text-xs font-black font-mono text-[var(--color-text-primary)] shrink-0">{formatCurrency(p.receita)}</span>
+                      </div>
+                      <div className="h-1.5 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1">
+                        <div className="h-full rounded-full bg-[var(--color-primary-blue)]" style={{ width: `${Math.max(4, (p.receita / (produtosGeral[0].receita || 1)) * 100)}%` }} />
+                      </div>
+                      <span className="text-[9px] text-[var(--color-text-faint)]">{p.vendas} venda{p.vendas === 1 ? "" : "s"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="lg:col-span-8 divide-y divide-[var(--color-border-subtle)]">
+              {visiveis.map((v) => (
+                <div key={v.key} className="flex items-start gap-3 px-4 py-3">
+                  <Avatar v={v} size={30} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{v.nome}</p>
+                    {v.produtos.length === 0 ? (
+                      <p className="text-[11px] text-[var(--color-text-faint)] mt-1">Sem produtos vendidos no período.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {v.produtos.map((p) => (
+                          <span key={p.id} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-2 py-1 text-[11px]">
+                            <span className="font-bold text-[var(--color-text-primary)]">{p.nome}</span>
+                            <span className="text-[var(--color-text-muted)]">× {p.vendas}</span>
+                            <span className="font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(p.receita)}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {visiveis.length === 0 && <p className="px-4 py-8 text-center text-xs text-[var(--color-text-faint)]">Nenhum vendedor encontrado.</p>}
+            </div>
+          </div>
+        </Card>
+
+        {/* Evolução + Funil */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <h4 className="text-sm font-black text-[var(--color-text-primary)]">Evolução da receita{sellerRestricted ? "" : " por vendedor"}</h4>
+                <p className="text-[11px] text-[var(--color-text-muted)]">Receita diária no período selecionado.</p>
+              </div>
+              <select value={acumulada ? "acumulada" : "diaria"} onChange={(e) => setAcumulada(e.target.value === "acumulada")} className={selectCls}>
+                <option value="acumulada">Receita acumulada</option>
+                <option value="diaria">Receita diária</option>
+              </select>
+            </div>
+            {seriesVendedores.length === 0 ? (
+              <p className="text-xs text-[var(--color-text-faint)] italic py-12 text-center">Sem vendas no período.</p>
+            ) : (
+              <div className="h-[230px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={serie} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
+                    <XAxis dataKey="dia" tick={{ fontSize: 10, fill: "var(--color-text-faint)" }} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
+                    <YAxis tick={{ fontSize: 10, fill: "var(--color-text-faint)" }} tickLine={false} axisLine={false} width={64} tickFormatter={(v: number) => formatCurrency(v)} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: 12, fontSize: 11 }}
+                      formatter={(v: number, k: string) => [formatCurrency(v), seriesVendedores.find((s) => s.key === k)?.nome ?? k]}
+                    />
+                    <Legend formatter={(k: string) => seriesVendedores.find((s) => s.key === k)?.nome ?? k} wrapperStyle={{ fontSize: 11 }} />
+                    {seriesVendedores.map((v) => (
+                      <Line key={v.key} type="monotone" dataKey={v.key} stroke={v.cor} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </Card>
+
+          <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h4 className="text-sm font-black text-[var(--color-text-primary)]">Funil{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"}</h4>
+                <p className="text-[11px] text-[var(--color-text-muted)]">Quantidade de leads em cada etapa.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5 items-stretch">
+              {etapasFunil.map((e, i) => (
+                <div key={e.label} className="relative">
+                  <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-2.5 text-center h-full">
+                    <e.icon className="w-5 h-5 mx-auto mb-1" style={{ color: e.cor }} />
+                    <p className="text-[8px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{e.label}</p>
+                    <p className="text-xl font-black text-[var(--color-text-primary)] font-mono">{e.valor}</p>
+                    <p className="text-[10px] font-bold" style={{ color: e.cor }}>{e.sub}</p>
+                    {i > 0 && <p className="text-[8px] text-[var(--color-text-faint)]">de conversão</p>}
+                  </div>
+                  {i < etapasFunil.length - 1 && <ChevronRight className="absolute top-1/2 -right-2.5 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)] z-10" />}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       </Card>
 
       <DrillDownPanel
