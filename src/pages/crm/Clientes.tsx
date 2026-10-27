@@ -17,7 +17,7 @@ import { ClientesResumo } from "./components/Clientes/ClientesResumo";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { normalizeText } from "../../lib/utils";
 import { Pagination } from "../../components/ui/Pagination";
-import { useMaxdataPage, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
+import { useMaxdataPage, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 
 const MAX_PAGE_SIZE = 50;
 
@@ -131,7 +131,9 @@ export default function Clientes() {
   // página a página (dezenas de milhares de clientes não cabem no carregamento integral do navegador);
   // a base do CRM, em memória, vem primeiro e a Max Data completa a página.
   const [origemEscolhida, setOrigemEscolhida] = useState<string | null>(null);
-  const origem = origemEscolhida ?? (isModuleEnabled("varejo") ? MAXDATA_TODAS : "");
+  const maxDisp = useMaxdataDisponivel(activeTenantId);
+  const temMax = maxDisp.disponivel || isModuleEnabled("varejo");
+  const origem = origemEscolhida ?? (temMax ? MAXDATA_TODAS : "");
   const [maxPage, setMaxPage] = useState(0);
   const misto = origem === MAXDATA_TODAS;
   const crmLen = clientesFiltrados.length;
@@ -269,14 +271,14 @@ export default function Clientes() {
         {(origem === "" || misto) && <ClientesKPIs {...kpis} clientes={clientesFiltrados} />}
         <FilterBar>
           <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por cliente, documento, responsável, e-mail ou telefone..." />
-          {isModuleEnabled("varejo") && <FilterSelect icon={Building2} value={origem} onChange={setOrigemEscolhida} options={[{ value: MAXDATA_TODAS, label: "Tudo (CRM + Max Data)" }, { value: "", label: "Só base do CRM" }, ...MAXDATA_ORIGENS.filter((o) => o.value)]} />}
+          {temMax && <FilterSelect icon={Building2} value={origem} onChange={setOrigemEscolhida} options={[{ value: MAXDATA_TODAS, label: "Tudo (CRM + Max Data)" }, { value: "", label: "Só base do CRM" }, ...MAXDATA_ORIGENS.filter((o) => o.value)]} />}
           <FilterSelect icon={Building2} value={sectorFilter} onChange={setSectorFilter} options={setoresDisponiveis} allLabel={NEUTRO_SETOR} allValue={NEUTRO_SETOR} />
           <FilterSelect icon={CheckCircle2} value={statusFilter} onChange={setStatusFilter} options={["Ativo", "Em Implantação", "Inativo"]} allLabel={NEUTRO_SITUACAO} allValue={NEUTRO_SITUACAO} />
           <FilterSelect icon={FileText} value={contratoStatusFilter} onChange={setContratoStatusFilter} options={["Em dia", "Inadimplente", "Cancelado", "Sem contrato"]} allLabel={NEUTRO_CONTRATO} allValue={NEUTRO_CONTRATO} />
         </FilterBar>
       </KpiFilterCard>
 
-      {mx.error && <p className="text-xs text-danger mb-2">Não foi possível carregar a Max Data: {mx.error}</p>}
+      {(mx.error || maxDisp.erro) && <p className="text-xs text-danger mb-2">Não foi possível carregar a Max Data: {mx.error || maxDisp.erro}</p>}
       {origem === "" ? (
         <>
           <ClientesList

@@ -18,7 +18,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 import type { Product } from "../../types";
 import { downloadCsv } from "../../lib/csvExport";
-import { useMaxdataPage, MAXDATA_ORIGENS } from "../../lib/useMaxdataPage";
+import { useMaxdataPage, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 
 const PAGE_SIZE = 60;
 
@@ -102,7 +102,10 @@ export default function Catalog() {
   const [page, setPage] = useState(0);
   // Origem: catálogo normal (em memória) ou os produtos da Max Data, lidos do servidor página a página
   // (dezenas de milhares de SKUs não cabem no carregamento integral do navegador).
-  const [origem, setOrigem] = useState("");
+  const [origemEscolhida, setOrigem] = useState<string | null>(null);
+  const maxDisp = useMaxdataDisponivel(activeTenantId);
+  // Sem produtos próprios e com dados da Max Data, a tela já abre mostrando a Max Data (senão parece vazia).
+  const origem = origemEscolhida ?? (maxDisp.disponivel && f.products.length === 0 ? MAXDATA_TODAS : "");
   const mx = useMaxdataPage({ table: "maxdata_produtos", origem, tenantId: activeTenantId, term: f.searchTerm, page, pageSize: PAGE_SIZE, searchCols: ["name", "sku"], orderBy: "name" });
   useEffect(() => { setPage(0); }, [f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy, origem]);
   const viewTotal = mx.ativo ? mx.total : filteredProducts.length;
@@ -153,14 +156,14 @@ export default function Catalog() {
       }
     >
       <div className="space-y-6 pb-20">
-        {f.varejoOn && (
+        {(f.varejoOn || maxDisp.disponivel) && (
           <div className="flex items-center gap-2 text-xs">
             <span className="text-[var(--color-text-muted)] font-bold">Origem:</span>
             <select value={origem} onChange={(e) => setOrigem(e.target.value)} className="h-9 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-transparent px-2 text-xs">
-              {MAXDATA_ORIGENS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {[...MAXDATA_ORIGENS, { value: MAXDATA_TODAS, label: "Max Data · Todas as conexões" }].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             {mx.ativo && mx.loading && <span className="text-[var(--color-text-muted)]">Carregando…</span>}
-            {mx.ativo && mx.error && <span className="text-danger">Erro: {mx.error}</span>}
+            {(mx.error || maxDisp.erro) && <span className="text-danger">Erro ao ler a Max Data: {mx.error || maxDisp.erro}</span>}
           </div>
         )}
         <KpiFilterCard

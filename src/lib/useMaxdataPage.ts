@@ -46,3 +46,26 @@ export function useMaxdataPage({ table, origem, tenantId, term, page, pageSize, 
 
   return { ativo, rows, total, loading, error };
 }
+
+/**
+ * Este tenant tem dados da Max Data? Decide se o filtro "Origem" aparece (sem depender de flag de módulo,
+ * que varia conforme quem está logado) e expõe o erro de leitura, para não ficar "sem nada" sem explicação.
+ */
+export function useMaxdataDisponivel(tenantId: string | null | undefined) {
+  const [estado, setEstado] = useState<{ disponivel: boolean; erro: string | null; pronto: boolean }>({ disponivel: false, erro: null, pronto: false });
+  useEffect(() => {
+    if (!tenantId || !supabase) return;
+    let cancelled = false;
+    (async () => {
+      const [c, p] = await Promise.all([
+        supabase!.from("maxdata_clientes").select("id").eq("tenant_id", tenantId).limit(1),
+        supabase!.from("maxdata_produtos").select("id").eq("tenant_id", tenantId).limit(1),
+      ]);
+      if (cancelled) return;
+      const erro = c.error?.message || p.error?.message || null;
+      setEstado({ disponivel: (c.data?.length ?? 0) + (p.data?.length ?? 0) > 0, erro, pronto: true });
+    })();
+    return () => { cancelled = true; };
+  }, [tenantId]);
+  return estado;
+}
