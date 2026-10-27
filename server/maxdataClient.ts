@@ -76,17 +76,23 @@ async function request(rawUrl: string, rawInit: RequestInit): Promise<Response> 
 }
 
 export async function maxdataAuth(conn: MaxDataConn): Promise<{ token: string; expiresAt: number }> {
-  const res = await request(`${conn.baseUrl}/auth`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json", Accept: "application/json",
-      application_name: conn.applicationName, application_key: conn.applicationKey, application_description: conn.applicationDescription,
-    },
-    body: JSON.stringify({ terminal: conn.terminal, empId: conn.empId, idUser: conn.idUser }),
-  });
+  // O login também cai no limite de consultas da Max Data (429, texto simples): espera e tenta de novo.
+  let res!: Response;
+  for (let tentativa = 0; tentativa < 8; tentativa++) {
+    res = await request(`${conn.baseUrl}/auth`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", Accept: "application/json",
+        application_name: conn.applicationName, application_key: conn.applicationKey, application_description: conn.applicationDescription,
+      },
+      body: JSON.stringify({ terminal: conn.terminal, empId: conn.empId, idUser: conn.idUser }),
+    });
+    if (res.status !== 429) break;
+    await new Promise((r) => setTimeout(r, 400 * (tentativa + 1) + Math.random() * 300));
+  }
   const body: any = await res.json().catch(() => ({}));
   if (!res.ok || !body?.token) {
-    throw new MaxDataError(body?.message || `A Max Data recusou o login (HTTP ${res.status}).`, res.status);
+    throw new MaxDataError(body?.message || (res.status === 429 ? "A Max Data limitou as consultas durante o login (muitas por segundo); tente de novo." : `A Max Data recusou o login (HTTP ${res.status}).`), res.status);
   }
   const exp = Date.parse(body.expiration);
   // Renova 60s antes de expirar; sem data válida, assume 10 min.
