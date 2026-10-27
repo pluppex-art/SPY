@@ -9,10 +9,10 @@
  */
 import { maxdataGet, type MaxDataConn } from "./maxdataClient.js";
 
-export type SyncEntity = "clientes" | "produtos" | "vendas";
-export const SYNC_ENTITIES: SyncEntity[] = ["clientes", "produtos", "vendas"];
+export type SyncEntity = "clientes" | "produtos" | "vendas" | "itens_vendas";
+export const SYNC_ENTITIES: SyncEntity[] = ["clientes", "produtos", "vendas", "itens_vendas"];
 const PAGE = 500;
-const SALE_CONCURRENCY = 25;
+const ITEM_CONCURRENCY = 8; // a Max Data aceita ~9 consultas/s; acima disso responde 429
 
 export interface SyncState {
   entidade: SyncEntity; status: "pendente" | "rodando" | "concluida" | "erro";
@@ -64,59 +64,96 @@ async function upsert(svc: any, table: string, rows: any[], onConflict: string) 
   }
 }
 
-async function syncVendasPage(svc: any, conn: MaxDataConn, tenantId: string, fonte: string, docs: any[]) {
-  const vendaRows: any[] = [];
-  const extras = new Map<string, { items: any[]; pays: any[] }>();
-  for (const part of chunk(docs, SALE_CONCURRENCY)) {
-    await Promise.all(part.map(async (s) => {
-      const [it, pg] = await Promise.all([
-        maxdataGet<any>(conn, `/sale/${s.id}/items?limit=${PAGE}`).catch(() => ({ docs: [] })),
-        maxdataGet<any>(conn, `/sale/${s.id}/payment`).catch(() => ({ docs: [] })),
-      ]);
-      extras.set(String(s.id), { items: it?.docs ?? [], pays: pg?.docs ?? [] });
-    }));
-  }
-  for (const s of docs) {
-    const e = extras.get(String(s.id))!;
-    const formas = [...new Set(e.pays.map((p: any) => txt(p.formaPgto)).filter(Boolean))].join(" + ");
-    vendaRows.push({
-      tenant_id: tenantId, externo_sistema: fonte, externo_id: String(s.id), cliente_nome: txt(s.clienteNome),
-      cliente_externo_id: s.clienteId ? String(s.clienteId) : null, status: statusVenda(s.status || ""),
-      forma_pagamento: formas || "", valor_total: num(s.totalNf) || num(s.vlrPago), valor_desconto: num(s.valorTotalDesconto), valor_frete: num(s.frete),
-      data_venda: iso(s.fechamento) || iso(s.abertura), created_at: iso(s.abertura) || undefined, paid_at: s.status === "finalizada" ? iso(s.fechamento) : null,
-      externo_dados: { cpfCnpj: s.cpfCnpj ?? null, atendenteId: s.atendenteId ?? null, cfop: s.cfop ?? null, statusEntrega: s.statusEntrega ?? null, status: s.status ?? null, pagamentos: e.pays.map((p: any) => ({ forma: p.formaPgto, valor: p.valor, parcela: p.parcela })) },
-    });
-  }
+/** Vendas: só o cabeçalho (poucas consultas). Forma de pagamento vem do cadastro de condições de pagamento. */
+async function syncVendasPage(svc: any, conn: MaxDataConn, tenantId: string, fonte: string, docs: any[], condicoes: Map<string, string>) {
+  const vendaRows = docs.map((s) => ({
+    tenant_id: tenantId, externo_sistema: fonte, externo_id: String(s.id), cliente_nome: txt(s.clienteNome),
+    cliente_externo_id: s.clienteId ? String(s.clienteId) : null, status: statusVenda(s.status || ""),
+    forma_pagamento: condicoes.get(String(s.condicaoPgtoId)) || "", valor_total: num(s.totalNf) || num(s.vlrPago), valor_desconto: num(s.valorTotalDesconto), valor_frete: num(s.frete),
+    data_venda: iso(s.fechamento) || iso(s.abertura), created_at: iso(s.abertura) || undefined, paid_at: s.status === "finalizada" ? iso(s.fechamento) : null,
+    externo_dados: { cpfCnpj: s.cpfCnpj ?? null, atendenteId: s.atendenteId ?? null, cfop: s.cfop ?? null, statusEntrega: s.statusEntrega ?? null, status: s.status ?? null, condicaoPgtoId: s.condicaoPgtoId ?? null, vlrPago: s.vlrPago ?? null },
+  }));
   await upsert(svc, "maxdata_vendas", vendaRows, "tenant_id,externo_sistema,externo_id");
+}
 
-  const ids = docs.map((d) => String(d.id));
-  const { data: vendas } = await svc.from("maxdata_vendas").select("id, externo_id").eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("externo_id", ids);
-  const vendaUuid = new Map<string, string>((vendas ?? []).map((v: any) => [v.externo_id, v.id]));
-  const prodIds = [...new Set([...extras.values()].flatMap((x) => x.items.map((i: any) => String(i.produtoId))))];
+async function carregarCondicoes(conn: MaxDataConn): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  try {
+    const body = await maxdataGet<any>(conn, `/paymentcondition?limit=${PAGE}`);
+    for (const c of body?.docs ?? []) if (c?.id != null && c?.nome) out.set(String(c.id), String(c.nome));
+  } catch { /* sem o cadastro, a forma de pagamento fica em branco (não bloqueia as vendas) */ }
+  return out;
+}
+
+/** Busca com limite de simultaneidade; qualquer falha (depois dos retries do cliente) PROPAGA — nunca vira "sem itens". */
+async function pool<T, R>(list: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(list.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(n, list.length) }, async () => {
+    while (next < list.length) { const i = next++; out[i] = await fn(list[i]); }
+  }));
+  return out;
+}
+
+/** Itens das vendas já gravadas: as mais recentes primeiro; marca cada venda só depois de gravar os itens. */
+async function syncItensLote(svc: any, conn: MaxDataConn, tenantId: string, fonte: string, vendas: { id: string; externo_id: string }[]) {
+  const respostas = await pool(vendas, ITEM_CONCURRENCY, async (v) => {
+    const docs: any[] = [];
+    const first = await maxdataGet<any>(conn, `/sale/${v.externo_id}/items?limit=${PAGE}`);
+    docs.push(...(first?.docs ?? []));
+    for (let pg = 2; pg <= Math.min(num(first?.pages), 20); pg++) docs.push(...((await maxdataGet<any>(conn, `/sale/${v.externo_id}/items?limit=${PAGE}&page=${pg}`))?.docs ?? []));
+    return docs;
+  });
+  const prodIds = [...new Set(respostas.flatMap((d) => d.map((i: any) => String(i.produtoId))))];
   const prodUuid = new Map<string, string>();
   for (const part of chunk(prodIds, 200)) {
     const { data } = await svc.from("maxdata_produtos").select("id, externo_id").eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("externo_id", part);
     for (const p of data ?? []) prodUuid.set(p.externo_id, p.id);
   }
   const itemRows: any[] = [];
-  for (const s of docs) {
-    const vid = vendaUuid.get(String(s.id)); if (!vid) continue;
-    for (const i of extras.get(String(s.id))!.items) {
+  vendas.forEach((v, idx) => {
+    for (const i of respostas[idx]) {
       const q = num(i.qtde);
       itemRows.push({
-        tenant_id: tenantId, venda_id: vid, externo_id: String(i.id), product_id: prodUuid.get(String(i.produtoId)) ?? null,
+        tenant_id: tenantId, venda_id: v.id, externo_id: String(i.id), product_id: prodUuid.get(String(i.produtoId)) ?? null,
         product_name: txt(i.descricaoProduto), quantidade: Math.max(1, Math.round(q)), quantidade_decimal: q,
         preco_unitario: num(i.valor), custo_unitario: num(i.custoFinalProduto) || null, valor_desconto: num(i.valorDesconto), codigo: txt(i.codigoFab),
       });
     }
-  }
+  });
   await upsert(svc, "maxdata_venda_itens", itemRows, "venda_id,externo_id");
+  const { error } = await svc.from("maxdata_vendas").update({ itens_sincronizados: true }).in("id", vendas.map((v) => v.id));
+  if (error) throw new Error(`maxdata_vendas: ${error.message}`);
+}
+
+async function runItensVendas(opts: { svc: any; conn: MaxDataConn; tenantId: string; fonte: string; deadline: number }): Promise<SyncState> {
+  const { svc, conn, tenantId, fonte, deadline } = opts;
+  const key = { tenant_id: tenantId, fonte, entidade: "itens_vendas" };
+  const save = (patch: any) => svc.from("integracao_sync_state").upsert({ ...key, ...patch, atualizado_em: new Date().toISOString() }, { onConflict: "tenant_id,fonte,entidade" });
+  const contar = async (feitas: boolean) => {
+    const { count } = await svc.from("maxdata_vendas").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("externo_sistema", fonte).eq("itens_sincronizados", feitas);
+    return count ?? 0;
+  };
+  let status: SyncState["status"] = "rodando", erro: string | null = null;
+  try {
+    while (Date.now() < deadline) {
+      const { data: lote, error } = await svc.from("maxdata_vendas").select("id, externo_id").eq("tenant_id", tenantId).eq("externo_sistema", fonte)
+        .eq("itens_sincronizados", false).order("data_venda", { ascending: false }).limit(60);
+      if (error) throw new Error(`maxdata_vendas: ${error.message}`);
+      if (!lote?.length) { status = "concluida"; break; }
+      await syncItensLote(svc, conn, tenantId, fonte, lote);
+    }
+  } catch (e: any) { status = "erro"; erro = String(e?.message || e).slice(0, 500); }
+  const feitas = await contar(true), pendentes = await contar(false);
+  await save({ status: status === "concluida" && pendentes > 0 ? "rodando" : status, cursor: {}, total: feitas + pendentes, sincronizados: feitas, erro });
+  return { entidade: "itens_vendas", status: pendentes === 0 && status !== "erro" ? "concluida" : status, total: feitas + pendentes, sincronizados: feitas, erro, cursor: {} };
 }
 
 /** Processa páginas da entidade até estourar o orçamento de tempo; devolve o estado gravado. */
 export async function runSyncChunk(opts: { svc: any; conn: MaxDataConn; tenantId: string; fonte: string; entity: SyncEntity; budgetMs?: number; restart?: boolean }): Promise<SyncState> {
   const { svc, conn, tenantId, fonte, entity } = opts;
   const deadline = Date.now() + (opts.budgetMs ?? 25_000);
+  if (entity === "itens_vendas") return runItensVendas({ svc, conn, tenantId, fonte, deadline });
   const key = { tenant_id: tenantId, fonte, entidade: entity };
   const { data: cur } = await svc.from("integracao_sync_state").select("*").match(key).maybeSingle();
   // Etapa já concluída: não refaz (nem zera o contador) a menos que peçam explicitamente `restart`.
@@ -130,6 +167,7 @@ export async function runSyncChunk(opts: { svc: any; conn: MaxDataConn; tenantId
   const path = entity === "clientes" ? "/client" : entity === "produtos" ? "/product" : "/sale";
   const save = (patch: any) => svc.from("integracao_sync_state").upsert({ ...key, ...patch, atualizado_em: new Date().toISOString() }, { onConflict: "tenant_id,fonte,entidade" });
   let status: SyncState["status"] = "rodando", erro: string | null = null;
+  const condicoes = entity === "vendas" ? await carregarCondicoes(conn) : new Map<string, string>();
   try {
     while (Date.now() < deadline) {
       const body = await maxdataGet<any>(conn, `${path}?limit=${PAGE}&page=${page}`);
@@ -138,7 +176,7 @@ export async function runSyncChunk(opts: { svc: any; conn: MaxDataConn; tenantId
       if (docs.length) {
         if (entity === "clientes") await upsert(svc, "maxdata_clientes", docs.map((d) => mapCliente(d, tenantId, fonte)), "tenant_id,externo_sistema,externo_id");
         else if (entity === "produtos") await upsert(svc, "maxdata_produtos", docs.map((d) => mapProduto(d, tenantId, fonte)), "tenant_id,externo_sistema,externo_id");
-        else await syncVendasPage(svc, conn, tenantId, fonte, docs);
+        else await syncVendasPage(svc, conn, tenantId, fonte, docs, condicoes);
         sincronizados += docs.length;
       }
       const pages = num(body?.pages);

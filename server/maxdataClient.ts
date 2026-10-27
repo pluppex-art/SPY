@@ -104,12 +104,15 @@ async function getToken(conn: MaxDataConn, force = false): Promise<string> {
 
 /** GET autenticado; se o token for recusado (401), refaz o login uma vez. */
 export async function maxdataGet<T = any>(conn: MaxDataConn, path: string): Promise<T> {
+  let limitados = 0;
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = await getToken(conn, attempt === 1);
     const res = await request(`${conn.baseUrl}${path}`, { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } });
     if (res.status === 401 && attempt === 0) continue;
+    // A Max Data limita ~9 consultas/s e responde 429 (texto simples) acima disso: espera e tenta de novo.
+    if (res.status === 429 && limitados < 8) { limitados++; attempt = Math.max(0, attempt - 1); await new Promise((r) => setTimeout(r, 300 * limitados + Math.random() * 300)); continue; }
     const body: any = await res.json().catch(() => null);
-    if (!res.ok) throw new MaxDataError(body?.message || `A Max Data respondeu HTTP ${res.status} em ${path}.`, res.status);
+    if (!res.ok) throw new MaxDataError(body?.message || (res.status === 429 ? "A Max Data limitou as consultas (muitas por segundo)." : `A Max Data respondeu HTTP ${res.status} em ${path}.`), res.status);
     return body as T;
   }
   throw new MaxDataError("A Max Data recusou o token.", 401);

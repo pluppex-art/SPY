@@ -54,7 +54,7 @@ type IntegrationCategory = "todas" | "anuncios" | "mensageria" | "pagamentos" | 
 
 type MaxDataConfig = typeof DEFAULT_MAXDATA_CONFIG;
 
-const SYNC_LABELS: Record<string, string> = { clientes: "Clientes", produtos: "Produtos e estoque", vendas: "Vendas (itens e pagamentos)" };
+const SYNC_LABELS: Record<string, string> = { clientes: "Clientes", produtos: "Produtos e estoque", vendas: "Vendas (cabeçalho)", itens_vendas: "Itens das vendas (lento: a Max Data limita as consultas)" };
 type SyncRow = { entidade: string; status: string; total: number | null; sincronizados: number; erro: string | null };
 
 /** Traz tudo da Max Data para o S.P.Y. (só leitura na Max Data). Roda em lotes e retoma de onde parou. */
@@ -77,7 +77,7 @@ function MaxDataSyncPanel({ which, tenantId }: { which: "notas" | "estoque"; ten
   const run = async () => {
     stopRef.current = false; setRunning(true); setMsg(null);
     try {
-      for (const entity of ["clientes", "produtos", "vendas"]) {
+      for (const entity of ["clientes", "produtos", "vendas", "itens_vendas"]) {
         let guard = 0;
         while (!stopRef.current && guard++ < 5000) {
           // Falha de rede (ex.: ERR_NETWORK_CHANGED ao trocar de Wi-Fi/VPN) não derruba a carga: tenta de novo,
@@ -112,8 +112,8 @@ function MaxDataSyncPanel({ which, tenantId }: { which: "notas" | "estoque"; ten
   return (
     <div className="space-y-2 rounded-[var(--radius-control)] border border-[var(--color-border-default)] p-3">
       <p className="text-xs font-bold text-[var(--color-text-primary)]">Sincronizar dados para o S.P.Y.</p>
-      <p className="text-[11px] text-[var(--color-text-muted)]">Traz tudo da Max Data (só leitura lá). Pode levar muito tempo com muitas vendas: mantenha esta janela aberta ou clique de novo depois — retoma de onde parou.</p>
-      {["clientes", "produtos", "vendas"].map((e) => {
+      <p className="text-[11px] text-[var(--color-text-muted)]">Traz tudo da Max Data (só leitura lá). Os itens das vendas são a etapa mais lenta (a Max Data limita as consultas por segundo e pode levar horas): mantenha esta janela aberta ou clique de novo depois — retoma de onde parou.</p>
+      {["clientes", "produtos", "vendas", "itens_vendas"].map((e) => {
         const r = rows[e];
         const pct = r?.total ? Math.min(100, Math.round((r.sincronizados / r.total) * 100)) : 0;
         return (
