@@ -14,7 +14,7 @@ export type Subscription = {
   plan?: Plan | null;
 };
 export type BillingStatus = {
-  tenantId: string; subscription: Subscription | null; effectiveStatus: Subscription["status"] | "none"; blocked: boolean;
+  tenantId: string; subscription: Subscription | null; usage?: Record<string, { used: number; limit: number }>; effectiveStatus: Subscription["status"] | "none"; blocked: boolean;
   ai: { used: number; limit: number | null; warnPct: number; hardStop: boolean };
 };
 

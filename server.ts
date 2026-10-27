@@ -4916,6 +4916,9 @@ app.post("/api/admin/team-user", requireUser, async (req: any, res) => {
     if (profileError) {
       console.error("[team-user] Falha ao criar perfil:", profileError.message);
       if (createdNow && userId) await supabaseService.auth.admin.deleteUser(userId);
+      if (/PLAN_LIMIT_USERS/.test(profileError.message)) {
+        return res.status(409).json({ error: "Limite de usuários do plano atingido. Amplie o plano para adicionar mais pessoas.", code: "plan_limit_users" });
+      }
       return res.status(500).json({ error: "Erro ao criar o perfil do usuário." });
     }
     return res.status(201).json({ success: true, userId });
