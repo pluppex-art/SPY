@@ -55,7 +55,7 @@ export function ConfigCRMSLA() {
       </div>
 
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-600 dark:text-amber-400">
-        <strong className="font-black">Como é aplicado:</strong> lead aberto, criado nos últimos 30 dias e sem nenhuma atividade, reunião ou tarefa, que passa do limite da sua prioridade, ganha o selo SLA vermelho no card do funil. Alertas por notificação e redistribuição automática ainda não estão ativos.
+        <strong className="font-black">Como é aplicado:</strong> lead aberto, criado nos últimos 30 dias e sem nenhuma atividade, reunião ou tarefa, que passa do limite da sua prioridade, ganha o selo SLA vermelho no card do funil e uma notificação (a cada 15 min, uma vez por lead) para o vendedor, ou para os administradores se o vendedor não tiver usuário. A redistribuição automática ainda não está ativa.
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
