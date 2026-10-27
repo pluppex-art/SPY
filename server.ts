@@ -16,6 +16,7 @@ import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
 import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
+import { emailNotifyTenant } from "./server/emailNotify.js";
 import { testEmail, passwordResetEmail, passwordChangedEmail } from "./server/emailTemplates.js";
 import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
@@ -3408,6 +3409,14 @@ app.post("/api/public-proposal/:token/accept", async (req, res) => {
             type: "success",
             link_url: "/app/crm/propostas",
           })));
+          await emailNotifyTenant(client, proposal.tenant_id, PUBLIC_APP_URL, {
+            triggerId: "venda_fechada",
+            title: "Proposta aceita pelo cliente",
+            description: `${proposal.cliente || "O cliente"} aceitou "${proposal.titulo}"${aceiteNome ? ` (aceite por ${aceiteNome})` : ""}.`,
+            kind: "success",
+            linkPath: "/app/crm/propostas",
+            userIds: alvos.map((u: any) => u.id),
+          });
         }
       }
     } catch (notifErr: any) {
@@ -6058,6 +6067,24 @@ app.post("/api/auth/password-changed", requireUser, async (req: any, res) => {
     console.error("[password-changed]", err?.message);
   }
   res.json({ ok: true });
+});
+
+// E-mail de um aviso do sistema (espelha o sino): quem dispara o aviso no cliente chama aqui com o id do
+// tipo de aviso; o servidor decide quem recebe conforme a preferência "E-mail" de cada usuário do tenant.
+const notifyEmailLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
+app.post("/api/notifications/email", requireUser, notifyEmailLimiter, async (req: any, res) => {
+  if (!supabaseService) return res.json({ ok: false });
+  const { triggerId, title, description, type, link_url } = req.body ?? {};
+  if (typeof triggerId !== "string" || typeof title !== "string" || typeof description !== "string" || !title.trim()) {
+    return res.status(400).json({ ok: false, error: "Dados do aviso inválidos." });
+  }
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+  const kind = ["success", "info", "warning", "error"].includes(type) ? type : "info";
+  const r = await emailNotifyTenant(supabaseService, tenantId, PUBLIC_APP_URL, {
+    triggerId, title, description, kind, linkPath: typeof link_url === "string" ? link_url : null,
+  });
+  res.json({ ok: true, ...r });
 });
 
 // Meta Conversions API (CAPI) — dispara um evento de teste real contra a

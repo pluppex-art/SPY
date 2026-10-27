@@ -1780,7 +1780,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       title: "Novo Lead",
       description: `${lead.name} da empresa ${lead.company || "lead"} foi adicionado.`,
       link_url: `/app/crm/pipeline?leadId=${newId}`,
-      type: "success"
+      type: "success",
+      triggerId: "novo_lead"
     });
     setTimeout(() => { triggerScoreRecalculation(newLead.id, [newLead]); }, 400);
     return true;
@@ -2280,7 +2281,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addNotification({
         title: "Novo Contrato",
         description: `Cliente: ${contract.client}`,
-        type: "success"
+        type: "success",
+        triggerId: "venda_fechada"
       });
     }
 
@@ -2408,9 +2410,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // type, link_url, is_read, created_at — sem `category`, que nunca existiu
   // como coluna). Otimista: atualiza o estado local primeiro, igual todo
   // outro mutator deste arquivo, e só loga se a escrita no Supabase falhar.
-  const addNotification = (notification: Omit<Notification, 'id' | 'is_read' | 'created_at'>, push?: boolean) => {
+  // triggerId (opcional) liga o aviso a um tipo da tela de Preferências de Notificação: com ele, o servidor
+  // também manda o e-mail pra quem deixou o canal "E-mail" ligado.
+  const addNotification = (notification: Omit<Notification, 'id' | 'is_read' | 'created_at'> & { triggerId?: string }, push?: boolean) => {
+    const { triggerId, ...notificationData } = notification;
     const newNotification: Notification = {
-      ...notification,
+      ...notificationData,
       id: crypto.randomUUID(),
       is_read: false,
       created_at: new Date().toISOString(),
@@ -2429,7 +2434,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         link_url: newNotification.link_url || null,
         is_read: false,
       }).then(({ error }: { error: any }) => {
-        if (error) console.error('[Notifications] Falha ao persistir:', error.message);
+        if (error) { console.error('[Notifications] Falha ao persistir:', error.message); return; }
+        if (triggerId) {
+          apiFetch('/api/notifications/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ triggerId, title: newNotification.title, description: newNotification.description, type: newNotification.type, link_url: newNotification.link_url }),
+          }).catch(() => { /* e-mail é complemento do sino */ });
+        }
       });
     }
   };

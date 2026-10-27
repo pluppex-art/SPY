@@ -21,6 +21,10 @@ interface LayoutInput {
   button?: { label: string; url: string };
   /** Linha pequena abaixo do botão (ex.: "O link expira em 1 hora"). */
   note?: string;
+  /** Etiqueta colorida acima do título (ex.: "Novo lead"). */
+  tag?: { label: string; color: string };
+  /** Link discreto no rodapé (ex.: "Ajustar notificações"). */
+  footerLink?: { label: string; url: string };
 }
 
 export interface RenderedEmail {
@@ -57,6 +61,7 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
           <span style="font-size:20px;font-weight:800;letter-spacing:2px;color:#ffffff;">${BRAND}</span>
         </td></tr>
         <tr><td style="padding:32px;">
+          ${input.tag ? `<span style="display:inline-block;margin:0 0 14px 0;padding:4px 10px;border-radius:999px;background:${input.tag.color}1a;color:${input.tag.color};font-size:12px;font-weight:700;letter-spacing:.3px;">${esc(input.tag.label)}</span>` : ""}
           <h1 style="margin:0 0 20px 0;font-size:22px;line-height:1.3;color:${COLOR_TEXT};">${esc(input.title)}</h1>
           ${paragraphsHtml}
           ${buttonHtml}
@@ -64,6 +69,7 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
         </td></tr>
         <tr><td style="padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;">
           <p style="margin:0;font-size:12px;line-height:1.5;color:${COLOR_MUTED};">Você recebeu este e-mail porque ele está ligado à sua conta no ${BRAND}. Se não foi você, pode ignorá-lo com segurança.</p>
+          ${input.footerLink ? `<p style="margin:10px 0 0 0;font-size:12px;"><a href="${esc(input.footerLink.url)}" style="color:${COLOR_PRIMARY};">${esc(input.footerLink.label)}</a></p>` : ""}
         </td></tr>
       </table>
     </td></tr>
@@ -77,6 +83,7 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
     ...input.paragraphs,
     ...(input.button ? ["", `${input.button.label}: ${input.button.url}`] : []),
     ...(input.note ? ["", input.note] : []),
+    ...(input.footerLink ? ["", `${input.footerLink.label}: ${input.footerLink.url}`] : []),
     "",
     `— ${BRAND}`,
   ].join("\n");
@@ -118,5 +125,33 @@ export function passwordChangedEmail(name: string | null | undefined, whenIso: s
       `A senha da sua conta no ${BRAND} foi alterada em ${when} (horário de Brasília).`,
       "Se foi você, não precisa fazer nada. Se não reconhece essa alteração, redefina sua senha imediatamente pela opção “Esqueci a senha” e avise o administrador da sua empresa.",
     ],
+  });
+}
+
+export type NotificationKind = "success" | "info" | "warning" | "error";
+const KIND_STYLE: Record<NotificationKind, { label: string; color: string }> = {
+  success: { label: "Boa notícia", color: "#16a34a" },
+  info: { label: "Aviso", color: "#2563eb" },
+  warning: { label: "Atenção", color: "#d97706" },
+  error: { label: "Importante", color: "#dc2626" },
+};
+
+/** E-mail de notificação do sistema: espelha um aviso do sino, com botão pra abrir a tela certa. */
+export function notificationEmail(n: {
+  kind: NotificationKind;
+  title: string;
+  description: string;
+  linkUrl?: string;
+  settingsUrl?: string;
+  name?: string | null;
+}): RenderedEmail {
+  const style = KIND_STYLE[n.kind] || KIND_STYLE.info;
+  return layout(n.title, {
+    preheader: n.description.slice(0, 110),
+    tag: style,
+    title: n.title,
+    paragraphs: [greeting(n.name), n.description],
+    button: n.linkUrl ? { label: "Abrir no S.P.Y.", url: n.linkUrl } : undefined,
+    footerLink: n.settingsUrl ? { label: "Ajustar quais avisos você recebe por e-mail", url: n.settingsUrl } : undefined,
   });
 }
