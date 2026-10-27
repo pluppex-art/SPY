@@ -5244,6 +5244,106 @@ app.post("/api/whatsapp/instances", requireUser, async (req: any, res) => {
   }
 });
 
+// Cria automaticamente a sessão de WhatsApp (WAHA) de um colaborador e a vincula a ele
+// (users.default_whatsapp_instance_id). Chamado logo após a criação do login do colaborador.
+// Só master/admin do tenant; o alvo precisa ser visível ao chamador (RLS has_tenant_access) e
+// a instância nasce SEMPRE no tenant do colaborador — nunca num tenant vindo do corpo.
+// Idempotente: se o colaborador já tem sessão padrão, devolve a existente.
+// O pareamento (QR code) é feito pelo próprio colaborador no primeiro login (WhatsAppPairingModal).
+app.post("/api/whatsapp/instances/for-user", requireUser, async (req: any, res) => {
+  const targetId = String(req.body?.userId || "");
+  if (!/^[0-9a-fA-F-]{36}$/.test(targetId)) return res.status(400).json({ error: "userId inválido." });
+
+  try {
+    const { data: caller } = await req.supabase.from("users").select("is_master, is_tenant_admin").eq("id", req.user.id).maybeSingle();
+    if (!caller?.is_master && !caller?.is_tenant_admin) {
+      return res.status(403).json({ error: "Apenas administradores podem criar sessões de WhatsApp para colaboradores." });
+    }
+
+    const { data: target } = await req.supabase
+      .from("users").select("id, name, tenant_id, default_whatsapp_instance_id").eq("id", targetId).maybeSingle();
+    if (!target) return res.status(404).json({ error: "Colaborador não encontrado." });
+
+    if (target.default_whatsapp_instance_id) {
+      const { data: existing } = await req.supabase.from("whatsapp_instances").select("*").eq("id", target.default_whatsapp_instance_id).maybeSingle();
+      if (existing) return res.json({ instance: mapInstanceRow(existing), created: false, sessionCreated: true });
+    }
+
+    // O colaborador nasce com o Agente Secreto: garante que ele exista e esteja ativo no tenant
+    // (aurora_agents é por tenant). Falha aqui não impede a criação da sessão.
+    try {
+      const { data: agent } = await req.supabase
+        .from("aurora_agents").select("id, active").eq("tenant_id", target.tenant_id).eq("name", "Agente Secreto").maybeSingle();
+      if (!agent) {
+        await req.supabase.from("aurora_agents").insert({
+          tenant_id: target.tenant_id, name: "Agente Secreto", role: "Inteligência", active: true,
+          description: "Monitoramento e alertas de oportunidades ocultas no pipeline.",
+        });
+      } else if (!agent.active) {
+        await req.supabase.from("aurora_agents").update({ active: true }).eq("id", agent.id);
+      }
+    } catch (err: any) {
+      console.error("[whatsapp/instances/for-user] agente secreto", err?.message);
+    }
+
+    // Nome da sessão: "Colaborador — Empresa".
+    const { data: tenantRow } = await req.supabase.from("tenants").select("name").eq("id", target.tenant_id).maybeSingle();
+    const baseName = String(target.name || "Colaborador").trim() || "Colaborador";
+    const instanceName = (tenantRow?.name ? `${baseName} — ${tenantRow.name}` : baseName).slice(0, 100);
+
+    const provider = getWhatsAppProvider();
+    const { data: row, error: insertError } = await req.supabase
+      .from("whatsapp_instances")
+      .insert({ tenant_id: target.tenant_id, name: instanceName, status: "DISCONNECTED", provider: provider.name })
+      .select().maybeSingle();
+    if (insertError || !row) {
+      console.error("[whatsapp/instances/for-user] insert", insertError?.message);
+      return res.status(500).json({ error: "Erro ao criar a instância do colaborador." });
+    }
+
+    // Mesmo webhook da criação manual (token gerado pela migration em webhook_secret), pra que as
+    // mensagens da sessão do colaborador cheguem ao CRM.
+    const computedWebhookUrl = `${PUBLIC_APP_URL}/api/whatsapp/webhook/${row.id}?secret=${row.webhook_secret}`;
+    let sessionCreated = true;
+    try {
+      const created = await provider.createInstance(row.id, computedWebhookUrl);
+      await req.supabase.from("whatsapp_instances").update({ api_key: created.apiKey, webhook_url: computedWebhookUrl }).eq("id", row.id);
+    } catch (err: any) {
+      // Mesmo comportamento da rota manual: a linha fica DISCONNECTED e o admin pode tentar conectar depois.
+      sessionCreated = false;
+      console.error(`[whatsapp/instances/for-user] provider=${provider.name}`, err?.message);
+    }
+
+    // A RLS de users exige tenant == tenant de casa do chamador; um master dentro de outro tenant
+    // não passaria. A autorização já foi validada acima, então o vínculo usa o service role quando existe.
+    const linker = supabaseService || req.supabase;
+    const { error: linkError } = await linker.from("users").update({ default_whatsapp_instance_id: row.id }).eq("id", target.id);
+    if (linkError) {
+      console.error("[whatsapp/instances/for-user] link", linkError.message);
+      return res.status(500).json({ error: "Sessão criada, mas não foi possível vinculá-la ao colaborador." });
+    }
+
+    return res.json({ instance: mapInstanceRow(row), created: true, sessionCreated });
+  } catch (err: any) {
+    console.error("[whatsapp/instances/for-user]", err?.message);
+    return res.status(500).json({ error: "Erro ao criar a sessão de WhatsApp do colaborador." });
+  }
+});
+
+// Sessão de WhatsApp do próprio usuário logado (users.default_whatsapp_instance_id) — usada pelo
+// modal de pareamento no primeiro login. Sem sessão vinculada devolve instance: null.
+app.get("/api/whatsapp/instances/me", requireUser, async (req: any, res) => {
+  try {
+    const { data: me } = await req.supabase.from("users").select("default_whatsapp_instance_id").eq("id", req.user.id).maybeSingle();
+    if (!me?.default_whatsapp_instance_id) return res.json({ instance: null });
+    const { data: inst } = await req.supabase.from("whatsapp_instances").select("*").eq("id", me.default_whatsapp_instance_id).maybeSingle();
+    return res.json({ instance: inst ? mapInstanceRow(inst) : null, provider: getActiveProviderName() });
+  } catch (err: any) {
+    console.error("[whatsapp/instances/me]", err?.message);
+    return res.status(500).json({ error: "Erro ao carregar a sessão de WhatsApp." });
+  }
+});
+
 app.post("/api/whatsapp/instances/:id/qrcode", requireUser, async (req: any, res) => {
   const { id } = req.params;
   const { data: inst, error } = await req.supabase.from("whatsapp_instances").select("*").eq("id", id).maybeSingle();

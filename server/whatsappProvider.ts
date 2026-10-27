@@ -167,11 +167,15 @@ export class WAHAProvider implements WhatsAppProvider {
   }
 
   async getQrCode(providerInstanceId: string): Promise<ProviderQrResult> {
+    // format=image + Accept JSON devolve { mimetype, data } (base64) — renderiza direto num <img>,
+    // sem biblioteca de QR no front. Cai pro valor bruto se o servidor não devolver imagem.
     const { data } = await axios.get(
-      `${WAHA_API_URL}/api/${encodeURIComponent(providerInstanceId)}/auth/qr?format=raw`,
-      { headers: this.headers(), timeout: 20000 }
+      `${WAHA_API_URL}/api/${encodeURIComponent(providerInstanceId)}/auth/qr?format=image`,
+      { headers: { ...this.headers(), Accept: "application/json" }, timeout: 20000 }
     );
-    const qrcode = data?.value || data?.qr || "";
+    const qrcode = data?.data
+      ? `data:${data.mimetype || "image/png"};base64,${data.data}`
+      : (data?.value || data?.qr || "");
     if (!qrcode) throw new Error("WAHA não retornou QR code.");
     return { status: "CONNECTING", qrcode };
   }

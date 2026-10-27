@@ -8,6 +8,7 @@ import { MobileNav } from "./layout/MobileNav";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { AuroraWidget } from "./ui/AuroraWidget";
 import { OnboardingWizard } from "./OnboardingWizard";
+import { WhatsAppPairingModal } from "./WhatsAppPairingModal";
 import { SDRWebhookModal } from "./ui/modals/crm/SDRWebhookModal";
 import { useData } from "../contexts/DataContextTypes";
 import { BillingBanner, SuspendedScreen, useIsBlocked } from "./BillingGate";
@@ -73,6 +74,7 @@ export default function Layout() {
           são bloqueadas no backend (server.ts, rota /api/ai/aurora-chat, checagem is_master). */}
       {isModuleEnabled("aurora") && <AuroraWidget />}
       <OnboardingWizard />
+      <WhatsAppPairingModal />
 
       <Toaster
         theme={theme}
