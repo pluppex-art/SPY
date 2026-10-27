@@ -17,7 +17,7 @@ import { ClientesResumo } from "./components/Clientes/ClientesResumo";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { normalizeText } from "../../lib/utils";
 import { Pagination } from "../../components/ui/Pagination";
-import { useMaxdataPage, MAXDATA_ORIGENS } from "../../lib/useMaxdataPage";
+import { useMaxdataPage, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 
 const MAX_PAGE_SIZE = 50;
 
@@ -45,13 +45,6 @@ export default function Clientes() {
   const [sectorFilter, setSectorFilter] = useState("Todos os setores");
   const [contratoStatusFilter, setContratoStatusFilter] = useState("Todos os status");
   const [searchQuery, setSearchQuery] = useState("");
-  // Origem: base do CRM (em memória) ou os clientes da Max Data, lidos do servidor página a página
-  // (dezenas de milhares de clientes não cabem no carregamento integral do navegador).
-  const [origem, setOrigem] = useState("");
-  const [maxPage, setMaxPage] = useState(0);
-  const mx = useMaxdataPage({ table: "maxdata_clientes", origem, tenantId: activeTenantId, term: searchQuery, page: maxPage, pageSize: MAX_PAGE_SIZE, searchCols: ["name", "documento", "email", "phone"], orderBy: "name" });
-  useEffect(() => { setMaxPage(0); }, [searchQuery, origem]);
-  const maxRows = useMemo(() => mx.rows.map((c: any) => ({ ...c, responsavel: null, contratoStatus: null, mrr: 0 })), [mx.rows]);
   const somenteConsulta = () => { toast.info("Cliente vindo da Max Data: somente consulta."); };
 
   // Decisor por cliente, pra mostrar na tabela junto com o Documento — vem do
@@ -133,6 +126,25 @@ export default function Clientes() {
     }
     return true;
   }), [clientesEnriquecidos, statusFilter, sectorFilter, contratoStatusFilter, searchQuery]);
+
+  // Origem: no varejo a lista abre MISTURADA (base do CRM + Max Data). A Max Data é lida do servidor
+  // página a página (dezenas de milhares de clientes não cabem no carregamento integral do navegador);
+  // a base do CRM, em memória, vem primeiro e a Max Data completa a página.
+  const [origemEscolhida, setOrigemEscolhida] = useState<string | null>(null);
+  const origem = origemEscolhida ?? (isModuleEnabled("varejo") ? MAXDATA_TODAS : "");
+  const [maxPage, setMaxPage] = useState(0);
+  const misto = origem === MAXDATA_TODAS;
+  const crmLen = clientesFiltrados.length;
+  const inicioPagina = maxPage * MAX_PAGE_SIZE;
+  const crmFatia = misto ? clientesFiltrados.slice(inicioPagina, inicioPagina + MAX_PAGE_SIZE) : [];
+  const mx = useMaxdataPage({
+    table: "maxdata_clientes", origem, tenantId: activeTenantId, term: searchQuery, page: maxPage, pageSize: MAX_PAGE_SIZE,
+    from: misto ? Math.max(0, inicioPagina - crmLen) : undefined, count: misto ? MAX_PAGE_SIZE - crmFatia.length : undefined,
+    searchCols: ["name", "documento", "email", "phone"], orderBy: "name",
+  });
+  useEffect(() => { setMaxPage(0); }, [searchQuery, origem]);
+  const maxRows = useMemo(() => mx.rows.map((c: any) => ({ ...c, responsavel: null, contratoStatus: null, mrr: 0 })), [mx.rows]);
+  const idsMax = useMemo(() => new Set(maxRows.map((c: any) => c.id)), [maxRows]);
 
   const activeCount = (searchQuery ? 1 : 0) + (statusFilter !== NEUTRO_SITUACAO ? 1 : 0) + (sectorFilter !== NEUTRO_SETOR ? 1 : 0) + (contratoStatusFilter !== NEUTRO_CONTRATO ? 1 : 0);
   const clearFilters = () => { setSearchQuery(""); setStatusFilter(NEUTRO_SITUACAO); setSectorFilter(NEUTRO_SETOR); setContratoStatusFilter(NEUTRO_CONTRATO); };
@@ -254,30 +266,18 @@ export default function Clientes() {
       {/* Card "KPIs & Filtros" compartilhado. Os KPIs de Clientes mantêm drill-down e sparkline
           (ClientesKPIs), agora dentro do card e calculados sobre a lista filtrada. */}
       <KpiFilterCard className="mb-4" id="crmClientes" activeCount={activeCount} onClear={clearFilters}>
-        {!mx.ativo && <ClientesKPIs {...kpis} clientes={clientesFiltrados} />}
+        {(origem === "" || misto) && <ClientesKPIs {...kpis} clientes={clientesFiltrados} />}
         <FilterBar>
           <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por cliente, documento, responsável, e-mail ou telefone..." />
-          {isModuleEnabled("varejo") && <FilterSelect icon={Building2} value={origem} onChange={setOrigem} options={MAXDATA_ORIGENS.filter((o) => o.value)} allLabel="Base do CRM" allValue="" />}
+          {isModuleEnabled("varejo") && <FilterSelect icon={Building2} value={origem} onChange={setOrigemEscolhida} options={[{ value: MAXDATA_TODAS, label: "Tudo (CRM + Max Data)" }, { value: "", label: "Só base do CRM" }, ...MAXDATA_ORIGENS.filter((o) => o.value)]} />}
           <FilterSelect icon={Building2} value={sectorFilter} onChange={setSectorFilter} options={setoresDisponiveis} allLabel={NEUTRO_SETOR} allValue={NEUTRO_SETOR} />
           <FilterSelect icon={CheckCircle2} value={statusFilter} onChange={setStatusFilter} options={["Ativo", "Em Implantação", "Inativo"]} allLabel={NEUTRO_SITUACAO} allValue={NEUTRO_SITUACAO} />
           <FilterSelect icon={FileText} value={contratoStatusFilter} onChange={setContratoStatusFilter} options={["Em dia", "Inadimplente", "Cancelado", "Sem contrato"]} allLabel={NEUTRO_CONTRATO} allValue={NEUTRO_CONTRATO} />
         </FilterBar>
       </KpiFilterCard>
 
-      {mx.ativo ? (
-        <>
-          {mx.error && <p className="text-xs text-danger mb-2">Não foi possível carregar: {mx.error}</p>}
-          <ClientesList
-            clientes={maxRows}
-            decisorPorCliente={{}}
-            onDelete={somenteConsulta}
-            onEdit={somenteConsulta}
-            onManageContatos={somenteConsulta}
-            onOpenDetalhes={somenteConsulta}
-          />
-          <Pagination page={maxPage} totalPages={Math.max(1, Math.ceil(mx.total / MAX_PAGE_SIZE))} total={mx.total} pageSize={MAX_PAGE_SIZE} onPageChange={setMaxPage} itemLabel="cliente" />
-        </>
-      ) : (
+      {mx.error && <p className="text-xs text-danger mb-2">Não foi possível carregar a Max Data: {mx.error}</p>}
+      {origem === "" ? (
         <>
           <ClientesList
             clientes={clientesFiltrados}
@@ -298,6 +298,23 @@ export default function Clientes() {
             onFilterSetor={setSectorFilter}
             onFilterStatus={setStatusFilter}
           />
+        </>
+      ) : (
+        <>
+          <ClientesList
+            clientes={[...crmFatia, ...maxRows]}
+            decisorPorCliente={decisorPorCliente}
+            onDelete={(id: any) => (idsMax.has(id) ? somenteConsulta() : handleDeleteCliente(id))}
+            onEdit={(c: any) => {
+              if (idsMax.has(c.id)) return somenteConsulta();
+              const hasDeal = (leads || []).some((l: any) => l.clientId === c.id);
+              if (hasDeal) openClienteOrLead(c.id);
+              else setEditingCliente(c);
+            }}
+            onManageContatos={(id: any) => (idsMax.has(id) ? somenteConsulta() : setContatosClienteId(id))}
+            onOpenDetalhes={(id: any) => (idsMax.has(id) ? somenteConsulta() : openClienteOrLead(id))}
+          />
+          <Pagination page={maxPage} totalPages={Math.max(1, Math.ceil(((misto ? crmLen : 0) + mx.total) / MAX_PAGE_SIZE))} total={(misto ? crmLen : 0) + mx.total} pageSize={MAX_PAGE_SIZE} onPageChange={setMaxPage} itemLabel="cliente" />
         </>
       )}
 

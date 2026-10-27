@@ -27,7 +27,7 @@ import { registerFinancialReportRoutes } from "./server/financialReportPdf.js";
 import { registerMessageTriggerRoutes } from "./server/messageTriggers.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
-import { runSyncChunk, SYNC_ENTITIES, type SyncEntity } from "./server/maxdataSync.js";
+import { runSyncChunk, promoteMaxdataProducts, SYNC_ENTITIES, type SyncEntity } from "./server/maxdataSync.js";
 import { extractDocs as maxExtractDocs, mapMaxEntryToNota, type MaxEntry, type MaxEntryItem } from "./src/lib/maxdataEntry.js";
 import { findProductForItem, defaultQtdEstoque } from "./src/lib/notaEntrada.js";
 import { isLeadOpen, isLeadLost } from "./src/lib/leadStatus.js";
@@ -3153,9 +3153,12 @@ app.post("/api/varejo/maxdata/entries/import", requireUser, async (req: any, res
         .insert({ ...nota, tenant_id: tenantId, status: "Rascunho", created_by: req.user.id }).select("id").maybeSingle();
       if (error || !criada) { results.push({ id, ok: false, error: error?.code === "23505" ? "Já importada." : "Não foi possível salvar a nota." }); continue; }
 
+      // Produtos da Max Data que a nota cita entram no catálogo do sistema (só esses), para a entrada no estoque funcionar.
+      const promovidos = await promoteMaxdataProducts(req.supabase, tenantId, "maxdata:estoque", itens.map((i) => i.codigo)).catch(() => new Map());
       let vinculados = 0;
       const rows = itens.map((i) => {
-        const match = findProductForItem(i, products);
+        const doMax = i.codigo ? promovidos.get(String(i.codigo)) : null;
+        const match = doMax ? { product: doMax } : findProductForItem(i, products);
         if (match) vinculados++;
         return { ...i, tenant_id: tenantId, nota_id: criada.id, product_id: match?.product.id ?? null, qtd_estoque: defaultQtdEstoque(i.quantidade) };
       });

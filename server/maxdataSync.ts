@@ -150,3 +150,28 @@ export async function runSyncChunk(opts: { svc: any; conn: MaxDataConn; tenantId
   await save({ status, cursor: { page }, total, sincronizados, erro, iniciado_em: (fresh ? null : cur?.iniciado_em) ?? new Date().toISOString() });
   return { entidade: entity, status, total, sincronizados, erro, cursor: { page } };
 }
+
+/**
+ * Liga as notas/estoque ao catálogo de produtos do sistema: os produtos da Max Data ficam em
+ * maxdata_produtos (150 mil linhas não cabem no carregamento do app), então, quando uma nota
+ * referencia um deles, ele é "promovido" para `products` — só os que realmente aparecem em notas.
+ * Assim a entrada no estoque, as movimentações e o resto do sistema usam um produto de verdade.
+ * Devolve código da Max Data → produto do sistema.
+ */
+export async function promoteMaxdataProducts(db: any, tenantId: string, fonte: string, codigos: string[]) {
+  const out = new Map<string, { id: string; name: string; sku: string | null; active: boolean; type_attributes: any }>();
+  const ids = [...new Set(codigos.map((c) => String(c ?? "").trim()).filter(Boolean))];
+  for (const part of chunk(ids, 200)) {
+    const { data: origem, error } = await db.from("maxdata_produtos").select("*").eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("externo_id", part);
+    if (error || !origem?.length) continue;
+    const rows = origem.map((r: any) => ({
+      tenant_id: tenantId, externo_sistema: fonte, externo_id: r.externo_id, name: r.name, sku: r.sku, price: r.price, cost: r.cost, margin: r.margin,
+      category: r.category, provider: r.provider, active: r.active, type: r.type, stock: r.stock, stock_min: r.stock_min, weight: r.weight,
+      dimensions: r.dimensions, externo_dados: r.externo_dados,
+    }));
+    const { data: prom, error: upErr } = await db.from("products").upsert(rows, { onConflict: "tenant_id,externo_sistema,externo_id" }).select("id, name, sku, active, type_attributes, externo_id");
+    if (upErr) throw new Error(`products: ${upErr.message}`);
+    for (const p of prom ?? []) out.set(String(p.externo_id), p);
+  }
+  return out;
+}
