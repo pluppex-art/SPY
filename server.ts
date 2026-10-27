@@ -3055,7 +3055,7 @@ app.post("/api/integrations/maxdata/sync", requireUser, async (req: any, res) =>
   if (!SYNC_ENTITIES.includes(entity)) return res.status(400).json({ error: "Entidade inválida." });
   const conn = await loadMaxdataConn(req, res, tenantId, which);
   if (!conn) return;
-  const state = await runSyncChunk({ svc: supabaseService, conn, tenantId, fonte: `maxdata:${which}`, entity });
+  const state = await runSyncChunk({ svc: supabaseService, conn, tenantId, fonte: `maxdata:${which}`, entity, restart: req.body?.restart === true });
   return res.status(state.status === "erro" ? 502 : 200).json(state);
 });
 

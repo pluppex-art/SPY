@@ -114,13 +114,18 @@ async function syncVendasPage(svc: any, conn: MaxDataConn, tenantId: string, fon
 }
 
 /** Processa páginas da entidade até estourar o orçamento de tempo; devolve o estado gravado. */
-export async function runSyncChunk(opts: { svc: any; conn: MaxDataConn; tenantId: string; fonte: string; entity: SyncEntity; budgetMs?: number }): Promise<SyncState> {
+export async function runSyncChunk(opts: { svc: any; conn: MaxDataConn; tenantId: string; fonte: string; entity: SyncEntity; budgetMs?: number; restart?: boolean }): Promise<SyncState> {
   const { svc, conn, tenantId, fonte, entity } = opts;
   const deadline = Date.now() + (opts.budgetMs ?? 40_000);
   const key = { tenant_id: tenantId, fonte, entidade: entity };
   const { data: cur } = await svc.from("integracao_sync_state").select("*").match(key).maybeSingle();
-  let page = cur?.status === "concluida" ? 1 : Number(cur?.cursor?.page) || 1;
-  let sincronizados = cur?.status === "concluida" ? 0 : cur?.sincronizados ?? 0;
+  // Etapa já concluída: não refaz (nem zera o contador) a menos que peçam explicitamente `restart`.
+  if (cur?.status === "concluida" && !opts.restart) {
+    return { entidade: entity, status: "concluida", total: cur.total ?? null, sincronizados: cur.sincronizados ?? 0, erro: null, cursor: cur.cursor ?? {} };
+  }
+  const fresh = !cur || cur.status === "concluida";
+  let page = fresh ? 1 : Number(cur?.cursor?.page) || 1;
+  let sincronizados = fresh ? 0 : cur?.sincronizados ?? 0;
   let total: number | null = cur?.total ?? null;
   const path = entity === "clientes" ? "/client" : entity === "produtos" ? "/product" : "/sale";
   const save = (patch: any) => svc.from("integracao_sync_state").upsert({ ...key, ...patch, atualizado_em: new Date().toISOString() }, { onConflict: "tenant_id,fonte,entidade" });
@@ -139,9 +144,9 @@ export async function runSyncChunk(opts: { svc: any; conn: MaxDataConn; tenantId
       const pages = num(body?.pages);
       if (!docs.length || page >= pages) { status = "concluida"; page = 1; break; }
       page += 1;
-      await save({ status: "rodando", cursor: { page }, total, sincronizados, erro: null, iniciado_em: cur?.iniciado_em ?? new Date().toISOString() });
+      await save({ status: "rodando", cursor: { page }, total, sincronizados, erro: null, iniciado_em: (fresh ? null : cur?.iniciado_em) ?? new Date().toISOString() });
     }
   } catch (e: any) { status = "erro"; erro = String(e?.message || e).slice(0, 500); }
-  await save({ status, cursor: { page }, total, sincronizados, erro, iniciado_em: cur?.iniciado_em ?? new Date().toISOString() });
+  await save({ status, cursor: { page }, total, sincronizados, erro, iniciado_em: (fresh ? null : cur?.iniciado_em) ?? new Date().toISOString() });
   return { entidade: entity, status, total, sincronizados, erro, cursor: { page } };
 }
