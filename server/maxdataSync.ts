@@ -12,7 +12,7 @@ import { maxdataGet, type MaxDataConn } from "./maxdataClient.js";
 export type SyncEntity = "clientes" | "produtos" | "vendas";
 export const SYNC_ENTITIES: SyncEntity[] = ["clientes", "produtos", "vendas"];
 const PAGE = 500;
-const SALE_CONCURRENCY = 10;
+const SALE_CONCURRENCY = 25;
 
 export interface SyncState {
   entidade: SyncEntity; status: "pendente" | "rodando" | "concluida" | "erro";
@@ -116,7 +116,7 @@ async function syncVendasPage(svc: any, conn: MaxDataConn, tenantId: string, fon
 /** Processa páginas da entidade até estourar o orçamento de tempo; devolve o estado gravado. */
 export async function runSyncChunk(opts: { svc: any; conn: MaxDataConn; tenantId: string; fonte: string; entity: SyncEntity; budgetMs?: number; restart?: boolean }): Promise<SyncState> {
   const { svc, conn, tenantId, fonte, entity } = opts;
-  const deadline = Date.now() + (opts.budgetMs ?? 40_000);
+  const deadline = Date.now() + (opts.budgetMs ?? 25_000);
   const key = { tenant_id: tenantId, fonte, entidade: entity };
   const { data: cur } = await svc.from("integracao_sync_state").select("*").match(key).maybeSingle();
   // Etapa já concluída: não refaz (nem zera o contador) a menos que peçam explicitamente `restart`.
