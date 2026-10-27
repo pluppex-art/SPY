@@ -14,9 +14,9 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  // Identidade da empresa do usuário (cor, nome, logo): o link do e-mail abre direto aqui, sem host da
+  // Cor da empresa do usuário (a logo é sempre a do S.P.Y.): o link do e-mail abre direto aqui, sem host da
   // empresa, então a marca vem da sessão de recuperação que o próprio link estabelece.
-  const [brand, setBrand] = useState<{ name: string; logoUrl: string; color: string }>({ name: "", logoUrl: "", color: "" });
+  const [brand, setBrand] = useState<{ color: string }>({ color: "" });
 
   useEffect(() => {
     if (!supabase) return;
@@ -25,15 +25,11 @@ export default function ResetPassword() {
       try {
         const { data: u } = await supabase!.from("users").select("tenant_id").eq("id", userId).maybeSingle();
         if (!u?.tenant_id) return;
-        const [{ data: t }, { data: emp }] = await Promise.all([
-          supabase!.from("tenants").select("name, primary_color").eq("id", u.tenant_id).maybeSingle(),
-          supabase!.from("app_settings").select("value").eq("tenant_id", u.tenant_id).eq("key", "empresa_dados").maybeSingle(),
-        ]);
+        const { data: t } = await supabase!.from("tenants").select("name, primary_color").eq("id", u.tenant_id).maybeSingle();
         if (cancelled || !t) return;
         const color = isValidBrandHex(t.primary_color || "") ? t.primary_color : "";
-        const logo = typeof emp?.value?.logoUrl === "string" && /^https?:\/\//i.test(emp.value.logoUrl) ? emp.value.logoUrl : "";
         if (color) applyThemeColor(color, t.name);
-        setBrand({ name: t.name || "", logoUrl: logo, color });
+        setBrand({ color });
       } catch { /* sem marca: fica no padrão do S.P.Y. */ }
     };
     supabase.auth.getSession().then(({ data }) => { if (data.session?.user) void loadBrand(data.session.user.id); });
@@ -66,9 +62,7 @@ export default function ResetPassword() {
       <div className="w-full max-w-xl p-6 relative z-10">
         <div className="text-center mb-8">
           <div className="relative inline-block bg-[#0B1120] rounded-2xl overflow-hidden p-6 shadow-lg shadow-blue-500/10 mb-6">
-            {brand.logoUrl
-              ? <img src={brand.logoUrl} alt={brand.name} className="mx-auto max-h-14 max-w-[220px] object-contain" />
-              : <Logo variant="full" size={56} className="mx-auto justify-center" />}
+            <Logo variant="full" size={56} className="mx-auto justify-center" color={brand.color || undefined} />
           </div>
           <h1 className="text-3xl font-bold tracking-tight mb-2 text-[var(--color-text-primary)]">Redefinir senha</h1>
           <p className="text-[var(--color-text-muted)] text-sm">Escolha uma nova senha para sua conta.</p>

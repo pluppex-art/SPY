@@ -9,13 +9,11 @@ const COLOR_PRIMARY = "#2563eb";
 const COLOR_TEXT = "#0f172a";
 const COLOR_MUTED = "#64748b";
 
-/** Identidade visual da empresa (tenant) dona do destinatário. Tudo opcional: sem marca, vale o padrão do S.P.Y. */
+/** Cor (e nome) da empresa dona do destinatário. Tudo opcional: sem marca, vale o padrão do S.P.Y. */
 export interface EmailBrand {
   name?: string | null;
-  /** "#RRGGBB" (tenants.primary_color). */
+  /** "#RRGGBB" (tenants.primary_color). A logo do e-mail é SEMPRE a do S.P.Y.; da empresa vem só a cor. */
   color?: string | null;
-  /** URL https pública da logo (empresa_dados.logoUrl). Data URI não funciona em e-mail. */
-  logoUrl?: string | null;
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -56,10 +54,14 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
   const brandColor = input.brand?.color && HEX.test(input.brand.color) ? input.brand.color : COLOR_PRIMARY;
   const onBrand = textOn(brandColor);
   const brandName = (input.brand?.name || "").trim() || BRAND;
-  const logoOk = !!input.brand?.logoUrl && /^https:\/\//i.test(input.brand.logoUrl);
-  const headerHtml = logoOk
-    ? `<img src="${esc(input.brand!.logoUrl!)}" alt="${esc(brandName)}" height="36" style="display:block;max-height:36px;max-width:220px;border:0;">`
-    : `<span style="font-size:20px;font-weight:800;letter-spacing:${input.brand?.name ? "0.5px" : "2px"};color:${onBrand};">${esc(brandName)}</span>`;
+  // Logo do S.P.Y. (PNG hospedado em /public/email): Gmail/Outlook não renderizam SVG. Duas versões,
+  // branca e escura, conforme o contraste com a cor da empresa.
+  const assetBase = (process.env.SPY_EMAIL_ASSET_BASE || "https://www.spycrm.com.br").replace(/\/+$/, "");
+  const markUrl = `${assetBase}/email/spy-mark-${onBrand === "#ffffff" ? "white" : "dark"}.png`;
+  const headerHtml = `<table role="presentation" cellspacing="0" cellpadding="0"><tr>
+      <td style="padding-right:10px;"><img src="${markUrl}" alt="" width="36" height="36" style="display:block;border:0;width:36px;height:36px;"></td>
+      <td style="font-size:20px;font-weight:800;letter-spacing:2px;color:${onBrand};">${BRAND}</td>
+    </tr></table>`;
   const paragraphsHtml = input.paragraphs
     .map((p) => `<p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:${COLOR_TEXT};">${esc(p)}</p>`)
     .join("");
@@ -94,7 +96,7 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
           ${noteHtml}
         </td></tr>
         <tr><td style="padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;">
-          <p style="margin:0;font-size:12px;line-height:1.5;color:${COLOR_MUTED};">Você recebeu este e-mail porque ele está ligado à sua conta${input.brand?.name ? ` na ${esc(brandName)}` : ` no ${BRAND}`}. Se não foi você, pode ignorá-lo com segurança.${input.brand?.name ? ` Enviado pelo ${BRAND}.` : ""}</p>
+          <p style="margin:0;font-size:12px;line-height:1.5;color:${COLOR_MUTED};">Você recebeu este e-mail porque ele está ligado à sua conta${input.brand?.name ? ` na ${esc(brandName)}` : ` no ${BRAND}`} — se não foi você, pode ignorá-lo com segurança.${input.brand?.name ? ` Enviado pelo ${BRAND}` : ""}</p>
           ${input.footerLink ? `<p style="margin:10px 0 0 0;font-size:12px;"><a href="${esc(input.footerLink.url)}" style="color:${brandColor};">${esc(input.footerLink.label)}</a></p>` : ""}
         </td></tr>
       </table>
