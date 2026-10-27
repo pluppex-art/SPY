@@ -3,7 +3,6 @@ import { Button } from "../../components/ui/button";
 import { Plus, Building2, CheckCircle2, FileText } from "lucide-react";
 import { NovoClienteModal } from "../../components/ui/modals/crm/NovoClienteModal";
 import { ClienteContatosModal } from "../../components/ui/modals/crm/ClienteContatosModal";
-import { ClienteDetalhesModal } from "../../components/ui/modals/crm/ClienteDetalhesModal";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -34,12 +33,6 @@ export default function Clientes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<any | null>(null);
   const [contatosClienteId, setContatosClienteId] = useState<string | null>(null);
-  // Cliente cujo detalhe foi pedido (clique na linha ou no lápis) mas que não
-  // tem NENHUM lead vinculado (ex.: cadastrado manualmente via "+ Novo
-  // Cliente", nunca foi um lead ganho) — cai no modal simples de sempre
-  // (ClienteDetalhesModal), já que LeadDetailsModal exige um lead de verdade
-  // (funil/score/estágio) e não tem um modo "só cliente".
-  const [orphanDetalhesClienteId, setOrphanDetalhesClienteId] = useState<string | null>(null);
   const [selectedLeadForDetails, setSelectedLeadForDetails] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState("Todas as situações");
   const [sectorFilter, setSectorFilter] = useState("Todos os setores");
@@ -248,7 +241,16 @@ export default function Clientes() {
       )[0];
       setSelectedLeadForDetails(mostRecent);
     } else {
-      setOrphanDetalhesClienteId(clienteId);
+      // Cliente sem lead (cadastro manual, importação): abre o MESMO card do lead, montado
+      // a partir do cadastro do cliente, só pra visualizar — não cria nada no banco.
+      const c = (clientes || []).find((x: any) => x.id === clienteId);
+      if (c) setSelectedLeadForDetails({
+        id: c.id, clientId: c.id, clientName: c.name,
+        name: c.name, company: c.name, email: c.email || "", phone: c.phone || "", cnpj: c.documento || "",
+        status: "Fechado", value: 0, priority: "Média", source: "Base de Clientes",
+        stageId: "", pipelineId: "comercial", customFields: {}, productIds: [], tags: [],
+        date: c.created_at, createdAt: c.created_at, _somenteCliente: true,
+      });
     }
   };
 
@@ -334,17 +336,11 @@ export default function Clientes() {
         clienteNome={clientes.find(c => c.id === contatosClienteId)?.name}
       />
 
-      <ClienteDetalhesModal
-        isOpen={!!orphanDetalhesClienteId}
-        onClose={() => setOrphanDetalhesClienteId(null)}
-        cliente={clientes.find(c => c.id === orphanDetalhesClienteId) || null}
-        onManageContatos={(id) => { setOrphanDetalhesClienteId(null); setContatosClienteId(id); }}
-      />
-
       <LeadDetailsModal
         isOpen={!!selectedLeadForDetails}
         onClose={() => setSelectedLeadForDetails(null)}
         lead={selectedLeadForDetails}
+        somenteLeitura={!!selectedLeadForDetails?._somenteCliente}
       />
     </PageContainer>
   );
