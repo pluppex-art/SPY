@@ -1781,7 +1781,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       description: `${lead.name} da empresa ${lead.company || "lead"} foi adicionado.`,
       link_url: `/app/crm/pipeline?leadId=${newId}`,
       type: "success",
-      triggerId: "novo_lead"
+      triggerId: "novo_lead",
+      details: [{ label: "Nome do lead", value: lead.name }, ...(lead.company ? [{ label: "Empresa", value: lead.company }] : [])]
     });
     setTimeout(() => { triggerScoreRecalculation(newLead.id, [newLead]); }, 400);
     return true;
@@ -2412,8 +2413,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // outro mutator deste arquivo, e só loga se a escrita no Supabase falhar.
   // triggerId (opcional) liga o aviso a um tipo da tela de Preferências de Notificação: com ele, o servidor
   // também manda o e-mail pra quem deixou o canal "E-mail" ligado.
-  const addNotification = (notification: Omit<Notification, 'id' | 'is_read' | 'created_at'> & { triggerId?: string }, push?: boolean) => {
-    const { triggerId, ...notificationData } = notification;
+  const addNotification = (notification: Omit<Notification, 'id' | 'is_read' | 'created_at'> & { triggerId?: string; details?: { label: string; value: string }[] }, push?: boolean) => {
+    const { triggerId, details, ...notificationData } = notification;
     const newNotification: Notification = {
       ...notificationData,
       id: crypto.randomUUID(),
@@ -2439,7 +2440,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           apiFetch('/api/notifications/email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ triggerId, title: newNotification.title, description: newNotification.description, type: newNotification.type, link_url: newNotification.link_url }),
+            body: JSON.stringify({ triggerId, title: newNotification.title, description: newNotification.description, type: newNotification.type, link_url: newNotification.link_url, details }),
           }).catch(() => { /* e-mail é complemento do sino */ });
         }
       });

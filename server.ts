@@ -6076,7 +6076,7 @@ app.post("/api/auth/password-changed", requireUser, async (req: any, res) => {
 const notifyEmailLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
 app.post("/api/notifications/email", requireUser, notifyEmailLimiter, async (req: any, res) => {
   if (!supabaseService) return res.json({ ok: false });
-  const { triggerId, title, description, type, link_url } = req.body ?? {};
+  const { triggerId, title, description, type, link_url, details } = req.body ?? {};
   if (typeof triggerId !== "string" || typeof title !== "string" || typeof description !== "string" || !title.trim()) {
     return res.status(400).json({ ok: false, error: "Dados do aviso inválidos." });
   }
@@ -6085,6 +6085,12 @@ app.post("/api/notifications/email", requireUser, notifyEmailLimiter, async (req
   const kind = ["success", "info", "warning", "error"].includes(type) ? type : "info";
   const r = await emailNotifyTenant(supabaseService, tenantId, PUBLIC_APP_URL, {
     triggerId, title, description, kind, linkPath: typeof link_url === "string" ? link_url : null,
+    // Só pares texto/texto curtos, no máximo 4 (o e-mail escapa o conteúdo, mas não aceita lixo).
+    details: Array.isArray(details)
+      ? details.slice(0, 4)
+          .filter((d: any) => typeof d?.label === "string" && typeof d?.value === "string" && d.value.trim())
+          .map((d: any) => ({ label: d.label.slice(0, 40), value: d.value.slice(0, 120) }))
+      : undefined,
   });
   res.json({ ok: true, ...r });
 });

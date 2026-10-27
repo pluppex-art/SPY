@@ -1,23 +1,22 @@
 /**
- * Layout único dos e-mails transacionais do S.P.Y. (HTML com tabelas e estilos
- * inline — é o que Gmail/Outlook renderizam de forma confiável — mais uma
- * versão em texto puro, que melhora a entrega e serve de fallback).
+ * Layout dos e-mails do S.P.Y. (HTML com tabelas e estilos inline — é o que Gmail/Outlook renderizam de
+ * forma confiável — mais uma versão em texto puro, que melhora a entrega e serve de fallback).
  *
- * Identidade: padrão laranja (o laranja oficial do S.P.Y.) com branco. Se a empresa dona do destinatário
- * tem cor própria (tenants.primary_color), cabeçalho, botão e destaques passam a usar a cor dela. A logo é
- * SEMPRE a do S.P.Y. (embutida via CID).
+ * Identidade: cabeçalho e rodapé na cor da marca com a logo do S.P.Y. (sempre a do S.P.Y.), título em duas
+ * linhas (a 2ª na cor da marca), cartão de dados, botão com seta, painel com a ilustração do pipeline e
+ * cartão informativo. O padrão é o laranja oficial do S.P.Y.; se a empresa dona do destinatário tem cor
+ * própria (tenants.primary_color), tudo que é "cor da marca" passa a usar a dela. Imagens vão embutidas (CID).
  */
-import { SPY_MARK_WHITE_PNG_B64, SPY_MARK_DARK_PNG_B64 } from "./emailAssets.js";
+import { EMAIL_IMAGES_B64 } from "./emailAssets.js";
 
 const BRAND = "S.P.Y.";
 const TAGLINE = "Seu espião comercial";
 /** Laranja oficial do S.P.Y. (mesmo LOGIN_DEFAULT_COLOR do app): vale quando a empresa não definiu cor. */
 const COLOR_PRIMARY = "#f97316";
 const COLOR_TEXT = "#0f172a";
-const COLOR_BODY = "#334155";
+const COLOR_BODY = "#475569";
 const COLOR_MUTED = "#64748b";
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-const MARK_CID = "spy-mark@spy";
 
 /** Cor (e nome) da empresa dona do destinatário. Tudo opcional: sem marca, vale o padrão do S.P.Y. */
 export interface EmailBrand {
@@ -27,34 +26,24 @@ export interface EmailBrand {
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const toHex = (c: number[]) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("")}`;
+/** Mistura `hex` com `other` (0 = só hex, 1 = só other). */
+const mix = (hex: string, other: string, amount: number) => {
+  const a = rgb(hex), b = rgb(other);
+  return toHex(a.map((v, i) => v + (b[i] - v) * amount));
+};
 const luminance = (hex: string) => {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
-    .map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  const [r, g, b] = rgb(hex).map((v) => v / 255).map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
-/** Branco ou quase-preto, o que tiver mais contraste sobre a cor da marca (verde claro leva texto escuro). */
-const textOn = (hex: string) => (luminance(hex) > 0.4 ? "#0f172a" : "#ffffff");
+/** Cor forte (cabeçalho, botão, ícones brancos por cima): a da marca, ou uma versão mais escura se for clara demais. */
+const strongOf = (hex: string) => (luminance(hex) > 0.4 ? mix(hex, "#000000", 0.45) : hex);
+/** Tom bem claro da cor, pra fundos de cartões e painéis. */
+const tint = (hex: string, strength: number) => mix(hex, "#ffffff", 1 - strength);
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
-interface LayoutInput {
-  /** Texto de pré-visualização que aparece ao lado do assunto na caixa de entrada. */
-  preheader: string;
-  title: string;
-  /** Parágrafos do corpo (texto puro; é escapado aqui). */
-  paragraphs: string[];
-  /** Trecho em destaque (bloco com barra na cor da empresa), ex.: o conteúdo de uma notificação. */
-  highlight?: string;
-  button?: { label: string; url: string };
-  /** Linha pequena abaixo do botão (ex.: "O link expira em 1 hora"). */
-  note?: string;
-  /** Etiqueta colorida acima do título (ex.: "Novo lead"). color "brand" = a cor da empresa. */
-  tag?: { label: string; color: string };
-  /** Link discreto no rodapé (ex.: "Ajustar notificações"). */
-  footerLink?: { label: string; url: string };
-  brand?: EmailBrand;
-}
 
 export interface EmailAttachment {
   filename: string;
@@ -68,137 +57,241 @@ export interface RenderedEmail {
   subject: string;
   html: string;
   text: string;
-  /** Imagens embutidas (a logo). Quem envia deve repassar pro transporte. */
+  /** Imagens embutidas (logo, ícones, ilustração). Quem envia deve repassar pro transporte. */
   attachments: EmailAttachment[];
 }
 
-function layout(subject: string, input: LayoutInput): RenderedEmail {
-  const brandColor = input.brand?.color && HEX.test(input.brand.color) ? input.brand.color : COLOR_PRIMARY;
-  const onBrand = textOn(brandColor);
-  const brandName = (input.brand?.name || "").trim();
+interface Spec {
+  subject: string;
+  /** Texto de pré-visualização que aparece ao lado do assunto na caixa de entrada. */
+  preheader: string;
+  /** Texto à direita do cabeçalho (ex.: "Notificação automática" / "Novo lead no seu CRM"). */
+  headerRight: { line1: string; line2: string };
+  pill: { label: string; color: string };
+  title1: string;
+  /** 2ª linha do título, na cor da marca. */
+  title2?: string;
+  greeting: string;
+  paragraphs: string[];
+  /** Dados em destaque (ex.: nome do lead, empresa). */
+  details?: { label: string; value: string }[];
+  button?: { label: string; url: string };
+  /** Aviso pequeno abaixo do botão, com linha separadora. */
+  note?: string;
+  info?: { title: string; text: string };
+  /** Mostra o painel com a ilustração do pipeline (e-mails de CRM); sem ele o corpo é de coluna única. */
+  illustration?: boolean;
+  footerLink?: { label: string; url: string };
+  brand?: EmailBrand;
+}
 
-  // Cor de destaque legível sobre branco: a da marca, ou o texto escuro se a marca for clara demais.
-  const accent = luminance(brandColor) > 0.4 ? COLOR_TEXT : brandColor;
-  const tagColor = input.tag?.color === "brand" ? accent : input.tag?.color || accent;
-  const tagHtml = input.tag
-    ? `<span style="display:inline-block;margin:0 0 16px 0;padding:5px 12px;border-radius:999px;background:${tagColor}1f;color:${tagColor};font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;">${esc(input.tag.label)}</span>`
-    : "";
+function render(spec: Spec): RenderedEmail {
+  const base = spec.brand?.color && HEX.test(spec.brand.color) ? spec.brand.color : COLOR_PRIMARY;
+  const strong = strongOf(base);
+  const deep = mix(strong, "#000000", 0.22);
+  const brandName = (spec.brand?.name || "").trim();
+  const used = new Set<string>();
+  const img = (name: string, size: number, style = "") => {
+    used.add(name);
+    return `<img src="cid:${name}@spy" alt="" width="${size}" height="${size}" style="display:block;border:0;width:${size}px;height:${size}px;${style}">`;
+  };
+  const gradient = `background:${strong};background-image:linear-gradient(135deg,${deep} 0%,${strong} 100%);`;
+  const pillColor = spec.pill.color === "brand" ? strong : spec.pill.color;
 
-  const paragraphsHtml = input.paragraphs
-    .map((p, i) => `<p style="margin:0 0 16px 0;font-size:${i === 0 ? 16 : 15.5}px;line-height:1.65;color:${i === 0 ? COLOR_TEXT : COLOR_BODY};${i === 0 ? "font-weight:600;" : ""}">${esc(p)}</p>`)
+  // ── Cabeçalho ──
+  const header = `<tr><td style="${gradient}padding:26px 40px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
+      <td valign="middle" style="width:1%;white-space:nowrap;"><table role="presentation" cellspacing="0" cellpadding="0"><tr>
+        <td style="padding-right:14px;">${img("mark-white", 52)}</td>
+        <td>
+          <div style="font-size:28px;line-height:1;font-weight:800;letter-spacing:4px;color:#ffffff;font-family:${FONT};">${BRAND}</div>
+          <div style="margin-top:6px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#ffffff;opacity:.85;font-family:${FONT};">${TAGLINE}</div>
+        </td>
+      </tr></table></td>
+      <td align="right" valign="middle">
+        <table role="presentation" cellspacing="0" cellpadding="0" align="right"><tr>
+          <td align="right" style="padding-right:18px;border-right:1px solid rgba(255,255,255,.35);">
+            <div style="font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff;font-family:${FONT};">${esc(spec.headerRight.line1)}</div>
+            <div style="margin-top:5px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#ffffff;opacity:.8;font-family:${FONT};">${esc(spec.headerRight.line2)}</div>
+          </td>
+          <td style="padding-left:18px;"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td width="52" height="52" align="center" valign="middle" style="width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);">${img("icon-bell", 24, "margin:0 auto;")}</td></tr></table></td>
+        </tr></table>
+      </td>
+    </tr></table>
+  </td></tr>`;
+
+  // ── Coluna da esquerda ──
+  const pill = `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 22px 0;"><tr>
+    <td style="background:${tint(pillColor, 0.14)};border-radius:999px;padding:6px 18px 6px 7px;">
+      <table role="presentation" cellspacing="0" cellpadding="0"><tr>
+        <td width="30" height="30" align="center" valign="middle" style="width:30px;height:30px;border-radius:15px;background:${pillColor};">${img("icon-user", 16, "margin:0 auto;")}</td>
+        <td style="padding-left:10px;font-size:13px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:${pillColor};font-family:${FONT};">${esc(spec.pill.label)}</td>
+      </tr></table>
+    </td></tr></table>`;
+
+  const title = `<h1 style="margin:0 0 22px 0;font-size:38px;line-height:1.1;font-weight:800;letter-spacing:-1px;color:${COLOR_TEXT};font-family:${FONT};">${esc(spec.title1)}${spec.title2 ? `<br><span style="color:${strong};">${esc(spec.title2)}</span>` : ""}</h1>`;
+
+  const greeting = `<p style="margin:0 0 8px 0;font-size:20px;line-height:1.3;font-weight:700;color:${COLOR_TEXT};font-family:${FONT};">${esc(spec.greeting)}</p>`;
+  const paragraphs = spec.paragraphs
+    .map((p) => `<p style="margin:0 0 18px 0;font-size:17px;line-height:1.6;color:${COLOR_BODY};font-family:${FONT};">${esc(p)}</p>`)
     .join("");
 
-  const highlightHtml = input.highlight
-    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:4px 0 8px 0;"><tr>
-         <td width="4" style="background:${brandColor};border-radius:4px;font-size:0;line-height:0;">&nbsp;</td>
-         <td style="background:#f8fafc;border-radius:0 10px 10px 0;padding:16px 18px;font-size:16px;line-height:1.6;color:${COLOR_TEXT};">${esc(input.highlight)}</td>
+  const details = spec.details?.length
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:6px 0 22px 0;background:${tint(strong, 0.07)};border-radius:18px;"><tr>
+        <td width="64" valign="middle" style="padding:22px 0 22px 22px;"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td width="64" height="64" align="center" valign="middle" style="width:64px;height:64px;border-radius:32px;background:${strong};">${img("icon-user", 30, "margin:0 auto;")}</td></tr></table></td>
+        <td valign="middle" style="padding:20px 20px 20px 22px;">
+          <table role="presentation" cellspacing="0" cellpadding="0" style="border-left:1px solid ${tint(strong, 0.25)};"><tr><td style="padding-left:22px;">
+            ${spec.details.map((d, i) => `<div style="${i ? "margin-top:12px;" : ""}font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${COLOR_MUTED};font-family:${FONT};">${esc(d.label)}</div><div style="margin-top:3px;font-size:20px;line-height:1.25;font-weight:800;color:${COLOR_TEXT};font-family:${FONT};">${esc(d.value)}</div>`).join("")}
+          </td></tr></table>
+        </td></tr></table>`
+    : "";
+
+  const button = spec.button
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:6px 0 0 0;"><tr><td style="${gradient}border-radius:14px;box-shadow:0 8px 18px ${strong}55;">
+        <a href="${esc(spec.button.url)}" style="display:block;padding:15px 20px;text-align:center;text-decoration:none;font-family:${FONT};">
+          <table role="presentation" cellspacing="0" cellpadding="0" align="center"><tr>
+            <td width="34" height="34" align="center" valign="middle" style="width:34px;height:34px;border-radius:17px;background:rgba(255,255,255,.25);">${img("icon-arrow", 18, "margin:0 auto;")}</td>
+            <td style="padding-left:14px;font-size:19px;font-weight:800;color:#ffffff;font-family:${FONT};">${esc(spec.button.label)}</td>
+          </tr></table>
+        </a></td></tr></table>
+       <table role="presentation" cellspacing="0" cellpadding="0" style="margin:16px 0 0 0;"><tr>
+         <td valign="top" style="padding-right:10px;padding-top:2px;">${img("icon-link", 18)}</td>
+         <td style="font-size:13.5px;line-height:1.5;color:${COLOR_MUTED};font-family:${FONT};">Se o botão não funcionar, copie e cole este endereço no navegador: <a href="${esc(spec.button.url)}" style="color:${strong};word-break:break-all;">${esc(spec.button.url)}</a></td>
        </tr></table>`
     : "";
 
-  const buttonHtml = input.button
-    ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:28px 0 6px 0;"><tr><td style="background:${brandColor};border-radius:10px;">
-         <a href="${esc(input.button.url)}" style="display:inline-block;padding:16px 34px;font-size:16px;font-weight:700;color:${onBrand};text-decoration:none;font-family:${FONT};">${esc(input.button.label)}</a>
-       </td></tr></table>
-       <p style="margin:14px 0 0 0;font-size:12px;line-height:1.55;color:${COLOR_MUTED};">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="${esc(input.button.url)}" style="color:${COLOR_MUTED};word-break:break-all;">${esc(input.button.url)}</a></p>`
+  const note = spec.note
+    ? `<p style="margin:24px 0 0 0;padding-top:20px;border-top:1px solid #e2e8f0;font-size:14px;line-height:1.6;color:${COLOR_MUTED};font-family:${FONT};">${esc(spec.note)}</p>`
     : "";
 
-  const noteHtml = input.note
-    ? `<p style="margin:22px 0 0 0;padding-top:18px;border-top:1px solid #e2e8f0;font-size:13px;line-height:1.6;color:${COLOR_MUTED};">${esc(input.note)}</p>`
-    : "";
+  const left = `${pill}${title}${greeting}${paragraphs}${details}${button}${note}`;
 
-  const footerLinkHtml = input.footerLink
-    ? `<p style="margin:12px 0 0 0;font-size:12px;"><a href="${esc(input.footerLink.url)}" style="color:${COLOR_MUTED};text-decoration:underline;">${esc(input.footerLink.label)}</a></p>`
+  // ── Coluna da direita (ilustração + cartão informativo) ──
+  const info = spec.info
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:16px;background:${tint(strong, 0.07)};border-radius:18px;"><tr>
+        <td width="48" valign="middle" style="padding:20px 0 20px 20px;"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td width="48" height="48" align="center" valign="middle" style="width:48px;height:48px;border-radius:24px;background:${strong};">${img("icon-info", 24, "margin:0 auto;")}</td></tr></table></td>
+        <td valign="middle" style="padding:18px 20px 18px 18px;">
+          <table role="presentation" cellspacing="0" cellpadding="0" style="border-left:1px solid ${tint(strong, 0.25)};"><tr><td style="padding-left:18px;">
+            <div style="font-size:16px;line-height:1.3;font-weight:800;color:${COLOR_TEXT};font-family:${FONT};">${esc(spec.info.title)}</div>
+            <div style="margin-top:6px;font-size:14px;line-height:1.55;color:${COLOR_BODY};font-family:${FONT};">${esc(spec.info.text)}</div>
+          </td></tr></table>
+        </td></tr></table>`
     : "";
+  used.add("illustration");
+  const illustration = spec.illustration
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${tint(strong, 0.09)};border-radius:24px;"><tr><td style="padding:10px;"><img src="cid:illustration@spy" alt="" width="100%" style="display:block;border:0;width:100%;height:auto;"></td></tr></table>`
+    : "";
+  if (!spec.illustration) used.delete("illustration");
+  const right = `${illustration}${info}`;
+
+  const body = spec.illustration || right
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="font-size:0;line-height:0;text-align:center;">
+         <div style="display:inline-block;width:100%;max-width:364px;vertical-align:top;font-size:16px;line-height:1.5;text-align:left;">${left}</div>
+         <div class="col-r" style="display:inline-block;width:100%;max-width:342px;vertical-align:top;font-size:16px;line-height:1.5;text-align:left;padding-left:20px;box-sizing:border-box;">${right}</div>
+       </td></tr></table>`
+    : `<div style="max-width:560px;">${left}</div>`;
+
+  // ── Rodapé ──
+  const footerIcons = ["icon-chart", "icon-users", "icon-gear", "icon-bell"]
+    .map((n) => `<td style="padding-left:10px;"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td width="44" height="44" align="center" valign="middle" style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);">${img(n, 20, "margin:0 auto;")}</td></tr></table></td>`)
+    .join("");
+  const footer = `<tr><td style="${gradient}padding:26px 40px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
+      <td valign="middle" style="width:1%;white-space:nowrap;"><table role="presentation" cellspacing="0" cellpadding="0"><tr>
+        <td style="padding-right:12px;">${img("mark-white", 40)}</td>
+        <td>
+          <div style="font-size:22px;line-height:1;font-weight:800;letter-spacing:3px;color:#ffffff;font-family:${FONT};">${BRAND}</div>
+          <div style="margin-top:5px;font-size:9.5px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff;opacity:.85;font-family:${FONT};">${TAGLINE}</div>
+        </td>
+      </tr></table></td>
+      <td valign="middle" style="padding:0 14px 0 18px;"><div style="border-left:1px solid rgba(255,255,255,.35);padding-left:16px;">
+        <div style="font-size:13px;line-height:1.4;font-weight:700;color:#ffffff;font-family:${FONT};">Mais leads. Mais vendas. Mais resultados.</div>
+        <div style="margin-top:3px;font-size:12px;line-height:1.4;color:#ffffff;opacity:.85;font-family:${FONT};">Automatize, acompanhe e converta com o ${BRAND}</div>
+      </div></td>
+      <td align="right" valign="middle"><table role="presentation" cellspacing="0" cellpadding="0" align="right"><tr>${footerIcons}</tr></table></td>
+    </tr></table>
+  </td></tr>`;
 
   const reason = brandName
     ? `Você recebeu este e-mail porque ele está ligado à sua conta na ${esc(brandName)}.`
     : `Você recebeu este e-mail porque ele está ligado à sua conta no ${BRAND}`;
+  const footerLink = spec.footerLink
+    ? ` <a href="${esc(spec.footerLink.url)}" style="color:${COLOR_MUTED};text-decoration:underline;">${esc(spec.footerLink.label)}</a>`
+    : "";
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(subject)}</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">
+<style>@media (max-width:620px){.col-r{padding-left:0!important;margin-top:24px}.pad{padding-left:22px!important;padding-right:22px!important}h1{font-size:32px!important}}</style>
+<title>${esc(spec.subject)}</title></head>
 <body style="margin:0;padding:0;background:#eef2f7;font-family:${FONT};">
-  <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(input.preheader)}</span>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef2f7;padding:36px 12px;">
+  <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(spec.preheader)}</span>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef2f7;padding:32px 12px;">
     <tr><td align="center">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dde4ee;">
-        <tr><td style="background:${brandColor};padding:26px 36px;">
-          <table role="presentation" cellspacing="0" cellpadding="0"><tr>
-            <td style="padding-right:14px;"><img src="cid:${MARK_CID}" alt="" width="46" height="46" style="display:block;border:0;width:46px;height:46px;"></td>
-            <td>
-              <div style="font-size:24px;line-height:1.1;font-weight:800;letter-spacing:3px;color:${onBrand};font-family:${FONT};">${BRAND}</div>
-              <div style="margin-top:4px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${onBrand};opacity:.85;font-family:${FONT};">${TAGLINE}</div>
-            </td>
-          </tr></table>
-        </td></tr>
-        <tr><td style="padding:38px 36px 34px 36px;">
-          ${tagHtml}
-          <h1 style="margin:0 0 22px 0;font-size:26px;line-height:1.25;font-weight:800;color:${COLOR_TEXT};letter-spacing:-.3px;">${esc(input.title)}</h1>
-          ${paragraphsHtml}
-          ${highlightHtml}
-          ${buttonHtml}
-          ${noteHtml}
-        </td></tr>
-        <tr><td style="padding:22px 36px 26px 36px;background:#f8fafc;border-top:1px solid #e2e8f0;">
-          <p style="margin:0;font-size:12px;line-height:1.6;color:${COLOR_MUTED};">${reason} Se não foi você, pode ignorá-lo com segurança.</p>
-          ${footerLinkHtml}
-          <p style="margin:14px 0 0 0;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;">${brandName ? `Enviado pelo ${BRAND} · ` : ""}${TAGLINE}</p>
-        </td></tr>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:800px;background:#ffffff;border-radius:22px;overflow:hidden;border:1px solid #dde4ee;">
+        ${header}
+        <tr><td class="pad" style="padding:42px 44px 40px 44px;">${body}</td></tr>
+        ${footer}
       </table>
+      <p style="max-width:700px;margin:18px 0 0 0;font-size:12px;line-height:1.6;color:${COLOR_MUTED};text-align:center;font-family:${FONT};">${reason} Se não foi você, pode ignorá-lo com segurança.${footerLink}</p>
     </td></tr>
   </table>
 </body>
 </html>`;
 
   const text = [
-    input.title,
+    spec.title1 + (spec.title2 ? ` ${spec.title2}` : ""),
     "",
-    ...input.paragraphs,
-    ...(input.highlight ? ["", input.highlight] : []),
-    ...(input.button ? ["", `${input.button.label}: ${input.button.url}`] : []),
-    ...(input.note ? ["", input.note] : []),
-    ...(input.footerLink ? ["", `${input.footerLink.label}: ${input.footerLink.url}`] : []),
+    spec.greeting,
+    ...spec.paragraphs,
+    ...(spec.details?.length ? ["", ...spec.details.map((d) => `${d.label}: ${d.value}`)] : []),
+    ...(spec.button ? ["", `${spec.button.label}: ${spec.button.url}`] : []),
+    ...(spec.note ? ["", spec.note] : []),
+    ...(spec.info ? ["", `${spec.info.title} — ${spec.info.text}`] : []),
+    ...(spec.footerLink ? ["", `${spec.footerLink.label}: ${spec.footerLink.url}`] : []),
     "",
     `— ${BRAND} · ${TAGLINE}`,
   ].join("\n");
 
-  return {
-    subject,
-    html,
-    text,
-    attachments: [{
-      filename: "spy.png",
-      content: Buffer.from(onBrand === "#ffffff" ? SPY_MARK_WHITE_PNG_B64 : SPY_MARK_DARK_PNG_B64, "base64"),
-      cid: MARK_CID,
-      contentType: "image/png",
-      contentDisposition: "inline",
-    }],
-  };
+  const attachments: EmailAttachment[] = [...used].map((name) => ({
+    filename: `${name}.png`,
+    content: Buffer.from(EMAIL_IMAGES_B64[name], "base64"),
+    cid: `${name}@spy`,
+    contentType: "image/png",
+    contentDisposition: "inline",
+  }));
+
+  return { subject: spec.subject, html, text, attachments };
 }
 
 const firstName = (name?: string | null) => (name || "").trim().split(/\s+/)[0] || "";
 const greeting = (name?: string | null) => (firstName(name) ? `Olá, ${firstName(name)}!` : "Olá!");
-const SECURITY_TAG = { label: "Segurança da conta", color: "brand" };
+const ACCOUNT_HEADER = { line1: "Segurança da conta", line2: "Aviso automático do S.P.Y." };
 
 export function testEmail(brand?: EmailBrand): RenderedEmail {
-  return layout("Teste de envio — S.P.Y.", {
+  return render({
+    subject: "Teste de envio — S.P.Y.",
     preheader: "Seu servidor de e-mail está funcionando.",
-    tag: { label: "Teste", color: "#16a34a" },
-    title: "Tudo certo com o envio de e-mails",
+    headerRight: { line1: "Teste de envio", line2: "E-mail do S.P.Y." },
+    pill: { label: "Teste", color: "#16a34a" },
+    title1: "Tudo certo",
+    title2: "com o envio de e-mails",
+    greeting: "Olá!",
     paragraphs: ["Se você recebeu esta mensagem, o servidor SMTP do seu ambiente está enviando e-mails corretamente."],
     brand,
   });
 }
 
 export function passwordResetEmail(link: string, name?: string | null, brand?: EmailBrand): RenderedEmail {
-  return layout("Redefinir sua senha do S.P.Y.", {
+  return render({
+    subject: "Redefinir sua senha do S.P.Y.",
     preheader: "Use o link para criar uma nova senha.",
-    tag: SECURITY_TAG,
-    title: "Redefinir sua senha",
-    paragraphs: [
-      greeting(name),
-      "Recebemos um pedido para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha.",
-    ],
+    headerRight: ACCOUNT_HEADER,
+    pill: { label: "Segurança da conta", color: "brand" },
+    title1: "Redefinir",
+    title2: "sua senha",
+    greeting: greeting(name),
+    paragraphs: ["Recebemos um pedido para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha."],
     button: { label: "Criar nova senha", url: link },
     note: "Por segurança, este link expira em pouco tempo e só pode ser usado uma vez. Se você não pediu a redefinição, ignore este e-mail — sua senha continua a mesma.",
     brand,
@@ -207,14 +300,15 @@ export function passwordResetEmail(link: string, name?: string | null, brand?: E
 
 export function passwordChangedEmail(name: string | null | undefined, whenIso: string, brand?: EmailBrand): RenderedEmail {
   const when = new Date(whenIso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "long", timeStyle: "short" });
-  return layout("Sua senha do S.P.Y. foi alterada", {
+  return render({
+    subject: "Sua senha do S.P.Y. foi alterada",
     preheader: "A senha da sua conta acabou de ser alterada.",
-    tag: SECURITY_TAG,
-    title: "Sua senha foi alterada",
-    paragraphs: [
-      greeting(name),
-      `A senha da sua conta no ${BRAND} foi alterada em ${when} (horário de Brasília).`,
-    ],
+    headerRight: ACCOUNT_HEADER,
+    pill: { label: "Segurança da conta", color: "brand" },
+    title1: "Sua senha",
+    title2: "foi alterada",
+    greeting: greeting(name),
+    paragraphs: [`A senha da sua conta no ${BRAND} foi alterada em ${when} (horário de Brasília).`],
     note: "Se foi você, não precisa fazer nada. Se não reconhece essa alteração, redefina sua senha agora pela opção “Esqueci a senha” e avise o administrador da sua empresa.",
     brand,
   });
@@ -228,24 +322,50 @@ const KIND_STYLE: Record<NotificationKind, { label: string; color: string }> = {
   error: { label: "Importante", color: "#dc2626" },
 };
 
+/** Texto próprio de cada tipo de aviso (id da tela de Preferências de Notificação). */
+const TRIGGER_COPY: Record<string, { pill: string; title1: string; title2: string; intro: string; headerLine2: string; info: { title: string; text: string } }> = {
+  novo_lead: {
+    pill: "Novo lead recebido",
+    title1: "Novo Lead",
+    title2: "adicionado no S.P.Y.",
+    intro: "Um novo lead foi capturado e adicionado automaticamente no seu CRM.",
+    headerLine2: "Novo lead no seu CRM",
+    info: {
+      title: "Leads chegam automaticamente",
+      text: "O S.P.Y. monitora seus canais e adiciona oportunidades no CRM em tempo real, para você não perder nenhum potencial cliente.",
+    },
+  },
+};
+
 /** E-mail de notificação do sistema: espelha um aviso do sino, com botão pra abrir a tela certa. */
 export function notificationEmail(n: {
   kind: NotificationKind;
   title: string;
   description: string;
+  /** Id do tipo de aviso (ex.: "novo_lead"); quando há texto próprio pra ele, ele é usado. */
+  triggerId?: string;
+  /** Dados em destaque no cartão (ex.: nome do lead, empresa). */
+  details?: { label: string; value: string }[];
   linkUrl?: string;
   settingsUrl?: string;
   name?: string | null;
   brand?: EmailBrand;
 }): RenderedEmail {
   const style = KIND_STYLE[n.kind] || KIND_STYLE.info;
-  return layout(n.title, {
+  const copy = n.triggerId ? TRIGGER_COPY[n.triggerId] : undefined;
+  return render({
+    subject: n.title,
     preheader: n.description.slice(0, 110),
-    tag: style,
-    title: n.title,
-    paragraphs: [greeting(n.name)],
-    highlight: n.description,
+    headerRight: { line1: "Notificação automática", line2: copy?.headerLine2 || "Aviso do seu CRM" },
+    pill: { label: copy?.pill || style.label, color: style.color },
+    title1: copy?.title1 || n.title,
+    title2: copy?.title2,
+    greeting: greeting(n.name),
+    paragraphs: [copy?.intro || n.description],
+    details: n.details,
     button: n.linkUrl ? { label: "Abrir no S.P.Y.", url: n.linkUrl } : undefined,
+    info: copy?.info || { title: "Fique por dentro", text: "O S.P.Y. avisa você sobre o que importa no seu CRM, em tempo real, para você agir no momento certo." },
+    illustration: true,
     footerLink: n.settingsUrl ? { label: "Ajustar quais avisos você recebe por e-mail", url: n.settingsUrl } : undefined,
     brand: n.brand,
   });

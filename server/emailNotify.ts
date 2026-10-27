@@ -27,6 +27,8 @@ interface NotifyInput {
   linkPath?: string | null;
   /** Se informado, só esses usuários são candidatos (ex.: o vendedor responsável). */
   userIds?: string[];
+  /** Dados em destaque no cartão do e-mail (ex.: nome do lead, empresa). */
+  details?: { label: string; value: string }[];
 }
 
 /**
@@ -57,6 +59,8 @@ export async function emailNotifyTenant(db: any, tenantId: string, baseUrl: stri
       try {
         const mail = notificationEmail({
           kind: n.kind || "info",
+          triggerId: n.triggerId,
+          details: n.details,
           title: n.title.slice(0, 140),
           description: n.description.slice(0, 600),
           linkUrl: path ? `${baseUrl}${path}` : `${baseUrl}/app`,
