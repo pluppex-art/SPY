@@ -13,7 +13,6 @@ import { leadDrillColumns, contractDrillColumns, isContractAtivo } from "../../c
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
-import VendedoresPanel from "./components/VendedoresPanel";
 import SegmentosPanel from "./components/SegmentosPanel";
 import ProdutosPanel from "./components/ProdutosPanel";
 import CanaisPanel from "./components/CanaisPanel";
@@ -29,13 +28,12 @@ const SEGMENT_PALETTE = [
 // mockup, não um degradê genérico (etapas vizinhas ficariam parecidas).
 const FLUXO_COLORS = ["#3b82f6", "#a855f7", "#10b981", "#f97316", "#6366f1", "#ef4444"];
 
-type SubAba = "visaoGeral" | "canais" | "produtos" | "segmentos" | "vendedores";
+type SubAba = "visaoGeral" | "canais" | "produtos" | "segmentos";
 const SUB_ABAS: { id: SubAba; label: string }[] = [
   { id: "visaoGeral", label: "Visão Geral" },
   { id: "canais", label: "Canais" },
   { id: "produtos", label: "Produtos" },
   { id: "segmentos", label: "Segmentos" },
-  { id: "vendedores", label: "Vendedores" },
 ];
 
 export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData }) {
@@ -159,8 +157,6 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
         <ProdutosPanel dashboard={dashboard} />
       ) : subAba === "segmentos" ? (
         <SegmentosPanel dashboard={dashboard} />
-      ) : subAba === "vendedores" ? (
-        <VendedoresPanel dashboard={dashboard} />
       ) : (
       <>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

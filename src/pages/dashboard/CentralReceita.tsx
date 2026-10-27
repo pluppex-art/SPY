@@ -23,6 +23,7 @@ import { useDashboard } from "./useDashboard";
 import { DashboardGoalAlerts } from "./components/DashboardGoalAlerts";
 import { RevenueTabs, type RevenueTabId } from "./components/RevenueTabs";
 import MapaDaReceita from "./MapaDaReceita";
+import VendedoresPanel from "./components/VendedoresPanel";
 import OportunidadesPriorizadas from "./Oportunidades";
 import VazamentosReceita from "./VazamentosReceita";
 import InteligenciaAurora from "./InteligenciaAurora";
@@ -55,7 +56,7 @@ export default function CentralReceita() {
   // conteúdo AQUI (sem navegar pra outra rota, pedido explícito do usuário),
   // todas compartilhando o mesmo filtro de período (dateFrom/dateTo acima)
   // via a prop `dashboard` repassada pra cada uma.
-  const [tab, setTab] = useState<RevenueTabId>("central");
+  const [tab, setTab] = useState<RevenueTabId>("mapaReceita");
 
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
@@ -182,6 +183,7 @@ export default function CentralReceita() {
       {tab === "vazamentos" && <VazamentosReceita dashboard={dashboard} />}
       {tab === "aurora" && <InteligenciaAurora dashboard={dashboard} />}
       {tab === "previsao" && <PrevisaoDecisao dashboard={dashboard} />}
+      {tab === "vendedores" && <VendedoresPanel dashboard={dashboard} />}
 
       {tab === "central" && (
       <>
