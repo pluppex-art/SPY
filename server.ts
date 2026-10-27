@@ -4916,6 +4916,9 @@ app.post("/api/admin/team-user", requireUser, async (req: any, res) => {
     if (profileError) {
       console.error("[team-user] Falha ao criar perfil:", profileError.message);
       if (createdNow && userId) await supabaseService.auth.admin.deleteUser(userId);
+      if (/PLAN_LIMIT_USERS/.test(profileError.message)) {
+        return res.status(409).json({ error: "Limite de usuários do plano atingido. Amplie o plano para adicionar mais pessoas.", code: "plan_limit_users" });
+      }
       return res.status(500).json({ error: "Erro ao criar o perfil do usuário." });
     }
     return res.status(201).json({ success: true, userId });
@@ -4998,7 +5001,7 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
   const { tenantName, niche, adminEmail, adminPassword, plan, primaryColor, timezone, modules, implementationId } = req.body ?? {};
   if (!tenantName?.trim()) return res.status(400).json({ error: "Informe o nome da empresa." });
   if (!adminEmail?.trim()) return res.status(400).json({ error: "Informe o e-mail do administrador da empresa." });
-  if (!adminPassword || adminPassword.length < 6) return res.status(400).json({ error: "A senha do administrador precisa ter pelo menos 6 caracteres." });
+  if (!adminPassword || adminPassword.length < 8) return res.status(400).json({ error: "A senha do administrador precisa ter pelo menos 8 caracteres." });
 
   try {
     const { data: existingUser } = await supabaseService.from("users").select("id").eq("email", adminEmail.trim()).maybeSingle();

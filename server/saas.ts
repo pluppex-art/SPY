@@ -174,9 +174,23 @@ export function createSaas(deps: Deps) {
     if (!tenantId) return res.status(403).json({ error: "Tenant inválido." });
     const { data: sub } = await req.supabase.from("tenant_subscriptions").select("*, plan:subscription_plans(*)").eq("tenant_id", tenantId).maybeSingle();
     const st = await tenantState(tenantId);
+    // Uso x limite do plano: só conta (HEAD, via índice) quando o plano define limite — empresa sem limite não paga a consulta.
+    const limits = (sub?.plan?.limits ?? {}) as Record<string, any>;
+    const usage: Record<string, { used: number; limit: number }> = {};
+    if (supabaseService && ["trial", "active", "past_due"].includes(sub?.status)) {
+      if (limits.leads) {
+        const { count } = await supabaseService.from("leads").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).is("deleted_at", null);
+        usage.leads = { used: count ?? 0, limit: Number(limits.leads) };
+      }
+      if (limits.users) {
+        const { count } = await supabaseService.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).is("deleted_at", null).eq("active", true);
+        usage.users = { used: count ?? 0, limit: Number(limits.users) };
+      }
+    }
     res.json({
       tenantId,
       subscription: sub ?? null,
+      usage,
       effectiveStatus: sub?.status ?? "none",
       blocked: st.blocked,
       ai: { used: st.used, limit: st.limit, warnPct: st.warnPct, hardStop: st.hardStop },

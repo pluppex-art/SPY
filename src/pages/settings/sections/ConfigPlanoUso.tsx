@@ -57,6 +57,24 @@ export default function ConfigPlanoUso() {
             )}
           </Card>
 
+          {status?.usage && Object.keys(status.usage).length > 0 && (
+            <Card className="p-5 space-y-3 md:col-span-2">
+              <div className="flex items-center gap-2 text-sm font-bold"><CreditCard className="w-4 h-4" /> Uso do plano</div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {Object.entries(status.usage).map(([key, u]) => {
+                  const p = Math.min(100, Math.round((u.used / u.limit) * 100));
+                  return (
+                    <div key={key} className="space-y-1.5">
+                      <div className="flex justify-between text-sm"><span>{key === "leads" ? "Leads" : "Usuários"}</span><span className="text-[var(--color-text-muted)]">{u.used.toLocaleString("pt-BR")} de {u.limit.toLocaleString("pt-BR")}</span></div>
+                      <div className="h-2 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden"><div className={`h-full ${p >= 100 ? "bg-danger" : p >= 85 ? "bg-warning" : "bg-success"}`} style={{ width: `${p}%` }} /></div>
+                      {p >= 100 && <p className="text-xs text-danger">Limite atingido — novos registros serão recusados até ampliar o plano.</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
           <Card className="p-5 space-y-3">
             <div className="flex items-center gap-2 text-sm font-bold"><Sparkles className="w-4 h-4" /> Consumo de IA (mês)</div>
             <p className="text-2xl font-black">{(ai?.used ?? 0).toLocaleString("pt-BR")} <span className="text-sm font-medium text-[var(--color-text-muted)]">tokens{ai?.limit ? ` de ${ai.limit.toLocaleString("pt-BR")}` : " · sem limite"}</span></p>
