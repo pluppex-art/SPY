@@ -29,7 +29,7 @@ export default function Clientes() {
   // compartilhado, então nem tinha realtime nem via ao vivo a sincronia de
   // Cidade/Setor/Documento feita a partir do Detalhe do Lead — só depois de
   // recarregar a página).
-  const { leads, clienteBase: clientes, contracts, addClienteBase, updateClienteBase, deleteClienteBase } = useData();
+  const { leads, clienteBase: clientes, contracts, addClienteBase, updateClienteBase, deleteClienteBase, ensureLeadForCliente } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<any | null>(null);
   const [contatosClienteId, setContatosClienteId] = useState<string | null>(null);
@@ -233,7 +233,7 @@ export default function Clientes() {
   // aqui — mesmo padrão já usado em ClienteDetalhesModal.tsx). Sem lead
   // vinculado (cliente cadastrado manualmente), cai no modal simples de
   // sempre, porque LeadDetailsModal não tem como renderizar sem um lead real.
-  const openClienteOrLead = (clienteId: string) => {
+  const openClienteOrLead = async (clienteId: string) => {
     const dealLeads = (leads || []).filter((l: any) => l.clientId === clienteId);
     if (dealLeads.length > 0) {
       const mostRecent = [...dealLeads].sort((a: any, b: any) =>
@@ -241,16 +241,12 @@ export default function Clientes() {
       )[0];
       setSelectedLeadForDetails(mostRecent);
     } else {
-      // Cliente sem lead (cadastro manual, importação): abre o MESMO card do lead, montado
-      // a partir do cadastro do cliente, só pra visualizar — não cria nada no banco.
+      // O lead é o cliente: quem ainda não tem lead (cadastro manual, importação) ganha um agora,
+      // e o card aberto é exatamente o mesmo do Pipeline.
       const c = (clientes || []).find((x: any) => x.id === clienteId);
-      if (c) setSelectedLeadForDetails({
-        id: c.id, clientId: c.id, clientName: c.name,
-        name: c.name, company: c.name, email: c.email || "", phone: c.phone || "", cnpj: c.documento || "",
-        status: "Fechado", value: 0, priority: "Média", source: "Base de Clientes",
-        stageId: "", pipelineId: "comercial", customFields: {}, productIds: [], tags: [],
-        date: c.created_at, createdAt: c.created_at, _somenteCliente: true,
-      });
+      if (!c) return;
+      const lead = await ensureLeadForCliente(c);
+      if (lead) setSelectedLeadForDetails(lead);
     }
   };
 
@@ -287,11 +283,7 @@ export default function Clientes() {
             clientes={clientesFiltrados}
             decisorPorCliente={decisorPorCliente}
             onDelete={handleDeleteCliente}
-            onEdit={(c) => {
-              const hasDeal = (leads || []).some((l: any) => l.clientId === c.id);
-              if (hasDeal) openClienteOrLead(c.id);
-              else setEditingCliente(c); // sem lead vinculado — só dá pra editar os dados básicos mesmo
-            }}
+            onEdit={(c) => openClienteOrLead(c.id)}
             onManageContatos={setContatosClienteId}
             onOpenDetalhes={openClienteOrLead}
           />
@@ -311,9 +303,7 @@ export default function Clientes() {
             onDelete={(id: any) => (idsMax.has(id) ? somenteConsulta() : handleDeleteCliente(id))}
             onEdit={(c: any) => {
               if (idsMax.has(c.id)) return somenteConsulta();
-              const hasDeal = (leads || []).some((l: any) => l.clientId === c.id);
-              if (hasDeal) openClienteOrLead(c.id);
-              else setEditingCliente(c);
+              openClienteOrLead(c.id);
             }}
             onManageContatos={(id: any) => (idsMax.has(id) ? somenteConsulta() : setContatosClienteId(id))}
             onOpenDetalhes={(id: any) => (idsMax.has(id) ? somenteConsulta() : openClienteOrLead(id))}
@@ -340,7 +330,6 @@ export default function Clientes() {
         isOpen={!!selectedLeadForDetails}
         onClose={() => setSelectedLeadForDetails(null)}
         lead={selectedLeadForDetails}
-        somenteLeitura={!!selectedLeadForDetails?._somenteCliente}
       />
     </PageContainer>
   );

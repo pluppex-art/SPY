@@ -1786,6 +1786,49 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  // Cliente da Base de Clientes sem lead (cadastro manual, importação): o lead é o cliente, então
+  // ele ganha um lead de verdade na primeira vez que alguém o abre — criado em silêncio (sem aviso de
+  // "novo lead", sem IA), já como ganho e com a data de cadastro do cliente. Etapa e funil são copiados
+  // dos ganhos que o próprio tenant já tem, então vale para qualquer empresa sem configuração.
+  const ensureLeadInFlightRef = React.useRef<Map<string, Promise<Lead | null>>>(new Map());
+  const ensureLeadForCliente = (c: any): Promise<Lead | null> => {
+    const existente = leads.find((l: any) => l.clientId === c.id);
+    if (existente) return Promise.resolve(existente);
+    const emAndamento = ensureLeadInFlightRef.current.get(c.id);
+    if (emAndamento) return emAndamento;
+
+    const criar = async (): Promise<Lead | null> => {
+      const effectiveTenantId = tenantId || user?.tenantId;
+      if (!effectiveTenantId) return null;
+      const modelo: any = leads.find((l: any) => l.status === 'Fechado' && l.clientId && l.stageId);
+      const cadastro = typeof c.created_at === 'string' && /^\d{4}-\d{2}-\d{2}/.test(c.created_at) ? c.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10);
+      const novo: any = {
+        id: crypto.randomUUID(), name: c.name || 'Cliente', company: '', email: c.email ?? '', phone: c.phone ?? '',
+        cnpj: c.documento ?? '', seller: '', title: '', date: cadastro, status: 'Fechado', priority: 'Média',
+        value: 0, stageId: modelo?.stageId ?? '', pipelineId: modelo?.pipelineId ?? 'comercial', scoreIA: 50,
+        tenantName: modelo?.tenantName ?? user?.tenantName ?? '', lead_interesse_cliente: '',
+        customFields: { origin: 'base-de-clientes' }, clientId: c.id, clientName: c.name || '',
+        source: 'Base de Clientes', productIds: [], notes: '',
+      };
+      createdLeadIdsRef.current.add(novo.id);
+      if (supabase) {
+        const { error } = await supabase.from('leads').insert({ ...novo, tenant_id: effectiveTenantId, filial_id: activeFilialId });
+        if (error) {
+          createdLeadIdsRef.current.delete(novo.id);
+          console.error('ensureLeadForCliente:', error.message);
+          toast.error(`Não foi possível abrir o cliente: ${friendlyError(error)}`);
+          return null;
+        }
+      }
+      setLeads(prev => [novo, ...prev]);
+      return novo as Lead;
+    };
+
+    const p = criar().finally(() => { ensureLeadInFlightRef.current.delete(c.id); });
+    ensureLeadInFlightRef.current.set(c.id, p);
+    return p;
+  };
+
   // Trava contra corrida assíncrona: `!lead.clientId` (usado tanto aqui quanto
   // na reconciliação logo após updateLead) depende do estado local `leads`,
   // que fica defasado enquanto o `updateLead(lead.id, { clientId })` de
@@ -3513,7 +3556,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       leads: vis?.leads ?? leads, avgWonTicket, tasks: vis?.tasks ?? tasks, contracts: vis?.contracts ?? contracts, notifications, leadActivities: vis?.leadActivities ?? leadActivities, loadLeadHistory, financeEntries, appointments,
       sellerRestricted,
       theme, toggleTheme,
-      addLead, updateLead, deleteLead, moveLead,
+      addLead, ensureLeadForCliente, updateLead, deleteLead, moveLead,
       addTask, updateTask, deleteTask, addContract, updateContract, deleteContract,
       addNotification, markNotificationAsRead, markAllNotificationsAsRead,
       addLeadActivity,

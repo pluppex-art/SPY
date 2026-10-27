@@ -188,6 +188,8 @@ export interface DataContextType {
   theme: 'dark' | 'light';
   toggleTheme: () => void;
   addLead: (lead: Omit<Lead, 'id'>) => Promise<boolean>;
+  /** O lead é o cliente: devolve o lead do cliente, criando-o (em silêncio) se ainda não existir. */
+  ensureLeadForCliente: (cliente: any) => Promise<Lead | null>;
   updateLead: (id: string, updates: Partial<Lead>) => Promise<boolean>;
   deleteLead: (id: string) => Promise<boolean>;
   moveLead: (leadId: string, destStageId: string, index: number) => Promise<void>;

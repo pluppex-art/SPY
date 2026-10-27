@@ -32,11 +32,9 @@ interface LeadDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   lead: any;
-  /** Cliente sem lead no funil (Base de Clientes): mostra o card, sem nada que grave. */
-  somenteLeitura?: boolean;
 }
 
-export function LeadDetailsModal({ isOpen, onClose, lead, somenteLeitura = false }: LeadDetailsModalProps) {
+export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProps) {
   const { updateLead, leadActivities, loadLeadHistory, proposals, products, leads: allLeads } = useData();
   const { formatCurrency } = useLocalization();
   const { activeTenantId } = useAuth();
@@ -141,7 +139,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead, somenteLeitura = false
   const initials = ((companyName || leadName || "LD").substring(0, 2)).toUpperCase();
 
   const moveToStage = (stg: any) => {
-    if (somenteLeitura) { toast.info("Cliente sem lead no funil: somente visualização."); return; }
     setCurrentStageId(stg.id);
     const newStatus = statusFromStageName(stg.name);
     updateLead(lead.id, { stageId: stg.id, status: newStatus });
@@ -177,7 +174,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead, somenteLeitura = false
         position="right"
         overlay="light"
         noPadding
-        footer={somenteLeitura ? undefined : (
+        footer={
           <LeadDetailsModalFooter
             isEditingInline={isEditingInline}
             setIsEditingInline={setIsEditingInline}
@@ -189,7 +186,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead, somenteLeitura = false
             companyName={companyName}
             leadName={leadName}
           />
-        )}
+        }
       >
         {/* `key={lead.id}` força um remount leve deste bloco ao trocar de lead
             direto pelo Pipeline (painel já é uma instância única, só o `lead`
@@ -209,17 +206,17 @@ export function LeadDetailsModal({ isOpen, onClose, lead, somenteLeitura = false
             lead={lead}
             seller={seller}
             setAlterationLogs={setAlterationLogs}
-            updateLead={somenteLeitura ? (async () => false) : updateLead}
+            updateLead={updateLead}
             showCopilot={showCopilot}
             setShowCopilot={setShowCopilot}
             onClose={onClose}
             moveToStage={moveToStage}
-            onAgendarReuniao={somenteLeitura ? undefined : () => setShowAgendarReuniao(true)}
+            onAgendarReuniao={() => setShowAgendarReuniao(true)}
           />
 
           {/* ── Tab bar ── */}
           <div className="flex border-b border-[var(--color-border-subtle)] overflow-x-auto scrollbar-none shrink-0 bg-[var(--color-surface-elevated)] px-2 pt-1.5 gap-1">
-            {(somenteLeitura ? LeadDetailsModalTabs.filter((t) => t.id === "informacoes" || t.id === "historico") : LeadDetailsModalTabs).map((tab) => {
+            {LeadDetailsModalTabs.map((tab) => {
               const isActive = currentTab === tab.id;
               return (
                 <button
@@ -247,11 +244,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead, somenteLeitura = false
               <div className="h-full">
                 {currentTab === "informacoes" && (
                   <div className="px-5 py-4 space-y-3">
-                    {somenteLeitura && (
-                      <p className="text-[11px] text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] px-3 py-2">
-                        Cliente sem lead no funil — visualização dos dados do cliente.
-                      </p>
-                    )}
                     <ProfileSection
                       lead={lead}
                       companyName={companyName}    setCompanyName={setCompanyName}

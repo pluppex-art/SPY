@@ -139,7 +139,7 @@ export function TimelineSection({ lead }: TimelineSectionProps) {
       }
 
       // 4) O ganho do próprio lead (Fechado) quando não há registro financeiro
-      if (out.length === 0 && lead.status === "Fechado" && !lead._somenteCliente) {
+      if (out.length === 0 && lead.status === "Fechado" && lead.customFields?.origin !== "base-de-clientes") {
         const cf = lead.customFields || {};
         const parcelas = toNumber(cf.parcelas ?? cf.installments);
         out.push({
