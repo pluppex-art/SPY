@@ -133,7 +133,7 @@ export default function PainelSolar() {
   return (
     <PageContainer
       title="Painel Executivo de Energia Solar"
-      description="Visão analítica de projetos fotovoltaicos, potência instalada (kWp), pipeline de contratos e homologação."
+      description="Visão analítica de projetos fotovoltaicos, potência instalada (kWp), funil de contratos e homologação."
       actions={
         <div className="flex items-center gap-2">
           <Link
@@ -204,7 +204,7 @@ export default function PainelSolar() {
 
         <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-blue-500/20 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Valor em Pipeline</span>
+            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Valor na Central de Vendas</span>
             <DollarSign className="w-4 h-4 text-blue-500" />
           </div>
           <p className="text-2xl font-black text-blue-500 font-mono">

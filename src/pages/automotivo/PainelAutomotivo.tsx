@@ -118,7 +118,7 @@ export default function PainelAutomotivo() {
             to="/app/crm/pipeline?nicho=automotivo"
             className="h-9 px-3.5 text-xs font-bold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)] text-[var(--color-text-primary)] transition-all"
           >
-            <Columns3 className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Ver Pipeline CRM
+            <Columns3 className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Ver Central de Vendas
           </Link>
           <Link
             to="/app/automotivo/veiculos"

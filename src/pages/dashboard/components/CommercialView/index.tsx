@@ -66,7 +66,7 @@ export function CommercialView({ salesRanking, funnelData, recentActivities }: C
           <TrendingUp className="w-4 h-4 text-[var(--color-primary-blue)]" />
         </div>
         <div>
-          <h4 className="text-[10px] font-black text-[var(--color-primary-blue)] uppercase tracking-wider">Eficiência do Pipeline</h4>
+          <h4 className="text-[10px] font-black text-[var(--color-primary-blue)] uppercase tracking-wider">Eficiência da Central de Vendas</h4>
           <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
             {hasFunnel
               ? `${funnelData[0].value} leads em prospecção com taxa de conversão média estimada em ${topConversionRate}%.`

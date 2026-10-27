@@ -216,7 +216,7 @@ export default function ProjetosSolar() {
             to="/app/crm/pipeline?nicho=solar"
             className="h-9 px-3.5 text-xs font-bold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)] text-[var(--color-text-primary)] transition-all"
           >
-            <Columns3 className="w-3.5 h-3.5 text-amber-500" /> Pipeline CRM
+            <Columns3 className="w-3.5 h-3.5 text-amber-500" /> Central de Vendas
           </Link>
           <Button onClick={() => setModalOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs bg-amber-500 hover:bg-amber-600 text-white">
             <Plus className="w-3.5 h-3.5" /> Novo Projeto

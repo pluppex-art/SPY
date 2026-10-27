@@ -774,7 +774,7 @@ function StepContexto(props: any) {
                       "text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0",
                       selectedEntity.source === "cliente" ? "bg-success/10 text-success" : "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]",
                     )}>
-                      {selectedEntity.source === "cliente" ? "Cliente" : "Lead no Pipeline"}
+                      {selectedEntity.source === "cliente" ? "Cliente" : "Lead na Central de Vendas"}
                     </span>
                   </p>
                   <p className="text-[10px] text-[var(--color-text-muted)] truncate">{selectedEntity.documento || "Sem documento"}</p>
@@ -801,7 +801,7 @@ function StepContexto(props: any) {
                         "text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0",
                         c.source === "cliente" ? "bg-success/10 text-success" : "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]",
                       )}>
-                        {c.source === "cliente" ? "Cliente" : "Lead no Pipeline"}
+                        {c.source === "cliente" ? "Cliente" : "Lead na Central de Vendas"}
                       </span>
                     </button>
                   )) : (

@@ -213,7 +213,7 @@ export function TaskDetailsModal({ task, onClose, columns, onEdit, onDelete, onD
                 {lead.email && <p className="flex items-center gap-2 text-[11px] text-[var(--color-text-muted)] truncate"><Mail className="w-3 h-3 shrink-0" /> {lead.email}</p>}
                 {lead.phone && <p className="flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]"><Phone className="w-3 h-3 shrink-0" /> {lead.phone}</p>}
                 <Button variant="outline" onClick={() => { onClose(); navigate(`/app/crm/pipeline?leadId=${lead.id}`); }} className="w-full h-8 text-[11px] font-bold gap-1.5">
-                  <ExternalLink className="w-3 h-3" /> Abrir no pipeline
+                  <ExternalLink className="w-3 h-3" /> Abrir na Central de Vendas
                 </Button>
               </div>
             ) : (

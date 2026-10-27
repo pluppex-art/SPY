@@ -139,7 +139,7 @@ export function WhatsAppTriggersSection() {
                 <select value={newRuleAction} onChange={(e) => setNewRuleAction(e.target.value)}
                   className="bg-[var(--color-surface)] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 w-full font-semibold">
                   <option value="Adicionar tag de interesse">Adicionar tag de interesse</option>
-                  <option value="Cadastrar na Pipeline SDR de Lead">Cadastrar na Pipeline SDR (Novo Lead)</option>
+                  <option value="Cadastrar na Pipeline SDR de Lead">Cadastrar na Central de Vendas SDR (Novo Lead)</option>
                   <option value="Notificar com alerta de follow-up">Alertar vendedor / Enviar Notificação</option>
                 </select>
               </div>

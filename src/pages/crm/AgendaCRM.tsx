@@ -535,7 +535,7 @@ export default function AgendaCRM() {
                     {Math.abs(kpiTrend.totalDeltaPct)}% vs mês anterior
                   </p>
                 ) : (
-                  <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold mt-1">Pipeline ativo de conversão</p>
+                  <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold mt-1">Funil ativo de conversão</p>
                 )}
               </div>
               <div className="text-purple-500/70 dark:text-purple-400/70 pb-1">

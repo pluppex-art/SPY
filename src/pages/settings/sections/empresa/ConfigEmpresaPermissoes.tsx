@@ -9,7 +9,7 @@ import { ALL_MODULES } from "./ModulesCombobox";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 
 const MODULE_LABELS: Record<string, string> = {
-  crm: "CRM & Pipeline", financeiro: "Financeiro", engajamento: "Engajamento",
+  crm: "CRM & Central de Vendas", financeiro: "Financeiro", engajamento: "Engajamento",
   marketing: "Marketing", educacao: "Educação", clinica: "Clínica",
   rh: "RH & Equipe", bi: "BI & Dashboards", produtividade: "Tarefas", catalogo: "Catálogo", dev: "Dev",
 };

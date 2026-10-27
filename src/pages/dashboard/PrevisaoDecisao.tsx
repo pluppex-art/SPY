@@ -124,7 +124,7 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">Cenário base</p>
         </Card>
         <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Target className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Pipeline Ponderado</span></div>
+          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Target className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Central de Vendas Ponderada</span></div>
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(pipelinePonderado)}</p>
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{leadsAbertos.length} oportunidade{leadsAbertos.length === 1 ? "" : "s"}</p>
         </Card>
@@ -143,7 +143,7 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1">Cenários de Receita</h3>
-          <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Simulação a partir da tendência real dos últimos meses + pipeline ponderado por Score IA.</p>
+          <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Simulação a partir da tendência real dos últimos meses + funil ponderado por Score IA.</p>
           <div className="flex flex-wrap gap-2 mb-3">
             {cenarios.map((c) => (
               <div key={c.label} className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-2.5 py-1.5">

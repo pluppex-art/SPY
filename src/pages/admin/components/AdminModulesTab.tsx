@@ -36,7 +36,7 @@ const DEFAULT_MODULES: Record<string, boolean> = {
 };
 
 const MODULE_DEFINITIONS = [
-  { id: "crm", title: "CRM & Funil de Vendas", desc: "Leads, pipeline comercial, rodízio de closers e SDR IA", icon: Target, category: "Comercial", color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
+  { id: "crm", title: "CRM & Funil de Vendas", desc: "Leads, funil comercial, rodízio de closers e SDR IA", icon: Target, category: "Comercial", color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
   { id: "aurora", title: "Aurora Diretoria IA", desc: "Assistente executiva com inteligência e comandos por voz", icon: Sparkles, category: "Inteligência", color: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20" },
   { id: "produtividade", title: "Tarefas & Produtividade", desc: "Quadro Kanban de operações e gestão de follow-ups", icon: Clock, category: "Operações", color: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20" },
   { id: "financeiro", title: "Cofre & Financeiro", desc: "Contas a pagar/receber, DRE, conciliação e metas", icon: DollarSign, category: "Finanças", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },

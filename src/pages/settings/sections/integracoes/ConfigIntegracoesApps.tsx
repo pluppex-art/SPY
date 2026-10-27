@@ -1411,7 +1411,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
                     { key: "PageView", label: "PageView", desc: "Abertura de Landing Pages & Formulários" },
                     { key: "Lead", label: "Lead", desc: "Formulário enviado ou lead cadastrado no CRM" },
                     { key: "Schedule", label: "Schedule", desc: "Reunião de qualificação agendada no SDR" },
-                    { key: "Purchase", label: "Purchase", desc: "Negócio marcado como 'Ganho' no Pipeline" },
+                    { key: "Purchase", label: "Purchase", desc: "Negócio marcado como 'Ganho' na Central de Vendas" },
                     { key: "ViewContent", label: "ViewContent", desc: "Visualização do catálogo de produtos" },
                     { key: "Contact", label: "Contact", desc: "Clique para iniciar conversa no WhatsApp" },
                   ].map((evt) => (

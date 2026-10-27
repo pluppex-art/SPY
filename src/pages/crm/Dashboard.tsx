@@ -89,7 +89,7 @@ export default function Dashboard() {
     return [
       { label: "Leads Totais",      value: totalLeads,                    icon: Users, drill: { subtitle: `${all.length} lead${all.length === 1 ? "" : "s"} no total`, rows: all, columns: leadColumns } },
       { label: "Score IA Médio",    value: avgScore.toFixed(1),           icon: Brain },
-      { label: "Pipeline Total",    value: `R$ ${(totalValue/1000).toFixed(1)}k`, icon: DollarSign, drill: { subtitle: `${all.length} lead${all.length === 1 ? "" : "s"} somados`, rows: all, columns: leadColumns } },
+      { label: "Total na Central de Vendas",    value: `R$ ${(totalValue/1000).toFixed(1)}k`, icon: DollarSign, drill: { subtitle: `${all.length} lead${all.length === 1 ? "" : "s"} somados`, rows: all, columns: leadColumns } },
       { label: "Taxa de Conversão", value: `${winRate.toFixed(1)}%`,      icon: Award, drill: { subtitle: `${wonLeadsRows.length} negócio${wonLeadsRows.length === 1 ? "" : "s"} fechado${wonLeadsRows.length === 1 ? "" : "s"}`, rows: wonLeadsRows, columns: leadColumns } },
       { label: "Gatilhos de Automação Ativos", value: leadScoreTriggers.length, icon: Zap, drill: { subtitle: `${leadScoreTriggers.length} gatilho${leadScoreTriggers.length === 1 ? "" : "s"} configurado${leadScoreTriggers.length === 1 ? "" : "s"}`, rows: leadScoreTriggers as any[], columns: triggerColumns } },
     ];

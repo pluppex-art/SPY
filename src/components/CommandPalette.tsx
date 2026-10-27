@@ -11,7 +11,7 @@ import { normalizeText } from "../lib/utils";
 
 const NAV_ACTIONS = [
   { name: "Dashboard Principal", icon: LayoutDashboard, path: "/app/dashboard", category: "Navegação" },
-  { name: "Pipeline de Vendas", icon: Briefcase, path: "/app/crm/pipeline", category: "Navegação" },
+  { name: "Central de Vendas", icon: Briefcase, path: "/app/crm/pipeline", category: "Navegação" },
   { name: "Base de Clientes", icon: Users, path: "/app/crm/clientes", category: "Navegação" },
   { name: "Propostas", icon: FileText, path: "/app/crm/propostas", category: "Navegação" },
   { name: "Contratos", icon: FileSignature, path: "/app/crm/contratos", category: "Navegação" },
@@ -164,7 +164,7 @@ export function CommandPalette() {
                   <div className="space-y-4">
                     {leadResults.length > 0 && (
                       <div className={groupClass}>
-                        <div className={groupLabelClass}>{t("Leads / Pipeline")}</div>
+                        <div className={groupLabelClass}>{t("Leads / Central de Vendas")}</div>
                         {leadResults.map((l: any) => (
                           <button key={l.id} onClick={() => handleSelect("/app/crm/pipeline")} className={itemClass}>
                             <div className={iconWrapClass}><Briefcase className="w-4 h-4" /></div>

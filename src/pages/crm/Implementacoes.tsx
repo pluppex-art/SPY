@@ -291,8 +291,8 @@ export default function Implementacoes() {
             </Link>
           )}
           {etapas.origem === "crm" && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" title="As colunas acima são as mesmas etapas do funil de Implementação no Pipeline — mover um card aqui também move lá.">
-              <Workflow className="w-3 h-3" /> Espelhado do Pipeline
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" title="As colunas acima são as mesmas etapas do funil de Implementação na Central de Vendas — mover um card aqui também move lá.">
+              <Workflow className="w-3 h-3" /> Espelhado da Central de Vendas
             </span>
           )}
           {view === "lista" && (

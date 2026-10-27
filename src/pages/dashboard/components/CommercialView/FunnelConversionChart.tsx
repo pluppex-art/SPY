@@ -16,7 +16,7 @@ interface FunnelConversionChartProps {
   funnelData: FunnelStep[];
 }
 
-/** "Eficiência do Pipeline" saiu daqui — virou uma faixa só, de largura
+/** "Eficiência da Central de Vendas" saiu daqui — virou uma faixa só, de largura
  * inteira, compartilhada com o Ranking de Vendas (ver CommercialView/index.tsx),
  * em vez de um card embutido só deste componente. */
 export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps) {

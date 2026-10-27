@@ -412,7 +412,7 @@ export function StrategicalView({
               <div className="space-y-4">
                 <div>
                   <p className="text-xs font-bold text-[var(--color-text-primary)] mb-1 flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" /> Pipeline em Aberto
+                    <Zap className="w-3.5 h-3.5 text-amber-500" /> Central de Vendas em Aberto
                   </p>
                   <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
                     {leadsAbertos.length} lead(s) em negociação, somando {formatCurrency(valorPipelineAberto)}.

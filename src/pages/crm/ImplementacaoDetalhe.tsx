@@ -227,7 +227,7 @@ export default function ImplementacaoDetalhe() {
             <select
               value={stageInfo.stage.id}
               onChange={(e) => changeStage(e.target.value)}
-              title={etapas.origem === "os" ? `Etapa no funil "${etapas.nomeFunil}" da Ordem de Serviço` : "Etapa no funil de Implementação (espelhado do Pipeline)"}
+              title={etapas.origem === "os" ? `Etapa no funil "${etapas.nomeFunil}" da Ordem de Serviço` : "Etapa no funil de Implementação (espelhado da Central de Vendas)"}
               className={cn("h-9 px-3 rounded-[var(--radius-control)] text-xs font-bold border cursor-pointer bg-transparent", IMPLEMENTATION_STATUS_TONE[status])}
             >
               {implementacaoStages.map((s) => <option key={s.id} value={s.id} className="text-[var(--color-text-primary)] bg-[var(--color-surface-elevated)]">{s.name}</option>)}

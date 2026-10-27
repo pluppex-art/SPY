@@ -83,7 +83,7 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
           </div>
           <div>
             <div className="text-base font-black text-[var(--color-text-primary)]">{isNew ? "Novo Funil" : "Editar Funil"}</div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mt-0.5">Pipeline de vendas</div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mt-0.5">Funil de vendas</div>
           </div>
         </div>
       }
@@ -114,7 +114,7 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
               <Columns3 className={`w-5 h-5 shrink-0 ${tipo === "comercial" ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-faint)]"}`} />
               <div>
                 <div className="text-xs font-black uppercase tracking-tight">Comercial</div>
-                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">Pipeline manual pelos vendedores</div>
+                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">Funil manual pelos vendedores</div>
               </div>
             </button>
           </div>

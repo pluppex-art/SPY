@@ -274,7 +274,7 @@ export function BusinessIntelligenceView() {
               </Card>
 
               <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-                <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-2">Leads por Etapa do Pipeline</span>
+                <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-2">Leads por Etapa da Central de Vendas</span>
                 {leadsPorEtapaData.length === 0 ? (
                   <p className="text-xs text-[var(--color-text-faint)] py-8 text-center">Sem leads.</p>
                 ) : (

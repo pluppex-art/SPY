@@ -86,7 +86,7 @@ export default function Oportunidades() {
             to="/app/crm/pipeline"
             className="h-9 px-3.5 text-xs font-bold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)] text-[var(--color-text-primary)] transition-all"
           >
-            <Columns3 className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Ver no Pipeline Kanban
+            <Columns3 className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Ver na Central de Vendas (Kanban)
           </Link>
           <Button onClick={() => setShowNewModal(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
             <Plus className="w-3.5 h-3.5" /> Nova Oportunidade
@@ -99,7 +99,7 @@ export default function Oportunidades() {
         activeCount={activeCount}
         onClear={clearFilters}
         kpis={[
-          { label: "Pipeline Total", value: formatCurrency(totalPipeline), icon: DollarSign, tone: "primary" },
+          { label: "Total na Central de Vendas", value: formatCurrency(totalPipeline), icon: DollarSign, tone: "primary" },
           { label: "Ganhos / Fechados", value: formatCurrency(totalWon), icon: TrendingUp, tone: "success" },
           { label: "Oportunidades Abertas", value: filtered.filter(o => isLeadOpen(o.status)).length, icon: Clock, tone: "warning" },
           { label: "Taxa de Sucesso", value: filtered.length > 0 ? `${Math.round((closedWon.length / filtered.length) * 100)}%` : "0%", icon: CheckCircle2, tone: "accent" },

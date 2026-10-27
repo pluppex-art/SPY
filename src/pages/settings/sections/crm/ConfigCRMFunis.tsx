@@ -113,7 +113,7 @@ export function ConfigCRMFunis() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Funis & Etapas</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Configure os pipelines de vendas e o comportamento do SDR IA.</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Configure os funis de vendas e o comportamento do SDR IA.</p>
         </div>
         <Button onClick={() => setEditingFunil("new")} className="px-6">
           <Plus className="w-4 h-4 mr-2" /> Novo Funil

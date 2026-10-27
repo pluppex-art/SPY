@@ -145,7 +145,7 @@ export default function CentralReceita() {
   const contratosAtivos = useMemo(() => (contracts as any[]).filter((c) => c.status !== "Cancelado" && c.status !== "Perdido"), [contracts]);
   const centralDrillConfig: Record<CentralDrillKey, { title: string; subtitle: string; rows: any[]; columns: DrillColumn[] }> = {
     receita: { title: "Receita Realizada", subtitle: `${contratosAtivos.length} contrato${contratosAtivos.length === 1 ? "" : "s"} ativo${contratosAtivos.length === 1 ? "" : "s"}`, rows: contratosAtivos, columns: contractColumnsMrr },
-    pipeline: { title: "Pipeline Total", subtitle: `${pipelineCount} oportunidade${pipelineCount === 1 ? "" : "s"} em aberto`, rows: leadsAbertos, columns: leadColumns },
+    pipeline: { title: "Total na Central de Vendas", subtitle: `${pipelineCount} oportunidade${pipelineCount === 1 ? "" : "s"} em aberto`, rows: leadsAbertos, columns: leadColumns },
     emRisco: { title: "Receita em Risco", subtitle: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"} inadimplente${contratosEmRisco.length === 1 ? "" : "s"}`, rows: contratosEmRisco, columns: contractColumnsMrr },
     recuperaveis: { title: "Oportunidades Recuperáveis", subtitle: `${oportunidadesRecuperaveis.length} lead${oportunidadesRecuperaveis.length === 1 ? "" : "s"} com sinal de intenção, parado${oportunidadesRecuperaveis.length === 1 ? "" : "s"}`, rows: oportunidadesRecuperaveis, columns: leadColumns },
   };
@@ -199,7 +199,7 @@ export default function CentralReceita() {
           )}
         </Card>
         <Card onClick={() => setDrillKey("pipeline")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Workflow className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Pipeline Total</span></div>
+          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Workflow className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Total na Central de Vendas</span></div>
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(pipelineValue)}</p>
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{pipelineCount} oportunidade{pipelineCount === 1 ? "" : "s"}</p>
         </Card>
@@ -232,7 +232,7 @@ export default function CentralReceita() {
           </Button>
         </div>
         {auroraAcoes.length === 0 ? (
-          <p className="text-xs text-[#fff]/70 italic">Nenhum sinal prioritário agora — pipeline em dia.</p>
+          <p className="text-xs text-[#fff]/70 italic">Nenhum sinal prioritário agora — Central de Vendas em dia.</p>
         ) : (
           <div className="space-y-2">
             {auroraAcoes.map((a, i) => {

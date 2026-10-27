@@ -179,7 +179,7 @@ export default function Pipeline() {
 
   return (
     <PageContainer
-      title="Leads & Pipeline"
+      title="Central de Vendas"
       description="Gerencie oportunidades em visão de lista ou kanban interativo."
       actions={
         <PipelineTopActions

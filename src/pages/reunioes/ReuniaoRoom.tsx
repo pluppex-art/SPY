@@ -763,7 +763,7 @@ export default function ReuniaoRoom() {
             <div className="flex items-center justify-between">
               <h4 className={sectionTitle}><User className="w-4 h-4 text-[var(--color-text-muted)]" /> Lead vinculado</h4>
               {lead && (
-                <button onClick={() => navigate(`/app/crm/pipeline?lead=${lead.id}`)} className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)] cursor-pointer bg-transparent border-none" title="Abrir no pipeline">
+                <button onClick={() => navigate(`/app/crm/pipeline?lead=${lead.id}`)} className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)] cursor-pointer bg-transparent border-none" title="Abrir na Central de Vendas">
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               )}

@@ -31,7 +31,7 @@ export function Sidebar({
   const { cargos, empresaFiliais, tenantPrimaryColor, funis } = useData();
   const navigate = useNavigate();
   const [funisOpen, setFunisOpen] = useState(false);
-  // Funis comerciais ativos: com mais de um, "Leads & Pipeline" vira um combo com a lista.
+  // Funis comerciais ativos: com mais de um, "Central de Vendas" vira um combo com a lista.
   const pipelineFunis = ((funis as any[]) || []).filter((f) => f.ativo !== false && f.tipo === "comercial");
   // Abre sozinho ao entrar no pipeline, mas o usuário pode fechar/abrir à vontade depois.
   const onPipelineRoute = location.pathname.startsWith("/app/crm/pipeline");

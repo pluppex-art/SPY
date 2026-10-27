@@ -65,7 +65,7 @@ export function resumoAcao(tipo: AcaoTipo, config: Record<string, any>): string 
     case "tarefa": return config.titulo ? `"${config.titulo}"` : "Sem título ainda";
     case "notificar": return config.destinatario_id ? "Para 1 pessoa" : "Para toda a equipe";
     case "crm_update": return config.chave ? `${config.chave} = ${config.valor || "—"}` : "Sem campo definido";
-    case "mover_funil": return config.pipeline_id ? `Pipeline: ${config.pipeline_id}` : "Sem destino definido";
+    case "mover_funil": return config.pipeline_id ? `Central de Vendas: ${config.pipeline_id}` : "Sem destino definido";
     case "mensagem": return config.texto ? `"${config.texto.slice(0, 40)}${config.texto.length > 40 ? "…" : ""}"` : "Sem texto ainda";
     case "api_call": return "Dispara os webhooks externos ativos (Configurações › Integrações)";
     default: return "";

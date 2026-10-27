@@ -333,7 +333,7 @@ export function ConfigPreferenciasSistema() {
         <div className="space-y-3">
           <div className="flex items-center justify-between p-3.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)]">
             <div>
-              <p className="text-xs font-bold text-[var(--color-text-primary)]">{t("Visualização Inicial do Pipeline")}</p>
+              <p className="text-xs font-bold text-[var(--color-text-primary)]">{t("Visualização Inicial da Central de Vendas")}</p>
               <p className="text-[10px] text-[var(--color-text-muted)]">{t("Escolha entre visão Kanban (colunas) ou Lista tabular ao abrir o CRM.")}</p>
             </div>
             <div className="flex gap-1.5 bg-[var(--color-surface-elevated)] p-1 rounded-lg border border-[var(--color-border-default)]">

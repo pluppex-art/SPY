@@ -1995,7 +1995,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             });
             addNotification({
               title: "Lead Qualificado (SDR -> Comercial)",
-              description: `O lead ${updatedLead.name} foi qualificado pela Master AI com temperatura ${tempLabel} e enviado ao pipeline comercial.`,
+              description: `O lead ${updatedLead.name} foi qualificado pela Master AI com temperatura ${tempLabel} e enviado à Central de Vendas.`,
               link_url: "/app/pipeline",
               type: "success",
             });

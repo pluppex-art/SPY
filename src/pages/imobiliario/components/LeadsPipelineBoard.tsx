@@ -738,7 +738,7 @@ function LeadDetailDrawer({ lead, onClose, onEdit, onGanho, onPerdido, onDelete,
               <div className="space-y-3">
                 {[
                   { label: `Entrou na etapa ${lead.etapa}`, time: `${lead.diasEtapa}d atrás`, icon: Building2 },
-                  { label: "Cadastrado no pipeline", time: lead.criadoEm, icon: Plus },
+                  { label: "Cadastrado na Central de Vendas", time: lead.criadoEm, icon: Plus },
                 ].map((item, i) => (
                   <div key={i} className="flex gap-3">
                     <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5">

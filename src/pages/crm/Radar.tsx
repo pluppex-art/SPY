@@ -459,7 +459,7 @@ export default function Radar() {
                             <a href={`https://wa.me/${whatsappDigits(r.l.phone)}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]" title="WhatsApp"><MessageCircle className="w-3.5 h-3.5" /></a>
                           </>
                         )}
-                        <button type="button" onClick={() => navigate(`/app/crm/pipeline?lead=${r.l.id}`)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]" title="Abrir no pipeline"><ExternalLink className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => navigate(`/app/crm/pipeline?lead=${r.l.id}`)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]" title="Abrir na Central de Vendas"><ExternalLink className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
                   </tr>

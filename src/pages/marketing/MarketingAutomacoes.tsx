@@ -325,7 +325,7 @@ export default function MarketingAutomacoes() {
                 </div>
                 <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Com base nos seus dados reais, aqui estão algumas oportunidades:</p>
                 {sugestoes.length === 0 ? (
-                  <p className="text-xs text-[var(--color-text-faint)] italic py-4 text-center">Nenhum sinal prioritário agora — pipeline em dia.</p>
+                  <p className="text-xs text-[var(--color-text-faint)] italic py-4 text-center">Nenhum sinal prioritário agora — Central de Vendas em dia.</p>
                 ) : (
                   <div className="space-y-2.5">
                     {sugestoes.map((s) => (

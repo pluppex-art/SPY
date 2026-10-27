@@ -612,7 +612,7 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
               </div>
               <Link to="/app/pipeline"
                 className="flex items-center justify-center gap-2 w-full p-3 bg-white/[0.03] border border-white/5 rounded-xl text-[11px] font-black text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all uppercase tracking-widest">
-                Ver todos no Pipeline <ExternalLink className="w-3.5 h-3.5" />
+                Ver todos na Central de Vendas <ExternalLink className="w-3.5 h-3.5" />
               </Link>
             </div>
           )}

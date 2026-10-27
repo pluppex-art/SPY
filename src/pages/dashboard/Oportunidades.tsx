@@ -109,7 +109,7 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{classificados.length}</p>
         </Card>
         <Card onClick={() => setFiltro("todas")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><ListChecks className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Valor no Pipeline</span></div>
+          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><ListChecks className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Valor na Central de Vendas</span></div>
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(pipelineValue)}</p>
         </Card>
         <Card onClick={() => setFiltro("prioritarias")} className="p-5 bg-[var(--color-surface-elevated)] border border-danger/20 cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">

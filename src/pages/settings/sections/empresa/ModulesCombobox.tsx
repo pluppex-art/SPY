@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 
 export const ALL_MODULES: { id: string; label: string; desc: string }[] = [
-  { id: "crm",          label: "CRM & Pipeline",        desc: "Leads, funil e SDR IA" },
+  { id: "crm",          label: "CRM & Central de Vendas",        desc: "Leads, funil e SDR IA" },
   { id: "financeiro",   label: "Financeiro",             desc: "Painel, entradas, saídas e DRE" },
   { id: "engajamento",  label: "Engajamento",            desc: "WhatsApp, e-mail e automações" },
   { id: "marketing",    label: "Marketing",              desc: "Campanhas, conteúdo e social" },
