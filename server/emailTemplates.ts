@@ -3,15 +3,16 @@
  * inline — é o que Gmail/Outlook renderizam de forma confiável — mais uma
  * versão em texto puro, que melhora a entrega e serve de fallback).
  *
- * Identidade: cabeçalho escuro com a logo do S.P.Y. (sempre a do S.P.Y., embutida via CID) e uma
- * faixa na cor da empresa dona do destinatário; botão, destaques e links usam essa mesma cor.
+ * Identidade: padrão laranja (o laranja oficial do S.P.Y.) com branco. Se a empresa dona do destinatário
+ * tem cor própria (tenants.primary_color), cabeçalho, botão e destaques passam a usar a cor dela. A logo é
+ * SEMPRE a do S.P.Y. (embutida via CID).
  */
-import { SPY_MARK_WHITE_PNG_B64 } from "./emailAssets.js";
+import { SPY_MARK_WHITE_PNG_B64, SPY_MARK_DARK_PNG_B64 } from "./emailAssets.js";
 
 const BRAND = "S.P.Y.";
 const TAGLINE = "Seu espião comercial";
-const COLOR_PRIMARY = "#2563eb";
-const COLOR_HEADER = "#0b1120";
+/** Laranja oficial do S.P.Y. (mesmo LOGIN_DEFAULT_COLOR do app): vale quando a empresa não definiu cor. */
+const COLOR_PRIMARY = "#f97316";
 const COLOR_TEXT = "#0f172a";
 const COLOR_BODY = "#334155";
 const COLOR_MUTED = "#64748b";
@@ -48,7 +49,7 @@ interface LayoutInput {
   button?: { label: string; url: string };
   /** Linha pequena abaixo do botão (ex.: "O link expira em 1 hora"). */
   note?: string;
-  /** Etiqueta colorida acima do título (ex.: "Novo lead"). */
+  /** Etiqueta colorida acima do título (ex.: "Novo lead"). color "brand" = a cor da empresa. */
   tag?: { label: string; color: string };
   /** Link discreto no rodapé (ex.: "Ajustar notificações"). */
   footerLink?: { label: string; url: string };
@@ -76,8 +77,11 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
   const onBrand = textOn(brandColor);
   const brandName = (input.brand?.name || "").trim();
 
+  // Cor de destaque legível sobre branco: a da marca, ou o texto escuro se a marca for clara demais.
+  const accent = luminance(brandColor) > 0.4 ? COLOR_TEXT : brandColor;
+  const tagColor = input.tag?.color === "brand" ? accent : input.tag?.color || accent;
   const tagHtml = input.tag
-    ? `<span style="display:inline-block;margin:0 0 16px 0;padding:5px 12px;border-radius:999px;background:${input.tag.color}1f;color:${input.tag.color};font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;">${esc(input.tag.label)}</span>`
+    ? `<span style="display:inline-block;margin:0 0 16px 0;padding:5px 12px;border-radius:999px;background:${tagColor}1f;color:${tagColor};font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;">${esc(input.tag.label)}</span>`
     : "";
 
   const paragraphsHtml = input.paragraphs
@@ -118,16 +122,15 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef2f7;padding:36px 12px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dde4ee;">
-        <tr><td style="background:${COLOR_HEADER};padding:26px 36px;">
+        <tr><td style="background:${brandColor};padding:26px 36px;">
           <table role="presentation" cellspacing="0" cellpadding="0"><tr>
             <td style="padding-right:14px;"><img src="cid:${MARK_CID}" alt="" width="46" height="46" style="display:block;border:0;width:46px;height:46px;"></td>
             <td>
-              <div style="font-size:24px;line-height:1.1;font-weight:800;letter-spacing:3px;color:#ffffff;font-family:${FONT};">${BRAND}</div>
-              <div style="margin-top:4px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;font-family:${FONT};">${TAGLINE}</div>
+              <div style="font-size:24px;line-height:1.1;font-weight:800;letter-spacing:3px;color:${onBrand};font-family:${FONT};">${BRAND}</div>
+              <div style="margin-top:4px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${onBrand};opacity:.85;font-family:${FONT};">${TAGLINE}</div>
             </td>
           </tr></table>
         </td></tr>
-        <tr><td style="height:5px;line-height:5px;font-size:0;background:${brandColor};">&nbsp;</td></tr>
         <tr><td style="padding:38px 36px 34px 36px;">
           ${tagHtml}
           <h1 style="margin:0 0 22px 0;font-size:26px;line-height:1.25;font-weight:800;color:${COLOR_TEXT};letter-spacing:-.3px;">${esc(input.title)}</h1>
@@ -165,7 +168,7 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
     text,
     attachments: [{
       filename: "spy.png",
-      content: Buffer.from(SPY_MARK_WHITE_PNG_B64, "base64"),
+      content: Buffer.from(onBrand === "#ffffff" ? SPY_MARK_WHITE_PNG_B64 : SPY_MARK_DARK_PNG_B64, "base64"),
       cid: MARK_CID,
       contentType: "image/png",
       contentDisposition: "inline",
@@ -175,7 +178,7 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
 
 const firstName = (name?: string | null) => (name || "").trim().split(/\s+/)[0] || "";
 const greeting = (name?: string | null) => (firstName(name) ? `Olá, ${firstName(name)}!` : "Olá!");
-const SECURITY_TAG = { label: "Segurança da conta", color: "#2563eb" };
+const SECURITY_TAG = { label: "Segurança da conta", color: "brand" };
 
 export function testEmail(brand?: EmailBrand): RenderedEmail {
   return layout("Teste de envio — S.P.Y.", {
@@ -220,7 +223,7 @@ export function passwordChangedEmail(name: string | null | undefined, whenIso: s
 export type NotificationKind = "success" | "info" | "warning" | "error";
 const KIND_STYLE: Record<NotificationKind, { label: string; color: string }> = {
   success: { label: "Boa notícia", color: "#16a34a" },
-  info: { label: "Aviso", color: "#2563eb" },
+  info: { label: "Aviso", color: "brand" },
   warning: { label: "Atenção", color: "#d97706" },
   error: { label: "Importante", color: "#dc2626" },
 };
