@@ -76,6 +76,10 @@ interface Spec {
   /** Dados em destaque (ex.: nome do lead, empresa). */
   details?: { label: string; value: string }[];
   button?: { label: string; url: string };
+  /** Link discreto abaixo do botão (ex.: "ou abrir o lead no S.P.Y."). */
+  secondaryLink?: { label: string; url: string };
+  /** Ícone da pílula e do cartão de dados (padrão: icon-user). */
+  icon?: "icon-user" | "icon-bell" | "icon-users" | "icon-chart";
   /** Aviso pequeno abaixo do botão, com linha separadora. */
   note?: string;
   info?: { title: string; text: string };
@@ -124,7 +128,7 @@ function render(spec: Spec): RenderedEmail {
   const pill = `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 22px 0;"><tr>
     <td style="background:${tint(pillColor, 0.14)};border-radius:999px;padding:6px 18px 6px 7px;">
       <table role="presentation" cellspacing="0" cellpadding="0"><tr>
-        <td width="30" height="30" align="center" valign="middle" style="width:30px;height:30px;border-radius:15px;background:${pillColor};">${img("icon-user", 16, "margin:0 auto;")}</td>
+        <td width="30" height="30" align="center" valign="middle" style="width:30px;height:30px;border-radius:15px;background:${pillColor};">${img(spec.icon || "icon-user", 16, "margin:0 auto;")}</td>
         <td style="padding-left:10px;font-size:13px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:${pillColor};font-family:${FONT};">${esc(spec.pill.label)}</td>
       </tr></table>
     </td></tr></table>`;
@@ -138,7 +142,7 @@ function render(spec: Spec): RenderedEmail {
 
   const details = spec.details?.length
     ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:6px 0 22px 0;background:${tint(strong, 0.07)};border-radius:18px;"><tr>
-        <td width="64" valign="middle" style="padding:22px 0 22px 22px;"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td width="64" height="64" align="center" valign="middle" style="width:64px;height:64px;border-radius:32px;background:${strong};">${img("icon-user", 30, "margin:0 auto;")}</td></tr></table></td>
+        <td width="64" valign="middle" style="padding:22px 0 22px 22px;"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td width="64" height="64" align="center" valign="middle" style="width:64px;height:64px;border-radius:32px;background:${strong};">${img(spec.icon || "icon-user", 30, "margin:0 auto;")}</td></tr></table></td>
         <td valign="middle" style="padding:20px 20px 20px 22px;">
           <table role="presentation" cellspacing="0" cellpadding="0" style="border-left:1px solid ${tint(strong, 0.25)};"><tr><td style="padding-left:22px;">
             ${spec.details.map((d, i) => `<div style="${i ? "margin-top:12px;" : ""}font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${COLOR_MUTED};font-family:${FONT};">${esc(d.label)}</div><div style="margin-top:3px;font-size:20px;line-height:1.25;font-weight:800;color:${COLOR_TEXT};font-family:${FONT};">${esc(d.value)}</div>`).join("")}
@@ -157,7 +161,8 @@ function render(spec: Spec): RenderedEmail {
        <table role="presentation" cellspacing="0" cellpadding="0" style="margin:16px 0 0 0;"><tr>
          <td valign="top" style="padding-right:10px;padding-top:2px;">${img("icon-link", 18)}</td>
          <td style="font-size:13.5px;line-height:1.5;color:${COLOR_MUTED};font-family:${FONT};">Se o botão não funcionar, copie e cole este endereço no navegador: <a href="${esc(spec.button.url)}" style="color:${strong};word-break:break-all;">${esc(spec.button.url)}</a></td>
-       </tr></table>`
+       </tr></table>
+       ${spec.secondaryLink ? `<p style="margin:14px 0 0 0;font-size:14px;line-height:1.5;color:${COLOR_MUTED};font-family:${FONT};">ou <a href="${esc(spec.secondaryLink.url)}" style="color:${strong};font-weight:700;text-decoration:underline;">${esc(spec.secondaryLink.label)}</a></p>` : ""}`
     : "";
 
   const note = spec.note
@@ -246,6 +251,7 @@ function render(spec: Spec): RenderedEmail {
     ...spec.paragraphs,
     ...(spec.details?.length ? ["", ...spec.details.map((d) => `${d.label}: ${d.value}`)] : []),
     ...(spec.button ? ["", `${spec.button.label}: ${spec.button.url}`] : []),
+    ...(spec.secondaryLink ? [`${spec.secondaryLink.label}: ${spec.secondaryLink.url}`] : []),
     ...(spec.note ? ["", spec.note] : []),
     ...(spec.info ? ["", `${spec.info.title} — ${spec.info.text}`] : []),
     ...(spec.footerLink ? ["", `${spec.footerLink.label}: ${spec.footerLink.url}`] : []),
@@ -322,18 +328,85 @@ const KIND_STYLE: Record<NotificationKind, { label: string; color: string }> = {
   error: { label: "Importante", color: "#dc2626" },
 };
 
-/** Texto próprio de cada tipo de aviso (id da tela de Preferências de Notificação). */
-const TRIGGER_COPY: Record<string, { pill: string; title1: string; title2: string; intro: string; headerLine2: string; info: { title: string; text: string } }> = {
+type Icon = "icon-user" | "icon-bell" | "icon-users" | "icon-chart";
+interface Copy { crm?: boolean; pill: string; title1: string; title2: string; intro: string; headerLine2: string; icon: Icon; info: { title: string; text: string } }
+
+/**
+ * Texto próprio de cada tipo de aviso. A chave é o "copyKey": normalmente o id do tipo da tela de
+ * Preferências de Notificação; alguns ids têm mais de um texto (tarefa_proxima serve a tarefa e à reunião).
+ */
+export const NOTIFICATION_COPY: Record<string, Copy> = {
   novo_lead: {
-    pill: "Novo lead recebido",
-    title1: "Novo Lead",
-    title2: "adicionado no S.P.Y.",
-    intro: "Um novo lead foi capturado e adicionado automaticamente no seu CRM.",
+    crm: true,
+    pill: "Novo lead recebido", title1: "Novo Lead", title2: "adicionado no S.P.Y.", icon: "icon-user",
+    intro: "Um novo lead foi capturado e adicionado automaticamente no seu CRM. Chame agora, enquanto ele ainda está pensando em você.",
     headerLine2: "Novo lead no seu CRM",
-    info: {
-      title: "Leads chegam automaticamente",
-      text: "O S.P.Y. monitora seus canais e adiciona oportunidades no CRM em tempo real, para você não perder nenhum potencial cliente.",
-    },
+    info: { title: "Leads chegam automaticamente", text: "O S.P.Y. monitora seus canais e adiciona oportunidades no CRM em tempo real, para você não perder nenhum potencial cliente." },
+  },
+  lead_distribuido: {
+    crm: true,
+    pill: "Lead atribuído a você", title1: "Lead atribuído", title2: "para você", icon: "icon-user",
+    intro: "Um lead acabou de ser colocado na sua carteira. Quanto mais rápido o primeiro contato, maiores as chances de fechar.",
+    headerLine2: "Lead atribuído no seu CRM",
+    info: { title: "Quem responde primeiro, vende mais", text: "Falar com o lead nos primeiros minutos multiplica a chance de conversão. O Agente Secreto acompanha a conversa com você." },
+  },
+  lead_esquentou: {
+    crm: true,
+    pill: "Oportunidade quente", title1: "Oportunidade", title2: "quente no seu CRM", icon: "icon-chart",
+    intro: "Este lead está com alta chance de fechamento. É a hora de priorizar o contato.",
+    headerLine2: "Oportunidade quente",
+    info: { title: "Foco no que mais converte", text: "O S.P.Y. avalia cada lead e avisa quando uma oportunidade esquenta, para você agir no momento certo." },
+  },
+  tarefa_proxima: {
+    pill: "Lembrete de tarefa", title1: "Sua tarefa", title2: "vence em breve", icon: "icon-bell",
+    intro: "Uma tarefa sua está chegando ao prazo. Separe alguns minutos para resolver antes que atrase.",
+    headerLine2: "Tarefa perto do prazo",
+    info: { title: "Prazo em dia, venda em dia", text: "Follow-ups no horário são o que mantém o funil andando. Concluiu? Marque como feita no S.P.Y." },
+  },
+  tarefa_vencida: {
+    pill: "Tarefa vencida", title1: "Tarefa", title2: "vencida", icon: "icon-bell",
+    intro: "Uma tarefa sua passou do prazo e ainda não foi concluída. Resolva agora ou reagende para não perder o ritmo.",
+    headerLine2: "Tarefa em atraso",
+    info: { title: "Reagende em um clique", text: "Se a data não faz mais sentido, ajuste o prazo no S.P.Y. para manter sua agenda realista." },
+  },
+  reuniao_proxima: {
+    pill: "Reunião começando", title1: "Sua reunião", title2: "começa em breve", icon: "icon-users",
+    intro: "Você tem um compromisso chegando. Confira os detalhes abaixo e entre com antecedência.",
+    headerLine2: "Reunião ou ligação em breve",
+    info: { title: "Chegue preparado", text: "Revise o histórico do lead e a pauta no S.P.Y. antes de começar. O Agente Secreto já tem o contexto da conversa." },
+  },
+  reuniao_confirmada: {
+    pill: "Reunião agendada", title1: "Reunião", title2: "agendada na sua agenda", icon: "icon-users",
+    intro: "Um novo compromisso entrou na sua agenda. Os detalhes estão logo abaixo.",
+    headerLine2: "Agenda atualizada",
+    info: { title: "Agenda sempre sincronizada", text: "Compromissos do Google Agenda e do S.P.Y. ficam juntos, e você recebe um lembrete antes de começar." },
+  },
+  proposta_aberta: {
+    crm: true,
+    pill: "Proposta visualizada", title1: "Seu cliente", title2: "abriu a proposta", icon: "icon-chart",
+    intro: "O cliente acabou de abrir a proposta que você enviou. É um ótimo momento para fazer contato.",
+    headerLine2: "Proposta visualizada",
+    info: { title: "Contato no momento certo", text: "Quem liga logo depois da visualização tem muito mais chance de fechar. Acompanhe o histórico da proposta no S.P.Y." },
+  },
+  proposta_aceita: {
+    crm: true,
+    pill: "Proposta aceita", title1: "Proposta", title2: "aceita pelo cliente", icon: "icon-chart",
+    intro: "O cliente aceitou a proposta. Hora de dar sequência e formalizar a venda.",
+    headerLine2: "Proposta aceita",
+    info: { title: "Próximo passo: formalizar", text: "O aceite foi registrado com nome, documento e horário. Acompanhe o contrato e a cobrança no S.P.Y." },
+  },
+  venda_fechada: {
+    crm: true,
+    pill: "Venda fechada", title1: "Venda", title2: "fechada no S.P.Y.", icon: "icon-chart",
+    intro: "Mais uma venda registrada no seu CRM. Parabéns ao time!",
+    headerLine2: "Venda fechada",
+    info: { title: "Onboarding sem atraso", text: "Com a venda fechada, siga para o financeiro e a entrega para o cliente começar bem." },
+  },
+  pagamento_recebido: {
+    pill: "Pagamento recebido", title1: "Pagamento", title2: "recebido", icon: "icon-chart",
+    intro: "Um pagamento foi confirmado e já aparece no financeiro do seu S.P.Y.",
+    headerLine2: "Pagamento confirmado",
+    info: { title: "Financeiro em tempo real", text: "Acompanhe receitas, vencimentos e conciliação sem sair do S.P.Y." },
   },
 };
 
@@ -342,17 +415,19 @@ export function notificationEmail(n: {
   kind: NotificationKind;
   title: string;
   description: string;
-  /** Id do tipo de aviso (ex.: "novo_lead"); quando há texto próprio pra ele, ele é usado. */
-  triggerId?: string;
+  /** Texto próprio do aviso (chave de NOTIFICATION_COPY); sem ele, vale o título/descrição recebidos. */
+  copyKey?: string;
   /** Dados em destaque no cartão (ex.: nome do lead, empresa). */
   details?: { label: string; value: string }[];
   linkUrl?: string;
+  /** Botão principal alternativo (ex.: "Chamar no WhatsApp"); quando existe, linkUrl vira o link secundário. */
+  primaryButton?: { label: string; url: string };
   settingsUrl?: string;
   name?: string | null;
   brand?: EmailBrand;
 }): RenderedEmail {
   const style = KIND_STYLE[n.kind] || KIND_STYLE.info;
-  const copy = n.triggerId ? TRIGGER_COPY[n.triggerId] : undefined;
+  const copy = n.copyKey ? NOTIFICATION_COPY[n.copyKey] : undefined;
   return render({
     subject: n.title,
     preheader: n.description.slice(0, 110),
@@ -363,9 +438,11 @@ export function notificationEmail(n: {
     greeting: greeting(n.name),
     paragraphs: [copy?.intro || n.description],
     details: n.details,
-    button: n.linkUrl ? { label: "Abrir no S.P.Y.", url: n.linkUrl } : undefined,
+    icon: copy?.icon,
+    button: n.primaryButton || (n.linkUrl ? { label: "Abrir no S.P.Y.", url: n.linkUrl } : undefined),
+    secondaryLink: n.primaryButton && n.linkUrl ? { label: "abrir no S.P.Y.", url: n.linkUrl } : undefined,
     info: copy?.info || { title: "Fique por dentro", text: "O S.P.Y. avisa você sobre o que importa no seu CRM, em tempo real, para você agir no momento certo." },
-    illustration: true,
+    illustration: copy ? !!copy.crm : true,
     footerLink: n.settingsUrl ? { label: "Ajustar quais avisos você recebe por e-mail", url: n.settingsUrl } : undefined,
     brand: n.brand,
   });

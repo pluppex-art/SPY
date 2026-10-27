@@ -1782,7 +1782,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link_url: `/app/crm/pipeline?leadId=${newId}`,
       type: "success",
       triggerId: "novo_lead",
-      details: [{ label: "Nome do lead", value: lead.name }, ...(lead.company ? [{ label: "Empresa", value: lead.company }] : [])]
+      details: [{ label: "Nome do lead", value: lead.name }, ...(lead.company ? [{ label: "Empresa", value: lead.company }] : [])],
+      phone: lead.phone || (lead as any).mobile_wa || null,
+      userIds: (lead as any).seller_id ? [(lead as any).seller_id] : undefined
     });
     setTimeout(() => { triggerScoreRecalculation(newLead.id, [newLead]); }, 400);
     return true;
@@ -1990,6 +1992,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (l.id === id) {
           const updatedLead = { ...l, ...updates };
           mergedLead = updatedLead;
+          const novoDono = (updates as any).seller_id as string | undefined;
+          if (novoDono && novoDono !== (l as any).seller_id && novoDono !== user?.id) {
+            addNotification({
+              title: "Lead atribuído a você",
+              description: `${updatedLead.name}${updatedLead.company ? ` (${updatedLead.company})` : ""} foi atribuído a você.`,
+              link_url: `/app/crm/pipeline?leadId=${l.id}`,
+              type: "info",
+              triggerId: "lead_distribuido",
+              details: [{ label: "Nome do lead", value: updatedLead.name }, ...(updatedLead.company ? [{ label: "Empresa", value: updatedLead.company }] : [])],
+              phone: updatedLead.phone || null,
+              userIds: [novoDono],
+            });
+          }
           if (l.pipelineId === 'sdr' && updates.pipelineId === 'comercial') {
             const tempLabel = updatedLead.temperature ? updatedLead.temperature.toUpperCase() : 'Não avaliada';
             toast.success('Lead Qualificado!', {
@@ -2000,6 +2015,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               description: `O lead ${updatedLead.name} foi qualificado pela Master AI com temperatura ${tempLabel} e enviado à Central de Vendas.`,
               link_url: "/app/pipeline",
               type: "success",
+              triggerId: /quent/i.test(String(updatedLead.temperature || "")) ? "lead_esquentou" : undefined,
+              details: [{ label: "Nome do lead", value: updatedLead.name }, ...(updatedLead.company ? [{ label: "Empresa", value: updatedLead.company }] : []), { label: "Temperatura", value: tempLabel }],
+              phone: updatedLead.phone || null,
+              userIds: (updatedLead as any).seller_id ? [(updatedLead as any).seller_id] : undefined,
             });
           }
           if (updates.status === 'Fechado' && l.status !== 'Fechado') {
@@ -2413,8 +2432,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // outro mutator deste arquivo, e só loga se a escrita no Supabase falhar.
   // triggerId (opcional) liga o aviso a um tipo da tela de Preferências de Notificação: com ele, o servidor
   // também manda o e-mail pra quem deixou o canal "E-mail" ligado.
-  const addNotification = (notification: Omit<Notification, 'id' | 'is_read' | 'created_at'> & { triggerId?: string; details?: { label: string; value: string }[] }, push?: boolean) => {
-    const { triggerId, details, ...notificationData } = notification;
+  const addNotification = (notification: Omit<Notification, 'id' | 'is_read' | 'created_at'> & { triggerId?: string; details?: { label: string; value: string }[]; phone?: string | null; userIds?: string[] }, push?: boolean) => {
+    const { triggerId, details, phone, userIds, ...notificationData } = notification;
     const newNotification: Notification = {
       ...notificationData,
       id: crypto.randomUUID(),
@@ -2440,7 +2459,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           apiFetch('/api/notifications/email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ triggerId, title: newNotification.title, description: newNotification.description, type: newNotification.type, link_url: newNotification.link_url, details }),
+            body: JSON.stringify({ triggerId, title: newNotification.title, description: newNotification.description, type: newNotification.type, link_url: newNotification.link_url, details, phone: phone || undefined, userIds }),
           }).catch(() => { /* e-mail é complemento do sino */ });
         }
       });

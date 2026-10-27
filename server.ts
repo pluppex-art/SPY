@@ -17,6 +17,7 @@ import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
 import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
 import { emailNotifyTenant } from "./server/emailNotify.js";
+import { runNotificationReminders } from "./server/notificationCron.js";
 import { getTenantBrand, getBrandForEmail } from "./server/emailBrand.js";
 import { testEmail, passwordResetEmail, passwordChangedEmail } from "./server/emailTemplates.js";
 import { readTenantSnapshot } from "./server/implementationSync.js";
@@ -3230,6 +3231,23 @@ app.get("/api/public-proposal/:token", async (req, res) => {
           first_viewed_at: proposal.first_viewed_at || new Date().toISOString(),
         })
         .eq("id", proposal.id);
+      // Só na PRIMEIRA abertura: avisa quem acompanha a proposta (o lead acabou de ver o preço = hora de ligar).
+      if (!proposal.first_viewed_at && proposal.tenant_id) {
+        try {
+          const ids = await proposalAudienceIds(client, proposal.tenant_id, proposal.vendedor);
+          await emailNotifyTenant(client, proposal.tenant_id, PUBLIC_APP_URL, {
+            triggerId: "proposta_aberta",
+            title: "Proposta visualizada pelo cliente",
+            description: `${proposal.cliente || "O cliente"} abriu "${proposal.titulo}".`,
+            kind: "info",
+            linkPath: "/app/crm/propostas",
+            userIds: ids,
+            details: [{ label: "Cliente", value: proposal.cliente || "—" }, { label: "Proposta", value: proposal.titulo || "—" }],
+          });
+        } catch (e: any) {
+          console.error("[public-proposal] Falha ao avisar a visualização:", e?.message);
+        }
+      }
     }
 
     // 3. Busca itens da proposta
@@ -3412,6 +3430,7 @@ app.post("/api/public-proposal/:token/accept", async (req, res) => {
           })));
           await emailNotifyTenant(client, proposal.tenant_id, PUBLIC_APP_URL, {
             triggerId: "venda_fechada",
+            copyKey: "proposta_aceita",
             title: "Proposta aceita pelo cliente",
             description: `${proposal.cliente || "O cliente"} aceitou "${proposal.titulo}"${aceiteNome ? ` (aceite por ${aceiteNome})` : ""}.`,
             kind: "success",
@@ -6071,12 +6090,44 @@ app.post("/api/auth/password-changed", requireUser, async (req: any, res) => {
   res.json({ ok: true });
 });
 
+// Rotina de lembretes por horário (tarefa perto do prazo/vencida, reunião começando/nova, pagamento).
+// Chamada por um agendador a cada ~5 min com "Authorization: Bearer $CRON_SECRET" (mesmo padrão da
+// rotina do Google). Sem CRON_SECRET configurado, fica desligada.
+app.get("/api/notifications/cron", async (req: any, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || req.headers.authorization !== `Bearer ${secret}`) return res.status(401).json({ error: "unauthorized" });
+  if (!supabaseService) return res.status(503).json({ error: "not_configured" });
+  try {
+    res.json({ ok: true, ...(await runNotificationReminders(supabaseService, PUBLIC_APP_URL)) });
+  } catch (err: any) {
+    console.error("[notifications/cron]", err?.message);
+    res.status(500).json({ ok: false });
+  }
+});
+
+// Quem deve saber de uma proposta: o vendedor dela e os administradores da empresa; se ninguém casar,
+// todos os usuários ativos (mesma regra do aviso de aceite).
+async function proposalAudienceIds(db: any, tenantId: string, vendedor: string): Promise<string[]> {
+  const { data: usuarios } = await db.from("users").select("id, name, active, is_tenant_admin").eq("tenant_id", tenantId);
+  const tokens = (t: string) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const mesmoNome = (a: string, b: string) => {
+    const ta = tokens(a), tb = tokens(b);
+    if (!ta.length || !tb.length) return false;
+    const [curto, longo] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+    return curto.every((x) => longo.includes(x));
+  };
+  const ativos = (usuarios || []).filter((u: any) => u.active !== false);
+  let alvos = ativos.filter((u: any) => u.is_tenant_admin || mesmoNome(u.name, vendedor));
+  if (alvos.length === 0) alvos = ativos;
+  return alvos.map((u: any) => u.id);
+}
+
 // E-mail de um aviso do sistema (espelha o sino): quem dispara o aviso no cliente chama aqui com o id do
 // tipo de aviso; o servidor decide quem recebe conforme a preferência "E-mail" de cada usuário do tenant.
 const notifyEmailLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
 app.post("/api/notifications/email", requireUser, notifyEmailLimiter, async (req: any, res) => {
   if (!supabaseService) return res.json({ ok: false });
-  const { triggerId, title, description, type, link_url, details } = req.body ?? {};
+  const { triggerId, title, description, type, link_url, details, phone, userIds } = req.body ?? {};
   if (typeof triggerId !== "string" || typeof title !== "string" || typeof description !== "string" || !title.trim()) {
     return res.status(400).json({ ok: false, error: "Dados do aviso inválidos." });
   }
@@ -6085,6 +6136,8 @@ app.post("/api/notifications/email", requireUser, notifyEmailLimiter, async (req
   const kind = ["success", "info", "warning", "error"].includes(type) ? type : "info";
   const r = await emailNotifyTenant(supabaseService, tenantId, PUBLIC_APP_URL, {
     triggerId, title, description, kind, linkPath: typeof link_url === "string" ? link_url : null,
+    phone: typeof phone === "string" ? phone.slice(0, 30) : null,
+    userIds: Array.isArray(userIds) ? userIds.filter((u: any) => typeof u === "string").slice(0, 10) : undefined,
     // Só pares texto/texto curtos, no máximo 4 (o e-mail escapa o conteúdo, mas não aceita lixo).
     details: Array.isArray(details)
       ? details.slice(0, 4)

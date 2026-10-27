@@ -70,7 +70,7 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationTrigger[] = [
     title: "Oportunidade Quente",
     description: "Alerta de lead com score alto ou probabilidade máxima de fechamento",
     inApp: true,
-    email: false,
+    email: true,
     whatsapp: true,
   },
   {
@@ -79,7 +79,7 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationTrigger[] = [
     title: "Tarefa ou Follow-up Vencido",
     description: "Alerta de atraso em atividades comerciais pendentes ou reuniões sem conclusão",
     inApp: true,
-    email: false,
+    email: true,
     whatsapp: true,
   },
   {
@@ -88,7 +88,7 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationTrigger[] = [
     title: "Lembrete 15min Antes",
     description: "Aviso sonoro e notificação antes de reuniões ou chamadas de alinhamento",
     inApp: true,
-    email: false,
+    email: true,
     whatsapp: true,
   },
   {
