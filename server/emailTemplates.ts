@@ -2,12 +2,21 @@
  * Layout único dos e-mails transacionais do S.P.Y. (HTML com tabelas e estilos
  * inline — é o que Gmail/Outlook renderizam de forma confiável — mais uma
  * versão em texto puro, que melhora a entrega e serve de fallback).
+ *
+ * Identidade: cabeçalho escuro com a logo do S.P.Y. (sempre a do S.P.Y., embutida via CID) e uma
+ * faixa na cor da empresa dona do destinatário; botão, destaques e links usam essa mesma cor.
  */
+import { SPY_MARK_WHITE_PNG_B64 } from "./emailAssets.js";
 
 const BRAND = "S.P.Y.";
+const TAGLINE = "Seu espião comercial";
 const COLOR_PRIMARY = "#2563eb";
+const COLOR_HEADER = "#0b1120";
 const COLOR_TEXT = "#0f172a";
+const COLOR_BODY = "#334155";
 const COLOR_MUTED = "#64748b";
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const MARK_CID = "spy-mark@spy";
 
 /** Cor (e nome) da empresa dona do destinatário. Tudo opcional: sem marca, vale o padrão do S.P.Y. */
 export interface EmailBrand {
@@ -34,6 +43,8 @@ interface LayoutInput {
   title: string;
   /** Parágrafos do corpo (texto puro; é escapado aqui). */
   paragraphs: string[];
+  /** Trecho em destaque (bloco com barra na cor da empresa), ex.: o conteúdo de uma notificação. */
+  highlight?: string;
   button?: { label: string; url: string };
   /** Linha pequena abaixo do botão (ex.: "O link expira em 1 hora"). */
   note?: string;
@@ -44,60 +55,91 @@ interface LayoutInput {
   brand?: EmailBrand;
 }
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  cid: string;
+  contentType: string;
+  contentDisposition: "inline";
+}
+
 export interface RenderedEmail {
   subject: string;
   html: string;
   text: string;
+  /** Imagens embutidas (a logo). Quem envia deve repassar pro transporte. */
+  attachments: EmailAttachment[];
 }
 
 function layout(subject: string, input: LayoutInput): RenderedEmail {
   const brandColor = input.brand?.color && HEX.test(input.brand.color) ? input.brand.color : COLOR_PRIMARY;
   const onBrand = textOn(brandColor);
-  const brandName = (input.brand?.name || "").trim() || BRAND;
-  // Logo do S.P.Y. (PNG hospedado em /public/email): Gmail/Outlook não renderizam SVG. Duas versões,
-  // branca e escura, conforme o contraste com a cor da empresa.
-  const assetBase = (process.env.SPY_EMAIL_ASSET_BASE || "https://www.spycrm.com.br").replace(/\/+$/, "");
-  const markUrl = `${assetBase}/email/spy-mark-${onBrand === "#ffffff" ? "white" : "dark"}.png`;
-  const headerHtml = `<table role="presentation" cellspacing="0" cellpadding="0"><tr>
-      <td style="padding-right:10px;"><img src="${markUrl}" alt="" width="36" height="36" style="display:block;border:0;width:36px;height:36px;"></td>
-      <td style="font-size:20px;font-weight:800;letter-spacing:2px;color:${onBrand};">${BRAND}</td>
-    </tr></table>`;
+  const brandName = (input.brand?.name || "").trim();
+
+  const tagHtml = input.tag
+    ? `<span style="display:inline-block;margin:0 0 16px 0;padding:5px 12px;border-radius:999px;background:${input.tag.color}1f;color:${input.tag.color};font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;">${esc(input.tag.label)}</span>`
+    : "";
+
   const paragraphsHtml = input.paragraphs
-    .map((p) => `<p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:${COLOR_TEXT};">${esc(p)}</p>`)
+    .map((p, i) => `<p style="margin:0 0 16px 0;font-size:${i === 0 ? 16 : 15.5}px;line-height:1.65;color:${i === 0 ? COLOR_TEXT : COLOR_BODY};${i === 0 ? "font-weight:600;" : ""}">${esc(p)}</p>`)
     .join("");
 
+  const highlightHtml = input.highlight
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:4px 0 8px 0;"><tr>
+         <td width="4" style="background:${brandColor};border-radius:4px;font-size:0;line-height:0;">&nbsp;</td>
+         <td style="background:#f8fafc;border-radius:0 10px 10px 0;padding:16px 18px;font-size:16px;line-height:1.6;color:${COLOR_TEXT};">${esc(input.highlight)}</td>
+       </tr></table>`
+    : "";
+
   const buttonHtml = input.button
-    ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0 8px 0;"><tr><td style="background:${brandColor};border-radius:8px;">
-         <a href="${esc(input.button.url)}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:${onBrand};text-decoration:none;">${esc(input.button.label)}</a>
+    ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:28px 0 6px 0;"><tr><td style="background:${brandColor};border-radius:10px;">
+         <a href="${esc(input.button.url)}" style="display:inline-block;padding:16px 34px;font-size:16px;font-weight:700;color:${onBrand};text-decoration:none;font-family:${FONT};">${esc(input.button.label)}</a>
        </td></tr></table>
-       <p style="margin:12px 0 0 0;font-size:12px;line-height:1.5;color:${COLOR_MUTED};">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="${esc(input.button.url)}" style="color:${brandColor};word-break:break-all;">${esc(input.button.url)}</a></p>`
+       <p style="margin:14px 0 0 0;font-size:12px;line-height:1.55;color:${COLOR_MUTED};">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="${esc(input.button.url)}" style="color:${COLOR_MUTED};word-break:break-all;">${esc(input.button.url)}</a></p>`
     : "";
 
   const noteHtml = input.note
-    ? `<p style="margin:20px 0 0 0;font-size:13px;line-height:1.5;color:${COLOR_MUTED};">${esc(input.note)}</p>`
+    ? `<p style="margin:22px 0 0 0;padding-top:18px;border-top:1px solid #e2e8f0;font-size:13px;line-height:1.6;color:${COLOR_MUTED};">${esc(input.note)}</p>`
     : "";
+
+  const footerLinkHtml = input.footerLink
+    ? `<p style="margin:12px 0 0 0;font-size:12px;"><a href="${esc(input.footerLink.url)}" style="color:${COLOR_MUTED};text-decoration:underline;">${esc(input.footerLink.label)}</a></p>`
+    : "";
+
+  const reason = brandName
+    ? `Você recebeu este e-mail porque ele está ligado à sua conta na ${esc(brandName)}.`
+    : `Você recebeu este e-mail porque ele está ligado à sua conta no ${BRAND}`;
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(subject)}</title></head>
+<body style="margin:0;padding:0;background:#eef2f7;font-family:${FONT};">
   <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(input.preheader)}</span>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:32px 12px;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef2f7;padding:36px 12px;">
     <tr><td align="center">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:${brandColor};padding:22px 32px;">
-          ${headerHtml}
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dde4ee;">
+        <tr><td style="background:${COLOR_HEADER};padding:26px 36px;">
+          <table role="presentation" cellspacing="0" cellpadding="0"><tr>
+            <td style="padding-right:14px;"><img src="cid:${MARK_CID}" alt="" width="46" height="46" style="display:block;border:0;width:46px;height:46px;"></td>
+            <td>
+              <div style="font-size:24px;line-height:1.1;font-weight:800;letter-spacing:3px;color:#ffffff;font-family:${FONT};">${BRAND}</div>
+              <div style="margin-top:4px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;font-family:${FONT};">${TAGLINE}</div>
+            </td>
+          </tr></table>
         </td></tr>
-        <tr><td style="padding:32px;">
-          ${input.tag ? `<span style="display:inline-block;margin:0 0 14px 0;padding:4px 10px;border-radius:999px;background:${input.tag.color}1a;color:${input.tag.color};font-size:12px;font-weight:700;letter-spacing:.3px;">${esc(input.tag.label)}</span>` : ""}
-          <h1 style="margin:0 0 20px 0;font-size:22px;line-height:1.3;color:${COLOR_TEXT};">${esc(input.title)}</h1>
+        <tr><td style="height:5px;line-height:5px;font-size:0;background:${brandColor};">&nbsp;</td></tr>
+        <tr><td style="padding:38px 36px 34px 36px;">
+          ${tagHtml}
+          <h1 style="margin:0 0 22px 0;font-size:26px;line-height:1.25;font-weight:800;color:${COLOR_TEXT};letter-spacing:-.3px;">${esc(input.title)}</h1>
           ${paragraphsHtml}
+          ${highlightHtml}
           ${buttonHtml}
           ${noteHtml}
         </td></tr>
-        <tr><td style="padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;">
-          <p style="margin:0;font-size:12px;line-height:1.5;color:${COLOR_MUTED};">Você recebeu este e-mail porque ele está ligado à sua conta${input.brand?.name ? ` na ${esc(brandName)}` : ` no ${BRAND}`} — se não foi você, pode ignorá-lo com segurança.${input.brand?.name ? ` Enviado pelo ${BRAND}` : ""}</p>
-          ${input.footerLink ? `<p style="margin:10px 0 0 0;font-size:12px;"><a href="${esc(input.footerLink.url)}" style="color:${brandColor};">${esc(input.footerLink.label)}</a></p>` : ""}
+        <tr><td style="padding:22px 36px 26px 36px;background:#f8fafc;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:12px;line-height:1.6;color:${COLOR_MUTED};">${reason} Se não foi você, pode ignorá-lo com segurança.</p>
+          ${footerLinkHtml}
+          <p style="margin:14px 0 0 0;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;">${brandName ? `Enviado pelo ${BRAND} · ` : ""}${TAGLINE}</p>
         </td></tr>
       </table>
     </td></tr>
@@ -109,22 +151,36 @@ function layout(subject: string, input: LayoutInput): RenderedEmail {
     input.title,
     "",
     ...input.paragraphs,
+    ...(input.highlight ? ["", input.highlight] : []),
     ...(input.button ? ["", `${input.button.label}: ${input.button.url}`] : []),
     ...(input.note ? ["", input.note] : []),
     ...(input.footerLink ? ["", `${input.footerLink.label}: ${input.footerLink.url}`] : []),
     "",
-    `— ${BRAND}`,
+    `— ${BRAND} · ${TAGLINE}`,
   ].join("\n");
 
-  return { subject, html, text };
+  return {
+    subject,
+    html,
+    text,
+    attachments: [{
+      filename: "spy.png",
+      content: Buffer.from(SPY_MARK_WHITE_PNG_B64, "base64"),
+      cid: MARK_CID,
+      contentType: "image/png",
+      contentDisposition: "inline",
+    }],
+  };
 }
 
 const firstName = (name?: string | null) => (name || "").trim().split(/\s+/)[0] || "";
 const greeting = (name?: string | null) => (firstName(name) ? `Olá, ${firstName(name)}!` : "Olá!");
+const SECURITY_TAG = { label: "Segurança da conta", color: "#2563eb" };
 
 export function testEmail(brand?: EmailBrand): RenderedEmail {
   return layout("Teste de envio — S.P.Y.", {
     preheader: "Seu servidor de e-mail está funcionando.",
+    tag: { label: "Teste", color: "#16a34a" },
     title: "Tudo certo com o envio de e-mails",
     paragraphs: ["Se você recebeu esta mensagem, o servidor SMTP do seu ambiente está enviando e-mails corretamente."],
     brand,
@@ -134,6 +190,7 @@ export function testEmail(brand?: EmailBrand): RenderedEmail {
 export function passwordResetEmail(link: string, name?: string | null, brand?: EmailBrand): RenderedEmail {
   return layout("Redefinir sua senha do S.P.Y.", {
     preheader: "Use o link para criar uma nova senha.",
+    tag: SECURITY_TAG,
     title: "Redefinir sua senha",
     paragraphs: [
       greeting(name),
@@ -149,12 +206,13 @@ export function passwordChangedEmail(name: string | null | undefined, whenIso: s
   const when = new Date(whenIso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "long", timeStyle: "short" });
   return layout("Sua senha do S.P.Y. foi alterada", {
     preheader: "A senha da sua conta acabou de ser alterada.",
+    tag: SECURITY_TAG,
     title: "Sua senha foi alterada",
     paragraphs: [
       greeting(name),
       `A senha da sua conta no ${BRAND} foi alterada em ${when} (horário de Brasília).`,
-      "Se foi você, não precisa fazer nada. Se não reconhece essa alteração, redefina sua senha imediatamente pela opção “Esqueci a senha” e avise o administrador da sua empresa.",
     ],
+    note: "Se foi você, não precisa fazer nada. Se não reconhece essa alteração, redefina sua senha agora pela opção “Esqueci a senha” e avise o administrador da sua empresa.",
     brand,
   });
 }
@@ -182,7 +240,8 @@ export function notificationEmail(n: {
     preheader: n.description.slice(0, 110),
     tag: style,
     title: n.title,
-    paragraphs: [greeting(n.name), n.description],
+    paragraphs: [greeting(n.name)],
+    highlight: n.description,
     button: n.linkUrl ? { label: "Abrir no S.P.Y.", url: n.linkUrl } : undefined,
     footerLink: n.settingsUrl ? { label: "Ajustar quais avisos você recebe por e-mail", url: n.settingsUrl } : undefined,
     brand: n.brand,

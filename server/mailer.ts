@@ -6,6 +6,8 @@ export interface OutgoingEmail {
   subject: string;
   html?: string;
   text?: string;
+  /** Imagens embutidas (CID) — ex.: a logo do S.P.Y. nos e-mails com layout. */
+  attachments?: { filename: string; content: Buffer; cid: string; contentType: string; contentDisposition: "inline" }[];
 }
 
 /**
@@ -44,7 +46,7 @@ export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingE
     greetingTimeout: 8000,
     socketTimeout: 15000,
   });
-  const info = await transporter.sendMail({ from, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text });
+  const info = await transporter.sendMail({ from, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments });
   return { messageId: String(info.messageId || ""), via: tenantReady ? "tenant" : "platform" };
 }
 
@@ -69,6 +71,6 @@ export async function sendPlatformEmail(mail: OutgoingEmail): Promise<{ messageI
     greetingTimeout: 8000,
     socketTimeout: 15000,
   });
-  const info = await transporter.sendMail({ from: e.SPY_SMTP_FROM, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text });
+  const info = await transporter.sendMail({ from: e.SPY_SMTP_FROM, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments });
   return { messageId: String(info.messageId || "") };
 }
