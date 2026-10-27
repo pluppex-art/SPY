@@ -5,10 +5,9 @@ import { AgendarReuniaoModal } from "./modals/crm/AgendarReuniaoModal";
 import { supabase } from "../../lib/supabase";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { Modal } from "./modal";
-import { Phone, Activity, TrendingUp, AlertTriangle, CalendarClock } from "lucide-react";
+import { Phone, Activity, TrendingUp, AlertTriangle } from "lucide-react";
 
 import { LeadDetailsModalTabs } from "./lead-details/LeadDetailsModal.constants";
-import { ReservasSection } from "./lead-details/ReservasSection";
 import { LeadDetailsTempCfg } from "./lead-details/LeadDetailsModal.constants";
 import { formatLeadValueBRL, leadInterestEstimate, safeParseTimeIdle, safeParseProbability } from "./lead-details/LeadDetailsModal.helpers";
 import { findWonStage } from "../../lib/funilStages";
@@ -119,20 +118,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
     navigate("/app/reunioes/" + reuniaoId);
   };
 
-  // Histórico de reservas (sincronizado via API de integrações, ex.: to na
-  // pista) só existe pra leads originados desse fluxo — a aba fica escondida
-  // pros demais, pra não poluir a tela de tenants de outros ramos.
-  const reservationsHistory: any[] = Array.isArray(lead?.customFields?.reservationsHistory)
-    ? lead.customFields.reservationsHistory
-    : [];
-  const tabsToShow = reservationsHistory.length > 0
-    ? [
-        ...LeadDetailsModalTabs.slice(0, 1),
-        { id: "reservas", label: "Reservas", short: "RESERVAS", icon: CalendarClock } as const,
-        ...LeadDetailsModalTabs.slice(1),
-      ]
-    : LeadDetailsModalTabs;
-
   if (!lead) return null;
 
   const leadActs = leadActivities.filter((a: any) => a.leadId === lead.id);
@@ -231,7 +216,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
 
           {/* ── Tab bar ── */}
           <div className="flex border-b border-[var(--color-border-subtle)] overflow-x-auto scrollbar-none shrink-0 bg-[var(--color-surface-elevated)] px-2 pt-1.5 gap-1">
-            {tabsToShow.map((tab) => {
+            {LeadDetailsModalTabs.map((tab) => {
               const isActive = currentTab === tab.id;
               return (
                 <button
@@ -366,10 +351,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
                   </div>
                 )}
 
-                {currentTab === "reservas" && (
-                  <ReservasSection lead={lead} />
-                )}
-
                 {currentTab === "notas" && (
                   <NotasSection
                     lead={lead}
@@ -395,19 +376,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
 
                 {currentTab === "historico" && (
                   <div className="px-5 py-4">
-                    <TimelineSection
-                      lead={lead}
-                      leadActivities={leadActivities}
-                      activityType={activityType}        setActivityType={setActivityType}
-                      activityTitle={activityTitle}      setActivityTitle={setActivityTitle}
-                      activityDate={activityDate}        setActivityDate={setActivityDate}
-                      activityTime={activityTime}        setActivityTime={setActivityTime}
-                      activityDesc={activityDesc}        setActivityDesc={setActivityDesc}
-                      activityError={activityError}      setActivityError={setActivityError}
-                      selectedFiles={selectedFiles}      setSelectedFiles={setSelectedFiles}
-                      handleRegisterActivity={handleRegisterActivity}
-                      seller={seller}
-                    />
+                    <TimelineSection lead={lead} />
                   </div>
                 )}
 

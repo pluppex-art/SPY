@@ -1,235 +1,154 @@
-import React from "react";
+import { useEffect, useState } from "react";
+import { Receipt } from "lucide-react";
 import { Card } from "../card";
-import { Button } from "../button";
-import { Input } from "../input";
-import { FormField } from "../form-field";
 import { EmptyState } from "../empty-state";
-import { Paperclip, FileText, Phone, Mail, Calendar, MessageSquare } from "lucide-react";
-import { toast } from "sonner";
+import { supabase } from "../../../lib/supabase";
+import { cn } from "../../../lib/utils";
 
 interface TimelineSectionProps {
   lead: any;
-  leadActivities: any[];
-  activityType: 'Ligação' | 'E-mail' | 'Reunião' | 'Outro';
-  setActivityType: (val: any) => void;
-  activityTitle: string;
-  setActivityTitle: (val: string) => void;
-  activityDate: string;
-  setActivityDate: (val: string) => void;
-  activityTime: string;
-  setActivityTime: (val: string) => void;
-  activityDesc: string;
-  setActivityDesc: (val: string) => void;
-  activityError: string;
-  setActivityError: (val: string) => void;
-  selectedFiles: { name: string; size: string; }[];
-  setSelectedFiles: React.Dispatch<React.SetStateAction<{ name: string; size: string; }[]>>;
-  handleRegisterActivity: () => void;
-  seller: string;
 }
 
-export function TimelineSection({
-  lead,
-  leadActivities,
-  activityType,
-  setActivityType,
-  activityTitle,
-  setActivityTitle,
-  activityDate,
-  setActivityDate,
-  activityTime,
-  setActivityTime,
-  activityDesc,
-  setActivityDesc,
-  activityError,
-  setActivityError,
-  selectedFiles,
-  setSelectedFiles,
-  handleRegisterActivity,
-}: TimelineSectionProps) {
+interface Venda {
+  id: string;
+  date: string;
+  description: string;
+  detail: string;
+  status: string;
+  value: number;
+}
+
+const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const formatDate = (raw: string) => {
+  const d = new Date(raw?.length === 10 ? `${raw}T12:00:00` : raw);
+  return isNaN(d.getTime()) ? raw : d.toLocaleDateString("pt-BR");
+};
+
+const isPago = (status?: string) => /pago|receb/i.test(status || "");
+
+// Vendas já sincronizadas junto com o lead (customFields.reservationsHistory,
+// preenchido pelo server.ts a cada reserva): só entra o que foi pago.
+function vendasDoLead(lead: any): Venda[] {
+  const history: any[] = Array.isArray(lead?.customFields?.reservationsHistory)
+    ? lead.customFields.reservationsHistory
+    : [];
+  return history
+    .filter((r) => isPago(r.paymentStatus) && Number(r.totalValue) > 0)
+    .map((r) => ({
+      id: String(r.id),
+      date: r.date || r.createdAt || "",
+      description: `Reserva${r.eventType ? ` - ${r.eventType}` : ""}`,
+      detail: [
+        typeof r.peopleCount === "number" ? `${r.peopleCount} pessoa${r.peopleCount > 1 ? "s" : ""}` : null,
+        typeof r.laneCount === "number" ? `${r.laneCount} pista${r.laneCount > 1 ? "s" : ""}` : null,
+      ].filter(Boolean).join(" · "),
+      status: r.paymentStatus,
+      value: Number(r.totalValue) || 0,
+    }));
+}
+
+/**
+ * Histórico de vendas do lead: quantas vendas já fez e a timeline delas.
+ * Usa o histórico que já vem sincronizado com o lead; sem ele, cai nas
+ * receitas do cliente vinculado (finance_entries.contato_id). Vale para
+ * qualquer tenant, com ou sem agenda.
+ */
+export function TimelineSection({ lead }: TimelineSectionProps) {
+  const doLead = vendasDoLead(lead);
+  const [doFinanceiro, setDoFinanceiro] = useState<Venda[]>([]);
+  const [loading, setLoading] = useState(false);
+  const usaFinanceiro = doLead.length === 0 && !!lead?.clientId;
+
+  useEffect(() => {
+    if (!supabase || !usaFinanceiro) { setDoFinanceiro([]); return; }
+    let cancelled = false;
+    setLoading(true);
+    supabase
+      .from("finance_entries")
+      .select("id, description, category, status, value, date, payment_method")
+      .eq("contato_id", lead.clientId)
+      .eq("type", "Receber")
+      .gt("value", 0)
+      .order("date", { ascending: false })
+      .limit(200)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setDoFinanceiro((data || []).map((e: any) => ({
+          id: e.id,
+          date: e.date,
+          description: e.description,
+          detail: [e.category, e.payment_method].filter(Boolean).join(" · "),
+          status: e.status,
+          value: Number(e.value) || 0,
+        })));
+        setLoading(false);
+      }, () => { if (!cancelled) { setDoFinanceiro([]); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [lead?.clientId, usaFinanceiro]);
+
+  const vendas = [...(doLead.length > 0 ? doLead : doFinanceiro)]
+    .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+  const total = vendas.reduce((acc, v) => acc + v.value, 0);
+
   return (
-    <div className="px-5 py-4 space-y-5">
-      {/* Form for Adding Interaction */}
-      <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-4 shadow-sm">
-        <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-2">
-          <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--color-primary-blue)]">
-            Registrar Nova Interação
-          </h4>
-        </div>
+    <div className="space-y-5">
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Vendas", value: String(vendas.length) },
+          { label: "Total vendido", value: brl(total) },
+          { label: "Última venda", value: vendas[0] ? formatDate(vendas[0].date) : "—" },
+        ].map((kpi) => (
+          <Card key={kpi.label} className="p-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-center">
+            <p className="text-[9px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{kpi.label}</p>
+            <p className="text-sm font-black text-[var(--color-text-primary)] mt-1 whitespace-nowrap">{kpi.value}</p>
+          </Card>
+        ))}
+      </div>
 
-        {/* Channel selectors */}
-        <div className="grid grid-cols-4 gap-1.5">
-          {[
-            { type: 'Ligação', label: 'Ligação', icon: Phone },
-            { type: 'E-mail', label: 'E-mail', icon: Mail },
-            { type: 'Reunião', label: 'Reunião', icon: Calendar },
-            { type: 'Outro', label: 'Nota Interna', icon: MessageSquare }
-          ].map((item) => (
-            <button
-              key={item.type}
-              type="button"
-              onClick={() => setActivityType(item.type as any)}
-              className={`py-2 px-1 text-[10px] font-bold rounded-[var(--radius-control)] border text-center transition-all cursor-pointer flex flex-col items-center gap-1 ${
-                activityType === item.type 
-                  ? 'bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)] font-black' 
-                  : 'bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
-              }`}
-            >
-              <item.icon className="w-3.5 h-3.5" />
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Custom fields (Title & datetime) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <FormField label="Título da Atividade" required>
-            <Input
-              type="text" 
-              placeholder="Ex: Follow-up sobre proposta..."
-              value={activityTitle}
-              onChange={(e) => setActivityTitle(e.target.value)}
-            />
-          </FormField>
-          <div className="grid grid-cols-2 gap-2">
-            <FormField label="Data">
-              <Input
-                type="date"
-                value={activityDate}
-                onChange={(e) => setActivityDate(e.target.value)}
-                className="font-mono text-xs"
-              />
-            </FormField>
-            <FormField label="Hora">
-              <Input
-                type="time"
-                value={activityTime}
-                onChange={(e) => setActivityTime(e.target.value)}
-                className="font-mono text-xs"
-              />
-            </FormField>
-          </div>
-        </div>
-
-        {/* Descriptive textarea */}
-        <FormField label="Detalhamento do Contato" error={activityError || undefined}>
-          <textarea 
-            placeholder="Relate o que foi alinhado com o cliente..."
-            value={activityDesc}
-            rows={2}
-            onChange={(e) => {
-              setActivityDesc(e.target.value);
-              if (e.target.value) setActivityError('');
-            }}
-            className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] p-3 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] transition-all resize-none"
-          />
-        </FormField>
-
-        {/* File Simulator Uploader */}
-        <div
-          className="border border-dashed border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/50 rounded-[var(--radius-control)] bg-[var(--color-surface-sunken)] p-3 text-center cursor-pointer transition-colors"
-          onClick={() => {
-            const demoDocs = [
-              { name: "Proposta_Plano_SPYEnterprise.pdf", size: "380 KB" },
-              { name: "Orcamento_GTech.xlsx", size: "120 KB" },
-              { name: "Cronograma_Execucao.docx", size: "450 KB" }
-            ];
-            const randomPick = demoDocs[Math.floor(Math.random() * demoDocs.length)];
-            if (!selectedFiles.some(f => f.name === randomPick.name)) {
-              setSelectedFiles(prev => [...prev, randomPick]);
-              toast.success(`Anexo vinculado: ${randomPick.name}`);
-            }
-          }}
-        >
-          <Paperclip className="w-4 h-4 mx-auto text-[var(--color-text-faint)] mb-1" />
-          <p className="text-xs font-bold text-[var(--color-text-primary)]">Anexar Documento</p>
-          <p className="text-[10px] text-[var(--color-text-faint)]">Clique para simular anexo de proposta ou contrato (PDF / Excel)</p>
-        </div>
-
-        {/* Attachment pills if exists */}
-        {selectedFiles.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {selectedFiles.map((file, idx) => (
-              <span key={idx} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2.5 py-1 text-[11px] font-mono text-[var(--color-primary-blue)] flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5" />
-                {file.name} ({file.size})
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
-                  }}
-                  className="hover:text-danger font-bold ml-1 text-xs cursor-pointer"
-                >
-                  &times;
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="flex justify-end pt-1">
-          <Button onClick={handleRegisterActivity} className="text-xs font-bold">
-            Registrar Interação
-          </Button>
-        </div>
-      </Card>
-
-      {/* Main Activity Timeline */}
       <div className="space-y-3">
         <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
-          Histórico Completo de Interações
+          Histórico de vendas
         </h4>
-        <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
-          {leadActivities.filter(act => act.leadId === lead.id).length > 0 ? (
-            leadActivities.filter(act => act.leadId === lead.id).map((act) => {
-              const getIcon = () => {
-                const iconClass = "w-4 h-4 text-[var(--color-primary-blue)]";
-                switch (act.type) {
-                  case 'Ligação': return <Phone className={iconClass} />;
-                  case 'E-mail': return <Mail className={iconClass} />;
-                  case 'Reunião': return <Calendar className={iconClass} />;
-                  default: return <MessageSquare className={iconClass} />;
-                }
-              };
 
-              return (
-                <Card key={act.id} className="p-3.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex gap-3.5">
-                  <div className="w-9 h-9 bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 rounded-xl flex items-center justify-center shrink-0">
-                    {getIcon()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold text-[var(--color-text-primary)]">{act.title}</p>
-                      <span className="text-[10px] text-[var(--color-text-faint)] font-mono">{act.date}</span>
+        {loading ? (
+          <p className="text-xs text-[var(--color-text-faint)] py-6 text-center">Carregando…</p>
+        ) : vendas.length === 0 ? (
+          <EmptyState
+            icon={Receipt}
+            title="Nenhuma venda registrada"
+            description="As vendas deste lead aparecem aqui."
+            className="py-8"
+          />
+        ) : (
+          <ol className="relative border-l border-[var(--color-border-default)] ml-3 space-y-4 max-h-[420px] overflow-y-auto pr-1">
+            {vendas.map((v) => (
+              <li key={v.id} className="ml-5">
+                <span className="absolute -left-[5px] mt-1.5 w-2.5 h-2.5 rounded-full bg-[var(--color-primary-blue)] ring-4 ring-[var(--color-surface-elevated)]" />
+                <Card className="p-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-mono text-[var(--color-text-faint)]">{formatDate(v.date)}</p>
+                      <p className="text-xs font-bold text-[var(--color-text-primary)] break-words">{v.description}</p>
+                      {v.detail && <p className="text-[10px] text-[var(--color-text-muted)] break-words">{v.detail}</p>}
                     </div>
-                    <p className="text-[10px] font-bold text-[var(--color-primary-blue)] uppercase mt-0.5">{act.seller || 'Consultor'}</p>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-1.5 bg-[var(--color-surface-sunken)] p-2.5 rounded-[var(--radius-control)] leading-relaxed border border-[var(--color-border-subtle)]">
-                      {act.description}
-                    </p>
-                    
-                    {act.files && act.files.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1 border-t border-[var(--color-border-subtle)] pt-1.5">
-                        {act.files.map((file: any, fIdx: number) => (
-                          <span key={fIdx} className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-2 py-0.5 rounded text-[10px] font-mono text-[var(--color-text-muted)] flex items-center gap-1">
-                            <FileText className="w-3 h-3 text-[var(--color-primary-blue)]" />
-                            {file.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <div className="text-right shrink-0 space-y-1">
+                      <p className="text-xs font-black text-emerald-500 whitespace-nowrap">{brl(v.value)}</p>
+                      <span className={cn(
+                        "inline-block text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border",
+                        isPago(v.status)
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/25"
+                          : "bg-amber-500/10 text-amber-500 border-amber-500/25",
+                      )}>
+                        {v.status}
+                      </span>
+                    </div>
                   </div>
                 </Card>
-              );
-            })
-          ) : (
-            <EmptyState
-              icon={MessageSquare}
-              title="Nenhuma atividade registrada"
-              description="Registre ligações, reuniões ou notas no formulário acima."
-              className="py-8"
-            />
-          )}
-        </div>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
     </div>
   );
