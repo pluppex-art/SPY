@@ -86,7 +86,7 @@ export function ConfigIntegracoesSMTP() {
           <Server className="w-5 h-5 text-[var(--color-primary-blue)]" />
         </h1>
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Configure seu servidor SMTP e valide a conexão com "Testar Conexão TLS" (handshake e autenticação reais). Salve a configuração e use "Enviar e-mail de teste" para receber uma mensagem real na sua caixa. Funciona com qualquer servidor SMTP (Postal, Amazon SES, Brevo, Postfix…).
+          Configure seu servidor SMTP e valide a conexão com "Testar Conexão TLS" (handshake e autenticação reais). Opcional: se você já tem e-mail próprio, cadastre aqui e os envios saem do seu domínio; sem isso, o S.P.Y. envia pelo servidor da plataforma. Use "Enviar e-mail de teste" para receber uma mensagem real. Funciona com qualquer servidor SMTP (Postal, Amazon SES, Brevo, Postfix…).
         </p>
       </div>
 

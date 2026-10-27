@@ -9,32 +9,41 @@ export interface OutgoingEmail {
 }
 
 /**
- * Envia um e-mail usando o servidor SMTP que o próprio tenant cadastrou em
- * Configurações → Integrações → SMTP (app_settings.integracoes_smtp). Serve
- * qualquer SMTP (Postal, SES, Brevo, Postfix…) — nada aqui é específico de
- * provedor nem de tenant. Roda com service role; quem chama TEM que ter
- * resolvido o tenantId da sessão autenticada.
+ * Envia um e-mail do S.P.Y. Se o tenant cadastrou o próprio SMTP em
+ * Configurações → Integrações → SMTP (app_settings.integracoes_smtp), usa ele
+ * (o e-mail sai do domínio do cliente). Senão cai no SMTP da plataforma,
+ * definido por variáveis de ambiente (SPY_SMTP_HOST/PORT/USER/PASS/FROM/ENCRYPTION).
+ * Serve qualquer SMTP (Postal, SES, Brevo, Postfix…). Roda com service role; quem
+ * chama TEM que ter resolvido o tenantId da sessão autenticada.
  */
-export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingEmail): Promise<{ messageId: string }> {
+export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingEmail): Promise<{ messageId: string; via: "tenant" | "platform" }> {
   const { data } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
-  const cfg = data?.value;
-  if (!cfg?.smtpServer || !cfg?.smtpUser || !cfg?.smtpPass) {
-    throw new Error("SMTP não configurado. Preencha host, usuário e senha em Integrações → SMTP.");
-  }
-  const from = String(cfg.fromEmail || "").trim();
-  if (!from) throw new Error("Defina o e-mail de remetente padrão em Integrações → SMTP.");
+  const t = data?.value;
+  const tenantReady = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
 
-  await assertSafeSmtpTarget(cfg.smtpServer, cfg.smtpPort);
+  let host: string, port: number, user: string, pass: string, from: string, encryption: string;
+  if (tenantReady) {
+    host = t.smtpServer; port = Number(t.smtpPort); user = t.smtpUser; pass = t.smtpPass;
+    from = String(t.fromEmail).trim(); encryption = t.encryption;
+    await assertSafeSmtpTarget(host, port); // host informado pelo cliente: nunca confiar
+  } else {
+    const e = process.env;
+    if (!e.SPY_SMTP_HOST || !e.SPY_SMTP_USER || !e.SPY_SMTP_PASS || !e.SPY_SMTP_FROM) {
+      throw new Error("Nenhum SMTP disponível: cadastre o seu em Integrações → SMTP ou configure o SMTP da plataforma.");
+    }
+    host = e.SPY_SMTP_HOST; port = Number(e.SPY_SMTP_PORT || 587); user = e.SPY_SMTP_USER; pass = e.SPY_SMTP_PASS;
+    from = e.SPY_SMTP_FROM; encryption = e.SPY_SMTP_ENCRYPTION || "StartTLS";
+  }
+
   const transporter = nodemailer.createTransport({
-    host: cfg.smtpServer,
-    port: Number(cfg.smtpPort),
-    secure: cfg.encryption === "SSL/TLS",
-    requireTLS: cfg.encryption === "StartTLS",
-    auth: { user: cfg.smtpUser, pass: cfg.smtpPass },
+    host, port,
+    secure: encryption === "SSL/TLS",
+    requireTLS: encryption === "StartTLS",
+    auth: { user, pass },
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 15000,
   });
   const info = await transporter.sendMail({ from, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text });
-  return { messageId: String(info.messageId || "") };
+  return { messageId: String(info.messageId || ""), via: tenantReady ? "tenant" : "platform" };
 }

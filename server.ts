@@ -6002,13 +6002,13 @@ app.post("/api/integrations/smtp-send-test", requireUser, requireTenantAdmin, as
   const to = String(req.user?.email || "").trim();
   if (!to) return res.status(400).json({ ok: false, error: "Seu usuário não tem e-mail cadastrado." });
   try {
-    await sendTenantEmail(supabaseService, req.tenantId, {
+    const sent = await sendTenantEmail(supabaseService, req.tenantId, {
       to,
       subject: "Teste de envio — S.P.Y.",
       text: "Se você recebeu esta mensagem, o servidor SMTP do seu ambiente está enviando e-mails corretamente.",
       html: "<p>Se você recebeu esta mensagem, o servidor SMTP do seu ambiente está <strong>enviando e-mails corretamente</strong>.</p>",
     });
-    res.json({ ok: true, to });
+    res.json({ ok: true, to, via: sent.via });
   } catch (err: any) {
     res.json({ ok: false, error: err?.message || "Falha ao enviar o e-mail de teste." });
   }
