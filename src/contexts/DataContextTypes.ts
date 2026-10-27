@@ -202,6 +202,8 @@ export interface DataContextType {
   addNotification: (notification: Omit<Notification, 'id' | 'is_read' | 'created_at'>, push?: boolean) => void;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
+  deleteNotifications: (ids: string[]) => void;
+  clearAllNotifications: () => void;
   addLeadActivity: (leadId: string, type: 'Ligação' | 'E-mail' | 'Reunião' | 'Outro', title: string, description: string, seller: string, customDate?: string, files?: { name: string; size: string; }[]) => void;
   sidebarModules: Record<string, boolean>;
   setSidebarModules: (modules: Record<string, boolean>) => void;

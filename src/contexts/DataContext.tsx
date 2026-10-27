@@ -2485,6 +2485,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const deleteNotifications = (ids: string[]) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    setNotifications(prev => prev.filter(n => !idSet.has(n.id)));
+    if (supabase && tenantId) {
+      supabase.from('notifications').delete().eq('tenant_id', tenantId).in('id', ids)
+        .then(({ error }: { error: any }) => {
+          if (error) console.error('[Notifications] Falha ao excluir:', error.message);
+        });
+    }
+  };
+
+  // Apaga TODAS do tenant no banco (não só as carregadas — o fetch inicial
+  // traz no máximo NOTIFICATIONS_UNREAD_LIMIT não lidas).
+  const clearAllNotifications = () => {
+    setNotifications([]);
+    if (supabase && tenantId) {
+      supabase.from('notifications').delete().eq('tenant_id', tenantId)
+        .then(({ error }: { error: any }) => {
+          if (error) console.error('[Notifications] Falha ao limpar:', error.message);
+        });
+    }
+  };
+
   const addLeadActivity = async (leadId: string, type: 'Ligação' | 'E-mail' | 'Reunião' | 'Outro', title: string, description: string, seller: string, customDate?: string, files?: { name: string; size: string; }[]) => {
     const newActivity: LeadActivity = {
       id: crypto.randomUUID(),
@@ -3590,7 +3614,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       theme, toggleTheme,
       addLead, ensureLeadForCliente, updateLead, deleteLead, moveLead,
       addTask, updateTask, deleteTask, addContract, updateContract, deleteContract,
-      addNotification, markNotificationAsRead, markAllNotificationsAsRead,
+      addNotification, markNotificationAsRead, markAllNotificationsAsRead, deleteNotifications, clearAllNotifications,
       addLeadActivity,
       getSmartInsight,
       addFinanceEntry, deleteFinanceEntry, updateFinanceEntry,

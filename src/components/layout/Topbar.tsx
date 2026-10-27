@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
+import type { Notification } from "../../contexts/DataContextTypes";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
@@ -23,6 +24,8 @@ import {
   CheckCheck,
   Trash2,
   ChevronRight,
+  X,
+  ChevronDown,
 } from "lucide-react";
 
 interface TopbarProps {
@@ -50,6 +53,39 @@ function formatNotificationTime(iso: string): string {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 }
 
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "Anteriores";
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(d) - startOfDay(new Date())) / 86400000);
+  if (diffDays === 0) return "Hoje";
+  if (diffDays === -1) return "Ontem";
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
+}
+
+interface NotificationGroup {
+  key: string;
+  items: Notification[]; // mais recente primeiro
+}
+
+/** Agrupa por dia e, dentro do dia, junta notificações com o mesmo título (ex.: 8x "Nova Tarefa"). */
+function groupNotifications(list: Notification[]): { day: string; groups: NotificationGroup[] }[] {
+  const days: { day: string; groups: NotificationGroup[] }[] = [];
+  for (const n of list) {
+    const label = dayLabel(n.created_at);
+    let day = days.find((d) => d.day === label);
+    if (!day) {
+      day = { day: label, groups: [] };
+      days.push(day);
+    }
+    const key = `${label}|${n.title}|${n.type || ""}`;
+    const group = day.groups.find((g) => g.key === key);
+    if (group) group.items.push(n);
+    else day.groups.push({ key, items: [n] });
+  }
+  return days;
+}
+
 export function Topbar({
   isSidebarCollapsed,
   setIsSidebarCollapsed,
@@ -62,6 +98,8 @@ export function Topbar({
     notifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
+    deleteNotifications,
+    clearAllNotifications,
     theme,
     toggleTheme,
     appSettings,
@@ -72,11 +110,14 @@ export function Topbar({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<NotificationTab>("todas");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   const notificationsRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const toggleNotifications = () => {
+    setConfirmingClear(false);
     setIsNotificationsOpen((prev) => {
       if (!prev) setIsUserMenuOpen(false);
       return !prev;
@@ -147,6 +188,24 @@ export function Topbar({
   };
 
   const filteredNotifications = activeTab === "unread" ? notifications.filter((n) => !n.is_read) : notifications;
+  const groupedByDay = useMemo(() => groupNotifications(filteredNotifications), [filteredNotifications]);
+
+  const toggleGroup = (key: string) =>
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  const openNotification = (n: Notification) => {
+    markNotificationAsRead(n.id);
+    const target = n.link_url || (n.title?.toLowerCase().includes("tarefa") ? "/app/tarefas" : undefined);
+    if (target) {
+      navigate(target);
+      setIsNotificationsOpen(false);
+    }
+  };
 
   const getTypeStyle = (type?: string) => {
     switch (type) {
@@ -245,15 +304,48 @@ export function Topbar({
                     </div>
                   </div>
 
-                  {unreadNotifications > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => markAllNotificationsAsRead()}
-                      className="text-[11px] text-[var(--color-primary-blue)] font-bold hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-none"
-                    >
-                      <CheckCheck className="w-3.5 h-3.5" /> {t("Ler todas")}
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {unreadNotifications > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => markAllNotificationsAsRead()}
+                        className="text-[11px] text-[var(--color-primary-blue)] font-bold hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-none"
+                      >
+                        <CheckCheck className="w-3.5 h-3.5" /> {t("Ler todas")}
+                      </button>
+                    )}
+                    {notifications.length > 0 &&
+                      (confirmingClear ? (
+                        <span className="flex items-center gap-1.5 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearAllNotifications();
+                              setConfirmingClear(false);
+                            }}
+                            className="font-bold text-rose-500 hover:underline cursor-pointer bg-transparent border-none"
+                          >
+                            {t("Confirmar")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingClear(false)}
+                            className="text-[var(--color-text-muted)] hover:underline cursor-pointer bg-transparent border-none"
+                          >
+                            {t("Cancelar")}
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingClear(true)}
+                          className="text-[11px] text-[var(--color-text-muted)] hover:text-rose-500 font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none transition-colors"
+                          title={t("Apagar todas as notificações")}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> {t("Limpar")}
+                        </button>
+                      ))}
+                  </div>
                 </div>
 
                 {/* Tabs filter */}
@@ -283,51 +375,87 @@ export function Topbar({
                 </div>
 
                 {/* Notifications List */}
-                <div className="max-h-[420px] overflow-y-auto scrollbar-thin divide-y divide-[var(--color-border-subtle)]">
-                  {filteredNotifications.length > 0 ? (
-                    filteredNotifications.map((n) => {
-                      const style = getTypeStyle(n.type);
-                      const IconComp = style.icon;
-
-                      return (
-                        <div
-                          key={n.id}
-                          onClick={() => {
-                            markNotificationAsRead(n.id);
-                            const target = n.link_url || (n.title?.toLowerCase().includes("tarefa") ? "/app/tarefas" : undefined);
-                            if (target) {
-                              navigate(target);
-                              setIsNotificationsOpen(false);
-                            }
-                          }}
-                          className={`p-3.5 hover:bg-[var(--color-surface-sunken)] cursor-pointer transition-all flex gap-3 relative group ${
-                            !n.is_read ? "bg-[var(--color-primary-blue)]/[0.04]" : ""
-                          }`}
-                        >
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${style.bg}`}>
-                            <IconComp className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-0.5 gap-1">
-                              <h5 className={`text-xs font-bold truncate ${!n.is_read ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"}`}>
-                                {n.title}
-                              </h5>
-                              <span className="text-[10px] text-[var(--color-text-faint)] font-mono shrink-0">
-                                {formatNotificationTime(n.created_at)}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-[var(--color-text-muted)] line-clamp-2 leading-relaxed">
-                              {n.description}
-                            </p>
-                          </div>
-                          {!n.is_read && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <div className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)] shadow-xs"></div>
-                            </div>
-                          )}
+                <div className="max-h-[420px] overflow-y-auto scrollbar-thin">
+                  {groupedByDay.length > 0 ? (
+                    groupedByDay.map(({ day, groups }) => (
+                      <div key={day}>
+                        <div className="sticky top-0 z-10 px-4 py-1.5 text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
+                          {day}
                         </div>
-                      );
-                    })
+                        <div className="divide-y divide-[var(--color-border-subtle)]">
+                          {groups.map((g) => {
+                            const latest = g.items[0];
+                            const style = getTypeStyle(latest.type);
+                            const IconComp = style.icon;
+                            const count = g.items.length;
+                            const unread = g.items.filter((i) => !i.is_read).length;
+                            const expanded = expandedGroups.has(g.key);
+                            const rows = count > 1 && expanded ? g.items : [latest];
+
+                            return (
+                              <div key={g.key}>
+                                {rows.map((n, idx) => (
+                                  <div
+                                    key={n.id}
+                                    onClick={() => openNotification(n)}
+                                    className={`pl-4 pr-3 py-3 hover:bg-[var(--color-surface-sunken)] cursor-pointer transition-all flex gap-3 relative group ${
+                                      !n.is_read ? "bg-[var(--color-primary-blue)]/[0.04]" : ""
+                                    } ${idx > 0 ? "border-t border-[var(--color-border-subtle)]" : ""}`}
+                                  >
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${style.bg}`}>
+                                      <IconComp className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex justify-between items-start mb-0.5 gap-2">
+                                        <h5 className={`text-xs font-bold truncate flex items-center gap-1.5 ${!n.is_read ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"}`}>
+                                          {!n.is_read && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary-blue)] shrink-0" />}
+                                          <span className="truncate">{n.title}</span>
+                                          {idx === 0 && count > 1 && !expanded && (
+                                            <span className="px-1.5 py-px rounded-full text-[9px] font-mono font-bold bg-[var(--color-border-default)] text-[var(--color-text-muted)] shrink-0">
+                                              {count}
+                                            </span>
+                                          )}
+                                        </h5>
+                                        <span className="text-[10px] text-[var(--color-text-faint)] font-mono shrink-0 group-hover:hidden">
+                                          {formatNotificationTime(n.created_at)}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteNotifications(count > 1 && !expanded ? g.items.map((i) => i.id) : [n.id]);
+                                          }}
+                                          className="hidden group-hover:flex p-0.5 rounded text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer bg-transparent border-none shrink-0"
+                                          title={count > 1 && !expanded ? t("Excluir grupo") : t("Excluir")}
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                      <p className="text-[11px] text-[var(--color-text-muted)] line-clamp-2 leading-relaxed">
+                                        {n.description}
+                                      </p>
+                                      {idx === 0 && count > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleGroup(g.key);
+                                          }}
+                                          className="mt-1 text-[10px] font-bold text-[var(--color-primary-blue)] hover:underline flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0"
+                                        >
+                                          <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                                          {expanded ? t("Recolher") : `${t("Ver mais")} ${count - 1}${unread > 0 ? ` · ${unread} ${t("não lidas")}` : ""}`}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))
                   ) : (
                     <EmptyState
                       icon={Bell}
