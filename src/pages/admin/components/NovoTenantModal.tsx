@@ -162,8 +162,8 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
       return;
     }
 
-    if (adminPassword.length < 6) {
-      toast.error("A senha do administrador deve conter pelo menos 6 caracteres.");
+    if (adminPassword.length < 8) {
+      toast.error("A senha do administrador deve conter pelo menos 8 caracteres.");
       return;
     }
 
