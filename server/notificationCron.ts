@@ -1,6 +1,17 @@
 import { emailNotifyTenant } from "./emailNotify.js";
 
 const MIN = 60_000;
+// A função serverless morre em 60 s: manda 5 e-mails por vez e para com folga; o que sobrar sai na rodada
+// seguinte (a notification_email_log impede repetir o que já foi).
+const CONCURRENCY = 5;
+const TIME_BUDGET_MS = 40_000;
+
+async function forEachBudgeted<T>(items: T[], deadline: number, fn: (item: T) => Promise<void>) {
+  for (let i = 0; i < items.length; i += CONCURRENCY) {
+    if (Date.now() > deadline) return;
+    await Promise.all(items.slice(i, i + CONCURRENCY).map(fn));
+  }
+}
 const fmtWhen = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const fmtMoney = (v: any) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -23,6 +34,7 @@ export interface ReminderSummary {
  */
 export async function runNotificationReminders(db: any, baseUrl: string): Promise<ReminderSummary> {
   const now = Date.now();
+  const deadline = now + TIME_BUDGET_MS;
   const iso = (ms: number) => new Date(ms).toISOString();
   const out: ReminderSummary = { tarefasProximas: 0, tarefasVencidas: 0, reunioesProximas: 0, reunioesNovas: 0, pagamentos: 0 };
 
@@ -63,8 +75,8 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
     });
     return r.sent;
   };
-  for (const t of soon || []) out.tarefasProximas += await taskNotice(t, "proxima");
-  for (const t of late || []) out.tarefasVencidas += await taskNotice(t, "vencida");
+  await forEachBudgeted(soon || [], deadline, async (t) => { out.tarefasProximas += await taskNotice(t, "proxima"); });
+  await forEachBudgeted(late || [], deadline, async (t) => { out.tarefasVencidas += await taskNotice(t, "vencida"); });
 
   // ── Reuniões / ligações agendadas ──
   const meetCols = 'id, tenant_id, "leadName", "companyName", "closerEmail", "scheduledAt", "meetLink", status, "createdAt"';
@@ -90,14 +102,14 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
     });
     return r.sent;
   };
-  for (const m of nextMeetings || []) out.reunioesProximas += await meetingNotice(m, "reuniao_proxima");
-  for (const m of newMeetings || []) out.reunioesNovas += await meetingNotice(m, "reuniao_confirmada");
+  await forEachBudgeted(nextMeetings || [], deadline, async (m) => { out.reunioesProximas += await meetingNotice(m, "reuniao_proxima"); });
+  await forEachBudgeted(newMeetings || [], deadline, async (m) => { out.reunioesNovas += await meetingNotice(m, "reuniao_confirmada"); });
 
   // ── Pagamento de proposta confirmado (financeiro: só administradores) ──
   const { data: paid } = await db.from("finance_entries")
     .select("id, tenant_id, description, value, counterparty")
     .eq("status", "Pago").not("proposal_id", "is", null).gte("updated_at", iso(now - 60 * MIN)).limit(100);
-  for (const p of paid || []) {
+  await forEachBudgeted((paid || []) as any[], deadline, async (p) => {
     const r = await emailNotifyTenant(db, p.tenant_id, baseUrl, {
       triggerId: "pagamento_recebido",
       title: "Pagamento recebido",
@@ -113,7 +125,7 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
       dedupeKey: `pagamento_recebido:${p.id}`,
     });
     out.pagamentos += r.sent;
-  }
+  });
 
   return out;
 }
