@@ -1,5 +1,6 @@
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { Card } from '../../../../components/ui/card';
+import { SectionTitle } from "../../../../components/ui/section-title";
 import { EmptyState } from '../../../../components/ui/empty-state';
 import { PieChart as PieChartIcon } from 'lucide-react';
 import { useLocalization } from '../../../../contexts/LocalizationContext';
@@ -19,10 +20,10 @@ export function RevenueByProductDonut({ slices }: { slices: RevenueSlice[] }) {
   const total = slices.reduce((s, x) => s + x.value, 0);
 
   return (
-    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm h-full flex flex-col">
-      <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2 mb-5">
+    <Card className="p-5 h-full flex flex-col shadow-sm">
+      <SectionTitle className="mb-4">
         <PieChartIcon className="w-4 h-4 text-cyan-500" /> Receita por Produto
-      </h3>
+      </SectionTitle>
       {slices.length === 0 ? (
         <EmptyState icon={PieChartIcon} title="Sem vendas fechadas ainda" description="A distribuição por produto aparece assim que houver leads fechados." className="py-8 flex-1" />
       ) : (

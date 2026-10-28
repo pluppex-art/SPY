@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { Card } from '../../../../components/ui/card';
+import { SectionTitle } from "../../../../components/ui/section-title";
 import { Filter, AlertTriangle } from 'lucide-react';
 import { EmptyState } from '../../../../components/ui/empty-state';
 
@@ -35,10 +36,10 @@ export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps
   }
 
   return (
-    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative shadow-sm h-full flex flex-col">
-      <h3 className="text-xs font-black text-[var(--color-text-primary)] mb-6 uppercase tracking-wider flex items-center gap-2 shrink-0">
+    <Card className="p-5 relative h-full flex flex-col shadow-sm">
+      <SectionTitle className="mb-4 shrink-0">
         <Filter className="w-4 h-4 text-[var(--color-primary-blue)]" /> Funil de Conversão Comercial
-      </h3>
+      </SectionTitle>
       {!hasFunnel ? (
         <EmptyState
           icon={Filter}

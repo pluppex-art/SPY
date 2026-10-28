@@ -1,4 +1,5 @@
 import { Card } from '../../../../components/ui/card';
+import { SectionTitle } from "../../../../components/ui/section-title";
 import { EmptyState } from '../../../../components/ui/empty-state';
 import { Clock, UserPlus, FileText, Video, PartyPopper, CheckSquare, type LucideIcon } from 'lucide-react';
 import { timeAgo } from '../../../../lib/utils';
@@ -33,10 +34,10 @@ const KIND_COLOR: Record<ActivityKind, string> = {
  * ordenadas juntas por data. Nada de log manual (que fica sub-preenchido): direto das tabelas. */
 export function RecentActivityFeed({ activities }: { activities: FeedActivity[] }) {
   return (
-    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm h-full flex flex-col">
-      <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2 mb-5">
+    <Card className="p-5 h-full flex flex-col shadow-sm">
+      <SectionTitle className="mb-4">
         <Clock className="w-4 h-4 text-[var(--color-primary-blue)]" /> Últimas Atividades
-      </h3>
+      </SectionTitle>
       {activities.length === 0 ? (
         <EmptyState icon={Clock} title="Nenhuma atividade ainda" description="Leads, propostas, reuniões e tarefas aparecem aqui assim que acontecerem." className="py-8 flex-1" />
       ) : (

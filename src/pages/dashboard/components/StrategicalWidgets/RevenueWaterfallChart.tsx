@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import { Card } from '../../../../components/ui/card';
+import { SectionTitle } from "../../../../components/ui/section-title";
 import { EmptyState } from '../../../../components/ui/empty-state';
 import { Waves } from 'lucide-react';
 import { useLocalization } from '../../../../contexts/LocalizationContext';
@@ -50,11 +51,11 @@ export function RevenueWaterfallChart({ receita, despesasPorCategoria, receitaLi
   }, [receita, despesasPorCategoria]);
 
   return (
-    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+    <Card className="p-5 shadow-sm">
       <div className="mb-5">
-        <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
+        <SectionTitle>
           <Waves className="w-4 h-4 text-[var(--color-primary-blue)]" /> Receita Bruta → Lucro Líquido
-        </h3>
+        </SectionTitle>
         <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">
           De onde saiu o dinheiro — receita recebida no período menos cada categoria de despesa paga, até sobrar o resultado líquido.
         </p>

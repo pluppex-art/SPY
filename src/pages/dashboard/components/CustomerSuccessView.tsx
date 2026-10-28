@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Card } from '../../../components/ui/card';
+import { SectionTitle } from "../../../components/ui/section-title";
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { AlertCircle, ShieldAlert, HeartHandshake, CheckCircle2, BarChart3 } from 'lucide-react';
@@ -85,17 +86,17 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
       exit={{ opacity: 0, x: -20 }}
       className="space-y-6 text-left"
     >
-    <div className="grid lg:grid-cols-3 gap-6">
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative overflow-hidden shadow-sm flex flex-col justify-between">
+    <div className="grid lg:grid-cols-3 gap-4">
+      <Card className="p-5 relative overflow-hidden flex flex-col justify-between shadow-sm">
         <div>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
               <div className="p-2.5 bg-danger/10 text-danger rounded-xl">
                 <AlertCircle className="w-4 h-4" />
               </div>
-              <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">
+              <SectionTitle as="h4">
                 Contratos Inadimplentes
-              </h4>
+              </SectionTitle>
             </div>
             {emRisco.length > 0 && (
               <Badge variant="destructive" dot dotPulse>
@@ -137,11 +138,11 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
         </div>
       </Card>
 
-      <Card className="lg:col-span-2 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-6">
+      <Card className="lg:col-span-2 p-5 space-y-6 shadow-sm">
         <div>
-          <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2.5">
+          <SectionTitle>
             <HeartHandshake className="w-4 h-4 text-[var(--color-primary-blue)]" /> Carteira de Contratos
-          </h3>
+          </SectionTitle>
           <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">
             Estado atual da base de contratos recorrentes.
           </p>
@@ -181,10 +182,10 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
       </Card>
     </div>
 
-    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-      <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2.5">
+    <Card className="p-5 shadow-sm">
+      <SectionTitle>
         <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> Distribuição de CLV (Valor Vitalício)
-      </h3>
+      </SectionTitle>
       <p className="text-xs text-[var(--color-text-muted)] mt-1 mb-4 font-medium">
         Tempo de contrato × MRR, por faixa de valor — quantos clientes reais caem em cada faixa.
       </p>

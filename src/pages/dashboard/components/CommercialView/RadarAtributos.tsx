@@ -1,4 +1,5 @@
 import { Card } from '../../../../components/ui/card';
+import { SectionTitle } from "../../../../components/ui/section-title";
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip } from 'recharts';
 import { Compass } from 'lucide-react';
 
@@ -26,10 +27,10 @@ export function RadarAtributos({ salesRanking, funnelLeadsCount }: RadarAtributo
   ];
 
   return (
-    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] lg:col-span-1 shadow-sm">
-      <h3 className="text-xs font-black text-[var(--color-text-primary)] mb-6 uppercase tracking-wider flex items-center gap-2">
+    <Card className="p-5 lg:col-span-1 shadow-sm">
+      <SectionTitle className="mb-4">
         <Compass className="w-4 h-4 text-[var(--color-primary-blue)]" /> Radar de Competências
-      </h3>
+      </SectionTitle>
       <div className="h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>

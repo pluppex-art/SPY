@@ -1,4 +1,5 @@
 import { Card } from '../../../../components/ui/card';
+import { SectionTitle } from "../../../../components/ui/section-title";
 import { Eye, MessageSquare, Users, Zap, Target, AlertCircle } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { EmptyState } from '../../../../components/ui/empty-state';
@@ -24,11 +25,11 @@ export function RecentActivitiesList({ recentActivities }: { recentActivities: A
   const hasActivities = recentActivities.length > 0;
 
   return (
-    <Card className="lg:col-span-2 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+    <Card className="lg:col-span-2 p-5 shadow-sm">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
+        <SectionTitle>
           <Eye className="w-4 h-4 text-[var(--color-primary-blue)]" /> Atividades Recentes do Time
-        </h3>
+        </SectionTitle>
         <Badge variant="success" dot dotPulse>
           Tempo Real
         </Badge>

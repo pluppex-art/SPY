@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '../../../components/ui/card';
+import { SectionTitle } from "../../../components/ui/section-title";
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, PieChart, Pie, Cell, Sankey, Treemap } from 'recharts';
 import { Globe, Share2, Sparkles, MousePointer2, Layers, Users, DollarSign, Workflow, LayoutGrid } from 'lucide-react';
 import { useData } from '../../../contexts/DataContext';
@@ -141,13 +142,13 @@ export function MarketingView() {
       exit={{ opacity: 0, y: -20 }}
       className="space-y-6 text-left"
     >
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 p-6 shadow-sm">
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2 p-5 shadow-sm">
            <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
               <div>
-                 <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
+                 <SectionTitle>
                    <Globe className="w-4 h-4 text-[var(--color-primary-blue)]" /> Origem de Leads por Canal
-                 </h3>
+                 </SectionTitle>
                  {/* Antes dizia "Atribuição Dinâmica Aurora" — não é IA nenhuma, é
                      uma classificação por palavra-chave no nome da origem
                      (direct/organic/social). Rótulo tem que dizer o que
@@ -194,10 +195,10 @@ export function MarketingView() {
         </Card>
 
         <div className="space-y-6">
-           <Card className="p-6 shadow-sm">
-              <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4 flex items-center gap-2">
+           <Card className="p-5 shadow-sm">
+              <SectionTitle as="h4" className="mb-4">
                 <Share2 className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Distribuição por Origem
-              </h4>
+              </SectionTitle>
               <div className="h-[180px] w-full min-w-0">
                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={160}>
                     <PieChart>
@@ -249,11 +250,11 @@ export function MarketingView() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="p-6 shadow-sm">
-          <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1 flex items-center gap-2">
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card className="p-5 shadow-sm">
+          <SectionTitle as="h4" className="mb-1">
             <Workflow className="w-4 h-4 text-[var(--color-primary-blue)]" /> Jornada do Lead (Origem → Desfecho)
-          </h4>
+          </SectionTitle>
           <p className="text-xs text-[var(--color-text-muted)] mb-4 font-medium">De cada origem, quantos leads fecharam negócio até agora.</p>
           {!sankeyData.hasData ? (
             <div className="py-10 text-center text-xs text-[var(--color-text-faint)]">Sem leads suficientes pra montar a jornada.</div>
@@ -274,10 +275,10 @@ export function MarketingView() {
           )}
         </Card>
 
-        <Card className="p-6 shadow-sm">
-          <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1 flex items-center gap-2">
+        <Card className="p-5 shadow-sm">
+          <SectionTitle as="h4" className="mb-1">
             <LayoutGrid className="w-4 h-4 text-[var(--color-primary-blue)]" /> Receita Fechada por Origem
-          </h4>
+          </SectionTitle>
           <p className="text-xs text-[var(--color-text-muted)] mb-4 font-medium">Quanto cada origem realmente gerou em negócios fechados — não só volume de leads.</p>
           {revenueBySourceData.length === 0 ? (
             <div className="py-10 text-center text-xs text-[var(--color-text-faint)]">Sem negócios fechados com valor no período.</div>
@@ -293,7 +294,7 @@ export function MarketingView() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
          {[
            // CTR (cliques/impressões) depende de integração com plataformas de anúncio que o
            // sistema ainda não tem — mostrar "—" em vez de um número de exemplo.

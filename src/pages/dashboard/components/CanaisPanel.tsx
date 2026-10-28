@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { Calendar, Radio, Filter, TrendingUp, TrendingDown, Info } from "lucide-react";
 import { Card } from "../../../components/ui/card";
+import { SectionTitle } from "../../../components/ui/section-title";
 import { DrillDownPanel } from "../../../components/ui/DrillDownPanel";
 import { contractDrillColumns } from "../../../components/ui/drillColumns";
 import { leadDrillColumns } from "../../../components/ui/drillColumns";
@@ -57,11 +58,11 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
 
   return (
     <div className="space-y-5">
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5 shadow-sm">
+      <Card className="p-5 space-y-5 shadow-sm">
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por canal de origem</h3>
+            <SectionTitle>Receita por canal de origem</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">Qual canal traz mais receita pro seu negócio.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -89,8 +90,8 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
 
         {/* Barras + distribuição */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Receita por canal de origem</h4>
+          <Card className="min-w-0 overflow-hidden p-5 shadow-sm">
+            <SectionTitle as="h4">Receita por canal de origem</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Comparativo da receita gerada por cada canal no período selecionado.</p>
             {ranqueados.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhum canal com dados no período.</p>
@@ -115,8 +116,8 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
             )}
           </Card>
 
-          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Distribuição da receita por canal</h4>
+          <Card className="min-w-0 overflow-hidden p-5 shadow-sm">
+            <SectionTitle as="h4">Distribuição da receita por canal</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Participação de cada canal na receita total.</p>
             {donut.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Sem receita no período.</p>
@@ -155,10 +156,10 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
         </div>
 
         {/* Detalhamento */}
-        <Card className="overflow-hidden min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="overflow-hidden min-w-0 shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex flex-wrap items-start justify-between gap-2">
             <div>
-              <h4 className="text-sm font-black text-[var(--color-text-primary)]">Detalhamento por canal de origem</h4>
+              <SectionTitle as="h4">Detalhamento por canal de origem</SectionTitle>
               <p className="text-[11px] text-[var(--color-text-muted)]">Veja a receita, leads, vendas, conversão e ticket médio de cada canal.</p>
             </div>
             {variacaoTotal !== null && (

@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { Card } from '../../../../components/ui/card';
+import { SectionTitle } from "../../../../components/ui/section-title";
 import { EmptyState } from '../../../../components/ui/empty-state';
 import { Filter } from 'lucide-react';
 
@@ -28,10 +29,10 @@ export function SalesFunnelWidget({ steps }: { steps: FunnelStepData[] }) {
   const colWidth = 100 / steps.length;
 
   return (
-    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-      <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2 mb-6">
+    <Card className="p-5 shadow-sm">
+      <SectionTitle className="mb-4">
         <Filter className="w-4 h-4 text-purple-500" /> Funil de Vendas
-      </h3>
+      </SectionTitle>
       {!hasData ? (
         <EmptyState icon={Filter} title="Sem leads ainda" description="O funil aparece assim que os primeiros leads entrarem no pipeline." className="py-8" />
       ) : (

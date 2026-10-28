@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { Network } from "lucide-react";
 
 import { Card } from "@/src/components/ui/card";
+import { SectionTitle } from "../../../../components/ui/section-title";
 
 type SimulationRow = {
   name: string;
@@ -27,17 +28,17 @@ export function PerformanceIADeepLearningInsights({
     : 0;
 
   return (
-    <div className="grid lg:grid-cols-4 gap-6">
-      <Card className="p-6 bg-[var(--color-surface-elevated)]/80 border-white/5 relative overflow-hidden group">
+    <div className="grid lg:grid-cols-4 gap-4">
+      <Card className="p-5 relative overflow-hidden group shadow-sm">
         <div className="flex items-center gap-3 mb-6">
           <Network className="w-5 h-5 text-indigo-400" />
-          <h4 className="text-[11px] font-black text-white uppercase tracking-widest">
+          <SectionTitle as="h4">
             Potencial de Crescimento por Cenário
-          </h4>
+          </SectionTitle>
         </div>
 
         {!atual || cenarios.length === 0 ? (
-          <p className="text-[10px] text-slate-500">Sem dados de MRR/CAC suficientes para simular cenários ainda.</p>
+          <p className="text-[10px] text-[var(--color-text-muted)]">Sem dados de MRR/CAC suficientes para simular cenários ainda.</p>
         ) : (
           <div className="space-y-4">
             {cenarios.map((c, i) => {
@@ -46,15 +47,15 @@ export function PerformanceIADeepLearningInsights({
               return (
                 <div key={i}>
                   <div className="flex justify-between mb-1.5 px-0.5">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">
+                    <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase">
                       {c.name}
                     </span>
-                    <span className="text-[9px] font-black text-white">
+                    <span className="text-[9px] font-black text-[var(--color-text-primary)]">
                       +{uplift.toFixed(0)}% MRR
                     </span>
                   </div>
 
-                  <div className="w-full h-1 bg-white/5 rounded-full">
+                  <div className="w-full h-1 bg-[var(--color-surface-sunken)] rounded-full">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${barWidth}%` }}

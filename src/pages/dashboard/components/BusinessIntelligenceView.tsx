@@ -9,6 +9,7 @@ import {
   Building2, CalendarCheck, ListChecks, Loader2, RefreshCw, BarChart3,
 } from "lucide-react";
 import { Card } from "../../../components/ui/card";
+import { SectionTitle } from "../../../components/ui/section-title";
 import { DateRangeFilter } from "../../../components/ui/DateRangeFilter";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -83,7 +84,7 @@ function tickCurrencyShort(v: number): string {
   return `R$${v}`;
 }
 
-const kpiCardClass = "p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm";
+const kpiCardClass = "p-5 shadow-sm";
 const kpiLabelClass = "text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-faint)] flex items-center gap-1.5 mb-1.5";
 const kpiValueClass = "text-xl font-black text-[var(--color-text-primary)] font-mono tracking-tight";
 
@@ -193,9 +194,9 @@ export function BusinessIntelligenceView() {
     >
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h3 className="text-lg font-black text-[var(--color-text-primary)] uppercase tracking-tight flex items-center gap-2.5">
+          <SectionTitle>
             <BarChart3 className="w-5 h-5 text-[var(--color-primary-blue)]" /> Dashboard / BI
-          </h3>
+          </SectionTitle>
           <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">
             CRM, Financeiro e Operacional consolidados — calculado no servidor, sem carregar a base inteira no navegador.
           </p>
@@ -256,7 +257,7 @@ export function BusinessIntelligenceView() {
             </div>
 
             <div className="grid lg:grid-cols-2 gap-4 mt-4">
-              <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+              <Card className="p-5 shadow-sm">
                 <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-2">Evolução de Vendas (por mês)</span>
                 {summary.crm.evolucaoVendas.length === 0 ? (
                   <p className="text-xs text-[var(--color-text-faint)] py-8 text-center">Sem dados no período.</p>
@@ -273,7 +274,7 @@ export function BusinessIntelligenceView() {
                 )}
               </Card>
 
-              <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+              <Card className="p-5 shadow-sm">
                 <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-2">Leads por Etapa da Central de Vendas</span>
                 {leadsPorEtapaData.length === 0 ? (
                   <p className="text-xs text-[var(--color-text-faint)] py-8 text-center">Sem leads.</p>
@@ -290,7 +291,7 @@ export function BusinessIntelligenceView() {
                 )}
               </Card>
 
-              <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+              <Card className="p-5 shadow-sm">
                 <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-2">Origem dos Leads</span>
                 {origemData.length === 0 ? (
                   <p className="text-xs text-[var(--color-text-faint)] py-8 text-center">Sem dados no período.</p>
@@ -310,7 +311,7 @@ export function BusinessIntelligenceView() {
                 )}
               </Card>
 
-              <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+              <Card className="p-5 shadow-sm">
                 <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-2">Distribuição por Vendedor</span>
                 {vendedorData.length === 0 ? (
                   <p className="text-xs text-[var(--color-text-faint)] py-8 text-center">Sem dados no período.</p>
@@ -369,7 +370,7 @@ export function BusinessIntelligenceView() {
               </Card>
             </div>
 
-            <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm mt-4">
+            <Card className="p-5 mt-4 shadow-sm">
               <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-2">Receita x Despesa por Mês</span>
               {summary.financeiro.evolucaoFinanceira.length === 0 ? (
                 <p className="text-xs text-[var(--color-text-faint)] py-8 text-center">Sem lançamentos pagos no período.</p>
@@ -417,7 +418,7 @@ export function BusinessIntelligenceView() {
             </div>
 
             {Object.keys(summary.operacional.produtividadePorResponsavel).length > 0 && (
-              <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm mt-4">
+              <Card className="p-5 mt-4 shadow-sm">
                 <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)] block mb-2">Produtividade por Responsável (tarefas + reuniões)</span>
                 <div className="space-y-1.5">
                   {Object.entries(summary.operacional.produtividadePorResponsavel)

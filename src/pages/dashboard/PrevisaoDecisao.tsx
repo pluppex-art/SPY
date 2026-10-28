@@ -7,6 +7,7 @@ import {
   TrendingUp, Target, AlertTriangle, Gauge, Flame, Sparkles, UserX, FileWarning, SlidersHorizontal,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { SectionTitle } from "../../components/ui/section-title";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { useData } from "../../contexts/DataContext";
@@ -118,22 +119,22 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="p-5 shadow-sm">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><TrendingUp className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Previsão de Receita (90d)</span></div>
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(previsao90dias)}</p>
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">Cenário base</p>
         </Card>
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="p-5 shadow-sm">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Target className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Central de Vendas Ponderada</span></div>
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(pipelinePonderado)}</p>
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{leadsAbertos.length} oportunidade{leadsAbertos.length === 1 ? "" : "s"}</p>
         </Card>
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="p-5 shadow-sm">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Gauge className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Probabilidade de Atingir Meta</span></div>
           <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{probMeta !== null ? `${probMeta}%` : "—"}</p>
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{totalMeta > 0 ? `Meta ${formatCurrency(totalMeta)}` : "Sem meta configurada"}</p>
         </Card>
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-danger/20">
+        <Card className="p-5 border-danger/20 shadow-sm">
           <div className="flex items-center gap-2 text-danger"><AlertTriangle className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Risco de Queda</span></div>
           <p className="text-2xl font-black text-danger font-mono mt-2">{formatCurrency(receitaEmRisco)}</p>
           <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{contratosEmRisco.length} contrato{contratosEmRisco.length === 1 ? "" : "s"} inadimplente{contratosEmRisco.length === 1 ? "" : "s"}</p>
@@ -141,8 +142,8 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1">Cenários de Receita</h3>
+        <Card className="lg:col-span-7 p-5 shadow-sm">
+          <SectionTitle className="mb-1">Cenários de Receita</SectionTitle>
           <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Simulação a partir da tendência real dos últimos meses + funil ponderado por Score IA.</p>
           <div className="flex flex-wrap gap-2 mb-3">
             {cenarios.map((c) => (
@@ -203,8 +204,8 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-4 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <div className="p-4 border-b border-[var(--color-border-subtle)]"><h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Maior Probabilidade de Fechamento</h3></div>
+        <Card className="lg:col-span-4 overflow-hidden shadow-sm">
+          <div className="p-4 border-b border-[var(--color-border-subtle)]"><SectionTitle>Maior Probabilidade de Fechamento</SectionTitle></div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
@@ -225,8 +226,8 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
           </div>
         </Card>
 
-        <Card className="lg:col-span-4 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <div className="p-4 border-b border-[var(--color-border-subtle)]"><h3 className="text-xs font-black text-danger uppercase tracking-wider">Riscos Previstos</h3></div>
+        <Card className="lg:col-span-4 overflow-hidden shadow-sm">
+          <div className="p-4 border-b border-[var(--color-border-subtle)]"><SectionTitle tone="danger">Riscos Previstos</SectionTitle></div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
@@ -247,8 +248,8 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
           </div>
         </Card>
 
-        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1 flex items-center gap-1.5"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Simulador de Decisão</h3>
+        <Card className="lg:col-span-4 p-5 shadow-sm">
+          <SectionTitle className="mb-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Simulador de Decisão</SectionTitle>
           <p className="text-[10px] text-[var(--color-text-muted)] mb-4">Veja o impacto de diferentes ações na sua receita.</p>
           <div className="space-y-4">
             <div>
@@ -284,8 +285,8 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Indicadores que mais Afetam sua Receita</h3>
+        <Card className="lg:col-span-4 p-5 shadow-sm">
+          <SectionTitle className="mb-4">Indicadores que mais Afetam sua Receita</SectionTitle>
           <div className="space-y-2.5">
             {indicadores.map((ind) => (
               <div key={ind.label} className="flex items-center justify-between gap-2">
@@ -296,8 +297,8 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
           </div>
         </Card>
 
-        <Card className="lg:col-span-4 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <div className="p-4 border-b border-[var(--color-border-subtle)]"><h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por Produto/Serviço</h3></div>
+        <Card className="lg:col-span-4 overflow-hidden shadow-sm">
+          <div className="p-4 border-b border-[var(--color-border-subtle)]"><SectionTitle>Receita por Produto/Serviço</SectionTitle></div>
           <div className="divide-y divide-[var(--color-border-subtle)]">
             {produtos.slice(0, 5).map((p) => (
               <div key={p.produto} className="px-4 py-2.5 flex items-center justify-between gap-2 text-xs">
@@ -310,8 +311,8 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
           </div>
         </Card>
 
-        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Metas e Performance</h3>
+        <Card className="lg:col-span-4 p-5 shadow-sm">
+          <SectionTitle className="mb-4">Metas e Performance</SectionTitle>
           {squadsComMeta.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] italic">Nenhuma meta de squad configurada.</p>
           ) : (

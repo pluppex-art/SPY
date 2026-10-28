@@ -3,6 +3,7 @@ import {
   Brain, Zap, Users, ShoppingBag, Megaphone, Package, Share2,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { SectionTitle } from "../../components/ui/section-title";
 import { Badge } from "../../components/ui/badge";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -130,7 +131,7 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-8 p-6 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-[#fff]">
+        <Card className="lg:col-span-8 p-5 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-[#fff]">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-[rgba(255,255,255,0.15)] flex items-center justify-center shrink-0"><Brain className="w-5 h-5" /></div>
             <div>
@@ -148,8 +149,8 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
           </div>
         </Card>
 
-        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-3 flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Melhor dia pra propostas</h3>
+        <Card className="lg:col-span-4 p-5 shadow-sm">
+          <SectionTitle className="mb-4"><Zap className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Melhor dia pra propostas</SectionTitle>
           <div className="space-y-2">
             {melhorDia.slice(0, 4).map((d) => (
               <div key={d.dia} className="flex items-center gap-2">
@@ -166,9 +167,9 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-7 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="lg:col-span-7 overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Principais Insights Identificados</h3>
+            <SectionTitle>Principais Insights Identificados</SectionTitle>
             <Badge variant="secondary">{insights.length}</Badge>
           </div>
           <div className="divide-y divide-[var(--color-border-subtle)]">
@@ -186,7 +187,7 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
           </div>
         </Card>
 
-        <Card className="lg:col-span-5 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="lg:col-span-5 overflow-hidden shadow-sm">
           <div className="p-3 border-b border-[var(--color-border-subtle)] flex items-center gap-1">
             {([["clientes", "Clientes", Users], ["vendas", "Vendas", ShoppingBag], ["marketing", "Marketing", Megaphone], ["produtos", "Produtos", Package]] as const).map(([v, label, Icon]) => (
               <button
@@ -213,8 +214,8 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
         </Card>
       </div>
 
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-        <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4 flex items-center gap-1.5"><Share2 className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Canais com maior conversão</h3>
+      <Card className="p-5 shadow-sm">
+        <SectionTitle className="mb-4"><Share2 className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Canais com maior conversão</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {canais.slice(0, 6).map((c) => (
             <div key={c.origem} className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-3.5">

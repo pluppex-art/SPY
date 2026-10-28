@@ -9,6 +9,7 @@ import {
   Flame, FileWarning, UserX, PieChart as PieChartIcon,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { SectionTitle } from "../../components/ui/section-title";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
@@ -216,7 +217,7 @@ export default function CentralReceita() {
       </div>
 
       {/* Aurora recomenda */}
-      <Card className="p-6 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-[#fff]">
+      <Card className="p-5 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-[#fff]">
         <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[rgba(255,255,255,0.15)] flex items-center justify-center shrink-0"><Sparkles className="w-5 h-5" /></div>
@@ -257,8 +258,8 @@ export default function CentralReceita() {
 
       {/* Evolução + Origem + Conversão */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Evolução da Receita</h3>
+        <Card className="lg:col-span-5 p-5 shadow-sm">
+          <SectionTitle className="mb-4">Evolução da Receita</SectionTitle>
           <div className="h-[220px] w-full -mx-2">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
               <AreaChart data={performanceData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
@@ -282,8 +283,8 @@ export default function CentralReceita() {
           </div>
         </Card>
 
-        <Card className="lg:col-span-3 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4 flex items-center gap-2"><PieChartIcon className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Origem dos Leads</h3>
+        <Card className="lg:col-span-3 p-5 flex flex-col shadow-sm">
+          <SectionTitle className="mb-4"><PieChartIcon className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Origem dos Leads</SectionTitle>
           {origemSlices.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] italic flex-1 flex items-center justify-center">Sem leads ainda</p>
           ) : (
@@ -315,8 +316,8 @@ export default function CentralReceita() {
           )}
         </Card>
 
-        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Conversão por Etapa</h3>
+        <Card className="lg:col-span-4 p-5 shadow-sm">
+          <SectionTitle className="mb-4">Conversão por Etapa</SectionTitle>
           <div className="space-y-2.5">
             {funnelData.map((s) => (
               <div key={s.label} className="flex items-center gap-2">
@@ -333,9 +334,9 @@ export default function CentralReceita() {
 
       {/* Tabelas: Prioritárias + Em risco */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <Card className="lg:col-span-3 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="lg:col-span-3 overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Oportunidades Prioritárias</h3>
+            <SectionTitle>Oportunidades Prioritárias</SectionTitle>
             <div className="flex items-center gap-2">
               <Badge variant="secondary">{oportunidadesPrioritarias.length}</Badge>
               <Button variant="outline" size="sm" onClick={() => setTab("oportunidades")} className="h-7 px-2.5 text-[10px] font-bold">Ver todas</Button>
@@ -366,9 +367,9 @@ export default function CentralReceita() {
           </div>
         </Card>
 
-        <Card className="lg:col-span-2 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="lg:col-span-2 overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-            <h3 className="text-xs font-black text-danger uppercase tracking-wider flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Receita em Risco</h3>
+            <SectionTitle tone="danger"><AlertTriangle className="w-3.5 h-3.5" /> Receita em Risco</SectionTitle>
             <Button variant="outline" size="sm" onClick={() => setTab("vazamentos")} className="h-7 px-2.5 text-[10px] font-bold">Ver todas</Button>
           </div>
           <div className="divide-y divide-[var(--color-border-subtle)]">

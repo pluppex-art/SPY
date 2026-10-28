@@ -4,6 +4,7 @@ import {
 } from "recharts";
 import { Calendar, PieChart as PieIcon, TrendingUp, TrendingDown, Pencil, Check } from "lucide-react";
 import { Card } from "../../../components/ui/card";
+import { SectionTitle } from "../../../components/ui/section-title";
 import { DrillDownPanel } from "../../../components/ui/DrillDownPanel";
 import { contractDrillColumns } from "../../../components/ui/drillColumns";
 import { useData } from "../../../contexts/DataContext";
@@ -111,11 +112,11 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
 
   return (
     <div className="space-y-5">
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5 shadow-sm">
+      <Card className="p-5 space-y-5 shadow-sm">
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por segmento</h3>
+            <SectionTitle>Receita por segmento</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">Os segmentos são as categorias dos seus produtos e serviços (Catálogo). Veja a receita, a evolução e o desempenho de cada um.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -140,7 +141,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
 
         {/* Donut + evolução */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <Card className="lg:col-span-5 min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="lg:col-span-5 min-w-0 overflow-hidden p-5 shadow-sm">
             {donut.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-16 text-center">Sem contratos assinados no período.</p>
             ) : (
@@ -181,9 +182,9 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
             )}
           </Card>
 
-          <Card className="lg:col-span-7 min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="lg:col-span-7 min-w-0 overflow-hidden p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-3">
-              <h4 className="text-sm font-black text-[var(--color-text-primary)]">Evolução da receita por segmento</h4>
+              <SectionTitle as="h4">Evolução da receita por segmento</SectionTitle>
               <select value={acumulada ? "acumulada" : "diaria"} onChange={(e) => setAcumulada(e.target.value === "acumulada")} className={selectCls}>
                 <option value="acumulada">Acumulada</option>
                 <option value="diaria">Diária</option>
@@ -215,9 +216,9 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
 
         {/* Desempenho + Metas */}
         <div className="grid grid-cols-1 2xl:grid-cols-12 gap-4">
-          <Card className="2xl:col-span-7 min-w-0 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="2xl:col-span-7 min-w-0 overflow-hidden shadow-sm">
             <div className="p-4 border-b border-[var(--color-border-subtle)]">
-              <h4 className="text-sm font-black text-[var(--color-text-primary)]">Desempenho por segmento</h4>
+              <SectionTitle as="h4">Desempenho por segmento</SectionTitle>
               <p className="text-[11px] text-[var(--color-text-muted)]">Principais indicadores de cada segmento.</p>
             </div>
             <div className="overflow-x-auto">
@@ -266,9 +267,9 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
             </div>
           </Card>
 
-          <Card className="2xl:col-span-5 min-w-0 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="2xl:col-span-5 min-w-0 overflow-hidden shadow-sm">
             <div className="p-4 border-b border-[var(--color-border-subtle)]">
-              <h4 className="text-sm font-black text-[var(--color-text-primary)]">Metas por segmento</h4>
+              <SectionTitle as="h4">Metas por segmento</SectionTitle>
               <p className="text-[11px] text-[var(--color-text-muted)]">
                 Acompanhe as metas de receita.{!sellerRestricted && " Clique na meta para editar."}
               </p>

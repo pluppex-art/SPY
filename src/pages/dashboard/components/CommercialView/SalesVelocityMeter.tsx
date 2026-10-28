@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts';
 import { Card } from '../../../../components/ui/card';
+import { SectionTitle } from "../../../../components/ui/section-title";
 import { Gauge } from 'lucide-react';
 import { useData } from '../../../../contexts/DataContext';
 import { useLocalization } from '../../../../contexts/LocalizationContext';
@@ -64,10 +65,10 @@ export function SalesVelocityMeter() {
     : [];
 
   return (
-    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-      <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2 mb-1">
+    <Card className="p-5 shadow-sm">
+      <SectionTitle className="mb-1">
         <Gauge className="w-4 h-4 text-[var(--color-primary-blue)]" /> Velocidade de Vendas
-      </h3>
+      </SectionTitle>
       <p className="text-xs text-[var(--color-text-muted)] mb-4 font-medium">
         Tempo médio real entre a criação do lead e a assinatura do contrato.
       </p>

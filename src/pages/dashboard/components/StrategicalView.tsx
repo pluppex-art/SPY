@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '../../../components/ui/card';
+import { SectionTitle } from "../../../components/ui/section-title";
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line, Legend } from 'recharts';
@@ -240,13 +241,13 @@ export function StrategicalView({
       exit={{ opacity: 0, x: 20 }}
       className="space-y-5 text-left"
     >
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative shadow-sm">
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2 p-5 relative shadow-sm">
           <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
             <div>
-              <h3 className="text-lg font-black text-[var(--color-text-primary)] uppercase tracking-tight flex items-center gap-2.5">
+              <SectionTitle>
                 <BarChart3 className="w-5 h-5 text-[var(--color-primary-blue)]" /> Fluxo de Performance
-              </h3>
+              </SectionTitle>
               <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">Correlação entre volume de leads prospectados e faturamento recorrente.</p>
             </div>
           </div>
@@ -323,11 +324,11 @@ export function StrategicalView({
         </Card>
 
         <div className="space-y-6">
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative h-full flex flex-col shadow-sm">
+          <Card className="p-5 relative h-full flex flex-col shadow-sm">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
+              <SectionTitle>
                 <Target className="w-4 h-4 text-emerald-500" /> Medidor de Metas
-              </h3>
+              </SectionTitle>
               <Trophy className="w-4 h-4 text-amber-500" />
             </div>
             <div className="flex-1 flex flex-col justify-center items-center py-4">
@@ -390,7 +391,7 @@ export function StrategicalView({
 
       <SalesFunnelWidget steps={salesFunnelSteps} />
 
-      <div className="grid lg:grid-cols-2 gap-6 items-stretch">
+      <div className="grid lg:grid-cols-2 gap-4 items-stretch">
         <RecentActivityFeed activities={recentActivities} />
         <RevenueByProductDonut slices={revenueByProduct} />
       </div>
@@ -409,11 +410,11 @@ export function StrategicalView({
         </button>
 
         {showDetails && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col shadow-sm">
-              <h3 className="text-xs font-black text-[var(--color-text-muted)] mb-4 uppercase tracking-wider flex items-center gap-2">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <Card className="p-5 flex flex-col shadow-sm">
+              <SectionTitle tone="muted" className="mb-4">
                 <Layers className="w-4 h-4 text-[var(--color-primary-blue)]" /> Insights de Operação
-              </h3>
+              </SectionTitle>
               <div className="space-y-4">
                 <div>
                   <p className="text-xs font-bold text-[var(--color-text-primary)] mb-1 flex items-center gap-1.5">
@@ -434,18 +435,18 @@ export function StrategicalView({
               </div>
             </Card>
 
-            <Card className="lg:col-span-3 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+            <Card className="lg:col-span-3 p-5 shadow-sm">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2.5">
+                <SectionTitle>
                   <Briefcase className="w-4 h-4 text-purple-500" /> Snapshot de Contratos & Retenção
-                </h3>
+                </SectionTitle>
                 {taxaInadimplencia !== null && (
                   <Badge variant={taxaInadimplencia > 0 ? "destructive" : "success"} dot>
                     {taxaInadimplencia === 0 ? "Sem inadimplência" : `${formatPercentage(taxaInadimplencia)} inadimplente`}
                   </Badge>
                 )}
               </div>
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-3 gap-4">
                 {!hasContracts ? (
                   <div className="col-span-3 flex flex-col items-center justify-center py-6 gap-2 opacity-50">
                     <Briefcase className="w-6 h-6 text-[var(--color-text-faint)]" />
@@ -467,13 +468,13 @@ export function StrategicalView({
               </div>
             </Card>
 
-            <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-              <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2.5 mb-6">
+            <Card className="lg:col-span-4 p-5 shadow-sm">
+              <SectionTitle className="mb-4">
                 <Wallet className="w-4 h-4 text-emerald-500" /> Snapshot Financeiro
                 <span className="text-[10px] font-medium normal-case text-[var(--color-text-faint)]">
                   {!dateFrom && !dateTo ? "· todo o período" : "· período selecionado"}
                 </span>
-              </h3>
+              </SectionTitle>
               {!financeSnapshot.hasAnyEntry ? (
                 <div className="flex flex-col items-center justify-center py-6 gap-2 opacity-50">
                   <Wallet className="w-6 h-6 text-[var(--color-text-faint)]" />

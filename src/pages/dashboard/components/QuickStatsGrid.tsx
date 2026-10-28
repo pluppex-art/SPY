@@ -63,7 +63,7 @@ export function QuickStatsGrid({ stats, periodoLabel }: QuickStatsGridProps) {
                 <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right">Sem dados<br />p/ comparação</span>
               )}
             </div>
-            <div className="text-2xl font-display font-black text-[var(--color-text-primary)] mb-1 italic">
+            <div className="text-2xl font-black text-[var(--color-text-primary)] font-mono mb-1">
               {stat.value}
             </div>
             <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider flex items-center gap-1">

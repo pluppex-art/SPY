@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { AlertTriangle, FileWarning, Flame, Workflow, UserX } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { SectionTitle } from "../../components/ui/section-title";
 import { Button } from "../../components/ui/button";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -59,7 +60,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
         <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Encontre e recupere receita que está sendo perdida na sua operação.</p>
       </div>
 
-      <Card className="p-5 bg-danger/5 border border-danger/20">
+      <Card className="p-5 bg-danger/5 border-danger/20">
         <div className="flex items-center gap-2 text-danger"><AlertTriangle className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Receita Potencial Subaproveitada</span></div>
         <p className="text-3xl font-black text-danger font-mono mt-2">{formatCurrency(totalVazamento)}</p>
         <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">
@@ -91,8 +92,8 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Onde está o vazamento?</h3>
+        <Card className="lg:col-span-4 p-5 flex flex-col shadow-sm">
+          <SectionTitle className="mb-4">Onde está o vazamento?</SectionTitle>
           {vazamentos.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] italic flex-1 flex items-center justify-center">Nenhum vazamento identificado.</p>
           ) : (
@@ -123,8 +124,8 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
           )}
         </Card>
 
-        <Card className="lg:col-span-3 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Impacto no Resultado</h3>
+        <Card className="lg:col-span-3 p-5 shadow-sm">
+          <SectionTitle className="mb-4">Impacto no Resultado</SectionTitle>
           <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Se recuperarmos parte dessas oportunidades:</p>
           <div className="space-y-2.5">
             {[["Cenário Conservador", 0.3], ["Cenário Realista", 0.5], ["Cenário Otimista", 0.7]].map(([label, pct]) => (
@@ -139,7 +140,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
           </div>
         </Card>
 
-        <Card className="lg:col-span-5 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="lg:col-span-5 overflow-hidden shadow-sm">
           <div className="p-3 border-b border-[var(--color-border-subtle)] flex flex-wrap gap-1">
             {tabs.map((t) => (
               <button

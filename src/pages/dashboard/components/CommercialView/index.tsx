@@ -56,12 +56,12 @@ export function CommercialView({ salesRanking, funnelData, recentActivities }: C
           Pipeline" saiu de dentro do Funil e virou uma faixa só, de largura
           inteira, embaixo dos dois — não faz sentido ficar presa só a um
           dos dois cards quando fala do funil como um todo. */}
-      <div className="grid lg:grid-cols-2 gap-6 items-stretch">
+      <div className="grid lg:grid-cols-2 gap-4 items-stretch">
         <SalesRankingPodium salesRanking={salesRanking} />
         <FunnelConversionChart funnelData={funnelData} />
       </div>
 
-      <Card className="p-4 bg-[var(--color-primary-blue)]/5 border border-[var(--color-primary-blue)]/20 shadow-sm flex items-center gap-3">
+      <Card className="p-5 bg-[var(--color-primary-blue)]/5 border-[var(--color-primary-blue)]/20 flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 flex items-center justify-center shrink-0">
           <TrendingUp className="w-4 h-4 text-[var(--color-primary-blue)]" />
         </div>
@@ -81,7 +81,7 @@ export function CommercialView({ salesRanking, funnelData, recentActivities }: C
           circular sobra espaço nas laterais). Agora os dois primeiros
           dividem a linha sozinhos (mais respiro entre eles) e Atividades
           Recentes ganha a linha inteira embaixo. */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-4">
         <SalesVelocityMeter />
         <RadarAtributos salesRanking={salesRanking} funnelLeadsCount={funnelLeadsCount} />
       </div>

@@ -7,6 +7,7 @@ import {
   Radio, Package, Globe2, Trophy, Sparkles, ChevronRight, Workflow,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { SectionTitle } from "../../components/ui/section-title";
 import { Badge } from "../../components/ui/badge";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 import { leadDrillColumns, contractDrillColumns, isContractAtivo } from "../../components/ui/drillColumns";
@@ -126,8 +127,8 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       </div>
 
       {/* Fluxo da Receita */}
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-        <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Fluxo da Receita</h3>
+      <Card className="p-5 shadow-sm">
+        <SectionTitle className="mb-4">Fluxo da Receita</SectionTitle>
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
           {fluxo.map((f, i) => (
             <div key={f.label} className="relative">
@@ -160,9 +161,9 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       ) : (
       <>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por Canal de Origem</h3>
+            <SectionTitle>Receita por Canal de Origem</SectionTitle>
             <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Qual canal traz mais receita pro seu negócio.</p>
           </div>
           <div className="overflow-x-auto">
@@ -184,9 +185,9 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           </div>
         </Card>
 
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por Produto/Serviço</h3>
+            <SectionTitle>Receita por Produto/Serviço</SectionTitle>
             <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Quais produtos geram mais receita.</p>
           </div>
           <div className="overflow-x-auto">
@@ -208,8 +209,8 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           </div>
         </Card>
 
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1">Receita por Segmento</h3>
+        <Card className="p-5 flex flex-col shadow-sm">
+          <SectionTitle className="mb-1">Receita por Segmento</SectionTitle>
           <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Em quais segmentos sua empresa mais ganha.</p>
           {segmentos.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] italic flex-1 flex items-center justify-center">Sem contratos ativos ainda</p>
@@ -243,9 +244,9 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-5 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="lg:col-span-5 overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por Vendedor</h3>
+            <SectionTitle>Receita por Vendedor</SectionTitle>
             <Badge variant="secondary">{salesRanking.length}</Badge>
           </div>
           <div className="overflow-x-auto">
@@ -268,8 +269,8 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           </div>
         </Card>
 
-        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4 flex items-center gap-1.5"><Workflow className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Oportunidades por Etapa</h3>
+        <Card className="lg:col-span-4 p-5 shadow-sm">
+          <SectionTitle className="mb-4"><Workflow className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Oportunidades por Etapa</SectionTitle>
           <div className="space-y-2.5">
             {funnelData.map((s) => (
               <div key={s.label} className="flex items-center gap-2">

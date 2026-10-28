@@ -6,6 +6,7 @@ import {
   Calendar, Package, Wallet, Trophy, PieChart as PieIcon, LayoutGrid, FileText, TrendingUp, TrendingDown, Info, Filter,
 } from "lucide-react";
 import { Card } from "../../../components/ui/card";
+import { SectionTitle } from "../../../components/ui/section-title";
 import { DrillDownPanel } from "../../../components/ui/DrillDownPanel";
 import { contractDrillColumns } from "../../../components/ui/drillColumns";
 import { useData } from "../../../contexts/DataContext";
@@ -30,7 +31,7 @@ function Tendencia({ pct }: { pct: number | null }) {
 
 function KpiCard({ icon: Icon, label, children, cor }: { icon: typeof Wallet; label: string; children: React.ReactNode; cor: string }) {
   return (
-    <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] min-w-0 shadow-sm">
+    <Card className="p-5 min-w-0 shadow-sm">
       <div className="flex items-start gap-3 min-w-0">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${cor}1f` }}>
           <Icon className="w-5 h-5" style={{ color: cor }} />
@@ -82,11 +83,11 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
 
   return (
     <div className="space-y-5">
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5 shadow-sm">
+      <Card className="p-5 space-y-5 shadow-sm">
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por produto/serviço</h3>
+            <SectionTitle>Receita por produto/serviço</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">Quais produtos geram mais receita e margem.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -140,8 +141,8 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
 
         {/* Barras + evolução */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Receita por produto/serviço</h4>
+          <Card className="min-w-0 overflow-hidden p-5 shadow-sm">
+            <SectionTitle as="h4">Receita por produto/serviço</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Distribuição da receita no período selecionado.</p>
             {rankeados.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhum produto vendido no período.</p>
@@ -168,10 +169,10 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
             )}
           </Card>
 
-          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="min-w-0 overflow-hidden p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-1">
               <div>
-                <h4 className="text-sm font-black text-[var(--color-text-primary)]">Evolução da receita por produto</h4>
+                <SectionTitle as="h4">Evolução da receita por produto</SectionTitle>
                 <p className="text-[11px] text-[var(--color-text-muted)] mb-3">{acumulada ? "Receita acumulada" : "Receita diária"} no período selecionado.</p>
               </div>
               <select value={acumulada ? "acumulada" : "diaria"} onChange={(e) => setAcumulada(e.target.value === "acumulada")} className={selectCls}>
@@ -204,9 +205,9 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
         </div>
 
         {/* Detalhamento */}
-        <Card className="overflow-hidden min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="overflow-hidden min-w-0 shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Detalhamento por produto/serviço</h4>
+            <SectionTitle as="h4">Detalhamento por produto/serviço</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)]">Veja a receita, vendas, ticket médio, participação e margem de cada produto.</p>
           </div>
           <div className="overflow-x-auto">

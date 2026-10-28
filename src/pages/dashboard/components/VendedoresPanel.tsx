@@ -6,6 +6,7 @@ import {
   Crown, Users, Target, FileText, ShoppingCart, ChevronRight, TrendingUp, TrendingDown, Calendar, Package,
 } from "lucide-react";
 import { Card } from "../../../components/ui/card";
+import { SectionTitle } from "../../../components/ui/section-title";
 import { DrillDownPanel } from "../../../components/ui/DrillDownPanel";
 import { leadDrillColumns } from "../../../components/ui/drillColumns";
 import { useData } from "../../../contexts/DataContext";
@@ -134,10 +135,10 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
 
   return (
     <div className="space-y-5">
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5 shadow-sm">
+      <Card className="p-5 space-y-5 shadow-sm">
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">{titulo}</h3>
+          <SectionTitle>{titulo}</SectionTitle>
           <div className="flex flex-wrap items-center gap-2">
             <label className="relative">
               <Calendar className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
@@ -181,8 +182,8 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
         {/* Ranking + Meta x realizado */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {!sellerRestricted && (
-            <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-              <h4 className="text-sm font-black text-[var(--color-text-primary)]">Ranking de Vendas</h4>
+            <Card className="lg:col-span-7 p-5 shadow-sm">
+              <SectionTitle as="h4">Ranking de Vendas</SectionTitle>
               <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Top vendedores por receita no período selecionado.</p>
               {ranking.length === 0 ? (
                 <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhuma venda concluída no período.</p>
@@ -241,8 +242,8 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
             </Card>
           )}
 
-          <Card className={`${sellerRestricted ? "lg:col-span-12" : "lg:col-span-5"} p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]`}>
-            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Meta x realizado{sellerRestricted ? "" : " por vendedor"}</h4>
+          <Card className={`${sellerRestricted ? "lg:col-span-12" : "lg:col-span-5"} p-5 shadow-sm`}>
+            <SectionTitle as="h4">Meta x realizado{sellerRestricted ? "" : " por vendedor"}</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Acompanhe o progresso da meta de receita.</p>
             {comMeta.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-8 text-center">
@@ -271,9 +272,9 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
         </div>
 
         {/* Desempenho por vendedor */}
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Desempenho {sellerRestricted ? "" : "por vendedor"}</h4>
+            <SectionTitle as="h4">Desempenho {sellerRestricted ? "" : "por vendedor"}</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)]">Detalhamento do desempenho {sellerRestricted ? "dos seus números" : "de cada vendedor"} no período.</p>
           </div>
           <div className="overflow-x-auto">
@@ -350,9 +351,9 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
         )}
 
         {/* Produtos vendidos */}
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <Card className="overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Produtos vendidos{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"}</h4>
+            <SectionTitle as="h4">Produtos vendidos{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"}</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)]">Quais produtos cada {sellerRestricted ? "venda sua trouxe" : "vendedor vendeu"} no período. Recorrente mostra a mensalidade.</p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-12">
@@ -406,10 +407,10 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
 
         {/* Evolução + Funil */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="lg:col-span-7 p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
-                <h4 className="text-sm font-black text-[var(--color-text-primary)]">Evolução da receita{sellerRestricted ? "" : " por vendedor"}</h4>
+                <SectionTitle as="h4">Evolução da receita{sellerRestricted ? "" : " por vendedor"}</SectionTitle>
                 <p className="text-[11px] text-[var(--color-text-muted)]">Receita diária no período selecionado.</p>
               </div>
               <select value={acumulada ? "acumulada" : "diaria"} onChange={(e) => setAcumulada(e.target.value === "acumulada")} className={selectCls}>
@@ -440,10 +441,10 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
             )}
           </Card>
 
-          <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="lg:col-span-5 p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
-                <h4 className="text-sm font-black text-[var(--color-text-primary)]">Funil{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"}</h4>
+                <SectionTitle as="h4">Funil{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"}</SectionTitle>
                 <p className="text-[11px] text-[var(--color-text-muted)]">Quantidade de leads em cada etapa.</p>
               </div>
             </div>
