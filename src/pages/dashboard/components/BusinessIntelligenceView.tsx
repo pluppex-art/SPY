@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { SectionTitle } from "../../../components/ui/section-title";
+import { StatCard } from "../../../components/ui/stat-card";
+import { periodoCaption } from "../periodoCaption";
 import { DateRangeFilter } from "../../../components/ui/DateRangeFilter";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -84,9 +86,6 @@ function tickCurrencyShort(v: number): string {
   return `R$${v}`;
 }
 
-const kpiCardClass = "p-5 shadow-sm";
-const kpiLabelClass = "text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-faint)] flex items-center gap-1.5 mb-1.5";
-const kpiValueClass = "text-xl font-black text-[var(--color-text-primary)] font-mono tracking-tight";
 
 export function BusinessIntelligenceView() {
   const { activeTenantId } = useAuth();
@@ -95,6 +94,7 @@ export function BusinessIntelligenceView() {
 
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
+  const periodo = periodoCaption(dateFrom, dateTo);
   const [summary, setSummary] = useState<BiSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -227,33 +227,13 @@ export function BusinessIntelligenceView() {
             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-faint)] flex items-center gap-1.5 mb-2">
               <Target className="w-3 h-3" /> CRM / Vendas
             </span>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><Users className="w-3 h-3" /> Leads Cadastrados</div>
-                <div className={kpiValueClass}>{summary.crm.leadsCadastrados}</div>
-                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">{summary.crm.leadsNovosNoPeriodo} novos no período</div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><TrendingUp className="w-3 h-3 text-success" /> Negócios Ganhos</div>
-                <div className="text-xl font-black text-success font-mono tracking-tight">{summary.crm.negociosGanhos}</div>
-                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">Taxa de conversão: {summary.crm.taxaConversao}%</div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><TrendingDown className="w-3 h-3 text-danger" /> Negócios Perdidos</div>
-                <div className="text-xl font-black text-danger font-mono tracking-tight">{summary.crm.negociosPerdidos}</div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><DollarSign className="w-3 h-3" /> Ticket Médio</div>
-                <div className={kpiValueClass}>{formatCurrency(summary.crm.ticketMedio)}</div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><DollarSign className="w-3 h-3" /> Valor Total Oportunidades</div>
-                <div className={kpiValueClass}>{formatCurrency(summary.crm.valorTotalOportunidades)}</div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><DollarSign className="w-3 h-3 text-success" /> Valor Ganho</div>
-                <div className="text-xl font-black text-success font-mono tracking-tight">{formatCurrency(summary.crm.valorGanho)}</div>
-              </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <StatCard icon={Users} label="Leads Cadastrados" value={summary.crm.leadsCadastrados} caption={periodo} sub={<>{summary.crm.leadsNovosNoPeriodo} novos no período</>} />
+              <StatCard icon={TrendingUp} label="Negócios Ganhos" value={summary.crm.negociosGanhos} tone="success" caption={periodo} sub={<>Taxa de conversão: {summary.crm.taxaConversao}%</>} />
+              <StatCard icon={TrendingDown} label="Negócios Perdidos" value={summary.crm.negociosPerdidos} tone="danger" caption={periodo} sub={<>{summary.crm.negociosGanhos + summary.crm.negociosPerdidos > 0 ? Math.round((summary.crm.negociosPerdidos / (summary.crm.negociosGanhos + summary.crm.negociosPerdidos)) * 1000) / 10 : 0}% dos negócios fechados</>} />
+              <StatCard icon={DollarSign} label="Ticket Médio" value={formatCurrency(summary.crm.ticketMedio)} caption={periodo} />
+              <StatCard icon={DollarSign} label="Valor Total Oportunidades" value={formatCurrency(summary.crm.valorTotalOportunidades)} caption={periodo} />
+              <StatCard icon={DollarSign} label="Valor Ganho" value={formatCurrency(summary.crm.valorGanho)} tone="success" caption={periodo} />
             </div>
 
             <div className="grid lg:grid-cols-2 gap-4 mt-4">
@@ -338,36 +318,13 @@ export function BusinessIntelligenceView() {
             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-faint)] flex items-center gap-1.5 mb-2 mt-2">
               <Wallet className="w-3 h-3" /> Financeiro
             </span>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><TrendingUp className="w-3 h-3 text-success" /> Receita Recebida</div>
-                <div className="text-xl font-black text-success font-mono tracking-tight">{formatCurrency(summary.financeiro.receitaRecebida)}</div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><TrendingDown className="w-3 h-3 text-danger" /> Despesas Pagas</div>
-                <div className="text-xl font-black text-danger font-mono tracking-tight">{formatCurrency(summary.financeiro.despesasPagas)}</div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><DollarSign className="w-3 h-3" /> Saldo do Período</div>
-                <div className={`text-xl font-black font-mono tracking-tight ${summary.financeiro.saldoPeriodo >= 0 ? "text-success" : "text-danger"}`}>
-                  {formatCurrency(summary.financeiro.saldoPeriodo)}
-                </div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><AlertTriangle className="w-3 h-3 text-warning" /> Inadimplência (Receber)</div>
-                <div className="text-xl font-black text-warning font-mono tracking-tight">{formatCurrency(summary.financeiro.inadimplenciaReceber.value)}</div>
-                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">{summary.financeiro.inadimplenciaReceber.count} lançamento(s) em atraso</div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><DollarSign className="w-3 h-3" /> A Receber</div>
-                <div className={kpiValueClass}>{formatCurrency(summary.financeiro.receitaAReceber.value)}</div>
-                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">{summary.financeiro.receitaAReceber.count} lançamento(s)</div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><DollarSign className="w-3 h-3" /> A Pagar</div>
-                <div className={kpiValueClass}>{formatCurrency(summary.financeiro.despesasAPagar.value)}</div>
-                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">{summary.financeiro.despesasAPagar.count} lançamento(s)</div>
-              </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <StatCard icon={TrendingUp} label="Receita Recebida" value={formatCurrency(summary.financeiro.receitaRecebida)} tone="success" caption={periodo} />
+              <StatCard icon={TrendingDown} label="Despesas Pagas" value={formatCurrency(summary.financeiro.despesasPagas)} tone="danger" caption={periodo} />
+              <StatCard icon={DollarSign} label="Saldo do Período" value={formatCurrency(summary.financeiro.saldoPeriodo)} tone={summary.financeiro.saldoPeriodo >= 0 ? "success" : "danger"} caption={periodo} />
+              <StatCard icon={AlertTriangle} label="Inadimplência (Receber)" value={formatCurrency(summary.financeiro.inadimplenciaReceber.value)} tone="warning" caption={periodo} sub={<>{summary.financeiro.inadimplenciaReceber.count} lançamento(s) em atraso</>} />
+              <StatCard icon={DollarSign} label="A Receber" value={formatCurrency(summary.financeiro.receitaAReceber.value)} caption={periodo} sub={<>{summary.financeiro.receitaAReceber.count} lançamento(s)</>} />
+              <StatCard icon={DollarSign} label="A Pagar" value={formatCurrency(summary.financeiro.despesasAPagar.value)} caption={periodo} sub={<>{summary.financeiro.despesasAPagar.count} lançamento(s)</>} />
             </div>
 
             <Card className="p-5 mt-4 shadow-sm">
@@ -395,26 +352,10 @@ export function BusinessIntelligenceView() {
             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-faint)] flex items-center gap-1.5 mb-2 mt-2">
               <Building2 className="w-3 h-3" /> Operacional
             </span>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><Building2 className="w-3 h-3" /> Clientes Ativos</div>
-                <div className={kpiValueClass}>{summary.operacional.clientesAtivos}</div>
-                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">{summary.operacional.clientesNovos} novos no período</div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><CalendarCheck className="w-3 h-3" /> Reuniões</div>
-                <div className={kpiValueClass}>{summary.operacional.reunioes.total}</div>
-                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">
-                  <span className="text-success font-bold">{summary.operacional.reunioes.concluidas} concluídas</span> · {summary.operacional.reunioes.pendentes} agendadas
-                </div>
-              </Card>
-              <Card className={kpiCardClass}>
-                <div className={kpiLabelClass}><ListChecks className="w-3 h-3" /> Tarefas</div>
-                <div className={kpiValueClass}>{summary.operacional.tarefas.total}</div>
-                <div className="text-[10px] text-[var(--color-text-faint)] mt-0.5">
-                  <span className="text-success font-bold">{summary.operacional.tarefas.concluidas} concluídas</span> · {summary.operacional.tarefas.pendentes} pendentes
-                </div>
-              </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <StatCard icon={Building2} label="Clientes Ativos" value={summary.operacional.clientesAtivos} caption={periodo} sub={<>{summary.operacional.clientesNovos} novos no período</>} />
+              <StatCard icon={CalendarCheck} label="Reuniões" value={summary.operacional.reunioes.total} caption={periodo} sub={<><span className="text-success font-bold">{summary.operacional.reunioes.concluidas} concluídas</span> · {summary.operacional.reunioes.pendentes} agendadas</>} />
+              <StatCard icon={ListChecks} label="Tarefas" value={summary.operacional.tarefas.total} caption={periodo} sub={<><span className="text-success font-bold">{summary.operacional.tarefas.concluidas} concluídas</span> · {summary.operacional.tarefas.pendentes} pendentes</>} />
             </div>
 
             {Object.keys(summary.operacional.produtividadePorResponsavel).length > 0 && (

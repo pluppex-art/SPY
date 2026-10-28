@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '../../../components/ui/card';
 import { SectionTitle } from "../../../components/ui/section-title";
+import { StatCard } from "../../../components/ui/stat-card";
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, PieChart, Pie, Cell, Sankey, Treemap } from 'recharts';
 import { Globe, Share2, Sparkles, MousePointer2, Layers, Users, DollarSign, Workflow, LayoutGrid } from 'lucide-react';
 import { useData } from '../../../contexts/DataContext';
@@ -294,25 +295,11 @@ export function MarketingView() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-         {[
-           // CTR (cliques/impressões) depende de integração com plataformas de anúncio que o
-           // sistema ainda não tem — mostrar "—" em vez de um número de exemplo.
-           { icon: MousePointer2, label: "CTR Médio", value: "—", color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-sunken)]" },
-           { icon: Layers, label: "Conv. Landing Pages", value: lpConversionRate !== null ? `${lpConversionRate.toFixed(1)}%` : "—", color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-sunken)]" },
-           { icon: Users, label: "Leads de Marketing", value: totalLeads.toString(), color: "text-[var(--color-primary-blue)]", bg: "bg-[var(--color-primary-blue)]/10" },
-           { icon: DollarSign, label: "Total Investido", value: formatCurrency(totalSpent), color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-sunken)]" },
-         ].map((metric, i) => (
-            <Card key={i} className="p-5 shadow-sm">
-               <div className="flex items-center gap-3 mb-3">
-                  <div className={`p-2 rounded-xl ${metric.bg} ${metric.color}`}>
-                     <metric.icon className="w-4 h-4" />
-                  </div>
-                  <p className="text-[10px] text-[var(--color-text-faint)] font-extrabold uppercase tracking-wider">{metric.label}</p>
-               </div>
-               <h4 className="text-xl font-black text-[var(--color-text-primary)] font-mono tracking-tight">{metric.value}</h4>
-            </Card>
-         ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard icon={MousePointer2} label="CTR Médio" value="—" sub="Aguardando integração de anúncios" caption="Todo o período" />
+        <StatCard icon={Layers} label="Conv. Landing Pages" value={lpConversionRate !== null ? `${lpConversionRate.toFixed(1)}%` : "—"} sub={lpConversionRate !== null ? "Visitas que viraram lead" : "Sem dados de landing pages"} caption="Todo o período" />
+        <StatCard icon={Users} label="Leads de Marketing" value={totalLeads.toString()} sub="Leads com origem de marketing" caption="Todo o período" />
+        <StatCard icon={DollarSign} label="Total Investido" value={formatCurrency(totalSpent)} sub={totalLeads > 0 ? `CPL ${formatCurrency(totalSpent / totalLeads)}` : "Sem leads para calcular CPL"} caption="Todo o período" />
       </div>
     </motion.div>
   );

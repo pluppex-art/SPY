@@ -20,6 +20,10 @@ interface StatCardProps {
   sub?: React.ReactNode
   /** legenda do período (ex.: "Últimos 30 dias") */
   caption?: string
+  /** conteúdo à direita da legenda (ex.: mini-gráfico) */
+  footer?: React.ReactNode
+  /** explicação exibida ao passar o mouse no rótulo */
+  hint?: string
   tone?: Tone
   /** cor própria do ícone/destaque (sobrepõe o tom) */
   color?: string
@@ -28,7 +32,7 @@ interface StatCardProps {
 }
 
 /** Card de indicador padrão dos dashboards: ícone + rótulo, valor grande, destaque e período. */
-function StatCard({ icon: Icon, label, value, sub, caption, tone = "default", color, onClick, className }: StatCardProps) {
+function StatCard({ icon: Icon, label, value, sub, caption, footer, hint, tone = "default", color, onClick, className }: StatCardProps) {
   const c = color ?? TONE_COLOR[tone]
   const valueColor = tone === "danger" || tone === "success" ? c : undefined
   return (
@@ -45,11 +49,16 @@ function StatCard({ icon: Icon, label, value, sub, caption, tone = "default", co
         <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center" style={{ backgroundColor: `color-mix(in srgb, ${c} 12%, transparent)` }}>
           <Icon className="w-5 h-5" style={{ color: c }} />
         </div>
-        <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)] leading-tight">{label}</p>
+        <p title={hint} className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)] leading-tight">{label}</p>
       </div>
       <p className="text-2xl font-black font-mono mt-3 truncate text-[var(--color-text-primary)]" style={valueColor ? { color: valueColor } : undefined}>{value}</p>
       <p className="text-[11px] font-bold mt-1 min-h-[16px] flex items-center gap-1" style={{ color: c }}>{sub}</p>
-      {caption && <p className="text-[10px] text-[var(--color-text-faint)] mt-0.5">{caption}</p>}
+      {(caption || footer) && (
+        <div className="flex items-center justify-between gap-2 mt-0.5">
+          <p className="text-[10px] text-[var(--color-text-faint)]">{caption}</p>
+          {footer}
+        </div>
+      )}
     </Card>
   )
 }
