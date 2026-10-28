@@ -105,9 +105,10 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
   }, [visiveis]);
 
   // O ranking mostra sempre todos (é por onde se escolhe o vendedor); o resto da tela segue a escolha.
-  const ranking = useMemo(() => linhas.filter((l) => l.receita > 0 || l.vendas > 0), [linhas]);
-  const podio = ranking.slice(0, 3);
-  const resto = ranking.slice(3, 7);
+  const ranking = useMemo(
+    () => [...linhas].sort((a, b) => b.receita - a.receita || b.vendas - a.vendas || a.nome.localeCompare(b.nome, "pt-BR")),
+    [linhas],
+  );
   const maxReceita = ranking[0]?.receita || 1;
   const totalReceitaRanking = ranking.reduce((sum, v) => sum + (v.receita || 0), 0);
   const shareReceita = (r: number) => (totalReceitaRanking > 0 ? `${Math.round((r / totalReceitaRanking) * 1000) / 10}%` : "0%");
@@ -182,67 +183,84 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
         {/* Ranking + Meta x realizado */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {!sellerRestricted && (
-            <Card className="lg:col-span-7 p-5 shadow-sm">
-              <SectionTitle as="h4">Ranking de Vendas</SectionTitle>
-              <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Top vendedores por receita no período selecionado.</p>
+            <Card className="lg:col-span-8 min-w-0 overflow-hidden shadow-sm">
+              <div className="p-5 pb-3">
+                <SectionTitle as="h4">Ranking de Vendas</SectionTitle>
+                <p className="text-[11px] text-[var(--color-text-muted)]">Todos os vendedores por receita no período. Clique numa linha para filtrar a tela.</p>
+              </div>
               {ranking.length === 0 ? (
-                <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhuma venda concluída no período.</p>
+                <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhum vendedor com atividade no período.</p>
               ) : (
-                <div className="flex flex-col md:flex-row gap-6 items-stretch">
-                  <div className="flex items-end justify-center gap-2 flex-1 min-h-[210px]">
-                    {[1, 0, 2].map((pos) => {
-                      const v = podio[pos];
-                      if (!v) return <div key={pos} className="w-24" />;
-                      const alturas = [150, 112, 84];
-                      const cores = ["from-amber-300 to-amber-500", "from-indigo-300 to-indigo-500", "from-orange-400 to-orange-600"];
-                      return (
-                        <button
-                          key={v.key} type="button" onClick={() => escolherVendedor(v.key)} title="Filtrar por este vendedor"
-                          className={`flex flex-col items-center w-28 rounded-xl p-1 cursor-pointer bg-transparent border-none ${vendedorSel === v.key ? "ring-2 ring-[var(--color-primary-blue)]" : "hover:bg-[var(--color-surface-sunken)]"}`}
-                        >
-                          <div className="relative mb-1.5">
-                            {pos === 0 && <Crown className="w-5 h-5 text-amber-400 absolute -top-5 left-1/2 -translate-x-1/2" />}
-                            <Avatar v={v} size={pos === 0 ? 44 : 38} />
-                          </div>
-                          <p className="text-[10px] font-black uppercase text-[var(--color-text-primary)] text-center leading-tight truncate w-full">{v.nome}</p>
-                          <p className="text-sm font-black font-mono text-[var(--color-text-primary)]">{formatCurrency(v.receita)}</p>
-                          <p className="text-[10px] text-[var(--color-text-muted)] mb-1">{v.vendas} venda{v.vendas === 1 ? "" : "s"}</p>
-                          <div className={`w-full rounded-t-lg bg-gradient-to-b ${cores[pos]} flex items-center justify-center text-white font-black text-3xl`} style={{ height: alturas[pos] }}>
-                            {pos + 1}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {resto.length > 0 && (
-                    <div className="md:w-60 space-y-3 self-center">
-                      {resto.map((v, i) => (
-                        <button
-                          key={v.key} type="button" onClick={() => escolherVendedor(v.key)} title="Filtrar por este vendedor"
-                          className={`w-full text-left flex items-center gap-2.5 rounded-lg p-1 cursor-pointer bg-transparent border-none ${vendedorSel === v.key ? "ring-2 ring-[var(--color-primary-blue)]" : "hover:bg-[var(--color-surface-sunken)]"}`}
-                        >
-                          <span className="w-6 h-6 rounded-full bg-[var(--color-surface-sunken)] text-[10px] font-black flex items-center justify-center text-[var(--color-text-muted)] shrink-0">{i + 4}</span>
-                          <Avatar v={v} size={30} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">{v.nome}</span>
-                              <span className="text-xs font-black font-mono text-[var(--color-text-primary)]">{formatCurrency(v.receita)}</span>
-                            </div>
-                            <div className="h-1.5 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1">
-                              <div className="h-full rounded-full" style={{ width: `${Math.max(4, (v.receita / maxReceita) * 100)}%`, backgroundColor: v.cor }} />
-                            </div>
-                            <span className="text-[9px] text-[var(--color-text-faint)]">{v.vendas} venda{v.vendas === 1 ? "" : "s"} · {shareReceita(v.receita)} da receita</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left min-w-[640px]">
+                    <thead>
+                      <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)] border-y border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]">
+                        <th className="pl-5 pr-2 py-2 w-10">#</th>
+                        <th className="px-2 py-2">Vendedor</th>
+                        <th className="px-2 py-2 text-right">Receita</th>
+                        <th className="px-2 py-2 text-right">Vendas</th>
+                        <th className="px-2 py-2 text-right">Ticket médio</th>
+                        <th className="px-2 py-2 text-right">Conversão</th>
+                        <th className="px-2 py-2 text-right">vs. anterior</th>
+                        <th className="pl-2 pr-5 py-2 text-right">Meta</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ranking.map((v, i) => {
+                        const medalha = i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-400 text-white" : i === 2 ? "bg-orange-500 text-white" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]";
+                        return (
+                          <tr
+                            key={v.key} onClick={() => escolherVendedor(v.key)} title="Filtrar por este vendedor"
+                            className={`cursor-pointer border-b border-[var(--color-border-subtle)] last:border-b-0 transition-colors ${vendedorSel === v.key ? "bg-[var(--color-primary-blue)]/10" : "hover:bg-[var(--color-surface-sunken)]"}`}
+                          >
+                            <td className="pl-5 pr-2 py-3">
+                              <span className={`w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center ${medalha}`}>
+                                {i === 0 ? <Crown className="w-3.5 h-3.5" /> : i + 1}
+                              </span>
+                            </td>
+                            <td className="px-2 py-3">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <Avatar v={v} size={32} />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{v.nome}</p>
+                                  <div className="h-1.5 w-full max-w-[160px] bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1">
+                                    <div className="h-full rounded-full" style={{ width: `${Math.max(v.receita > 0 ? 4 : 0, (v.receita / maxReceita) * 100)}%`, backgroundColor: v.cor }} />
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-2 py-3 text-right whitespace-nowrap">
+                              <p className="text-xs font-black font-mono text-[var(--color-text-primary)]">{formatCurrency(v.receita)}</p>
+                              <p className="text-[10px] text-[var(--color-text-faint)]">{shareReceita(v.receita)} do total</p>
+                            </td>
+                            <td className="px-2 py-3 text-right text-xs font-bold text-[var(--color-text-primary)]">{v.vendas}</td>
+                            <td className="px-2 py-3 text-right text-xs font-mono text-[var(--color-text-primary)] whitespace-nowrap">{v.vendas > 0 ? formatCurrency(v.ticket) : "—"}</td>
+                            <td className="px-2 py-3 text-right whitespace-nowrap">
+                              <p className="text-xs font-bold text-[var(--color-text-primary)]">{v.conversao}%</p>
+                              <p className="text-[10px] text-[var(--color-text-faint)]">{v.vendas}/{v.leads} leads</p>
+                            </td>
+                            <td className="px-2 py-3 text-right text-xs"><Tendencia pct={v.tendencia} /></td>
+                            <td className="pl-2 pr-5 py-3 text-right whitespace-nowrap">
+                              {v.meta > 0 && v.metaPct !== null ? (
+                                <>
+                                  <p className={`text-xs font-black ${v.metaPct >= 100 ? "text-success" : "text-[var(--color-text-primary)]"}`}>{Math.round(v.metaPct)}%</p>
+                                  <p className="text-[10px] text-[var(--color-text-faint)]">de {formatCurrency(v.meta)}</p>
+                                </>
+                              ) : (
+                                <span className="text-xs text-[var(--color-text-faint)]">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </Card>
           )}
 
-          <Card className={`${sellerRestricted ? "lg:col-span-12" : "lg:col-span-5"} p-5 shadow-sm`}>
+          <Card className={`${sellerRestricted ? "lg:col-span-12" : "lg:col-span-4"} p-5 shadow-sm`}>
             <SectionTitle as="h4">Meta x realizado{sellerRestricted ? "" : " por vendedor"}</SectionTitle>
             <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Acompanhe o progresso da meta de receita.</p>
             {comMeta.length === 0 ? (
