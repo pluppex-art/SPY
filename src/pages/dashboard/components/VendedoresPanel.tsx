@@ -108,6 +108,8 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
   const podio = ranking.slice(0, 3);
   const resto = ranking.slice(3, 7);
   const maxReceita = ranking[0]?.receita || 1;
+  const totalReceitaRanking = ranking.reduce((sum, v) => sum + (v.receita || 0), 0);
+  const shareReceita = (r: number) => (totalReceitaRanking > 0 ? `${Math.round((r / totalReceitaRanking) * 1000) / 10}%` : "0%");
 
   const serie = useMemo(
     () => serieDiaria(vendasNoPeriodo, visiveis.slice(0, 4), faixa, acumulada),
@@ -228,7 +230,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                             <div className="h-1.5 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1">
                               <div className="h-full rounded-full" style={{ width: `${Math.max(4, (v.receita / maxReceita) * 100)}%`, backgroundColor: v.cor }} />
                             </div>
-                            <span className="text-[9px] text-[var(--color-text-faint)]">{v.vendas} venda{v.vendas === 1 ? "" : "s"}</span>
+                            <span className="text-[9px] text-[var(--color-text-faint)]">{v.vendas} venda{v.vendas === 1 ? "" : "s"} · {shareReceita(v.receita)} da receita</span>
                           </div>
                         </button>
                       ))}

@@ -19,6 +19,7 @@ export function PipelineAnalytics({
   hotLeadsCount,
 }: PipelineAnalyticsProps) {
   if (!showAnalytics) return null;
+  const totalValue = analyticsData.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
   return (
     <div className="overflow-hidden text-left">
@@ -31,6 +32,11 @@ export function PipelineAnalytics({
             <BarChart data={analyticsData}>
               <XAxis dataKey="name" hide />
               <Tooltip
+                formatter={(v: any) => {
+                  const n = Number(v) || 0;
+                  const pct = totalValue > 0 ? Math.round((n / totalValue) * 1000) / 10 : 0;
+                  return [`${n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} · ${pct}%`, "Valor"];
+                }}
                 contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-default)', borderRadius: '12px' }}
               />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>

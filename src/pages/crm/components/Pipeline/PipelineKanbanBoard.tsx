@@ -182,6 +182,12 @@ export function PipelineKanbanBoard({
 
   const { ref: fillRef, height: fillHeight } = useFillViewportHeight<HTMLDivElement>(320);
 
+  // Totais do funil pra mostrar o peso de cada etapa em %. Leads "órfãos" entram na 1ª etapa
+  // (ver acima), então somar sobre filteredItemsList bate com a soma das colunas.
+  const totalLeadsCount = filteredItemsList.length;
+  const totalLeadsValue = filteredItemsList.reduce((sum: number, l: any) => sum + getLeadValue(l), 0);
+  const pctOf = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 1000) / 10 : 0);
+
   return (
     <div ref={fillRef} style={{ height: fillHeight }} className="flex gap-3 overflow-x-auto pb-4 min-h-[320px] scrollbar-none select-none items-stretch">
       {activePipelineStages.map((stage, stageIdx) => {
@@ -191,6 +197,9 @@ export function PipelineKanbanBoard({
         const stageLeads = sortByRecency(rawStageLeads, stageIdx === 0 ? createdKey : activityKey);
         const visibleCount = visibleCounts[stage.id] ?? CARDS_PAGE_SIZE;
         const visibleStageLeads = stageLeads.slice(0, visibleCount);
+        const stageValue = stageLeads.reduce((sum: number, item: any) => sum + getLeadValue(item), 0);
+        const stageCountPct = pctOf(stageLeads.length, totalLeadsCount);
+        const stageValuePct = pctOf(stageValue, totalLeadsValue);
 
         return (
           <div
@@ -201,9 +210,10 @@ export function PipelineKanbanBoard({
             }}
             onDragLeave={() => setDraggedOverStageId(null)}
             onDrop={(e) => handleDrop(stage, e)}
-            className={`shrink-0 flex flex-col bg-[var(--color-surface)]/40 border rounded-3xl transition-all duration-300 h-full ${
+            style={{ borderTopColor: draggedOverStageId === stage.id ? undefined : stage.color }}
+            className={`shrink-0 flex flex-col bg-[var(--color-surface)]/40 border-2 border-t-4 rounded-3xl transition-all duration-300 h-full ${
               isMinimized ? "w-[56px] p-2" : "w-[280px] p-3"
-            } ${draggedOverStageId === stage.id ? "border-[var(--color-primary-blue)]/50 bg-[var(--color-primary-blue)]/10 scale-[1.01]" : "border-[var(--color-border-subtle)] hover:border-[var(--color-border-default)] hover:bg-[var(--color-surface-elevated)]/60"}`}
+            } ${draggedOverStageId === stage.id ? "border-[var(--color-primary-blue)]/60 bg-[var(--color-primary-blue)]/10 scale-[1.01]" : "border-[var(--color-border-default)] hover:bg-[var(--color-surface-elevated)]/60"}`}
           >
             {isMinimized ? (
               <button
@@ -224,18 +234,26 @@ export function PipelineKanbanBoard({
               </button>
             ) : (
               <>
-                <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
-                  <button type="button" onClick={() => toggleColumn(stage.id)} className="flex items-center gap-2 cursor-pointer group min-w-0">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
-                    <h3 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider group-hover:text-[var(--color-primary-blue)] transition-colors truncate">{stage.name}</h3>
-                  </button>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[10px] font-mono font-bold text-[var(--color-text-muted)]">
-                      {formatCurrency(
-                        stageLeads.reduce((sum: number, item: any) => sum + getLeadValue(item), 0)
-                      )}
-                    </span>
+                <div className="mb-3 shrink-0 pb-2.5 border-b border-[var(--color-border-default)]">
+                  <div className="flex items-center justify-between gap-2">
+                    <button type="button" onClick={() => toggleColumn(stage.id)} className="flex items-center gap-2 cursor-pointer group min-w-0">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
+                      <h3 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider group-hover:text-[var(--color-primary-blue)] transition-colors truncate">{stage.name}</h3>
+                    </button>
                     <span className="text-[10px] font-bold text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-2 py-0.5 rounded-full shrink-0">{stageLeads.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-1.5">
+                    <span className="text-[10px] font-mono font-bold text-[var(--color-text-muted)] truncate">{formatCurrency(stageValue)}</span>
+                    <span
+                      className="text-[10px] font-bold tabular-nums shrink-0"
+                      style={{ color: stage.color }}
+                      title={`${stageCountPct}% dos leads · ${stageValuePct}% do valor do funil`}
+                    >
+                      {stageCountPct}% · {stageValuePct}%
+                    </span>
+                  </div>
+                  <div className="h-1 mt-1.5 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${stageCountPct}%`, backgroundColor: stage.color }} />
                   </div>
                 </div>
 

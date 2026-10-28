@@ -52,8 +52,11 @@ export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps
             <div key={i} className="relative">
               <div className="flex items-center justify-between mb-1 px-1">
                 <p className="text-xs font-bold text-[var(--color-text-muted)]">{step.label}</p>
-                <div className="flex items-center gap-2 w-20 justify-end shrink-0">
+                <div className="flex items-center gap-2 w-32 justify-end shrink-0">
                   <span className="text-xs font-black text-[var(--color-text-primary)] font-mono">{step.value}</span>
+                  <span className="text-[10px] font-bold text-[var(--color-text-muted)] tabular-nums w-12 text-right" title="% em relação à primeira etapa do funil">
+                    {Math.round((step.value / maxFunnelValue) * 1000) / 10}%
+                  </span>
                   {/* Achado real: só mostrava queda (drop > 0) — uma alta real
                       entre 2 etapas adjacentes (comum num funil custom, onde a
                       contagem é "quantos leads estão AGORA nessa etapa", não um
