@@ -19,7 +19,7 @@ export function RevenueByProductDonut({ slices }: { slices: RevenueSlice[] }) {
   const total = slices.reduce((s, x) => s + x.value, 0);
 
   return (
-    <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm h-full flex flex-col">
+    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm h-full flex flex-col">
       <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2 mb-5">
         <PieChartIcon className="w-4 h-4 text-cyan-500" /> Receita por Produto
       </h3>

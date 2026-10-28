@@ -91,7 +91,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col">
+        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col shadow-sm">
           <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Onde está o vazamento?</h3>
           {vazamentos.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] italic flex-1 flex items-center justify-center">Nenhum vazamento identificado.</p>
@@ -123,7 +123,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
           )}
         </Card>
 
-        <Card className="lg:col-span-3 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="lg:col-span-3 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Impacto no Resultado</h3>
           <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Se recuperarmos parte dessas oportunidades:</p>
           <div className="space-y-2.5">
@@ -139,7 +139,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
           </div>
         </Card>
 
-        <Card className="lg:col-span-5 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="lg:col-span-5 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <div className="p-3 border-b border-[var(--color-border-subtle)] flex flex-wrap gap-1">
             {tabs.map((t) => (
               <button

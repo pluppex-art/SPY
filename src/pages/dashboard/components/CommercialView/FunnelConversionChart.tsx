@@ -35,7 +35,7 @@ export function FunnelConversionChart({ funnelData }: FunnelConversionChartProps
   }
 
   return (
-    <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative shadow-sm h-full flex flex-col">
+    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative shadow-sm h-full flex flex-col">
       <h3 className="text-xs font-black text-[var(--color-text-primary)] mb-6 uppercase tracking-wider flex items-center gap-2 shrink-0">
         <Filter className="w-4 h-4 text-[var(--color-primary-blue)]" /> Funil de Conversão Comercial
       </h3>

@@ -50,7 +50,7 @@ export function RevenueWaterfallChart({ receita, despesasPorCategoria, receitaLi
   }, [receita, despesasPorCategoria]);
 
   return (
-    <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
       <div className="mb-5">
         <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
           <Waves className="w-4 h-4 text-[var(--color-primary-blue)]" /> Receita Bruta → Lucro Líquido

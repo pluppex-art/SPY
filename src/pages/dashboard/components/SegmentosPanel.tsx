@@ -112,7 +112,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
 
   return (
     <div className="space-y-5">
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5">
+      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5 shadow-sm">
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -141,7 +141,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
 
         {/* Mapa de calor hexagonal: onde está mais quente / mais frio */}
         {visiveis.filter((l) => valorDe(l) > 0).length > 1 && (
-          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <h4 className="text-sm font-black text-[var(--color-text-primary)]">Mapa de calor</h4>
             <p className="text-[11px] text-[var(--color-text-muted)] mb-3">Passe o mouse num hexágono para ver os detalhes. Cada um mostra a participação no total.</p>
             <HexHeatmap
@@ -155,7 +155,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
 
         {/* Donut + evolução */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <Card className="lg:col-span-5 min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="lg:col-span-5 min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             {donut.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-16 text-center">Sem contratos assinados no período.</p>
             ) : (
@@ -196,7 +196,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
             )}
           </Card>
 
-          <Card className="lg:col-span-7 min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="lg:col-span-7 min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-3">
               <h4 className="text-sm font-black text-[var(--color-text-primary)]">Evolução da receita por segmento</h4>
               <select value={acumulada ? "acumulada" : "diaria"} onChange={(e) => setAcumulada(e.target.value === "acumulada")} className={selectCls}>
@@ -230,7 +230,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
 
         {/* Desempenho + Metas */}
         <div className="grid grid-cols-1 2xl:grid-cols-12 gap-4">
-          <Card className="2xl:col-span-7 min-w-0 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="2xl:col-span-7 min-w-0 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <div className="p-4 border-b border-[var(--color-border-subtle)]">
               <h4 className="text-sm font-black text-[var(--color-text-primary)]">Desempenho por segmento</h4>
               <p className="text-[11px] text-[var(--color-text-muted)]">Principais indicadores de cada segmento.</p>
@@ -281,7 +281,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
             </div>
           </Card>
 
-          <Card className="2xl:col-span-5 min-w-0 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="2xl:col-span-5 min-w-0 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <div className="p-4 border-b border-[var(--color-border-subtle)]">
               <h4 className="text-sm font-black text-[var(--color-text-primary)]">Metas por segmento</h4>
               <p className="text-[11px] text-[var(--color-text-muted)]">

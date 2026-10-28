@@ -86,7 +86,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
       className="space-y-6 text-left"
     >
     <div className="grid lg:grid-cols-3 gap-6">
-      <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative overflow-hidden shadow-sm flex flex-col justify-between">
+      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] relative overflow-hidden shadow-sm flex flex-col justify-between">
         <div>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
@@ -137,7 +137,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
         </div>
       </Card>
 
-      <Card className="lg:col-span-2 p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-6">
+      <Card className="lg:col-span-2 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-6">
         <div>
           <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2.5">
             <HeartHandshake className="w-4 h-4 text-[var(--color-primary-blue)]" /> Carteira de Contratos
@@ -181,7 +181,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
       </Card>
     </div>
 
-    <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
       <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2.5">
         <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> Distribuição de CLV (Valor Vitalício)
       </h3>

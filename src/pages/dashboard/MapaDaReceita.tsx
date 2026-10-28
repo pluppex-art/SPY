@@ -126,7 +126,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       </div>
 
       {/* Fluxo da Receita */}
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
         <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4">Fluxo da Receita</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
           {fluxo.map((f, i) => (
@@ -160,7 +160,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       ) : (
       <>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
             <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por Canal de Origem</h3>
             <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Qual canal traz mais receita pro seu negócio.</p>
@@ -184,7 +184,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           </div>
         </Card>
 
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
             <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por Produto/Serviço</h3>
             <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Quais produtos geram mais receita.</p>
@@ -208,7 +208,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           </div>
         </Card>
 
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col">
+        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col shadow-sm">
           <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1">Receita por Segmento</h3>
           <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Em quais segmentos sua empresa mais ganha.</p>
           {segmentos.length === 0 ? (
@@ -243,7 +243,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-5 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="lg:col-span-5 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
             <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Receita por Vendedor</h3>
             <Badge variant="secondary">{salesRanking.length}</Badge>
@@ -268,7 +268,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           </div>
         </Card>
 
-        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4 flex items-center gap-1.5"><Workflow className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Oportunidades por Etapa</h3>
           <div className="space-y-2.5">
             {funnelData.map((s) => (

@@ -58,7 +58,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
 
   return (
     <div className="space-y-5">
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5">
+      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5 shadow-sm">
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -90,7 +90,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
 
         {/* Mapa de calor hexagonal: onde está mais quente / mais frio */}
         {visiveis.filter((l) => valorDe(l) > 0).length > 1 && (
-          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <h4 className="text-sm font-black text-[var(--color-text-primary)]">Mapa de calor</h4>
             <p className="text-[11px] text-[var(--color-text-muted)] mb-3">Passe o mouse num hexágono para ver os detalhes. Cada um mostra a participação no total.</p>
             <HexHeatmap
@@ -104,7 +104,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
 
         {/* Barras + distribuição */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <h4 className="text-sm font-black text-[var(--color-text-primary)]">Receita por canal de origem</h4>
             <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Comparativo da receita gerada por cada canal no período selecionado.</p>
             {ranqueados.length === 0 ? (
@@ -130,7 +130,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
             )}
           </Card>
 
-          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <h4 className="text-sm font-black text-[var(--color-text-primary)]">Distribuição da receita por canal</h4>
             <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Participação de cada canal na receita total.</p>
             {donut.length === 0 ? (
@@ -170,7 +170,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
         </div>
 
         {/* Detalhamento */}
-        <Card className="overflow-hidden min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+        <Card className="overflow-hidden min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex flex-wrap items-start justify-between gap-2">
             <div>
               <h4 className="text-sm font-black text-[var(--color-text-primary)]">Detalhamento por canal de origem</h4>

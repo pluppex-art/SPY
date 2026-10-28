@@ -26,7 +26,7 @@ export function RadarAtributos({ salesRanking, funnelLeadsCount }: RadarAtributo
   ];
 
   return (
-    <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] lg:col-span-1 shadow-sm">
+    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] lg:col-span-1 shadow-sm">
       <h3 className="text-xs font-black text-[var(--color-text-primary)] mb-6 uppercase tracking-wider flex items-center gap-2">
         <Compass className="w-4 h-4 text-[var(--color-primary-blue)]" /> Radar de Competências
       </h3>

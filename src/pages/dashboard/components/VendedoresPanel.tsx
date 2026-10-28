@@ -135,7 +135,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
 
   return (
     <div className="space-y-5">
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5">
+      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-5 shadow-sm">
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">{titulo}</h3>
@@ -182,7 +182,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
         {/* Ranking + Meta x realizado */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {!sellerRestricted && (
-            <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+            <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
               <h4 className="text-sm font-black text-[var(--color-text-primary)]">Ranking de Vendas</h4>
               <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Top vendedores por receita no período selecionado.</p>
               {ranking.length === 0 ? (
@@ -273,7 +273,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
 
         {/* Mapa de calor: quem está mais quente / mais frio em receita */}
         {ranking.filter((v) => v.receita > 0).length > 1 && (
-          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <h4 className="text-sm font-black text-[var(--color-text-primary)]">Mapa de calor da equipe</h4>
             <p className="text-[11px] text-[var(--color-text-muted)] mb-3">Participação de cada vendedor na receita. Passe o mouse para ver os detalhes.</p>
             <HexHeatmap
@@ -289,7 +289,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
         )}
 
         {/* Desempenho por vendedor */}
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
             <h4 className="text-sm font-black text-[var(--color-text-primary)]">Desempenho {sellerRestricted ? "" : "por vendedor"}</h4>
             <p className="text-[11px] text-[var(--color-text-muted)]">Detalhamento do desempenho {sellerRestricted ? "dos seus números" : "de cada vendedor"} no período.</p>
@@ -368,7 +368,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
         )}
 
         {/* Produtos vendidos */}
-        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+        <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
             <h4 className="text-sm font-black text-[var(--color-text-primary)]">Produtos vendidos{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"}</h4>
             <p className="text-[11px] text-[var(--color-text-muted)]">Quais produtos cada {sellerRestricted ? "venda sua trouxe" : "vendedor vendeu"} no período. Recorrente mostra a mensalidade.</p>
@@ -424,7 +424,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
 
         {/* Evolução + Funil */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="lg:col-span-7 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
                 <h4 className="text-sm font-black text-[var(--color-text-primary)]">Evolução da receita{sellerRestricted ? "" : " por vendedor"}</h4>
@@ -458,7 +458,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
             )}
           </Card>
 
-          <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+          <Card className="lg:col-span-5 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <h4 className="text-sm font-black text-[var(--color-text-primary)]">Funil{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"}</h4>

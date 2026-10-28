@@ -148,7 +148,7 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
           </div>
         </Card>
 
-        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="lg:col-span-4 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-3 flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Melhor dia pra propostas</h3>
           <div className="space-y-2">
             {melhorDia.slice(0, 4).map((d) => (
@@ -166,7 +166,7 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-7 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="lg:col-span-7 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
             <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Principais Insights Identificados</h3>
             <Badge variant="secondary">{insights.length}</Badge>
@@ -186,7 +186,7 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
           </div>
         </Card>
 
-        <Card className="lg:col-span-5 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="lg:col-span-5 overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <div className="p-3 border-b border-[var(--color-border-subtle)] flex items-center gap-1">
             {([["clientes", "Clientes", Users], ["vendas", "Vendas", ShoppingBag], ["marketing", "Marketing", Megaphone], ["produtos", "Produtos", Package]] as const).map(([v, label, Icon]) => (
               <button
@@ -213,7 +213,7 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
         </Card>
       </div>
 
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
         <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-4 flex items-center gap-1.5"><Share2 className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Canais com maior conversão</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {canais.slice(0, 6).map((c) => (

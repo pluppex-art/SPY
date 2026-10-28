@@ -33,7 +33,7 @@ const KIND_COLOR: Record<ActivityKind, string> = {
  * ordenadas juntas por data. Nada de log manual (que fica sub-preenchido): direto das tabelas. */
 export function RecentActivityFeed({ activities }: { activities: FeedActivity[] }) {
   return (
-    <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm h-full flex flex-col">
+    <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm h-full flex flex-col">
       <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2 mb-5">
         <Clock className="w-4 h-4 text-[var(--color-primary-blue)]" /> Últimas Atividades
       </h3>
