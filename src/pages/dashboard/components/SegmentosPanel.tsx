@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, CartesianGrid, XAxis, YAxis, Legend,
 } from "recharts";
 import { Calendar, PieChart as PieIcon, TrendingUp, TrendingDown, Pencil, Check } from "lucide-react";
+import { HexHeatmap } from "../../../components/ui/hex-heatmap";
 import { Card } from "../../../components/ui/card";
 import { DrillDownPanel } from "../../../components/ui/DrillDownPanel";
 import { contractDrillColumns } from "../../../components/ui/drillColumns";
@@ -137,6 +138,20 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
             </label>
           </div>
         </div>
+
+        {/* Mapa de calor hexagonal: onde está mais quente / mais frio */}
+        {visiveis.filter((l) => valorDe(l) > 0).length > 1 && (
+          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Mapa de calor</h4>
+            <p className="text-[11px] text-[var(--color-text-muted)] mb-3">Passe o mouse num hexágono para ver os detalhes. Cada um mostra a participação no total.</p>
+            <HexHeatmap
+              items={visiveis.filter((l) => valorDe(l) > 0).map((l) => ({ key: l.key, label: l.nome, value: valorDe(l), extra: [] }))}
+              formatValue={fmt}
+              metricLabel={METRICA_LABEL[metrica].split(" (")[0]}
+              maxCols={5}
+            />
+          </Card>
+        )}
 
         {/* Donut + evolução */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
