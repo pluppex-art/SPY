@@ -116,11 +116,6 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-black text-[var(--color-text-primary)]">Previsão & Decisão</h2>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Veja o que provavelmente vai acontecer, os riscos, as oportunidades e o que fazer agora.</p>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard icon={TrendingUp} label="Previsão de Receita (90d)" value={formatCurrency(previsao90dias)} caption={periodo}
           sub={totalRevenue > 0 ? `${Math.round((previsao90dias / totalRevenue) * 100)}% da receita atual · cenário base` : "Cenário base"} />

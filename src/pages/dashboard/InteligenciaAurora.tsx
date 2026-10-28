@@ -125,11 +125,6 @@ export default function InteligenciaAurora({ dashboard }: { dashboard: Dashboard
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-black text-[var(--color-text-primary)]">Inteligência Aurora</h2>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">O que a Aurora identifica na sua operação, a partir dos seus dados reais.</p>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <Card className="lg:col-span-8 p-5 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 border-none text-[#fff]">
           <div className="flex items-center gap-3 mb-4">

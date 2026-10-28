@@ -58,11 +58,6 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-black text-[var(--color-text-primary)]">Vazamentos de Receita</h2>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Encontre e recupere receita que está sendo perdida na sua operação.</p>
-      </div>
-
       <Card className="p-5 bg-danger/5 border-danger/20">
         <div className="flex items-center gap-2 text-danger"><AlertTriangle className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Receita Potencial Subaproveitada</span></div>
         <p className="text-3xl font-black text-danger font-mono mt-2">{formatCurrency(totalVazamento)}</p>

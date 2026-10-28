@@ -111,11 +111,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-black text-[var(--color-text-primary)]">Mapa da Receita</h2>
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Veja como sua empresa ganha dinheiro, de onde vem a receita e onde estão as maiores oportunidades.</p>
-        </div>
+      <div className="flex flex-wrap items-end justify-end gap-3">
         <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
           {SUB_ABAS.map((a) => (
             <button

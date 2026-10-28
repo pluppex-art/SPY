@@ -101,11 +101,6 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-black text-[var(--color-text-primary)]">Oportunidades</h2>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Encontre, priorize e trabalhe as oportunidades que realmente podem gerar receita.</p>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard icon={Workflow} label="Oportunidades Ativas" value={classificados.length} caption={periodo} onClick={() => setFiltro("todas")}
           sub={`${prioritarias.length} prioritária${prioritarias.length === 1 ? "" : "s"} · ${classificados.length > 0 ? Math.round((prioritarias.length / classificados.length) * 100) : 0}%`} />
