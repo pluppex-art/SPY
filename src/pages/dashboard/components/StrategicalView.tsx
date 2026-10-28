@@ -37,6 +37,11 @@ interface StrategicalViewProps {
   dateTo: string | null;
 }
 
+/** " · 42,5% da receita" — vazio quando não há base pra dividir (nunca inventa 0%). */
+function pctSnap(part: number, total: number, suffix: string): string {
+  return total > 0 ? ` · ${(Math.round((part / total) * 1000) / 10).toLocaleString("pt-BR")}% ${suffix}` : "";
+}
+
 export function StrategicalView({
   performanceData,
   squads = [],
@@ -478,16 +483,16 @@ export function StrategicalView({
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
                   {[
                     { label: "Receita", value: formatCurrency(financeSnapshot.receita), desc: "Recebido no período", icon: TrendingUp, color: "text-emerald-600 dark:text-emerald-400" },
-                    { label: "Despesas", value: formatCurrency(financeSnapshot.despesas), desc: "Pago no período", icon: TrendingDown, color: "text-rose-600 dark:text-rose-400" },
+                    { label: "Despesas", value: formatCurrency(financeSnapshot.despesas), desc: `Pago no período${pctSnap(financeSnapshot.despesas, financeSnapshot.receita, "da receita")}`, icon: TrendingDown, color: "text-rose-600 dark:text-rose-400" },
                     {
-                      label: "Receita Líquida", value: formatCurrency(financeSnapshot.receitaLiquida), desc: "Receita − Despesas",
+                      label: "Receita Líquida", value: formatCurrency(financeSnapshot.receitaLiquida), desc: `Receita − Despesas${pctSnap(financeSnapshot.receitaLiquida, financeSnapshot.receita, "de margem")}`,
                       icon: Wallet, color: financeSnapshot.receitaLiquida >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
                     },
                     { label: "Novas Vendas", value: financeSnapshot.novasVendas.toString(), desc: "Recebimentos no período", icon: Receipt, color: "text-[var(--color-primary-blue)]" },
                     { label: "Contas a Receber", value: formatCurrency(financeSnapshot.contasAReceber), desc: "Em aberto agora", icon: Receipt, color: "text-amber-600 dark:text-amber-400" },
                     { label: "Contas a Pagar", value: formatCurrency(financeSnapshot.contasAPagar), desc: "Em aberto agora", icon: Receipt, color: "text-amber-600 dark:text-amber-400" },
-                    { label: "Clientes Ativos", value: financeSnapshot.clientesAtivos.toString(), desc: "Base de clientes atual", icon: Users, color: "text-[var(--color-primary-blue)]" },
-                    { label: "Clientes Perdidos", value: financeSnapshot.clientesPerdidos.toString(), desc: "Marcados como Inativo", icon: Users, color: "text-rose-600 dark:text-rose-400" },
+                    { label: "Clientes Ativos", value: financeSnapshot.clientesAtivos.toString(), desc: `Base de clientes atual${pctSnap(financeSnapshot.clientesAtivos, financeSnapshot.clientesAtivos + financeSnapshot.clientesPerdidos, "da base")}`, icon: Users, color: "text-[var(--color-primary-blue)]" },
+                    { label: "Clientes Perdidos", value: financeSnapshot.clientesPerdidos.toString(), desc: `Marcados como Inativo${pctSnap(financeSnapshot.clientesPerdidos, financeSnapshot.clientesAtivos + financeSnapshot.clientesPerdidos, "da base")}`, icon: Users, color: "text-rose-600 dark:text-rose-400" },
                   ].map((item, i) => (
                     <div key={i} className="space-y-1">
                       <p className="text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider flex items-center gap-1">

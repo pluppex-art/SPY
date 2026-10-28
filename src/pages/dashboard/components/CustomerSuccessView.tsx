@@ -158,7 +158,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
                 MRR Ativo
               </span>
               <span className="text-2xl font-black text-[var(--color-text-primary)] font-mono">{formatCurrency(mrrAtivo)}</span>
-              <p className="text-[10px] text-[var(--color-text-muted)] mt-1">{ativos.length} contrato(s) ativo(s)</p>
+              <p className="text-[10px] text-[var(--color-text-muted)] mt-1">{ativos.length} contrato(s) ativo(s) · {Math.round((ativos.length / contracts.length) * 1000) / 10}% da carteira</p>
             </div>
 
             <div className="p-4 bg-[var(--color-surface-sunken)] rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
@@ -166,7 +166,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
                 MRR em Risco (Inadimplente)
               </span>
               <span className="text-2xl font-black text-danger font-mono">{formatCurrency(mrrEmRisco)}</span>
-              <p className="text-[10px] text-[var(--color-text-muted)] mt-1">{emRisco.length} contrato(s)</p>
+              <p className="text-[10px] text-[var(--color-text-muted)] mt-1">{emRisco.length} contrato(s) · {Math.round((emRisco.length / contracts.length) * 1000) / 10}% da carteira</p>
             </div>
 
             <div className="p-4 bg-[var(--color-surface-sunken)] rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
@@ -202,7 +202,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
                 <YAxis tick={{ fontSize: 10 }} allowDecimals={false} width={30} />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-default)', borderRadius: '12px', fontSize: '11px' }}
-                  formatter={(v: number) => [`${v} contrato(s)`, 'Quantidade']}
+                  formatter={(v: number) => [`${v} contrato(s) · ${clvHistogram.sampleSize > 0 ? Math.round((v / clvHistogram.sampleSize) * 1000) / 10 : 0}%`, 'Quantidade']}
                 />
                 <Bar dataKey="count" name="Contratos" fill="var(--color-primary-blue)" radius={[4, 4, 0, 0]} />
               </BarChart>
