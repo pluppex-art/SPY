@@ -6,6 +6,7 @@ import { StatCard } from "../../components/ui/stat-card";
 import { periodoCaption } from "./periodoCaption";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
+import { Pagination } from "../../components/ui/Pagination";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
@@ -28,6 +29,8 @@ function motivosPrioridade(l: any, semContato: boolean, formatCurrency: (v: numb
   return motivos.slice(0, 4);
 }
 
+const PAGE_SIZE = 10;
+
 type Filtro = "todas" | "prioritarias" | "risco" | "semContato" | "recuperaveis";
 
 // Conteúdo da aba "Oportunidades" da Central de Receita — não confundir com
@@ -43,6 +46,7 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [busca, setBusca] = useState("");
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(0);
 
   const stageNames = useMemo(() => getComercialFunilStageNames(funis), [funis]);
 
@@ -83,6 +87,16 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
     }
     return [...base].sort((a, b) => b._val * (b.scoreIA ?? 0) - a._val * (a.scoreIA ?? 0));
   }, [filtro, classificados, prioritarias, emRisco, semContato, recuperaveis, busca]);
+
+  // Só a página atual vai pro DOM (a lista pode ter centenas de oportunidades);
+  // trocar de filtro/busca volta pra primeira página.
+  useEffect(() => { setPagina(0); }, [filtro, busca]);
+  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / PAGE_SIZE));
+  const paginaAtual = Math.min(pagina, totalPaginas - 1);
+  const pagePortion = useMemo(
+    () => filtradas.slice(paginaAtual * PAGE_SIZE, (paginaAtual + 1) * PAGE_SIZE),
+    [filtradas, paginaAtual],
+  );
 
   // Painel de detalhe à direita segue a primeira linha da lista filtrada
   // (como no mockup) até o usuário clicar numa oportunidade específica.
@@ -150,7 +164,7 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                {filtradas.map((l) => {
+                {pagePortion.map((l) => {
                   const intencao = intencaoDe(l.scoreIA);
                   return (
                     <tr
@@ -158,14 +172,14 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
                       onClick={() => setSelecionadoId(l.id)}
                       className={`cursor-pointer transition-colors ${selecionadoId === l.id ? "bg-[var(--color-primary-blue)]/5" : "hover:bg-[var(--color-surface-sunken)]"}`}
                     >
-                      <td className="px-4 py-2.5 font-bold text-[var(--color-text-primary)] truncate max-w-[160px]">{l.company || l.name}</td>
-                      <td className="px-4 py-2.5 font-mono text-[var(--color-text-primary)]">{formatCurrency(l._val)}</td>
-                      <td className="px-4 py-2.5 text-[var(--color-text-muted)] truncate max-w-[100px]">{stageNames[l.stageId] || "—"}</td>
-                      <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{l.scoreIA ?? 0}%</td>
-                      <td className="px-4 py-2.5"><Badge variant={intencao.tone}>{intencao.label}</Badge></td>
-                      <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{l.timeIdle ? `há ${l.timeIdle} dias` : "—"}</td>
-                      <td className="px-4 py-2.5"><Badge variant={l._sit.tone}>{l._sit.label}</Badge></td>
-                      <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{recomendacaoDe(l._sit.label)}</td>
+                      <td className="px-4 py-2 font-bold text-[var(--color-text-primary)] truncate max-w-[160px]">{l.company || l.name}</td>
+                      <td className="px-4 py-2 font-mono text-[var(--color-text-primary)]">{formatCurrency(l._val)}</td>
+                      <td className="px-4 py-2 text-[var(--color-text-muted)] truncate max-w-[100px]">{stageNames[l.stageId] || "—"}</td>
+                      <td className="px-4 py-2 text-[var(--color-text-muted)]">{l.scoreIA ?? 0}%</td>
+                      <td className="px-4 py-2"><Badge variant={intencao.tone}>{intencao.label}</Badge></td>
+                      <td className="px-4 py-2 text-[var(--color-text-muted)]">{l.timeIdle ? `há ${l.timeIdle} dias` : "—"}</td>
+                      <td className="px-4 py-2"><Badge variant={l._sit.tone}>{l._sit.label}</Badge></td>
+                      <td className="px-4 py-2 text-[var(--color-text-muted)]">{recomendacaoDe(l._sit.label)}</td>
                     </tr>
                   );
                 })}
@@ -174,6 +188,9 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="px-4 pb-4 -mt-1">
+            <Pagination page={paginaAtual} totalPages={totalPaginas} total={filtradas.length} pageSize={PAGE_SIZE} onPageChange={setPagina} itemLabel="oportunidade" />
           </div>
         </Card>
 
