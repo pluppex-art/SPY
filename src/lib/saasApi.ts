@@ -5,8 +5,9 @@ export type Plan = {
   trial_days: number; limits: Record<string, any>; features: string[]; active: boolean;
   tagline?: string; setup_price_cents?: number; badge?: string | null; features_header?: string; cta_text?: string;
   highlight?: boolean; show_on_site?: boolean; sort_order?: number;
+  product_id?: string | null; modules?: Record<string, boolean>; ai_monthly_tokens?: number | null;
 };
-export type CreditTier = { id: string; credits: number; price_cents: number; sort_order: number; active: boolean };
+export type CreditTier = { id: string; credits: number; price_cents: number; sort_order: number; active: boolean; product_id?: string | null };
 export type Subscription = {
   id: string; tenant_id: string; plan_id: string | null; status: "trial" | "active" | "past_due" | "suspended" | "canceled";
   trial_ends_at: string | null; current_period_end: string | null; grace_days: number; gateway: string | null;
@@ -34,6 +35,9 @@ export const saasApi = {
   creditTiers: () => apiFetch("/api/billing/credit-tiers").then(json<CreditTier[]>),
   saveCreditTier: (t: Record<string, any>) => send("POST", "/api/billing/credit-tiers", t).then(json<CreditTier>),
   deleteCreditTier: (id: string) => send("DELETE", `/api/billing/credit-tiers/${encodeURIComponent(id)}`).then(json<{ ok: boolean }>),
+  createPlanProduct: (id: string) => send("POST", `/api/billing/plans/${id}/create-product`).then(json<{ productId: string }>),
+  createTierProduct: (id: string) => send("POST", `/api/billing/credit-tiers/${id}/create-product`).then(json<{ productId: string }>),
+  applyPlan: (tenantId: string, planId: string) => send("POST", `/api/billing/subscriptions/${tenantId}/apply-plan`, { planId }).then(json<{ planCode: string; status: string }>),
   saveSubscription: (tenantId: string, body: Record<string, any>) => send("PUT", `/api/billing/subscriptions/${tenantId}`, body).then(json<Subscription>),
   markPaid: (tenantId: string) => send("POST", `/api/billing/subscriptions/${tenantId}/mark-paid`).then(json<Subscription>),
   createAsaas: (tenantId: string, body: Record<string, any>) => send("POST", `/api/billing/subscriptions/${tenantId}/asaas`, body).then(json<{ subscriptionId: string }>),

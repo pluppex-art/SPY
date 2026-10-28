@@ -203,8 +203,24 @@ export function createSaas(deps: Deps) {
       highlight: b.highlight === true,
       show_on_site: b.showOnSite === true,
       sort_order: Math.min(9999, Math.max(0, Math.round(Number(b.sortOrder) || 0))),
+      modules: b.modules && typeof b.modules === "object" && !Array.isArray(b.modules)
+        ? Object.fromEntries(Object.entries(b.modules).filter(([k]) => /^[a-z_]{2,40}$/.test(k)).map(([k, v]) => [k, v === true]))
+        : {},
+      ai_monthly_tokens: b.aiMonthlyTokens === null || b.aiMonthlyTokens === "" || b.aiMonthlyTokens === undefined
+        ? null : (Number(b.aiMonthlyTokens) > 0 ? Math.round(Number(b.aiMonthlyTokens)) : null),
       updated_at: new Date().toISOString(),
-    };
+    } as Record<string, any>;
+    // Plano ligado a um produto: preço, ativo e recorrência vêm do catálogo (fonte única).
+    if (typeof b.productId === "string" && b.productId) {
+      const { data: prod } = await req.supabase.from("products").select("id, price, active, deleted_at, recurring_period").eq("id", b.productId).maybeSingle();
+      if (!prod) return res.status(400).json({ error: "Produto não encontrado." });
+      row.product_id = prod.id;
+      row.price_cents = Math.max(0, Math.round(Number(prod.price) * 100));
+      row.active = prod.active !== false && !prod.deleted_at;
+      row.billing_interval = ["yearly", "annual", "anual"].includes(String(prod.recurring_period || "").toLowerCase()) ? "yearly" : "monthly";
+    } else if (b.productId === null) {
+      row.product_id = null;
+    }
     row.price_cents = Math.min(100_000_000, row.price_cents);
     row.features = row.features.map((f: string) => f.trim().slice(0, 120)).filter(Boolean);
     const { data, error } = b.id
@@ -249,7 +265,12 @@ export function createSaas(deps: Deps) {
     const credits = Math.round(Number(b.credits));
     const price = Math.round(Number(b.priceCents));
     if (!(credits > 0) || !(price >= 0) || credits > 1_000_000_000 || price > 100_000_000) return res.status(400).json({ error: "Informe créditos e preço válidos." });
-    const row = { credits, price_cents: price, sort_order: Math.min(9999, Math.max(0, Math.round(Number(b.sortOrder) || 0))), active: b.active !== false };
+    const row: Record<string, any> = { credits, price_cents: price, sort_order: Math.min(9999, Math.max(0, Math.round(Number(b.sortOrder) || 0))), active: b.active !== false };
+    if (typeof b.productId === "string" && b.productId) {
+      const { data: prod } = await req.supabase.from("products").select("id, price, active, deleted_at").eq("id", b.productId).maybeSingle();
+      if (!prod) return res.status(400).json({ error: "Produto não encontrado." });
+      row.product_id = prod.id; row.price_cents = Math.max(0, Math.round(Number(prod.price) * 100)); row.active = prod.active !== false && !prod.deleted_at;
+    } else if (b.productId === null) row.product_id = null;
     const { data, error } = b.id
       ? await req.supabase.from("credit_tiers").update(row).eq("id", b.id).select().single()
       : await req.supabase.from("credit_tiers").insert(row).select().single();
@@ -260,6 +281,100 @@ export function createSaas(deps: Deps) {
     const { error } = await req.supabase.from("credit_tiers").delete().eq("id", req.params.id);
     if (error) return res.status(400).json({ error: "Erro ao remover a faixa de créditos." });
     res.json({ ok: true });
+  });
+
+  // ── Plano ↔ catálogo ──────────────────────────────────────────────────────────
+  // Tenant dono do catálogo da plataforma (onde ficam os produtos "Licença", "Implementação"...).
+  const OWNER_TENANT_ID = process.env.SPY_OWNER_TENANT_ID || "27ef95ee-84dd-499e-9f25-cd9baecb5fe4";
+
+  /** Cria no catálogo o produto de um plano / pacote de créditos que ainda não tem um, e liga os dois. */
+  router.post("/plans/:id/create-product", requireUser, requireMaster, async (req: any, res) => {
+    if (!supabaseService) return res.status(503).json({ error: "Service role não configurada." });
+    const { data: plan } = await req.supabase.from("subscription_plans").select("*").eq("id", req.params.id).maybeSingle();
+    if (!plan) return res.status(404).json({ error: "Plano não encontrado." });
+    if (plan.product_id) return res.status(409).json({ error: "Este plano já está ligado a um produto." });
+    const { data: prod, error } = await supabaseService.from("products").insert({
+      tenant_id: OWNER_TENANT_ID, name: `Licença S.P.Y | ${plan.name}`, type: "Digital", category: "Software",
+      price: plan.price_cents / 100, active: plan.active, is_recurring: true,
+      recurring_period: plan.billing_interval === "yearly" ? "yearly" : "monthly",
+      description: plan.tagline || null,
+      type_attributes: { isRecurring: true, billingCycle: plan.billing_interval === "yearly" ? "Anual" : "Mensal", tipoEntrega: "Acesso por Login" },
+    }).select("id").single();
+    if (error || !prod) return res.status(500).json({ error: "Erro ao criar o produto do plano." });
+    const { error: linkErr } = await req.supabase.from("subscription_plans").update({ product_id: prod.id }).eq("id", plan.id);
+    if (linkErr) return res.status(500).json({ error: "Produto criado, mas não foi possível ligá-lo ao plano." });
+    res.json({ productId: prod.id });
+  });
+
+  router.post("/credit-tiers/:id/create-product", requireUser, requireMaster, async (req: any, res) => {
+    if (!supabaseService) return res.status(503).json({ error: "Service role não configurada." });
+    const { data: tier } = await req.supabase.from("credit_tiers").select("*").eq("id", req.params.id).maybeSingle();
+    if (!tier) return res.status(404).json({ error: "Pacote não encontrado." });
+    if (tier.product_id) return res.status(409).json({ error: "Este pacote já está ligado a um produto." });
+    const { data: prod, error } = await supabaseService.from("products").insert({
+      tenant_id: OWNER_TENANT_ID, name: `Pacote de créditos de IA | ${Number(tier.credits).toLocaleString("pt-BR")}`, type: "Digital", category: "Créditos de IA",
+      price: tier.price_cents / 100, active: tier.active, is_recurring: false,
+      description: `${Number(tier.credits).toLocaleString("pt-BR")} créditos de inteligência artificial.`,
+      type_attributes: { isRecurring: false, creditosIA: tier.credits },
+    }).select("id").single();
+    if (error || !prod) return res.status(500).json({ error: "Erro ao criar o produto do pacote." });
+    const { error: linkErr } = await req.supabase.from("credit_tiers").update({ product_id: prod.id }).eq("id", tier.id);
+    if (linkErr) return res.status(500).json({ error: "Produto criado, mas não foi possível ligá-lo ao pacote." });
+    res.json({ productId: prod.id });
+  });
+
+  /**
+   * Aplica um plano a um tenant: assinatura (teste ou ativa), módulos do plano e teto de IA.
+   * Única regra usada tanto pela venda fechada (criação do ambiente) quanto pelo Admin.
+   */
+  async function provisionPlan(tenantId: string, planId: string, by?: string) {
+    if (!supabaseService) throw new Error("Service role não configurada.");
+    const { data: plan } = await supabaseService.from("subscription_plans").select("*").eq("id", planId).maybeSingle();
+    if (!plan) throw new Error("Plano inexistente.");
+    const { data: current } = await supabaseService.from("tenant_subscriptions").select("status").eq("tenant_id", tenantId).maybeSingle();
+    const trial = Number(plan.trial_days) > 0;
+    const row: any = {
+      tenant_id: tenantId, plan_id: plan.id, status: trial ? "trial" : "active", gateway: "manual", updated_at: new Date().toISOString(),
+      trial_ends_at: trial ? new Date(Date.now() + plan.trial_days * 86400_000).toISOString() : null,
+      suspended_at: null,
+    };
+    const { error: subErr } = await supabaseService.from("tenant_subscriptions").upsert(row, { onConflict: "tenant_id" });
+    if (subErr) throw new Error("Erro ao salvar a assinatura.");
+    const mods = plan.modules && typeof plan.modules === "object" ? plan.modules : {};
+    if (Object.keys(mods).length > 0) {
+      const { data: t } = await supabaseService.from("tenants").select("modules").eq("id", tenantId).maybeSingle();
+      await supabaseService.from("tenants").update({ modules: { ...(t?.modules || {}), ...mods }, plan: plan.code }).eq("id", tenantId);
+    } else {
+      await supabaseService.from("tenants").update({ plan: plan.code }).eq("id", tenantId);
+    }
+    if (plan.ai_monthly_tokens) {
+      await supabaseService.from("tenant_ai_budget").upsert(
+        { tenant_id: tenantId, monthly_token_limit: plan.ai_monthly_tokens, updated_at: new Date().toISOString() }, { onConflict: "tenant_id" });
+    }
+    await logEvent(tenantId, "plan_applied", { from_status: current?.status ?? null, to_status: row.status, amount_cents: plan.price_cents, payload: { by: by ?? null, plan: plan.code } });
+    invalidate(tenantId);
+    return { planCode: plan.code, status: row.status as string };
+  }
+
+  /** Plano que o cliente comprou: procura, nas propostas do lead da implementação, um item cujo produto é um plano. */
+  async function planIdFromLead(leadId?: string | null): Promise<string | null> {
+    if (!supabaseService || !leadId) return null;
+    const { data: props } = await supabaseService.from("proposals").select("id, created_at").eq("lead_id", leadId).order("created_at", { ascending: false }).limit(20);
+    const ids = (props || []).map((p: any) => p.id);
+    if (ids.length === 0) return null;
+    const { data: items } = await supabaseService.from("proposal_items").select("product_id").in("proposal_id", ids).not("product_id", "is", null);
+    const productIds = [...new Set((items || []).map((i: any) => i.product_id))];
+    if (productIds.length === 0) return null;
+    const { data: plans } = await supabaseService.from("subscription_plans").select("id").in("product_id", productIds).limit(1);
+    return plans?.[0]?.id ?? null;
+  }
+
+  router.post("/subscriptions/:tenantId/apply-plan", requireUser, requireMaster, async (req: any, res) => {
+    try {
+      const planId = String(req.body?.planId || "");
+      if (!planId) return res.status(400).json({ error: "Informe o plano." });
+      res.json(await provisionPlan(req.params.tenantId, planId, req.user.id));
+    } catch (e: any) { res.status(400).json({ error: e?.message || "Erro ao aplicar o plano." }); }
   });
 
   async function logEvent(tenantId: string, type: string, extra: Record<string, any> = {}) {
@@ -509,5 +624,5 @@ export function createSaas(deps: Deps) {
     res.json(data || []);
   });
 
-  return { billingRouter: router, lgpdRouter: lgpd, aiGate, trackGeminiUsage, recordAiUsage, isTenantSuspended, isAiAllowed };
+  return { billingRouter: router, lgpdRouter: lgpd, provisionPlan, planIdFromLead, aiGate, trackGeminiUsage, recordAiUsage, isTenantSuspended, isAiAllowed };
 }

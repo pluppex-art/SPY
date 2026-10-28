@@ -3004,7 +3004,7 @@ app.put("/api/implementations/:id/tenant-integrations/:integration", requireUser
   // chamada (clean.apiKey só existe se veio no body) — nunca em regravações de outros campos. Valor
   // nunca é logado (nem aqui, nem no [impl-integration] acima); falha aqui nunca derruba o save real.
   if (def.id === "ia_provider" && clean.apiKey) {
-    axios.post("https://automacao-target-n8n.vr4mar.easypanel.host/webhook/spy-ia-provider-configurado", {
+    axios.post("https://n8n.spycrm.com.br/webhook/spy-ia-provider-configurado", {
       tenant_id: impl.linked_tenant_id,
       provider: settingValue.provider || "",
       api_key: clean.apiKey,
@@ -5026,7 +5026,7 @@ app.post("/api/admin/tenant-user/:userId/credentials", requireUser, requireMaste
 app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) => {
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
 
-  const { tenantName, niche, adminEmail, adminPassword, plan, primaryColor, timezone, modules, implementationId } = req.body ?? {};
+  const { tenantName, niche, adminEmail, adminPassword, plan, planId, primaryColor, timezone, modules, implementationId } = req.body ?? {};
   if (!tenantName?.trim()) return res.status(400).json({ error: "Informe o nome da empresa." });
   if (!adminEmail?.trim()) return res.status(400).json({ error: "Informe o e-mail do administrador da empresa." });
   if (!adminPassword || adminPassword.length < 6) return res.status(400).json({ error: "A senha do administrador precisa ter pelo menos 6 caracteres." });
@@ -5038,17 +5038,17 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
     // Criação a partir de uma implementação: a implementação (lida sob a RLS de quem pediu) é a
     // fonte da verdade — o servidor revalida se os dados estão completos e monta o cadastro da
     // empresa a partir dela; nada disso vem do corpo da requisição.
-    let impl: { id: string; data: Record<string, any> } | null = null;
+    let impl: { id: string; data: Record<string, any>; leadId?: string | null } | null = null;
     if (implementationId !== undefined && implementationId !== null) {
       if (typeof implementationId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(implementationId)) {
         return res.status(400).json({ error: "implementationId inválido." });
       }
-      const { data: found } = await req.supabase.from("implementations").select("id, data, linked_tenant_id").eq("id", implementationId).maybeSingle();
+      const { data: found } = await req.supabase.from("implementations").select("id, data, linked_tenant_id, lead_id").eq("id", implementationId).maybeSingle();
       if (!found) return res.status(404).json({ error: "Implementação não encontrada." });
       if (found.linked_tenant_id) return res.status(409).json({ error: "Esta implementação já está vinculada a um ambiente." });
       const readiness = tenantReadiness(found.data || {});
       if (!readiness.ready) return res.status(400).json({ error: `Dados da implementação incompletos: faltam ${readiness.missing.join(", ")}.` });
-      impl = { id: found.id, data: found.data || {} };
+      impl = { id: found.id, data: found.data || {}, leadId: found.lead_id };
     }
 
     const { data: tenantData, error: tenantError } = await supabaseService
@@ -5137,6 +5137,16 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
       if (linkError) console.error("[tenant-create] Falha ao vincular a implementação:", linkError.message);
     }
 
+    // Plano: o escolhido no cadastro; senão o que o cliente comprou (item de proposta do lead da implementação
+    // cujo produto é um plano). Aplica assinatura, módulos e teto de IA do plano — mesma regra do Admin.
+    let planoAplicado: { planCode: string; status: string } | undefined;
+    try {
+      const wantedPlanId = (typeof planId === "string" && planId) ? planId : await saas.planIdFromLead(impl?.leadId);
+      if (wantedPlanId) planoAplicado = await saas.provisionPlan(tenantData.id, wantedPlanId, req.user?.id);
+    } catch (e: any) {
+      console.error("[tenant-create] Falha ao aplicar o plano:", e?.message);
+    }
+
     // Agente de Implementação (n8n) — cria a pasta do cliente e duplica os 4 agentes
     // (Radar/Closer/Júlia/Agente Secreto); se vier telefone (via implementação), também
     // inicia a conversa de onboarding no WhatsApp. Fire-and-forget: nunca atrasa nem
@@ -5145,7 +5155,7 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
     if (!implWebhookSecret) {
       console.error("[tenant-create] SPY_IMPLEMENTACAO_WEBHOOK_SECRET nao configurada — agente de implementacao NAO foi acionado.");
     } else {
-      fetch("https://automacao-target-n8n.vr4mar.easypanel.host/webhook/spy-agente-implementacao-tenant-criado", {
+      fetch("https://n8n.spycrm.com.br/webhook/spy-agente-implementacao-tenant-criado", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Webhook-Secret": implWebhookSecret },
         body: JSON.stringify({
@@ -5158,7 +5168,7 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
       }).catch((e: any) => console.error("[tenant-create] Falha ao notificar agente de implementacao:", e?.message));
     }
 
-    res.json({ success: true, tenantId: tenantData.id, ...(impl ? { empresaDadosSalvos, vinculada } : {}) });
+    res.json({ success: true, tenantId: tenantData.id, ...(planoAplicado ? { plano: planoAplicado } : {}), ...(impl ? { empresaDadosSalvos, vinculada } : {}) });
   } catch (err: any) {
     console.error("[tenant-create]", err?.message);
     res.status(500).json({ error: "Erro ao cadastrar empresa." });

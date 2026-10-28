@@ -6,7 +6,8 @@ import {
 } from "lucide-react";
 import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
-import { createTenantAdmin, fetchSpyLicenseProducts, type SpyLicenseProduct } from "../../../lib/supabase";
+import { createTenantAdmin } from "../../../lib/supabase";
+import { saasApi, brl, type Plan } from "../../../lib/saasApi";
 import { BRAND_COLORS } from "../../../lib/theme";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
@@ -84,8 +85,8 @@ const inputClass = "w-full bg-[var(--color-surface-sunken)] border border-[var(-
 export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: NovoTenantModalProps) {
   const [name, setName] = useState("");
   const [niche, setNiche] = useState(DEFAULT_NICHE);
-  const [plan, setPlan] = useState("");
-  const [plans, setPlans] = useState<SpyLicenseProduct[]>([]);
+  const [planId, setPlanId] = useState("");
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [plansLoading, setPlansLoading] = useState(false);
   const [primaryColor, setPrimaryColor] = useState(DEFAULT_COLOR);
   const [modules, setModules] = useState<Record<string, boolean>>(() => buildModulesState(DEFAULT_MODULES_BY_NICHE[DEFAULT_NICHE]));
@@ -103,10 +104,10 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
     if (!isOpen) return;
     let cancelled = false;
     setPlansLoading(true);
-    fetchSpyLicenseProducts().then(result => {
+    saasApi.plans().catch(() => [] as Plan[]).then(all => {
       if (cancelled) return;
+      const result = all.filter(p => p.active).sort((a, b) => a.price_cents - b.price_cents);
       setPlans(result);
-      setPlan(prev => prev || result[0]?.value || "");
       setPlansLoading(false);
     });
     return () => { cancelled = true; };
@@ -124,7 +125,7 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
     setCreated(null);
     setName("");
     setNiche(DEFAULT_NICHE);
-    setPlan(plans[0]?.value || "");
+    setPlanId("");
     setPrimaryColor(DEFAULT_COLOR);
     setModules(buildModulesState(DEFAULT_MODULES_BY_NICHE[DEFAULT_NICHE]));
     setAdminEmail("");
@@ -175,7 +176,7 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
     setLoading(true);
     try {
       const res = await createTenantAdmin(name.trim(), niche, adminEmail.trim(), adminPassword, {
-        plan,
+        ...(planId ? { planId } : {}),
         primaryColor,
         modules,
         ...(implementation ? { implementationId: implementation.id } : {}),
@@ -301,30 +302,27 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
             <div>
               <label className={labelClass}>Plano de Assinatura Inicial</label>
               {plansLoading ? (
-                <div className={`${inputClass} text-[var(--color-text-faint)]`}>Carregando planos do catálogo...</div>
-              ) : plans.length > 0 ? (
+                <div className={`${inputClass} text-[var(--color-text-faint)]`}>Carregando planos...</div>
+              ) : (
                 <select
-                  value={plan}
-                  onChange={e => setPlan(e.target.value)}
+                  value={planId}
+                  onChange={e => {
+                    const id = e.target.value;
+                    setPlanId(id);
+                    const chosen = plans.find(p => p.id === id) as any;
+                    const planModules = chosen?.modules && typeof chosen.modules === "object" ? Object.keys(chosen.modules).filter(k => chosen.modules[k]) : [];
+                    if (planModules.length > 0) setModules(buildModulesState(planModules));
+                  }}
                   className={`${inputClass} cursor-pointer font-bold`}
                 >
+                  <option value="">{implementation ? "Usar o plano da proposta vendida (se houver)" : "Sem plano definido"}</option>
                   {plans.map(p => (
-                    <option key={p.id} value={p.value}>
-                      S.P.Y. {p.label} (R$ {p.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/mês)
-                    </option>
+                    <option key={p.id} value={p.id}>{p.name} ({brl(p.price_cents)}{p.billing_interval === "yearly" ? "/ano" : "/mês"})</option>
                   ))}
                 </select>
-              ) : (
-                <input
-                  type="text"
-                  value={plan}
-                  onChange={e => setPlan(e.target.value)}
-                  placeholder="Nenhum plano no catálogo — digite manualmente"
-                  className={inputClass}
-                />
               )}
               <p className="text-[10px] text-[var(--color-text-faint)] mt-1">
-                Sincronizado com o Catálogo de Produtos da Pluppex.
+                O plano libera os módulos, o teto de IA e a assinatura do ambiente. Preço vem do Catálogo de Produtos.
               </p>
             </div>
           </div>

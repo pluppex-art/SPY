@@ -512,7 +512,7 @@ export async function createTenantAdmin(
   niche: string,
   adminEmail: string,
   adminPassword: string,
-  options?: { plan?: string; primaryColor?: string; timezone?: string; modules?: Record<string, boolean>; implementationId?: string }
+  options?: { plan?: string; planId?: string; primaryColor?: string; timezone?: string; modules?: Record<string, boolean>; implementationId?: string }
 ): Promise<{ success: boolean; error?: string; tenantId?: string; empresaDadosSalvos?: boolean; vinculada?: boolean }> {
   if (!supabase) return { success: false, error: 'Não foi possível conectar ao servidor' };
   try {
