@@ -7,6 +7,8 @@ import {
   TrendingUp, Target, AlertTriangle, Gauge, Flame, Sparkles, UserX, FileWarning, SlidersHorizontal,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { StatCard } from "../../components/ui/stat-card";
+import { periodoCaption } from "./periodoCaption";
 import { SectionTitle } from "../../components/ui/section-title";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -22,6 +24,7 @@ const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Se
 export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardData }) {
   const { contracts, proposals, proposalItems, products, squads } = useData();
   const { leads, totalRevenue, faturamentoContratado, performanceData } = dashboard;
+  const periodo = periodoCaption(dashboard.dateFrom, dashboard.dateTo);
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
   const [simConversao, setSimConversao] = useState(10);
@@ -119,26 +122,14 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><TrendingUp className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Previsão de Receita (90d)</span></div>
-          <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(previsao90dias)}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">Cenário base</p>
-        </Card>
-        <Card className="p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Target className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Central de Vendas Ponderada</span></div>
-          <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(pipelinePonderado)}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{leadsAbertos.length} oportunidade{leadsAbertos.length === 1 ? "" : "s"}</p>
-        </Card>
-        <Card className="p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Gauge className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Probabilidade de Atingir Meta</span></div>
-          <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{probMeta !== null ? `${probMeta}%` : "—"}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{totalMeta > 0 ? `Meta ${formatCurrency(totalMeta)}` : "Sem meta configurada"}</p>
-        </Card>
-        <Card className="p-5 border-danger/20 shadow-sm">
-          <div className="flex items-center gap-2 text-danger"><AlertTriangle className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Risco de Queda</span></div>
-          <p className="text-2xl font-black text-danger font-mono mt-2">{formatCurrency(receitaEmRisco)}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{contratosEmRisco.length} contrato{contratosEmRisco.length === 1 ? "" : "s"} inadimplente{contratosEmRisco.length === 1 ? "" : "s"}</p>
-        </Card>
+        <StatCard icon={TrendingUp} label="Previsão de Receita (90d)" value={formatCurrency(previsao90dias)} caption={periodo}
+          sub={totalRevenue > 0 ? `${Math.round((previsao90dias / totalRevenue) * 100)}% da receita atual · cenário base` : "Cenário base"} />
+        <StatCard icon={Target} label="Central de Vendas Ponderada" value={formatCurrency(pipelinePonderado)} caption={periodo}
+          sub={`${leadsAbertos.length} oportunidade${leadsAbertos.length === 1 ? "" : "s"} em aberto`} />
+        <StatCard icon={Gauge} label="Probabilidade de Atingir Meta" value={probMeta !== null ? `${probMeta}%` : "—"} caption={periodo}
+          sub={totalMeta > 0 ? `Meta ${formatCurrency(totalMeta)}` : "Sem meta configurada"} />
+        <StatCard icon={AlertTriangle} tone="danger" label="Risco de Queda" value={formatCurrency(receitaEmRisco)} caption={periodo}
+          sub={`${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"} inadimplente${contratosEmRisco.length === 1 ? "" : "s"}${totalRevenue > 0 ? ` · ${Math.round((receitaEmRisco / totalRevenue) * 1000) / 10}%` : ""}`} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

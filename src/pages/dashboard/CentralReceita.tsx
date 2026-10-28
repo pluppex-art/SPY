@@ -9,6 +9,8 @@ import {
   Flame, FileWarning, UserX, PieChart as PieChartIcon,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { StatCard } from "../../components/ui/stat-card";
+import { periodoCaption } from "./periodoCaption";
 import { SectionTitle } from "../../components/ui/section-title";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -63,6 +65,8 @@ export default function CentralReceita() {
   const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
   const primeiroNome = (user?.name || "").split(" ")[0] || "";
 
+  const periodo = periodoCaption(dateFrom, dateTo);
+  const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : 0);
   const leadsAbertos = useMemo(() => leads.filter((l: any) => isLeadOpen(l.status)), [leads]);
   const pipelineValue = serverSummary?.valorPipelineAberto ?? leadsAbertos.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0);
   const pipelineCount = leadsAbertos.length;
@@ -190,30 +194,14 @@ export default function CentralReceita() {
       <>
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card onClick={() => setDrillKey("receita")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><DollarSign className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Receita Realizada</span></div>
-          <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(totalRevenue)}</p>
-          {vendasTrend !== null && (
-            <p className={`text-[11px] font-bold mt-1 flex items-center gap-1 ${vendasTrend >= 0 ? "text-success" : "text-danger"}`}>
-              {vendasTrend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} {vendasTrend >= 0 ? "+" : ""}{vendasTrend}% vs período anterior
-            </p>
-          )}
-        </Card>
-        <Card onClick={() => setDrillKey("pipeline")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Workflow className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Total na Central de Vendas</span></div>
-          <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(pipelineValue)}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{pipelineCount} oportunidade{pipelineCount === 1 ? "" : "s"}</p>
-        </Card>
-        <Card onClick={() => setDrillKey("emRisco")} className="p-5 bg-[var(--color-surface-elevated)] border border-danger/20 cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-danger"><AlertTriangle className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Receita em Risco</span></div>
-          <p className="text-2xl font-black text-danger font-mono mt-2">{formatCurrency(receitaEmRisco)}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{receitaEmRiscoCount} contrato{receitaEmRiscoCount === 1 ? "" : "s"}</p>
-        </Card>
-        <Card onClick={() => setDrillKey("recuperaveis")} className="p-5 bg-[var(--color-surface-elevated)] border border-success/20 cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-success"><RefreshCw className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Oportunidades Recuperáveis</span></div>
-          <p className="text-2xl font-black text-success font-mono mt-2">{formatCurrency(recuperavelValue)}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{oportunidadesRecuperaveis.length} oportunidade{oportunidadesRecuperaveis.length === 1 ? "" : "s"}</p>
-        </Card>
+        <StatCard icon={DollarSign} label="Receita Realizada" value={formatCurrency(totalRevenue)} caption={periodo} onClick={() => setDrillKey("receita")}
+          sub={vendasTrend !== null ? <>{vendasTrend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} {vendasTrend >= 0 ? "+" : ""}{vendasTrend}% vs período anterior</> : "Sem período anterior p/ comparar"} />
+        <StatCard icon={Workflow} label="Total na Central de Vendas" value={formatCurrency(pipelineValue)} caption={periodo} onClick={() => setDrillKey("pipeline")}
+          sub={`${pipelineCount} oportunidade${pipelineCount === 1 ? "" : "s"} em aberto`} />
+        <StatCard icon={AlertTriangle} tone="danger" label="Receita em Risco" value={formatCurrency(receitaEmRisco)} caption={periodo} onClick={() => setDrillKey("emRisco")}
+          sub={`${receitaEmRiscoCount} contrato${receitaEmRiscoCount === 1 ? "" : "s"} · ${pct(receitaEmRisco, totalRevenue)}% da receita`} />
+        <StatCard icon={RefreshCw} tone="success" label="Oportunidades Recuperáveis" value={formatCurrency(recuperavelValue)} caption={periodo} onClick={() => setDrillKey("recuperaveis")}
+          sub={`${oportunidadesRecuperaveis.length} oportunidade${oportunidadesRecuperaveis.length === 1 ? "" : "s"} · ${pct(recuperavelValue, pipelineValue)}% da central`} />
       </div>
 
       {/* Aurora recomenda */}

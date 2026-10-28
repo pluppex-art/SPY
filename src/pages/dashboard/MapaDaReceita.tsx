@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { SectionTitle } from "../../components/ui/section-title";
+import { StatCard } from "../../components/ui/stat-card";
+import { periodoCaption } from "./periodoCaption";
 import { Badge } from "../../components/ui/badge";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 import { leadDrillColumns, contractDrillColumns, isContractAtivo } from "../../components/ui/drillColumns";
@@ -41,6 +43,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
   const { contracts, proposals, proposalItems, products, clienteBase } = useData();
   const { leads, totalRevenue, faturamentoContratado, salesRanking, funnelData } = dashboard;
   const { formatCurrency } = useLocalization();
+  const periodo = periodoCaption(dashboard.dateFrom, dashboard.dateTo);
   const [subAba, setSubAba] = useState<SubAba>("visaoGeral");
 
   const oportunidades = useMemo(() => (leads as any[]).filter((l) => parseCurrencyBR(l.value) > 0), [leads]);
@@ -54,12 +57,12 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
   const fluxo = useMemo(() => {
     const totalLeads = leads.length || 1;
     return [
-      { key: "leads" as DrillKey, icon: Users, label: "Leads", value: String(leads.length), sub: null as string | null },
-      { key: "oportunidades" as DrillKey, icon: Target, label: "Oportunidades", value: String(oportunidades.length), sub: `${Math.round((oportunidades.length / totalLeads) * 1000) / 10}% de conversão` },
-      { key: "vendas" as DrillKey, icon: ShoppingCart, label: "Vendas", value: String(vendas.length), sub: `${oportunidades.length > 0 ? Math.round((vendas.length / oportunidades.length) * 1000) / 10 : 0}% de conversão` },
-      { key: "receita" as DrillKey, icon: DollarSign, label: "Receita", value: formatCurrency(faturamentoContratado), sub: vendas.length > 0 ? `Ticket médio ${formatCurrency(faturamentoContratado / vendas.length)}` : null },
-      { key: "retencao" as DrillKey, icon: RefreshCw, label: "Retenção (MRR)", value: formatCurrency(totalRevenue), sub: faturamentoContratado > 0 ? `${Math.round((totalRevenue / faturamentoContratado) * 1000) / 10}% da receita` : null },
-      { key: "emRisco" as DrillKey, icon: AlertTriangle, label: "Em Risco", value: formatCurrency(valorEmRisco), sub: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"}` },
+      { key: "leads" as DrillKey, icon: Users, label: "Leads", value: String(leads.length), sub: `100% do funil` as string | null },
+      { key: "oportunidades" as DrillKey, icon: Target, label: "Oportunidades", value: String(oportunidades.length), sub: `${Math.round((oportunidades.length / totalLeads) * 1000) / 10}% dos leads` },
+      { key: "vendas" as DrillKey, icon: ShoppingCart, label: "Vendas", value: String(vendas.length), sub: `${oportunidades.length > 0 ? Math.round((vendas.length / oportunidades.length) * 1000) / 10 : 0}% das oportunidades` },
+      { key: "receita" as DrillKey, icon: DollarSign, label: "Receita", value: formatCurrency(faturamentoContratado), sub: vendas.length > 0 ? `Ticket médio ${formatCurrency(faturamentoContratado / vendas.length)}` : "Sem vendas ainda" },
+      { key: "retencao" as DrillKey, icon: RefreshCw, label: "Retenção (MRR)", value: formatCurrency(totalRevenue), sub: faturamentoContratado > 0 ? `${Math.round((totalRevenue / faturamentoContratado) * 1000) / 10}% da receita` : "Sem receita ainda" },
+      { key: "emRisco" as DrillKey, icon: AlertTriangle, label: "Em Risco", value: formatCurrency(valorEmRisco), sub: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"} · ${faturamentoContratado > 0 ? Math.round((valorEmRisco / faturamentoContratado) * 1000) / 10 : 0}% da receita` },
     ].map((f, i) => ({ ...f, color: FLUXO_COLORS[i % FLUXO_COLORS.length] }));
   }, [leads.length, oportunidades.length, vendas.length, faturamentoContratado, totalRevenue, valorEmRisco, contratosEmRisco.length, formatCurrency]);
 
@@ -129,21 +132,10 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       {/* Fluxo da Receita */}
       <Card className="p-5 shadow-sm">
         <SectionTitle className="mb-4">Fluxo da Receita</SectionTitle>
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
           {fluxo.map((f, i) => (
             <div key={f.label} className="relative">
-              <button
-                type="button"
-                onClick={() => setDrillKey(f.key)}
-                className="w-full text-left rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-3.5 transition-all hover:border-[var(--color-border-default)] hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
-              >
-                <div className="w-8 h-8 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: `${f.color}1a` }}>
-                  <f.icon className="w-4 h-4" style={{ color: f.color }} />
-                </div>
-                <p className="text-[9px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{f.label}</p>
-                <p className="text-base font-black text-[var(--color-text-primary)] font-mono mt-0.5 truncate">{f.value}</p>
-                {f.sub && <p className="text-[10px] font-semibold mt-0.5" style={{ color: f.color }}>{f.sub}</p>}
-              </button>
+              <StatCard icon={f.icon} label={f.label} value={f.value} sub={f.sub} caption={periodo} color={f.color} onClick={() => setDrillKey(f.key)} className="h-full" />
               {i < fluxo.length - 1 && (
                 <ChevronRight className="hidden xl:block absolute top-1/2 -right-3.5 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
               )}

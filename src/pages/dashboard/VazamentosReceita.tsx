@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { AlertTriangle, FileWarning, Flame, Workflow, UserX } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { StatCard } from "../../components/ui/stat-card";
+import { periodoCaption } from "./periodoCaption";
 import { SectionTitle } from "../../components/ui/section-title";
 import { Button } from "../../components/ui/button";
 import { useData } from "../../contexts/DataContext";
@@ -23,6 +25,7 @@ type Aba = "propostas" | "leads" | "paradas" | "churn";
 export default function VazamentosReceita({ dashboard }: { dashboard: DashboardData }) {
   const { contracts, proposals } = useData();
   const { leads } = dashboard;
+  const periodo = periodoCaption(dashboard.dateFrom, dashboard.dateTo);
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
   const [aba, setAba] = useState<Aba>("propostas");
@@ -69,26 +72,15 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
       </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card onClick={() => setAba("propostas")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><FileWarning className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Propostas sem Follow-up</span></div>
-          <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(propostasSemFollowUpValue)}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{propostasSemFollowUp.length} proposta{propostasSemFollowUp.length === 1 ? "" : "s"}</p>
-        </Card>
-        <Card onClick={() => setAba("leads")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Flame className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Leads Quentes sem Contato</span></div>
-          <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(leadsQuentesParados.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0))}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{leadsQuentesParados.length} lead{leadsQuentesParados.length === 1 ? "" : "s"}</p>
-        </Card>
-        <Card onClick={() => setAba("paradas")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Workflow className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Oportunidades Paradas</span></div>
-          <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(oportunidadesParadas.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0))}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{oportunidadesParadas.length} oportunidade{oportunidadesParadas.length === 1 ? "" : "s"}</p>
-        </Card>
-        <Card onClick={() => setAba("churn")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><UserX className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Clientes com Risco de Churn</span></div>
-          <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(contratosEmRisco.reduce((s, c) => s + parseCurrencyBR(c.mrr), 0))}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{contratosEmRisco.length} cliente{contratosEmRisco.length === 1 ? "" : "s"}</p>
-        </Card>
+        {[
+          { aba: "propostas" as const, icon: FileWarning, label: "Propostas sem Follow-up", val: propostasSemFollowUpValue, n: propostasSemFollowUp.length, un: "proposta" },
+          { aba: "leads" as const, icon: Flame, label: "Leads Quentes sem Contato", val: leadsQuentesParados.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0), n: leadsQuentesParados.length, un: "lead" },
+          { aba: "paradas" as const, icon: Workflow, label: "Oportunidades Paradas", val: oportunidadesParadas.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0), n: oportunidadesParadas.length, un: "oportunidade" },
+          { aba: "churn" as const, icon: UserX, label: "Clientes com Risco de Churn", val: contratosEmRisco.reduce((s, c) => s + parseCurrencyBR(c.mrr), 0), n: contratosEmRisco.length, un: "cliente" },
+        ].map((k) => (
+          <StatCard key={k.aba} icon={k.icon} label={k.label} value={formatCurrency(k.val)} caption={periodo} onClick={() => setAba(k.aba)}
+            sub={`${k.n} ${k.un}${k.n === 1 ? "" : "s"} · ${totalVazamento > 0 ? Math.round((k.val / totalVazamento) * 100) : 0}% do total`} />
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

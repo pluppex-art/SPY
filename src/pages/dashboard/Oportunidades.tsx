@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame, Workflow, ListChecks, Percent, Search, X, Sparkles, Building2 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { StatCard } from "../../components/ui/stat-card";
+import { periodoCaption } from "./periodoCaption";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { useData } from "../../contexts/DataContext";
@@ -35,6 +37,7 @@ type Filtro = "todas" | "prioritarias" | "risco" | "semContato" | "recuperaveis"
 export default function Oportunidades({ dashboard }: { dashboard: DashboardData }) {
   const { funis, leadActivities } = useData();
   const { leads } = dashboard;
+  const periodo = periodoCaption(dashboard.dateFrom, dashboard.dateTo);
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState<Filtro>("todas");
@@ -104,23 +107,13 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card onClick={() => setFiltro("todas")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Workflow className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Oportunidades Ativas</span></div>
-          <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{classificados.length}</p>
-        </Card>
-        <Card onClick={() => setFiltro("todas")} className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><ListChecks className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Valor na Central de Vendas</span></div>
-          <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{formatCurrency(pipelineValue)}</p>
-        </Card>
-        <Card onClick={() => setFiltro("prioritarias")} className="p-5 bg-[var(--color-surface-elevated)] border border-danger/20 cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-          <div className="flex items-center gap-2 text-danger"><Flame className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Prioritárias</span></div>
-          <p className="text-2xl font-black text-danger font-mono mt-2">{prioritarias.length}</p>
-          <p className="text-[11px] text-[var(--color-text-muted)] font-bold mt-1">{formatCurrency(prioritarias.reduce((s, l) => s + l._val, 0))}</p>
-        </Card>
-        <Card className="p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Percent className="w-4 h-4" /><span className="text-[10px] font-black uppercase tracking-wider">Probabilidade Média</span></div>
-          <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono mt-2">{probMedia}%</p>
-        </Card>
+        <StatCard icon={Workflow} label="Oportunidades Ativas" value={classificados.length} caption={periodo} onClick={() => setFiltro("todas")}
+          sub={`${prioritarias.length} prioritária${prioritarias.length === 1 ? "" : "s"} · ${classificados.length > 0 ? Math.round((prioritarias.length / classificados.length) * 100) : 0}%`} />
+        <StatCard icon={ListChecks} label="Valor na Central de Vendas" value={formatCurrency(pipelineValue)} caption={periodo} onClick={() => setFiltro("todas")}
+          sub={classificados.length > 0 ? `Ticket médio ${formatCurrency(pipelineValue / classificados.length)}` : "Sem oportunidades"} />
+        <StatCard icon={Flame} tone="danger" label="Prioritárias" value={prioritarias.length} caption={periodo} onClick={() => setFiltro("prioritarias")}
+          sub={`${formatCurrency(prioritarias.reduce((s, l) => s + l._val, 0))} · ${pipelineValue > 0 ? Math.round((prioritarias.reduce((s, l) => s + l._val, 0) / pipelineValue) * 100) : 0}% do valor`} />
+        <StatCard icon={Percent} label="Probabilidade Média" value={`${probMedia}%`} caption={periodo} sub="Média das oportunidades ativas" />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 items-start">
