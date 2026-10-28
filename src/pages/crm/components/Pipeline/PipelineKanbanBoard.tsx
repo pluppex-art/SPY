@@ -247,13 +247,13 @@ export function PipelineKanbanBoard({
                     <span
                       className="text-[10px] font-bold tabular-nums shrink-0"
                       style={{ color: stage.color }}
-                      title={`${stageCountPct}% dos leads · ${stageValuePct}% do valor do funil`}
+                      title={`${stageValuePct}% do valor do pipeline`}
                     >
-                      {stageCountPct}% · {stageValuePct}%
+                      {stageValuePct}%
                     </span>
                   </div>
                   <div className="h-1 mt-1.5 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${stageCountPct}%`, backgroundColor: stage.color }} />
+                    <div className="h-full rounded-full" style={{ width: `${stageValuePct}%`, backgroundColor: stage.color }} />
                   </div>
                 </div>
 
