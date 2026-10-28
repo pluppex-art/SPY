@@ -109,6 +109,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
     () => [...linhas].sort((a, b) => b.receita - a.receita || b.vendas - a.vendas || a.nome.localeCompare(b.nome, "pt-BR")),
     [linhas],
   );
+  const podio = ranking.filter((l) => l.receita > 0 || l.vendas > 0).slice(0, 3);
   const maxReceita = ranking[0]?.receita || 1;
   const totalReceitaRanking = ranking.reduce((sum, v) => sum + (v.receita || 0), 0);
   const shareReceita = (r: number) => (totalReceitaRanking > 0 ? `${Math.round((r / totalReceitaRanking) * 1000) / 10}%` : "0%");
@@ -191,6 +192,32 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
               {ranking.length === 0 ? (
                 <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhum vendedor com atividade no período.</p>
               ) : (
+                <>
+              <div className="flex items-end justify-center gap-3 px-5 pt-8 pb-5 min-h-[240px]">
+                {[1, 0, 2].map((pos) => {
+                  const v = podio[pos];
+                  if (!v) return <div key={pos} className="w-24" />;
+                  const alturas = [150, 112, 84];
+                  const cores = ["from-amber-300 to-amber-500", "from-indigo-300 to-indigo-500", "from-orange-400 to-orange-600"];
+                  return (
+                    <button
+                      key={v.key} type="button" onClick={() => escolherVendedor(v.key)} title="Filtrar por este vendedor"
+                      className={`flex flex-col items-center w-28 rounded-xl p-1 cursor-pointer bg-transparent border-none ${vendedorSel === v.key ? "ring-2 ring-[var(--color-primary-blue)]" : "hover:bg-[var(--color-surface-sunken)]"}`}
+                    >
+                      <div className="relative mb-1.5">
+                        {pos === 0 && <Crown className="w-5 h-5 text-amber-400 absolute -top-5 left-1/2 -translate-x-1/2" />}
+                        <Avatar v={v} size={pos === 0 ? 44 : 38} />
+                      </div>
+                      <p className="text-[10px] font-black uppercase text-[var(--color-text-primary)] text-center leading-tight truncate w-full">{v.nome}</p>
+                      <p className="text-sm font-black font-mono text-[var(--color-text-primary)]">{formatCurrency(v.receita)}</p>
+                      <p className="text-[10px] text-[var(--color-text-muted)] mb-1">{v.vendas} venda{v.vendas === 1 ? "" : "s"}</p>
+                      <div className={`w-full rounded-t-lg bg-gradient-to-b ${cores[pos]} flex items-center justify-center text-white font-black text-3xl`} style={{ height: alturas[pos] }}>
+                        {pos + 1}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left min-w-[640px]">
                     <thead>
@@ -256,6 +283,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
             </Card>
           )}
