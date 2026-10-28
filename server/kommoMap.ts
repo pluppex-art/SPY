@@ -11,6 +11,7 @@ import {
 
 export const WON = 142;
 export const LOST = 143;
+const DESQUALIFICADO = "Desqualificado";
 const COLORS = ["blue", "cyan", "indigo", "purple", "amber", "orange", "pink", "slate"];
 const INTEREST_RE = /interess|produto|servi[cç]o|procura|necessidade/i;
 // Campo do lead que nomeia o vendedor (ex.: "Comercial"); tem prioridade sobre o "Responsável" nativo da Kommo.
@@ -49,12 +50,17 @@ export function funilRow(tenantId: string, p: KommoPipeline) {
     id: funilId(p.id),
     nome: `Kommo — ${p.name}`,
     tipo: "comercial",
-    etapas: p.statuses.map((s) => s.name),
-    etapas_config: p.statuses.map((s, i) => ({
-      nome: s.name,
-      cor: s.id === WON ? "emerald" : s.id === LOST ? "rose" : COLORS[i % COLORS.length],
-      iniciarMinimizado: s.id === WON || s.id === LOST,
-    })),
+    // Última etapa de todo funil importado: "Desqualificado", fechadinha (nasce minimizada). Fica depois das etapas
+    // da Kommo, então não muda o índice de nenhuma etapa dos leads.
+    etapas: [...p.statuses.map((s) => s.name), DESQUALIFICADO],
+    etapas_config: [
+      ...p.statuses.map((s, i) => ({
+        nome: s.name,
+        cor: s.id === WON ? "emerald" : s.id === LOST ? "rose" : COLORS[i % COLORS.length],
+        iniciarMinimizado: s.id === WON || s.id === LOST,
+      })),
+      { nome: DESQUALIFICADO, cor: "slate", iniciarMinimizado: true },
+    ],
     ativo: true,
     tenant_id: tenantId,
     updated_at: new Date().toISOString(),
