@@ -98,6 +98,17 @@ interface NovaPropostaWizardProps {
   onEditContract?: () => void;
 }
 
+/** Item recorrente é gravado com quantidade = ciclos × unidades (R$ 1.500 × 12 meses → quantidade 12).
+ *  Ao reabrir a proposta, o campo "Qtd." do assistente é só de unidades — desfaz o multiplicador
+ *  (senão R$ 1.500/mês virava "R$ 18.000/mês" e o total em 12 meses, R$ 216.000). */
+function unidadesSalvas(it: any): number {
+  const q = Number(it.quantidade) || 1;
+  if (it.billing_type === "one_time") return q;
+  const meses = Number(it.contract_months) || 0;
+  if (meses > 1) return Math.max(1, Math.round(q / meses));
+  return q >= 12 && q % 12 === 0 ? q / 12 : q; // sem prazo: lote de 12 ciclos (OPEN_ENDED_BATCH_CYCLES)
+}
+
 export function NovaPropostaWizard({
   isOpen, onClose, leadId, leadName, companyName, seller, availableProducts,
   initialProductIds, existingProposal, existingItems, onDone, onEditContract,
@@ -203,7 +214,7 @@ export function NovaPropostaWizard({
             nome: it.product_name || p?.name || "",
             tipo: (p?.category === "Software" || p?.is_recurring) ? "Software" : "Serviço",
             isRecurring: it.billing_type !== "one_time",
-            quantidade: String(Number(it.quantidade) || 1),
+            quantidade: String(unidadesSalvas(it)),
             valorUnitario: String(Number(it.preco_unitario) || 0),
             descontoItem: "0",
           };
@@ -248,6 +259,8 @@ export function NovaPropostaWizard({
     // Sobrescreve com o que já estava salvo na proposta (modo edição) — por
     // cima dos padrões acima, só os campos que de fato existem no registro.
     if (existingProposal) {
+      const mesesItens = Math.max(0, ...((existingItems as any[]) || []).filter((it: any) => it.billing_type !== "one_time").map((it: any) => Number(it.contract_months) || 0));
+      if (mesesItens > 0) setPrazoContratoMeses(mesesItens);
       if (existingProposal.titulo) setTituloProposta(existingProposal.titulo);
       if (typeof existingProposal.probabilidade === "number") setProbabilidade(existingProposal.probabilidade);
       if (existingProposal.previsao_fechamento) setPrevisaoFechamento(existingProposal.previsao_fechamento);
