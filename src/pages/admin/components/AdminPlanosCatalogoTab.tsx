@@ -32,6 +32,12 @@ export function AdminPlanosCatalogoTab() {
     finally { setBusy(false); }
   };
 
+  const missingProducts = plans.filter((p) => !p.product_id).length + tiers.filter((t) => !t.product_id).length;
+  const createMissingProducts = () => run(async () => {
+    for (const p of plans.filter((x) => !x.product_id)) await saasApi.createPlanProduct(p.id);
+    for (const t of tiers.filter((x) => !x.product_id)) await saasApi.createTierProduct(t.id);
+  }, "Produtos criados e ligados.");
+
   const editInProduct = (productId: string) => navigate(`/app/produtos?editar=${productId}&aba=saas`);
   const th = "py-1.5 text-left font-semibold text-[var(--color-text-muted)]";
   const row = "border-t border-[var(--color-border-default)]";
@@ -52,6 +58,11 @@ export function AdminPlanosCatalogoTab() {
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Preço, módulos, teto de IA e vitrine são cadastrados no produto. Aqui você acompanha e liga/desliga o site.</p>
           </div>
           <div className="flex gap-2">
+            {missingProducts > 0 && (
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => void createMissingProducts()}>
+                Criar {missingProducts} produto{missingProducts === 1 ? "" : "s"} que falta{missingProducts === 1 ? "" : "m"}
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={() => void load()}><RefreshCw className="w-3.5 h-3.5 mr-1" /> Atualizar</Button>
             <Button size="sm" onClick={() => navigate("/app/produtos?novo=1&type=Digital")}><Plus className="w-3.5 h-3.5 mr-1" /> Novo plano / pacote</Button>
           </div>

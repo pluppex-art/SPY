@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Activity, DollarSign, TerminalSquare, Bell,
-  Plus, Cpu, ShieldCheck, Building2, LayoutGrid, Wrench, Bot
+  Activity, DollarSign, Bell,
+  Plus, Cpu, ShieldCheck, Building2
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
@@ -24,19 +24,60 @@ import { NovoTenantModal } from "./components/NovoTenantModal";
 import { ModuleConfigModal } from "./components/ModuleConfigModal";
 import { SystemAlertsModal } from "./components/SystemAlertsModal";
 
+// 5 abas principais; o resto vive como sub-aba dentro do grupo a que pertence.
 const TABS = [
   { id: "overview", label: "Visão Geral", icon: Activity },
-  { id: "tenants", label: "Tenants & Instâncias", icon: Building2 },
-  { id: "modules", label: "Módulos & Presets", icon: Cpu },
-  { id: "manifest", label: "Módulos (Manifest)", icon: LayoutGrid },
-  { id: "tools", label: "Ferramentas (Registry)", icon: Wrench },
-  { id: "agents", label: "Agentes", icon: Bot },
-  { id: "billing", label: "Receita da Base", icon: DollarSign },
-  { id: "plans", label: "Planos & Pacotes", icon: DollarSign },
-  { id: "subscriptions", label: "Assinaturas", icon: DollarSign },
-  { id: "logs", label: "Logs & Auditoria", icon: TerminalSquare },
-  { id: "health", label: "Saúde & Diagnóstico", icon: ShieldCheck },
-];
+  { id: "tenants", label: "Empresas", icon: Building2 },
+  { id: "plans", label: "Planos & Receita", icon: DollarSign },
+  { id: "platform", label: "Plataforma", icon: Cpu },
+  { id: "ops", label: "Operação", icon: ShieldCheck },
+] as const;
+
+type TabId = typeof TABS[number]["id"];
+
+const SUBTABS: Record<Exclude<TabId, "overview">, { id: string; label: string }[]> = {
+  tenants: [
+    { id: "empresas", label: "Empresas & Instâncias" },
+    { id: "modulos", label: "Módulos por empresa" },
+  ],
+  plans: [
+    { id: "catalogo", label: "Planos & Pacotes" },
+    { id: "modulos", label: "Módulos por plano" },
+    { id: "assinaturas", label: "Assinaturas" },
+    { id: "receita", label: "Receita da base" },
+  ],
+  platform: [
+    { id: "manifest", label: "Módulos (Manifest)" },
+    { id: "tools", label: "Ferramentas" },
+    { id: "agents", label: "Agentes" },
+  ],
+  ops: [
+    { id: "logs", label: "Logs & Auditoria" },
+    { id: "health", label: "Saúde & Diagnóstico" },
+  ],
+};
+
+/** Links antigos (?tab=billing, ?tab=modules...) continuam funcionando. */
+const LEGACY_TABS: Record<string, { tab: TabId; sub?: string }> = {
+  tenants_modules: { tab: "tenants" },
+  modules: { tab: "tenants", sub: "modulos" },
+  manifest: { tab: "platform", sub: "manifest" },
+  tools: { tab: "platform", sub: "tools" },
+  agents: { tab: "platform", sub: "agents" },
+  billing: { tab: "plans", sub: "receita" },
+  subscriptions: { tab: "plans", sub: "assinaturas" },
+  logs: { tab: "ops", sub: "logs" },
+  health: { tab: "ops", sub: "health" },
+};
+
+function resolveTab(tab: string | null, sub: string | null): { tab: TabId; sub: string } {
+  const legacy = tab ? LEGACY_TABS[tab] : undefined;
+  const id: TabId = legacy ? legacy.tab : TABS.some((t) => t.id === tab) ? (tab as TabId) : "overview";
+  if (id === "overview") return { tab: id, sub: "" };
+  const subs = SUBTABS[id];
+  const wanted = sub ?? legacy?.sub;
+  return { tab: id, sub: subs.some((x) => x.id === wanted) ? (wanted as string) : subs[0].id };
+}
 
 export const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -55,30 +96,22 @@ export const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function AdminSaaS() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabFromUrl = searchParams.get("tab");
-
-  const normalizedTab = useMemo(() => {
-    if (tabFromUrl === "tenants_modules") return "tenants";
-    if (TABS.some(t => t.id === tabFromUrl)) return tabFromUrl;
-    return "overview";
-  }, [tabFromUrl]);
-
-  const [activeTab, setActiveTab] = useState(normalizedTab);
+  const current = useMemo(
+    () => resolveTab(searchParams.get("tab"), searchParams.get("sub")),
+    [searchParams],
+  );
+  const activeTab = current.tab;
+  const activeSub = current.sub;
   const [isCreateTenantOpen, setIsCreateTenantOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [selectedTenantForModules, setSelectedTenantForModules] = useState<string | null>(null);
   const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
-  useEffect(() => {
-    if (normalizedTab && normalizedTab !== activeTab) {
-      setActiveTab(normalizedTab);
-    }
-  }, [normalizedTab]);
-
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    setSearchParams({ tab: tabId });
+  // Aceita id novo ("plans") ou antigo ("billing"); a sub-aba vem do mapa legado quando não informada.
+  const handleTabChange = (tabId: string, sub?: string) => {
+    const r = resolveTab(tabId, sub ?? null);
+    setSearchParams(r.sub ? { tab: r.tab, sub: r.sub } : { tab: r.tab });
   };
 
   // A3 (auditoria 2026-09-21): `useData().financeEntries` só traz o tenant
@@ -178,6 +211,25 @@ export default function AdminSaaS() {
         })}
       </div>
 
+      {activeTab !== "overview" && (
+        <div className="flex items-center gap-1 mb-6 overflow-x-auto scrollbar-none">
+          {SUBTABS[activeTab].map((st) => (
+            <button
+              key={st.id}
+              type="button"
+              onClick={() => handleTabChange(activeTab, st.id)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer border transition-colors ${
+                activeSub === st.id
+                  ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/30"
+                  : "bg-transparent text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"
+              }`}
+            >
+              {st.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Tab Contents */}
       {activeTab === "overview" && (
         <AdminOverviewTab
@@ -189,37 +241,33 @@ export default function AdminSaaS() {
         />
       )}
 
-      {activeTab === "tenants" && (
+      {activeTab === "tenants" && activeSub === "empresas" && (
         <AdminTenantsTab
           onConfigureModules={(tenantName) => setSelectedTenantForModules(tenantName)}
           onOpenNewTenant={() => setIsCreateTenantOpen(true)}
           reloadTrigger={reloadTrigger}
         />
       )}
-
-      {activeTab === "modules" && (
+      {activeTab === "tenants" && activeSub === "modulos" && (
         <AdminModulesTab
           initialTenant={selectedTenantForModules || undefined}
           onTenantChange={(name) => setSelectedTenantForModules(name)}
         />
       )}
-      {activeTab === "modules" && <ModulePlansMatrix />}
 
-      {activeTab === "manifest" && <AdminModuleManifestTab />}
-      {activeTab === "tools" && <AdminToolsTab />}
-
-      {activeTab === "agents" && <AdminAgentsTab />}
-
-      {activeTab === "plans" && <AdminPlanosCatalogoTab />}
-      {activeTab === "subscriptions" && <AdminAssinaturasTab />}
-
-      {activeTab === "billing" && (
+      {activeTab === "plans" && activeSub === "catalogo" && <AdminPlanosCatalogoTab />}
+      {activeTab === "plans" && activeSub === "modulos" && <ModulePlansMatrix />}
+      {activeTab === "plans" && activeSub === "assinaturas" && <AdminAssinaturasTab />}
+      {activeTab === "plans" && activeSub === "receita" && (
         <AdminBillingTab revenueData={revenueData} CustomTooltip={CustomTooltip} />
       )}
 
-      {activeTab === "logs" && <AdminLogsTab />}
+      {activeTab === "platform" && activeSub === "manifest" && <AdminModuleManifestTab />}
+      {activeTab === "platform" && activeSub === "tools" && <AdminToolsTab />}
+      {activeTab === "platform" && activeSub === "agents" && <AdminAgentsTab />}
 
-      {activeTab === "health" && <AdminHealthTab />}
+      {activeTab === "ops" && activeSub === "logs" && <AdminLogsTab />}
+      {activeTab === "ops" && activeSub === "health" && <AdminHealthTab />}
 
       {/* Modals */}
       <NovoTenantModal

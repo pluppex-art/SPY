@@ -1,8 +1,8 @@
 import React, { useMemo } from "react";
 import { Card } from "../../../components/ui/card";
 import {
-  Building2, DollarSign, Users, HardDrive, BarChart3,
-  Activity, PieChart as PieChartIcon, Server, Inbox,
+  Building2, DollarSign, HardDrive, BarChart3,
+  Activity, Server, Inbox,
   CheckCircle2, ArrowUpRight, ShieldCheck, Zap,
   Clock, Database
 } from "lucide-react";
@@ -46,12 +46,11 @@ export function AdminOverviewTab({
   // de nada. "Média Mensal" abaixo é um fato real (não uma projeção).
   const mesesComFaturamento = revenueData.filter(m => m.mrr > 0).length;
   const faturamentoMedioMensal = mesesComFaturamento > 0 ? globalMrr / mesesComFaturamento : 0;
-  const activeUsersCount = "—";
 
   return (
     <div className="space-y-6">
       {/* KPI Top Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Total Empresas */}
         <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 hover:shadow-md transition-all group">
           <div className="flex items-center justify-between mb-3">
@@ -105,28 +104,6 @@ export function AdminOverviewTab({
           </div>
         </Card>
 
-        {/* Usuários Ativos */}
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-indigo-500/40 hover:shadow-md transition-all group">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500">
-              <Users className="w-5 h-5" />
-            </div>
-            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
-              Cadastrados
-            </span>
-          </div>
-          <div className="text-3xl font-display font-black text-[var(--color-text-primary)] tracking-tight">
-            {activeUsersCount}
-          </div>
-          <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest mt-1">
-            Usuários Corporativos (MAU)
-          </div>
-          <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)] flex items-center justify-between text-xs">
-            <span className="text-[var(--color-text-muted)]">Total de Contas</span>
-            <span className="font-bold text-[var(--color-text-primary)]">{activeUsersCount}</span>
-          </div>
-        </Card>
-
         {/* Disponibilidade & Infra */}
         <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-cyan-500/40 hover:shadow-md transition-all group">
           <div className="flex items-center justify-between mb-3">
@@ -156,9 +133,9 @@ export function AdminOverviewTab({
       </div>
 
       {/* Main Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Revenue Growth Chart */}
-        <Card className="lg:col-span-2 p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col shadow-xs">
+        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
             <div>
               <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
@@ -223,43 +200,6 @@ export function AdminOverviewTab({
           )}
         </Card>
 
-        {/* Plan Distribution / Status Card */}
-        <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex flex-col justify-between shadow-xs">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-                <PieChartIcon className="w-4 h-4 text-purple-500" /> Distribuição de Planos
-              </h4>
-              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
-                {totalTenants} {totalTenants === 1 ? "instância" : "instâncias"}
-              </span>
-            </div>
-            <p className="text-xs text-[var(--color-text-muted)] mb-4">
-              Composição de instâncias e planos do SaaS.
-            </p>
-
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 min-h-[160px] p-6 text-center bg-[var(--color-surface-sunken)] rounded-2xl border border-[var(--color-border-subtle)]">
-              <PieChartIcon className="w-8 h-8 text-[var(--color-text-faint)]" />
-              <div>
-                <span className="text-xs font-bold text-[var(--color-text-primary)] block">
-                  {totalTenants > 0 ? `${totalTenants} Instâncias Provisionadas` : "Nenhum plano ativo"}
-                </span>
-                <span className="text-[11px] text-[var(--color-text-muted)] block mt-0.5">
-                  Consulte a aba Faturamento para detalhes de contratos e planos.
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-[var(--color-border-subtle)]">
-            <button
-              onClick={() => onNavigateTab("billing")}
-              className="w-full py-2 bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-xl text-xs font-bold text-[var(--color-text-primary)] transition-all flex items-center justify-center gap-1 cursor-pointer"
-            >
-              Acessar Faturamento & Assinaturas <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </Card>
       </div>
 
       {/* Registered Tenants List */}

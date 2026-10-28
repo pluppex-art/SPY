@@ -35,7 +35,7 @@ export function ModulePlansMatrix() {
   if (plans.length === 0) return null;
 
   return (
-    <Card className="p-5 space-y-3 mt-6">
+    <Card className="p-5 space-y-3">
       <div>
         <h3 className="font-black text-sm">Planos que liberam cada módulo</h3>
         <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
