@@ -15,7 +15,7 @@ interface LoginFormProps {
   onEmailChange?: (email: string) => void;
 }
 
-function FieldInput({
+export function FieldInput({
   id,
   type,
   value,
@@ -24,6 +24,7 @@ function FieldInput({
   icon: Icon,
   rightSlot,
   primaryColor,
+  autoComplete,
 }: {
   id: string;
   type: string;
@@ -33,6 +34,7 @@ function FieldInput({
   icon: React.ElementType;
   rightSlot?: React.ReactNode;
   primaryColor: string;
+  autoComplete?: string;
 }) {
   const [focused, setFocused] = useState(false);
 
@@ -53,7 +55,7 @@ function FieldInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        autoComplete={type === "password" ? "current-password" : "email"}
+        autoComplete={autoComplete ?? (type === "password" ? "current-password" : "email")}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         className="w-full rounded-xl pl-10 pr-4 py-3 text-sm outline-none placeholder:text-[#334155] transition-all duration-200"
