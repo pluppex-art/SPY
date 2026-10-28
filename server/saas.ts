@@ -295,6 +295,7 @@ export function createSaas(deps: Deps) {
     if (plan.product_id) return res.status(409).json({ error: "Este plano já está ligado a um produto." });
     const { data: prod, error } = await supabaseService.from("products").insert({
       tenant_id: OWNER_TENANT_ID, name: `Licença S.P.Y | ${plan.name}`, type: "Digital", category: "Software",
+      sku: `SPY-${String(plan.code).toUpperCase()}`, provider: "Interno", tags: ["spy", "plano", "assinatura", String(plan.code)],
       price: plan.price_cents / 100, active: plan.active, is_recurring: true,
       recurring_period: plan.billing_interval === "yearly" ? "yearly" : "monthly",
       description: plan.tagline || null,
@@ -313,6 +314,7 @@ export function createSaas(deps: Deps) {
     if (tier.product_id) return res.status(409).json({ error: "Este pacote já está ligado a um produto." });
     const { data: prod, error } = await supabaseService.from("products").insert({
       tenant_id: OWNER_TENANT_ID, name: `Pacote de créditos de IA | ${Number(tier.credits).toLocaleString("pt-BR")}`, type: "Digital", category: "Créditos de IA",
+      sku: `IA-${Number(tier.credits)}`, provider: "Interno", tags: ["spy", "creditos", "ia"],
       price: tier.price_cents / 100, active: tier.active, is_recurring: false,
       description: `${Number(tier.credits).toLocaleString("pt-BR")} créditos de inteligência artificial.`,
       type_attributes: { isRecurring: false, creditosIA: tier.credits },
