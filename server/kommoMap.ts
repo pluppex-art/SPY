@@ -296,12 +296,29 @@ export function normalizePhoneBR(raw: string): string {
 export async function loadMergeMap(sb: any, tenantId: string, entity: "clientes" | "leads" | "funil_removido", ids: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   const uniq = [...new Set(ids)].filter(Boolean);
+  if (uniq.length === 0) return out;
   for (let i = 0; i < uniq.length; i += 80) {
     const { data, error } = await sb.from("dedupe_merge_log").select("merged_id, keeper_id")
       .eq("tenant_id", tenantId).eq("entity", entity).in("merged_id", uniq.slice(i, i + 80));
-    if (error) return out;
+    if (error) return fromSettingsMap(sb, tenantId, entity, uniq); // tabela ainda não existe: usa o mapa em app_settings
     for (const r of data || []) out.set(String(r.merged_id), String(r.keeper_id || ""));
   }
+  return out;
+}
+
+// Mapa de unificação guardado em app_settings["dedupe_merge_map"] ({ clientes: {id: mantido}, leads: {...}, funil_removido: {...} }).
+// É o caminho de quem unificou os cadastros antes da migração dedupe_merge_log existir. Cache curto: o mapa pode ter milhares de entradas.
+const settingsMapCache = new Map<string, { at: number; value: any }>();
+async function fromSettingsMap(sb: any, tenantId: string, entity: string, ids: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  let hit = settingsMapCache.get(tenantId);
+  if (!hit || Date.now() - hit.at > 60_000) {
+    const { data } = await sb.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "dedupe_merge_map").maybeSingle();
+    hit = { at: Date.now(), value: data?.value || {} };
+    settingsMapCache.set(tenantId, hit);
+  }
+  const m = hit.value?.[entity] || {};
+  for (const id of ids) if (Object.prototype.hasOwnProperty.call(m, id)) out.set(id, String(m[id] || ""));
   return out;
 }
 
