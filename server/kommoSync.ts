@@ -20,6 +20,7 @@ import {
 } from "./kommoClient.js";
 import {
   buildStageIndex, buildStatusNames, buildLeadRows, loadLeadContext, syncLeadTags, noteRow, taskRow, funilRow,
+  loadMergeMap, loadIgnoredFunis, resolveLeadIds, remapLeadRows, hiddenLeadIds, funilId,
   upsertChunks, leadUuid, productUuid, clip, normalizePhoneBR, iso, brDate, isPlaceholderName, allValues,
   type LeadCtx,
 } from "./kommoMap.js";
@@ -170,9 +171,10 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
     for (const u of data || []) if (u.email) spyByEmail.set(String(u.email).toLowerCase(), u.id);
   }
   const pipelines = step === "historico" || step === "entrada" ? await kommoPipelines(conn) : [];
+  const ignorados = step === "entrada" ? await loadIgnoredFunis(sb, tenantId) : new Set<string>();
   const statusNames = buildStatusNames(pipelines);
   const entradaCtx: Pick<LeadCtx, "users" | "stageIndex"> | null = step === "entrada"
-    ? { users: await kommoUsers(conn), stageIndex: buildStageIndex(pipelines) } : null;
+    ? { users: await kommoUsers(conn), stageIndex: buildStageIndex(pipelines, ignorados) } : null;
 
   const limit = step === "historico" ? 100 : 250;
   const maxPages = step === "historico" ? MAX_EVENT_PAGES : MAX_PAGES;
@@ -196,8 +198,11 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
         id: `kommo-${t8}-${c.id}`, tenant_id: tenantId, name: clip(c.name, 255),
         phone: normalizePhoneBR(kommoFieldValue(c, "PHONE")), email: kommoFieldValue(c, "EMAIL").toLowerCase(), status: "Ativo",
       }));
-      const err = await upsertChunks(sb, "clientes", rows);
+      const fundidas = await loadMergeMap(sb, tenantId, "clientes", rows.map((r) => r.id)); // já unificadas: não recria
+      const novas = rows.filter((r) => !fundidas.has(r.id));
+      const err = await upsertChunks(sb, "clientes", novas);
       if (err) return fail(vistos, saved, `Empresas não importadas: ${err}`);
+      add("já unificadas", rows.length - novas.length);
       saved += rows.length;
       add("sem nome (ignoradas)", items.length - rows.length);
 
@@ -206,16 +211,19 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
       // Com empresa importada → "Contatos" da empresa; sem lead e sem empresa → cliente (pessoa solta).
       const companyIds = [...new Set(items.flatMap((c) => (c._embedded?.companies || []).map((x: any) => x.id)))];
       const haveCompany = new Set<string>();
-      for (let i = 0; i < companyIds.length; i += 80) {
-        const ids = companyIds.slice(i, i + 80).map((id) => `kommo-${t8}-${id}`);
-        const { data } = await sb.from("clientes").select("id").in("id", ids);
+      const empresaIds = companyIds.map((id) => `kommo-${t8}-${id}`);
+      for (let i = 0; i < empresaIds.length; i += 80) {
+        const { data } = await sb.from("clientes").select("id").in("id", empresaIds.slice(i, i + 80));
         for (const r of data || []) haveCompany.add(r.id);
       }
+      const empresaFundida = await loadMergeMap(sb, tenantId, "clientes", empresaIds); // empresa unificada → cliente mantido
+      for (const k of empresaFundida.values()) if (k) haveCompany.add(k);
       const contatos: any[] = [], soltos: any[] = [];
       for (const c of items) {
         const phones = allValues(c, "PHONE"), emails = allValues(c, "EMAIL");
         const companyId = (c._embedded?.companies || [])[0]?.id;
-        const clienteId = companyId ? `kommo-${t8}-${companyId}` : null;
+        const clienteId0 = companyId ? `kommo-${t8}-${companyId}` : null;
+        const clienteId = clienteId0 ? (empresaFundida.get(clienteId0) || clienteId0) : null;
         const hasLead = (c._embedded?.leads || []).length > 0;
         if (clienteId && haveCompany.has(clienteId)) {
           contatos.push({
@@ -236,7 +244,8 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
       }
       const e1 = await upsertChunks(sb, "cliente_contatos", contatos);
       if (e1) return fail(vistos, saved, `Contatos não importados: ${e1}`);
-      const e2 = await upsertChunks(sb, "clientes", soltos);
+      const soltosFundidos = await loadMergeMap(sb, tenantId, "clientes", soltos.map((r) => r.id));
+      const e2 = await upsertChunks(sb, "clientes", soltos.filter((r) => !soltosFundidos.has(r.id)));
       if (e2) return fail(vistos, saved, `Contatos soltos não importados: ${e2}`);
       saved += contatos.length + soltos.length;
       add("contato de empresa", contatos.length); add("cliente (sem lead)", soltos.length);
@@ -261,6 +270,8 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
           },
         });
       }
+      const escondidos = await hiddenLeadIds(sb, tenantId, leads); // unificados/removidos: não recria
+      leads.splice(0, leads.length, ...leads.filter((l) => !escondidos.has(leadUuid(tenantId, l.id))));
       if (leads.length) {
         const ctx: LeadCtx = { tenantId, ...entradaCtx!, ...(await loadLeadContext(conn, sb, tenantId, leads, embeddedContacts)) };
         const built = buildLeadRows(ctx, leads, "Caixa de entrada");
@@ -276,7 +287,8 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
       }
 
     } else if (step === "notas") {
-      const rows = items.map((n) => noteRow(tenantId, n, users));
+      const rows0 = items.map((n) => noteRow(tenantId, n, users));
+      const rows = remapLeadRows(rows0, await resolveLeadIds(sb, tenantId, rows0.map((r) => r.lead_id)));
       const err = await upsertChunks(sb, "lead_activities", rows);
       if (err) return fail(vistos, saved, `Notas não importadas: ${err}`);
       saved += rows.length;
@@ -288,7 +300,8 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
         const { data } = await sb.from("leads").select("id").in("id", leadIds.slice(i, i + 80));
         for (const r of data || []) existing.add(r.id);
       }
-      const rows = items.map((t) => taskRow(tenantId, t, users, spyByEmail, (id) => existing.has(id)));
+      const refs = await resolveLeadIds(sb, tenantId, leadIds);
+      const rows = remapLeadRows(items.map((t) => taskRow(tenantId, t, users, spyByEmail, (id) => existing.has(id) || !!refs.get(id))), refs);
       const err = await upsertChunks(sb, "tasks", rows);
       if (err) return fail(vistos, saved, `Tarefas não importadas: ${err}`);
       saved += rows.length;
@@ -303,7 +316,7 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
         const st = v?.[0]?.lead_status;
         return st ? (pipelines.find((p) => p.id === st.pipeline_id)?.name || "") : "";
       };
-      const rows = items.filter((e) => e.entity_id).map((e) => {
+      const rows0 = items.filter((e) => e.entity_id).map((e) => {
         const when = iso(e.created_at) || new Date().toISOString();
         const de = nome(e.value_before), para = nome(e.value_after);
         const fDe = funil(e.value_before), fPara = funil(e.value_after);
@@ -316,6 +329,7 @@ async function runExtraStep(step: ExtraStep, conn: KommoConn, sb: any, tenantId:
           created_at: when,
         };
       });
+      const rows = remapLeadRows(rows0, await resolveLeadIds(sb, tenantId, rows0.map((r) => r.lead_id)));
       const err = await upsertChunks(sb, "lead_activities", rows);
       if (err) return fail(vistos, saved, `Histórico de etapas não importado: ${err}`);
       saved += rows.length;
@@ -372,15 +386,16 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
       // Funis/etapas: sempre lidos (mapa de etapas); gravados só na 1ª chamada.
       const pipelines = await kommoPipelines(conn);
       if (pipelines.length === 0) return res.status(422).json({ error: "A Kommo não retornou nenhum funil." });
+      const ignorados = await loadIgnoredFunis(sb, tenantId); // funis que o cliente removeu do SPY
       if (cursor === 1) {
-        const { error: funilErr } = await sb.from("crm_funis").upsert(pipelines.map((p) => funilRow(tenantId, p)), { onConflict: "id" });
+        const { error: funilErr } = await sb.from("crm_funis").upsert(pipelines.filter((p) => !ignorados.has(funilId(p.id))).map((p) => funilRow(tenantId, p)), { onConflict: "id" });
         if (funilErr) return res.status(500).json({ error: `Não foi possível salvar os funis: ${funilErr.message}` });
       }
-      const stageIndex = buildStageIndex(pipelines);
+      const stageIndex = buildStageIndex(pipelines, ignorados);
       const users = await kommoUsers(conn);
       const sellerSync = cursor === 1 ? await syncSellers(supabaseService, tenantId, users) : null;
 
-      let page = cursor, hasNext = true, created = 0, updated = 0, skipped = 0, vistos = 0, tagLinks = 0;
+      let page = cursor, hasNext = true, created = 0, updated = 0, skipped = 0, vistos = 0, tagLinks = 0, unificados = 0;
       let warning: string | undefined;
       const porFunil: Record<string, { nome: string; vistos: number; salvos: number }> = {};
       const nomeFunil = new Map(pipelines.map((p) => [p.id, p.name]));
@@ -398,8 +413,11 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
         vistos += leads.length;
         for (const l of leads) bump(l.pipeline_id, "vistos");
 
-        const ctx: LeadCtx = { tenantId, users, stageIndex, ...(await loadLeadContext(conn, sb, tenantId, leads)) };
-        const built = buildLeadRows(ctx, leads);
+        const escondidos = await hiddenLeadIds(sb, tenantId, leads); // unificados/removidos: não recria
+        const visiveis = leads.filter((l) => !escondidos.has(leadUuid(tenantId, l.id)));
+        unificados += leads.length - visiveis.length;
+        const ctx: LeadCtx = { tenantId, users, stageIndex, ...(await loadLeadContext(conn, sb, tenantId, visiveis)) };
+        const built = buildLeadRows(ctx, visiveis);
         for (const s of built.skipped) {
           skipped++; // funil arquivado/etapa desconhecida
           if (skippedSamples.length < 5) skippedSamples.push(`lead ${s.id} (funil ${s.pipelineId}, etapa ${s.statusId})`);
@@ -419,7 +437,7 @@ export function registerKommoRoutes(app: Express, { requireUser, resolveRequeste
       const done = !hasNext || page > MAX_PAGES;
       return res.json({
         ok: true, done, nextCursor: done ? null : page,
-        funis: pipelines.length, created, updated, skipped, vistos, tagLinks, porFunil, skippedSamples,
+        funis: pipelines.length, created, updated, skipped, unificados, vistos, tagLinks, porFunil, skippedSamples,
         vendedores: [...new Set([...users.values()].map((u) => u.name))],
         ...(sellerSync ? { cadastroVendedores: sellerSync } : {}),
         ...(warning ? { warning } : {}),

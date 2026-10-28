@@ -64,8 +64,9 @@ export function funilRow(tenantId: string, p: KommoPipeline) {
 export type StagePlace = { idx: number; status: "Novo" | "Fechado" | "Perdido" };
 
 /** "pipelineId:statusId" → posição da etapa no funil do SPY (e o status do lead). */
-export function buildStageIndex(pipelines: KommoPipeline[]): Map<string, StagePlace> {
+export function buildStageIndex(pipelines: KommoPipeline[], ignored: Set<string> = new Set()): Map<string, StagePlace> {
   const m = new Map<string, StagePlace>();
+  pipelines = pipelines.filter((p) => !ignored.has(funilId(p.id))); // funil removido pelo cliente: não volta na importação
   // Lead na caixa de entrada da Kommo cai na 1ª etapa real do funil.
   for (const p of pipelines) for (const id of p.incomingIds) m.set(`${p.id}:${id}`, { idx: 0, status: "Novo" });
   for (const p of pipelines) p.statuses.forEach((s, idx) => m.set(`${p.id}:${s.id}`, {
@@ -278,10 +279,58 @@ export function allValues(entity: any, code: string): string[] {
  * valor original em outro lugar (customFields.kommo.fields) para poder desfazer.
  */
 export function normalizePhoneBR(raw: string): string {
-  let d = String(raw ?? "").replace(/\D/g, "");
+  let d = String(raw ?? "").replace(/\D/g, "").replace(/^0+/, "");
   if (!d) return "";
-  d = d.replace(/^0+/, ""); // 0 de tronco/operadora (ex.: 0 63 9…)
-  if (d.length === 10 || d.length === 11) d = "55" + d; // DDD + número, sem DDI (11 dígitos começando em 55 = DDD 55)
+  // sem DDI: DDD + número. 11 dígitos só com o 9 na frente; 10 dígitos com o 1º dígito do número de 2 a 9
+  // (assim um número dos EUA, 1 + 10 dígitos, não ganha um 55 indevido). Mesma regra do banco (spy_normalize_phone_br).
+  if ((d.length === 10 && /^[1-9][1-9][2-9]/.test(d)) || (d.length === 11 && /^[1-9][1-9]9/.test(d))) d = "55" + d;
   if (d.length === 12 && d.startsWith("55") && /[6-9]/.test(d[4])) d = d.slice(0, 4) + "9" + d.slice(4);
   return d;
+}
+
+/**
+ * Ids que o SPY já unificou (duplicado absorvido pelo mais antigo) ou removeu (funil promovido para a base de
+ * clientes) — ver dedupe_merge_log. A importação e o webhook NÃO podem recriá-los. Devolve id → id do mantido
+ * ("" quando foi removido). Se a tabela ainda não existe (migração não aplicada), devolve vazio.
+ */
+export async function loadMergeMap(sb: any, tenantId: string, entity: "clientes" | "leads" | "funil_removido", ids: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const uniq = [...new Set(ids)].filter(Boolean);
+  for (let i = 0; i < uniq.length; i += 80) {
+    const { data, error } = await sb.from("dedupe_merge_log").select("merged_id, keeper_id")
+      .eq("tenant_id", tenantId).eq("entity", entity).in("merged_id", uniq.slice(i, i + 80));
+    if (error) return out;
+    for (const r of data || []) out.set(String(r.merged_id), String(r.keeper_id || ""));
+  }
+  return out;
+}
+
+/** Funis (ids "kommo-<pipeline>") que o cliente tirou do SPY e que a importação deve ignorar. */
+export async function loadIgnoredFunis(sb: any, tenantId: string): Promise<Set<string>> {
+  const { data } = await sb.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "funis_importacao_ignorados").maybeSingle();
+  const ids = data?.value?.ids;
+  return new Set(Array.isArray(ids) ? ids.map(String) : []);
+}
+
+/** id de lead → lead mantido (unificado) ou null (removido). Só traz os ids que foram tocados. */
+export async function resolveLeadIds(sb: any, tenantId: string, leadIds: string[]): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  for (const id of (await loadMergeMap(sb, tenantId, "funil_removido", leadIds)).keys()) out.set(id, null);
+  for (const [id, keeper] of await loadMergeMap(sb, tenantId, "leads", leadIds)) out.set(id, keeper || null);
+  return out;
+}
+
+/** Aplica o resultado de resolveLeadIds: troca o lead unificado pelo mantido e descarta o de funil removido. */
+export function remapLeadRows<T extends { lead_id: string | null }>(rows: T[], refs: Map<string, string | null>): T[] {
+  return rows.flatMap((r) => {
+    if (!r.lead_id || !refs.has(r.lead_id)) return [r];
+    const target = refs.get(r.lead_id);
+    return target ? [{ ...r, lead_id: target }] : [];
+  });
+}
+
+/** Leads da Kommo cujo id no SPY foi unificado/removido: não podem ser gravados de novo. */
+export async function hiddenLeadIds(sb: any, tenantId: string, kommoLeads: { id: number }[]): Promise<Set<string>> {
+  const refs = await resolveLeadIds(sb, tenantId, kommoLeads.map((l) => leadUuid(tenantId, l.id)));
+  return new Set(refs.keys());
 }

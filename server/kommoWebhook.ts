@@ -19,6 +19,7 @@ import {
 } from "./kommoClient.js";
 import {
   buildStageIndex, buildLeadRows, loadLeadContext, syncLeadTags, noteRow, taskRow, upsertChunks, leadUuid, clip, normalizePhoneBR, isPlaceholderName,
+  loadMergeMap, loadIgnoredFunis, resolveLeadIds,
   type LeadCtx,
 } from "./kommoMap.js";
 
@@ -89,11 +90,14 @@ async function syncLead(conn: KommoConn, sb: any, tenantId: string, kommoLeadId:
     if (!(e instanceof KommoError && e.status === 404)) throw e;
   }
   if (!lead?.id) {
-    await sb.from("leads").update({ deleted_at: new Date().toISOString() }).eq("id", leadUuid(tenantId, kommoLeadId)).eq("tenant_id", tenantId);
+    // O app não esconde lead com deleted_at (só apaga de verdade, como o botão de excluir): apaga igual.
+    await sb.from("leads").delete().eq("id", leadUuid(tenantId, kommoLeadId)).eq("tenant_id", tenantId);
     return "removido";
   }
   const { pipelines, users } = await reference(conn, tenantId);
-  const ctx: LeadCtx = { tenantId, users, stageIndex: buildStageIndex(pipelines), ...(await loadLeadContext(conn, sb, tenantId, [lead])) };
+  const meuId = leadUuid(tenantId, kommoLeadId);
+  if ((await resolveLeadIds(sb, tenantId, [meuId])).has(meuId)) return "ok"; // já unificado/removido no SPY: não recria
+  const ctx: LeadCtx = { tenantId, users, stageIndex: buildStageIndex(pipelines, await loadIgnoredFunis(sb, tenantId)), ...(await loadLeadContext(conn, sb, tenantId, [lead])) };
   const built = buildLeadRows(ctx, [lead]);
   if (built.rows.length) {
     const err = await upsertChunks(sb, "leads", built.rows);
@@ -124,6 +128,8 @@ async function syncLead(conn: KommoConn, sb: any, tenantId: string, kommoLeadId:
 async function syncCompany(conn: KommoConn, sb: any, tenantId: string, companyId: number) {
   const c = await kommoGet(conn, `/companies/${companyId}`);
   if (!c?.id || isPlaceholderName(String(c.name || ""))) return;
+  const cid = `kommo-${tenantId.slice(0, 8)}-${c.id}`;
+  if ((await loadMergeMap(sb, tenantId, "clientes", [cid])).has(cid)) return; // já unificada: não recria
   await upsertChunks(sb, "clientes", [{
     id: `kommo-${tenantId.slice(0, 8)}-${c.id}`, tenant_id: tenantId, name: clip(c.name, 255),
     phone: normalizePhoneBR(kommoFieldValue(c, "PHONE")), email: kommoFieldValue(c, "EMAIL").toLowerCase(), status: "Ativo",
@@ -202,7 +208,7 @@ export function registerKommoWebhookRoutes(app: Express, { requireUser, resolveR
         catch (e: any) { result.erros++; console.error("[kommo-webhook] lead", id, e?.message); }
       }
       for (const id of ev.deleted) {
-        await sb.from("leads").update({ deleted_at: new Date().toISOString() }).eq("id", leadUuid(tenantId, id)).eq("tenant_id", tenantId);
+        await sb.from("leads").delete().eq("id", leadUuid(tenantId, id)).eq("tenant_id", tenantId);
         result.removidos++;
       }
       for (const id of [...ev.companyIds].slice(0, MAX_LEADS_PER_CALL)) {
