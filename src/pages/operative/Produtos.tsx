@@ -18,13 +18,14 @@ import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 import type { Product } from "../../types";
 import { downloadCsv } from "../../lib/csvExport";
+import { PLUPPEX_TENANT_ID } from "../../lib/supabase";
 import { useMaxdataPage, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 
 const PAGE_SIZE = 60;
 
 export default function Catalog() {
   const f = useProdutoForm();
-  const { createProposalWithItems } = useData();
+  const { createProposalWithItems, products } = useData();
   const { user, activeTenantId } = useAuth();
 
   // Deep-link: /app/produtos?type=Imóvel (ou ?tipo=) pré-seleciona o filtro de
@@ -44,6 +45,23 @@ export default function Catalog() {
     setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Deep-link do Admin: /app/produtos?editar=<id>&aba=saas abre o produto já na aba pedida.
+  // Espera `products` carregar (o contexto hidrata depois da montagem) e só roda uma vez por id.
+  const editarId = searchParams.get("editar");
+  const abaPedida = searchParams.get("aba");
+  useEffect(() => {
+    if (!editarId) return;
+    const alvo = products.find((p) => p.id === editarId);
+    if (!alvo) return;
+    f.handleOpenEditModal(alvo, { stopPropagation() {} } as React.MouseEvent);
+    if (abaPedida === "saas") f.setActiveTab("saas");
+    const next = new URLSearchParams(searchParams);
+    next.delete("editar");
+    next.delete("aba");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editarId, products]);
 
   const [sellingProduct, setSellingProduct] = useState<Product | null>(null);
 
@@ -269,6 +287,7 @@ export default function Catalog() {
           setAttachments={f.setAttachments}
           draftProductId={f.draftProductId}
           activeTenantId={f.activeTenantId}
+          showSaaSTab={!!user?.isMaster && activeTenantId === PLUPPEX_TENANT_ID}
           clientSearch={f.clientSearch}
           setClientSearch={f.setClientSearch}
           clientId={f.clientId}

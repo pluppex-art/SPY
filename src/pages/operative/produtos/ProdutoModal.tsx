@@ -1,7 +1,7 @@
 import React from "react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
-import { Package, DollarSign, Layers, FileSpreadsheet, X, Check, ArrowLeft, ArrowRight } from "lucide-react";
+import { Package, DollarSign, Layers, FileSpreadsheet, Boxes, X, Check, ArrowLeft, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { Product, ProductType, ProductAttachment } from "../../../types";
 import { ProdutoTabInfo } from "./produto-modal/ProdutoTabInfo";
@@ -10,6 +10,7 @@ import { ProdutoTabEstoque } from "./produto-modal/ProdutoTabEstoque";
 import { useNicheProfiles } from "./useNicheProfiles";
 import { hasStockFocus } from "./nicheProfiles";
 import { ProdutoTabArquivos } from "./produto-modal/ProdutoTabArquivos";
+import { ProdutoTabSaaS } from "./produto-modal/ProdutoTabSaaS";
 
 const TABS = [
   { id: "info",      label: "Cadastro",           icon: Package        },
@@ -18,13 +19,17 @@ const TABS = [
   { id: "arquivos",  label: "Mídia & Anexos",      icon: FileSpreadsheet },
 ] as const;
 
-type TabId = typeof TABS[number]["id"];
+// Fora do passo-a-passo: só aparece para o master, no catálogo da plataforma, com o produto já salvo.
+const SAAS_TAB = { id: "saas", label: "Plano & SaaS", icon: Boxes } as const;
+
+type TabId = typeof TABS[number]["id"] | typeof SAAS_TAB["id"];
 
 const STEP_NAMES: Record<TabId, string> = {
   info: "Geral",
   comercial: "Preços",
   estoque: "Estoque",
   arquivos: "Mídia",
+  saas: "Plano & SaaS",
 };
 
 export interface ProdutoModalProps {
@@ -39,6 +44,8 @@ export interface ProdutoModalProps {
   setAttachments: React.Dispatch<React.SetStateAction<ProductAttachment[]>>;
   draftProductId: string;
   activeTenantId?: string;
+  /** Mostra a aba Plano & SaaS (master + catálogo da plataforma + produto já salvo). */
+  showSaaSTab?: boolean;
   clientSearch: string;
   setClientSearch: (v: string) => void;
   clientId: string;
@@ -87,8 +94,11 @@ export function ProdutoModal(props: ProdutoModalProps) {
 
   // Aba Estoque sempre disponível para permitir controle de unidades/licenças de qualquer produto
   const visibleTabs = TABS;
-  const tabIds = visibleTabs.map(t => t.id);
+  const tabIds: TabId[] = visibleTabs.map(t => t.id);
   const curIdx = tabIds.indexOf(props.activeTab);
+  const saasTabOpen = !!props.showSaaSTab && !!props.editingProduct;
+  const barTabs = saasTabOpen ? [...visibleTabs, SAAS_TAB] : visibleTabs;
+  const onSaaS = props.activeTab === "saas" && saasTabOpen;
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
@@ -117,7 +127,7 @@ export function ProdutoModal(props: ProdutoModalProps) {
 
         {/* Tabs */}
         <div className="px-5 py-2 border-b border-white/5 bg-[var(--color-surface)] flex gap-1 overflow-x-auto scrollbar-none shrink-0">
-          {visibleTabs.map(t => {
+          {barTabs.map(t => {
             const IconComp = t.icon;
             const isActive = props.activeTab === t.id;
             return (
@@ -172,6 +182,9 @@ export function ProdutoModal(props: ProdutoModalProps) {
                 formTypeAttributes={props.formTypeAttributes} setFormTypeAttributes={props.setFormTypeAttributes}
               />
             )}
+            {onSaaS && props.editingProduct && (
+              <ProdutoTabSaaS productId={props.editingProduct.id} productName={props.editingProduct.name} />
+            )}
             {props.activeTab === "arquivos" && (
               <ProdutoTabArquivos
                 attachments={props.attachments}
@@ -202,13 +215,13 @@ export function ProdutoModal(props: ProdutoModalProps) {
           </div>
 
           <div className="flex gap-2 w-full sm:w-auto justify-end">
-            {curIdx > 0 && (
+            {!onSaaS && curIdx > 0 && (
               <button type="button" onClick={() => props.setActiveTab(tabIds[curIdx - 1])}
                 className="flex-1 sm:flex-initial h-9 inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-black text-xs rounded-xl px-4 shadow-sm cursor-pointer transition-colors">
                 <ArrowLeft className="w-3.5 h-3.5" /> Voltar
               </button>
             )}
-            {curIdx < tabIds.length - 1 ? (
+            {!onSaaS && curIdx < tabIds.length - 1 ? (
               <Button type="button" onClick={() => props.setActiveTab(tabIds[curIdx + 1])}
                 className="flex-1 sm:flex-initial h-9 bg-[#2563EB] hover:bg-blue-600 !text-white font-black text-xs rounded-xl px-4 gap-1.5 shadow-md shadow-blue-500/25 cursor-pointer">
                 Avançar <ArrowRight className="w-3.5 h-3.5" />

@@ -16,6 +16,8 @@ import { AdminToolsTab } from "./components/AdminToolsTab";
 import { AdminAgentsTab } from "./components/AdminAgentsTab";
 import { AdminBillingTab } from "./components/AdminBillingTab";
 import { AdminAssinaturasTab } from "./components/AdminAssinaturasTab";
+import { AdminPlanosCatalogoTab } from "./components/AdminPlanosCatalogoTab";
+import { ModulePlansMatrix } from "./components/ModulePlansMatrix";
 import { AdminLogsTab } from "./components/AdminLogsTab";
 import { AdminHealthTab } from "./components/AdminHealthTab";
 import { NovoTenantModal } from "./components/NovoTenantModal";
@@ -30,7 +32,8 @@ const TABS = [
   { id: "tools", label: "Ferramentas (Registry)", icon: Wrench },
   { id: "agents", label: "Agentes", icon: Bot },
   { id: "billing", label: "Receita da Base", icon: DollarSign },
-  { id: "subscriptions", label: "Planos & Assinaturas", icon: DollarSign },
+  { id: "plans", label: "Planos & Pacotes", icon: DollarSign },
+  { id: "subscriptions", label: "Assinaturas", icon: DollarSign },
   { id: "logs", label: "Logs & Auditoria", icon: TerminalSquare },
   { id: "health", label: "Saúde & Diagnóstico", icon: ShieldCheck },
 ];
@@ -200,12 +203,14 @@ export default function AdminSaaS() {
           onTenantChange={(name) => setSelectedTenantForModules(name)}
         />
       )}
+      {activeTab === "modules" && <ModulePlansMatrix />}
 
       {activeTab === "manifest" && <AdminModuleManifestTab />}
       {activeTab === "tools" && <AdminToolsTab />}
 
       {activeTab === "agents" && <AdminAgentsTab />}
 
+      {activeTab === "plans" && <AdminPlanosCatalogoTab />}
       {activeTab === "subscriptions" && <AdminAssinaturasTab />}
 
       {activeTab === "billing" && (

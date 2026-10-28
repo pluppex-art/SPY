@@ -35,7 +35,7 @@ export function useProdutoForm() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Tab and Interactive state inside modal
-  const [activeTab, setActiveTab] = useState<"info" | "comercial" | "estoque" | "arquivos">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "comercial" | "estoque" | "arquivos" | "saas">("info");
   const [simulateTax, setSimulateTax] = useState(false);
   const [attachments, setAttachments] = useState<ProductAttachment[]>([]);
   // Id gerado assim que o modal de "novo produto" abre — usado como pasta de

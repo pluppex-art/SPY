@@ -7,7 +7,7 @@ export type Plan = {
   highlight?: boolean; show_on_site?: boolean; sort_order?: number;
   product_id?: string | null; modules?: Record<string, boolean>; ai_monthly_tokens?: number | null;
 };
-export type CreditTier = { id: string; credits: number; price_cents: number; sort_order: number; active: boolean; product_id?: string | null };
+export type CreditTier = { id: string; credits: number; price_cents: number; sort_order: number; active: boolean; product_id?: string | null; show_on_site?: boolean };
 export type Subscription = {
   id: string; tenant_id: string; plan_id: string | null; status: "trial" | "active" | "past_due" | "suspended" | "canceled";
   trial_ends_at: string | null; current_period_end: string | null; grace_days: number; gateway: string | null;
@@ -55,6 +55,23 @@ export const saasApi = {
   lgpdConsent: (body: Record<string, any>, tenantId?: string) => send("POST", `/api/lgpd/consent${tq(tenantId)}`, body).then(json<{ ok: boolean }>),
   lgpdRequests: (tenantId?: string) => apiFetch(`/api/lgpd/requests${tq(tenantId)}`).then(json<Array<{ id: string; kind: string; subject_type: string; subject_id: string; status: string; details: any; created_at: string }>>),
 };
+
+/**
+ * O POST /plans grava a linha inteira (campos ausentes voltam ao padrão), então qualquer
+ * edição parcial (toggle, matriz de módulos...) precisa reenviar o plano completo.
+ */
+export const planPayload = (p: Plan, over: Record<string, any> = {}) => ({
+  id: p.id, code: p.code, name: p.name, priceCents: p.price_cents, billingInterval: p.billing_interval,
+  trialDays: p.trial_days ?? 0, active: p.active, limits: p.limits || {}, features: p.features || [],
+  tagline: p.tagline ?? "", setupPriceCents: p.setup_price_cents ?? 0, badge: p.badge ?? "",
+  featuresHeader: p.features_header ?? "", ctaText: p.cta_text ?? "", highlight: !!p.highlight,
+  showOnSite: !!p.show_on_site, sortOrder: p.sort_order ?? 0, productId: p.product_id ?? null,
+  modules: p.modules || {}, aiMonthlyTokens: p.ai_monthly_tokens ?? null, ...over,
+});
+export const tierPayload = (t: CreditTier, over: Record<string, any> = {}) => ({
+  id: t.id, credits: t.credits, priceCents: t.price_cents, sortOrder: t.sort_order, active: t.active,
+  productId: t.product_id ?? null, showOnSite: t.show_on_site !== false, ...over,
+});
 
 export const brl = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 export const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");

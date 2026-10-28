@@ -239,7 +239,7 @@ export function createSaas(deps: Deps) {
         .select("code,name,price_cents,billing_interval,setup_price_cents,tagline,badge,features_header,features,cta_text,highlight,sort_order")
         .eq("active", true).eq("show_on_site", true)
         .order("sort_order", { ascending: true }).order("price_cents", { ascending: true }),
-      supabaseService.from("credit_tiers").select("credits,price_cents,sort_order").eq("active", true).order("sort_order", { ascending: true }),
+      supabaseService.from("credit_tiers").select("credits,price_cents,sort_order").eq("active", true).eq("show_on_site", true).order("sort_order", { ascending: true }),
     ]);
     if (plans.error || tiers.error) return res.status(500).json({ error: "Erro ao carregar planos." });
     res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
@@ -265,7 +265,7 @@ export function createSaas(deps: Deps) {
     const credits = Math.round(Number(b.credits));
     const price = Math.round(Number(b.priceCents));
     if (!(credits > 0) || !(price >= 0) || credits > 1_000_000_000 || price > 100_000_000) return res.status(400).json({ error: "Informe créditos e preço válidos." });
-    const row: Record<string, any> = { credits, price_cents: price, sort_order: Math.min(9999, Math.max(0, Math.round(Number(b.sortOrder) || 0))), active: b.active !== false };
+    const row: Record<string, any> = { credits, price_cents: price, sort_order: Math.min(9999, Math.max(0, Math.round(Number(b.sortOrder) || 0))), active: b.active !== false, show_on_site: b.showOnSite !== false };
     if (typeof b.productId === "string" && b.productId) {
       const { data: prod } = await req.supabase.from("products").select("id, price, active, deleted_at").eq("id", b.productId).maybeSingle();
       if (!prod) return res.status(400).json({ error: "Produto não encontrado." });
