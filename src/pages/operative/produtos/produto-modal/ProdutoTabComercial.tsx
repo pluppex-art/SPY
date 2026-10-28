@@ -112,7 +112,7 @@ export function ProdutoTabComercial({
 
       {/* ── PARÂMETROS DE RECORRÊNCIA E IMPLANTAÇÃO (SOFTWARE / SISTEMA) ── */}
       {!uniqueAsset && (
-      <div className="bg-violet-500/5 border border-violet-500/25 p-4.5 rounded-2xl space-y-4">
+      <div className="bg-violet-500/5 border border-violet-500/25 p-5 rounded-2xl space-y-4">
         <div className="flex items-center justify-between border-b border-violet-500/15 pb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-400" />
@@ -186,12 +186,12 @@ export function ProdutoTabComercial({
 
         {/* Campos Condicionais de Recorrência (Meses e Ciclo) */}
         {formIsRecurring && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 animate-in fade-in slide-in-from-top-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end pt-2 animate-in fade-in slide-in-from-top-1">
             <div className="space-y-1.5">
-              <label className="text-[10px] text-[var(--color-text-muted)] font-extrabold uppercase block tracking-wider flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-violet-600 dark:text-violet-400" /> Duração do Contrato (Quantos Meses?)
+              <label className="text-[10px] text-[var(--color-text-muted)] font-extrabold uppercase tracking-wider flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-violet-600 dark:text-violet-400" /> Duração do contrato (meses)
               </label>
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {["1", "3", "6", "12", "24"].map((m) => (
                   <button
                     key={m}
@@ -213,7 +213,7 @@ export function ProdutoTabComercial({
                   value={formContractMonths}
                   onChange={(e) => setFormContractMonths && setFormContractMonths(e.target.value)}
                   placeholder="Meses"
-                  className="w-16 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-2 py-1 text-xs text-[var(--color-text-primary)] font-mono text-center"
+                  className="w-16 shrink-0 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-2 py-1 text-xs text-[var(--color-text-primary)] font-mono text-center"
                 />
               </div>
             </div>
@@ -278,10 +278,10 @@ export function ProdutoTabComercial({
           {formIsRecurring && formHasLoyalty && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-1 animate-in fade-in slide-in-from-top-1">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-amber-600 dark:text-amber-400 font-extrabold uppercase block tracking-wider flex items-center gap-1">
+                  <label className="text-[10px] text-amber-600 dark:text-amber-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
                     <Lock className="w-3 h-3" /> Prazo de Fidelidade (Meses)
                   </label>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {["6", "12", "24"].map((m) => (
                       <button
                         key={m}
@@ -303,17 +303,17 @@ export function ProdutoTabComercial({
                       value={formLoyaltyMonths}
                       onChange={(e) => setFormLoyaltyMonths && setFormLoyaltyMonths(e.target.value)}
                       placeholder="Meses"
-                      className="w-16 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-2 py-1 text-xs text-[var(--color-text-primary)] font-mono text-center"
+                      className="w-16 shrink-0 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-2 py-1 text-xs text-[var(--color-text-primary)] font-mono text-center"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-amber-600 dark:text-amber-400 font-extrabold uppercase block tracking-wider flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Multa por Cancelamento Antecipado (%)
+                  <label className="text-[10px] text-amber-600 dark:text-amber-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Multa por cancelamento (%)
                   </label>
                   <div className="relative max-w-[140px]">
-                    <Percent className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Percent className="w-4 h-4 text-amber-600 dark:text-amber-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="number"
                       step="any"
@@ -322,7 +322,7 @@ export function ProdutoTabComercial({
                       value={formEarlyTerminationFee}
                       onChange={(e) => setFormEarlyTerminationFee && setFormEarlyTerminationFee(e.target.value)}
                       placeholder="Ex: 100"
-                      className={`${inputCls} pl-8 text-amber-700 dark:text-amber-300`}
+                      className={`${inputCls} pl-9 text-amber-700 dark:text-amber-300`}
                     />
                   </div>
                   <p className="text-[9px] text-[var(--color-text-faint)]">
@@ -336,7 +336,7 @@ export function ProdutoTabComercial({
         {/* Campo Condicional de Taxa de Implantação */}
         {formHasImplementation && (
           <div className="space-y-1.5 pt-2 animate-in fade-in slide-in-from-top-1">
-            <label className="text-[10px] text-fuchsia-600 dark:text-fuchsia-400 font-extrabold uppercase block tracking-wider flex items-center gap-1">
+            <label className="text-[10px] text-fuchsia-600 dark:text-fuchsia-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
               <Wrench className="w-3 h-3" /> Valor da Implantação / Setup Fee (R$)
             </label>
             <div className="relative max-w-xs">
@@ -356,10 +356,10 @@ export function ProdutoTabComercial({
       )}
 
       {/* ── PREÇO DE VENDA, CUSTO E COMISSÃO ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
         <div className="space-y-1.5">
           <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">
-            {formIsRecurring ? "Valor da Mensalidade (R$/mês)" : "Preço de Venda (R$)"}{" "}
+            {formIsRecurring ? "Mensalidade (R$/mês)" : "Preço de venda (R$)"}{" "}
             <strong className="text-rose-400">*</strong>
           </label>
           <div className="relative">
@@ -378,7 +378,7 @@ export function ProdutoTabComercial({
 
         <div className="space-y-1.5">
           <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">
-            Custo Operacional / Aquisição (R$)
+            Custo operacional (R$)
           </label>
           <div className="relative">
             <Coins className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -395,10 +395,10 @@ export function ProdutoTabComercial({
 
         <div className="space-y-1.5">
           <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">
-            Comissão Vendedor (%)
+            Comissão do vendedor (%)
           </label>
           <div className="relative">
-            <Percent className="w-3.5 h-3.5 text-cyan-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Percent className="w-4 h-4 text-cyan-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="number"
               value={formCommission}
@@ -455,12 +455,12 @@ export function ProdutoTabComercial({
           ].map((item) => (
             <div
               key={item.label}
-              className={`p-3 border rounded-xl ${
+              className={`p-3 min-w-0 border rounded-xl ${
                 item.highlight ? "bg-[#2563EB]/5 border-[#2563EB]/20" : "bg-white/[0.015] border-white/5"
               }`}
             >
               <span className="text-[9px] text-slate-500 uppercase font-black block">{item.label}</span>
-              <span className={`text-sm font-bold font-mono block mt-1 ${item.cls}`}>{item.value}</span>
+              <span className={`text-sm font-bold font-mono block mt-1 break-words ${item.cls}`}>{item.value}</span>
             </div>
           ))}
         </div>

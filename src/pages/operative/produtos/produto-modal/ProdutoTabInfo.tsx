@@ -62,6 +62,8 @@ export function ProdutoTabInfo({
     <TypeFieldInput key={f.key} field={f} attrs={formTypeAttributes} setAttr={setAttr} />
   );
   const advOpen = hasStockFocus(profiles, formType);
+  const IA_KEYS = ["ia_oque_e", "ia_para_quem", "ia_beneficios", "ia_como_funciona", "ia_planos_valores", "ia_objecoes"];
+  const iaFilled = IA_KEYS.filter(k => String(attr(k) ?? "").trim().length > 0).length;
   const baseFields = schemaFields.filter(f => !f.advanced && !f.group);
   const advFields = schemaFields.filter(f => f.advanced);
   // campos extras dos perfis de nicho, agrupados pelo título do perfil
@@ -70,48 +72,6 @@ export function ProdutoTabInfo({
   }, {});
   return (
     <div className="space-y-4">
-      {/* Client Association */}
-      <div className="p-4 bg-blue-500/5 border border-blue-500/15 rounded-xl space-y-2">
-        <label className="text-[10px] font-black text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-          <Building2 className="w-3.5 h-3.5" /> Vincular a Cliente
-          <span className="ml-auto text-[9px] text-slate-500 font-normal normal-case">Opcional</span>
-        </label>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
-          <input
-            type="text" value={clientSearch}
-            onChange={(e) => { setClientSearch(e.target.value); setShowClientDropdown(true); if (!e.target.value) clearClient(); }}
-            onFocus={() => setShowClientDropdown(true)}
-            onBlur={() => setTimeout(() => setShowClientDropdown(false), 150)}
-            placeholder={filteredClients.length > 0 ? "Buscar cliente..." : "Nenhum cliente cadastrado"}
-            className="w-full bg-[var(--color-surface)]/60 border border-white/10 rounded-xl pl-9 pr-9 py-2.5 text-white text-xs focus:border-blue-500/40 focus:outline-none transition-all placeholder:text-slate-600"
-          />
-          {clientId
-            ? <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-400" />
-            : <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
-          }
-          {showClientDropdown && filteredClients.length > 0 && (
-            <div className="absolute z-50 top-full mt-1 w-full bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl shadow-2xl max-h-40 overflow-y-auto">
-              {filteredClients.map((c: any) => (
-                <button key={c.id} type="button" onMouseDown={() => handleSelectClient(c)}
-                  className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors flex items-center gap-2 border-none bg-transparent cursor-pointer">
-                  <Building className="w-3 h-3 text-slate-500 shrink-0" />
-                  <p className="text-xs font-bold text-white">{c.name || c.nome}</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {clientId && (
-          <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-bold">
-            <CheckCircle2 className="w-3 h-3" /> Vinculado: {clientName}
-            <button type="button" onClick={clearClient} className="ml-2 text-slate-500 hover:text-rose-400 bg-transparent border-none cursor-pointer text-[10px]">
-              ✕ desvincular
-            </button>
-          </p>
-        )}
-      </div>
-
       {/* Step Banner */}
       <div className="bg-[var(--color-surface-elevated)] border border-white/5 p-4 rounded-xl flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-[#2563EB] shrink-0 font-black text-xs font-mono">1</div>
@@ -121,8 +81,8 @@ export function ProdutoTabInfo({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="sm:col-span-2 space-y-1.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
           <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">
             Nome do Produto <strong className="text-rose-400">*</strong>
           </label>
@@ -130,7 +90,7 @@ export function ProdutoTabInfo({
             placeholder="Ex: Licença Enterprise SaaS" className={inputCls} required />
         </div>
         <div className="space-y-1.5">
-          <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider flex justify-between items-center">
+          <label className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider flex justify-between items-center">
             <span>SKU <strong className="text-rose-400">*</strong></span>
             <button type="button" onClick={() => {
               let prefix = "PROD";
@@ -218,7 +178,7 @@ export function ProdutoTabInfo({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider flex items-center justify-between">
+        <label className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider flex items-center justify-between">
           <span>Tags / Palavras-chave</span>
           <span className="text-[9px] text-slate-500 font-bold lowercase">separe com vírgulas</span>
         </label>
@@ -237,13 +197,60 @@ export function ProdutoTabInfo({
         </div>
       </div>
 
+      {/* Client Association */}
+      <div className="p-4 bg-blue-500/5 border border-blue-500/15 rounded-xl space-y-2">
+        <label className="text-[10px] font-black text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+          <Building2 className="w-3.5 h-3.5" /> Vincular a Cliente
+          <span className="ml-auto text-[9px] text-slate-500 font-normal normal-case">Opcional</span>
+        </label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+          <input
+            type="text" value={clientSearch}
+            onChange={(e) => { setClientSearch(e.target.value); setShowClientDropdown(true); if (!e.target.value) clearClient(); }}
+            onFocus={() => setShowClientDropdown(true)}
+            onBlur={() => setTimeout(() => setShowClientDropdown(false), 150)}
+            placeholder={filteredClients.length > 0 ? "Buscar cliente..." : "Nenhum cliente cadastrado"}
+            className="w-full bg-[var(--color-surface)]/60 border border-white/10 rounded-xl pl-9 pr-9 py-2.5 text-white text-xs focus:border-blue-500/40 focus:outline-none transition-all placeholder:text-slate-600"
+          />
+          {clientId
+            ? <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-400" />
+            : <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+          }
+          {showClientDropdown && filteredClients.length > 0 && (
+            <div className="absolute z-50 top-full mt-1 w-full bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl shadow-2xl max-h-40 overflow-y-auto">
+              {filteredClients.map((c: any) => (
+                <button key={c.id} type="button" onMouseDown={() => handleSelectClient(c)}
+                  className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors flex items-center gap-2 border-none bg-transparent cursor-pointer">
+                  <Building className="w-3 h-3 text-slate-500 shrink-0" />
+                  <p className="text-xs font-bold text-white">{c.name || c.nome}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {clientId && (
+          <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-bold">
+            <CheckCircle2 className="w-3 h-3" /> Vinculado: {clientName}
+            <button type="button" onClick={clearClient} className="ml-2 text-slate-500 hover:text-rose-400 bg-transparent border-none cursor-pointer text-[10px]">
+              ✕ desvincular
+            </button>
+          </p>
+        )}
+      </div>
+
       {/* Conhecimento do produto para a Júlia (IA de vendas) — gravado em type_attributes (chaves ia_*)
           e lido ao vivo pelo n8n junto com a descrição, o valor e os arquivos/criativos da aba Arquivos. */}
-      <div className="p-4 bg-blue-500/5 border border-blue-500/15 rounded-xl space-y-3">
-        <div>
-          <label className="text-[10px] font-black text-blue-400 uppercase tracking-wider block">Para a IA vender este produto</label>
-          <p className="text-[10px] text-slate-500">Escreva como explicaria a um vendedor novo. O que ficar vazio, ela não inventa: diz que a equipe confirma.</p>
-        </div>
+      <details open={iaFilled > 0} className="group p-4 bg-blue-500/5 border border-blue-500/15 rounded-xl space-y-3">
+        <summary className="cursor-pointer select-none list-none flex items-start justify-between gap-3">
+          <div>
+            <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider block">Para a IA vender este produto</span>
+            <p className="text-[10px] text-slate-500 mt-0.5">Escreva como explicaria a um vendedor novo. O que ficar vazio, ela não inventa: diz que a equipe confirma.</p>
+          </div>
+          <span className="shrink-0 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5">
+            {iaFilled}/6 preenchidos
+          </span>
+        </summary>
         {([
           ["ia_oque_e", "O que é o produto", "Explique em linguagem simples, como se fosse para um cliente leigo."],
           ["ia_para_quem", "Para quem é", "Perfil ideal e quando indicar."],
@@ -255,10 +262,10 @@ export function ProdutoTabInfo({
           <div key={key} className="space-y-1.5">
             <label className={labelCls}>{label}</label>
             <textarea value={String(attr(key) ?? "")} onChange={(e) => setAttr(key, e.target.value)}
-              placeholder={hint} className={`${inputCls} h-16`} />
+              placeholder={hint} className={`${inputCls} min-h-[5.5rem] resize-y leading-relaxed`} />
           </div>
         ))}
-      </div>
+      </details>
     </div>
   );
 }

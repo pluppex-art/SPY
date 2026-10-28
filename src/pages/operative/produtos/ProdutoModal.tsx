@@ -13,10 +13,10 @@ import { ProdutoTabArquivos } from "./produto-modal/ProdutoTabArquivos";
 import { ProdutoTabSaaS } from "./produto-modal/ProdutoTabSaaS";
 
 const TABS = [
-  { id: "info",      label: "Cadastro",           icon: Package        },
-  { id: "comercial", label: "Comercial & Margem",  icon: DollarSign     },
-  { id: "estoque",   label: "Estoque & Logística", icon: Layers         },
-  { id: "arquivos",  label: "Mídia & Anexos",      icon: FileSpreadsheet },
+  { id: "info",      label: "Cadastro",  icon: Package        },
+  { id: "comercial", label: "Comercial", icon: DollarSign     },
+  { id: "estoque",   label: "Estoque",   icon: Layers         },
+  { id: "arquivos",  label: "Mídia",     icon: FileSpreadsheet },
 ] as const;
 
 // Fora do passo-a-passo: só aparece para o master, no catálogo da plataforma, com o produto já salvo.
@@ -102,7 +102,7 @@ export function ProdutoModal(props: ProdutoModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-      <Card className="w-full max-w-2xl bg-[var(--color-surface)] border border-white/10 shadow-3xl rounded-2xl overflow-hidden flex flex-col max-h-[92vh] ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
+      <Card className="w-full max-w-3xl bg-[var(--color-surface)] border border-white/10 shadow-3xl rounded-2xl overflow-hidden flex flex-col h-[92vh] max-h-[880px] ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
 
         {/* Header */}
         <div className="p-5 border-b border-white/10 flex justify-between items-start bg-white/[0.02] shrink-0">
@@ -126,17 +126,17 @@ export function ProdutoModal(props: ProdutoModalProps) {
         </div>
 
         {/* Tabs */}
-        <div className="px-5 py-2 border-b border-white/5 bg-[var(--color-surface)] flex gap-1 overflow-x-auto scrollbar-none shrink-0">
+        <div className="px-5 py-2 border-b border-white/5 bg-[var(--color-surface)] flex gap-1.5 shrink-0">
           {barTabs.map(t => {
             const IconComp = t.icon;
             const isActive = props.activeTab === t.id;
             return (
               <button key={t.id} type="button" onClick={() => props.setActiveTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${isActive ? "flex-none sm:flex-1" : "flex-1"} sm:min-w-0 ${
                   isActive ? "bg-[#2563EB]/10 text-[#2563EB] border border-[#2563EB]/20" : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
                 }`}>
                 <IconComp className={`w-3.5 h-3.5 ${isActive ? "text-[#2563EB]" : "text-slate-400"}`} />
-                <span>{t.label}</span>
+                <span className={`truncate ${isActive ? "" : "hidden sm:inline"}`}>{t.label}</span>
                 {varejoFisico && t.id === "estoque" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="Controle de estoque do varejo" />}
               </button>
             );
