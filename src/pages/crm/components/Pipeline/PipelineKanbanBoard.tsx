@@ -198,7 +198,6 @@ export function PipelineKanbanBoard({
         const visibleCount = visibleCounts[stage.id] ?? CARDS_PAGE_SIZE;
         const visibleStageLeads = stageLeads.slice(0, visibleCount);
         const stageValue = stageLeads.reduce((sum: number, item: any) => sum + getLeadValue(item), 0);
-        const stageCountPct = pctOf(stageLeads.length, totalLeadsCount);
         const stageValuePct = pctOf(stageValue, totalLeadsValue);
 
         return (
