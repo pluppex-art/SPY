@@ -19,7 +19,7 @@ export interface ResumoValorProposta {
   valor: number;
   /** "/mês" para recorrente; vazio nos demais. */
   sufixo: string;
-  /** Linha de apoio: "Recorrente · por 6 meses", "12x de R$ 997,00", "Pagamento à vista". */
+  /** Linha de apoio: "Recorrente · 12 ciclos de R$ 1.500,00 = R$ 18.000,00 no contrato", "12x de R$ 997,00", "Pagamento à vista". */
   detalhe: string;
   /** Pagamento único dentro de proposta recorrente (implantação etc.). */
   adicional?: { rotulo: string; valor: number };
@@ -50,7 +50,7 @@ export function resumoValorProposta(
       rotulo: "Investimento mensal",
       valor: mensal,
       sufixo: "/mês",
-      detalhe: meses > 1 ? `Recorrente · por ${meses} meses` : "Recorrente · sem prazo fixo",
+      detalhe: meses > 1 ? `Recorrente · ${meses} ciclos de ${brl(mensal)} = ${brl(mensal * meses)} no contrato` : "Recorrente · sem prazo fixo",
       ...(unico > 0 ? { adicional: { rotulo: "Pagamento único (implantação)", valor: unico } } : {}),
     };
   }

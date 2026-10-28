@@ -637,7 +637,7 @@ export function NovaPropostaWizard({
               descontoValor={descontoValor} setDescontoValor={setDescontoValor}
               observacoes={observacoes} setObservacoes={setObservacoes}
               recurringTotal={recurringTotal} oneTimeTotal={oneTimeTotal} descontoCalc={descontoCalc} totalProposta={totalProposta}
-              formatCurrency={formatCurrency}
+              mesesContrato={mesesContrato} formatCurrency={formatCurrency}
             />
           )}
           {step === 3 && (
@@ -913,7 +913,7 @@ function StepComposicao(props: any) {
   const {
     items, addItem, updateItem, removeItem, selectItemProduct, itemLineTotal, availableProducts,
     descontoTipo, setDescontoTipo, descontoValor, setDescontoValor,
-    observacoes, setObservacoes, recurringTotal, oneTimeTotal, descontoCalc, totalProposta, formatCurrency,
+    observacoes, setObservacoes, recurringTotal, oneTimeTotal, descontoCalc, totalProposta, formatCurrency, mesesContrato,
   } = props;
 
   return (
@@ -978,6 +978,9 @@ function StepComposicao(props: any) {
                     </td>
                     <td className="px-1 py-2 text-right font-mono font-bold whitespace-nowrap">
                       {formatCurrency(itemLineTotal(item))}{item.isRecurring && <span className="text-[9px] text-[var(--color-text-faint)]">/mês</span>}
+                      {item.isRecurring && mesesContrato > 1 && (
+                        <span className="block text-[9px] font-bold text-[var(--color-text-faint)]">× {mesesContrato} meses = {formatCurrency(itemLineTotal(item) * mesesContrato)}</span>
+                      )}
                     </td>
                     <td className="px-1 py-2">
                       <button onClick={() => removeItem(item.key)} className="p-1 rounded-md hover:bg-danger/10 text-[var(--color-text-faint)] hover:text-danger"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -1013,7 +1016,10 @@ function StepComposicao(props: any) {
 
       <div>
         <SectionCard icon={BarChart3} title="Resumo financeiro" desc="Visão geral dos valores desta proposta." sticky>
-          <SummaryRow label="Itens recorrentes (mensal)" value={formatCurrency(recurringTotal)} />
+          <SummaryRow label="Itens recorrentes (valor do ciclo, por mês)" value={formatCurrency(recurringTotal)} />
+          {recurringTotal > 0 && mesesContrato > 1 && (
+            <SummaryRow label={`Recorrência em ${mesesContrato} ciclos`} value={formatCurrency(recurringTotal * mesesContrato)} />
+          )}
           <SummaryRow label="Itens únicos" value={formatCurrency(oneTimeTotal)} />
           <SummaryRow label="Desconto" value={formatCurrency(descontoCalc)} valueClass="text-success" />
           <div className="h-px bg-[var(--color-border-subtle)] my-2" />

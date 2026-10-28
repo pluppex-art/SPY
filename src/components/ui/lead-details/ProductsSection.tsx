@@ -312,7 +312,9 @@ export function ProductsSection({
                       <span className="text-[var(--color-text-primary)] font-medium text-xs leading-snug break-words min-w-0">{item.product_name}</span>
                       <span className="font-mono text-success text-[11px] font-bold shrink-0 text-right whitespace-nowrap">
                         {recorrente
-                          ? `1x ${formatCurrency(item.preco_unitario)}/ciclo`
+                          ? (Number(item.contract_months) > 1
+                              ? `${formatCurrency(item.preco_unitario)}/ciclo × ${item.contract_months} = ${formatCurrency(Number(item.preco_unitario) * Number(item.contract_months))}`
+                              : `${formatCurrency(item.preco_unitario)}/ciclo`)
                           : `${item.quantidade}x ${formatCurrency(item.preco_unitario)}`}
                       </span>
                     </div>
