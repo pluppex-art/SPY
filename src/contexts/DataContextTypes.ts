@@ -193,7 +193,7 @@ export interface DataContextType {
   updateLead: (id: string, updates: Partial<Lead>) => Promise<boolean>;
   deleteLead: (id: string) => Promise<boolean>;
   moveLead: (leadId: string, destStageId: string, index: number) => Promise<void>;
-  addTask: (task: Omit<Task, 'id'>) => void;
+  addTask: (task: Omit<Task, 'id'>, opts?: { silent?: boolean }) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   addContract: (contract: Omit<Contract, 'id'>, options?: { silent?: boolean }) => Promise<boolean>;

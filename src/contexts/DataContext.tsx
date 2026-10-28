@@ -1565,7 +1565,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               priority: "Média",
             };
 
-            addTask(newTask);
+            addTask(newTask, { silent: true });
 
             addNotification({
               title: "Reengajamento Iniciado",
@@ -2234,13 +2234,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return picked;
   };
 
-  const addTask = async (task: Omit<Task, 'id'>) => {
+  // silent: tarefas geradas por automação que já emitem a própria notificação.
+  const addTask = async (task: Omit<Task, 'id'>, opts?: { silent?: boolean }) => {
     const newTask: Task = { ...task, id: crypto.randomUUID() };
     if (tenantId) newTask.tenant_id = tenantId;
     if (user?.id) newTask.creator_id = user.id;
     newTask.filial_id = activeFilialId ?? null;
     setTasks(prev => [newTask, ...prev]);
-    addNotification({
+    if (!opts?.silent) addNotification({
       title: "Nova Tarefa",
       description: `Agendada: ${task.title}`,
       link_url: task.lead_id ? `/app/crm/pipeline?leadId=${task.lead_id}` : `/app/tarefas`,
