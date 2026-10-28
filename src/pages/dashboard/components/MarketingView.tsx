@@ -6,7 +6,6 @@ import { Globe, Share2, Sparkles, MousePointer2, Layers, Users, DollarSign, Work
 import { useData } from '../../../contexts/DataContext';
 import { useLocalization } from '../../../contexts/LocalizationContext';
 import { parseCurrencyBR } from '../../../lib/utils';
-import { HexHeatmap } from '../../../components/ui/hex-heatmap';
 
 // Paleta de categorias sem contagem fixa (origens de lead variam por tenant)
 // — em vez do arco-íris antigo, usa a cor da marca (destaque pra fatia mais
@@ -235,19 +234,6 @@ export function MarketingView() {
                  ))}
               </div>
            </Card>
-
-           {sourceData.length > 1 && (
-             <Card className="p-5">
-               <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-1">Mapa de Calor das Origens</h4>
-               <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Passe o mouse para ver quantos leads vieram de cada origem.</p>
-               <HexHeatmap
-                 items={sourceData.map((d) => ({ key: d.name, label: d.name, value: d.count }))}
-                 formatValue={(n) => `${n} lead${n === 1 ? '' : 's'}`}
-                 metricLabel="Leads"
-                 maxCols={3}
-               />
-             </Card>
-           )}
 
            <Card className="p-5 bg-[var(--color-primary-blue)]/5 border-[var(--color-primary-blue)]/20 relative overflow-hidden">
               <div className="absolute top-0 right-0 p-5 opacity-[0.06]">

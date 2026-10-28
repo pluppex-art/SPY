@@ -5,7 +5,6 @@ import {
 import {
   Crown, Users, Target, FileText, ShoppingCart, ChevronRight, TrendingUp, TrendingDown, Calendar, Package,
 } from "lucide-react";
-import { HexHeatmap } from "../../../components/ui/hex-heatmap";
 import { Card } from "../../../components/ui/card";
 import { DrillDownPanel } from "../../../components/ui/DrillDownPanel";
 import { leadDrillColumns } from "../../../components/ui/drillColumns";
@@ -270,23 +269,6 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
             )}
           </Card>
         </div>
-
-        {/* Mapa de calor: quem está mais quente / mais frio em receita */}
-        {ranking.filter((v) => v.receita > 0).length > 1 && (
-          <Card className="min-w-0 overflow-hidden p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-            <h4 className="text-sm font-black text-[var(--color-text-primary)]">Mapa de calor da equipe</h4>
-            <p className="text-[11px] text-[var(--color-text-muted)] mb-3">Participação de cada vendedor na receita. Passe o mouse para ver os detalhes.</p>
-            <HexHeatmap
-              items={ranking.filter((v) => v.receita > 0).map((v) => ({
-                key: v.key, label: v.nome, value: v.receita,
-                extra: [{ label: "Vendas", value: String(v.vendas) }],
-              }))}
-              formatValue={formatCurrency}
-              metricLabel="Receita"
-              maxCols={5}
-            />
-          </Card>
-        )}
 
         {/* Desempenho por vendedor */}
         <Card className="overflow-hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
