@@ -29,8 +29,8 @@ const TABS = [
   { id: "manifest", label: "Módulos (Manifest)", icon: LayoutGrid },
   { id: "tools", label: "Ferramentas (Registry)", icon: Wrench },
   { id: "agents", label: "Agentes", icon: Bot },
-  { id: "billing", label: "Faturamento & Planos", icon: DollarSign },
-  { id: "subscriptions", label: "Assinaturas & IA", icon: DollarSign },
+  { id: "billing", label: "Receita da Base", icon: DollarSign },
+  { id: "subscriptions", label: "Planos & Assinaturas", icon: DollarSign },
   { id: "logs", label: "Logs & Auditoria", icon: TerminalSquare },
   { id: "health", label: "Saúde & Diagnóstico", icon: ShieldCheck },
 ];
