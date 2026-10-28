@@ -1,4 +1,4 @@
-import { Search, Filter, Building2, Briefcase, Zap, MapPin, Layers, Link2 } from "lucide-react";
+import { Search, Filter, Briefcase, Zap, MapPin, Layers, Link2 } from "lucide-react";
 import { DateRangeFilter } from "../../../../components/ui/DateRangeFilter";
 
 interface PipelineFilterBarProps {
@@ -107,17 +107,6 @@ export function PipelineFilterBar({
       </div>
 
       <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
-        <Building2 className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
-        <select
-          className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
-          value={companyFilter}
-          onChange={(e) => setCompanyFilter(e.target.value)}
-        >
-          {companiesList.map(c => <option key={c} value={c} className="bg-[var(--color-surface-elevated)]">{c === "Todos" ? "Todas as empresas" : c}</option>)}
-        </select>
-      </div>
-
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
         <MapPin className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -127,20 +116,6 @@ export function PipelineFilterBar({
           {citiesList.map(c => <option key={c} value={c} className="bg-[var(--color-surface-elevated)]">{c === "Todos" ? "Todas as cidades" : c}</option>)}
         </select>
       </div>
-
-      {clientsList.length > 0 && (
-        <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
-          <Building2 className="w-3 h-3 text-[var(--color-primary-blue)] shrink-0" />
-          <select
-            className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
-            value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value)}
-          >
-            <option value="Todos" className="bg-[var(--color-surface-elevated)]">Todos os clientes</option>
-            {clientsList.map(c => <option key={c} value={c} className="bg-[var(--color-surface-elevated)]">{c}</option>)}
-          </select>
-        </div>
-      )}
 
       <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
         <Filter className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
