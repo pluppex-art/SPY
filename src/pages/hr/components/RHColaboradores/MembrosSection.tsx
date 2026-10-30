@@ -8,6 +8,7 @@ import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } fro
 import { Button } from "../../../../components/ui/button";
 import { Card } from "../../../../components/ui/card";
 import { Badge } from "../../../../components/ui/badge";
+import { Logo } from "../../../../components/ui/Logo";
 
 interface MembrosSectionProps {
   filtered: any[];
@@ -28,18 +29,20 @@ interface MembrosSectionProps {
   agenteStatus?: Record<string, string>;
 }
 
-// Bolinha do Agente Secreto: verde = conectado, vermelho = desconectado, âmbar = pausado (férias/afastado),
-// cinza = ainda sem sessão.
+// Ícone próprio do Agente Secreto (símbolo do S.P.Y.: chapéu de espião + mira), separado do status Ativo do
+// colaborador: verde = conectado, vermelho = desconectado, âmbar = pausado (férias/afastado), cinza = sem sessão.
+const AGENTE_COR = { ativo: "#10B981", caiu: "#F43F5E", pausado: "#F59E0B", semSessao: "#94A3B8" } as const;
+
 function AgenteSecretoBadge({ colab, status }: { colab: any; status?: string }) {
-  let cor = "bg-[var(--color-text-faint)]", texto = "Agente Secreto: sem sessão", cls = "text-[var(--color-text-faint)]";
+  let hex: string = AGENTE_COR.semSessao, texto = "Agente Secreto: sem sessão";
   if (status) {
-    if (colab.status !== "Ativo") { cor = "bg-amber-500"; texto = "Agente Secreto pausado"; cls = "text-amber-500"; }
-    else if (status === "CONNECTED") { cor = "bg-emerald-500"; texto = "Agente Secreto ativo"; cls = "text-emerald-500"; }
-    else { cor = "bg-rose-500"; texto = "Agente Secreto desconectado"; cls = "text-rose-500"; }
+    if (colab.status !== "Ativo") { hex = AGENTE_COR.pausado; texto = "Agente Secreto pausado"; }
+    else if (status === "CONNECTED") { hex = AGENTE_COR.ativo; texto = "Agente Secreto ativo"; }
+    else { hex = AGENTE_COR.caiu; texto = "Agente Secreto desconectado"; }
   }
   return (
-    <div className={`inline-flex items-center gap-1.5 text-[10px] font-bold ${cls}`} title={texto}>
-      <span className={`w-2 h-2 rounded-full ${cor} ${status === "CONNECTED" && colab.status === "Ativo" ? "shadow-[0_0_6px_rgba(16,185,129,0.8)]" : ""}`} />
+    <div className="inline-flex items-center gap-1.5 text-[10px] font-bold" style={{ color: hex }} title={texto}>
+      <Logo variant="icon" color={hex} size={16} className="inline-flex shrink-0" />
       {texto}
     </div>
   );
@@ -186,7 +189,7 @@ export function MembrosSection({
                       {onConectarAgente && currentUserId && colab.user_id === currentUserId && (
                         <button onClick={() => { setMenuOpenId(null); onConectarAgente(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
                           {agenteStatus?.[colab.id] === "CONNECTED"
-                          ? <><span className="w-2 h-2 rounded-full bg-emerald-500 mx-0.5" /> Agente Secreto conectado</>
+                          ? <><Logo variant="icon" color={AGENTE_COR.ativo} size={14} className="inline-flex shrink-0" /> Agente Secreto conectado</>
                           : <><Phone className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Conectar meu WhatsApp</>}
                         </button>
                       )}
