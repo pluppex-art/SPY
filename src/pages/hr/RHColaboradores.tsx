@@ -41,6 +41,23 @@ export default function RHColaboradores() {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [editingColab, setEditingColab] = useState<any | null>(null);
   const [qrAberto, setQrAberto] = useState(false);
+  const [agenteStatus, setAgenteStatus] = useState<Record<string, string>>({});
+
+  // Bolinha verde/vermelha do Agente Secreto de cada colaborador. Atualiza a cada 30s e quando alguém conecta.
+  useEffect(() => {
+    let cancelled = false;
+    const carregar = async () => {
+      try {
+        const r = await apiFetch("/api/agente-secreto/equipe");
+        const d = r.ok ? await r.json().catch(() => null) : null;
+        if (!cancelled && d?.items && !d.indisponivel) setAgenteStatus(d.items);
+      } catch { /* sem rede: mantém o último estado */ }
+    };
+    carregar();
+    const t = setInterval(carregar, 30_000);
+    window.addEventListener(AGENTE_SECRETO_STATUS_EVENT, carregar);
+    return () => { cancelled = true; clearInterval(t); window.removeEventListener(AGENTE_SECRETO_STATUS_EVENT, carregar); };
+  }, [activeTenantId]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -303,6 +320,7 @@ export default function RHColaboradores() {
             onCriarSessao={handleCriarSessaoAgenteSecreto}
             currentUserId={user?.id ?? null}
             onConectarAgente={handleConectarMeuWhatsApp}
+            agenteStatus={agenteStatus}
           />
         ) : (
           <SquadsTabContent

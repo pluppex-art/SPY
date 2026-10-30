@@ -70,6 +70,8 @@ export interface WhatsAppProvider {
   /** Config (webhooks etc.) de uma sessão existente e criação de outra com ela — usado para clonar o padrão de uma empresa. */
   getSessionConfig?(providerInstanceId: string): Promise<Record<string, any> | null>;
   createSessionWithConfig?(sessionName: string, config: Record<string, any>): Promise<void>;
+  /** Estado de todas as sessões numa chamada só (nome → status). Usado para mostrar quem está conectado na lista da equipe. */
+  listSessionStates?(): Promise<Record<string, ProviderConnectResult["status"]>>;
   sendTextMessage(providerInstanceId: string, phone: string, text: string): Promise<{ id: string }>;
   /** Backfill: conversas já existentes na sessão antes de conectar ao SPY (o
    * webhook só vê mensagens que chegam DEPOIS de conectado). Provider que não
@@ -199,6 +201,16 @@ export class WAHAProvider implements WhatsAppProvider {
     const rawPhone: string | undefined = data?.me?.id;
     const phone = rawPhone ? rawPhone.replace(/@c\.us$/, "").replace(/@s\.whatsapp\.net$/, "") : undefined;
     return { status, phone };
+  }
+
+  async listSessionStates(): Promise<Record<string, ProviderConnectResult["status"]>> {
+    const { data } = await axios.get(`${WAHA_API_URL}/api/sessions?all=true`, { headers: this.headers(), timeout: 20000 });
+    const out: Record<string, ProviderConnectResult["status"]> = {};
+    for (const s of Array.isArray(data) ? data : []) {
+      if (!s?.name) continue;
+      out[s.name] = s.status === "WORKING" ? "CONNECTED" : (s.status === "SCAN_QR_CODE" || s.status === "STARTING") ? "CONNECTING" : "DISCONNECTED";
+    }
+    return out;
   }
 
   async stopSession(providerInstanceId: string): Promise<void> {

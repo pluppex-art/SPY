@@ -5427,6 +5427,30 @@ app.post("/api/agente-secreto/minha-sessao/qr", requireUser, whatsappLimiter, as
   }
 });
 
+// Status do Agente Secreto de cada colaborador da empresa (bolinha verde/vermelha na lista da equipe).
+// Só colaboradores com sessão aparecem no mapa; quem não tem sessão fica de fora. O escopo da empresa vem da RLS.
+app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: any, res) => {
+  try {
+    if (!isWahaConfigured()) return res.json({ items: {} });
+    const { data: rows } = await req.supabase
+      .from("whatsapp_instances").select("name, colaborador_id").not("colaborador_id", "is", null).limit(500);
+    if (!rows?.length) return res.json({ items: {} });
+    const provider = getWhatsAppProvider();
+    let states: Record<string, string> = {};
+    try { states = (await provider.listSessionStates?.()) || {}; }
+    catch (err: any) {
+      console.error("[agente-secreto/equipe]", err?.message);
+      return res.json({ items: {}, indisponivel: true }); // WAHA fora do ar: melhor não mostrar nada do que pintar todos de vermelho
+    }
+    const items: Record<string, string> = {};
+    for (const r of rows) items[r.colaborador_id] = states[r.name] || "DISCONNECTED"; // sessão sumiu do WAHA = desconectada
+    res.json({ items });
+  } catch (err: any) {
+    console.error("[agente-secreto/equipe]", err?.message);
+    res.status(500).json({ error: "Erro ao consultar o Agente Secreto da equipe." });
+  }
+});
+
 const isTenantAdminReq = async (req: any): Promise<boolean> => {
   const { data } = await req.supabase.from("users").select("is_master, is_tenant_admin").eq("id", req.user.id).maybeSingle();
   return !!(data?.is_master || data?.is_tenant_admin);

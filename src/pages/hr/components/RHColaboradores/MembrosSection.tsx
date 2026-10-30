@@ -24,12 +24,31 @@ interface MembrosSectionProps {
   /** Login do usuário atual: só o próprio colaborador conecta o WhatsApp dele (o QR é lido no celular dele). */
   currentUserId?: string | null;
   onConectarAgente?: () => void;
+  /** Status do Agente Secreto por colaborador (só quem tem sessão aparece). */
+  agenteStatus?: Record<string, string>;
+}
+
+// Bolinha do Agente Secreto: verde = conectado, vermelho = desconectado, âmbar = pausado (férias/afastado),
+// cinza = ainda sem sessão.
+function AgenteSecretoBadge({ colab, status }: { colab: any; status?: string }) {
+  let cor = "bg-[var(--color-text-faint)]", texto = "Agente Secreto: sem sessão", cls = "text-[var(--color-text-faint)]";
+  if (status) {
+    if (colab.status !== "Ativo") { cor = "bg-amber-500"; texto = "Agente Secreto pausado"; cls = "text-amber-500"; }
+    else if (status === "CONNECTED") { cor = "bg-emerald-500"; texto = "Agente Secreto ativo"; cls = "text-emerald-500"; }
+    else { cor = "bg-rose-500"; texto = "Agente Secreto desconectado"; cls = "text-rose-500"; }
+  }
+  return (
+    <div className={`inline-flex items-center gap-1.5 text-[10px] font-bold ${cls}`} title={texto}>
+      <span className={`w-2 h-2 rounded-full ${cor} ${status === "CONNECTED" && colab.status === "Ativo" ? "shadow-[0_0_6px_rgba(16,185,129,0.8)]" : ""}`} />
+      {texto}
+    </div>
+  );
 }
 
 export function MembrosSection({
   filtered: filteredBySearch, search, onSearchChange,
   menuOpenId, setMenuOpenId, onVerPerfil, onEditColab,
-  onChangeStatus, onDesligar, canManageSessions, onCriarSessao, currentUserId, onConectarAgente,
+  onChangeStatus, onDesligar, canManageSessions, onCriarSessao, currentUserId, onConectarAgente, agenteStatus,
 }: MembrosSectionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [depto, setDepto] = useState("");
@@ -91,6 +110,7 @@ export function MembrosSection({
                       ● {colab.status}
                     </Badge>
                   </div>
+                  <div><AgenteSecretoBadge colab={colab} status={agenteStatus?.[colab.id]} /></div>
                   <h3 className="text-sm font-bold text-[var(--color-text-primary)] truncate">{colab.nome}</h3>
                   <p className="text-[11px] text-[var(--color-text-muted)] font-medium truncate">{colab.cargo}</p>
 
@@ -165,7 +185,9 @@ export function MembrosSection({
                       </button>
                       {onConectarAgente && currentUserId && colab.user_id === currentUserId && (
                         <button onClick={() => { setMenuOpenId(null); onConectarAgente(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
-                          <Phone className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Conectar meu WhatsApp
+                          {agenteStatus?.[colab.id] === "CONNECTED"
+                          ? <><span className="w-2 h-2 rounded-full bg-emerald-500 mx-0.5" /> Agente Secreto conectado</>
+                          : <><Phone className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Conectar meu WhatsApp</>}
                         </button>
                       )}
                       {canManageSessions && onCriarSessao && (
