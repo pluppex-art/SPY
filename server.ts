@@ -5374,18 +5374,31 @@ app.post("/api/whatsapp/instances/for-user", requireUser, async (req: any, res) 
 // Sessão do Agente Secreto do PRÓPRIO usuário logado (whatsapp_instances.colaborador_id). O nome da sessão
 // nunca vem do cliente: sai do colaborador ligado ao login, então ninguém consegue pedir o QR de outra pessoa.
 // Alimenta o aviso "Agente Secreto desconectado" + o botão Reconectar (QR) para o vendedor se reconectar sozinho.
-async function agenteSecretoSessionOf(req: any): Promise<{ nome: string; session: string; ativo: boolean } | null> {
+async function agenteSecretoSessionOf(req: any): Promise<{ nome: string; session: string; ativo: boolean; instanceId: string } | null> {
   if (!isWahaConfigured()) return null;
   const { data: colabs } = await req.supabase.from("colaboradores").select("id, nome, status").eq("user_id", req.user.id).limit(5);
   if (!colabs?.length) return null;
   const { data: inst } = await req.supabase
-    .from("whatsapp_instances").select("name, colaborador_id")
+    .from("whatsapp_instances").select("id, name, colaborador_id")
     .in("colaborador_id", colabs.map((c: any) => c.id)).limit(1);
   const row = inst?.[0];
   if (!row) return null;
   const colab = colabs.find((c: any) => c.id === row.colaborador_id);
-  return { nome: colab?.nome || "", session: row.name, ativo: colab?.status === "Ativo" };
+  return { nome: colab?.nome || "", session: row.name, ativo: colab?.status === "Ativo", instanceId: row.id };
 }
+
+// O n8n só trata mensagens de sessões CONNECTED em whatsapp_instances. Ao conectar/reconectar pelo SPY (o modal do QR
+// consulta o status a cada 3s) a linha é atualizada na hora, então a sessão passa a funcionar sem esperar a rotina.
+const syncInstanceStatus = async (instanceId: string, status: string, phone?: string | null) => {
+  if (!supabaseService || !["CONNECTED", "CONNECTING", "DISCONNECTED"].includes(status)) return;
+  try {
+    await supabaseService.from("whatsapp_instances")
+      .update({ status, ...(status === "CONNECTED" && phone ? { phone } : {}), updated_at: new Date().toISOString() })
+      .eq("id", instanceId).neq("status", status);
+  } catch (err: any) {
+    console.error("[agente-secreto/sync-status]", err?.message);
+  }
+};
 
 // Nome da sessão no WAHA: sessão pessoal de colaborador (n8n) usa o nome da linha; as demais, o id da linha.
 const sessionNameOf = (inst: any): string => (inst?.colaborador_id ? inst.name : inst.id);
@@ -5396,6 +5409,7 @@ app.get("/api/agente-secreto/minha-sessao", requireUser, whatsappLimiter, async 
     if (!mine) return res.json({ session: null });
     try {
       const state = await getWhatsAppProvider().getConnectionState(mine.session);
+      await syncInstanceStatus(mine.instanceId, state.status, state.phone);
       return res.json({ session: mine.session, nome: mine.nome, status: state.status, phone: state.phone || null, ativo: mine.ativo });
     } catch (err: any) {
       console.error("[agente-secreto/minha-sessao] status", err?.message);
@@ -5413,6 +5427,7 @@ app.post("/api/agente-secreto/minha-sessao/qr", requireUser, whatsappLimiter, as
     if (!mine) return res.status(404).json({ error: "Você não tem uma sessão do Agente Secreto." });
     const provider = getWhatsAppProvider();
     const state = await provider.getConnectionState(mine.session);
+    await syncInstanceStatus(mine.instanceId, state.status, state.phone);
     if (state.status === "CONNECTED") return res.json({ status: "CONNECTED", qrcode: "" });
     // Sessão caída (FAILED/STOPPED) não gera QR até ser religada; em SCAN_QR_CODE/STARTING já está pronta.
     if (state.status === "DISCONNECTED" && provider.restartSession) {
