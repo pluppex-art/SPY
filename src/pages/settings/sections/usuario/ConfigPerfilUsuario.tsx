@@ -1,5 +1,6 @@
 import { MfaCard } from "../../../../components/MfaCard";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";
@@ -58,6 +59,10 @@ export function ConfigPerfilUsuario() {
   // do colaborador correspondente a esta conta nesta empresa — nem toda conta tem uma linha
   // em colaboradores (ex: conta só-admin de plataforma sem registro de equipe), então a seção
   // some quietamente quando não encontra, em vez de mostrar um toggle que não faz nada.
+  // Nome, telefone e cargo são do cadastro do colaborador (Equipe › RH): aqui só visualização, para não
+  // existirem duas versões do telefone (users × colaboradores) divergindo entre Aurora e Agente Secreto.
+  const navigate = useNavigate();
+  const [colabIdentity, setColabIdentity] = useState<{ nome: string; phone: string; cargo: string } | null>(null);
   const [auroraPrefs, setAuroraPrefs] = useState<AuroraPrefs | null>(null);
   const [loadingAuroraPrefs, setLoadingAuroraPrefs] = useState(true);
   const [savingAuroraPrefs, setSavingAuroraPrefs] = useState(false);
@@ -69,12 +74,13 @@ export function ConfigPerfilUsuario() {
       setLoadingAuroraPrefs(true);
       const { data, error } = await supabase
         .from("colaboradores")
-        .select("id, recebe_briefing_diario, aurora_responde_audio")
+        .select("id, nome, phone, cargo, recebe_briefing_diario, aurora_responde_audio")
         .eq("user_id", user.id)
         .eq("tenant_id", activeTenantId)
         .maybeSingle();
       if (cancelled) return;
       if (!error && data) {
+        setColabIdentity({ nome: data.nome || "", phone: data.phone || "", cargo: data.cargo || "" });
         setAuroraPrefs({
           colaboradorId: data.id,
           recebeBriefingDiario: data.recebe_briefing_diario ?? false,
@@ -156,20 +162,19 @@ export function ConfigPerfilUsuario() {
     }
   };
 
+  // Só a bio é salva aqui: nome, telefone e cargo são editados em Equipe (RH) e nunca são sobrescritos por esta tela.
   const handleSaveProfile = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!profile.name.trim()) {
-      toast.error("O nome completo é obrigatório.");
-      return;
-    }
-
     setSavingProfile(true);
-    const ok = await persistProfile({
-      name: profile.name, phone: profile.phone, role: profile.role, bio: profile.bio,
-    });
+    const ok = await persistProfile({ bio: profile.bio });
     setSavingProfile(false);
-    if (ok) toast.success("Perfil salvo e atualizado com sucesso!");
+    if (ok) toast.success("Bio salva com sucesso!");
   };
+
+  const nomeExibido = colabIdentity?.nome || profile.name;
+  const phoneExibido = colabIdentity?.phone || profile.phone;
+  const cargoExibido = colabIdentity?.cargo || profile.role;
+  const irParaEquipe = () => navigate("/app/equipe");
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,7 +235,7 @@ export function ConfigPerfilUsuario() {
           Meu Perfil & Conta <User className="w-5 h-5 text-[var(--color-primary-blue)]" />
         </h1>
         <p className="text-sm text-[var(--color-text-muted)]">
-          Gerencie suas informações pessoais, dados de acesso, cargo e segurança de dois fatores.
+          Veja seus dados cadastrais e gerencie sua foto, bio, senha e segurança. Nome, telefone e cargo são editados em Equipe (RH).
         </p>
       </div>
 
@@ -240,9 +245,9 @@ export function ConfigPerfilUsuario() {
           <div className="relative group">
             <div className="w-20 h-20 rounded-2xl bg-[var(--color-primary-blue)] text-white flex items-center justify-center text-2xl font-bold shadow-md overflow-hidden border-2 border-[var(--color-border-default)]">
               {profile.avatar ? (
-                <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
+                <img src={profile.avatar} alt={nomeExibido} className="w-full h-full object-cover" />
               ) : (
-                profile.name.substring(0, 2).toUpperCase()
+                nomeExibido.substring(0, 2).toUpperCase()
               )}
             </div>
             <label
@@ -264,9 +269,9 @@ export function ConfigPerfilUsuario() {
 
           <div className="flex-1 text-center sm:text-left space-y-1">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <h2 className="text-xl font-bold text-[var(--color-text-primary)]">{profile.name}</h2>
+              <h2 className="text-xl font-bold text-[var(--color-text-primary)]">{nomeExibido}</h2>
               <Badge variant="info" className="w-fit mx-auto sm:mx-0">
-                <Sparkles className="w-3 h-3 mr-1" /> {profile.role}
+                <Sparkles className="w-3 h-3 mr-1" /> {cargoExibido}
               </Badge>
             </div>
             <p className="text-xs text-[var(--color-text-muted)] flex items-center justify-center sm:justify-start gap-1.5">
@@ -278,12 +283,11 @@ export function ConfigPerfilUsuario() {
           </div>
 
           <div className="shrink-0 flex sm:flex-col gap-2 w-full sm:w-auto">
-            <Button 
-              onClick={() => handleSaveProfile()} 
-              disabled={savingProfile} 
+            <Button
+              onClick={irParaEquipe}
               className="h-9 px-4 text-xs font-bold gap-1.5 flex-1 sm:flex-initial shadow-xs"
             >
-              <Save className="w-3.5 h-3.5" /> {savingProfile ? "Salvando..." : "Salvar Perfil"}
+              <User className="w-3.5 h-3.5" /> Editar em Equipe (RH)
             </Button>
           </div>
         </div>
@@ -298,14 +302,12 @@ export function ConfigPerfilUsuario() {
         <form onSubmit={handleSaveProfile} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1.5 block">Nome Completo *</label>
+              <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1.5 block">Nome Completo</label>
               <input
                 type="text"
-                value={profile.name}
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3.5 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] transition-all font-medium"
-                placeholder="Seu nome completo"
-                required
+                value={nomeExibido}
+                readOnly
+                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3.5 py-2 text-xs text-[var(--color-text-muted)] cursor-not-allowed font-medium"
               />
             </div>
 
@@ -324,10 +326,10 @@ export function ConfigPerfilUsuario() {
               <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1.5 block">Telefone / WhatsApp</label>
               <input
                 type="text"
-                value={profile.phone}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3.5 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] transition-all font-mono"
-                placeholder="(00) 00000-0000"
+                value={phoneExibido}
+                readOnly
+                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3.5 py-2 text-xs text-[var(--color-text-muted)] cursor-not-allowed font-mono"
+                placeholder="Não cadastrado"
               />
             </div>
 
@@ -335,12 +337,19 @@ export function ConfigPerfilUsuario() {
               <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1.5 block">Cargo / Título</label>
               <input
                 type="text"
-                value={profile.role}
-                onChange={(e) => setProfile({ ...profile, role: e.target.value })}
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3.5 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] transition-all font-medium"
-                placeholder="Ex: Gestor Comercial"
+                value={cargoExibido}
+                readOnly
+                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3.5 py-2 text-xs text-[var(--color-text-muted)] cursor-not-allowed font-medium"
+                placeholder="Não cadastrado"
               />
             </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-4 py-3">
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Nome, telefone e cargo vêm do seu cadastro em Equipe (RH). Para alterar, edite por lá — se você não tiver permissão, peça ao administrador.
+            </p>
+            <Button type="button" variant="outline" onClick={irParaEquipe} className="h-8 px-3 text-xs font-bold shrink-0">Editar em Equipe (RH)</Button>
           </div>
 
           <div>
@@ -360,7 +369,7 @@ export function ConfigPerfilUsuario() {
               disabled={savingProfile} 
               className="h-9 px-5 text-xs font-bold gap-1.5 shadow-xs"
             >
-              <Save className="w-3.5 h-3.5" /> {savingProfile ? "Salvando..." : "Salvar Alterações"}
+              <Save className="w-3.5 h-3.5" /> {savingProfile ? "Salvando..." : "Salvar Bio"}
             </Button>
           </div>
         </form>
