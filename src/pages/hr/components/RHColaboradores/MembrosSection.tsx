@@ -19,12 +19,14 @@ interface MembrosSectionProps {
   onEditColab: (colab: any) => void;
   onChangeStatus: (colab: any, status: string) => void;
   onDesligar: (colab: any) => void;
+  canManageSessions?: boolean;
+  onCriarSessao?: (colab: any) => void;
 }
 
 export function MembrosSection({
   filtered: filteredBySearch, search, onSearchChange,
   menuOpenId, setMenuOpenId, onVerPerfil, onEditColab,
-  onChangeStatus, onDesligar,
+  onChangeStatus, onDesligar, canManageSessions, onCriarSessao,
 }: MembrosSectionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [depto, setDepto] = useState("");
@@ -158,6 +160,11 @@ export function MembrosSection({
                       <button onClick={() => onChangeStatus(colab, "Ativo")} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
                         <Users className="w-3.5 h-3.5 text-emerald-500" /> Marcar como Ativo
                       </button>
+                      {canManageSessions && onCriarSessao && (
+                        <button onClick={() => onCriarSessao(colab)} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
+                          <Phone className="w-3.5 h-3.5 text-emerald-500" /> Criar sessão do Agente Secreto
+                        </button>
+                      )}
                       <div className="h-px bg-[var(--color-border-subtle)] my-1" />
                       <button onClick={() => onDesligar(colab)} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors text-left cursor-pointer">
                         <UserX className="w-3.5 h-3.5" /> Remover Colaborador

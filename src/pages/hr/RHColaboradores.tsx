@@ -51,6 +51,35 @@ export default function RHColaboradores() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Só cria a sessão de WhatsApp (Agente Secreto) depois que o admin confirma; falha aqui não desfaz o cadastro.
+  const handleCriarSessaoAgenteSecreto = async (colab: { nome: string; user_id?: string | null }) => {
+    setMenuOpenId(null);
+    if (!colab.user_id) {
+      toast.error(`${colab.nome} ainda não tem login no SPY — crie o acesso antes de criar a sessão.`);
+      return;
+    }
+    if (!(await confirmDialog({
+      title: "Criar sessão do Agente Secreto",
+      description: `Criar a sessão de WhatsApp do Agente Secreto para ${colab.nome}? Depois, ${colab.nome} lê o QR code para conectar o número dele.`,
+      confirmText: "Criar sessão",
+    }))) return;
+    try {
+      const res = await apiFetch("/api/whatsapp/instances/for-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: colab.user_id }),
+      });
+      const wa = await res.json().catch(() => ({}));
+      if (res.ok && wa.sessionCreated) {
+        toast.success(wa.created === false ? `${colab.nome} já tinha uma sessão.` : `Sessão criada para ${colab.nome}.`, { description: "No primeiro login, ele verá o QR code para adicionar o Agente Secreto ao WhatsApp dele." });
+      } else {
+        toast.warning(`A sessão de ${colab.nome} não foi criada${wa.error ? `: ${wa.error}` : "."}`, { description: "Tente de novo pelo menu do colaborador ou em Configurações › WhatsApp." });
+      }
+    } catch {
+      toast.warning(`Não foi possível criar a sessão de ${colab.nome} agora.`);
+    }
+  };
+
   const handleSaveMembro = async (data: any) => {
     // Só master/admin do tenant pode criar contas reais de login — checagem de UI
     // (o botão "Novo Registro" já fica escondido pra quem não tem essa permissão),
@@ -112,24 +141,7 @@ export default function RHColaboradores() {
       filial_id: data.filialId || null,
     });
     toast.success(`${data.nome} adicionado à equipe com sucesso!`);
-    if (userId) {
-      // Cria a sessão de WhatsApp do colaborador automaticamente; falha aqui não desfaz o cadastro.
-      try {
-        const res = await apiFetch("/api/whatsapp/instances/for-user", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        });
-        const wa = await res.json().catch(() => ({}));
-        if (res.ok && wa.sessionCreated) {
-          toast.info(`Sessão de WhatsApp criada para ${data.nome}.`, { description: "No primeiro login, ele verá o QR code para adicionar o Agente Secreto ao WhatsApp dele." });
-        } else {
-          toast.warning(`Colaborador criado, mas a sessão de WhatsApp não foi criada${wa.error ? `: ${wa.error}` : "."}`, { description: "Você pode criá-la depois em Configurações › WhatsApp." });
-        }
-      } catch {
-        toast.warning("Colaborador criado, mas não foi possível criar a sessão de WhatsApp agora.");
-      }
-    }
+    if (userId) await handleCriarSessaoAgenteSecreto({ nome: data.nome, user_id: userId });
     if (userId && data.modoAcesso === "convite") {
       const sent = await requestPasswordReset(data.email);
       if (sent.success) toast.info(`Convite enviado para ${data.email}`, { description: "O colaborador define a própria senha pelo link recebido por e-mail." });
@@ -235,6 +247,8 @@ export default function RHColaboradores() {
             menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId}
             onVerPerfil={setPerfilColab} onEditColab={setEditingColab}
             onChangeStatus={handleChangeStatus} onDesligar={handleDesligar}
+            canManageSessions={!!(user?.isMaster || user?.isTenantAdmin)}
+            onCriarSessao={handleCriarSessaoAgenteSecreto}
           />
         ) : (
           <SquadsTabContent

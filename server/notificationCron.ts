@@ -1,4 +1,5 @@
 import { emailNotifyTenant } from "./emailNotify.js";
+import { getWhatsAppProvider, isWahaConfigured } from "./whatsappProvider.js";
 
 const MIN = 60_000;
 // A função serverless morre em 60 s: manda 5 e-mails por vez e para com folga; o que sobrar sai na rodada
@@ -22,6 +23,7 @@ export interface ReminderSummary {
   reunioesProximas: number;
   reunioesNovas: number;
   pagamentos: number;
+  sessoesCaidas: number;
 }
 
 /**
@@ -36,7 +38,7 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
   const now = Date.now();
   const deadline = now + TIME_BUDGET_MS;
   const iso = (ms: number) => new Date(ms).toISOString();
-  const out: ReminderSummary = { tarefasProximas: 0, tarefasVencidas: 0, reunioesProximas: 0, reunioesNovas: 0, pagamentos: 0 };
+  const out: ReminderSummary = { tarefasProximas: 0, tarefasVencidas: 0, reunioesProximas: 0, reunioesNovas: 0, pagamentos: 0, sessoesCaidas: 0 };
 
   const leadInfo = async (ids: (string | null)[]) => {
     const list = [...new Set(ids.filter(Boolean) as string[])];
@@ -126,6 +128,42 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
     });
     out.pagamentos += r.sent;
   });
+
+  // ── Agente Secreto desconectado do WhatsApp (sessão WAHA fora de WORKING) ──
+  // Só colaborador Ativo (quem está de férias/afastado não deve ser cobrado). Avisa o próprio vendedor
+  // (se tiver login) e os administradores, no máximo uma vez por dia por colaborador. Se o WAHA em si não
+  // responder, não alarma ninguém: seria um falso positivo para todos de uma vez.
+  if (isWahaConfigured()) {
+    const { data: sessoes } = await db.from("whatsapp_instances")
+      .select("name, colaborador_id").not("colaborador_id", "is", null).limit(200);
+    const ids = (sessoes || []).map((s: any) => s.colaborador_id);
+    const { data: colabs } = ids.length
+      ? await db.from("colaboradores").select("id, tenant_id, nome, user_id").in("id", ids).eq("status", "Ativo")
+      : { data: [] };
+    const sessaoDe = new Map<string, string>((sessoes || []).map((s: any) => [s.colaborador_id, s.name]));
+    const agentes = (colabs || []).map((c: any) => ({ ...c, waha_session: sessaoDe.get(c.id) }));
+    const provider = getWhatsAppProvider();
+    const dia = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+    await forEachBudgeted((agentes || []) as any[], deadline, async (c) => {
+      let status: string;
+      try { status = (await provider.getConnectionState(c.waha_session)).status; } catch { return; }
+      if (status === "CONNECTED") return;
+      const base = {
+        triggerId: "agente_secreto_desconectado",
+        title: "Agente Secreto desconectado",
+        description: `A sessão de WhatsApp de ${c.nome} caiu. Reconecte lendo o QR code no S.P.Y.`,
+        kind: "error" as const,
+        linkPath: "/app",
+        details: [{ label: "Colaborador", value: c.nome }],
+      };
+      if (c.user_id) {
+        const r = await emailNotifyTenant(db, c.tenant_id, baseUrl, { ...base, userIds: [c.user_id], dedupeKey: `agente_secreto_caiu:${c.id}:${dia}` });
+        out.sessoesCaidas += r.sent;
+      }
+      const a = await emailNotifyTenant(db, c.tenant_id, baseUrl, { ...base, adminsOnly: true, dedupeKey: `agente_secreto_caiu_admin:${c.id}:${dia}` });
+      out.sessoesCaidas += a.sent;
+    });
+  }
 
   return out;
 }

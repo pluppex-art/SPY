@@ -5371,6 +5371,61 @@ app.post("/api/whatsapp/instances/for-user", requireUser, async (req: any, res) 
   }
 });
 
+// Sessão do Agente Secreto do PRÓPRIO usuário logado (whatsapp_instances.colaborador_id). O nome da sessão
+// nunca vem do cliente: sai do colaborador ligado ao login, então ninguém consegue pedir o QR de outra pessoa.
+// Alimenta o aviso "Agente Secreto desconectado" + o botão Reconectar (QR) para o vendedor se reconectar sozinho.
+async function agenteSecretoSessionOf(req: any): Promise<{ nome: string; session: string } | null> {
+  if (!isWahaConfigured()) return null;
+  const { data: colabs } = await req.supabase.from("colaboradores").select("id, nome").eq("user_id", req.user.id).limit(5);
+  if (!colabs?.length) return null;
+  const { data: inst } = await req.supabase
+    .from("whatsapp_instances").select("name, colaborador_id")
+    .in("colaborador_id", colabs.map((c: any) => c.id)).limit(1);
+  const row = inst?.[0];
+  if (!row) return null;
+  return { nome: colabs.find((c: any) => c.id === row.colaborador_id)?.nome || "", session: row.name };
+}
+
+// Nome da sessão no WAHA: sessão pessoal de colaborador (n8n) usa o nome da linha; as demais, o id da linha.
+const sessionNameOf = (inst: any): string => (inst?.colaborador_id ? inst.name : inst.id);
+
+app.get("/api/agente-secreto/minha-sessao", requireUser, whatsappLimiter, async (req: any, res) => {
+  try {
+    const mine = await agenteSecretoSessionOf(req);
+    if (!mine) return res.json({ session: null });
+    try {
+      const state = await getWhatsAppProvider().getConnectionState(mine.session);
+      return res.json({ session: mine.session, nome: mine.nome, status: state.status, phone: state.phone || null });
+    } catch (err: any) {
+      console.error("[agente-secreto/minha-sessao] status", err?.message);
+      return res.json({ session: mine.session, nome: mine.nome, status: "UNKNOWN" });
+    }
+  } catch (err: any) {
+    console.error("[agente-secreto/minha-sessao]", err?.message);
+    res.status(500).json({ error: "Erro ao consultar a sessão do Agente Secreto." });
+  }
+});
+
+app.post("/api/agente-secreto/minha-sessao/qr", requireUser, whatsappLimiter, async (req: any, res) => {
+  try {
+    const mine = await agenteSecretoSessionOf(req);
+    if (!mine) return res.status(404).json({ error: "Você não tem uma sessão do Agente Secreto." });
+    const provider = getWhatsAppProvider();
+    const state = await provider.getConnectionState(mine.session);
+    if (state.status === "CONNECTED") return res.json({ status: "CONNECTED", qrcode: "" });
+    // Sessão caída (FAILED/STOPPED) não gera QR até ser religada; em SCAN_QR_CODE/STARTING já está pronta.
+    if (state.status === "DISCONNECTED" && provider.restartSession) {
+      await provider.restartSession(mine.session);
+      return res.status(202).json({ status: "CONNECTING", qrcode: "", retry: true });
+    }
+    const qr = await provider.getQrCode(mine.session);
+    res.json(qr);
+  } catch (err: any) {
+    console.error("[agente-secreto/minha-sessao/qr]", err?.message);
+    res.status(502).json({ error: "Não foi possível gerar o QR code agora. Tente de novo em alguns segundos." });
+  }
+});
+
 // Sessão de WhatsApp do próprio usuário logado (users.default_whatsapp_instance_id) — usada pelo
 // modal de pareamento no primeiro login. Sem sessão vinculada devolve instance: null.
 app.get("/api/whatsapp/instances/me", requireUser, async (req: any, res) => {
@@ -5392,7 +5447,7 @@ app.post("/api/whatsapp/instances/:id/qrcode", requireUser, async (req: any, res
 
   const provider = getWhatsAppProvider();
   try {
-    const result = await provider.getQrCode(id);
+    const result = await provider.getQrCode(sessionNameOf(inst));
     await req.supabase.from("whatsapp_instances").update({ status: result.status, qrcode: result.qrcode }).eq("id", id);
     res.json(result);
   } catch (err: any) {
@@ -5408,7 +5463,7 @@ app.post("/api/whatsapp/instances/:id/connect", requireUser, async (req: any, re
 
   const provider = getWhatsAppProvider();
   try {
-    const result = await provider.getConnectionState(id);
+    const result = await provider.getConnectionState(sessionNameOf(inst));
     const { data: updated } = await req.supabase
       .from("whatsapp_instances")
       .update({ status: result.status, phone: result.phone ?? inst.phone, qrcode: null })
@@ -5431,6 +5486,7 @@ app.post("/api/whatsapp/instances/:id/backfill", requireUser, async (req: any, r
   const { id } = req.params;
   const { data: inst, error } = await req.supabase.from("whatsapp_instances").select("*").eq("id", id).maybeSingle();
   if (error || !inst) return res.status(404).json({ error: "Instância não encontrada" });
+  if (inst.colaborador_id) return res.status(409).json({ error: "Sessão pessoal de colaborador: o histórico das conversas dele não é importado para o CRM." });
   if (inst.status !== "CONNECTED") return res.status(409).json({ error: "Conecte a instância antes de importar o histórico." });
 
   const provider = getWhatsAppProvider();

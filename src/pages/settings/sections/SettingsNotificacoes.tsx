@@ -74,6 +74,15 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationTrigger[] = [
     whatsapp: true,
   },
   {
+    id: "agente_secreto_desconectado",
+    category: "Produtividade & Agenda",
+    title: "Agente Secreto Desconectado",
+    description: "Avisar quando a sessão do Agente Secreto no WhatsApp cair e precisar de novo QR code",
+    inApp: true,
+    email: true,
+    whatsapp: false,
+  },
+  {
     id: "tarefa_vencida",
     category: "Produtividade & Agenda",
     title: "Tarefa ou Follow-up Vencido",

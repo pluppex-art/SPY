@@ -62,6 +62,8 @@ export interface WhatsAppProvider {
   getQrCode(providerInstanceId: string): Promise<ProviderQrResult>;
   getConnectionState(providerInstanceId: string): Promise<ProviderConnectResult>;
   deleteInstance(providerInstanceId: string): Promise<void>;
+  /** Religa uma sessão que caiu (FAILED/STOPPED) sem apagar o login. Opcional: o Simulador não tem. */
+  restartSession?(providerInstanceId: string): Promise<void>;
   sendTextMessage(providerInstanceId: string, phone: string, text: string): Promise<{ id: string }>;
   /** Backfill: conversas já existentes na sessão antes de conectar ao SPY (o
    * webhook só vê mensagens que chegam DEPOIS de conectado). Provider que não
@@ -191,6 +193,14 @@ export class WAHAProvider implements WhatsAppProvider {
     const rawPhone: string | undefined = data?.me?.id;
     const phone = rawPhone ? rawPhone.replace(/@c\.us$/, "").replace(/@s\.whatsapp\.net$/, "") : undefined;
     return { status, phone };
+  }
+
+  async restartSession(providerInstanceId: string): Promise<void> {
+    await axios.post(
+      `${WAHA_API_URL}/api/sessions/${encodeURIComponent(providerInstanceId)}/restart`,
+      {},
+      { headers: this.headers(), timeout: 20000 }
+    );
   }
 
   async deleteInstance(providerInstanceId: string): Promise<void> {

@@ -14,6 +14,7 @@ export const EMAIL_TRIGGER_DEFAULTS: Record<string, boolean> = {
   proposta_aberta: true,
   venda_fechada: true,
   pagamento_recebido: true,
+  agente_secreto_desconectado: true,
 };
 
 const MAX_RECIPIENTS = 25;
