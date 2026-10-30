@@ -5433,7 +5433,7 @@ app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: 
   try {
     if (!isWahaConfigured()) return res.json({ items: {} });
     const { data: rows } = await req.supabase
-      .from("whatsapp_instances").select("name, colaborador_id").not("colaborador_id", "is", null).limit(500);
+      .from("whatsapp_instances").select("id, name, colaborador_id, status").not("colaborador_id", "is", null).limit(500);
     if (!rows?.length) return res.json({ items: {} });
     const provider = getWhatsAppProvider();
     let states: Record<string, string> = {};
@@ -5444,6 +5444,15 @@ app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: 
     }
     const items: Record<string, string> = {};
     for (const r of rows) items[r.colaborador_id] = states[r.name] || "DISCONNECTED"; // sessão sumiu do WAHA = desconectada
+    // O n8n só trata mensagens de sessões com status CONNECTED em whatsapp_instances. Quem conecta pelo WAHA direto
+    // (ou reconecta depois de uma queda) não passa pela rota antiga que atualizava essa coluna, então o status daqui
+    // acompanha o WAHA: assim "aparece conectado" e "o agente recebe as mensagens" nunca divergem.
+    if (supabaseService) {
+      const mudou = rows.filter((r: any) => r.status !== items[r.colaborador_id]);
+      await Promise.all(mudou.map((r: any) =>
+        supabaseService!.from("whatsapp_instances").update({ status: items[r.colaborador_id], updated_at: new Date().toISOString() }).eq("id", r.id)
+      ));
+    }
     res.json({ items });
   } catch (err: any) {
     console.error("[agente-secreto/equipe]", err?.message);

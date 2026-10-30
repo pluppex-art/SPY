@@ -135,7 +135,7 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
   // responder, não alarma ninguém: seria um falso positivo para todos de uma vez.
   if (isWahaConfigured()) {
     const { data: sessoes } = await db.from("whatsapp_instances")
-      .select("name, colaborador_id").not("colaborador_id", "is", null).limit(200);
+      .select("id, name, colaborador_id, status").not("colaborador_id", "is", null).limit(200);
     const ids = (sessoes || []).map((s: any) => s.colaborador_id);
     const { data: colabs } = ids.length
       ? await db.from("colaboradores").select("id, tenant_id, nome, user_id").in("id", ids).eq("status", "Ativo")
@@ -143,7 +143,14 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
     const sessaoDe = new Map<string, string>((sessoes || []).map((s: any) => [s.colaborador_id, s.name]));
     const agentes = (colabs || []).map((c: any) => ({ ...c, waha_session: sessaoDe.get(c.id) }));
     const provider = getWhatsAppProvider();
-    const dia = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+    // Mantém whatsapp_instances.status igual ao do WAHA (o n8n só trata sessões CONNECTED): uma consulta só para todas.
+    try {
+      const estados = (await provider.listSessionStates?.()) || {};
+      await Promise.all((sessoes || [])
+        .filter((s: any) => estados[s.name] && estados[s.name] !== s.status)
+        .map((s: any) => db.from("whatsapp_instances").update({ status: estados[s.name], updated_at: new Date().toISOString() }).eq("id", s.id)));
+    } catch { /* WAHA fora do ar: não mexe no status */ }
+    const dia =new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
     await forEachBudgeted((agentes || []) as any[], deadline, async (c) => {
       let status: string;
       try { status = (await provider.getConnectionState(c.waha_session)).status; } catch { return; }
