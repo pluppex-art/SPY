@@ -7,6 +7,7 @@ import { useData } from "../../../../contexts/DataContext";
 import { toast } from "sonner";
 import { Funil, FUNIS_DEFAULT, ETAPA_CORES, initStageConfigs } from "./funisTypes";
 import { EtapaCard } from "./EtapaCard";
+import { etapaSistemaDe, etapasSistemaFaltando, funilExigeEtapasSistema } from "../../../../lib/funilStages";
 import { FunilModal } from "./FunilModal";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 
@@ -26,10 +27,23 @@ export function ConfigCRMFunis() {
   const [editingFunil, setEditingFunil] = useState<Funil | null | "new">(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Etapa obrigatória (Ganho/Perdido/Desqualificado) de um funil comercial/SDR: não renomeia nem exclui.
+  const isLockedStage = (f: Funil, nome?: string) => funilExigeEtapasSistema(f.tipo) && !!etapaSistemaDe(nome);
+
   const handleSave = async (f: Funil) => {
     const existing = funis.find(x => x.id === f.id);
-    const mergedConfigs = initStageConfigs(f.etapas, existing?.etapasConfig);
-    const funilWithConfigs = { ...f, etapasConfig: mergedConfigs };
+    // Funil comercial/SDR sempre tem Ganho, Perdido e Desqualificado: se a edição tirou alguma, volta no fim.
+    const faltando = funilExigeEtapasSistema(f.tipo) ? etapasSistemaFaltando(f.etapas) : [];
+    const etapasFinal = [...f.etapas, ...faltando.map(e => e.nome)];
+    const baseConfigs = initStageConfigs(etapasFinal, existing?.etapasConfig);
+    const mergedConfigs = baseConfigs.map(c => {
+      const sys = faltando.find(e => e.nome === c.nome);
+      return sys ? { ...c, cor: sys.cor, iniciarMinimizado: true } : c;
+    });
+    const funilWithConfigs = { ...f, etapas: etapasFinal, etapasConfig: mergedConfigs };
+    if (faltando.length > 0) {
+      toast.info(`Etapas obrigatórias mantidas: ${faltando.map(e => e.nome).join(", ")}.`);
+    }
     if (existing) await updateFunil(f.id, funilWithConfigs);
     else await addFunil(funilWithConfigs);
     toast.success(existing ? `Funil "${f.nome}" atualizado!` : `Funil "${f.nome}" criado!`);
@@ -64,6 +78,10 @@ export function ConfigCRMFunis() {
     if (!f) return;
     const configs = initStageConfigs(f.etapas, f.etapasConfig);
     const oldNome = configs[idx].nome;
+    if (isLockedStage(f, oldNome)) {
+      toast.info(`"${oldNome}" é uma etapa obrigatória e não pode ser renomeada.`);
+      return;
+    }
     updateFunil(funilId, {
       etapas: f.etapas.map((e, i) => i === idx ? newNome : e),
       etapasConfig: configs.map((c, i) => i === idx ? { ...c, nome: newNome } : c),
@@ -77,6 +95,10 @@ export function ConfigCRMFunis() {
     if (!f) return;
     const configs = initStageConfigs(f.etapas, f.etapasConfig);
     const stageName = configs[idx]?.nome || f.etapas[idx];
+    if (isLockedStage(f, stageName)) {
+      toast.info(`"${stageName}" é uma etapa obrigatória do sistema e não pode ser excluída.`);
+      return;
+    }
     if (!(await confirmDialog({
       title: "Excluir etapa",
       description: `Excluir a etapa "${stageName}"? Essa ação não pode ser desfeita.`,
@@ -209,6 +231,7 @@ export function ConfigCRMFunis() {
                                       onDelete={() => handleStageDelete(f.id, idx)}
                                       onUpdate={(patch) => handleStageUpdate(f.id, idx, patch)}
                                       onColorChange={(cor) => handleStageUpdate(f.id, idx, { cor })}
+                                      locked={isLockedStage(f, stage.nome)}
                                     />
                                   </div>
                                 )}

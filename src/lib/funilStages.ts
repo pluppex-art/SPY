@@ -3,6 +3,31 @@
 // useLeadDetails.ts (e agora também precisada pela página de Implementações,
 // pra espelhar o mesmo funil de Implementação do Pipeline). Fonte única.
 
+// Etapas OBRIGATÓRIAS de todo funil comercial/SDR, de qualquer empresa: Ganho, Perdido e Desqualificado.
+// Desqualificado é onde o Agente Secreto joga as conversas que não são comerciais (venda de produto).
+// O papel é reconhecido pelo NOME (então "Venda ganha"/"Venda perdida" do Kommo contam), e a mesma regra
+// é imposta no banco (trigger crm_funis_etapas_obrigatorias) — manter os dois em sincronia.
+export const ETAPAS_SISTEMA = [
+  { id: "ganho", nome: "Ganho", cor: "emerald", re: /ganh[oa]/i },
+  { id: "perdido", nome: "Perdido", cor: "rose", re: /perdid[oa]/i },
+  { id: "desqualificado", nome: "Desqualificado", cor: "slate", re: /desqualific/i },
+] as const;
+
+export const FUNIL_TIPOS_COM_ETAPAS_SISTEMA: readonly string[] = ["comercial", "sdr_ia"];
+
+export const funilExigeEtapasSistema = (tipo?: string | null): boolean =>
+  !!tipo && FUNIL_TIPOS_COM_ETAPAS_SISTEMA.includes(tipo);
+
+/** Papel de sistema da etapa (ganho/perdido/desqualificado) ou null se for uma etapa comum. */
+export function etapaSistemaDe(nome?: string | null) {
+  return ETAPAS_SISTEMA.find((e) => e.re.test(nome || "")) ?? null;
+}
+
+/** Devolve as etapas obrigatórias que o funil ainda não tem (no fim, para não deslocar o id das existentes). */
+export function etapasSistemaFaltando(etapas: string[]) {
+  return ETAPAS_SISTEMA.filter((e) => !etapas.some((n) => e.re.test(n)));
+}
+
 export function getStageId(funilId: string, idx: number): string {
   if (funilId === "funil-comercial-default") return String(idx + 1);
   if (funilId === "funil-sdr-ia-default") return `sdr-${idx + 1}`;

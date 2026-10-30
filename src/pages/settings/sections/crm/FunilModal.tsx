@@ -139,6 +139,9 @@ export function FunilModal({ funil, onClose, onSave, availableClients }: FunilMo
           <label className={labelClass}>Etapas do funil (1 por linha)</label>
           <textarea value={etapasText} onChange={e => setEtapasText(e.target.value)} rows={5} className={inputClass}
             placeholder={"Novo Lead\nContato Feito\nQualificado\nReunião Agendada\nProposta\nNegociação\nGanho"} required />
+          <p className="text-[10px] text-[var(--color-text-faint)] mt-1.5">
+            Em funis comerciais e de SDR, <strong>Ganho</strong>, <strong>Perdido</strong> e <strong>Desqualificado</strong> são obrigatórias: se faltarem, entram no fim automaticamente e não podem ser excluídas.
+          </p>
           {etapas.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {etapas.map((e, i) => (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { GripVertical, Pencil, Trash2 } from "lucide-react";
+import { GripVertical, Lock, Pencil, Trash2 } from "lucide-react";
 import { StageConfig, CORES_LISTA, ETAPA_CORES } from "./funisTypes";
 
 interface EtapaCardProps {
@@ -11,9 +11,11 @@ interface EtapaCardProps {
   onDelete: () => void;
   onUpdate: (patch: Partial<StageConfig>) => void;
   onColorChange: (cor: string) => void;
+  /** Etapa obrigatória do sistema (Ganho/Perdido/Desqualificado): não renomeia nem exclui. */
+  locked?: boolean;
 }
 
-export function EtapaCard({ stage, idx, corInfo, dragHandleProps, onRename, onDelete, onUpdate, onColorChange }: EtapaCardProps) {
+export function EtapaCard({ stage, idx, corInfo, dragHandleProps, onRename, onDelete, onUpdate, onColorChange, locked }: EtapaCardProps) {
   const [editing, setEditing] = useState(false);
   const [nome, setNome] = useState(stage.nome);
   const [showPicker, setShowPicker] = useState(false);
@@ -34,14 +36,23 @@ export function EtapaCard({ stage, idx, corInfo, dragHandleProps, onRename, onDe
           <span {...(dragHandleProps ?? {})} className="cursor-grab active:cursor-grabbing p-0.5 rounded text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] transition-colors">
             <GripVertical className="w-4 h-4" />
           </span>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setEditing(true)} className="p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors rounded">
-              <Pencil className="w-3 h-3" />
-            </button>
-            <button onClick={onDelete} className="p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-danger hover:bg-danger/10 hover:border-danger/25 transition-colors rounded">
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
+          {locked ? (
+            <span
+              className="flex items-center gap-1 px-1.5 py-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] rounded text-[8px] font-black uppercase tracking-widest"
+              title="Etapa obrigatória do sistema: não pode ser renomeada nem excluída."
+            >
+              <Lock className="w-3 h-3" /> Obrigatória
+            </span>
+          ) : (
+            <div className="flex items-center gap-1">
+              <button onClick={() => setEditing(true)} className="p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors rounded">
+                <Pencil className="w-3 h-3" />
+              </button>
+              <button onClick={onDelete} className="p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-danger hover:bg-danger/10 hover:border-danger/25 transition-colors rounded">
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 mb-3">
@@ -73,6 +84,8 @@ export function EtapaCard({ stage, idx, corInfo, dragHandleProps, onRename, onDe
               onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") { setNome(stage.nome); setEditing(false); } }}
               className="text-xs font-bold bg-transparent border-b border-[var(--color-primary-blue)] text-[var(--color-text-primary)] outline-none flex-1 min-w-0"
             />
+          ) : locked ? (
+            <span className="text-xs font-bold text-[var(--color-text-primary)] truncate text-left flex-1 min-w-0">{stage.nome}</span>
           ) : (
             <button onClick={() => setEditing(true)} className="text-xs font-bold text-[var(--color-text-primary)] truncate text-left hover:text-[var(--color-primary-blue)] transition-colors flex-1 min-w-0">
               {stage.nome}
