@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
-import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
+import { AgenteSecretoQrModal } from "./AgenteSecretoQrModal";
 import { apiFetch } from "../lib/apiClient";
 import { useAuth } from "../contexts/AuthContext";
 
 const STATUS_POLL_MS = 60_000;
-const QR_REFRESH_MS = 20_000; // o QR do WhatsApp expira em ~20s
-const QR_RETRY_MS = 3_000; // sessão acabou de ser religada: o QR leva alguns segundos para existir
-const MODAL_STATUS_POLL_MS = 3_000;
+/** Disparado quando o status do Agente Secreto muda (ex.: conectou pela página de configurações). */
+export const AGENTE_SECRETO_STATUS_EVENT = "agente-secreto-status";
 
 type Status = "CONNECTED" | "CONNECTING" | "DISCONNECTED" | "UNKNOWN";
 
@@ -22,9 +21,6 @@ export function AgenteSecretoConexao() {
   const [ativo, setAtivo] = useState(true); // pausado por férias/afastamento: não é queda, não mostra aviso
   const [status, setStatus] = useState<Status>("CONNECTED");
   const [open, setOpen] = useState(false);
-  const [qr, setQr] = useState("");
-  const [error, setError] = useState("");
-  const closedRef = useRef(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -44,52 +40,9 @@ export function AgenteSecretoConexao() {
     if (!user?.id) return;
     loadStatus();
     const t = setInterval(loadStatus, STATUS_POLL_MS);
-    return () => clearInterval(t);
+    window.addEventListener(AGENTE_SECRETO_STATUS_EVENT, loadStatus);
+    return () => { clearInterval(t); window.removeEventListener(AGENTE_SECRETO_STATUS_EVENT, loadStatus); };
   }, [user?.id, loadStatus]);
-
-  useEffect(() => {
-    if (!open) return;
-    closedRef.current = false;
-    let qrTimer: ReturnType<typeof setTimeout> | undefined;
-
-    const refreshQr = async () => {
-      let next = QR_REFRESH_MS;
-      try {
-        const r = await apiFetch("/api/agente-secreto/minha-sessao/qr", { method: "POST" });
-        const data = await r.json().catch(() => ({}));
-        if (closedRef.current) return;
-        if (data.status === "CONNECTED") {
-          setStatus("CONNECTED");
-          setOpen(false);
-          toast.success("Agente Secreto reconectado!");
-          return;
-        }
-        if (r.ok && data.qrcode) { setQr(data.qrcode); setError(""); }
-        else if (data.retry) { next = QR_RETRY_MS; setError("Religando a sessão…"); }
-        else { next = QR_RETRY_MS; setError(data.error || "Não foi possível gerar o QR code."); }
-      } catch {
-        next = QR_RETRY_MS;
-        if (!closedRef.current) setError("Não foi possível gerar o QR code.");
-      }
-      if (!closedRef.current) qrTimer = setTimeout(refreshQr, next);
-    };
-
-    const checkStatus = async () => {
-      const s = await loadStatus();
-      if (!closedRef.current && s === "CONNECTED") {
-        toast.success("Agente Secreto reconectado!");
-        setOpen(false);
-      }
-    };
-
-    refreshQr();
-    const statusTimer = setInterval(checkStatus, MODAL_STATUS_POLL_MS);
-    return () => {
-      closedRef.current = true;
-      if (qrTimer) clearTimeout(qrTimer);
-      clearInterval(statusTimer);
-    };
-  }, [open, loadStatus]);
 
   if (!hasSession || !ativo || status === "CONNECTED" || status === "UNKNOWN") return null;
 
@@ -104,31 +57,20 @@ export function AgenteSecretoConexao() {
           <p className="font-bold text-[var(--color-text-primary)]">Agente Secreto desconectado</p>
           <p className="text-[var(--color-text-muted)]">Ele parou de acompanhar suas conversas no WhatsApp.</p>
         </div>
-        <Button size="sm" onClick={() => { setQr(""); setError(""); setOpen(true); }}>Reconectar</Button>
+        <Button size="sm" onClick={() => setOpen(true)}>Reconectar</Button>
       </div>
 
-      <Modal
-        isOpen={open}
+      <AgenteSecretoQrModal
+        open={open}
         onClose={() => setOpen(false)}
         title="Reconectar o Agente Secreto"
-        description="Leia o QR code com o WhatsApp do seu celular."
-        footer={<Button variant="ghost" onClick={() => setOpen(false)}>Fechar</Button>}
-      >
-        <ol className="text-sm text-[var(--color-text-muted)] list-decimal pl-5 space-y-1 mb-4">
-          <li>Abra o WhatsApp no celular.</li>
-          <li>Vá em Aparelhos conectados › Conectar um aparelho.</li>
-          <li>Aponte a câmera para o QR code abaixo.</li>
-        </ol>
-        <div className="flex items-center justify-center min-h-[260px] rounded-xl bg-white p-3">
-          {qr.startsWith("data:") ? (
-            <img src={qr} alt="QR code do WhatsApp" className="w-60 h-60" />
-          ) : (
-            <span className="text-sm text-neutral-500">{error || "Gerando QR code..."}</span>
-          )}
-        </div>
-        {error && qr && <p className="text-xs text-amber-400 mt-2">{error}</p>}
-        <p className="text-xs text-[var(--color-text-muted)] mt-3 text-center">O QR é renovado automaticamente.</p>
-      </Modal>
+        checkConnected={async () => (await loadStatus()) === "CONNECTED"}
+        onConnected={() => {
+          setStatus("CONNECTED");
+          setOpen(false);
+          toast.success("Agente Secreto reconectado!");
+        }}
+      />
     </>
   );
 }
