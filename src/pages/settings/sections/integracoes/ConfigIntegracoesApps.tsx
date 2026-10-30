@@ -204,20 +204,20 @@ function MaxDataConnectionModal({
           NF-e não está ligado.
         </Alert>
         <FormField label="URL base da API" required hint="Servidor da MaxAPI deste cliente com /v2 (ex.: http://IP:porta/v2) — pedir à Max Data. Não é o link da documentação">
-          <Input type="text" value={config.apiUrl} onChange={(e) => setConfig((p) => ({ ...p, apiUrl: e.target.value }))} placeholder="http://IP:porta/v2" />
+          <Input type="text" name={`maxdata-${which}-url`} autoComplete="off" value={config.apiUrl} onChange={(e) => setConfig((p) => ({ ...p, apiUrl: e.target.value }))} placeholder="http://IP:porta/v2" />
         </FormField>
         <FormField label="Nome da aplicação (application_name)" required>
-          <Input type="text" value={config.clientId} onChange={(e) => setConfig((p) => ({ ...p, clientId: e.target.value }))} />
+          <Input type="text" name={`maxdata-${which}-app-name`} autoComplete="off" data-1p-ignore data-lpignore="true" value={config.clientId} onChange={(e) => setConfig((p) => ({ ...p, clientId: e.target.value }))} />
         </FormField>
         <FormField label="Chave da aplicação (application_key)" required hint="Fica guardada neste ambiente e nunca aparece em relatórios nem links">
-          <Input type="password" autoComplete="off" value={config.apiKey} onChange={(e) => setConfig((p) => ({ ...p, apiKey: e.target.value }))} />
+          <Input type="text" style={{ WebkitTextSecurity: "disc" } as React.CSSProperties} name={`maxdata-${which}-app-key`} autoComplete="off" data-1p-ignore data-lpignore="true" value={config.apiKey} onChange={(e) => setConfig((p) => ({ ...p, apiKey: e.target.value }))} />
         </FormField>
         <FormField label="Descrição da aplicação (application_description)" required>
-          <Input type="text" value={config.applicationDescription} onChange={(e) => setConfig((p) => ({ ...p, applicationDescription: e.target.value }))} placeholder="EMPRESA_SPYCRM" />
+          <Input type="text" name={`maxdata-${which}-app-desc`} autoComplete="off" value={config.applicationDescription} onChange={(e) => setConfig((p) => ({ ...p, applicationDescription: e.target.value }))} placeholder="EMPRESA_SPYCRM" />
         </FormField>
         <div className="grid grid-cols-3 gap-3">
           <FormField label="Terminal" required hint="Ex.: PDV01">
-            <Input type="text" value={config.terminal} onChange={(e) => setConfig((p) => ({ ...p, terminal: e.target.value }))} />
+            <Input type="text" name={`maxdata-${which}-terminal`} autoComplete="off" value={config.terminal} onChange={(e) => setConfig((p) => ({ ...p, terminal: e.target.value }))} />
           </FormField>
           <FormField label="ID da empresa (empId)" required>
             <Input type="text" inputMode="numeric" value={config.empId} onChange={(e) => setConfig((p) => ({ ...p, empId: e.target.value.replace(/\D/g, "") }))} />
