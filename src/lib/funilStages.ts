@@ -13,10 +13,10 @@ export const ETAPAS_SISTEMA = [
   { id: "desqualificado", nome: "Desqualificado", cor: "slate", re: /desqualific/i },
 ] as const;
 
-export const FUNIL_TIPOS_COM_ETAPAS_SISTEMA: readonly string[] = ["comercial", "sdr_ia"];
-
+// Vale para sdr_ia e para todo tipo "comercial*" — inclusive funis importados (Kommo) e arquivados
+// ("comercial_arquivado_kommo"), para que arquivar um funil não o tire da regra. Funis de Serviço/OS ficam de fora.
 export const funilExigeEtapasSistema = (tipo?: string | null): boolean =>
-  !!tipo && FUNIL_TIPOS_COM_ETAPAS_SISTEMA.includes(tipo);
+  !!tipo && (tipo === "sdr_ia" || tipo.startsWith("comercial"));
 
 /** Papel de sistema da etapa (ganho/perdido/desqualificado) ou null se for uma etapa comum. */
 export function etapaSistemaDe(nome?: string | null) {

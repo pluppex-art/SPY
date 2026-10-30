@@ -1,0 +1,6 @@
+-- Estende a regra das etapas obrigatórias (Ganho · Perdido · Desqualificado) a TODO funil comercial, inclusive
+-- importados (Kommo) e arquivados ("comercial_arquivado_kommo"): arquivar um funil não o tira mais da regra.
+-- Mesma função de 20261031_etapas_obrigatorias_funil.sql; só muda a condição de tipo (sdr_ia ou comercial%).
+-- Funis de Serviço/OS ficam de fora. (Aplicado em produção em 2026-10-30.)
+-- Corpo completo: ver create or replace function em 20261031_etapas_obrigatorias_funil.sql, trocando o filtro de tipo por
+--   if new.tipo is null or not (new.tipo = 'sdr_ia' or new.tipo like 'comercial%') then return new; end if;
