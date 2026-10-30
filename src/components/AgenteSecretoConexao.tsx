@@ -19,6 +19,7 @@ type Status = "CONNECTED" | "CONNECTING" | "DISCONNECTED" | "UNKNOWN";
 export function AgenteSecretoConexao() {
   const { user } = useAuth();
   const [hasSession, setHasSession] = useState(false);
+  const [ativo, setAtivo] = useState(true); // pausado por férias/afastamento: não é queda, não mostra aviso
   const [status, setStatus] = useState<Status>("CONNECTED");
   const [open, setOpen] = useState(false);
   const [qr, setQr] = useState("");
@@ -31,6 +32,7 @@ export function AgenteSecretoConexao() {
       const data = r.ok ? await r.json().catch(() => null) : null;
       if (!data?.session) { setHasSession(false); return null; }
       setHasSession(true);
+      setAtivo(data.ativo !== false);
       setStatus(data.status as Status);
       return data.status as Status;
     } catch {
@@ -89,7 +91,7 @@ export function AgenteSecretoConexao() {
     };
   }, [open, loadStatus]);
 
-  if (!hasSession || status === "CONNECTED" || status === "UNKNOWN") return null;
+  if (!hasSession || !ativo || status === "CONNECTED" || status === "UNKNOWN") return null;
 
   return (
     <>

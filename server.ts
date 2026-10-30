@@ -5374,16 +5374,17 @@ app.post("/api/whatsapp/instances/for-user", requireUser, async (req: any, res) 
 // Sessão do Agente Secreto do PRÓPRIO usuário logado (whatsapp_instances.colaborador_id). O nome da sessão
 // nunca vem do cliente: sai do colaborador ligado ao login, então ninguém consegue pedir o QR de outra pessoa.
 // Alimenta o aviso "Agente Secreto desconectado" + o botão Reconectar (QR) para o vendedor se reconectar sozinho.
-async function agenteSecretoSessionOf(req: any): Promise<{ nome: string; session: string } | null> {
+async function agenteSecretoSessionOf(req: any): Promise<{ nome: string; session: string; ativo: boolean } | null> {
   if (!isWahaConfigured()) return null;
-  const { data: colabs } = await req.supabase.from("colaboradores").select("id, nome").eq("user_id", req.user.id).limit(5);
+  const { data: colabs } = await req.supabase.from("colaboradores").select("id, nome, status").eq("user_id", req.user.id).limit(5);
   if (!colabs?.length) return null;
   const { data: inst } = await req.supabase
     .from("whatsapp_instances").select("name, colaborador_id")
     .in("colaborador_id", colabs.map((c: any) => c.id)).limit(1);
   const row = inst?.[0];
   if (!row) return null;
-  return { nome: colabs.find((c: any) => c.id === row.colaborador_id)?.nome || "", session: row.name };
+  const colab = colabs.find((c: any) => c.id === row.colaborador_id);
+  return { nome: colab?.nome || "", session: row.name, ativo: colab?.status === "Ativo" };
 }
 
 // Nome da sessão no WAHA: sessão pessoal de colaborador (n8n) usa o nome da linha; as demais, o id da linha.
@@ -5395,10 +5396,10 @@ app.get("/api/agente-secreto/minha-sessao", requireUser, whatsappLimiter, async 
     if (!mine) return res.json({ session: null });
     try {
       const state = await getWhatsAppProvider().getConnectionState(mine.session);
-      return res.json({ session: mine.session, nome: mine.nome, status: state.status, phone: state.phone || null });
+      return res.json({ session: mine.session, nome: mine.nome, status: state.status, phone: state.phone || null, ativo: mine.ativo });
     } catch (err: any) {
       console.error("[agente-secreto/minha-sessao] status", err?.message);
-      return res.json({ session: mine.session, nome: mine.nome, status: "UNKNOWN" });
+      return res.json({ session: mine.session, nome: mine.nome, status: "UNKNOWN", ativo: mine.ativo });
     }
   } catch (err: any) {
     console.error("[agente-secreto/minha-sessao]", err?.message);
@@ -5423,6 +5424,96 @@ app.post("/api/agente-secreto/minha-sessao/qr", requireUser, whatsappLimiter, as
   } catch (err: any) {
     console.error("[agente-secreto/minha-sessao/qr]", err?.message);
     res.status(502).json({ error: "Não foi possível gerar o QR code agora. Tente de novo em alguns segundos." });
+  }
+});
+
+const isTenantAdminReq = async (req: any): Promise<boolean> => {
+  const { data } = await req.supabase.from("users").select("is_master, is_tenant_admin").eq("id", req.user.id).maybeSingle();
+  return !!(data?.is_master || data?.is_tenant_admin);
+};
+
+// Cria a sessão do Agente Secreto de um colaborador no MESMO padrão das outras sessões pessoais da empresa:
+// copia o webhook (n8n, com o segredo) de uma sessão-modelo do tenant, só com o evento message.any.
+// Sem sessão-modelo na empresa não inventa webhook: pede para configurar a primeira.
+app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req: any, res) => {
+  const colaboradorId = String(req.body?.colaboradorId || "");
+  if (!/^[\w-]{1,64}$/.test(colaboradorId)) return res.status(400).json({ error: "colaboradorId inválido." });
+  try {
+    if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores podem criar sessões do Agente Secreto." });
+    const provider = getWhatsAppProvider();
+    if (!isWahaConfigured() || !provider.getSessionConfig || !provider.createSessionWithConfig) {
+      return res.status(503).json({ error: "WhatsApp (WAHA) não está configurado neste ambiente." });
+    }
+    const { data: colab } = await req.supabase.from("colaboradores").select("id, nome, tenant_id").eq("id", colaboradorId).maybeSingle();
+    if (!colab) return res.status(404).json({ error: "Colaborador não encontrado." });
+
+    const { data: existing } = await req.supabase.from("whatsapp_instances").select("id, name").eq("colaborador_id", colab.id).limit(1);
+    if (existing?.[0]) return res.json({ created: false, name: existing[0].name });
+
+    const { data: modelos } = await req.supabase.from("whatsapp_instances")
+      .select("name, webhook_url").eq("tenant_id", colab.tenant_id).not("colaborador_id", "is", null).limit(5);
+    let webhooks: any[] | null = null;
+    let webhookUrl: string | null = null;
+    for (const m of modelos || []) {
+      try {
+        const cfg = await provider.getSessionConfig(m.name);
+        if (Array.isArray(cfg?.webhooks) && cfg!.webhooks.length) {
+          webhooks = cfg!.webhooks.map((w: any) => ({ ...w, events: ["message.any"] }));
+          webhookUrl = m.webhook_url || null;
+          break;
+        }
+      } catch { /* tenta o próximo modelo */ }
+    }
+    if (!webhooks) return res.status(409).json({ error: "Esta empresa ainda não tem uma sessão modelo do Agente Secreto para copiar o webhook." });
+
+    const primeiroNome = String(colab.nome || "Colaborador").trim().split(/\s+/)[0]
+      .normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]/g, "") || "Colaborador";
+    let name = `agente-secreto-${primeiroNome}`;
+    for (let i = 2; i < 10; i++) {
+      const { data: taken } = await req.supabase.from("whatsapp_instances").select("id").eq("tenant_id", colab.tenant_id).eq("name", name).limit(1);
+      if (!taken?.length) break;
+      name = `agente-secreto-${primeiroNome}-${i}`;
+    }
+
+    await provider.createSessionWithConfig(name, {
+      webhooks,
+      ignore: { status: true, groups: true, channels: true, broadcast: true },
+      gows: { storage: { messages: true, groups: true, chats: true, labels: true, contacts: true } },
+    });
+    const { error: insErr } = await req.supabase.from("whatsapp_instances").insert({
+      tenant_id: colab.tenant_id, name, status: "DISCONNECTED", provider: provider.name, webhook_url: webhookUrl, colaborador_id: colab.id,
+    });
+    if (insErr) {
+      console.error("[agente-secreto/sessoes] insert", insErr.message);
+      return res.status(500).json({ error: "Sessão criada no WAHA, mas não foi possível registrá-la no SPY." });
+    }
+    res.status(201).json({ created: true, name });
+  } catch (err: any) {
+    console.error("[agente-secreto/sessoes]", err?.message);
+    res.status(502).json({ error: "Não foi possível criar a sessão agora." });
+  }
+});
+
+// Pausa (férias/afastado/inativo) ou retoma (ativo) a sessão do colaborador no WAHA, sem apagar o login:
+// pausada, o WAHA não entrega mensagens ao n8n e o Agente Secreto dele para de agir; ao voltar, é só religar.
+app.post("/api/agente-secreto/sessoes/:colaboradorId/pausa", requireUser, whatsappLimiter, async (req: any, res) => {
+  const colaboradorId = String(req.params.colaboradorId || "");
+  if (!/^[\w-]{1,64}$/.test(colaboradorId)) return res.status(400).json({ error: "colaboradorId inválido." });
+  try {
+    if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores." });
+    const { data: colab } = await req.supabase.from("colaboradores").select("id").eq("id", colaboradorId).maybeSingle();
+    if (!colab) return res.status(404).json({ error: "Colaborador não encontrado." });
+    const { data: inst } = await req.supabase.from("whatsapp_instances").select("name").eq("colaborador_id", colab.id).limit(1);
+    if (!inst?.[0]) return res.json({ session: null });
+    const provider = getWhatsAppProvider();
+    const pausado = req.body?.pausado === true;
+    const act = pausado ? provider.stopSession : provider.startSession;
+    if (!isWahaConfigured() || !act) return res.json({ session: inst[0].name, applied: false });
+    await act.call(provider, inst[0].name);
+    res.json({ session: inst[0].name, applied: true, pausado });
+  } catch (err: any) {
+    console.error("[agente-secreto/pausa]", err?.message);
+    res.status(502).json({ error: "Não foi possível pausar/retomar a sessão agora." });
   }
 });
 

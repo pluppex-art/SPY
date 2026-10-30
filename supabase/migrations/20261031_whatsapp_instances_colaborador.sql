@@ -9,5 +9,5 @@ create index if not exists whatsapp_instances_colaborador_idx on public.whatsapp
 update public.whatsapp_instances set colaborador_id = '1790778055322' where id = '0349e921-7ed8-4c5f-9371-02693f1bbe7b' and tenant_id = '85917b01-b7c6-4ca6-95cb-6afe8393f72f';
 insert into public.whatsapp_instances (tenant_id, name, status, provider, webhook_url, colaborador_id)
 select '85917b01-b7c6-4ca6-95cb-6afe8393f72f', v.name, 'DISCONNECTED', 'waha', 'https://n8n.spycrm.com.br/webhook/spy-agente-secreto-direto-negocio-fora-da-curva', v.colab
-from (values ('agente-secreto-Jakeline','kommo-85917b01-15644136'), ('agente-secreto-Thaina','kommo-85917b01-15927512')) as v(name, colab)
+from (values ('agente-secreto-Jakeline','kommo-85917b01-15644136'), ('agente-secreto-Thaina','kommo-85917b01-15927512'), ('agente-secreto-MariaEduarda','kommo-85917b01-15471288')) as v(name, colab)
 where not exists (select 1 from public.whatsapp_instances w where w.colaborador_id = v.colab);

@@ -64,6 +64,12 @@ export interface WhatsAppProvider {
   deleteInstance(providerInstanceId: string): Promise<void>;
   /** Religa uma sessão que caiu (FAILED/STOPPED) sem apagar o login. Opcional: o Simulador não tem. */
   restartSession?(providerInstanceId: string): Promise<void>;
+  /** Pausa/retoma uma sessão sem apagar o login (férias, afastamento). Opcionais: o Simulador não tem. */
+  stopSession?(providerInstanceId: string): Promise<void>;
+  startSession?(providerInstanceId: string): Promise<void>;
+  /** Config (webhooks etc.) de uma sessão existente e criação de outra com ela — usado para clonar o padrão de uma empresa. */
+  getSessionConfig?(providerInstanceId: string): Promise<Record<string, any> | null>;
+  createSessionWithConfig?(sessionName: string, config: Record<string, any>): Promise<void>;
   sendTextMessage(providerInstanceId: string, phone: string, text: string): Promise<{ id: string }>;
   /** Backfill: conversas já existentes na sessão antes de conectar ao SPY (o
    * webhook só vê mensagens que chegam DEPOIS de conectado). Provider que não
@@ -193,6 +199,23 @@ export class WAHAProvider implements WhatsAppProvider {
     const rawPhone: string | undefined = data?.me?.id;
     const phone = rawPhone ? rawPhone.replace(/@c\.us$/, "").replace(/@s\.whatsapp\.net$/, "") : undefined;
     return { status, phone };
+  }
+
+  async stopSession(providerInstanceId: string): Promise<void> {
+    await axios.post(`${WAHA_API_URL}/api/sessions/${encodeURIComponent(providerInstanceId)}/stop`, {}, { headers: this.headers(), timeout: 20000 });
+  }
+
+  async startSession(providerInstanceId: string): Promise<void> {
+    await axios.post(`${WAHA_API_URL}/api/sessions/${encodeURIComponent(providerInstanceId)}/start`, {}, { headers: this.headers(), timeout: 20000 });
+  }
+
+  async getSessionConfig(providerInstanceId: string): Promise<Record<string, any> | null> {
+    const { data } = await axios.get(`${WAHA_API_URL}/api/sessions/${encodeURIComponent(providerInstanceId)}`, { headers: this.headers(), timeout: 20000 });
+    return data?.config || null;
+  }
+
+  async createSessionWithConfig(sessionName: string, config: Record<string, any>): Promise<void> {
+    await axios.post(`${WAHA_API_URL}/api/sessions`, { name: sessionName, start: true, config }, { headers: this.headers(), timeout: 20000 });
   }
 
   async restartSession(providerInstanceId: string): Promise<void> {

@@ -52,31 +52,51 @@ export default function RHColaboradores() {
   }, []);
 
   // Só cria a sessão de WhatsApp (Agente Secreto) depois que o admin confirma; falha aqui não desfaz o cadastro.
-  const handleCriarSessaoAgenteSecreto = async (colab: { nome: string; user_id?: string | null }) => {
+  const handleCriarSessaoAgenteSecreto = async (colab: { nome: string; id: string }) => {
     setMenuOpenId(null);
-    if (!colab.user_id) {
-      toast.error(`${colab.nome} ainda não tem login no SPY — crie o acesso antes de criar a sessão.`);
-      return;
-    }
     if (!(await confirmDialog({
       title: "Criar sessão do Agente Secreto",
       description: `Criar a sessão de WhatsApp do Agente Secreto para ${colab.nome}? Depois, ${colab.nome} lê o QR code para conectar o número dele.`,
       confirmText: "Criar sessão",
     }))) return;
+    const criar = () => apiFetch("/api/agente-secreto/sessoes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ colaboradorId: colab.id }),
+    });
     try {
-      const res = await apiFetch("/api/whatsapp/instances/for-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: colab.user_id }),
-      });
+      let res = await criar();
+      // Colaborador recém-cadastrado: o registro pode ainda estar sendo gravado.
+      if (res.status === 404) { await new Promise((r) => setTimeout(r, 1500)); res = await criar(); }
       const wa = await res.json().catch(() => ({}));
-      if (res.ok && wa.sessionCreated) {
-        toast.success(wa.created === false ? `${colab.nome} já tinha uma sessão.` : `Sessão criada para ${colab.nome}.`, { description: "No primeiro login, ele verá o QR code para adicionar o Agente Secreto ao WhatsApp dele." });
+      if (res.ok) {
+        toast.success(wa.created === false ? `${colab.nome} já tinha uma sessão.` : `Sessão criada para ${colab.nome}.`, { description: "Quando ele entrar no S.P.Y., o aviso Reconectar mostra o QR code para conectar o WhatsApp." });
       } else {
-        toast.warning(`A sessão de ${colab.nome} não foi criada${wa.error ? `: ${wa.error}` : "."}`, { description: "Tente de novo pelo menu do colaborador ou em Configurações › WhatsApp." });
+        toast.warning(`A sessão de ${colab.nome} não foi criada${wa.error ? `: ${wa.error}` : "."}`, { description: "Tente de novo pelo menu do colaborador." });
       }
     } catch {
       toast.warning(`Não foi possível criar a sessão de ${colab.nome} agora.`);
+    }
+  };
+
+  // Férias/afastado/inativo pausa a sessão do Agente Secreto do colaborador; voltar a Ativo religa.
+  // Quem não tem sessão ignora (o servidor devolve session: null). Falha só avisa — o status já foi salvo.
+  const sincronizarSessaoComStatus = async (colabId: string, nome: string, novoStatus: string) => {
+    const pausado = novoStatus !== "Ativo";
+    try {
+      const res = await apiFetch(`/api/agente-secreto/sessoes/${encodeURIComponent(colabId)}/pausa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pausado }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.applied) {
+        toast.info(pausado ? `Agente Secreto de ${nome} pausado.` : `Agente Secreto de ${nome} religado.`, pausado ? undefined : { description: "Se a sessão pedir, ele lê o QR code de novo pelo aviso Reconectar." });
+      } else if (!res.ok) {
+        toast.warning(`Status salvo, mas não foi possível ${pausado ? "pausar" : "religar"} o Agente Secreto de ${nome}.`);
+      }
+    } catch {
+      toast.warning(`Status salvo, mas não foi possível ${pausado ? "pausar" : "religar"} o Agente Secreto de ${nome}.`);
     }
   };
 
@@ -125,8 +145,9 @@ export default function RHColaboradores() {
       }
     }
 
+    const novoColabId = Date.now().toString();
     addColaborador({
-      id: Date.now().toString(),
+      id: novoColabId,
       nome: data.nome,
       email: data.email,
       phone: data.phone || "",
@@ -141,7 +162,7 @@ export default function RHColaboradores() {
       filial_id: data.filialId || null,
     });
     toast.success(`${data.nome} adicionado à equipe com sucesso!`);
-    if (userId) await handleCriarSessaoAgenteSecreto({ nome: data.nome, user_id: userId });
+    if (userId) await handleCriarSessaoAgenteSecreto({ nome: data.nome, id: novoColabId });
     if (userId && data.modoAcesso === "convite") {
       const sent = await requestPasswordReset(data.email);
       if (sent.success) toast.info(`Convite enviado para ${data.email}`, { description: "O colaborador define a própria senha pelo link recebido por e-mail." });
@@ -169,6 +190,9 @@ export default function RHColaboradores() {
     }
     updateColaborador(id, updates);
     toast.success(`${updates.nome} atualizado com sucesso!`);
+    if (updates?.status !== undefined && anterior && updates.status !== anterior.status) {
+      void sincronizarSessaoComStatus(id, updates.nome || anterior.nome, updates.status);
+    }
     if (tenantAccess) {
       const result = await setUserPartnerTenantAccess(
         tenantAccess.userId,
@@ -188,6 +212,7 @@ export default function RHColaboradores() {
     updateColaborador(colab.id, { status: novoStatus });
     setMenuOpenId(null);
     toast.success(`Status de ${colab.nome} alterado para ${novoStatus}.`);
+    if (colab.status !== novoStatus) void sincronizarSessaoComStatus(colab.id, colab.nome, novoStatus);
   };
 
   const handleDesligar = async (colab: any) => {
