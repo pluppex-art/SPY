@@ -7,9 +7,7 @@ export { ConfigFinanceiroBloqueioPeriodo, ConfigFinanceiroAuditoria } from "./se
 export { ConfigEngajamentoModelos, ConfigEngajamentoAutomacoes, ConfigBusinessDashboard } from "./sections/SettingsEngajamento";
 export { ConfigIntegracoesApps, ConfigIntegracoesSMTP, ConfigIntegracoesSDR } from "./sections/SettingsIntegracoes";
 export { ConfigNotificacoesPreferencias } from "./sections/SettingsNotificacoes";
-export { ConfigPerfilUsuario } from "./sections/usuario/ConfigPerfilUsuario";
-export { ConfigAgenteSecreto } from "./sections/usuario/ConfigAgenteSecreto";
-export { ConfigPreferenciasSistema } from "./sections/usuario/ConfigPreferenciasSistema";
+export { ConfigPerfilUsuario } from "./sections/usuario/ConfigPerfilUsuario";export { ConfigPreferenciasSistema } from "./sections/usuario/ConfigPreferenciasSistema";
 export { ConfigSistemaBackups, ConfigSistemaAuroraUso } from "./sections/SettingsSistema";
 export { ConfigSistemaConhecimentoIA } from "./sections/SettingsSistemaConhecimento";
 export { ConfigSistemaAprendizados } from "./sections/SettingsSistemaAprendizados";

@@ -30,9 +30,7 @@ export default function SettingsLayout() {
       items: [
         { title: "Meu Perfil & Conta", path: "/app/configuracoes/usuario/perfil" },
         { title: "Preferências do Sistema", path: "/app/configuracoes/usuario/preferencias" },
-        { title: "Preferências de Notificação", path: "/app/configuracoes/usuario/notificacoes" },
-        { title: "Meu Agente Secreto", path: "/app/configuracoes/usuario/agente-secreto" },
-      ],
+        { title: "Preferências de Notificação", path: "/app/configuracoes/usuario/notificacoes" },      ],
     },
     {
       title: "Empresa",

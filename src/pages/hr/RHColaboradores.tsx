@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../contexts/AuthContext";
 import { MembrosSection } from "./components/RHColaboradores/MembrosSection";
+import { AgenteSecretoQrModal } from "../../components/AgenteSecretoQrModal";
+import { AGENTE_SECRETO_STATUS_EVENT } from "../../components/AgenteSecretoConexao";
 import { NewSquadModal } from "./components/RHColaboradores/NewSquadModal";
 import { ColaboradorPerfilModal } from "./components/RHColaboradores/ColaboradorPerfilModal";
 
@@ -38,6 +40,7 @@ export default function RHColaboradores() {
   const [perfilColab, setPerfilColab] = useState<any | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [editingColab, setEditingColab] = useState<any | null>(null);
+  const [qrAberto, setQrAberto] = useState(false);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -76,6 +79,30 @@ export default function RHColaboradores() {
       }
     } catch {
       toast.warning(`Não foi possível criar a sessão de ${colab.nome} agora.`);
+    }
+  };
+
+  // O próprio colaborador conecta o WhatsApp dele: o número exibido vem da sessão do WhatsApp (não de campo digitado),
+  // então não diverge do cadastro. Só abre o QR se realmente precisa conectar.
+  const consultarMinhaSessao = async () => {
+    const r = await apiFetch("/api/agente-secreto/minha-sessao");
+    return r.ok ? await r.json().catch(() => null) : null;
+  };
+
+  const handleConectarMeuWhatsApp = async () => {
+    try {
+      const s = await consultarMinhaSessao();
+      if (!s?.session) {
+        toast.info("Você ainda não tem uma sessão do Agente Secreto.", { description: "Peça ao administrador para criar a sua (menu do colaborador › Criar sessão do Agente Secreto)." });
+      } else if (s.ativo === false) {
+        toast.info("Seu Agente Secreto está pausado porque seu status não é Ativo.");
+      } else if (s.status === "CONNECTED") {
+        toast.success("Seu Agente Secreto já está conectado.", { description: s.phone ? `WhatsApp +${String(s.phone).replace(/\D/g, "")}` : undefined });
+      } else {
+        setQrAberto(true);
+      }
+    } catch {
+      toast.error("Não foi possível consultar o seu Agente Secreto agora.");
     }
   };
 
@@ -274,6 +301,8 @@ export default function RHColaboradores() {
             onChangeStatus={handleChangeStatus} onDesligar={handleDesligar}
             canManageSessions={!!(user?.isMaster || user?.isTenantAdmin)}
             onCriarSessao={handleCriarSessaoAgenteSecreto}
+            currentUserId={user?.id ?? null}
+            onConectarAgente={handleConectarMeuWhatsApp}
           />
         ) : (
           <SquadsTabContent
@@ -318,6 +347,17 @@ export default function RHColaboradores() {
         canGrantTenantAccess={!!user?.isMaster} filiais={filiaisOptions}
       />
       <ColaboradorPerfilModal colab={perfilColab} onClose={() => setPerfilColab(null)} />
+      <AgenteSecretoQrModal
+        open={qrAberto}
+        onClose={() => setQrAberto(false)}
+        title="Conectar meu WhatsApp"
+        checkConnected={async () => (await consultarMinhaSessao())?.status === "CONNECTED"}
+        onConnected={() => {
+          setQrAberto(false);
+          window.dispatchEvent(new Event(AGENTE_SECRETO_STATUS_EVENT));
+          toast.success("WhatsApp conectado! O Agente Secreto já está acompanhando suas conversas.");
+        }}
+      />
     </PageContainer>
   );
 }

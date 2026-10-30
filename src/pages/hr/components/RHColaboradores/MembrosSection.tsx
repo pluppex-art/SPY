@@ -21,12 +21,15 @@ interface MembrosSectionProps {
   onDesligar: (colab: any) => void;
   canManageSessions?: boolean;
   onCriarSessao?: (colab: any) => void;
+  /** Login do usuário atual: só o próprio colaborador conecta o WhatsApp dele (o QR é lido no celular dele). */
+  currentUserId?: string | null;
+  onConectarAgente?: () => void;
 }
 
 export function MembrosSection({
   filtered: filteredBySearch, search, onSearchChange,
   menuOpenId, setMenuOpenId, onVerPerfil, onEditColab,
-  onChangeStatus, onDesligar, canManageSessions, onCriarSessao,
+  onChangeStatus, onDesligar, canManageSessions, onCriarSessao, currentUserId, onConectarAgente,
 }: MembrosSectionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [depto, setDepto] = useState("");
@@ -160,6 +163,11 @@ export function MembrosSection({
                       <button onClick={() => onChangeStatus(colab, "Ativo")} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
                         <Users className="w-3.5 h-3.5 text-emerald-500" /> Marcar como Ativo
                       </button>
+                      {onConectarAgente && currentUserId && colab.user_id === currentUserId && (
+                        <button onClick={() => { setMenuOpenId(null); onConectarAgente(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
+                          <Phone className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Conectar meu WhatsApp
+                        </button>
+                      )}
                       {canManageSessions && onCriarSessao && (
                         <button onClick={() => onCriarSessao(colab)} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
                           <Phone className="w-3.5 h-3.5 text-emerald-500" /> Criar sessão do Agente Secreto

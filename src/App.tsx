@@ -113,9 +113,7 @@ const ConfigVarejoCompras = lazy(() => import("./pages/settings/sections/varejo/
 const ConfigVarejoConexoes = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoConexoes").then(m => ({ default: m.ConfigVarejoConexoes })));
 const ConfigIntegracoesApps = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigIntegracoesApps })));
 const ConfigNotificacoesPreferencias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigNotificacoesPreferencias })));
-const ConfigPerfilUsuario = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigPerfilUsuario })));
-const ConfigAgenteSecreto = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigAgenteSecreto })));
-const ConfigPreferenciasSistema = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigPreferenciasSistema })));
+const ConfigPerfilUsuario = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigPerfilUsuario })));const ConfigPreferenciasSistema = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigPreferenciasSistema })));
 const ConfigCRMCampos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMCampos })));
 const ConfigCRMSLA = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMSLA })));
 const ConfigCRMGatilhosIA = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMGatilhosIA })));
@@ -513,9 +511,7 @@ function AppContent() {
             <Route index element={<Navigate to="/app/configuracoes/usuario/perfil" />} />
             <Route path="usuario/perfil" element={<ConfigPerfilUsuario />} />
             <Route path="usuario/preferencias" element={<ConfigPreferenciasSistema />} />
-            <Route path="usuario/notificacoes" element={<ConfigNotificacoesPreferencias />} />
-            <Route path="usuario/agente-secreto" element={<ConfigAgenteSecreto />} />
-            <Route path="empresa/dados" element={<ConfigEmpresaDados />} />
+            <Route path="usuario/notificacoes" element={<ConfigNotificacoesPreferencias />} />            <Route path="empresa/dados" element={<ConfigEmpresaDados />} />
             <Route path="empresa/plano" element={<ConfigPlanoUso />} />
             <Route path="empresa/lgpd" element={<ProtectedRoute requireTenantAdmin><ConfigLGPD /></ProtectedRoute>} />
             <Route path="empresa/modulos" element={<Navigate to="/app/admin?tab=tenants" replace />} />
