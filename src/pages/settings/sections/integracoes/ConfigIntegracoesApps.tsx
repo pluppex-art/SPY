@@ -85,9 +85,13 @@ function MaxDataSyncPanel({ which, tenantId }: { which: "notas" | "estoque"; ten
           let res: Response | null = null;
           for (let tentativa = 0; tentativa < 8 && !stopRef.current; tentativa++) {
             try {
-              res = await apiFetch(`/api/integrations/maxdata/sync${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
+              const r = await apiFetch(`/api/integrations/maxdata/sync${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
                 method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ which, entity }),
               });
+              // 401 (sessão renovando após o computador dormir) e 502/503/504 sem estado são momentâneos: o cursor está salvo, repetir é seguro.
+              const transitorio = [401, 429, 502, 503, 504].includes(r.status) && !(await r.clone().json().catch(() => ({})))?.entidade;
+              if (transitorio && tentativa < 7) throw new Error("transitorio");
+              res = r;
               break;
             } catch {
               setMsg(`Conexão instável, tentando de novo (${tentativa + 1}/8)…`);
