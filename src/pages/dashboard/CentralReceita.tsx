@@ -140,7 +140,7 @@ export default function CentralReceita() {
     contratosEmRisco, oportunidadesParadas, leadsQuentesParados, propostasSemFollowUp, propostasSemFollowUpValue,
   }), [contratosEmRisco, oportunidadesParadas, leadsQuentesParados, propostasSemFollowUpValue, propostasSemFollowUp]);
 
-  const totalRevenue = serverSummary?.totalRevenue ?? 0;
+  const totalRevenue = serverSummary?.totalRevenue ?? dashboard.totalRevenue ?? 0;
   const vendasTrend = trendPct("vendas");
 
   type CentralDrillKey = "receita" | "pipeline" | "emRisco" | "recuperaveis";

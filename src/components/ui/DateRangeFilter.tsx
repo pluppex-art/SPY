@@ -49,6 +49,12 @@ function buildPresets() {
   ] as const;
 }
 
+/** Intervalo do preset "Este mês" (1º dia do mês até hoje) — usado como período padrão do Dashboard. */
+export function thisMonthRange(): { from: string; to: string } {
+  const now = new Date();
+  return { from: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), to: toISO(now) };
+}
+
 // Largura real do card do popover (w-[280px] abaixo) — usada só pra decidir
 // de que lado abrir, nunca pra estilizar.
 const POPOVER_WIDTH = 280;

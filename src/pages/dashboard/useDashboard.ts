@@ -5,6 +5,8 @@ import { parseCurrencyBR } from '../../lib/utils';
 import { getMRR, getFaturamentoContratado, getConversionRate, getActiveLeadsCount, getChurnRate } from '../../lib/revenueMetrics';
 import { FUNIS_DEFAULT } from '../settings/sections/crm/funisTypes';
 import { apiFetch } from '../../lib/apiClient';
+import { leadDateIso } from '../../lib/leadDate';
+import { thisMonthRange } from '../../components/ui/DateRangeFilter';
 
 export interface DashboardSummary {
   totalRevenue: number;
@@ -42,20 +44,6 @@ const FUNNEL_STAGE_COLORS = [
   'bg-indigo-500',
 ];
 
-// `lead.date` é um campo de texto livre digitado no cadastro — NewLeadModal.tsx grava
-// literalmente a string "Hoje" (não uma data ISO) em todo lead criado por lá, e muitos leads
-// migrados ficam com "" (vazio). Usar `.date` sozinho pra filtrar por período ou agrupar por
-// mês fazia um tenant inteiro sumir do Fluxo de Performance e do filtro de período (achado
-// real: 60 leads da Pluppex, 40 com "" e 20 com "Hoje" — ZERO com uma data ISO de verdade,
-// então "Volume de Leads" dava 0 em todo mês e o eixo direito do gráfico colapsava pra caber só
-// "Negócios Fechados"). `created_at` (carimbado pelo banco, sempre presente) é o fallback
-// confiável quando `.date` não é uma data ISO de verdade.
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}/;
-function leadDateIso(l: any): string {
-  if (typeof l?.date === "string" && ISO_DATE_RE.test(l.date)) return l.date;
-  return typeof l?.created_at === "string" ? l.created_at : "";
-}
-
 // Mesma convenção de stageId usada em usePipeline.ts — precisa bater com o
 // stageId real gravado no lead pelo Kanban, senão o funil conta tudo errado.
 function getStageId(funilId: string, idx: number): string {
@@ -74,8 +62,9 @@ export function useDashboard() {
   // Vazio (null) = sem filtro, mostra tudo. Afeta os cartões/funil/ranking
   // que dependem de `leads`; o gráfico de performance mantém sua própria
   // janela fixa de 7 meses (é um gráfico de tendência, não um total).
-  const [dateFrom, setDateFrom] = useState<string | null>(null);
-  const [dateTo, setDateTo] = useState<string | null>(null);
+  // Padrão: "Este mês" (1º dia do mês até hoje); "Tudo" continua disponível no filtro.
+  const [dateFrom, setDateFrom] = useState<string | null>(() => thisMonthRange().from);
+  const [dateTo, setDateTo] = useState<string | null>(() => thisMonthRange().to);
 
   const leads = useMemo(() => {
     if (!dateFrom && !dateTo) return allLeads;

@@ -14,6 +14,7 @@ import { aoGanharNegocio } from "../../lib/implementationAutoStart";
 import { getStageId, buildStagesForFunil } from "../../lib/funilStages";
 import { WIN_FUNIL_CONFIG_KEY } from "../../lib/implementationStage";
 import { isLeadOpen } from "../../lib/leadStatus";
+import { leadDateIso } from "../../lib/leadDate";
 
 export function usePipeline() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -222,11 +223,13 @@ export function usePipeline() {
         normalizeText(item.vertical).includes(q) ||
         normalizeText(item.origem).includes(q) ||
         normalizeText(item.email).includes(q);
-      // `date` é a mesma data de cadastro usada no filtro do Dashboard —
-      // string 'YYYY-MM-DD', comparável diretamente.
+      // Mesma data de cadastro do filtro do Dashboard (leadDateIso: `date` ISO ou o
+      // created_at do banco) — `item.date` sozinho é texto livre ("Hoje", "") e fazia o
+      // filtro de período não achar lead nenhum.
+      const iso = leadDateIso(item).slice(0, 10);
       const matchesDate =
-        (!dateFrom || (item.date && item.date >= dateFrom)) &&
-        (!dateTo || (item.date && item.date <= dateTo));
+        (!dateFrom || (iso && iso >= dateFrom)) &&
+        (!dateTo || (iso && iso <= dateTo));
       const matchesFunil = !activeFunilStageIds || activeFunilStageIds.has(item.stageId);
       const matchesStage = stageFilter === "Todas" || item.stageId === stageFilter;
       const matchesSource = sourceFilter === "Todas" || item.source === sourceFilter;

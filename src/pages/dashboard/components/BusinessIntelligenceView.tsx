@@ -12,7 +12,7 @@ import { Card } from "../../../components/ui/card";
 import { SectionTitle } from "../../../components/ui/section-title";
 import { StatCard } from "../../../components/ui/stat-card";
 import { periodoCaption } from "../periodoCaption";
-import { DateRangeFilter } from "../../../components/ui/DateRangeFilter";
+import { DateRangeFilter, thisMonthRange } from "../../../components/ui/DateRangeFilter";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useData } from "../../../contexts/DataContext";
@@ -92,8 +92,8 @@ export function BusinessIntelligenceView() {
   const { funis } = useData();
   const { formatCurrency } = useLocalization();
 
-  const [dateFrom, setDateFrom] = useState<string | null>(null);
-  const [dateTo, setDateTo] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState<string | null>(() => thisMonthRange().from);
+  const [dateTo, setDateTo] = useState<string | null>(() => thisMonthRange().to);
   const periodo = periodoCaption(dateFrom, dateTo);
   const [summary, setSummary] = useState<BiSummary | null>(null);
   const [loading, setLoading] = useState(true);
