@@ -122,6 +122,10 @@ function valorDoLead(l: any, propostasPorLead: Map<string, any[]>): number {
 
 /** Agrupa as variações de nome do vendedor ("GUSTAVO OLIVEIRA DA SILVA" /
  *  "Gustavo Oliveira") num vendedor só. Devolve nome canônico por texto original. */
+const colado = (s: unknown) => normNome(s).replace(/ /g, "");
+/** Mesmo vendedor: palavras conferem ou só muda o espaçamento ("MariaEduarda" × "Maria Eduarda"). */
+const mesmoNome = (a: unknown, b: unknown) => nomeConfere(a, b) || (!!colado(a) && colado(a) === colado(b));
+
 export function agruparVendedores(leads: any[], colaboradoresVendedores: any[]) {
   const freq = new Map<string, number>();
   for (const l of leads) {
@@ -134,7 +138,7 @@ export function agruparVendedores(leads: any[], colaboradoresVendedores: any[]) 
   }
   const clusters: { key: string; nome: string; variantes: string[] }[] = [];
   [...freq.entries()].sort((a, b) => b[1] - a[1] || b[0].length - a[0].length).forEach(([nome]) => {
-    const existente = clusters.find((c) => c.variantes.some((v) => nomeConfere(v, nome)));
+    const existente = clusters.find((c) => c.variantes.some((v) => mesmoNome(v, nome)));
     if (existente) existente.variantes.push(nome);
     else clusters.push({ key: normNome(nome) || nome, nome, variantes: [nome] });
   });
@@ -210,7 +214,24 @@ export function computeVendedores(
   // Produtos vendidos por vendedor (chave do vendedor → chave do produto → acumulado).
   const prodAcc = new Map<string, Map<string, { id: string; nome: string; leads: Set<string>; receita: number }>>();
   const registrarProdutos = (key: string, l: any) => {
-    for (const p of propostasVendidas(l)) {
+    const propostas = propostasVendidas(l);
+    const temItens = propostas.some((p) => (itensPorProposta.get(p.id) ?? []).length > 0);
+    // Venda sem itens de proposta (ex.: importada): usa os produtos vinculados ao lead,
+    // dividindo o valor da venda igualmente entre eles.
+    if (!temItens) {
+      const ids = ((l.productIds ?? []) as string[]).filter((id) => !produtoId || id === produtoId);
+      const parte = ids.length > 0 ? valorVenda(l) / ids.length : 0;
+      for (const id of ids) {
+        const mapa = prodAcc.get(key) ?? new Map();
+        prodAcc.set(key, mapa);
+        const cur = mapa.get(id) ?? { id, nome: nomeDoProduto.get(id) || "Produto", leads: new Set<string>(), receita: 0 };
+        cur.leads.add(l.id);
+        cur.receita += parte;
+        mapa.set(id, cur);
+      }
+      return;
+    }
+    for (const p of propostas) {
       const itens = itensPorProposta.get(p.id) ?? [];
       for (const i of itens) {
         if (produtoId && i.product_id !== produtoId) continue;
