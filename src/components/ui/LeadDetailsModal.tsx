@@ -23,6 +23,7 @@ import { ProductsSection } from "./lead-details/ProductsSection";
 import { LogsSection } from "./lead-details/LogsSection";
 import { NotasSection } from "./lead-details/NotasSection";
 import { TarefasSection } from "./lead-details/TarefasSection";
+import { ConversasSection } from "./lead-details/ConversasSection";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { calculateLeadScore } from "../../lib/leadScore";
@@ -373,6 +374,8 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
                     seller={seller}
                   />
                 )}
+
+                {currentTab === "conversas" && <ConversasSection lead={lead} />}
 
                 {currentTab === "historico" && (
                   <div className="px-5 py-4">

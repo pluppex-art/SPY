@@ -1,4 +1,4 @@
-import { Clock, Flame, Info, Package, ScrollText, Sun, StickyNote, ListTodo } from "lucide-react";
+import { Clock, Flame, MessageSquare, Info, Package, ScrollText, Sun, StickyNote, ListTodo } from "lucide-react";
 
 // Removidas as abas "Chat" (mensagens — composição de template pra copiar/colar
 // manualmente, nunca teve envio real de WhatsApp/e-mail/Instagram) e "Relatório
@@ -9,6 +9,7 @@ export const LeadDetailsModalTabs = [
   { id: "informacoes", label: "Informações",  short: "INFO",     icon: Info          },
   { id: "notas",       label: "Notas",        short: "NOTAS",    icon: StickyNote    },
   { id: "tarefas",     label: "Tarefas",      short: "TAREFAS",  icon: ListTodo      },
+  { id: "conversas",   label: "Conversas",    short: "CONV.",    icon: MessageSquare },
   { id: "historico",   label: "Histórico",    short: "HIST.",    icon: Clock         },
   { id: "produtos",    label: "Produtos",     short: "PROD.",    icon: Package       },
   { id: "logs",        label: "Logs",         short: "LOGS",     icon: ScrollText    },
