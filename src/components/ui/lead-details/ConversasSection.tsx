@@ -165,6 +165,8 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
   // "waha" = lido ao vivo do WAHA (completo, inclui o que o vendedor manda pelo celular); "banco" = só o que o webhook gravou.
   // Por que o WAHA não devolveu nada (mostrado quando também não há nada salvo no banco).
   const [motivoWaha, setMotivoWaha] = useState<string>("");
+  // Filtro "com quem o cliente conversou": "todas" ou o nome do agente (vendedor, Júlia/SDR, CS...).
+  const [filtro, setFiltro] = useState<string>("todas");
   const [fonte, setFonte] = useState<"waha" | "banco">("banco");
   const fimRef = useRef<HTMLDivElement>(null);
   const primeiraCarga = useRef(true);
@@ -248,6 +250,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
   useEffect(() => {
     primeiraCarga.current = true;
     setMsgs([]);
+    setFiltro("todas");
     carregar();
   }, [carregar]);
 
@@ -270,6 +273,15 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [msgs, instancias, colaboradores],
   );
+
+  // Cada conversa pertence a um agente (sessão do WhatsApp): o vendedor, a Júlia (SDR), o CS...
+  const agentes = useMemo(() => {
+    const mapa = new Map<string, number>();
+    msgs.forEach((m) => { const a = nomeDoVendedor(m.whatsapp_instance_id, m.vendedor); mapa.set(a, (mapa.get(a) ?? 0) + 1); });
+    return [...mapa.entries()].map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [msgs, instancias, colaboradores]);
+  const visiveis = filtro === "todas" ? msgs : msgs.filter((m) => nomeDoVendedor(m.whatsapp_instance_id, m.vendedor) === filtro);
 
   if (!chave) {
     return (
@@ -297,6 +309,26 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
         </Button>
       </div>
 
+      {agentes.length > 1 && (
+        <div className="flex flex-wrap gap-1.5">
+          {[{ nome: "todas", total: msgs.length }, ...agentes].map((a) => (
+            <button
+              key={a.nome}
+              type="button"
+              onClick={() => setFiltro(a.nome)}
+              className={cn(
+                "text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all cursor-pointer",
+                filtro === a.nome
+                  ? "bg-[var(--color-primary-blue)] text-white border-[var(--color-primary-blue)] shadow-sm"
+                  : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)] hover:text-[var(--color-text-primary)]",
+              )}
+            >
+              {a.nome === "todas" ? "Todas" : a.nome} <span className="opacity-70">· {a.total}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {erro ? (
         <EmptyState icon={MessageSquareOff} title="Erro ao carregar" description={erro} className="h-60" />
       ) : loading && msgs.length === 0 ? (
@@ -314,7 +346,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
               </Button>
             </div>
           )}
-          {msgs.map((m) => {
+          {visiveis.map((m) => {
             const dia = diaLabel(m.created_at);
             const separador = dia !== diaAtual;
             diaAtual = dia;
@@ -335,7 +367,9 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
                         : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-tl-none shadow-sm",
                     )}
                   >
-                    {doVendedor && <p className="text-[9px] font-black uppercase tracking-wider opacity-70 mb-0.5">{nomeDoVendedor(m.whatsapp_instance_id, m.vendedor)}</p>}
+                    {(doVendedor || (filtro === "todas" && agentes.length > 1)) && (
+                      <p className="text-[9px] font-black uppercase tracking-wider opacity-70 mb-0.5">{doVendedor ? "" : "via "}{nomeDoVendedor(m.whatsapp_instance_id, m.vendedor)}</p>
+                    )}
                     {m.mediaType && lead?.id && <MidiaMensagem leadId={lead.id} m={m} doVendedor={doVendedor} />}
                     {(m.text || !m.mediaType) && <p className="whitespace-pre-wrap break-words">{m.text || <em className="opacity-60">[mensagem sem texto]</em>}</p>}
                     <span className="text-[9px] opacity-60 block mt-1 text-right">{hora(m.created_at)}</span>

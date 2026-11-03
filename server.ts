@@ -5794,6 +5794,16 @@ app.post("/api/whatsapp/webhook/:instanceId", async (req: any, res) => {
 // vendedor manda pelo próprio celular (fromMe), então o banco nunca tem o lado do vendedor completo.
 // Somente leitura. O lead vem via RLS (req.supabase) e o telefone nunca vem do cliente; as sessões
 // consultadas são as do tenant do lead (whatsapp_instances sob RLS), a do vendedor do lead primeiro.
+// Quem é quem: a sessão pessoal de um colaborador é o vendedor; as demais são classificadas pelo nome
+// (SDR/Júlia, Closer, CS...). Alimenta o filtro "com quem o cliente conversou" da aba Conversas.
+const papelDaSessao = (inst: any, nomeColab: string): { papel: "vendedor" | "sdr" | "closer" | "cs" | "outro"; agente: string } => {
+  const n = String(inst?.name || "");
+  if (inst?.colaborador_id) return { papel: "vendedor", agente: nomeColab || n };
+  if (/julia|(^|[-_ ])sdr([-_ ]|$)/i.test(n)) return { papel: "sdr", agente: "Júlia (SDR)" };
+  if (/closer/i.test(n)) return { papel: "closer", agente: "Closer" };
+  if (/(^|[-_ ])cs([-_ ]|$)|sucesso/i.test(n)) return { papel: "cs", agente: "CS" };
+  return { papel: "outro", agente: n };
+};
 const foneVariantes = (digits: string): string[] => {
   const out = new Set<string>([digits]);
   // Celular BR: o WhatsApp às vezes guarda o número sem o 9 depois do DDD (12 dígitos) e o CRM com (13).
@@ -5895,7 +5905,11 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
     const nomeColab = new Map<string, string>((colabs || []).map((c: any) => [c.id, c.nome]));
     const candidatas = (insts || [])
       .filter((i: any) => i.status === "CONNECTED")
-      .map((i: any) => ({ inst: i, vendedor: i.colaborador_id ? nomeColab.get(i.colaborador_id) || i.name : i.name, doVendedor: !!i.colaborador_id && nomesConferem(nomeColab.get(i.colaborador_id), lead.seller) }))
+      .map((i: any) => {
+        const nomeV = i.colaborador_id ? nomeColab.get(i.colaborador_id) || i.name : "";
+        const { papel, agente } = papelDaSessao(i, nomeV);
+        return { inst: i, vendedor: agente, papel, doVendedor: papel === "vendedor" && nomesConferem(nomeV, lead.seller) };
+      })
       .sort((a: any, b: any) => Number(b.doVendedor) - Number(a.doVendedor));
     if (candidatas.length === 0) return res.json({ source: "none", reason: "sem_sessao_conectada", messages: [] });
 
@@ -5904,14 +5918,12 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
       const session = sessionNameOf(c.inst);
       const lotes = await Promise.all(foneVariantes(digits).map(async (d) =>
         (await provider.getChatMessages(session, `${d}@c.us`, 300, { includeMedia: true }).catch(() => [])).map((m) => ({ ...m, chat: d }))));
-      return lotes.flat().map((m) => ({ ...m, vendedor: c.vendedor, session }));
+      return lotes.flat().map((m) => ({ ...m, vendedor: c.vendedor, papel: c.papel, session }));
     };
 
-    // A sessão do vendedor do lead primeiro; só se vier vazia, tenta as demais (limitadas).
-    let msgs: any[] = [];
-    const proprias = candidatas.filter((c: any) => c.doVendedor);
-    if (proprias.length) msgs = (await Promise.all(proprias.map(consultar))).flat();
-    if (msgs.length === 0) msgs = (await Promise.all(candidatas.filter((c: any) => !c.doVendedor).slice(0, 8).map(consultar))).flat();
+    // Todas as sessões conectadas do tenant (o cliente pode ter falado com o vendedor, a Júlia/SDR, o CS...);
+    // a tela filtra por agente. Limitado pra não abrir dezenas de consultas ao gateway por lead.
+    const msgs: any[] = (await Promise.all(candidatas.slice(0, 14).map(consultar))).flat();
 
     const vistos = new Set<string>();
     const messages = msgs
@@ -5921,10 +5933,13 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
         const mediaType = mediaTypeOf(m.mimetype);
         // Sem legenda, o provider devolve um marcador "[tipo]" — a tela mostra a mídia em si, não o marcador.
         const text = mediaType && /^\[[^\]]*\]$/.test(m.text) ? "" : m.text;
-        return { id: m.id || `${m.timestamp}-${m.fromMe}`, text, fromMe: m.fromMe, created_at: new Date(m.timestamp * 1000).toISOString(), vendedor: m.vendedor,
+        return { id: m.id || `${m.timestamp}-${m.fromMe}`, text, fromMe: m.fromMe, created_at: new Date(m.timestamp * 1000).toISOString(), vendedor: m.vendedor, papel: m.papel,
           ...(mediaType && m.id ? { mediaType, session: m.session, chat: m.chat } : {}) };
       });
-    res.json({ source: "waha", messages, sessoes: candidatas.map((c: any) => c.vendedor), digits_final: digits.slice(-4) });
+    const agentes = [...new Set(messages.map((m: any) => m.vendedor))].map((nome) => ({
+      nome, papel: messages.find((m: any) => m.vendedor === nome)?.papel, total: messages.filter((m: any) => m.vendedor === nome).length,
+    }));
+    res.json({ source: "waha", messages, agentes, sessoes: candidatas.map((c: any) => c.vendedor), digits_final: digits.slice(-4) });
   } catch (err: any) {
     console.error("[leads/conversa-whatsapp]", err?.message);
     res.status(502).json({ error: `Falha ao consultar o WAHA: ${err?.message || "erro desconhecido"}` });
