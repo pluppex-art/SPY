@@ -5790,6 +5790,71 @@ app.post("/api/whatsapp/webhook/:instanceId", async (req: any, res) => {
   }
 });
 
+// Conversa de WhatsApp de UM lead, lida direto do WAHA (não do chat_messages): o webhook ignora o que o
+// vendedor manda pelo próprio celular (fromMe), então o banco nunca tem o lado do vendedor completo.
+// Somente leitura. O lead vem via RLS (req.supabase) e o telefone nunca vem do cliente; as sessões
+// consultadas são as do tenant do lead (whatsapp_instances sob RLS), a do vendedor do lead primeiro.
+const foneVariantes = (digits: string): string[] => {
+  const out = new Set<string>([digits]);
+  // Celular BR: o WhatsApp às vezes guarda o número sem o 9 depois do DDD (12 dígitos) e o CRM com (13).
+  if (digits.startsWith("55") && digits.length === 13 && digits[4] === "9") out.add(digits.slice(0, 4) + digits.slice(5));
+  if (digits.startsWith("55") && digits.length === 12) out.add(digits.slice(0, 4) + "9" + digits.slice(4));
+  return [...out];
+};
+const normNomeServer = (s: unknown) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const nomesConferem = (a: unknown, b: unknown) => {
+  const ta = normNomeServer(a).split(" ").filter(Boolean), tb = normNomeServer(b).split(" ").filter(Boolean);
+  if (!ta.length || !tb.length) return false;
+  const [curto, longo] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  const set = new Set(longo);
+  return curto.every((t) => set.has(t)) || ta.join("") === tb.join("");
+};
+
+app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async (req: any, res) => {
+  if (!isWahaConfigured()) return res.json({ source: "none", reason: "waha_nao_configurado", messages: [] });
+  try {
+    const { data: lead, error } = await req.supabase.from("leads").select("id, phone, phone_digits, seller").eq("id", req.params.id).maybeSingle();
+    if (error || !lead) return res.status(404).json({ error: "Lead não encontrado." });
+    const digits = String(lead.phone_digits || lead.phone || "").replace(/\D/g, "");
+    if (digits.length < 10) return res.json({ source: "none", reason: "sem_telefone", messages: [] });
+
+    const [{ data: insts }, { data: colabs }] = await Promise.all([
+      req.supabase.from("whatsapp_instances").select("id, name, colaborador_id, status"),
+      req.supabase.from("colaboradores").select("id, nome"),
+    ]);
+    const nomeColab = new Map<string, string>((colabs || []).map((c: any) => [c.id, c.nome]));
+    const candidatas = (insts || [])
+      .filter((i: any) => i.status === "CONNECTED")
+      .map((i: any) => ({ inst: i, vendedor: i.colaborador_id ? nomeColab.get(i.colaborador_id) || i.name : i.name, doVendedor: !!i.colaborador_id && nomesConferem(nomeColab.get(i.colaborador_id), lead.seller) }))
+      .sort((a: any, b: any) => Number(b.doVendedor) - Number(a.doVendedor));
+    if (candidatas.length === 0) return res.json({ source: "none", reason: "sem_sessao_conectada", messages: [] });
+
+    const provider = getWhatsAppProvider();
+    const consultar = async (c: any) => {
+      const session = sessionNameOf(c.inst);
+      const lotes = await Promise.all(foneVariantes(digits).map((d) =>
+        provider.getChatMessages(session, `${d}@c.us`, 300, { includeMedia: true }).catch(() => [])));
+      return lotes.flat().map((m) => ({ ...m, vendedor: c.vendedor, session }));
+    };
+
+    // A sessão do vendedor do lead primeiro; só se vier vazia, tenta as demais (limitadas).
+    let msgs: any[] = [];
+    const proprias = candidatas.filter((c: any) => c.doVendedor);
+    if (proprias.length) msgs = (await Promise.all(proprias.map(consultar))).flat();
+    if (msgs.length === 0) msgs = (await Promise.all(candidatas.filter((c: any) => !c.doVendedor).slice(0, 8).map(consultar))).flat();
+
+    const vistos = new Set<string>();
+    const messages = msgs
+      .filter((m) => { const k = m.id || `${m.timestamp}|${m.fromMe}|${m.text}`; if (vistos.has(k)) return false; vistos.add(k); return true; })
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map((m) => ({ id: m.id || `${m.timestamp}-${m.fromMe}`, text: m.text, fromMe: m.fromMe, created_at: new Date(m.timestamp * 1000).toISOString(), vendedor: m.vendedor }));
+    res.json({ source: "waha", messages });
+  } catch (err: any) {
+    console.error("[leads/conversa-whatsapp]", err?.message);
+    res.status(502).json({ error: `Falha ao consultar o WAHA: ${err?.message || "erro desconhecido"}` });
+  }
+});
+
 app.get("/api/whatsapp/contacts", requireUser, async (req: any, res) => {
   // Contatos crescem com o tempo igual as outras tabelas de alto volume —
   // 500 mais recentes por conversa (order por last_message_at) é generoso

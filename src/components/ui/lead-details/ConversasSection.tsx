@@ -4,6 +4,7 @@ import { Button } from "../button";
 import { EmptyState } from "../empty-state";
 import { supabase } from "../../../lib/supabase";
 import { useData } from "../../../contexts/DataContext";
+import { apiFetch } from "../../../lib/apiClient";
 import { cn } from "../../../lib/utils";
 
 interface ConversasSectionProps {
@@ -17,6 +18,8 @@ interface Msg {
   text: string | null;
   sender: "contact" | "human" | string;
   created_at: string;
+  /** Preenchido quando a mensagem vem do WAHA (nome do vendedor dono da sessão). */
+  vendedor?: string;
 }
 
 const PAGE = 300;
@@ -47,6 +50,8 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
   const [loading, setLoading] = useState(true);
   const [temMais, setTemMais] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // "waha" = lido ao vivo do WAHA (completo, inclui o que o vendedor manda pelo celular); "banco" = só o que o webhook gravou.
+  const [fonte, setFonte] = useState<"waha" | "banco">("banco");
   const fimRef = useRef<HTMLDivElement>(null);
   const primeiraCarga = useRef(true);
 
@@ -58,6 +63,22 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
     setLoading(true);
     setErro(null);
     try {
+      // 1) WAHA ao vivo (o webhook não grava o que o vendedor envia pelo celular, então o banco é incompleto).
+      if (!antesDe && lead?.id) {
+        try {
+          const r = await apiFetch(`/api/leads/${encodeURIComponent(lead.id)}/conversa-whatsapp`);
+          if (r.ok) {
+            const j = await r.json();
+            if (j.source === "waha" && Array.isArray(j.messages) && j.messages.length > 0) {
+              setFonte("waha");
+              setTemMais(false);
+              setMsgs(j.messages.map((m: any) => ({ id: m.id, contact_id: "", whatsapp_instance_id: null, text: m.text, sender: m.fromMe ? "human" : "contact", created_at: m.created_at, vendedor: m.vendedor })));
+              return;
+            }
+          }
+        } catch { /* sem WAHA: cai no banco */ }
+      }
+      setFonte("banco");
       // Pré-filtro no banco pelos 4 últimos dígitos (contíguos em qualquer formatação) e
       // conferência exata dos 8 últimos no cliente.
       const { data: contatos, error: eC } = await supabase
@@ -97,7 +118,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
     } finally {
       setLoading(false);
     }
-  }, [chave]);
+  }, [chave, lead?.id]);
 
   useEffect(() => {
     primeiraCarga.current = true;
@@ -112,14 +133,15 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
     }
   }, [msgs]);
 
-  const nomeDoVendedor = (instId: string | null) => {
+  const nomeDoVendedor = (instId: string | null, direto?: string) => {
+    if (direto) return direto;
     const inst = instId ? instancias[instId] : null;
     const colab = inst?.colaboradorId ? (colaboradores || []).find((c: any) => c.id === inst.colaboradorId) : null;
     return colab?.nome || inst?.name || lead?.seller || "Vendedor";
   };
 
   const vendedores = useMemo(
-    () => [...new Set(msgs.filter((m) => m.sender !== "contact").map((m) => nomeDoVendedor(m.whatsapp_instance_id)))],
+    () => [...new Set(msgs.filter((m) => m.sender !== "contact").map((m) => nomeDoVendedor(m.whatsapp_instance_id, m.vendedor)))],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [msgs, instancias, colaboradores],
   );
@@ -141,6 +163,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
           <p className="text-[11px] text-[var(--color-text-muted)] truncate flex items-center gap-1">
             <Smartphone className="w-3 h-3 shrink-0" />
             {vendedores.length > 0 ? `Vendedor: ${vendedores.join(", ")}` : "Somente leitura"}
+            <span className={fonte === "waha" ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-amber-600 dark:text-amber-400 font-bold"}>· {fonte === "waha" ? "WAHA ao vivo" : "Histórico salvo (pode estar incompleto)"}</span>
             {msgs.length > 0 && <span className="text-[var(--color-text-faint)]">· {msgs.length}{temMais ? "+" : ""} mensagens</span>}
           </p>
         </div>
@@ -187,7 +210,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
                         : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-tl-none shadow-sm",
                     )}
                   >
-                    {doVendedor && <p className="text-[9px] font-black uppercase tracking-wider opacity-70 mb-0.5">{nomeDoVendedor(m.whatsapp_instance_id)}</p>}
+                    {doVendedor && <p className="text-[9px] font-black uppercase tracking-wider opacity-70 mb-0.5">{nomeDoVendedor(m.whatsapp_instance_id, m.vendedor)}</p>}
                     <p className="whitespace-pre-wrap break-words">{m.text || <em className="opacity-60">[mídia ou mensagem sem texto]</em>}</p>
                     <span className="text-[9px] opacity-60 block mt-1 text-right">{hora(m.created_at)}</span>
                   </div>

@@ -78,7 +78,7 @@ export interface WhatsAppProvider {
    * suporta (ex.: Simulador) devolve lista vazia — nunca lança. */
   listChats(providerInstanceId: string): Promise<ProviderChat[]>;
   /** Histórico de uma conversa, mais recentes primeiro, até `limit`. */
-  getChatMessages(providerInstanceId: string, chatId: string, limit: number): Promise<ProviderMessage[]>;
+  getChatMessages(providerInstanceId: string, chatId: string, limit: number, opts?: { includeMedia?: boolean }): Promise<ProviderMessage[]>;
 }
 
 // ── Config ───────────────────────────────────────────────────────────────
@@ -276,7 +276,7 @@ export class WAHAProvider implements WhatsAppProvider {
       .filter((c): c is ProviderChat => c !== null);
   }
 
-  async getChatMessages(providerInstanceId: string, chatId: string, limit: number): Promise<ProviderMessage[]> {
+  async getChatMessages(providerInstanceId: string, chatId: string, limit: number, opts?: { includeMedia?: boolean }): Promise<ProviderMessage[]> {
     const { data } = await axios.get(
       `${WAHA_API_URL}/api/${encodeURIComponent(providerInstanceId)}/chats/${encodeURIComponent(chatId)}/messages`,
       { headers: this.headers(), timeout: 30000, params: { limit, downloadMedia: false } }
@@ -286,7 +286,8 @@ export class WAHAProvider implements WhatsAppProvider {
       .map((m): ProviderMessage | null => {
         const rawFrom: string = m?.fromMe ? (m?.to || chatId) : (m?.from || chatId);
         const phone = String(rawFrom).replace(/@c\.us$/, "").replace(/@s\.whatsapp\.net$/, "");
-        const text: string = m?.body || m?.text || "";
+        // includeMedia (tela de conversas): áudio/imagem/documento sem legenda viram um marcador em vez de sumir.
+        const text: string = m?.body || m?.text || (opts?.includeMedia && m?.hasMedia ? `[${m?.type || m?.media?.mimetype || "mídia"}]` : "");
         if (!phone || !text) return null;
         return {
           id: m?.id?._serialized || m?.id || undefined,
