@@ -50,12 +50,20 @@ function useMidia(leadId: string, m: Msg, auto: boolean) {
   const carregar = useCallback(async () => {
     if (url || estado === "carregando") return;
     setEstado("carregando");
-    try {
-      const r = await apiFetch(midiaUrl(leadId, m));
-      if (!r.ok) throw new Error(String(r.status));
-      setUrl(URL.createObjectURL(await r.blob()));
-      setEstado("idle");
-    } catch { setEstado("erro"); }
+    // Queda de rede do navegador (ERR_NETWORK_CHANGED / Failed to fetch) é passageira: tenta de novo até 3 vezes.
+    // Resposta HTTP de erro (404 mídia expirada, 403...) não adianta repetir.
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+      try {
+        const r = await apiFetch(midiaUrl(leadId, m));
+        if (!r.ok) { setEstado("erro"); return; }
+        setUrl(URL.createObjectURL(await r.blob()));
+        setEstado("idle");
+        return;
+      } catch {
+        await new Promise((ok) => setTimeout(ok, 1000 * (tentativa + 1)));
+      }
+    }
+    setEstado("erro");
   }, [leadId, m, url, estado]);
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
   const ref = useRef<HTMLDivElement>(null);
