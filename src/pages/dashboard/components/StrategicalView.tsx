@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '../../../components/ui/card';
+import { StatCard } from '../../../components/ui/stat-card';
+import { periodoCaption } from '../periodoCaption';
 import { SectionTitle } from "../../../components/ui/section-title";
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
@@ -78,6 +80,7 @@ export function StrategicalView({
   const hasSquads = squads.length > 0;
   const hasContracts = contracts.length > 0;
   const [showDetails, setShowDetails] = useState(false);
+  const periodoSnap = periodoCaption(dateFrom, dateTo);
 
   // Snapshot Financeiro — único bloco que de fato usa dateFrom/dateTo (o
   // mesmo período dos cards/gráfico acima). Receita/Despesas/Novas Vendas são
@@ -435,8 +438,8 @@ export function StrategicalView({
               </div>
             </Card>
 
-            <Card className="lg:col-span-3 p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
+            <div className="lg:col-span-3 space-y-3">
+              <div className="flex items-center justify-between">
                 <SectionTitle>
                   <Briefcase className="w-4 h-4 text-purple-500" /> Snapshot de Contratos & Retenção
                 </SectionTitle>
@@ -446,69 +449,48 @@ export function StrategicalView({
                   </Badge>
                 )}
               </div>
-              <div className="grid md:grid-cols-3 gap-4">
-                {!hasContracts ? (
-                  <div className="col-span-3 flex flex-col items-center justify-center py-6 gap-2 opacity-50">
-                    <Briefcase className="w-6 h-6 text-[var(--color-text-faint)]" />
-                    <p className="text-xs font-medium text-[var(--color-text-muted)]">Cadastre contratos para ver as métricas financeiras</p>
-                  </div>
-                ) : (
-                  [
-                    { label: "MRR Ativo", value: formatCurrency(activeMRR), desc: "Contratos ativos em execução", color: "text-emerald-600 dark:text-emerald-400" },
-                    { label: "Contratos Ativos", value: contracts.filter(c => c.status === 'Ativo').length.toString(), desc: "Carteira de clientes recorrentes", color: "text-[var(--color-primary-blue)]" },
-                    { label: "Ticket Médio", value: contracts.filter(c => c.status === 'Ativo').length > 0 ? formatCurrency(activeMRR / contracts.filter(c => c.status === 'Ativo').length) : formatCurrency(0), desc: "Receita média por contrato", color: "text-purple-600 dark:text-purple-400" },
-                  ].map((item, i) => (
-                    <div key={i} className="space-y-1.5 border-r border-[var(--color-border-subtle)] last:border-0 pr-6 last:pr-0">
-                      <p className="text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider">{item.label}</p>
-                      <h4 className={`text-xl font-black ${item.color} font-mono tracking-tight`}>{item.value}</h4>
-                      <p className="text-[10px] text-[var(--color-text-muted)]">{item.desc}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card>
+              {!hasContracts ? (
+                <Card className="flex flex-col items-center justify-center py-6 gap-2 opacity-50 shadow-sm">
+                  <Briefcase className="w-6 h-6 text-[var(--color-text-faint)]" />
+                  <p className="text-xs font-medium text-[var(--color-text-muted)]">Cadastre contratos para ver as métricas financeiras</p>
+                </Card>
+              ) : (
+                <div className="grid md:grid-cols-3 gap-4">
+                  <StatCard icon={Wallet} label="MRR Ativo" value={formatCurrency(activeMRR)} tone="success" sub="Contratos ativos em execução" caption="Posição atual" />
+                  <StatCard icon={Briefcase} label="Contratos Ativos" value={contracts.filter(c => c.status === 'Ativo').length.toString()} sub="Carteira de clientes recorrentes" caption="Posição atual" />
+                  <StatCard icon={Receipt} label="Ticket Médio" value={contracts.filter(c => c.status === 'Ativo').length > 0 ? formatCurrency(activeMRR / contracts.filter(c => c.status === 'Ativo').length) : formatCurrency(0)} color="#a855f7" sub="Receita média por contrato" caption="Posição atual" />
+                </div>
+              )}
+            </div>
 
-            <Card className="lg:col-span-4 p-5 shadow-sm">
-              <SectionTitle className="mb-4">
+            <div className="lg:col-span-4 space-y-3">
+              <SectionTitle>
                 <Wallet className="w-4 h-4 text-emerald-500" /> Snapshot Financeiro
                 <span className="text-[10px] font-medium normal-case text-[var(--color-text-faint)]">
                   {!dateFrom && !dateTo ? "· todo o período" : "· período selecionado"}
                 </span>
               </SectionTitle>
               {!financeSnapshot.hasAnyEntry ? (
-                <div className="flex flex-col items-center justify-center py-6 gap-2 opacity-50">
+                <Card className="flex flex-col items-center justify-center py-6 gap-2 opacity-50 shadow-sm">
                   <Wallet className="w-6 h-6 text-[var(--color-text-faint)]" />
                   <p className="text-xs font-medium text-[var(--color-text-muted)]">Sem lançamentos financeiros para calcular este snapshot.</p>
-                </div>
+                </Card>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
-                  {[
-                    { label: "Receita", value: formatCurrency(financeSnapshot.receita), desc: "Recebido no período", icon: TrendingUp, color: "text-emerald-600 dark:text-emerald-400" },
-                    { label: "Despesas", value: formatCurrency(financeSnapshot.despesas), desc: `Pago no período${pctSnap(financeSnapshot.despesas, financeSnapshot.receita, "da receita")}`, icon: TrendingDown, color: "text-rose-600 dark:text-rose-400" },
-                    {
-                      label: "Receita Líquida", value: formatCurrency(financeSnapshot.receitaLiquida), desc: `Receita − Despesas${pctSnap(financeSnapshot.receitaLiquida, financeSnapshot.receita, "de margem")}`,
-                      icon: Wallet, color: financeSnapshot.receitaLiquida >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
-                    },
-                    { label: "Novas Vendas", value: financeSnapshot.novasVendas.toString(), desc: "Recebimentos no período", icon: Receipt, color: "text-[var(--color-primary-blue)]" },
-                    { label: "Contas a Receber", value: formatCurrency(financeSnapshot.contasAReceber), desc: "Em aberto agora", icon: Receipt, color: "text-amber-600 dark:text-amber-400" },
-                    { label: "Contas a Pagar", value: formatCurrency(financeSnapshot.contasAPagar), desc: "Em aberto agora", icon: Receipt, color: "text-amber-600 dark:text-amber-400" },
-                    { label: "Clientes Ativos", value: financeSnapshot.clientesAtivos.toString(), desc: `Base de clientes atual${pctSnap(financeSnapshot.clientesAtivos, financeSnapshot.clientesAtivos + financeSnapshot.clientesPerdidos, "da base")}`, icon: Users, color: "text-[var(--color-primary-blue)]" },
-                    { label: "Clientes Perdidos", value: financeSnapshot.clientesPerdidos.toString(), desc: `Marcados como Inativo${pctSnap(financeSnapshot.clientesPerdidos, financeSnapshot.clientesAtivos + financeSnapshot.clientesPerdidos, "da base")}`, icon: Users, color: "text-rose-600 dark:text-rose-400" },
-                  ].map((item, i) => (
-                    <div key={i} className="space-y-1">
-                      <p className="text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider flex items-center gap-1">
-                        <item.icon className="w-3 h-3" /> {item.label}
-                      </p>
-                      <h4 className={`text-base font-black ${item.color} font-mono tracking-tight`}>{item.value}</h4>
-                      <p className="text-[10px] text-[var(--color-text-muted)]">{item.desc}</p>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard icon={TrendingUp} label="Receita" value={formatCurrency(financeSnapshot.receita)} tone="success" sub="Recebido no período" caption={periodoSnap} />
+                  <StatCard icon={TrendingDown} label="Despesas" value={formatCurrency(financeSnapshot.despesas)} tone="danger" sub={`Pago no período${pctSnap(financeSnapshot.despesas, financeSnapshot.receita, "da receita")}`} caption={periodoSnap} />
+                  <StatCard icon={Wallet} label="Receita Líquida" value={formatCurrency(financeSnapshot.receitaLiquida)} tone={financeSnapshot.receitaLiquida >= 0 ? "success" : "danger"} sub={`Receita − Despesas${pctSnap(financeSnapshot.receitaLiquida, financeSnapshot.receita, "de margem")}`} caption={periodoSnap} />
+                  <StatCard icon={Receipt} label="Novas Vendas" value={financeSnapshot.novasVendas.toString()} sub="Recebimentos no período" caption={periodoSnap} />
+                  <StatCard icon={Receipt} label="Contas a Receber" value={formatCurrency(financeSnapshot.contasAReceber)} tone="warning" sub="Em aberto agora" caption="Posição atual" />
+                  <StatCard icon={Receipt} label="Contas a Pagar" value={formatCurrency(financeSnapshot.contasAPagar)} tone="warning" sub="Em aberto agora" caption="Posição atual" />
+                  <StatCard icon={Users} label="Clientes Ativos" value={financeSnapshot.clientesAtivos.toString()} sub={`Base de clientes atual${pctSnap(financeSnapshot.clientesAtivos, financeSnapshot.clientesAtivos + financeSnapshot.clientesPerdidos, "da base")}`} caption="Posição atual" />
+                  <StatCard icon={Users} label="Clientes Perdidos" value={financeSnapshot.clientesPerdidos.toString()} tone="danger" sub={`Marcados como Inativo${pctSnap(financeSnapshot.clientesPerdidos, financeSnapshot.clientesAtivos + financeSnapshot.clientesPerdidos, "da base")}`} caption="Posição atual" />
                 </div>
               )}
               {!financeSnapshot.hasAnyCliente && financeSnapshot.hasAnyEntry && (
-                <p className="text-[10px] text-[var(--color-text-faint)] mt-4">Clientes Ativos/Perdidos: sem registros na Base de Clientes ainda.</p>
+                <p className="text-[10px] text-[var(--color-text-faint)]">Clientes Ativos/Perdidos: sem registros na Base de Clientes ainda.</p>
               )}
-            </Card>
+            </div>
 
             <div className="lg:col-span-4">
               <RevenueWaterfallChart

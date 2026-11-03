@@ -2,10 +2,11 @@ import { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Card } from '../../../components/ui/card';
+import { StatCard } from '../../../components/ui/stat-card';
 import { SectionTitle } from "../../../components/ui/section-title";
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
-import { AlertCircle, ShieldAlert, HeartHandshake, CheckCircle2, BarChart3 } from 'lucide-react';
+import { AlertCircle, ShieldAlert, HeartHandshake, CheckCircle2, BarChart3, Wallet, Percent } from 'lucide-react';
 import { useData } from '../../../contexts/DataContext';
 import { toast } from 'sonner';
 import { useLocalization } from '../../../contexts/LocalizationContext';
@@ -138,7 +139,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
         </div>
       </Card>
 
-      <Card className="lg:col-span-2 p-5 space-y-6 shadow-sm">
+      <div className="lg:col-span-2 space-y-3">
         <div>
           <SectionTitle>
             <HeartHandshake className="w-4 h-4 text-[var(--color-primary-blue)]" /> Carteira de Contratos
@@ -147,39 +148,38 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
             Estado atual da base de contratos recorrentes.
           </p>
         </div>
-
         {contracts.length === 0 ? (
-          <div className="h-[160px] flex items-center justify-center text-xs text-[var(--color-text-muted)]">
+          <Card className="h-[160px] flex items-center justify-center text-xs text-[var(--color-text-muted)] shadow-sm">
             Nenhum contrato cadastrado ainda.
-          </div>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-[var(--color-surface-sunken)] rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-              <span className="text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider block mb-1">
-                MRR Ativo
-              </span>
-              <span className="text-2xl font-black text-[var(--color-text-primary)] font-mono">{formatCurrency(mrrAtivo)}</span>
-              <p className="text-[10px] text-[var(--color-text-muted)] mt-1">{ativos.length} contrato(s) ativo(s) · {Math.round((ativos.length / contracts.length) * 1000) / 10}% da carteira</p>
-            </div>
-
-            <div className="p-4 bg-[var(--color-surface-sunken)] rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-              <span className="text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider block mb-1">
-                MRR em Risco (Inadimplente)
-              </span>
-              <span className="text-2xl font-black text-danger font-mono">{formatCurrency(mrrEmRisco)}</span>
-              <p className="text-[10px] text-[var(--color-text-muted)] mt-1">{emRisco.length} contrato(s) · {Math.round((emRisco.length / contracts.length) * 1000) / 10}% da carteira</p>
-            </div>
-
-            <div className="p-4 bg-[var(--color-surface-sunken)] rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-              <span className="text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider block mb-1">
-                Taxa de Inadimplência
-              </span>
-              <span className="text-2xl font-black text-[var(--color-text-primary)] font-mono">{taxaRisco.toFixed(1)}%</span>
-              <p className="text-[10px] text-[var(--color-text-muted)] mt-1">sobre {contracts.length} contrato(s) no total</p>
-            </div>
+            <StatCard
+              icon={Wallet}
+              label="MRR Ativo"
+              value={formatCurrency(mrrAtivo)}
+              tone="success"
+              sub={`${Math.round((ativos.length / contracts.length) * 1000) / 10}% da carteira`}
+              caption={`${ativos.length} contrato(s) ativo(s) · posição atual`}
+            />
+            <StatCard
+              icon={AlertCircle}
+              label="MRR em Risco (Inadimplente)"
+              value={formatCurrency(mrrEmRisco)}
+              tone="danger"
+              sub={`${Math.round((emRisco.length / contracts.length) * 1000) / 10}% da carteira`}
+              caption={`${emRisco.length} contrato(s) · posição atual`}
+            />
+            <StatCard
+              icon={Percent}
+              label="Taxa de Inadimplência"
+              value={`${taxaRisco.toFixed(1)}%`}
+              sub={`sobre ${contracts.length} contrato(s)`}
+              caption="Posição atual"
+            />
           </div>
         )}
-      </Card>
+      </div>
     </div>
 
     <Card className="p-5 shadow-sm">
