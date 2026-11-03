@@ -322,7 +322,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                 <p className="text-xs text-[var(--color-text-faint)] italic py-4">Nenhuma venda com produto no período.</p>
               ) : (
                 <div className="space-y-3">
-                  {produtosGeral.slice(0, 6).map((p) => (
+                  {produtosGeral.map((p) => (
                     <div key={p.id}>
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">{p.nome}</span>
