@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
 } from "recharts";
@@ -51,6 +51,39 @@ function Tendencia({ pct }: { pct: number | null }) {
   );
 }
 
+/** Chips de produto limitados a 2 linhas; se sobrar, mostra "Ver todos" que abre o painel lateral com todos. */
+function ProdutosChips({ produtos, formatCurrency, onVerTodos }: { produtos: VendedorLinha["produtos"]; formatCurrency: (n: number) => string; onVerTodos: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [estoura, setEstoura] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const medir = () => setEstoura(el.scrollHeight > el.clientHeight + 1);
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [produtos]);
+  return (
+    <div className="flex items-start gap-2 mt-1.5">
+      <div ref={ref} className="flex flex-wrap gap-1.5 overflow-hidden max-h-[56px] flex-1 min-w-0">
+        {produtos.map((p) => (
+          <span key={p.id} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-2 py-1 text-[11px]">
+            <span className="font-bold text-[var(--color-text-primary)]">{p.nome}</span>
+            <span className="text-[var(--color-text-muted)]">× {p.vendas}</span>
+            <span className="font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(p.receita)}</span>
+          </span>
+        ))}
+      </div>
+      {estoura && (
+        <button type="button" onClick={onVerTodos} className="shrink-0 rounded-lg border border-[var(--color-primary-blue)]/40 bg-[var(--color-primary-blue)]/10 px-2 py-1 text-[11px] font-bold text-[var(--color-primary-blue)] cursor-pointer hover:bg-[var(--color-primary-blue)]/20">
+          Ver todos ({produtos.length})
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function VendedoresPanel({ dashboard }: { dashboard: DashboardData }) {
   const { leads, proposals, proposalItems, products, contracts, colaboradores, cargos, sellerRestricted } = useData() as any;
   const { formatCurrency } = useLocalization();
@@ -59,6 +92,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
   const [produtoSel, setProdutoSel] = useState<string>("todos");
   const [acumulada, setAcumulada] = useState(true);
   const [detalhe, setDetalhe] = useState<VendedorLinha | null>(null);
+  const [produtosDe, setProdutosDe] = useState<VendedorLinha | null>(null);
 
   const faixa = useMemo(
     () => resolverPeriodo("pagina", dashboard.dateFrom, dashboard.dateTo),
@@ -339,15 +373,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                     {v.produtos.length === 0 ? (
                       <p className="text-[11px] text-[var(--color-text-faint)] mt-1">Sem produtos vendidos no período.</p>
                     ) : (
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {v.produtos.map((p) => (
-                          <span key={p.id} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-2 py-1 text-[11px]">
-                            <span className="font-bold text-[var(--color-text-primary)]">{p.nome}</span>
-                            <span className="text-[var(--color-text-muted)]">× {p.vendas}</span>
-                            <span className="font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(p.receita)}</span>
-                          </span>
-                        ))}
-                      </div>
+                      <ProdutosChips produtos={v.produtos} formatCurrency={formatCurrency} onVerTodos={() => setProdutosDe(v)} />
                     )}
                   </div>
                 </div>
@@ -446,6 +472,19 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
           )}
         </Card>
       </Card>
+
+      <DrillDownPanel
+        isOpen={produtosDe !== null}
+        onClose={() => setProdutosDe(null)}
+        title={produtosDe ? `Produtos de ${produtosDe.nome}` : undefined}
+        subtitle={produtosDe ? `${produtosDe.produtos.length} produto${produtosDe.produtos.length === 1 ? "" : "s"} vendido${produtosDe.produtos.length === 1 ? "" : "s"} no período` : undefined}
+        rows={produtosDe ? produtosDe.produtos : []}
+        columns={[
+          { header: "Produto", render: (p: any) => <span className="font-bold text-[var(--color-text-primary)]">{p.nome}</span> },
+          { header: "Vendas", render: (p: any) => p.vendas, className: "text-right" },
+          { header: "Receita", render: (p: any) => <span className="font-mono font-bold">{formatCurrency(p.receita)}</span>, className: "text-right" },
+        ]}
+      />
 
       <DrillDownPanel
         isOpen={detalhe !== null}
