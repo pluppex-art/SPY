@@ -12,5 +12,17 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
   if (session?.access_token) {
     headers.set('Authorization', `Bearer ${session.access_token}`);
   }
-  return fetch(input, { ...init, headers });
+  // Queda de rede do navegador (ERR_NETWORK_CHANGED / "Failed to fetch": Wi-Fi reconectando, VPN, IPv4↔IPv6) derruba
+  // de uma vez todas as chamadas em andamento — e o carregamento inicial ficava sem dados até recarregar a página.
+  // Leituras (GET) são seguras de repetir; escritas nunca são repetidas aqui (poderiam duplicar efeito).
+  const method = (init.method || 'GET').toUpperCase();
+  const retries = method === 'GET' ? 3 : 0;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetch(input, { ...init, headers });
+    } catch (err) {
+      if (attempt >= retries || init.signal?.aborted) throw err;
+      await new Promise((ok) => setTimeout(ok, 600 * (attempt + 1)));
+    }
+  }
 }
