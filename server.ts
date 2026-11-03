@@ -5848,7 +5848,7 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
       .filter((m) => { const k = m.id || `${m.timestamp}|${m.fromMe}|${m.text}`; if (vistos.has(k)) return false; vistos.add(k); return true; })
       .sort((a, b) => a.timestamp - b.timestamp)
       .map((m) => ({ id: m.id || `${m.timestamp}-${m.fromMe}`, text: m.text, fromMe: m.fromMe, created_at: new Date(m.timestamp * 1000).toISOString(), vendedor: m.vendedor }));
-    res.json({ source: "waha", messages });
+    res.json({ source: "waha", messages, sessoes: candidatas.map((c: any) => c.vendedor), digits_final: digits.slice(-4) });
   } catch (err: any) {
     console.error("[leads/conversa-whatsapp]", err?.message);
     res.status(502).json({ error: `Falha ao consultar o WAHA: ${err?.message || "erro desconhecido"}` });

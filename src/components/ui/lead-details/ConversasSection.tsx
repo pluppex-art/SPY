@@ -51,6 +51,8 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
   const [temMais, setTemMais] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   // "waha" = lido ao vivo do WAHA (completo, inclui o que o vendedor manda pelo celular); "banco" = só o que o webhook gravou.
+  // Por que o WAHA não devolveu nada (mostrado quando também não há nada salvo no banco).
+  const [motivoWaha, setMotivoWaha] = useState<string>("");
   const [fonte, setFonte] = useState<"waha" | "banco">("banco");
   const fimRef = useRef<HTMLDivElement>(null);
   const primeiraCarga = useRef(true);
@@ -64,11 +66,22 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
     setErro(null);
     try {
       // 1) WAHA ao vivo (o webhook não grava o que o vendedor envia pelo celular, então o banco é incompleto).
+      if (!antesDe) setMotivoWaha("");
       if (!antesDe && lead?.id) {
         try {
           const r = await apiFetch(`/api/leads/${encodeURIComponent(lead.id)}/conversa-whatsapp`);
-          if (r.ok) {
+          if (!r.ok) {
+            setMotivoWaha(r.status === 502 ? "O WAHA não respondeu (erro no gateway)." : `A consulta ao WAHA falhou (HTTP ${r.status}).`);
+          } else {
             const j = await r.json();
+            if (j.source === "none") {
+              setMotivoWaha(
+                j.reason === "waha_nao_configurado" ? "O servidor não está ligado ao WAHA (falta configurar WAHA_API_URL no deploy)."
+                : j.reason === "sem_sessao_conectada" ? "Nenhuma sessão de WhatsApp conectada neste tenant."
+                : j.reason === "sem_telefone" ? "Lead sem telefone válido." : "")
+            } else if (j.source === "waha" && (!j.messages || j.messages.length === 0)) {
+              setMotivoWaha(`O WAHA foi consultado (sessões: ${(j.sessoes || []).join(", ") || "—"}) e não há mensagens com o número ...${j.digits_final}.`);
+            }
             if (j.source === "waha" && Array.isArray(j.messages) && j.messages.length > 0) {
               setFonte("waha");
               setTemMais(false);
@@ -179,7 +192,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
           <Loader2 className="w-4 h-4 animate-spin mr-2" /> Carregando conversas…
         </div>
       ) : msgs.length === 0 ? (
-        <EmptyState icon={MessageSquareOff} title="Nenhuma conversa encontrada" description="Não há mensagens de WhatsApp registradas com o telefone deste lead." className="h-60" />
+        <EmptyState icon={MessageSquareOff} title="Nenhuma conversa encontrada" description={motivoWaha || "Não há mensagens de WhatsApp registradas com o telefone deste lead."} className="h-60" />
       ) : (
         <div className="max-h-[55vh] overflow-y-auto bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3.5 space-y-2">
           {temMais && (
