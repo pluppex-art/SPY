@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
 } from "recharts";
 import {
-  Crown, Users, Target, FileText, ShoppingCart, ChevronRight, TrendingUp, TrendingDown, Calendar, Package,
+  Crown, Users, Target, FileText, ShoppingCart, ChevronRight, TrendingUp, TrendingDown, Package,
 } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { SectionTitle } from "../../../components/ui/section-title";
@@ -13,8 +13,8 @@ import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
 import type { DashboardData } from "../revenueInsights";
 import {
-  computeVendedores, resolverPeriodo, serieDiaria, PERIODO_LABEL,
-  type PeriodoOpcao, type VendedorLinha,
+  computeVendedores, resolverPeriodo, serieDiaria,
+  type VendedorLinha,
 } from "../vendedoresMetrics";
 
 const selectCls =
@@ -55,15 +55,14 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
   const { leads, proposals, proposalItems, products, contracts, colaboradores, cargos, sellerRestricted } = useData() as any;
   const { formatCurrency } = useLocalization();
 
-  const [periodo, setPeriodo] = useState<PeriodoOpcao>("mes");
   const [vendedorSel, setVendedorSel] = useState<string>("todos");
   const [produtoSel, setProdutoSel] = useState<string>("todos");
   const [acumulada, setAcumulada] = useState(true);
   const [detalhe, setDetalhe] = useState<VendedorLinha | null>(null);
 
   const faixa = useMemo(
-    () => resolverPeriodo(periodo, dashboard.dateFrom, dashboard.dateTo),
-    [periodo, dashboard.dateFrom, dashboard.dateTo],
+    () => resolverPeriodo("pagina", dashboard.dateFrom, dashboard.dateTo),
+    [dashboard.dateFrom, dashboard.dateTo],
   );
 
   const { linhas, vendasNoPeriodo } = useMemo(
@@ -142,12 +141,6 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle>{titulo}</SectionTitle>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="relative">
-              <Calendar className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
-              <select value={periodo} onChange={(e) => setPeriodo(e.target.value as PeriodoOpcao)} className={`${selectCls} pl-8`}>
-                {(Object.keys(PERIODO_LABEL) as PeriodoOpcao[]).map((p) => <option key={p} value={p}>{PERIODO_LABEL[p]}</option>)}
-              </select>
-            </label>
             <label className="relative">
               <Package className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
               <select value={produtoSel} onChange={(e) => setProdutoSel(e.target.value)} className={`${selectCls} pl-8 max-w-[220px]`}>
