@@ -208,9 +208,14 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
       setFonte("banco");
       // Pré-filtro no banco pelos 4 últimos dígitos (contíguos em qualquer formatação) e
       // conferência exata dos 8 últimos no cliente.
+      // Sempre filtra pelo tenant do lead: master/parceiro enxergam vários tenants pela RLS e o mesmo telefone
+      // pode existir em outra empresa. Sem tenant conhecido, não mostra nada em vez de arriscar misturar.
+      const tenantId = lead?.tenant_id;
+      if (!tenantId) { setMsgs([]); setTemMais(false); return; }
       const { data: contatos, error: eC } = await supabase
         .from("chat_contacts")
         .select("id, phone")
+        .eq("tenant_id", tenantId)
         .ilike("phone", `%${chave.slice(-4)}%`)
         .limit(200);
       if (eC) throw eC;
@@ -220,6 +225,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
       let q = supabase
         .from("chat_messages")
         .select("id, contact_id, whatsapp_instance_id, text, sender, created_at")
+        .eq("tenant_id", tenantId)
         .in("contact_id", ids)
         .order("created_at", { ascending: false })
         .limit(PAGE + 1);
@@ -233,7 +239,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
 
       const instIds = [...new Set(pagina.map((m) => m.whatsapp_instance_id).filter(Boolean))] as string[];
       if (instIds.length > 0) {
-        const { data: inst } = await supabase.from("whatsapp_instances").select("id, name, colaborador_id").in("id", instIds);
+        const { data: inst } = await supabase.from("whatsapp_instances").select("id, name, colaborador_id").eq("tenant_id", tenantId).in("id", instIds);
         setInstancias((prev) => {
           const next = { ...prev };
           (inst || []).forEach((i: any) => { next[i.id] = { name: i.name, colaboradorId: i.colaborador_id ?? null }; });

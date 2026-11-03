@@ -5838,7 +5838,7 @@ async function resolverMidiaWhatsapp(req: any, leadId: string, session: unknown,
   if (!lead) return { erro: { status: 404, msg: "Lead não encontrado." } };
   const digits = String(lead.phone_digits || lead.phone || "").replace(/\D/g, "");
   if (!foneVariantes(digits).includes(chat)) return { erro: { status: 403, msg: "Conversa não pertence ao lead." } };
-  const { data: insts } = await req.supabase.from("whatsapp_instances").select("id, name, colaborador_id");
+  const { data: insts } = await req.supabase.from("whatsapp_instances").select("id, name, colaborador_id").eq("tenant_id", lead.tenant_id);
   if (!(insts || []).some((i: any) => sessionNameOf(i) === session)) return { erro: { status: 403, msg: "Sessão não pertence ao tenant." } };
   return { lead, session, chatId: `${chat}@c.us`, messageId };
 }
@@ -5893,14 +5893,15 @@ app.post("/api/leads/:id/conversa-whatsapp/transcrever", requireUser, aiLimiter,
 app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async (req: any, res) => {
   if (!isWahaConfigured()) return res.json({ source: "none", reason: "waha_nao_configurado", messages: [] });
   try {
-    const { data: lead, error } = await req.supabase.from("leads").select("id, phone, phone_digits, seller").eq("id", req.params.id).maybeSingle();
+    const { data: lead, error } = await req.supabase.from("leads").select("id, tenant_id, phone, phone_digits, seller").eq("id", req.params.id).maybeSingle();
     if (error || !lead) return res.status(404).json({ error: "Lead não encontrado." });
     const digits = String(lead.phone_digits || lead.phone || "").replace(/\D/g, "");
     if (digits.length < 10) return res.json({ source: "none", reason: "sem_telefone", messages: [] });
 
     const [{ data: insts }, { data: colabs }] = await Promise.all([
-      req.supabase.from("whatsapp_instances").select("id, name, colaborador_id, status"),
-      req.supabase.from("colaboradores").select("id, nome"),
+      // RLS não basta: master e parceiros enxergam VÁRIOS tenants. Sempre restringe ao tenant do lead.
+      req.supabase.from("whatsapp_instances").select("id, name, colaborador_id, status").eq("tenant_id", lead.tenant_id),
+      req.supabase.from("colaboradores").select("id, nome").eq("tenant_id", lead.tenant_id),
     ]);
     const nomeColab = new Map<string, string>((colabs || []).map((c: any) => [c.id, c.nome]));
     const candidatas = (insts || [])
