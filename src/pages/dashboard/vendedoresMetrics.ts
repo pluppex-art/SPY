@@ -219,6 +219,18 @@ export function computeVendedores(
     // Venda sem itens de proposta (ex.: importada): usa os produtos vinculados ao lead,
     // dividindo o valor da venda igualmente entre eles.
     if (!temItens) {
+      // Sem proposta nem produto vinculado (ex.: leads vindos do Kommo): o "Interesse" do lead é o produto.
+      const interesse = String(l.lead_interesse_cliente || l.customFields?.kommo?.fields?.Interesse || "").trim();
+      if (!produtoId && (l.productIds ?? []).length === 0 && interesse) {
+        const pk = `interesse:${normNome(interesse)}`;
+        const mapa = prodAcc.get(key) ?? new Map();
+        prodAcc.set(key, mapa);
+        const cur = mapa.get(pk) ?? { id: pk, nome: interesse, leads: new Set<string>(), receita: 0 };
+        cur.leads.add(l.id);
+        cur.receita += valorVenda(l);
+        mapa.set(pk, cur);
+        return;
+      }
       const ids = ((l.productIds ?? []) as string[]).filter((id) => !produtoId || id === produtoId);
       const parte = ids.length > 0 ? valorVenda(l) / ids.length : 0;
       for (const id of ids) {
@@ -259,6 +271,9 @@ export function computeVendedores(
       const iso = contratoPorProposta.get(p.id);
       if (iso) return iso;
     }
+    // Kommo: data real do fechamento (updated_at é a data da importação).
+    const kommo = typeof l.customFields?.kommo?.closedAt === "string" ? l.customFields.kommo.closedAt.slice(0, 10) : "";
+    if (kommo) return kommo;
     const u = typeof l.updated_at === "string" ? l.updated_at.slice(0, 10) : "";
     return u || leadCriadoEm(l);
   };
