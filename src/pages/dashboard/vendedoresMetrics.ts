@@ -48,8 +48,8 @@ export function resolverPeriodo(op: PeriodoOpcao, paginaFrom: string | null, pag
   return { from: `${y}-01-01`, to: `${y}-12-31` };
 }
 
-/** Faixa imediatamente anterior, do mesmo tamanho. Sem período (tudo) compara
- *  os últimos 30 dias com os 30 anteriores. */
+/** Faixa imediatamente anterior, do mesmo tamanho. Sem período (tudo) conta
+ *  tudo e não tem faixa anterior. */
 export function faixaAnterior(f: Faixa, hoje = new Date()): { atual: Faixa; anterior: Faixa } {
   if (f.from) {
     const to = f.to ?? isoLocal(hoje);
@@ -57,10 +57,8 @@ export function faixaAnterior(f: Faixa, hoje = new Date()): { atual: Faixa; ante
     const prevTo = addDias(f.from, -1);
     return { atual: { from: f.from, to }, anterior: { from: addDias(prevTo, -(dias - 1)), to: prevTo } };
   }
-  const to = isoLocal(hoje);
-  const from = addDias(to, -29);
-  const prevTo = addDias(from, -1);
-  return { atual: { from, to }, anterior: { from: addDias(prevTo, -29), to: prevTo } };
+  // Sem período ("Todo o período"): conta tudo; não há faixa anterior pra comparar.
+  return { atual: { from: null, to: null }, anterior: { from: "9999-12-31", to: "9999-12-31" } };
 }
 
 export const dentro = (iso: string, f: Faixa) => !!iso && (!f.from || iso >= f.from) && (!f.to || iso <= f.to);
