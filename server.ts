@@ -5915,6 +5915,13 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
     if (candidatas.length === 0) return res.json({ source: "none", reason: "sem_sessao_conectada", messages: [] });
 
     const provider = getWhatsAppProvider();
+    // Só consulta sessões que existem e estão ativas no WAHA (uma chamada só): uma sessão cadastrada no CRM mas
+    // inexistente no gateway levava ~6 s pra falhar e segurava a aba inteira.
+    let ativas: Record<string, string> | null = null;
+    try { ativas = (await provider.listSessionStates?.()) ?? null; } catch { ativas = null; }
+    const consultaveis = ativas ? candidatas.filter((c: any) => ativas![sessionNameOf(c.inst)] === "CONNECTED") : candidatas;
+    // Teto por sessão: uma sessão lenta não pode atrasar a conversa toda.
+    const comTeto = <T,>(p: Promise<T>, fallback: T, ms = 5000) => Promise.race([p, new Promise<T>((ok) => setTimeout(() => ok(fallback), ms))]);
     const consultar = async (c: any) => {
       const session = sessionNameOf(c.inst);
       const lotes = await Promise.all(foneVariantes(digits).map(async (d) =>
@@ -5924,7 +5931,7 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
 
     // Todas as sessões conectadas do tenant (o cliente pode ter falado com o vendedor, a Júlia/SDR, o CS...);
     // a tela filtra por agente. Limitado pra não abrir dezenas de consultas ao gateway por lead.
-    const msgs: any[] = (await Promise.all(candidatas.slice(0, 14).map(consultar))).flat();
+    const msgs: any[] = (await Promise.all(consultaveis.slice(0, 14).map((c: any) => comTeto(consultar(c), [] as any[])))).flat();
 
     const vistos = new Set<string>();
     const messages = msgs
