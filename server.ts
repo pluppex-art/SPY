@@ -5810,6 +5810,76 @@ const nomesConferem = (a: unknown, b: unknown) => {
   return curto.every((t) => set.has(t)) || ta.join("") === tb.join("");
 };
 
+const mediaTypeOf = (mime?: string): "audio" | "image" | "video" | "document" | undefined => {
+  const m = String(mime || "").toLowerCase();
+  if (!m) return undefined;
+  if (m.startsWith("audio/")) return "audio";
+  if (m.startsWith("image/")) return "image";
+  if (m.startsWith("video/")) return "video";
+  return "document";
+};
+
+// Valida (via RLS) que o lead é do chamador e que a sessão/chat pedidos pertencem ao tenant e ao telefone do lead —
+// o cliente nunca escolhe uma sessão ou conversa arbitrária do gateway compartilhado.
+async function resolverMidiaWhatsapp(req: any, leadId: string, session: unknown, chat: unknown, messageId: unknown) {
+  if (!isWahaConfigured()) return { erro: { status: 503, msg: "WAHA não configurado." } };
+  if (typeof session !== "string" || typeof chat !== "string" || typeof messageId !== "string" || !messageId) return { erro: { status: 400, msg: "Parâmetros inválidos." } };
+  const { data: lead } = await req.supabase.from("leads").select("id, tenant_id, phone, phone_digits").eq("id", leadId).maybeSingle();
+  if (!lead) return { erro: { status: 404, msg: "Lead não encontrado." } };
+  const digits = String(lead.phone_digits || lead.phone || "").replace(/\D/g, "");
+  if (!foneVariantes(digits).includes(chat)) return { erro: { status: 403, msg: "Conversa não pertence ao lead." } };
+  const { data: insts } = await req.supabase.from("whatsapp_instances").select("id, name, colaborador_id");
+  if (!(insts || []).some((i: any) => sessionNameOf(i) === session)) return { erro: { status: 403, msg: "Sessão não pertence ao tenant." } };
+  return { lead, session, chatId: `${chat}@c.us`, messageId };
+}
+
+app.get("/api/leads/:id/conversa-whatsapp/midia", requireUser, whatsappLimiter, async (req: any, res) => {
+  try {
+    const r: any = await resolverMidiaWhatsapp(req, req.params.id, req.query.session, req.query.chat, req.query.messageId);
+    if (r.erro) return res.status(r.erro.status).json({ error: r.erro.msg });
+    const media = await getWhatsAppProvider().downloadMedia?.(r.session, r.chatId, r.messageId);
+    if (!media) return res.status(404).json({ error: "Mídia indisponível (expirada ou não baixada pelo WhatsApp)." });
+    res.setHeader("Content-Type", media.mimetype.split(";")[0]);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.send(media.buffer);
+  } catch (err: any) {
+    console.error("[leads/conversa-whatsapp/midia]", err?.message);
+    res.status(502).json({ error: "Falha ao baixar a mídia do WAHA." });
+  }
+});
+
+// Transcrição (IA) de UM áudio, sob demanda; o resultado fica em whatsapp_transcricoes pra não pagar IA duas vezes.
+app.post("/api/leads/:id/conversa-whatsapp/transcrever", requireUser, aiLimiter, async (req: any, res) => {
+  try {
+    const r: any = await resolverMidiaWhatsapp(req, req.params.id, req.body?.session, req.body?.chat, req.body?.messageId);
+    if (r.erro) return res.status(r.erro.status).json({ error: r.erro.msg });
+    const tenantId = r.lead.tenant_id;
+    const { data: cache } = await req.supabase.from("whatsapp_transcricoes").select("texto").eq("tenant_id", tenantId).eq("wa_message_id", r.messageId).maybeSingle();
+    if (cache?.texto) return res.json({ texto: cache.texto, cache: true });
+    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "IA de transcrição não configurada (GEMINI_API_KEY)." });
+    if (!(await saas.isAiAllowed(tenantId))) return res.status(402).json({ error: "Sem saldo de IA neste tenant." });
+
+    const media = await getWhatsAppProvider().downloadMedia?.(r.session, r.chatId, r.messageId);
+    if (!media) return res.status(404).json({ error: "Áudio indisponível (expirado ou não baixado pelo WhatsApp)." });
+    if (mediaTypeOf(media.mimetype) !== "audio") return res.status(400).json({ error: "A mensagem não é um áudio." });
+
+    const response = await aiContext.run({ tenantId }, () => ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: [{ role: "user", parts: [
+        { inlineData: { mimeType: media.mimetype.split(";")[0], data: media.buffer.toString("base64") } },
+        { text: "Transcreva este áudio de WhatsApp em português, fielmente, sem comentários, sem aspas e sem timestamps. Se for inaudível, responda apenas: [inaudível]." },
+      ] }],
+    }));
+    const texto = String((response as any).text ?? "").trim();
+    if (!texto) return res.status(502).json({ error: "A IA não devolveu transcrição." });
+    await req.supabase.from("whatsapp_transcricoes").upsert({ tenant_id: tenantId, wa_message_id: r.messageId, texto }, { onConflict: "tenant_id,wa_message_id" });
+    res.json({ texto, cache: false });
+  } catch (err: any) {
+    console.error("[leads/conversa-whatsapp/transcrever]", err?.message);
+    res.status(502).json({ error: "Falha ao transcrever o áudio." });
+  }
+});
+
 app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async (req: any, res) => {
   if (!isWahaConfigured()) return res.json({ source: "none", reason: "waha_nao_configurado", messages: [] });
   try {
@@ -5832,8 +5902,8 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
     const provider = getWhatsAppProvider();
     const consultar = async (c: any) => {
       const session = sessionNameOf(c.inst);
-      const lotes = await Promise.all(foneVariantes(digits).map((d) =>
-        provider.getChatMessages(session, `${d}@c.us`, 300, { includeMedia: true }).catch(() => [])));
+      const lotes = await Promise.all(foneVariantes(digits).map(async (d) =>
+        (await provider.getChatMessages(session, `${d}@c.us`, 300, { includeMedia: true }).catch(() => [])).map((m) => ({ ...m, chat: d }))));
       return lotes.flat().map((m) => ({ ...m, vendedor: c.vendedor, session }));
     };
 
@@ -5847,7 +5917,13 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
     const messages = msgs
       .filter((m) => { const k = m.id || `${m.timestamp}|${m.fromMe}|${m.text}`; if (vistos.has(k)) return false; vistos.add(k); return true; })
       .sort((a, b) => a.timestamp - b.timestamp)
-      .map((m) => ({ id: m.id || `${m.timestamp}-${m.fromMe}`, text: m.text, fromMe: m.fromMe, created_at: new Date(m.timestamp * 1000).toISOString(), vendedor: m.vendedor }));
+      .map((m) => {
+        const mediaType = mediaTypeOf(m.mimetype);
+        // Sem legenda, o provider devolve um marcador "[tipo]" — a tela mostra a mídia em si, não o marcador.
+        const text = mediaType && /^\[[^\]]*\]$/.test(m.text) ? "" : m.text;
+        return { id: m.id || `${m.timestamp}-${m.fromMe}`, text, fromMe: m.fromMe, created_at: new Date(m.timestamp * 1000).toISOString(), vendedor: m.vendedor,
+          ...(mediaType && m.id ? { mediaType, session: m.session, chat: m.chat } : {}) };
+      });
     res.json({ source: "waha", messages, sessoes: candidatas.map((c: any) => c.vendedor), digits_final: digits.slice(-4) });
   } catch (err: any) {
     console.error("[leads/conversa-whatsapp]", err?.message);

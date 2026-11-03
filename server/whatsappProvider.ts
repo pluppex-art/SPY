@@ -54,6 +54,8 @@ export interface ProviderMessage {
   text: string;
   fromMe: boolean;
   timestamp: number; // epoch segundos
+  /** Tipo MIME da mídia (áudio/imagem/vídeo/documento) quando a mensagem tem mídia. */
+  mimetype?: string;
 }
 
 export interface WhatsAppProvider {
@@ -79,6 +81,8 @@ export interface WhatsAppProvider {
   listChats(providerInstanceId: string): Promise<ProviderChat[]>;
   /** Histórico de uma conversa, mais recentes primeiro, até `limit`. */
   getChatMessages(providerInstanceId: string, chatId: string, limit: number, opts?: { includeMedia?: boolean }): Promise<ProviderMessage[]>;
+  /** Baixa a mídia de UMA mensagem (somente leitura). Opcional: o Simulador não tem. */
+  downloadMedia?(providerInstanceId: string, chatId: string, messageId: string): Promise<{ buffer: Buffer; mimetype: string } | null>;
 }
 
 // ── Config ───────────────────────────────────────────────────────────────
@@ -293,9 +297,25 @@ export class WAHAProvider implements WhatsAppProvider {
           id: m?.id?._serialized || m?.id || undefined,
           phone, text, fromMe: !!m?.fromMe,
           timestamp: Number(m?.timestamp) || Math.floor(Date.now() / 1000),
+          mimetype: m?.hasMedia ? String(m?.media?.mimetype || "") || undefined : undefined,
         };
       })
       .filter((m): m is ProviderMessage => m !== null);
+  }
+
+  // O WAHA devolve a URL da mídia com a origem interna (http://localhost:3000/api/files/...);
+  // o arquivo é buscado na URL pública do gateway, com a mesma chave de API.
+  async downloadMedia(providerInstanceId: string, chatId: string, messageId: string): Promise<{ buffer: Buffer; mimetype: string } | null> {
+    const { data } = await axios.get(
+      `${WAHA_API_URL}/api/${encodeURIComponent(providerInstanceId)}/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}`,
+      { headers: this.headers(), timeout: 30000, params: { downloadMedia: true } }
+    );
+    const url: string | undefined = data?.media?.url;
+    if (!url) return null;
+    const path = url.replace(/^https?:\/\/[^/]+/, "");
+    if (!path.startsWith("/api/files/")) return null;
+    const file = await axios.get(`${WAHA_API_URL}${path}`, { headers: this.headers(), timeout: 60000, responseType: "arraybuffer", maxContentLength: 25 * 1024 * 1024 });
+    return { buffer: Buffer.from(file.data), mimetype: String(data?.media?.mimetype || file.headers?.["content-type"] || "application/octet-stream") };
   }
 }
 

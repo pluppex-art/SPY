@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquareOff, RefreshCw, Loader2, Smartphone } from "lucide-react";
+import { MessageSquareOff, RefreshCw, Loader2, Smartphone, FileText, Mic, Film, FileDown } from "lucide-react";
 import { Button } from "../button";
 import { EmptyState } from "../empty-state";
 import { supabase } from "../../../lib/supabase";
@@ -20,6 +20,10 @@ interface Msg {
   created_at: string;
   /** Preenchido quando a mensagem vem do WAHA (nome do vendedor dono da sessão). */
   vendedor?: string;
+  /** Mídia da mensagem (só vem do WAHA): o arquivo é baixado sob demanda pelo servidor. */
+  mediaType?: "audio" | "image" | "video" | "document";
+  session?: string;
+  chat?: string;
 }
 
 const PAGE = 300;
@@ -35,6 +39,104 @@ const diaLabel = (iso: string) => {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 };
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+const midiaUrl = (leadId: string, m: Msg) =>
+  `/api/leads/${encodeURIComponent(leadId)}/conversa-whatsapp/midia?session=${encodeURIComponent(m.session || "")}&chat=${encodeURIComponent(m.chat || "")}&messageId=${encodeURIComponent(m.id)}`;
+
+/** Baixa a mídia (com o token do usuário) e devolve uma URL local pra <img>/<audio>. */
+function useMidia(leadId: string, m: Msg, auto: boolean) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [estado, setEstado] = useState<"idle" | "carregando" | "erro">("idle");
+  const carregar = useCallback(async () => {
+    if (url || estado === "carregando") return;
+    setEstado("carregando");
+    try {
+      const r = await apiFetch(midiaUrl(leadId, m));
+      if (!r.ok) throw new Error(String(r.status));
+      setUrl(URL.createObjectURL(await r.blob()));
+      setEstado("idle");
+    } catch { setEstado("erro"); }
+  }, [leadId, m, url, estado]);
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!auto || !ref.current) return;
+    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { carregar(); io.disconnect(); } }, { rootMargin: "200px" });
+    io.observe(ref.current);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto]);
+  return { url, estado, carregar, ref };
+}
+
+/** Imagem, áudio (com transcrição por IA sob demanda), vídeo e documento de uma mensagem do WhatsApp. */
+function MidiaMensagem({ leadId, m, doVendedor }: { leadId: string; m: Msg; doVendedor: boolean }) {
+  const { url, estado, carregar, ref } = useMidia(leadId, m, m.mediaType === "image");
+  const [texto, setTexto] = useState<string | null>(null);
+  const [transcrevendo, setTranscrevendo] = useState(false);
+  const [erroT, setErroT] = useState("");
+  const btn = cn("inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold cursor-pointer border",
+    doVendedor ? "border-white/40 bg-white/15 hover:bg-white/25 text-white" : "border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]");
+
+  const transcrever = async () => {
+    setTranscrevendo(true); setErroT("");
+    try {
+      const r = await apiFetch(`/api/leads/${encodeURIComponent(leadId)}/conversa-whatsapp/transcrever`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session: m.session, chat: m.chat, messageId: m.id }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      setTexto(j.texto);
+    } catch (e: any) { setErroT(e?.message || "Falha ao transcrever."); }
+    finally { setTranscrevendo(false); }
+  };
+
+  if (m.mediaType === "image") {
+    return (
+      <div ref={ref} className="mb-1">
+        {url ? (
+          <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Imagem da conversa" className="rounded-xl max-h-64 max-w-full object-cover" /></a>
+        ) : (
+          <div className="h-24 w-40 rounded-xl bg-black/10 flex items-center justify-center text-[10px] opacity-70">
+            {estado === "erro" ? <button type="button" className={btn} onClick={carregar}>Imagem indisponível · tentar de novo</button> : <Loader2 className="w-4 h-4 animate-spin" />}
+          </div>
+        )}
+      </div>
+    );
+  }
+  if (m.mediaType === "audio") {
+    return (
+      <div className="mb-1 space-y-1.5 min-w-[220px]">
+        {url ? <audio controls src={url} className="h-9 w-full max-w-[260px]" /> : (
+          <button type="button" className={btn} onClick={carregar} disabled={estado === "carregando"}>
+            {estado === "carregando" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mic className="w-3.5 h-3.5" />} {estado === "erro" ? "Áudio indisponível · tentar de novo" : "Ouvir áudio"}
+          </button>
+        )}
+        {texto === null ? (
+          <button type="button" className={btn} onClick={transcrever} disabled={transcrevendo}>
+            {transcrevendo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} Transcrever
+          </button>
+        ) : (
+          <p className="text-xs italic whitespace-pre-wrap break-words border-l-2 border-current/40 pl-2 opacity-90">“{texto}”</p>
+        )}
+        {erroT && <p className="text-[10px] opacity-80">{erroT}</p>}
+      </div>
+    );
+  }
+  return (
+    <div className="mb-1">
+      {url ? (
+        <a href={url} target="_blank" rel="noreferrer" className={btn}><FileDown className="w-3.5 h-3.5" /> Abrir {m.mediaType === "video" ? "vídeo" : "arquivo"}</a>
+      ) : (
+        <button type="button" className={btn} onClick={carregar} disabled={estado === "carregando"}>
+          {estado === "carregando" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : m.mediaType === "video" ? <Film className="w-3.5 h-3.5" /> : <FileDown className="w-3.5 h-3.5" />}
+          {estado === "erro" ? "Indisponível · tentar de novo" : m.mediaType === "video" ? "Carregar vídeo" : "Carregar arquivo"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 /**
  * Visualização (somente leitura) da conversa de WhatsApp entre o vendedor e o
@@ -85,7 +187,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
             if (j.source === "waha" && Array.isArray(j.messages) && j.messages.length > 0) {
               setFonte("waha");
               setTemMais(false);
-              setMsgs(j.messages.map((m: any) => ({ id: m.id, contact_id: "", whatsapp_instance_id: null, text: m.text, sender: m.fromMe ? "human" : "contact", created_at: m.created_at, vendedor: m.vendedor })));
+              setMsgs(j.messages.map((m: any) => ({ id: m.id, contact_id: "", whatsapp_instance_id: null, text: m.text, sender: m.fromMe ? "human" : "contact", created_at: m.created_at, vendedor: m.vendedor, mediaType: m.mediaType, session: m.session, chat: m.chat })));
               return;
             }
           }
@@ -224,7 +326,8 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
                     )}
                   >
                     {doVendedor && <p className="text-[9px] font-black uppercase tracking-wider opacity-70 mb-0.5">{nomeDoVendedor(m.whatsapp_instance_id, m.vendedor)}</p>}
-                    <p className="whitespace-pre-wrap break-words">{m.text || <em className="opacity-60">[mídia ou mensagem sem texto]</em>}</p>
+                    {m.mediaType && lead?.id && <MidiaMensagem leadId={lead.id} m={m} doVendedor={doVendedor} />}
+                    {(m.text || !m.mediaType) && <p className="whitespace-pre-wrap break-words">{m.text || <em className="opacity-60">[mensagem sem texto]</em>}</p>}
                     <span className="text-[9px] opacity-60 block mt-1 text-right">{hora(m.created_at)}</span>
                   </div>
                 </div>
