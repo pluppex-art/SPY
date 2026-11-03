@@ -71,7 +71,7 @@ function useMidia(leadId: string, m: Msg, auto: boolean) {
 
 /** Imagem, áudio (com transcrição por IA sob demanda), vídeo e documento de uma mensagem do WhatsApp. */
 function MidiaMensagem({ leadId, m, doVendedor }: { leadId: string; m: Msg; doVendedor: boolean }) {
-  const { url, estado, carregar, ref } = useMidia(leadId, m, m.mediaType === "image");
+  const { url, estado, carregar, ref } = useMidia(leadId, m, m.mediaType === "image" || m.mediaType === "audio");
   const [texto, setTexto] = useState<string | null>(null);
   const [transcrevendo, setTranscrevendo] = useState(false);
   const [erroT, setErroT] = useState("");
@@ -92,6 +92,12 @@ function MidiaMensagem({ leadId, m, doVendedor }: { leadId: string; m: Msg; doVe
     finally { setTranscrevendo(false); }
   };
 
+  // Áudio: assim que o arquivo entra na tela e carrega, a IA "escuta" e transcreve sozinha (cache evita refazer).
+  useEffect(() => {
+    if (m.mediaType === "audio" && url && texto === null && !transcrevendo && !erroT) transcrever();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+
   if (m.mediaType === "image") {
     return (
       <div ref={ref} className="mb-1">
@@ -107,16 +113,20 @@ function MidiaMensagem({ leadId, m, doVendedor }: { leadId: string; m: Msg; doVe
   }
   if (m.mediaType === "audio") {
     return (
-      <div className="mb-1 space-y-1.5 min-w-[220px]">
+      <div ref={ref} className="mb-1 space-y-1.5 min-w-[220px]">
         {url ? <audio controls src={url} className="h-9 w-full max-w-[260px]" /> : (
           <button type="button" className={btn} onClick={carregar} disabled={estado === "carregando"}>
             {estado === "carregando" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mic className="w-3.5 h-3.5" />} {estado === "erro" ? "Áudio indisponível · tentar de novo" : "Ouvir áudio"}
           </button>
         )}
         {texto === null ? (
-          <button type="button" className={btn} onClick={transcrever} disabled={transcrevendo}>
-            {transcrevendo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} Transcrever
-          </button>
+          transcrevendo ? (
+            <p className="text-[11px] italic opacity-80 flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Transcrevendo áudio…</p>
+          ) : (url || erroT) && (
+            <button type="button" className={btn} onClick={transcrever}>
+              <FileText className="w-3.5 h-3.5" /> {erroT ? "Tentar transcrever de novo" : "Transcrever"}
+            </button>
+          )
         ) : (
           <p className="text-xs italic whitespace-pre-wrap break-words border-l-2 border-current/40 pl-2 opacity-90">“{texto}”</p>
         )}
