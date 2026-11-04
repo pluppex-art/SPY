@@ -96,7 +96,7 @@ export function ActiveChatArea({
       }`}>
       {/* Chat Header */}
       <div className="shrink-0 h-[64px] px-2 md:px-6 flex items-center justify-between border-b border-white/5 bg-[#0F172A]/90 backdrop-blur-md z-10 w-full shadow-sm">
-        <div className="flex items-center gap-1.5 md:gap-3 max-w-[75%] cursor-pointer" onClick={() => { if(isMobile) setRightPanel("info"); }}>
+        <div className="flex items-center gap-1.5 md:gap-3 max-w-[75%] cursor-pointer" onClick={() => { if(isMobile) setRightPanel("info"); }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (isMobile) setRightPanel("info"); } }}>
           {isMobile && (
             <button 
               onClick={(e) => { e.stopPropagation(); setActiveChat(null); setRightPanel("none"); }}

@@ -240,17 +240,17 @@ export default function ImobiliarioPainel() {
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          <div onClick={() => openDrill("Disponíveis", disponiveisRows, imovelColumns)} className="cursor-pointer">
+          <div onClick={() => openDrill("Disponíveis", disponiveisRows, imovelColumns)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDrill("Disponíveis", disponiveisRows, imovelColumns); } }} className="cursor-pointer">
             <KPICard icon={Building2} label="Disponíveis" value={String(disponiveis)} sub="no portfólio ativo" color="text-indigo-500" />
           </div>
-          <div onClick={() => openDrill("Vendidos Mês", vendidosMesRows, imovelColumns)} className="cursor-pointer">
+          <div onClick={() => openDrill("Vendidos Mês", vendidosMesRows, imovelColumns)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDrill("Vendidos Mês", vendidosMesRows, imovelColumns); } }} className="cursor-pointer">
             <KPICard icon={TrendingUp} label="Vendidos Mês" value={String(vendidosMes)} sub="negócios fechados" color="text-emerald-500" />
           </div>
           <KPICard icon={DollarSign} label="VGV Mês" value={fmtVgv(vgvMes)} sub="volume geral de vendas" color="text-blue-500" />
-          <div onClick={() => openDrill("Leads Ativos", leadsAtivosRows, leadColumns)} className="cursor-pointer">
+          <div onClick={() => openDrill("Leads Ativos", leadsAtivosRows, leadColumns)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDrill("Leads Ativos", leadsAtivosRows, leadColumns); } }} className="cursor-pointer">
             <KPICard icon={Columns3} label="Leads Ativos" value={String(leadsAtivos)} sub="no funil de vendas" color="text-cyan-500" />
           </div>
-          <div onClick={() => openDrill("Próximas Visitas", visitas, visitaColumns)} className="cursor-pointer">
+          <div onClick={() => openDrill("Próximas Visitas", visitas, visitaColumns)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDrill("Próximas Visitas", visitas, visitaColumns); } }} className="cursor-pointer">
             <KPICard icon={Eye} label="Próximas Visitas" value={String(visitas.length)} sub="agendadas" color="text-amber-500" />
           </div>
           <KPICard icon={Target} label="Conversão" value={`${conversao}%`} sub="leads → fechamento" color="text-purple-500" />

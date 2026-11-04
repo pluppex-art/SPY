@@ -158,7 +158,7 @@ export function ClientesList({
           {pageItems.map((c) => {
             const contratoMeta = contratoStatusMeta(c.contratoStatus);
             return (
-              <div key={c.id} onClick={() => onOpenDetalhes(c.id)} className="p-4 rounded-xl border border-[var(--color-border-subtle)] hover:border-[var(--color-border-default)] hover:shadow-sm cursor-pointer transition-all space-y-3">
+              <div key={c.id} onClick={() => onOpenDetalhes(c.id)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDetalhes(c.id); } }} className="p-4 rounded-xl border border-[var(--color-border-subtle)] hover:border-[var(--color-border-default)] hover:shadow-sm cursor-pointer transition-all space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
