@@ -210,7 +210,7 @@ export function PipelineKanbanBoard({
             onDragLeave={() => setDraggedOverStageId(null)}
             onDrop={(e) => handleDrop(stage, e)}
             style={{ borderTopColor: draggedOverStageId === stage.id ? undefined : stage.color }}
-            className={`shrink-0 snap-start flex flex-col bg-[var(--color-surface)]/40 border-2 border-t-4 rounded-3xl transition-all duration-300 h-full ${
+            className={`shrink-0 snap-start max-sm:[content-visibility:auto] max-sm:[contain-intrinsic-size:auto_320px_auto_72dvh] flex flex-col bg-[var(--color-surface)]/40 border-2 border-t-4 rounded-3xl transition-all duration-300 h-full ${
               isMinimized ? "w-[56px] p-2" : "w-[84vw] max-w-[320px] sm:w-[280px] p-3"
             } ${draggedOverStageId === stage.id ? "border-[var(--color-primary-blue)]/60 bg-[var(--color-primary-blue)]/10 scale-[1.01]" : "border-[var(--color-border-default)] hover:bg-[var(--color-surface-elevated)]/60"}`}
           >
