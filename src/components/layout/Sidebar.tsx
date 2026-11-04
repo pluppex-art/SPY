@@ -138,6 +138,7 @@ export function Sidebar({
                     <option key={t.id} value={t.id} className="bg-[var(--color-surface)]">{t.name}</option>
                   ))}
                 </select>
+                <ChevronDown className="w-3.5 h-3.5 text-[var(--color-text-faint)] shrink-0 pointer-events-none" />
               </div>
             ) : (
               <div className="text-xs text-[var(--color-text-muted)] font-bold truncate flex items-center gap-2.5 px-3 py-2">

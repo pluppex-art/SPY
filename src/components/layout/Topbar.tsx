@@ -1,3 +1,4 @@
+import { TenantSwitcherMobile } from "./TenantSwitcherMobile";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -243,6 +244,9 @@ export function Topbar({
           <Logo variant="icon" size={26} color={tenantPrimaryColor} />
           <span className="sr-only">{activeTenantName || user?.tenantName || "S.P.Y."}</span>
         </div>
+
+        {/* Master / parceiro: troca de empresa no celular (lista em tela cheia). */}
+        <TenantSwitcherMobile />
 
         <div className="max-md:w-0 max-md:h-0 md:block">
           <CommandPalette />
