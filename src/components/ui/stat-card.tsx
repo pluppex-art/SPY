@@ -51,7 +51,7 @@ function StatCard({ icon: Icon, label, value, sub, caption, footer, hint, tone =
         <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center" style={{ backgroundColor: `color-mix(in srgb, ${c} 12%, transparent)` }}>
           <Icon className="w-5 h-5" style={{ color: c }} />
         </div>
-        <p title={hint} className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)] leading-tight min-w-0 break-words">{label}</p>
+        <p title={hint} className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)] leading-tight min-w-0 max-sm:break-words">{label}</p>
       </div>
       <p className="text-xl sm:text-2xl max-sm:text-[clamp(0.95rem,4.6vw,1.25rem)] font-black font-mono mt-3 max-sm:whitespace-nowrap truncate-desktop text-[var(--color-text-primary)]" style={valueColor ? { color: valueColor } : undefined}>{value}</p>
       <p className="text-[11px] font-bold mt-1 min-h-[16px] flex items-center gap-1" style={{ color: c }}>{sub}</p>

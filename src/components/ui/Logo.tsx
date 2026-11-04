@@ -10,7 +10,7 @@ export const LOGO_COLORS: Record<LogoColorId, string> = {
 };
 
 export interface LogoProps {
-  /** "icon" = só o símbolo (chapéu + mira). "full" = símbolo + wordmark "S.P.Y." */
+  /** "icon" = só o símbolo (chapéu + mira). "full" = símbolo + wordmark "SPY CRM" */
   variant?: "icon" | "full";
   /** Uma das 4 cores de marca, ou qualquer hex customizado (ex.: tenant.primary_color). */
   color?: LogoColorId | (string & {});
@@ -59,11 +59,10 @@ export function Logo({ variant = "full", color, size = 32, className }: LogoProp
   return (
     <span className={`inline-flex items-center gap-2 ${className ?? ""}`}>
       <LogoMark color={hex} size={size} />
-      <span
-        className="font-black tracking-[0.14em] leading-none"
-        style={{ fontSize: size * 0.55, color: hex }}
-      >
-        S.P.Y.
+      {/* Wordmark "SPY" (cor do texto do tema) sobre "CRM" (cor de marca), como na logo oficial. */}
+      <span className="inline-flex flex-col leading-[0.95] font-black" role="img" aria-label="SPY CRM">
+        <span className="tracking-[0.04em] text-[var(--color-text-primary)]" style={{ fontSize: size * 0.62 }}>SPY</span>
+        <span className="tracking-[0.08em]" style={{ fontSize: size * 0.42, color: hex }}>CRM</span>
       </span>
     </span>
   );
