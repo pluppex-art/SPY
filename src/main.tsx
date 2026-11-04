@@ -9,6 +9,14 @@ import { applyThemeColor, DEFAULT_BRAND_COLOR } from './lib/theme';
 // DataContext), sem depender de nenhum cache local.
 applyThemeColor(DEFAULT_BRAND_COLOR);
 
+// PWA: service worker só em produção (em dev ele atrapalharia o HMR). Guarda só o casco do app,
+// nunca /api — ver public/sw.js.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* sem SW o app segue funcionando normal */ });
+  });
+}
+
 // Extensões de navegador (gerenciadores de senha, tradutores) mutam o DOM
 // fora do controle do React — envolvem/movem <input>s para outro elemento
 // pai. Quando o React tenta remover/reordenar esses nós depois, o pai que
