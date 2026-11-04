@@ -89,8 +89,13 @@ export default function ReunioesList() {
   const [closer, setCloser] = useState("");
   const [periodo, setPeriodo] = useState<Periodo>("todos");
   const [showMais, setShowMais] = useState(false);
+  // Celular: busca sempre visível; período/responsável/etc. ficam recolhidos atrás do botão "Filtros".
+  const [showSel, setShowSel] = useState(false);
+  const selHide = !showSel ? "max-lg:hidden" : "";
+  const toggleMobileFilters = () => { const next = !showSel; setShowSel(next); setShowMais(next); };
   const [categoria, setCategoria] = useState("");
   const [origem, setOrigem] = useState<"" | "google" | "crm">("");
+  const mobileActive = (closer ? 1 : 0) + (categoria ? 1 : 0) + (origem ? 1 : 0);
   const [calYear, setCalYear] = useState(() => new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -365,10 +370,17 @@ export default function ReunioesList() {
                 className={cn(selectCls, "w-full pl-9 font-normal")}
               />
             </div>
-            <select value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)} className={selectCls}>
+            <Button
+              variant="outline"
+              onClick={toggleMobileFilters}
+              className={cn("lg:hidden h-11 gap-2 text-xs font-bold", (showSel || mobileActive > 0) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}
+            >
+              <Filter className="w-4 h-4" /> Filtros{mobileActive > 0 ? ` (${mobileActive})` : ""}
+            </Button>
+            <select value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)} className={cn(selectCls, selHide)}>
               {PERIODO_OPTIONS.map((p) => <option key={p.id} value={p.id}>Período: {p.label}</option>)}
             </select>
-            <select value={closer} onChange={(e) => setCloser(e.target.value)} className={selectCls}>
+            <select value={closer} onChange={(e) => setCloser(e.target.value)} className={cn(selectCls, selHide)}>
               <option value="">Todos os responsáveis</option>
               {closerOptions.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -378,7 +390,7 @@ export default function ReunioesList() {
             <Button
               variant="outline"
               onClick={() => setShowMais((v) => !v)}
-              className={cn("col-span-2 lg:col-span-1 h-11 lg:h-10 gap-2 text-xs font-bold", (showMais || categoria || origem) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}
+              className={cn("max-lg:hidden col-span-2 lg:col-span-1 h-11 lg:h-10 gap-2 text-xs font-bold", (showMais || categoria || origem) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}
             >
               <Filter className="w-4 h-4" /> Mais filtros
             </Button>

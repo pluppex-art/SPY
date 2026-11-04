@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
-import { KpiFilterCard } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterSearch } from "../../components/ui/kpi-filter-card";
 import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
 import { Users, Flame, CheckCircle2, Target, BarChart3 } from "lucide-react";
 
@@ -197,6 +197,7 @@ export default function Pipeline() {
         <KpiFilterCard
           id="pipeline"
           className="!overflow-visible"
+          search={<FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar negócios..." />}
           activeCount={activeFilterCount}
           onClear={clearFilters}
           kpis={[

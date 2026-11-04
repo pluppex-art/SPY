@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { Children, createContext, isValidElement, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Search, SlidersHorizontal, X, type LucideIcon } from "lucide-react";
 import { Card } from "./card";
@@ -89,9 +89,11 @@ interface KpiFilterCardProps {
   onClear?: () => void;
   defaultOpen?: boolean;
   className?: string;
+  /** Campo de busca fixo no topo do card no celular (padrão app). Se omitido, usa o <FilterSearch> encontrado dentro do <FilterBar>. */
+  search?: ReactNode;
 }
 
-export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], children, activeCount = 0, onClear, defaultOpen = true, className }: KpiFilterCardProps) {
+export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], children, activeCount = 0, onClear, defaultOpen = true, className, search }: KpiFilterCardProps) {
   const { user, updatePreferences } = useAuth();
   // No celular o card ocupa a tela inteira quando aberto, então começa fechado e guarda a
   // preferência separada da do desktop (uma não sobrescreve a outra).
@@ -109,6 +111,58 @@ export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], childre
     setOpen(next);
     updatePreferences({ [prefKey]: next });
   };
+
+  // Celular: a busca fica sempre visível no topo, ao lado do botão "Filtros"; KPIs e demais filtros abrem ao tocar.
+  let mobileSearch: ReactNode = isMobile ? search : null;
+  if (isMobile && !mobileSearch) {
+    for (const child of Children.toArray(children)) {
+      if (isValidElement(child) && child.type === FilterBar) {
+        const found = Children.toArray((child.props as { children?: ReactNode }).children).find(
+          (k) => isValidElement(k) && k.type === FilterSearch,
+        );
+        if (found) mobileSearch = found;
+      }
+    }
+  }
+
+  if (mobileSearch) {
+    return (
+      <Card className={cn("overflow-hidden", className)}>
+        <div className="flex items-center gap-2 p-2">
+          <div className="flex-1 min-w-0 [&>div]:!col-span-1">{mobileSearch}</div>
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={open}
+            className={cn(
+              "shrink-0 h-[42px] px-3.5 flex items-center gap-2 rounded-[var(--radius-control)] border text-xs font-bold cursor-pointer bg-[var(--color-surface-elevated)] whitespace-nowrap",
+              open || activeCount > 0
+                ? "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]"
+                : "border-[var(--color-border-default)] text-[var(--color-text-primary)]",
+            )}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filtros{activeCount > 0 ? ` (${activeCount})` : ""}
+          </button>
+        </div>
+        {open && (
+          <div className="flex flex-col gap-3 px-3 pb-4 [&_[data-mobile-search]]:hidden">
+            {activeCount > 0 && onClear && (
+              <button
+                type="button"
+                onClick={onClear}
+                className="self-start flex items-center gap-1 text-xs font-bold text-[var(--color-text-muted)] cursor-pointer bg-transparent border-none p-0"
+              >
+                <X className="w-3 h-3" /> Limpar filtros ({activeCount})
+              </button>
+            )}
+            <KpiTiles items={kpis} />
+            {children}
+          </div>
+        )}
+      </Card>
+    );
+  }
 
   return (
     <Card className={cn("overflow-hidden", className)}>
@@ -168,7 +222,7 @@ export function FilterBar({ children, className }: { children: ReactNode; classN
 export function FilterSearch({ value, onChange, placeholder = "Buscar..." }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   const model = useContext(FilterVariantContext) === "model";
   return (
-    <div className={cn("relative col-span-2 sm:col-span-1 sm:flex-1", model ? "sm:min-w-[220px]" : "sm:min-w-[160px]")}>
+    <div data-mobile-search className={cn("relative col-span-2 sm:col-span-1 sm:flex-1", model ? "sm:min-w-[220px]" : "sm:min-w-[160px]")}>
       <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
       <input
         type="text"
