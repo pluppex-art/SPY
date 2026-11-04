@@ -59,7 +59,7 @@ export function PageContainer({
         </div>
         
         {actions && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0 w-full md:w-auto max-md:[&>div]:flex-wrap max-md:[&>div]:w-full max-md:[&_button]:whitespace-nowrap">
             {actions}
           </div>
         )}

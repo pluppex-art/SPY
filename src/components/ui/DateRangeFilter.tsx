@@ -90,7 +90,7 @@ export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, clas
       : `${dateFrom ? fmtBR(dateFrom) : "…"} – ${dateTo ? fmtBR(dateTo) : "…"}`;
 
   return (
-    <div className="relative max-sm:min-w-0">
+    <div className="relative">
       <button
         ref={buttonRef}
         type="button"
@@ -104,7 +104,7 @@ export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, clas
         )}
       >
         <CalendarRange className="w-3.5 h-3.5 shrink-0" />
-        <span className="whitespace-nowrap max-sm:truncate max-sm:flex-1 max-sm:text-left">{summary}</span>
+        <span className="whitespace-nowrap max-sm:flex-1 max-sm:text-left">{summary}</span>
         <ChevronDown className={cn("w-3 h-3 shrink-0 transition-transform text-[var(--color-text-faint)]", open && "rotate-180")} />
       </button>
 

@@ -77,6 +77,19 @@ export function KpiTiles({ items }: { items: KpiItem[] }) {
   );
 }
 
+/** Procura o <FilterSearch> dentro de um <FilterBar> filho (usado pra fixar a busca no topo no celular). */
+export function findFilterSearch(children: ReactNode): ReactNode {
+  for (const child of Children.toArray(children)) {
+    if (isValidElement(child) && child.type === FilterBar) {
+      const found = Children.toArray((child.props as { children?: ReactNode }).children).find(
+        (k) => isValidElement(k) && k.type === FilterSearch,
+      );
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 interface KpiFilterCardProps {
   /** Identificador da página; vira a chave de preferência `<id>FiltersOpen`. */
   id: string;
@@ -113,17 +126,7 @@ export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], childre
   };
 
   // Celular: a busca fica sempre visível no topo, ao lado do botão "Filtros"; KPIs e demais filtros abrem ao tocar.
-  let mobileSearch: ReactNode = isMobile ? search : null;
-  if (isMobile && !mobileSearch) {
-    for (const child of Children.toArray(children)) {
-      if (isValidElement(child) && child.type === FilterBar) {
-        const found = Children.toArray((child.props as { children?: ReactNode }).children).find(
-          (k) => isValidElement(k) && k.type === FilterSearch,
-        );
-        if (found) mobileSearch = found;
-      }
-    }
-  }
+  const mobileSearch: ReactNode = isMobile ? (search ?? findFilterSearch(children)) : null;
 
   if (mobileSearch) {
     return (

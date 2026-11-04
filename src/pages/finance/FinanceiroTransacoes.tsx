@@ -15,7 +15,7 @@ import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
 import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import {
   ArrowDownLeft, ArrowUpRight, ArrowDownRight, Download, Plus, ListOrdered, Scale, Search, Minus,
-  CheckCircle2, Clock, AlertTriangle, Tag, List as ListIcon, LayoutGrid, ArrowUpDown, X, MoreVertical, Copy, ExternalLink, Eye, FileText, Landmark, Trash2,
+  CheckCircle2, Clock, AlertTriangle, Tag, List as ListIcon, LayoutGrid, ArrowUpDown, X, MoreVertical, Copy, ExternalLink, Eye, FileText, Landmark, Trash2, SlidersHorizontal,
 } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -55,6 +55,7 @@ export default function FinanceiroTransacoes() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
+  const [filtrosMobile, setFiltrosMobile] = useState(false);
   const [tab, setTab] = useState<TransacoesTab>("todos");
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
@@ -245,21 +246,31 @@ export default function FinanceiroTransacoes() {
         {/* Filtros */}
         <Card className="p-2.5 rounded-xl">
           <div className="flex flex-col xl:flex-row xl:items-center gap-2">
-            <div className="relative flex-1 min-w-[220px]">
+            <div className="flex items-center gap-2 xl:flex-1">
+            <div className="relative flex-1 min-w-0 xl:min-w-[220px]">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar por descrição, categoria, contato ou contraparte..."
-                className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40"
+                className="w-full h-11 xl:h-9 pl-9 pr-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40"
               />
             </div>
-            <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={cn(SELECT, "max-w-[200px]")}>
+            <button
+              type="button"
+              onClick={() => setFiltrosMobile((v) => !v)}
+              aria-expanded={filtrosMobile}
+              className={cn("xl:hidden shrink-0 h-11 px-3.5 flex items-center gap-2 rounded-lg border text-xs font-bold cursor-pointer bg-[var(--color-surface-elevated)] whitespace-nowrap", filtrosMobile || filtrosAtivos > 0 ? "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]" : "border-[var(--color-border-default)] text-[var(--color-text-primary)]")}
+            >
+              <SlidersHorizontal className="w-4 h-4" /> Filtros{filtrosAtivos > 0 ? ` (${filtrosAtivos})` : ""}
+            </button>
+            </div>
+            <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={cn(SELECT, "max-w-[200px] max-xl:max-w-none", !filtrosMobile && "max-xl:hidden")}>
               <option value="">Categoria: Todas</option>
               {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <select value={contraparte} onChange={(e) => setContraparte(e.target.value)} className={cn(SELECT, "max-w-[220px]")}>
+            <select value={contraparte} onChange={(e) => setContraparte(e.target.value)} className={cn(SELECT, "max-w-[220px] max-xl:max-w-none", !filtrosMobile && "max-xl:hidden")}>
               <option value="">Cliente / Fornecedor: Todos</option>
               {contrapartes.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
