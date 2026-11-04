@@ -12,6 +12,7 @@ import { leadDrillColumns } from "../../../components/ui/drillColumns";
 import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
 import type { DashboardData } from "../revenueInsights";
+import VendedoresRadar from "./VendedoresRadar";
 import {
   computeVendedores, resolverPeriodo, serieDiaria,
   type VendedorLinha,
@@ -448,6 +449,17 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
             </div>
           </div>
         </Card>
+
+        {/* Comparativo hexagonal (radar): vendedor × vendedor, produto × produto ou período × período */}
+        <VendedoresRadar
+          dados={{ leads, proposals, proposalItems, products, contracts, colaboradores, cargos }}
+          faixaPagina={faixa}
+          linhas={linhas}
+          produtos={opcoesProduto.map((p: any) => ({ id: p.id, name: p.name }))}
+          produtoSel={produtoSel}
+          vendedorSel={vendedorSel}
+          formatCurrency={formatCurrency}
+        />
 
         {/* Evolução + Funil */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

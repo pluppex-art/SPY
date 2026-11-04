@@ -4,7 +4,7 @@ import {
 } from "recharts";
 import {
   Users, Target, ShoppingCart, DollarSign, RefreshCw, AlertTriangle,
-  Radio, Package, Globe2, Trophy, Sparkles, ChevronRight, Workflow,
+  Radio, Package, Globe2, Trophy, Sparkles, Workflow,
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { SectionTitle } from "../../components/ui/section-title";
@@ -125,20 +125,15 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
         </div>
       </div>
 
-      {/* Fluxo da Receita */}
-      <Card className="p-5 shadow-sm max-md:p-0 max-md:border-0 max-md:shadow-none max-md:bg-transparent max-md:rounded-none">
-        <SectionTitle className="mb-4">Fluxo da Receita</SectionTitle>
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-4">
-          {fluxo.map((f, i) => (
-            <div key={f.label} className="relative">
-              <StatCard icon={f.icon} label={f.label} value={f.value} sub={f.sub} caption={periodo} color={f.color} onClick={() => setDrillKey(f.key)} className="h-full" />
-              {i < fluxo.length - 1 && (
-                <ChevronRight className="hidden xl:block absolute top-1/2 -right-3.5 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-              )}
-            </div>
+      {/* Fluxo da Receita — mesmos cards (StatCard) soltos da aba Previsão & Decisão, sem caixa em volta. */}
+      <div className="space-y-3">
+        <SectionTitle>Fluxo da Receita</SectionTitle>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
+          {fluxo.map((f) => (
+            <StatCard key={f.label} icon={f.icon} label={f.label} value={f.value} sub={f.sub} caption={periodo} color={f.color} onClick={() => setDrillKey(f.key)} className="h-full" />
           ))}
         </div>
-      </Card>
+      </div>
 
       {subAba === "canais" ? (
         <CanaisPanel dashboard={dashboard} />
