@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { navSections, conditionCheckers, type NavReqCondition } from "./navData";
 import { useUsaOsImplementacao } from "../../pages/os/hooks/useUsaOsImplementacao";
+import { cargoPermiteModulo } from "../../lib/accessControl";
 
 interface MobileNavProps {
   isMobileMoreOpen: boolean;
@@ -39,7 +40,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
   const canAccessModule = (mod: string) => {
     if (user?.isMaster) return checkModule(mod);
     if (!cargoModulos) return checkModule(mod);
-    return checkModule(mod) && cargoModulos.some((m: string) => m === mod || (mod === "catalogo-produtos" && m === "catalogo") || (mod === "catalogo-produtos" && ["imobiliaria", "automotivo", "concessionaria", "varejo"].includes(m)) || ((mod === "automotivo" || mod === "concessionaria") && (m === "automotivo" || m === "concessionaria")));
+    return checkModule(mod) && cargoPermiteModulo(cargoModulos, mod);
   };
 
   const handleLogout = () => {

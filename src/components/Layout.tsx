@@ -1,7 +1,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { prefetchMainRoutes } from "../lib/prefetchRoutes";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Toaster } from "sonner";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Toaster, toast } from "sonner";
+import { modulosDoCargo, cargoPermiteModulo, moduloDaRota } from "../lib/accessControl";
 import { useAuth } from "../contexts/AuthContext";
 import { Sidebar } from "./layout/Sidebar";
 import { Topbar } from "./layout/Topbar";
@@ -15,6 +16,22 @@ import { SDRWebhookModal } from "./ui/modals/crm/SDRWebhookModal";
 import { useData } from "../contexts/DataContextTypes";
 import { BillingBanner, SuspendedScreen, useIsBlocked } from "./BillingGate";
 import { InstallAppPrompt } from "./InstallAppPrompt";
+
+/**
+ * Acesso por perfil às páginas: o que o cargo não libera (e some do menu) também não abre digitando o endereço.
+ * Mesma regra do menu (lib/accessControl). Master não é restringido; rota sem módulo no menu fica livre.
+ */
+function AcessoPorPerfil({ children }: { children: React.ReactElement }) {
+  const { user } = useAuth();
+  const { cargos } = useData();
+  const { pathname } = useLocation();
+  const modulo = moduloDaRota(pathname);
+  const bloqueado = !!user && !user.isMaster && !!modulo && !cargoPermiteModulo(modulosDoCargo(user, cargos as any[]), modulo);
+  useEffect(() => {
+    if (bloqueado) toast.info("Seu perfil não tem acesso a esta página.");
+  }, [bloqueado, pathname]);
+  return bloqueado ? <Navigate to="/app" replace /> : children;
+}
 
 export default function Layout() {
   const location = useLocation();
@@ -59,7 +76,7 @@ export default function Layout() {
         <div className={`flex-1 min-h-0 relative ${location.pathname.includes("/messaging") || location.pathname.includes("/mensageria") ? "overflow-hidden p-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-2 md:pb-2.5" : "overflow-y-auto overscroll-contain p-4 md:p-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8"}`}>
           <ErrorBoundary resetKey={location.pathname}>
             <Suspense fallback={<div role="status" aria-live="polite" className="flex items-center justify-center py-24 text-sm text-[var(--color-text-faint)]">Carregando...</div>}>
-              {isBlocked ? <SuspendedScreen /> : <Outlet />}
+              {isBlocked ? <SuspendedScreen /> : <AcessoPorPerfil><Outlet /></AcessoPorPerfil>}
             </Suspense>
           </ErrorBoundary>
         </div>

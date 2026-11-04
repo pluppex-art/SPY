@@ -8,6 +8,7 @@ import { Modal } from "../../../../components/ui/modal";
 import { Button } from "../../../../components/ui/button";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { ModulesCombobox, ALL_MODULES } from "./ModulesCombobox";
+import { IA_AGENTS } from "../../../../lib/iaAgents";
 
 interface PermissaoModalProps {
   isOpen: boolean;
@@ -74,16 +75,17 @@ export function PermissaoModal({ isOpen, onClose, onSave, editing, cargos }: Per
   const cargoSelecionado = editing ?? cargos.find((c) => c.id === cargoId);
 
   const erroCargo = !editing && !cargoId ? "Selecione o cargo que receberá esta permissão." : "";
-  const erroModulos = modulos.length === 0 ? "Escolha pelo menos um módulo." : "";
+  const erroModulos = modulos.filter((m) => !m.startsWith("ia_")).length === 0 ? "Escolha pelo menos um módulo de acesso (só as IAs não bastam)." : "";
 
   const toggle = (id: string) => setModulos((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const todosMarcados = options.length > 0 && options.every((o) => modulos.includes(o.id));
+  const idsIa = IA_AGENTS.map((a) => a.modulo);
+  const todosMarcados = options.length > 0 && options.every((o) => modulos.includes(o.id)) && idsIa.every((i) => modulos.includes(i));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setTentou(true);
     const id = editing?.id ?? cargoId;
-    if (!id || modulos.length === 0) return;
+    if (!id || erroModulos) return;
     onSave(id, modulos);
     onClose();
   };
@@ -148,7 +150,7 @@ export function PermissaoModal({ isOpen, onClose, onSave, editing, cargos }: Per
               )}
               <button
                 type="button"
-                onClick={() => setModulos(todosMarcados ? [] : options.map((o) => o.id))}
+                onClick={() => setModulos(todosMarcados ? [] : [...options.map((o) => o.id), ...idsIa])}
                 className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-bold text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 hover:bg-[var(--color-primary-blue)]/15 border-none cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" /> {todosMarcados ? "Desmarcar todos" : "Selecionar todos"}
@@ -176,6 +178,34 @@ export function PermissaoModal({ isOpen, onClose, onSave, editing, cargos }: Per
                     )}
                   </span>
                   <span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${checked ? "bg-[var(--color-primary-blue)] border-[var(--color-primary-blue)]" : "border-[var(--color-border-default)]"}`}>
+                    {checked && <Check className="w-3.5 h-3.5 text-white" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-2.5 pt-1">
+          <div>
+            <h4 className="text-sm font-black text-[var(--color-text-primary)] flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> Mensageria · IAs liberadas</h4>
+            <p className="text-[11px] text-[var(--color-text-muted)]">Quais IAs (cada uma com o próprio WhatsApp) o cargo pode ver na Mensageria. Sem nenhuma marcada, o cargo não vê as conversas das IAs.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {IA_AGENTS.map((a) => {
+              const checked = modulos.includes(a.modulo);
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => toggle(a.modulo)}
+                  aria-pressed={checked}
+                  title={a.desc}
+                  className={`flex items-center gap-2.5 px-3 h-12 rounded-xl border text-left cursor-pointer transition-all ${checked ? "border-violet-500 bg-violet-500/5" : "border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] hover:border-violet-500/50"}`}
+                >
+                  <MessageSquare className="w-4 h-4 shrink-0 text-violet-500" />
+                  <span className="flex-1 min-w-0 text-xs font-bold text-[var(--color-text-primary)]">{a.label}</span>
+                  <span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${checked ? "bg-violet-600 border-violet-600" : "border-[var(--color-border-default)]"}`}>
                     {checked && <Check className="w-3.5 h-3.5 text-white" />}
                   </span>
                 </button>
