@@ -11,7 +11,9 @@ import { LeadDetailsModalTabs } from "./lead-details/LeadDetailsModal.constants"
 import { LeadDetailsTempCfg } from "./lead-details/LeadDetailsModal.constants";
 import { formatLeadValueBRL, leadInterestEstimate, safeParseTimeIdle, safeParseProbability } from "./lead-details/LeadDetailsModal.helpers";
 import { findWonStage } from "../../lib/funilStages";
-import { statusFromStageName } from "../../lib/leadStatus";
+import { statusFromStageName, isLeadLost } from "../../lib/leadStatus";
+import { MotivoModal } from "./MotivoModal";
+import { MOTIVOS_PERDA_LEAD } from "../../lib/motivos";
 import { LeadDetailsModalFooter } from "./lead-details/LeadDetailsModal.Footer";
 import { LeadDetailsModalHero } from "./lead-details/LeadDetailsModalHero";
 
@@ -43,6 +45,8 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
   const [currentTab, setCurrentTab] = useState("informacoes");
   const [showCopilot, setShowCopilot] = useState(false);
   const [showAgendarReuniao, setShowAgendarReuniao] = useState(false);
+  // Ao mover para Perdido/Desqualificado, pergunta o motivo (pode pular).
+  const [pedirMotivo, setPedirMotivo] = useState(false);
 
   // Histórico de mudanças de etapa vem de outro CRM e não é baixado com a carga geral: busca ao abrir o lead.
   useEffect(() => { if (isOpen && lead?.id) loadLeadHistory(lead.id); }, [isOpen, lead?.id]);
@@ -143,6 +147,8 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
     setCurrentStageId(stg.id);
     const newStatus = statusFromStageName(stg.name);
     updateLead(lead.id, { stageId: stg.id, status: newStatus });
+    if (isLeadLost(newStatus)) setPedirMotivo(true);
+    else if (liveLead?.lost_reason) updateLead(lead.id, { lost_reason: null });
 
     // Recalcular Score IA do Lead considerando a nova etapa e anotações
     const evalResult = calculateLeadScore(
@@ -432,6 +438,16 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
           />
         </div>
       )}
+      <MotivoModal
+        isOpen={pedirMotivo}
+        title="Por que o lead foi perdido?"
+        description="O motivo aparece na aba Ruptura da Central de Receita."
+        opcoes={MOTIVOS_PERDA_LEAD}
+        onConfirm={(motivo) => {
+          if (motivo) updateLead(lead.id, { lost_reason: motivo });
+          setPedirMotivo(false);
+        }}
+      />
     </>
   );
 }

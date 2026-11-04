@@ -8,7 +8,9 @@ import { useLocalization } from "../../../../contexts/LocalizationContext";
 
 import { parseCurrencyBR } from "../../../../lib/utils";
 import { calculateLeadScore, normalizeText } from "../../../../lib/leadScore";
-import { statusFromStageName } from "../../../../lib/leadStatus";
+import { statusFromStageName, isLeadLost } from "../../../../lib/leadStatus";
+import { MotivoModal } from "../../../../components/ui/MotivoModal";
+import { MOTIVOS_PERDA_LEAD } from "../../../../lib/motivos";
 import { useFillViewportHeight } from "../../../../hooks/useFillViewportHeight";
 
 interface PipelineKanbanBoardProps {
@@ -101,6 +103,9 @@ export function PipelineKanbanBoard({
     return linkedProposal?.valor ? Number(linkedProposal.valor) || 0 : 0;
   };
 
+  // Ao soltar um lead em Perdido/Desqualificado, pergunta o motivo (pode pular).
+  const [motivoLeadId, setMotivoLeadId] = useState<string | null>(null);
+
   const handleDrop = (stage: any, e: React.DragEvent) => {
     e.preventDefault();
     const leadId = e.dataTransfer.getData("text/plain") || draggedLeadId;
@@ -124,6 +129,9 @@ export function PipelineKanbanBoard({
         temperature: scoreCalculation.rawTemperature,
         probability: scoreCalculation.probability,
       });
+
+      if (isLeadLost(newStatus)) setMotivoLeadId(leadId);
+      else if (targetLead?.lost_reason) updateLead(leadId, { lost_reason: null });
 
       if (isWon) {
         triggerCelebration?.();
@@ -291,6 +299,16 @@ export function PipelineKanbanBoard({
           </div>
         );
       })}
+      <MotivoModal
+        isOpen={motivoLeadId !== null}
+        title="Por que o lead foi perdido?"
+        description="O motivo aparece na aba Ruptura da Central de Receita."
+        opcoes={MOTIVOS_PERDA_LEAD}
+        onConfirm={(motivo) => {
+          if (motivo && motivoLeadId) updateLead(motivoLeadId, { lost_reason: motivo });
+          setMotivoLeadId(null);
+        }}
+      />
     </div>
   );
 }

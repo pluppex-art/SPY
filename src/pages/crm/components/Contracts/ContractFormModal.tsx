@@ -6,6 +6,7 @@ import {
   QrCode, CreditCard, Landmark, Calendar, X, User, Tag, StickyNote,
 } from "lucide-react";
 import type { Contract } from "../../../../types";
+import { MOTIVOS_CANCELAMENTO, MOTIVO_OUTRO, montarMotivo, separarMotivo } from "../../../../lib/motivos";
 
 const STATUS_OPTIONS: { id: string; dot: string }[] = [
   { id: "Ativo", dot: "bg-success" },
@@ -58,6 +59,8 @@ export interface ContractFormPayload {
   /** Setor do cliente vinculado — só é escrito de volta em `clientes.industry`
    * quando muda em relação ao valor original (ver ContractFormModal.onSave). */
   clienteIndustry: string | null;
+  /** Motivo do cancelamento (só preenchido quando o status é "Cancelado"). */
+  cancelReason?: string | null;
 }
 
 interface ContractFormModalProps {
@@ -83,6 +86,8 @@ export function ContractFormModal({ isOpen, onClose, contract, clienteBase, cola
   const [paymentMethod, setPaymentMethod] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [clienteIndustry, setClienteIndustry] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [motivoOutro, setMotivoOutro] = useState("");
   const [saving, setSaving] = useState(false);
 
   const clienteSelecionado = clienteBase.find((c: any) => c.name === client);
@@ -97,6 +102,9 @@ export function ContractFormModal({ isOpen, onClose, contract, clienteBase, cola
       setDate(contract.date || "");
       setEndDate(contract.endDate || "");
       setStatus(contract.status || "Ativo");
+      const m = separarMotivo(contract.cancelReason, MOTIVOS_CANCELAMENTO);
+      setMotivo(m.opcao);
+      setMotivoOutro(m.outro);
       setResponsavelId(contract.responsavelId || "");
       setPaymentMethod(contract.paymentMethod || "");
       setObservacoes(contract.observacoes || "");
@@ -136,6 +144,7 @@ export function ContractFormModal({ isOpen, onClose, contract, clienteBase, cola
         paymentMethod: paymentMethod || null,
         observacoes: observacoes.trim() || null,
         clienteIndustry: clienteIndustry || null,
+        ...(status === "Cancelado" ? { cancelReason: montarMotivo(motivo, motivoOutro) } : {}),
       });
       onClose();
     } finally {
@@ -195,6 +204,18 @@ export function ContractFormModal({ isOpen, onClose, contract, clienteBase, cola
               </select>
             </div>
           </Field>
+
+          {status === "Cancelado" && (
+            <Field label="Motivo do cancelamento">
+              <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className={fieldClass}>
+                <option value="">Não informar</option>
+                {[...MOTIVOS_CANCELAMENTO, MOTIVO_OUTRO].map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+              {motivo === MOTIVO_OUTRO && (
+                <input type="text" value={motivoOutro} onChange={(e) => setMotivoOutro(e.target.value)} maxLength={140} placeholder="Descreva o motivo" className={`${fieldClass} mt-2`} />
+              )}
+            </Field>
+          )}
 
           <Field label="Plano Acordado" required>
             <div className="relative">

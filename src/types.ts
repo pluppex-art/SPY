@@ -83,6 +83,8 @@ export interface Lead {
   title: string;
   priority?: 'Alta' | 'Média' | 'Baixa';
   stageId: string;
+  /** Motivo informado ao perder/desqualificar o lead (leads.lost_reason). */
+  lost_reason?: string | null;
   lead_interesse_cliente?: string;
   pipelineId?: 'sdr' | 'comercial';
   scoreIA?: number;
@@ -192,6 +194,8 @@ export interface Contract {
    * na reconciliação de propostas aceitas (não depender de comparar nome). */
   proposalId?: string | null;
   cancelledAt?: string | null;
+  /** Motivo informado ao cancelar (contracts.cancel_reason). */
+  cancelReason?: string | null;
   /** Valor total do contrato (recorrente + avulso/implantação). `mrr` é só a
    * parcela recorrente — quando omitido, assume igual a `mrr` (contrato sem
    * componente avulso). */

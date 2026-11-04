@@ -9,6 +9,7 @@ import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import { isLeadLost } from "../../lib/leadStatus";
+import { categoriaDoMotivo } from "../../lib/motivos";
 import type { DashboardData } from "./revenueInsights";
 
 type Visao = "churn" | "estoque" | "funil";
@@ -82,7 +83,15 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
       cur.qtd += 1; cur.mrr += parseCurrencyBR(c.mrr);
       porPlano.set(k, cur);
     }
+    const porMotivo = new Map<string, { motivo: string; qtd: number; mrr: number }>();
+    for (const c of noPeriodo) {
+      const k = categoriaDoMotivo(c.cancelReason);
+      const cur = porMotivo.get(k) ?? { motivo: k, qtd: 0, mrr: 0 };
+      cur.qtd += 1; cur.mrr += parseCurrencyBR(c.mrr);
+      porMotivo.set(k, cur);
+    }
     return {
+      porMotivo: [...porMotivo.values()].sort((a, b) => b.qtd - a.qtd || b.mrr - a.mrr),
       noPeriodo: [...noPeriodo].sort((a, b) => (dataDe(b.cancelledAt)?.getTime() ?? 0) - (dataDe(a.cancelledAt)?.getTime() ?? 0)),
       inadimplentes, mrrPerdido, mrrRisco, taxa, meses, semData,
       porPlano: [...porPlano.values()].sort((a, b) => b.mrr - a.mrr),
@@ -132,7 +141,15 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
       }
       return [...mapa.values()].sort((a, b) => b.qtd - a.qtd || b.valor - a.valor).slice(0, 6);
     };
+    const motivos = new Map<string, { nome: string; qtd: number; valor: number }>();
+    for (const l of perdidos) {
+      const k = categoriaDoMotivo(l.lost_reason);
+      const cur = motivos.get(k) ?? { nome: k, qtd: 0, valor: 0 };
+      cur.qtd += 1; cur.valor += parseCurrencyBR(l.value);
+      motivos.set(k, cur);
+    }
     return {
+      porMotivo: [...motivos.values()].sort((a, b) => b.qtd - a.qtd || b.valor - a.valor),
       total: leads.length, perdidos, valorPerdido, taxa, etapas, gargalo,
       porOrigem: agrupar((l) => String(l.source ?? "").trim()),
       porVendedor: agrupar((l) => String(l.seller ?? "").trim()),
@@ -187,6 +204,23 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
             <Card className="lg:col-span-5 shadow-sm overflow-hidden">
               <div className="p-5 pb-3">
+                <SectionTitle as="h4">Por que cancelam</SectionTitle>
+                <p className="text-[11px] text-[var(--color-text-muted)]">Motivo informado ao cancelar o contrato.</p>
+              </div>
+              {churn.porMotivo.length === 0 ? <Vazio>Nenhum cancelamento no período.</Vazio> : (
+                <ul className="divide-y divide-[var(--color-border-subtle)] border-t border-[var(--color-border-subtle)]">
+                  {churn.porMotivo.map((m) => (
+                    <li key={m.motivo} className="px-5 py-3 flex items-center justify-between gap-3">
+                      <span className={`text-xs font-bold break-words min-w-0 ${m.motivo === "Sem motivo registrado" ? "text-[var(--color-text-faint)] italic" : "text-[var(--color-text-primary)]"}`}>{m.motivo}</span>
+                      <span className="text-xs text-right shrink-0"><b className="font-mono text-[var(--color-text-primary)]">{formatCurrency(m.mrr)}</b><br /><span className="text-[var(--color-text-muted)]">{m.qtd} contrato{m.qtd === 1 ? "" : "s"}</span></span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            <Card className="lg:col-span-12 shadow-sm overflow-hidden">
+              <div className="p-5 pb-3">
                 <SectionTitle as="h4">Cancelamentos por plano</SectionTitle>
                 <p className="text-[11px] text-[var(--color-text-muted)]">O que mais sai, no período.</p>
               </div>
@@ -206,13 +240,13 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
           <Card className="shadow-sm overflow-hidden">
             <div className="p-5 pb-3">
               <SectionTitle as="h4">Contratos cancelados no período</SectionTitle>
-              <p className="text-[11px] text-[var(--color-text-muted)]">O sistema ainda não registra o motivo do cancelamento; aqui aparecem cliente, plano, valor e tempo de casa.</p>
+              <p className="text-[11px] text-[var(--color-text-muted)]">Cliente, plano, valor, motivo e tempo de casa.</p>
             </div>
             {churn.noPeriodo.length === 0 ? <Vazio>Nenhum contrato cancelado no período.</Vazio> : (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left min-w-[560px]">
+                <table className="w-full text-xs text-left min-w-[640px]">
                   <thead className="bg-[var(--color-surface-sunken)] border-y border-[var(--color-border-subtle)]"><tr>
-                    <th className={thCls}>Cliente</th><th className={thCls}>Plano</th><th className={`${thCls} text-right`}>MRR</th><th className={thCls}>Cancelado em</th><th className={thCls}>Tempo de casa</th>
+                    <th className={thCls}>Cliente</th><th className={thCls}>Plano</th><th className={`${thCls} text-right`}>MRR</th><th className={thCls}>Cancelado em</th><th className={thCls}>Motivo</th><th className={thCls}>Tempo de casa</th>
                   </tr></thead>
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">
                     {churn.noPeriodo.map((c) => {
@@ -224,6 +258,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
                           <td className={`${tdCls} text-[var(--color-text-muted)] break-words`}>{c.plan}</td>
                           <td className={`${tdCls} text-right font-mono font-bold whitespace-nowrap`}>{formatCurrency(parseCurrencyBR(c.mrr))}</td>
                           <td className={`${tdCls} whitespace-nowrap`}>{fmtData(c.cancelledAt)}</td>
+                          <td className={`${tdCls} text-[var(--color-text-muted)] break-words`}>{c.cancelReason || "—"}</td>
                           <td className={`${tdCls} whitespace-nowrap text-[var(--color-text-muted)]`}>{meses === null ? "—" : `${meses} ${meses === 1 ? "mês" : "meses"}`}</td>
                         </tr>
                       );
@@ -312,7 +347,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
             </Card>
 
             <div className="grid grid-cols-1 gap-4">
-              {([["Perdas por origem", funil.porOrigem], ["Perdas por vendedor", funil.porVendedor]] as const).map(([titulo, lista]) => (
+              {([["Por que se perdem", funil.porMotivo], ["Perdas por origem", funil.porOrigem], ["Perdas por vendedor", funil.porVendedor]] as const).map(([titulo, lista]) => (
                 <Card key={titulo} className="p-5 shadow-sm">
                   <SectionTitle as="h4">{titulo}</SectionTitle>
                   {lista.length === 0 ? <Vazio>Nenhum lead perdido no período.</Vazio> : (
@@ -333,13 +368,13 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
           <Card className="shadow-sm overflow-hidden">
             <div className="p-5 pb-3">
               <SectionTitle as="h4">Maiores oportunidades perdidas</SectionTitle>
-              <p className="text-[11px] text-[var(--color-text-muted)]">O sistema ainda não registra o motivo da perda de cada lead.</p>
+              <p className="text-[11px] text-[var(--color-text-muted)]">Com o motivo informado ao perder o lead.</p>
             </div>
             {funil.maiores.length === 0 ? <Vazio>Nenhum lead perdido no período.</Vazio> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left min-w-[560px]">
                   <thead className="bg-[var(--color-surface-sunken)] border-y border-[var(--color-border-subtle)]"><tr>
-                    <th className={thCls}>Lead</th><th className={thCls}>Origem</th><th className={thCls}>Vendedor</th><th className={thCls}>Status</th><th className={`${thCls} text-right`}>Valor</th>
+                    <th className={thCls}>Lead</th><th className={thCls}>Origem</th><th className={thCls}>Vendedor</th><th className={thCls}>Status</th><th className={thCls}>Motivo</th><th className={`${thCls} text-right`}>Valor</th>
                   </tr></thead>
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">
                     {funil.maiores.map((l: any) => (
@@ -348,6 +383,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
                         <td className={`${tdCls} text-[var(--color-text-muted)] break-words`}>{l.source || "—"}</td>
                         <td className={`${tdCls} text-[var(--color-text-muted)] break-words`}>{l.seller || "—"}</td>
                         <td className={`${tdCls} whitespace-nowrap`}>{l.status}</td>
+                        <td className={`${tdCls} text-[var(--color-text-muted)] break-words`}>{l.lost_reason || "—"}</td>
                         <td className={`${tdCls} text-right font-mono font-bold whitespace-nowrap`}>{formatCurrency(parseCurrencyBR(l.value))}</td>
                       </tr>
                     ))}
