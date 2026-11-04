@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  Search, Command, LayoutDashboard, Users,
+  Search, Command, X, LayoutDashboard, Users,
   FileText, Zap, Settings, Briefcase,
   GraduationCap, UserSquare2, FileSignature, Package,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useLocalization } from "../contexts/LocalizationContext";
 import { useData } from "../contexts/DataContext";
@@ -36,6 +37,22 @@ export function CommandPalette() {
   // ref-no-container + "clique fora fecha" daquele componente, em vez do
   // <Modal> genérico.
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const onChange = () => setIsMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  // A barra inferior (mobile) abre a busca por este evento.
+  useEffect(() => {
+    const open = () => setIsOpen(true);
+    window.addEventListener("spy:open-search", open);
+    return () => window.removeEventListener("spy:open-search", open);
+  }, []);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -55,7 +72,8 @@ export function CommandPalette() {
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const t = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(t) && !panelRef.current?.contains(t)) {
         setIsOpen(false);
       }
     };
@@ -129,11 +147,15 @@ export function CommandPalette() {
   const iconWrapClass = "w-9 h-9 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] flex items-center justify-center text-[var(--color-text-faint)] group-hover:text-[var(--color-primary-blue)] group-hover:border-[var(--color-primary-blue)]/25 transition-all shrink-0";
   const itemLabelClass = "text-sm font-bold text-[var(--color-text-muted)] group-hover:text-[var(--color-text-primary)] transition-colors truncate";
 
+  // No celular o painel vira tela cheia e sai do header (portal), pra ficar
+  // acima da barra inferior.
+  const wrap = (node: React.ReactElement) => (isMobile ? createPortal(node, document.body) : node);
+
   return (
     <div ref={containerRef} className="relative w-full sm:w-[34rem]">
       <button
         onClick={() => setIsOpen((open) => !open)}
-        className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-border-default)] transition-all text-sm font-medium"
+        className="max-md:hidden flex items-center gap-2.5 w-full px-4 py-2.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-border-default)] transition-all text-sm font-medium"
       >
         <Search className="w-4 h-4 shrink-0" />
         <span className="hidden sm:inline">{t("Buscar clientes, leads, propostas, contratos...")}</span>
@@ -145,21 +167,22 @@ export function CommandPalette() {
       {/* Dropdown ancorado embaixo da barra (mesmo padrão do sino de
           notificações no Topbar), não um modal central com fundo escuro —
           pedido explícito do usuário. */}
-      {isOpen && (
-        <div className="absolute left-0 top-full mt-2 w-[95vw] max-w-[42rem] sm:w-[42rem] z-50 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--color-border-subtle)]">
+      {isOpen && wrap(
+        <div ref={panelRef} className="max-md:fixed max-md:inset-0 max-md:z-[95] max-md:w-auto max-md:max-w-none max-md:mt-0 max-md:rounded-none max-md:flex max-md:flex-col max-md:pt-[env(safe-area-inset-top)] md:absolute md:left-0 md:top-full mt-2 w-[95vw] max-w-[42rem] sm:w-[42rem] z-50 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center gap-3 px-4 md:px-5 py-3 md:py-4 border-b border-[var(--color-border-subtle)] shrink-0">
             <Search className="w-5 h-5 text-[var(--color-text-faint)] shrink-0" />
             <input
               ref={inputRef}
               autoFocus
               placeholder={t("Busque por nome de cliente, lead, proposta, contrato...")}
-              className="bg-transparent border-none text-[var(--color-text-primary)] outline-none flex-1 font-medium text-lg placeholder:text-[var(--color-text-faint)]"
+              className="bg-transparent border-none text-[var(--color-text-primary)] outline-none flex-1 font-medium text-base md:text-lg placeholder:text-[var(--color-text-faint)]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            <button type="button" onClick={() => setIsOpen(false)} aria-label="Fechar busca" className="md:hidden w-10 h-10 -mr-2 flex items-center justify-center rounded-full text-[var(--color-text-muted)] bg-transparent border-none cursor-pointer"><X className="w-5 h-5" /></button>
           </div>
 
-          <div className="max-h-[400px] overflow-y-auto p-2 scrollbar-none">
+          <div className="md:max-h-[400px] max-md:flex-1 overflow-y-auto overscroll-contain p-2 pb-[calc(1rem+env(safe-area-inset-bottom))] scrollbar-none">
                 {totalResults > 0 ? (
                   <div className="space-y-4">
                     {leadResults.length > 0 && (
@@ -247,7 +270,7 @@ export function CommandPalette() {
                 )}
               </div>
 
-          <div className="p-3 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/50 flex items-center justify-between">
+          <div className="max-md:hidden p-3 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/50 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-wider">
               <span className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] px-1 rounded text-[var(--color-text-primary)]">ESC</span> {t("Fechar")}
             </div>

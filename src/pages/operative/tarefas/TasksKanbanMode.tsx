@@ -86,7 +86,7 @@ export function TasksKanbanMode({
             <button
               key={col.id}
               onClick={() => setMobileActiveCol(col.id)}
-              className="flex-1 shrink-0 px-3 text-center py-3 text-xs font-bold rounded-xl transition-all relative flex items-center justify-center gap-2 select-none cursor-pointer border-none bg-transparent"
+              className="flex-1 shrink-0 whitespace-nowrap px-3 text-center py-3 text-xs font-bold rounded-xl transition-all relative flex items-center justify-center gap-2 select-none cursor-pointer border-none bg-transparent"
             >
               {isActive && (
                 <motion.div

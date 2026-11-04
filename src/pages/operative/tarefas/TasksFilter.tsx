@@ -30,6 +30,10 @@ const selectCls =
 /** Barra de filtros de Tarefas: busca, status, responsável, prioridade, cliente e "Mais filtros" (prazo). */
 export function TasksFilter(p: TasksFilterProps) {
   const [showMais, setShowMais] = useState(false);
+  // No celular os 4 selects ficam recolhidos atrás de um botão "Filtros" (a busca fica sempre visível).
+  const [showSel, setShowSel] = useState(false);
+  const selHide = !showSel ? "max-xl:hidden" : "";
+  const toggleMobile = () => { const next = !showSel; setShowSel(next); setShowMais(next); };
   return (
     <Card className="p-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-3">
       <div className="grid grid-cols-2 xl:flex xl:flex-row gap-2 max-[479px]:[&>*]:col-span-2">
@@ -43,11 +47,18 @@ export function TasksFilter(p: TasksFilterProps) {
             className={cn(selectCls, "w-full pl-9 font-normal cursor-text")}
           />
         </div>
-        <select value={p.statusFilter} onChange={(e) => p.setStatusFilter(e.target.value)} className={selectCls}>
+        <Button
+          variant="outline"
+          onClick={toggleMobile}
+          className={cn("xl:hidden h-11 gap-2 text-xs font-bold", (showSel || p.activeCount > 0) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}
+        >
+          <Filter className="w-4 h-4" /> Filtros{p.activeCount > 0 ? ` (${p.activeCount})` : ""}
+        </Button>
+        <select value={p.statusFilter} onChange={(e) => p.setStatusFilter(e.target.value)} className={cn(selectCls, selHide)}>
           <option value="">Status: Todos</option>
           {p.statusOptions.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
         </select>
-        <select value={p.assigneeFilter} onChange={(e) => p.setAssigneeFilter(e.target.value)} className={selectCls}>
+        <select value={p.assigneeFilter} onChange={(e) => p.setAssigneeFilter(e.target.value)} className={cn(selectCls, selHide)}>
           <option value="">Responsável: Todos</option>
           <option value="__none__">Sem responsável</option>
           {p.assigneeOptions.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
@@ -55,19 +66,19 @@ export function TasksFilter(p: TasksFilterProps) {
         <select
           value={p.selectedPriorities[0] ?? ""}
           onChange={(e) => p.setSelectedPriorities(e.target.value ? [e.target.value] : [])}
-          className={selectCls}
+          className={cn(selectCls, selHide)}
         >
           <option value="">Prioridade: Todas</option>
           {["Alta", "Média", "Baixa"].map((pr) => <option key={pr} value={pr}>{pr}</option>)}
         </select>
-        <select value={p.clienteFilter} onChange={(e) => p.setClienteFilter(e.target.value)} className={cn(selectCls, "col-span-2 xl:col-span-1 xl:max-w-[220px]")}>
+        <select value={p.clienteFilter} onChange={(e) => p.setClienteFilter(e.target.value)} className={cn(selectCls, "col-span-2 xl:col-span-1 xl:max-w-[220px]", selHide)}>
           <option value="">Cliente: Todos</option>
           {p.clienteOptions.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <Button
           variant="outline"
           onClick={() => setShowMais((v) => !v)}
-          className={cn("col-span-2 xl:col-span-1 h-11 xl:h-10 gap-2 text-xs font-bold", (showMais || p.deadlineFilter) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}
+          className={cn("max-xl:hidden col-span-2 xl:col-span-1 h-11 xl:h-10 gap-2 text-xs font-bold", (showMais || p.deadlineFilter) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}
         >
           <Filter className="w-4 h-4" /> Mais filtros
         </Button>

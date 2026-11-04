@@ -221,7 +221,7 @@ export function Topbar({
   };
 
   return (
-    <header className="h-16 max-md:h-[76px] border-b max-md:border-none border-[var(--color-border-default)] bg-[var(--color-surface)]/80 max-md:bg-transparent backdrop-blur-xl max-md:backdrop-blur-none flex items-center justify-between px-6 max-md:px-4 z-40 shrink-0 select-none">
+    <header className="h-16 max-md:h-14 border-b border-[var(--color-border-default)] bg-[var(--color-surface)]/80 max-md:bg-[var(--color-surface-elevated)] backdrop-blur-xl max-md:backdrop-blur-none flex items-center justify-between px-6 max-md:px-4 z-40 shrink-0 select-none">
       <div className="flex items-center gap-4 max-md:gap-2.5 flex-1 min-w-0">
         <button
           type="button"
@@ -232,25 +232,19 @@ export function Topbar({
               setIsSidebarCollapsed(!isSidebarCollapsed);
             }
           }}
-          className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-2xl transition-colors mr-2 max-md:mr-0 cursor-pointer border-none max-md:w-12 max-md:h-12 max-md:flex max-md:items-center max-md:justify-center max-md:bg-[var(--color-surface-elevated)] max-md:shadow-[var(--shadow-panel)] max-md:border-none"
+          className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-2xl transition-colors mr-2 max-md:mr-0 cursor-pointer border-none max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent max-md:shadow-none max-md:border-none"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Mobile Branding Pill */}
-        <div className="flex sm:hidden items-center gap-2 bg-[var(--color-surface-elevated)] shadow-[var(--shadow-panel)] border-none h-12 px-3.5 rounded-2xl min-w-0">
-          <div className="w-6 h-6 rounded bg-transparent dark:bg-[var(--color-primary-blue)]/15 flex items-center justify-center">
-            <Logo variant="icon" size={18} color={tenantPrimaryColor} />
-          </div>
-          {/* Achado de UX 2026-09-21: texto fixo "S.P.Y." aqui, enquanto o
-              Sidebar já usa o nome real do tenant como padrão estabelecido —
-              alinhado com o mesmo fallback usado lá (Sidebar.tsx). */}
-          <span className="text-[0.625rem] sm:text-xs leading-[1.1] font-black uppercase tracking-normal sm:tracking-wider text-[var(--color-text-primary)] break-words max-w-[150px]">
-            {activeTenantName || user?.tenantName || "S.P.Y."}
-          </span>
+        {/* Marca no mobile: só o logo (o nome da empresa fica no menu) — evita
+            quebra de linha/reticências na barra. */}
+        <div className="flex sm:hidden items-center h-10 pl-1 min-w-0">
+          <Logo variant="icon" size={26} color={tenantPrimaryColor} />
+          <span className="sr-only">{activeTenantName || user?.tenantName || "S.P.Y."}</span>
         </div>
 
-        <div className="hidden md:block">
+        <div className="max-md:w-0 max-md:h-0 md:block">
           <CommandPalette />
         </div>
       </div>
@@ -259,7 +253,7 @@ export function Topbar({
         <button
           type="button"
           onClick={() => toggleTheme()}
-          className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-full transition-colors cursor-pointer border-none max-md:w-12 max-md:h-12 max-md:flex max-md:items-center max-md:justify-center max-md:bg-[var(--color-surface-elevated)] max-md:shadow-[var(--shadow-panel)] max-md:border-none"
+          className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-full transition-colors cursor-pointer border-none max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent max-md:shadow-none max-md:border-none"
           title={t("Alternar Tema (Light/Dark)")}
         >
           {theme === "dark" ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
@@ -269,7 +263,7 @@ export function Topbar({
           <button
             type="button"
             onClick={toggleNotifications}
-            className={`text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all relative p-2 rounded-xl max-md:rounded-full border border-transparent cursor-pointer max-md:w-12 max-md:h-12 max-md:flex max-md:items-center max-md:justify-center max-md:bg-[var(--color-surface-elevated)] max-md:shadow-[var(--shadow-panel)] max-md:border-none ${
+            className={`text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all relative p-2 rounded-xl max-md:rounded-full border border-transparent cursor-pointer max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent max-md:shadow-none max-md:border-none ${
               isNotificationsOpen
                 ? "bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] shadow-sm"
                 : unreadNotifications > 0
@@ -287,7 +281,7 @@ export function Topbar({
           </button>
 
           {isNotificationsOpen && (
-            <Card className="fixed left-4 right-4 sm:left-auto sm:right-4 md:absolute md:left-auto md:right-0 top-16 md:top-full md:mt-3 md:w-[440px] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-3 duration-200">
+            <Card className="fixed left-4 right-4 sm:left-auto sm:right-4 md:absolute md:left-auto md:right-0 top-14 md:top-full md:mt-3 md:w-[440px] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-3 duration-200">
                 {/* Header */}
                 <div className="p-4 border-b border-[var(--color-border-subtle)] flex justify-between items-center bg-[var(--color-surface-sunken)]">
                   <div className="flex items-center gap-2">
@@ -477,7 +471,7 @@ export function Topbar({
           <div ref={userMenuRef} className="relative">
             <div
               onClick={toggleUserMenu}
-              className="w-9 h-9 max-md:w-12 max-md:h-12 max-md:text-sm max-md:shadow-[var(--shadow-panel)] rounded-xl max-md:rounded-2xl bg-gradient-to-br from-[#2563EB] to-blue-700 flex items-center justify-center text-xs font-bold text-white hover:opacity-90 transition-all cursor-pointer shadow-xs overflow-hidden border border-[var(--color-border-default)]"
+              className="w-9 h-9 max-md:w-10 max-md:h-10 max-md:text-xs max-md:shadow-none rounded-xl max-md:rounded-full bg-gradient-to-br from-[#2563EB] to-blue-700 flex items-center justify-center text-xs font-bold text-white hover:opacity-90 transition-all cursor-pointer shadow-xs overflow-hidden border border-[var(--color-border-default)]"
             >
               {liveProfile.avatar ? (
                 <img src={liveProfile.avatar} alt={liveProfile.name} className="w-full h-full object-cover" />

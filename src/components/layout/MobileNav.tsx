@@ -5,7 +5,7 @@ import {
   LayoutDashboard,
   Columns3,
   Users,
-  Menu,
+  Search,
   Settings2,
   AlertCircle,
 } from "lucide-react";
@@ -73,11 +73,13 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
         })}
 
         <button
-          onClick={() => setIsMobileMoreOpen(true)}
-          className={`flex flex-col items-center justify-center flex-1 h-[calc(100%-1rem)] my-2 rounded-2xl py-1 text-[11px] font-bold transition-all active:scale-95 ${isMobileMoreOpen ? "text-[var(--color-accent)]" : "text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"}`}
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("spy:open-search"))}
+          aria-label="Buscar"
+          className="flex flex-col items-center justify-center flex-1 h-[calc(100%-1rem)] my-2 rounded-2xl py-1 text-[11px] font-bold transition-all active:scale-95 text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"
         >
-          <Menu className={`w-6 h-6 mb-0.5 ${isMobileMoreOpen ? "text-[var(--color-accent)] rotate-90 scale-110" : ""} transition-transform duration-200`} />
-          <span className={isMobileMoreOpen ? "font-black text-[var(--color-accent)]" : "font-semibold"}>Mais</span>
+          <Search className="w-6 h-6 mb-0.5" />
+          <span className="font-semibold">Buscar</span>
         </button>
       </nav>
 

@@ -27,7 +27,7 @@ export function PageContainer({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
         <div className="min-w-0">
           {/* Breadcrumb Pattern */}
-          <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-widest mb-2 overflow-x-auto whitespace-nowrap scrollbar-none">
+          <div className={`${breadcrumb ? "" : "max-md:hidden"} flex items-center gap-1.5 text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-widest mb-2 overflow-x-auto whitespace-nowrap scrollbar-none`}>
             <Link to="/app/dashboard" className="hover:text-[var(--color-text-primary)] transition-colors flex items-center gap-1">
               <Home className="w-3 h-3 text-[var(--color-text-muted)]" /> Início
             </Link>
@@ -49,12 +49,12 @@ export function PageContainer({
             )}
           </div>
 
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-3 break-words">
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-3 break-words">
             {title}
             <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)] animate-pulse hidden md:inline-block"></span>
           </h1>
           {displayDescription && (
-            <p className="text-[var(--color-text-muted)] text-sm mt-1 max-w-2xl font-medium leading-relaxed">{displayDescription}</p>
+            <p className="max-md:hidden text-[var(--color-text-muted)] text-sm mt-1 max-w-2xl font-medium leading-relaxed">{displayDescription}</p>
           )}
         </div>
         
