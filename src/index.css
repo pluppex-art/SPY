@@ -924,3 +924,14 @@ body:has(main .fixed.inset-0[class*="bg-black"]) header {
     flex-shrink: 0;
   }
 }
+
+/* Celular: textos com "truncate" quebram linha em vez de virar "Texto…" (nomes, descrições, células
+   de tabela). O corte com reticências continua valendo no desktop. selects/inputs não entram. */
+@media (max-width: 767px) {
+  .truncate:not(select):not(input):not(option) {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: break-word;
+  }
+}
