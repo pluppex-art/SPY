@@ -232,7 +232,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                           {pos === 0 && <Crown className="w-5 h-5 text-amber-400 absolute -top-5 left-1/2 -translate-x-1/2" />}
                           <Avatar v={v} size={pos === 0 ? 44 : 38} />
                         </div>
-                        <p className="text-[10px] font-black uppercase text-[var(--color-text-primary)] text-center leading-tight truncate w-full">{v.nome}</p>
+                        <p className="text-[10px] font-black uppercase text-[var(--color-text-primary)] text-center leading-tight truncate-desktop w-full">{v.nome}</p>
                         <p className="text-sm font-black font-mono text-[var(--color-text-primary)]">{formatCurrency(v.receita)}</p>
                         <p className="text-[10px] text-[var(--color-text-muted)] mb-1">{v.vendas} venda{v.vendas === 1 ? "" : "s"}</p>
                         <div className={`w-full rounded-t-lg bg-gradient-to-b ${cores[pos]} flex items-center justify-center text-white font-black text-3xl`} style={{ height: alturas[pos] }}>
@@ -279,7 +279,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                         <div className="flex items-center gap-2.5 min-w-0">
                           <Avatar v={v} size={32} />
                           <div className="min-w-0">
-                            <p className="font-bold text-[var(--color-text-primary)] truncate max-w-[180px]">{v.nome}</p>
+                            <p className="font-bold text-[var(--color-text-primary)] truncate-desktop max-w-[180px]">{v.nome}</p>
                             <div className="h-1.5 w-32 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1">
                               <div className="h-full rounded-full" style={{ width: `${Math.max(v.receita > 0 ? 4 : 0, (v.receita / maxReceita) * 100)}%`, backgroundColor: v.cor }} />
                             </div>
@@ -352,7 +352,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                   {produtosGeral.map((p) => (
                     <div key={p.id}>
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">{p.nome}</span>
+                        <span className="text-xs font-bold text-[var(--color-text-primary)] truncate-desktop">{p.nome}</span>
                         <span className="text-xs font-black font-mono text-[var(--color-text-primary)] shrink-0">{formatCurrency(p.receita)}</span>
                       </div>
                       <div className="h-1.5 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1">
@@ -369,7 +369,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                 <div key={v.key} className="flex items-start gap-3 px-4 py-3">
                   <Avatar v={v} size={30} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{v.nome}</p>
+                    <p className="text-xs font-bold text-[var(--color-text-primary)] truncate-desktop">{v.nome}</p>
                     {v.produtos.length === 0 ? (
                       <p className="text-[11px] text-[var(--color-text-faint)] mt-1">Sem produtos vendidos no período.</p>
                     ) : (
@@ -458,7 +458,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                   <Avatar v={v} size={32} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-[11px] font-black uppercase text-[var(--color-text-primary)] truncate">{v.nome}</span>
+                      <span className="text-[11px] font-black uppercase text-[var(--color-text-primary)] truncate-desktop">{v.nome}</span>
                       <span className="text-[10px] font-mono text-[var(--color-text-muted)] shrink-0">{formatCurrency(v.receita)} / {formatCurrency(v.meta)}</span>
                     </div>
                     <div className="h-2 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1.5">

@@ -161,8 +161,8 @@ export function PipelineListaView({
             className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] active:border-[var(--color-primary-blue)]/40 transition-all flex flex-col gap-3 cursor-pointer">
             <div className="flex justify-between items-start">
               <div className="min-w-0">
-                <h4 className="font-bold text-[var(--color-text-primary)] text-sm truncate">{lead.name}</h4>
-                <p className="text-xs text-[var(--color-text-muted)] truncate">{lead.company}</p>
+                <h4 className="font-bold text-[var(--color-text-primary)] text-sm truncate-desktop">{lead.name}</h4>
+                <p className="text-xs text-[var(--color-text-muted)] truncate-desktop">{lead.company}</p>
                 <LeadTags tags={lead.tags} />
               </div>
               <Badge variant={PRIORITY_VARIANT[lead.priority] ?? "neutral"} className="text-[8px] px-2 py-0.5 uppercase shrink-0 ml-2">{lead.priority}</Badge>
@@ -178,7 +178,7 @@ export function PipelineListaView({
               </div>
             </div>
             <div className="flex justify-between items-center text-[10px] text-[var(--color-text-faint)]">
-              <span className="truncate">{lead.email}</span>
+              <span className="truncate-desktop">{lead.email}</span>
               <span className="shrink-0 font-medium ml-2">{lead.phone}</span>
             </div>
           </Card>

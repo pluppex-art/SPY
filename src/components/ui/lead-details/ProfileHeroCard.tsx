@@ -84,11 +84,11 @@ export function ProfileHeroCard({
             {(companyName || leadName || "LD").substring(0, 2).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-black text-[var(--color-text-primary)] leading-tight truncate">
+            <h3 className="text-base font-black text-[var(--color-text-primary)] leading-tight truncate-desktop">
               {companyName || leadName || <span className="text-[var(--color-text-faint)] italic font-normal text-sm">Sem nome cadastrado</span>}
             </h3>
             {companyName && leadName && (
-              <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 truncate">{leadName}</p>
+              <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 truncate-desktop">{leadName}</p>
             )}
             <div className="mt-2">
               <span className="text-2xl font-black text-[var(--color-primary-blue)] font-mono tracking-tight">{displayValue}</span>

@@ -152,7 +152,7 @@ export function LeadDetailsModalHero({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base font-black text-[var(--color-text-primary)] truncate leading-tight">
+              <h2 className="text-base font-black text-[var(--color-text-primary)] truncate-desktop leading-tight">
                 {companyName || leadName || <span className="text-[var(--color-text-faint)] italic font-normal text-sm">Sem nome cadastrado</span>}
               </h2>
               <span className={cn(
@@ -165,7 +165,7 @@ export function LeadDetailsModalHero({
             </div>
 
             {companyName && leadName && (
-              <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 flex items-center gap-1 truncate">
+              <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 flex items-center gap-1 truncate-desktop">
                 <User className="w-3 h-3 shrink-0 text-[var(--color-text-faint)]" />
                 <span>{leadName}</span>
               </p>

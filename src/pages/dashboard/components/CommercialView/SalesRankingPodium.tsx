@@ -55,7 +55,7 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
                   <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] text-[8px] font-black rounded-full flex items-center justify-center">2º</div>
                 </div>
                 <div className="w-full h-full bg-[var(--color-surface-sunken)] border-x border-t border-[var(--color-border-default)] rounded-t-xl p-3 flex flex-col items-center justify-center">
-                  <p className="text-xs font-bold text-[var(--color-text-primary)] text-center truncate w-full mb-0.5">{top3[1].name}</p>
+                  <p className="text-xs font-bold text-[var(--color-text-primary)] text-center truncate-desktop w-full mb-0.5">{top3[1].name}</p>
                   <p className="text-[11px] font-bold text-[var(--color-text-muted)] font-mono">R$ {top3[1].total.toLocaleString('pt-BR')}</p>
                 </div>
               </motion.div>
@@ -71,7 +71,7 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
                 <div className="w-12 h-12 rounded-2xl bg-[var(--color-primary-blue)]/20 border-2 border-[var(--color-primary-blue)] flex items-center justify-center text-2xl shadow-md">🥇</div>
               </div>
               <div className="w-full h-full bg-[var(--color-primary-blue)]/10 border-x border-t border-[var(--color-primary-blue)]/30 rounded-t-2xl p-4 flex flex-col items-center justify-center">
-                <p className="text-xs font-black text-[var(--color-text-primary)] text-center truncate w-full mb-0.5">{top3[0].name}</p>
+                <p className="text-xs font-black text-[var(--color-text-primary)] text-center truncate-desktop w-full mb-0.5">{top3[0].name}</p>
                 <p className="text-sm font-black text-[var(--color-primary-blue)] font-mono">R$ {top3[0].total.toLocaleString('pt-BR')}</p>
                 <Badge variant="default" className="mt-2 text-[8px] py-0">Top Closer</Badge>
               </div>
@@ -89,7 +89,7 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
                   <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] text-[8px] font-black rounded-full flex items-center justify-center">3º</div>
                 </div>
                 <div className="w-full h-full bg-[var(--color-surface-sunken)] border-x border-t border-[var(--color-border-default)] rounded-t-xl p-2.5 flex flex-col items-center justify-center">
-                  <p className="text-[11px] font-bold text-[var(--color-text-primary)] text-center truncate w-full mb-0.5">{top3[2].name}</p>
+                  <p className="text-[11px] font-bold text-[var(--color-text-primary)] text-center truncate-desktop w-full mb-0.5">{top3[2].name}</p>
                   <p className="text-[10px] font-bold text-[var(--color-text-muted)] font-mono">R$ {top3[2].total.toLocaleString('pt-BR')}</p>
                 </div>
               </motion.div>
@@ -123,7 +123,7 @@ export function SalesRankingPodium({ salesRanking }: { salesRanking: SalesEntry[
                     <span className="w-5 h-5 shrink-0 rounded-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] flex items-center justify-center text-[9px] font-black text-[var(--color-text-faint)]">
                       {i + 4}º
                     </span>
-                    <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">{entry.name}</span>
+                    <span className="text-xs font-bold text-[var(--color-text-primary)] truncate-desktop">{entry.name}</span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0 text-[10px] font-mono">
                     <span className="text-[var(--color-text-faint)]">{entry.deals} contrato(s)</span>

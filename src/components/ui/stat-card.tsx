@@ -39,7 +39,7 @@ function StatCard({ icon: Icon, label, value, sub, caption, footer, hint, tone =
     <Card
       onClick={onClick}
       className={cn(
-        "p-5 min-w-0 shadow-sm flex flex-col",
+        "p-4 sm:p-5 min-w-0 shadow-sm flex flex-col",
         onClick && "cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md",
         tone === "danger" && "border-danger/20",
         className,
@@ -51,7 +51,7 @@ function StatCard({ icon: Icon, label, value, sub, caption, footer, hint, tone =
         </div>
         <p title={hint} className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)] leading-tight">{label}</p>
       </div>
-      <p className="text-2xl font-black font-mono mt-3 truncate text-[var(--color-text-primary)]" style={valueColor ? { color: valueColor } : undefined}>{value}</p>
+      <p className="text-xl sm:text-2xl font-black font-mono mt-3 truncate-desktop text-[var(--color-text-primary)]" style={valueColor ? { color: valueColor } : undefined}>{value}</p>
       <p className="text-[11px] font-bold mt-1 min-h-[16px] flex items-center gap-1" style={{ color: c }}>{sub}</p>
       {(caption || footer) && (
         <div className="flex items-center justify-between gap-2 mt-0.5">

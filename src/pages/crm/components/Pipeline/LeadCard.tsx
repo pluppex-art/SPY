@@ -350,7 +350,7 @@ export function LeadCard({
             {item.name || item.company || 'Lead sem identificação'}
           </h4>
           {item.company && item.name && (
-            <p className="text-[10px] text-[var(--color-text-muted)] truncate mt-0.5">{item.company}</p>
+            <p className="text-[10px] text-[var(--color-text-muted)] truncate-desktop mt-0.5">{item.company}</p>
           )}
         </div>
 

@@ -37,7 +37,7 @@ function KpiCard({ icon: Icon, label, children, cor }: { icon: typeof Wallet; la
           <Icon className="w-5 h-5" style={{ color: cor }} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] text-[var(--color-text-muted)] truncate">{label}</p>
+          <p className="text-[11px] text-[var(--color-text-muted)] truncate-desktop">{label}</p>
           {children}
         </div>
       </div>
@@ -116,7 +116,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <KpiCard icon={Wallet} label="Receita total de produtos" cor="#3b82f6">
-            <p className="text-xl font-black text-[var(--color-text-primary)] font-mono truncate">{formatCurrency(totalReceita)}</p>
+            <p className="text-xl font-black text-[var(--color-text-primary)] font-mono truncate-desktop">{formatCurrency(totalReceita)}</p>
             <p className="text-[11px] font-semibold">
               {variacaoTotal === null ? <span className="text-[var(--color-text-faint)]">sem período anterior</span> : (
                 <span className={variacaoTotal >= 0 ? "text-emerald-500" : "text-rose-500"}>
@@ -126,7 +126,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
             </p>
           </KpiCard>
           <KpiCard icon={Trophy} label="Produto com maior receita" cor="#6366f1">
-            <p className="text-sm font-black text-[var(--color-text-primary)] truncate" title={top?.nome}>{top ? top.nome : "—"}</p>
+            <p className="text-sm font-black text-[var(--color-text-primary)] truncate-desktop" title={top?.nome}>{top ? top.nome : "—"}</p>
             <p className="text-xs font-mono text-[var(--color-text-muted)]">{top ? formatCurrency(top.receita) : "Sem vendas no período"}</p>
           </KpiCard>
           <KpiCard icon={PieIcon} label="Participação do top produto" cor="#f59e0b">
@@ -153,7 +153,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
                   return (
                     <div key={l.key} className="min-w-0">
                       <div className="flex items-baseline justify-between gap-3 min-w-0">
-                        <span className="text-xs font-bold text-[var(--color-text-primary)] truncate min-w-0 flex-1" title={l.nome}>{l.nome}</span>
+                        <span className="text-xs font-bold text-[var(--color-text-primary)] truncate-desktop min-w-0 flex-1" title={l.nome}>{l.nome}</span>
                         <span className="text-xs font-mono font-bold text-[var(--color-text-primary)] shrink-0 whitespace-nowrap">{fmt(v)}</span>
                         <span className="text-[11px] font-bold text-[var(--color-text-muted)] tabular-nums w-12 shrink-0 text-right">
                           {totalMetrica > 0 ? `${Math.round((v / totalMetrica) * 1000) / 10}%` : "0%"}
@@ -230,7 +230,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
                     <td className="px-3 py-2.5 max-w-[320px]">
                       <span className="inline-flex items-center gap-2 min-w-0 max-w-full">
                         <FileText className="w-4 h-4 shrink-0" style={{ color: l.cor }} />
-                        <span className="font-bold text-[var(--color-text-primary)] truncate" title={l.nome}>{l.nome}</span>
+                        <span className="font-bold text-[var(--color-text-primary)] truncate-desktop" title={l.nome}>{l.nome}</span>
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono font-bold text-[var(--color-text-primary)]">{formatCurrency(l.receita)}</td>

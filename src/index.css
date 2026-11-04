@@ -126,6 +126,18 @@ html.dark {
   }
 }
 
+/* Texto que QUEBRA linha no celular (nome/título/valor completos, sem "...") e só é cortado
+   com reticências a partir de sm, onde a coluna é estreita de propósito. */
+@utility truncate-desktop {
+  overflow-wrap: anywhere;
+  @media (min-width: 640px) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+}
+
 @layer utilities {
   /* Área segura do iPhone (notch / indicador de home). Precisa do viewport-fit=cover no index.html. */
   .pb-safe { padding-bottom: env(safe-area-inset-bottom); }

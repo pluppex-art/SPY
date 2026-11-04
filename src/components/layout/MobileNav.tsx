@@ -136,7 +136,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
                             className={btnClass}
                           >
                             <ItemIcon className="w-4 h-4 text-[var(--color-accent)] shrink-0" />
-                            <span className="truncate">{item.name}</span>
+                            <span className="leading-tight break-words min-w-0">{item.name}</span>
                           </button>
                         );
                       }
@@ -144,7 +144,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
                       return (
                         <Link key={item.name} to={item.path} onClick={() => setIsMobileMoreOpen(false)} className={btnClass}>
                           <ItemIcon className="w-4 h-4 text-[var(--color-accent)] shrink-0" />
-                          <span className="truncate">{item.name}</span>
+                          <span className="leading-tight break-words min-w-0">{item.name}</span>
                         </Link>
                       );
                     })}
