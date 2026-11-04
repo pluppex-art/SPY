@@ -1173,7 +1173,7 @@ export default function VarejoVendas() {
       </div>
 
       {/* Tabs Switcher: PDV vs Histórico */}
-      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit mb-4 shadow-xs">
+      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap mb-4 shadow-xs">
         <button
           onClick={() => setTab("pdv")}
           className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${

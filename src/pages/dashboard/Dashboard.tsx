@@ -44,12 +44,12 @@ export default function Dashboard() {
         <DashboardActionsTabs activeTab={activeTab as any} onTabChange={setActiveTab as any} />
       }
     >
-      <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
+      <div className="space-y-4 md:space-y-6 max-w-[1600px] mx-auto pb-10">
 
         {/* Filtro de período — afeta cartões, gráfico de Fluxo de Performance,
             Snapshot Financeiro e todo o resto da tela (mesmo intervalo em
             todo componente, ver useDashboard.ts/StrategicalView.tsx). */}
-        <div className="w-fit">
+        <div className="w-full sm:w-fit">
           <DateRangeFilter
             dateFrom={dateFrom}
             setDateFrom={setDateFrom}

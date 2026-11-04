@@ -24,7 +24,7 @@ export function ConfigRodizioLeads() {
         <p className="text-sm text-[var(--color-text-muted)]">Configure a distribuição automática de leads entre SDRs e Closers com base em capacidade e tags.</p>
       </div>
 
-      <div className="flex items-center gap-1.5 p-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl w-fit shadow-sm">
+      <div className="flex items-center gap-1.5 p-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-sm">
         {TABS.map(t => (
           <button 
             key={t.key} 

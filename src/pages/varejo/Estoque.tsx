@@ -330,7 +330,7 @@ export default function VarejoEstoque() {
       </KpiFilterCard>
 
       {/* Tabs */}
-      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit shadow-xs">
+      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-xs">
         <button
           onClick={() => setActiveTab("tabela")}
           className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${

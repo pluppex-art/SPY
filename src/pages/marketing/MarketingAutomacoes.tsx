@@ -189,7 +189,7 @@ export default function MarketingAutomacoes() {
       }
     >
       <div className="space-y-6 pb-20">
-        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit">
+        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap">
           {([["julia", "Gatilho → Mensagem (IA)", MessageCircle], ["funis", "Gatilho → Funis / OS", Workflow]] as const).map(([v, label, Icon]) => (
             <button
               key={v}

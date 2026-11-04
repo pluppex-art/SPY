@@ -32,7 +32,7 @@ const ICON_COLORS = ["text-[var(--color-primary-blue)]", "text-emerald-500", "te
  */
 export function FinanceKpiGrid({ cards, noDeltaLabel = "Sem período p/ comparação" }: { cards: FinanceKpi[]; noDeltaLabel?: string }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
       {cards.map((k, i) => {
         const Icon = k.icon;
         const up = (k.delta ?? 0) > 0;
@@ -47,11 +47,11 @@ export function FinanceKpiGrid({ cards, noDeltaLabel = "Sem período p/ compara�
             key={k.label}
             onClick={k.onClick}
             className={cn(
-              "p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm",
+              "p-3.5 sm:p-5 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm",
               k.onClick && "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
             )}
           >
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between gap-1 mb-2 sm:mb-3">
               <Icon className={cn("w-5 h-5", ICON_COLORS[i % ICON_COLORS.length])} />
               {k.hideDelta ? <span /> : k.delta === null ? (
                 <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right leading-tight">{noDeltaLabel}</span>
@@ -61,10 +61,10 @@ export function FinanceKpiGrid({ cards, noDeltaLabel = "Sem período p/ compara�
                 </span>
               )}
             </div>
-            <div className={cn("text-2xl font-display font-black mb-1 italic whitespace-nowrap", k.danger ? "text-rose-500" : "text-[var(--color-text-primary)]")}>{k.value}</div>
+            <div className={cn("text-lg sm:text-2xl font-display font-black mb-1 italic break-words sm:whitespace-nowrap", k.danger ? "text-rose-500" : "text-[var(--color-text-primary)]")}>{k.value}</div>
             <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</div>
             <div className="flex items-center justify-between mt-1 gap-2">
-              <span className="text-[10px] text-[var(--color-text-faint)] font-medium">{k.footer ?? ""}</span>
+              <span className="text-[10px] text-[var(--color-text-faint)] font-medium min-w-0">{k.footer ?? ""}</span>
               {k.series.length >= 2 && <Sparkline data={k.series} className={cn("w-16 h-5 shrink-0", sparkColor)} />}
             </div>
           </Card>
