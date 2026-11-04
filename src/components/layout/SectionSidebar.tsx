@@ -146,7 +146,7 @@ export function SectionSidebar({ heading, subheading, groups, children }: Sectio
         document.body,
       )}
 
-      <div className="flex-1 overflow-y-auto p-2 sm:p-4 lg:p-8 relative min-w-0 w-full">{children}</div>
+      <div className="flex-1 overflow-y-auto p-4 lg:p-8 relative min-w-0 w-full">{children}</div>
     </div>
   );
 }

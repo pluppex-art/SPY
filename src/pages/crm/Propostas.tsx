@@ -275,7 +275,7 @@ export default function Propostas() {
             type="button"
             onClick={() => setActiveTab("propostas")}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 whitespace-nowrap",
               activeTab === "propostas"
                 ? "bg-[var(--color-primary-blue)] text-white shadow-md shadow-[var(--color-primary-blue)]/20"
                 : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"
@@ -288,7 +288,7 @@ export default function Propostas() {
             type="button"
             onClick={() => setActiveTab("contratos")}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 whitespace-nowrap",
               activeTab === "contratos"
                 ? "bg-[var(--color-primary-blue)] text-white shadow-md shadow-[var(--color-primary-blue)]/20"
                 : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"
@@ -301,7 +301,7 @@ export default function Propostas() {
             type="button"
             onClick={() => setActiveTab("funil")}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 whitespace-nowrap",
               activeTab === "funil"
                 ? "bg-[var(--color-primary-blue)] text-white shadow-md shadow-[var(--color-primary-blue)]/20"
                 : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"

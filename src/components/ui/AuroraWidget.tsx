@@ -250,7 +250,7 @@ export function AuroraWidget() {
       <button
         onClick={() => setIsOpen((v) => !v)}
         style={bubbleRingColor ? { boxShadow: `0 8px 30px rgba(139,92,246,0.35), 0 0 0 2px ${bubbleRingColor}` } : undefined}
-        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-[0_8px_30px_rgba(139,92,246,0.35)] flex items-center justify-center transition-all hover:scale-105 overflow-hidden bg-black/20 backdrop-blur-sm"
+        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-3 md:right-6 z-50 w-11 h-11 sm:w-14 sm:h-14 rounded-full max-md:opacity-90 shadow-[0_8px_30px_rgba(139,92,246,0.35)] flex items-center justify-center transition-all hover:scale-105 overflow-hidden bg-black/20 backdrop-blur-sm"
         title={
           tokenUsage?.limitReached
             ? "Limite de tokens do ciclo atingido"
@@ -259,7 +259,7 @@ export function AuroraWidget() {
             : "Falar com a Aurora"
         }
       >
-        <AuroraCore mode={coreMode} size={56} />
+        <div className="max-md:scale-[0.8] shrink-0"><AuroraCore mode={coreMode} size={56} /></div>
         {isOpen && (
           <div className="absolute inset-0 rounded-full bg-black/45 flex items-center justify-center">
             <X className="w-5 h-5 text-white" />

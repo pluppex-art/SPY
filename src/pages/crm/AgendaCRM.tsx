@@ -494,10 +494,10 @@ export default function AgendaCRM() {
     >
       <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
         {/* Top KPIs Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           <Card
             onClick={() => openDay(new Date())}
-            className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm cursor-pointer hover:border-[var(--color-primary-blue)]/30 transition-colors"
+            className="p-3 sm:p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm cursor-pointer hover:border-[var(--color-primary-blue)]/30 transition-colors"
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -515,7 +515,7 @@ export default function AgendaCRM() {
             </p>
           </Card>
 
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="p-3 sm:p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
                 Total Agendado (Mês)
@@ -524,7 +524,7 @@ export default function AgendaCRM() {
                 <Clock className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="flex items-end justify-between gap-2">
+            <div className="flex items-end justify-between gap-2 max-sm:flex-col max-sm:items-start">
               <div>
                 <div className="text-2xl font-black text-[var(--color-text-primary)] font-mono">
                   {kpiTrend.totalAtual}
@@ -544,7 +544,7 @@ export default function AgendaCRM() {
             </div>
           </Card>
 
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="p-3 sm:p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
                 Reuniões Realizadas
@@ -553,7 +553,7 @@ export default function AgendaCRM() {
                 <CheckCircle2 className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="flex items-end justify-between gap-2">
+            <div className="flex items-end justify-between gap-2 max-sm:flex-col max-sm:items-start">
               <div>
                 <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
                   {all.filter((r) => r.status === "Concluída").length}
@@ -596,7 +596,7 @@ export default function AgendaCRM() {
         </div>
 
         {/* Controls Bar: Views, Date Navigation & Filters */}
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-3">
+        <Card className="p-3 sm:p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             {/* View switcher & Date Nav */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -689,7 +689,7 @@ export default function AgendaCRM() {
         <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
         {/* Sidebar: mini-calendário + filtros rápidos por tipo */}
         <div className="space-y-4">
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="p-3 sm:p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-black text-[var(--color-text-primary)]">
                 {MONTH_NAMES[month]} {year}
@@ -743,7 +743,7 @@ export default function AgendaCRM() {
             </div>
           </Card>
 
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <Card className="p-3 sm:p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Filtros rápidos</h4>
             <div className="space-y-1">
               {(["Todos", ...TIPO_COMPROMISSO_OPTIONS.map((o) => o.id)] as TipoFiltro[]).map((id) => (
@@ -1163,7 +1163,7 @@ export default function AgendaCRM() {
         )}
 
         {view !== "lista" && (
-          <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <Card className="p-3 sm:p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-xs font-bold text-[var(--color-text-muted)]">
               {monthBaseFiltered.length} {monthBaseFiltered.length === 1 ? "compromisso" : "compromissos"} no mês de {MONTH_NAMES[month].toLowerCase()}
             </p>
