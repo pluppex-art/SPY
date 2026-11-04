@@ -44,6 +44,7 @@ import {
 import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { toast } from "sonner";
+import { IA_AGENTS } from "../../../../lib/iaAgents";
 import { NovaIntegracaoModal } from "../../../../components/ui/modals/settings/NovaIntegracaoModal";
 import { apiFetch } from "../../../../lib/apiClient";
 import { DEFAULT_META_CONFIG, DEFAULT_GOOGLE_CONFIG, DEFAULT_PAYMENT_CONFIG, DEFAULT_MAXDATA_CONFIG } from "../../../../lib/tenantIntegrations";
@@ -809,6 +810,22 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
       })
       .catch((err: any) => toast.error(err?.message || "Erro ao conectar instância."))
       .finally(() => setConnectingInstanceId(null));
+  };
+
+  // IA que atende este número de WhatsApp (SDR / CS / Chatbot) — a Mensageria filtra as conversas por isso.
+  const handleSetInstanceIa = (id: string, iaAgent: string) => {
+    apiFetch(`/api/whatsapp/instances/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ iaAgent: iaAgent || null }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Erro ao salvar a IA deste número.");
+        setInstances((prev) => prev.map((i) => (i.id === id ? { ...i, iaAgent: data.iaAgent ?? null } : i)));
+        toast.success(data.iaAgent ? `Número vinculado à IA: ${IA_AGENTS.find((a) => a.id === data.iaAgent)?.label}.` : "Número sem IA vinculada.");
+      })
+      .catch((err: any) => toast.error(err?.message || "Erro ao salvar a IA deste número."));
   };
 
   const [backfillingInstanceId, setBackfillingInstanceId] = useState<string | null>(null);
@@ -1725,6 +1742,17 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
                       )}
                     </div>
                   </div>
+                  <label className="flex items-center justify-between gap-3 text-[var(--color-text-muted)]">
+                    <span>🤖 IA deste número:</span>
+                    <select
+                      value={inst.iaAgent || ""}
+                      onChange={(e) => handleSetInstanceIa(inst.id, e.target.value)}
+                      className="h-8 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-2 text-xs font-bold text-[var(--color-text-primary)] cursor-pointer"
+                    >
+                      <option value="">Nenhuma (número comum)</option>
+                      {IA_AGENTS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                    </select>
+                  </label>
                   {inst.webhookUrl && (
                     <div className="text-[10px] text-[var(--color-text-faint)] truncate" title={inst.webhookUrl}>
                       🔗 Webhook (gerado automaticamente): {inst.webhookUrl}

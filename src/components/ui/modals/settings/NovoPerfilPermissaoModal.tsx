@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Building2, Check, ChevronDown, ShieldCheck } from "lucide-react";
 import { Modal } from "../../modal";
+import { IA_AGENTS } from "../../../../lib/iaAgents";
 import { Button } from "../../button";
 
 type PerfilPermissaoPayload = {
@@ -29,6 +30,8 @@ const ALL_MODULES: { id: string; label: string; desc: string }[] = [
   { id: "produtividade",label: "Tarefas & Kanban",       desc: "Afazeres e produtividade" },
   { id: "catalogo",     label: "Catálogo de Produtos",   desc: "Estoque, SKUs e iPhones" },
   { id: "dev",          label: "Dev & Tecnologia",       desc: "Projetos, sprints e repositórios" },
+  // Mensageria: quais IAs (cada uma com o próprio WhatsApp) o perfil pode ver.
+  ...IA_AGENTS.map((a) => ({ id: a.modulo, label: `Mensageria · ${a.label}`, desc: a.desc })),
 ];
 
 const labelClass = "text-[10px] font-bold text-slate-400 uppercase tracking-wider";

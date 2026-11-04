@@ -5206,6 +5206,7 @@ function mapChatContactRow(row: any) {
     online: false, // WAHA não expõe presença em tempo real neste contrato — sempre false até existir.
     phone: row.phone,
     tags: row.tags || [],
+    instanceId: row.whatsapp_instance_id ?? null,
   };
 }
 
@@ -5233,6 +5234,7 @@ function mapInstanceRow(row: any) {
     qrcode: row.qrcode || "",
     provider: row.provider,
     createdAt: row.created_at,
+    iaAgent: row.ia_agent ?? null,
   };
 }
 
@@ -5692,8 +5694,13 @@ app.put("/api/whatsapp/instances/:id", requireUser, async (req: any, res) => {
   // registrado no WAHA só na criação (POST acima), com o token da própria
   // instância. Aceitar edição manual aqui reabriria a mesma brecha que
   // motivou tirar o campo livre das Configurações.
-  const { name, phone, status } = req.body;
+  const { name, phone, status, iaAgent } = req.body;
   const updates: Record<string, any> = {};
+  // IA que atende este número (sdr | cs | chatbot); null/"" = número comum, sem IA.
+  if (iaAgent !== undefined) {
+    if (iaAgent !== null && iaAgent !== "" && !["sdr", "cs", "chatbot"].includes(iaAgent)) return res.status(400).json({ error: "IA inválida." });
+    updates.ia_agent = iaAgent || null;
+  }
   if (name !== undefined) updates.name = name;
   if (phone !== undefined) updates.phone = phone;
   if (status !== undefined) updates.status = status;

@@ -17,6 +17,8 @@ export interface Contact {
   online: boolean;
   phone?: string;
   email?: string;
+  /** Instância (número) de WhatsApp da conversa — define a IA que atende. */
+  instanceId?: string | null;
   tags?: string[];
   slaStatus?: string;
   purchaseHistory?: { item: string; date: string; value: string; }[];

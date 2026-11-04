@@ -16,6 +16,10 @@ interface ChatListSidebarProps {
   filteredContacts: Contact[];
   handleChatSelect: (id: string) => void;
   tabs: string[];
+  /** IAs que o usuário pode ver (SDR / CS / Chatbot), com a contagem de conversas de cada uma. */
+  iaOptions?: { id: string; label: string; count: number }[];
+  iaFiltro?: string;
+  setIaFiltro?: (id: string) => void;
 }
 
 const getChannelIcon = (channel: Channel, className = "w-4 h-4") => {
@@ -36,10 +40,13 @@ export function ChatListSidebar({
   isSearching,
   filteredContacts,
   handleChatSelect,
-  tabs
+  tabs,
+  iaOptions = [],
+  iaFiltro = "todas",
+  setIaFiltro,
 }: ChatListSidebarProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery, activeTab]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery, activeTab, iaFiltro]);
   const visibleContacts = filteredContacts.slice(0, visibleCount);
 
   return (
@@ -74,6 +81,29 @@ export function ChatListSidebar({
           </button>
         ))}
       </div>
+
+      {/* Filtro por IA (cada IA tem o próprio WhatsApp): só aparece para quem pode ver alguma IA */}
+      {iaOptions.length > 0 && setIaFiltro && (
+        <div className="shrink-0 flex items-center overflow-x-auto scrollbar-none border-b border-[var(--color-border-subtle)] px-3 py-2 gap-1.5 bg-[var(--color-surface-sunken)]" role="tablist" aria-label="Filtrar por IA">
+          <span className="shrink-0 text-[11px] font-black uppercase tracking-wider text-[var(--color-text-faint)] pr-1">IA</span>
+          {[{ id: "todas", label: "Todas", count: null as number | null }, ...iaOptions].map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              role="tab"
+              aria-selected={iaFiltro === o.id}
+              onClick={() => setIaFiltro(o.id)}
+              className={`whitespace-nowrap px-3 py-1 text-xs font-bold rounded-lg border cursor-pointer transition-all ${
+                iaFiltro === o.id
+                  ? 'bg-violet-600 border-transparent !text-white shadow-xs'
+                  : 'border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+              }`}
+            >
+              {o.label}{o.count !== null ? ` (${o.count})` : ""}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Quick Search */}
       <div className="shrink-0 px-4 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]">

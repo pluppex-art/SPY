@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageCircle, Building2 } from "lucide-react";
 import { useMessaging } from "./messaging/useMessaging";
 import { ChatListSidebar } from "./messaging/ChatListSidebar";
@@ -7,11 +7,41 @@ import { RightControlDrawer } from "./messaging/RightControlDrawer";
 import { AddActivityDialog } from "./messaging/AddActivityDialog";
 import { InternalChatView } from "./messaging/InternalChatView";
 import { normalizeText } from "../../lib/utils";
+import { apiFetch } from "../../lib/apiClient";
+import { useAuth } from "../../contexts/AuthContext";
+import { useData } from "../../contexts/DataContext";
+import { IA_AGENTS, podeVerIa, type IaAgentId } from "../../lib/iaAgents";
 
 type MessagingMode = "whatsapp" | "interno";
 
 export default function Messaging() {
   const [mode, setMode] = useState<MessagingMode>("whatsapp");
+
+  // ── Filtro por IA (SDR / CS / Chatbot) ────────────────────────────────────
+  // Cada IA tem o próprio número de WhatsApp (instância); a conversa herda a IA da instância.
+  // Quem não tem a IA liberada no perfil não vê as conversas daquele número.
+  const { user } = useAuth();
+  const { cargos } = useData() as any;
+  const [iaPorInstancia, setIaPorInstancia] = useState<Record<string, IaAgentId>>({});
+  const [iaFiltro, setIaFiltro] = useState<string>(() => (typeof window !== "undefined" ? window.sessionStorage.getItem("axis_iaFiltro") || "todas" : "todas"));
+  useEffect(() => { try { window.sessionStorage.setItem("axis_iaFiltro", iaFiltro); } catch { /* sem sessionStorage */ } }, [iaFiltro]);
+  useEffect(() => {
+    let vivo = true;
+    const carregar = () =>
+      apiFetch("/api/whatsapp/instances")
+        .then((r) => (r.ok ? r.json() : []))
+        .then((lista: any[]) => {
+          if (!vivo) return;
+          const mapa: Record<string, IaAgentId> = {};
+          for (const i of lista || []) if (i.iaAgent) mapa[i.id] = i.iaAgent;
+          setIaPorInstancia(mapa);
+        })
+        .catch(() => {});
+    carregar();
+    const t = setInterval(carregar, 60000);
+    return () => { vivo = false; clearInterval(t); };
+  }, []);
+  const iasPermitidas = IA_AGENTS.filter((a) => podeVerIa(user, cargos || [], a.id));
 
   const {
     leads,
@@ -50,7 +80,16 @@ export default function Messaging() {
 
   const tabs = ["Todas", "Não lidas", "WhatsApp", "Instagram", "E-mail"];
 
-  const filteredContacts = contacts.filter(c => {
+  const iaDoContato = (c: { instanceId?: string | null }): IaAgentId | null => (c.instanceId ? iaPorInstancia[c.instanceId] ?? null : null);
+  // Conversas de uma IA que o perfil não pode ver ficam fora de qualquer visão.
+  const contatosVisiveis = contacts.filter((c) => {
+    const ia = iaDoContato(c);
+    return !ia || iasPermitidas.some((a) => a.id === ia);
+  });
+  const iaOptions = iasPermitidas.map((a) => ({ id: a.id, label: a.label, count: contatosVisiveis.filter((c) => iaDoContato(c) === a.id).length }));
+
+  const filteredContacts = contatosVisiveis.filter(c => {
+    if (iaFiltro !== "todas" && iaDoContato(c) !== iaFiltro) return false;
     if (activeTab === "Não lidas" && c.unread === 0) return false;
     if (activeTab === "WhatsApp" && c.channel !== "WhatsApp") return false;
     if (activeTab === "Instagram" && c.channel !== "Instagram") return false;
@@ -135,6 +174,9 @@ export default function Messaging() {
               filteredContacts={filteredContacts}
               handleChatSelect={handleChatSelect}
               tabs={tabs}
+              iaOptions={iaOptions}
+              iaFiltro={iaFiltro}
+              setIaFiltro={setIaFiltro}
             />
 
             <ActiveChatArea
