@@ -50,7 +50,7 @@ const DOW = ["D","S","T","Q","Q","S","S"];
 const DOW_LONG = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 
 const selectCls =
-  "h-10 px-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40";
+  "h-11 lg:h-10 w-full lg:w-auto min-w-0 px-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40";
 
 function formatDate(iso: string) {
   try { return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }); } catch { return iso; }
@@ -247,9 +247,9 @@ export default function ReunioesList() {
             {initials(r.leadName || r.companyName)}
           </div>
           <div className="min-w-0">
-            <p className="font-black text-[var(--color-text-primary)] text-sm truncate">{r.companyName || r.leadName}</p>
+            <p className="font-black text-[var(--color-text-primary)] text-sm truncate-desktop">{r.companyName || r.leadName}</p>
             {r.leadName && r.companyName !== r.leadName && (
-              <p className="text-[11px] text-[var(--color-text-muted)] truncate">{r.leadName}</p>
+              <p className="text-[11px] text-[var(--color-text-muted)] truncate-desktop">{r.leadName}</p>
             )}
           </div>
         </div>
@@ -261,7 +261,7 @@ export default function ReunioesList() {
       <div className="space-y-1.5 text-xs text-[var(--color-text-muted)]">
         <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 shrink-0" />{formatDate(r.scheduledAt)}</div>
         <div className="flex items-center gap-2"><Clock className="w-3.5 h-3.5 shrink-0" />{formatTime(r.scheduledAt)} ({r.durationMinutes} minutos)</div>
-        <div className="flex items-center gap-2"><Video className="w-3.5 h-3.5 shrink-0" />{sourceLabel(r)}</div>
+        <div className="flex items-start gap-2 break-words min-w-0"><Video className="w-3.5 h-3.5 shrink-0 mt-0.5" /><span className="min-w-0">{sourceLabel(r)}</span></div>
         <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 shrink-0" />{r.closerName || "Não definido"}</div>
       </div>
 
@@ -270,13 +270,13 @@ export default function ReunioesList() {
       )}
 
       <div className="flex items-center gap-2">
-        <Button onClick={() => openRoom(r.id)} className="flex-1 h-9 text-xs font-black gap-1.5">
+        <Button onClick={() => openRoom(r.id)} className="flex-1 h-10 sm:h-9 text-xs font-black gap-1.5">
           <Video className="w-3.5 h-3.5" /> Entrar
         </Button>
         {r.meetLink && (
           <button
             onClick={() => { navigator.clipboard.writeText(r.meetLink); toast.success("Link copiado!"); }}
-            className="h-9 w-9 flex items-center justify-center rounded-xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-all cursor-pointer bg-transparent"
+            className="h-10 w-10 sm:h-9 sm:w-9 shrink-0 flex items-center justify-center rounded-xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-all cursor-pointer bg-transparent"
             title="Copiar link"
           >
             <Copy className="w-3.5 h-3.5" />
@@ -287,7 +287,7 @@ export default function ReunioesList() {
             href={r.meetLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="h-9 w-9 flex items-center justify-center rounded-xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-all"
+            className="h-10 w-10 sm:h-9 sm:w-9 shrink-0 flex items-center justify-center rounded-xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-all"
             title="Abrir link"
           >
             <ExternalLink className="w-3.5 h-3.5" />
@@ -295,14 +295,14 @@ export default function ReunioesList() {
         )}
         <button
           onClick={() => setReuniaoToEdit(r)}
-          className="h-9 w-9 flex items-center justify-center rounded-xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-all cursor-pointer bg-transparent"
+          className="h-10 w-10 sm:h-9 sm:w-9 shrink-0 flex items-center justify-center rounded-xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-all cursor-pointer bg-transparent"
           title="Editar reunião"
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => setReuniaoToDelete(r.id)}
-          className="h-9 w-9 flex items-center justify-center rounded-xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer bg-transparent"
+          className="h-10 w-10 sm:h-9 sm:w-9 shrink-0 flex items-center justify-center rounded-xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer bg-transparent"
           title="Excluir reunião"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -321,26 +321,26 @@ export default function ReunioesList() {
         </Button>
       }
     >
-      <div className="space-y-5 pb-10">
+      <div className="space-y-4 md:space-y-5 pb-10">
         {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
           {kpiCards.map(({ label, data, icon: Icon, color }) => (
-            <Card key={label} className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}1a`, color }}>
+            <Card key={label} className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+              <div className="flex items-center gap-2.5 md:gap-3">
+                <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}1a`, color }}>
                   <Icon className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">{label}</p>
                   <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono leading-tight">{data.total}</p>
                 </div>
-                <div className="w-20 h-8 shrink-0" style={{ color }}>
+                <div className="hidden sm:block w-20 h-8 shrink-0" style={{ color }}>
                   <Sparkline data={data.series} className="w-full h-full" />
                 </div>
               </div>
               <p
                 className={cn(
-                  "text-[11px] font-bold mt-2 flex items-center gap-1",
+                  "text-[10px] md:text-[11px] font-bold mt-2 flex items-start gap-1 leading-tight",
                   data.deltaPct === null ? "text-[var(--color-text-faint)]" : data.deltaPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"
                 )}
                 title="Reuniões marcadas para este mês comparadas às do mês anterior"
@@ -354,8 +354,8 @@ export default function ReunioesList() {
 
         {/* Filtros */}
         <Card className="p-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-3">
-          <div className="flex flex-col lg:flex-row gap-2">
-            <div className="relative flex-1">
+          <div className="grid grid-cols-2 lg:flex lg:flex-row gap-2">
+            <div className="relative col-span-2 lg:col-span-1 lg:flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
               <input
                 type="text"
@@ -372,19 +372,19 @@ export default function ReunioesList() {
               <option value="">Todos os responsáveis</option>
               {closerOptions.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <select value={tab} onChange={(e) => setTab(e.target.value as StatusTab)} className={selectCls}>
+            <select value={tab} onChange={(e) => setTab(e.target.value as StatusTab)} className={cn(selectCls, "hidden lg:block")}>
               {STATUS_TABS.map((s) => <option key={s} value={s}>{s === "Todas" ? "Todos os status" : s}</option>)}
             </select>
             <Button
               variant="outline"
               onClick={() => setShowMais((v) => !v)}
-              className={cn("h-10 gap-2 text-xs font-bold", (showMais || categoria || origem) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}
+              className={cn("col-span-2 lg:col-span-1 h-11 lg:h-10 gap-2 text-xs font-bold", (showMais || categoria || origem) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}
             >
               <Filter className="w-4 h-4" /> Mais filtros
             </Button>
           </div>
           {showMais && (
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[var(--color-border-subtle)]">
+            <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2 pt-2 border-t border-[var(--color-border-subtle)]">
               <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={selectCls}>
                 <option value="">Todas as categorias</option>
                 {TIPO_COMPROMISSO_OPTIONS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -398,18 +398,18 @@ export default function ReunioesList() {
           )}
         </Card>
 
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-4 lg:gap-6 items-start">
           {/* Conteúdo principal */}
           <div className="space-y-4 min-w-0">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 overflow-x-auto sm:overflow-visible sm:flex-wrap -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0 scrollbar-none">
                 {STATUS_TABS.map((s) => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => setTab(s)}
                     className={cn(
-                      "px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer",
+                      "px-3.5 py-2.5 sm:py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer shrink-0 whitespace-nowrap",
                       tab === s
                         ? "bg-[var(--color-primary-blue)] text-white border-transparent shadow-sm"
                         : "bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-[var(--color-text-primary)]"
@@ -424,7 +424,7 @@ export default function ReunioesList() {
                   </button>
                 )}
               </div>
-              <div className="flex items-center bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl p-1 gap-0.5">
+              <div className="flex items-center bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl p-1 gap-0.5 w-full sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none [&>button]:justify-center">
                 {([
                   { id: "lista" as const, label: "Lista", icon: LayoutList },
                   { id: "calendario" as const, label: "Calendário", icon: CalendarDays },
@@ -433,7 +433,7 @@ export default function ReunioesList() {
                     key={id}
                     onClick={() => setView(id)}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none",
+                      "flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none",
                       view === id ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : "bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
                     )}
                   >
@@ -462,7 +462,7 @@ export default function ReunioesList() {
                     </div>
                   </Card>
                 ) : (
-                  <div className="grid md:grid-cols-2 2xl:grid-cols-3 gap-4">{pageItems.map(renderCard)}</div>
+                  <div className="grid md:grid-cols-2 2xl:grid-cols-3 gap-3 md:gap-4">{pageItems.map(renderCard)}</div>
                 )}
                 <Pagination page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="reunião" />
               </>
@@ -470,7 +470,7 @@ export default function ReunioesList() {
 
             {view === "calendario" && (
               <div className="space-y-5">
-                <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+                <Card className="p-3 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
                   <div className="flex items-center justify-between mb-4">
                     <button onClick={prevMonth} className="p-2 rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)] cursor-pointer bg-transparent border-none"><ChevronLeft className="w-4 h-4" /></button>
                     <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-widest">{MONTH_NAMES[calMonth]} {calYear}</h3>
@@ -490,7 +490,7 @@ export default function ReunioesList() {
                           key={idx}
                           onClick={() => setSelectedDay(day === selectedDay ? null : day)}
                           className={cn(
-                            "flex flex-col items-center p-2 rounded-xl transition-all min-h-[56px] cursor-pointer border",
+                            "flex flex-col items-center p-1 sm:p-2 rounded-xl transition-all min-h-[48px] sm:min-h-[56px] cursor-pointer border",
                             isSelected
                               ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/40"
                               : isToday
@@ -521,7 +521,7 @@ export default function ReunioesList() {
                         <p className="text-[var(--color-text-faint)] text-sm text-center">Nenhuma reunião neste dia.</p>
                       </Card>
                     ) : (
-                      <div className="grid md:grid-cols-2 gap-4">{dayReunions.map(renderCard)}</div>
+                      <div className="grid md:grid-cols-2 gap-3 md:gap-4">{dayReunions.map(renderCard)}</div>
                     )}
                   </div>
                 )}
@@ -530,8 +530,8 @@ export default function ReunioesList() {
           </div>
 
           {/* Painel lateral */}
-          <div className="space-y-5">
-            <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+          <div className="space-y-4 md:space-y-5">
+            <Card className="hidden lg:block p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-black text-[var(--color-text-primary)]">{MONTH_NAMES[calMonth]} {calYear}</span>
                 <div className="flex items-center gap-0.5">

@@ -17,9 +17,9 @@ export default function MarketingSocial() {
       title="Social Media & Comunidade"
       description="Gestão de redes sociais orgânicas — recurso ainda não conectado nesta instância."
     >
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
         {CHANNELS.map((ch, i) => (
-          <Card key={i} className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
+          <Card key={i} className="p-4 md:p-6 min-w-0 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
             <div className="flex justify-between items-center mb-4">
               <ch.icon className={`w-5 h-5 ${ch.color}`} />
               <span className="text-xs font-bold text-slate-500">—</span>
@@ -30,9 +30,9 @@ export default function MarketingSocial() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-2">
-          <Card className="p-10 bg-[var(--color-surface-elevated)] border-white/5 flex flex-col items-center justify-center text-center gap-3">
+          <Card className="p-6 md:p-10 bg-[var(--color-surface-elevated)] border-white/5 flex flex-col items-center justify-center text-center gap-3">
             <Share2 className="w-10 h-10 text-slate-600" />
             <h3 className="text-sm font-black text-white uppercase tracking-wider">Nenhuma rede social conectada</h3>
             <p className="text-xs text-slate-500 max-w-sm">

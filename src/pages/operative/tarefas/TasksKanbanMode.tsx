@@ -76,7 +76,7 @@ export function TasksKanbanMode({
   return (
     <div className="space-y-4">
       {/* Mobile Segments Header */}
-      <div className="flex md:hidden bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl p-1 w-full shrink-0 relative">
+      <div className="flex md:hidden bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl p-1 w-full shrink-0 relative overflow-x-auto scrollbar-none">
         {columns.map(col => {
           const isActive = mobileActiveCol === col.id;
           const count = filteredTasks.filter(t => t.status === col.id).length;
@@ -86,7 +86,7 @@ export function TasksKanbanMode({
             <button
               key={col.id}
               onClick={() => setMobileActiveCol(col.id)}
-              className="flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all relative flex items-center justify-center gap-2 select-none cursor-pointer border-none bg-transparent"
+              className="flex-1 shrink-0 px-3 text-center py-3 text-xs font-bold rounded-xl transition-all relative flex items-center justify-center gap-2 select-none cursor-pointer border-none bg-transparent"
             >
               {isActive && (
                 <motion.div
@@ -112,7 +112,7 @@ export function TasksKanbanMode({
         })}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {columns.map(col => {
           const colTasks = tasksByCol[col.id] ?? [];
           const count = colTasks.length;

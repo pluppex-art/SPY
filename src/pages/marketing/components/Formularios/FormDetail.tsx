@@ -140,24 +140,24 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {[
           { label: "Total",      value: stats.total,    color: "text-indigo-500",  icon: <FileText     className="w-5 h-5" /> },
           { label: "Hoje",       value: stats.today,    color: "text-emerald-500", icon: <CheckCircle2 className="w-5 h-5" /> },
           { label: "Últimos 7d", value: stats.thisWeek, color: "text-blue-500",    icon: <TrendingUp   className="w-5 h-5" /> },
         ].map(s => (
-          <div key={s.label} className="bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all rounded-2xl p-6">
-            <div className={`mb-4 ${s.color}`}>{s.icon}</div>
+          <div key={s.label} className="bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all rounded-2xl p-3 sm:p-6 min-w-0">
+            <div className={`mb-2 sm:mb-4 ${s.color}`}>{s.icon}</div>
             <div className="text-2xl font-display font-black text-white mb-1 italic">{loading ? "—" : s.value}</div>
             <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</div>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-1 p-1 bg-white/[0.03] border border-white/5 rounded-xl w-fit">
+      <div className="flex gap-1 p-1 bg-white/[0.03] border border-white/5 rounded-xl w-fit max-w-full overflow-x-auto scrollbar-none">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${tab === t.key ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"}`}>
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all shrink-0 whitespace-nowrap ${tab === t.key ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"}`}>
             {t.icon} {t.label}
           </button>
         ))}
@@ -170,13 +170,13 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
             <div className="space-y-4">
               {/* Formato Switcher */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-slate-900/90 border border-slate-700/80 rounded-2xl">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto min-w-0">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Modo de Exibição:</span>
-                  <div className="flex gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <div className="flex flex-col sm:flex-row gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 w-full sm:w-auto">
                     <button
                       type="button"
                       onClick={() => { setViewFormat("passo_a_passo"); saveFormatSetting("passo_a_passo"); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all text-left ${
                         viewFormat === "passo_a_passo"
                           ? "bg-orange-600 text-white shadow-md"
                           : "text-slate-400 hover:text-white"
@@ -187,7 +187,7 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
                     <button
                       type="button"
                       onClick={() => { setViewFormat("scroll"); saveFormatSetting("scroll"); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all text-left ${
                         viewFormat === "scroll"
                           ? "bg-orange-600 text-white shadow-md"
                           : "text-slate-400 hover:text-white"
@@ -198,7 +198,7 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
                     <button
                       type="button"
                       onClick={() => { setViewFormat("iframe"); saveFormatSetting("iframe"); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all text-left ${
                         viewFormat === "iframe"
                           ? "bg-orange-600 text-white shadow-md"
                           : "text-slate-400 hover:text-white"
@@ -209,9 +209,9 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
                   <a href={form.previewUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-[11px] font-bold text-orange-400 hover:underline inline-flex items-center gap-1">
+                    className="text-[11px] font-bold text-orange-400 hover:underline inline-flex items-center gap-1 break-all min-w-0">
                     {form.previewUrl} <ExternalLink className="w-3 h-3" />
                   </a>
                   {viewFormat === "iframe" && (

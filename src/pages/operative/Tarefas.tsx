@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import { LayoutGrid, List as ListIcon, RefreshCw, Plus } from "lucide-react";
+import { LayoutGrid, List as ListIcon, RefreshCw, Plus, ChevronDown } from "lucide-react";
 import { NovaTarefaModal } from "../../components/ui/modals/productivity/NovaTarefaModal";
 import { ConfirmModal } from "../../components/ui/modals/shared/ConfirmModal";
 import { TaskDetailsModal } from "./tarefas/TaskDetailsModal";
@@ -65,6 +65,7 @@ export default function Tarefas() {
   } = useTarefas();
 
   const [isPautaModalOpen, setIsPautaModalOpen] = useState(false);
+  const [showBento, setShowBento] = useState(false);
   const [detailTask, setDetailTask] = useState<any | null>(null);
 
   // Modo Lista pagina de verdade no servidor (só ativo quando viewMode ===
@@ -89,8 +90,8 @@ export default function Tarefas() {
       title="Tarefas S.P.Y."
       description="Organize suas demandas comerciais, reuniões de diagnóstico e follow-ups de vendas."
       actions={
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <div className="flex items-center bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] p-0.5 h-9">
+        <div className="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto">
+          <div className="order-1 md:order-none w-full md:w-auto flex items-center bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] p-0.5 h-11 md:h-9 [&>button]:flex-1 md:[&>button]:flex-none [&>button]:justify-center">
             <button
               type="button"
               onClick={() => setViewMode('kanban')}
@@ -110,7 +111,7 @@ export default function Tarefas() {
             variant="outline"
             onClick={handleSyncGoogleTasks} 
             disabled={isSyncing} 
-            className="h-9 px-4 text-xs font-bold gap-1.5 border-[var(--color-border-default)]"
+            className="order-3 md:order-none flex-1 md:flex-none h-11 md:h-9 px-3 md:px-4 text-xs font-bold gap-1.5 border-[var(--color-border-default)]"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
             {isSyncing ? 'Sincronizando...' : 'Google Tasks'}
@@ -118,26 +119,37 @@ export default function Tarefas() {
           <Button 
             variant="outline"
             onClick={() => setIsPautaModalOpen(true)} 
-            className="h-9 px-4 text-xs font-bold gap-1.5 border-[var(--color-border-default)]"
+            className="order-3 md:order-none flex-1 md:flex-none h-11 md:h-9 px-3 md:px-4 text-xs font-bold gap-1.5 border-[var(--color-border-default)]"
           >
             <Plus className="w-3.5 h-3.5" /> Nova Pauta
           </Button>
           <Button 
             onClick={openNewTaskModal} 
-            className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs"
+            className="order-2 md:order-none w-full md:w-auto h-11 md:h-9 px-4 text-xs font-bold gap-1.5 shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" /> Cadastrar Tarefa
           </Button>
         </div>
       }
     >
-      <div className="space-y-6">
-        {/* Workload Section */}
-        <WorkloadBento
-          tasks={tasks}
-          onExpandTask={setDetailTask}
-          googleConnected={!needsAuth}
-        />
+      <div className="space-y-4 md:space-y-6">
+        {/* Carga da equipe: no celular são 3 cards enormes antes da lista — fica recolhido até pedir. */}
+        <button
+          type="button"
+          onClick={() => setShowBento((v) => !v)}
+          aria-expanded={showBento}
+          className="md:hidden w-full flex items-center justify-between gap-2 px-4 h-11 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] cursor-pointer"
+        >
+          Carga da equipe e métricas
+          <ChevronDown className={`w-4 h-4 text-[var(--color-text-muted)] transition-transform ${showBento ? "rotate-180" : ""}`} />
+        </button>
+        <div className={showBento ? "" : "hidden md:block"}>
+          <WorkloadBento
+            tasks={tasks}
+            onExpandTask={setDetailTask}
+            googleConnected={!needsAuth}
+          />
+        </div>
 
         <TasksFilter
           searchQuery={searchQuery}

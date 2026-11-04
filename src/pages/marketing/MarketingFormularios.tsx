@@ -111,7 +111,7 @@ export default function MarketingFormularios() {
       <AnimatePresence mode="wait">
         {selected ? (
           <motion.div key="detail" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-4 sm:mb-6 min-w-0">
               <button onClick={() => setSelected(null)}
                 className="text-[11px] font-black text-slate-500 hover:text-white uppercase tracking-widest transition-colors">
                 Formulários
@@ -156,13 +156,13 @@ export default function MarketingFormularios() {
               <div className="grid gap-4">
                 {formsFiltrados.map(form => (
                   <div key={form.id} onClick={() => setSelected(form)} role="button" tabIndex={0}
-                    className="group text-left w-full flex items-center gap-5 p-5 bg-[var(--color-surface-elevated)]/80 border border-white/5 rounded-2xl hover:border-white/15 hover:bg-white/[0.04] transition-all cursor-pointer">
-                    <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
+                    className="group text-left w-full flex items-center gap-3 sm:gap-5 p-3.5 sm:p-5 bg-[var(--color-surface-elevated)]/80 border border-white/5 rounded-2xl hover:border-white/15 hover:bg-white/[0.04] transition-all cursor-pointer">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
                       <FileText className="w-5 h-5 text-orange-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className="text-sm font-black text-white truncate">{form.name}</h3>
+                        <h3 className="text-sm font-black text-white break-words min-w-0">{form.name}</h3>
                         {form.active && (
                           <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase shrink-0">
                             Ativo
@@ -175,16 +175,16 @@ export default function MarketingFormularios() {
                         )}
                       </div>
                       <p className="text-[11px] text-slate-500 font-medium">{form.description}</p>
-                      <p className="text-[10px] text-slate-600 mt-1">{form.previewUrl}</p>
+                      <p className="text-[10px] text-slate-600 mt-1 break-all">{form.previewUrl}</p>
                     </div>
                     <button
                       onClick={(e) => handleDelete(form, e)}
                       title="Excluir formulário"
-                      className="p-2 rounded-lg bg-danger/5 text-slate-600 hover:text-danger hover:bg-danger/10 transition-colors shrink-0"
+                      className="p-2.5 sm:p-2 rounded-lg bg-danger/5 text-slate-600 hover:text-danger hover:bg-danger/10 transition-colors shrink-0"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                    <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors shrink-0" />
+                    <ChevronRight className="hidden sm:block w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors shrink-0" />
                   </div>
                 ))}
               </div>

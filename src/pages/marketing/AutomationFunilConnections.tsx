@@ -470,24 +470,24 @@ export function AutomationFunilConnections() {
     <div className="space-y-4">
       {/* KPIs — tudo real: leads/pipeline já carregados no app, OS/execuções contadas nas
           tabelas da automação (ver migration automation_connection_multistep). */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-2.5 md:gap-3 [&>*:last-child:nth-child(odd)]:col-span-2 xl:[&>*:last-child:nth-child(odd)]:col-span-1">
+        <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Users className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase tracking-wider">Leads no funil</span></div>
           <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{leadsNoFunil}</p>
         </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Briefcase className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase tracking-wider">OS criadas por automação</span></div>
           <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{osCriadasPorAutomacao}</p>
         </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Power className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase tracking-wider">Conexões ativas</span></div>
           <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{conexoesAtivasCount}</p>
         </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Grid2x2 className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase tracking-wider">Departamentos cobertos</span></div>
           <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{departamentosCobertosPct !== null ? `${departamentosCobertosPct}%` : "—"}</p>
         </Card>
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
           <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Gauge className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase tracking-wider">Taxa de sucesso</span></div>
           <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{taxaSucessoExecucoes !== null ? `${taxaSucessoExecucoes}%` : "—"}</p>
           {execucoes.length === 0 && <p className="text-[9px] text-[var(--color-text-faint)] mt-0.5">Ainda sem execuções registradas</p>}
@@ -498,9 +498,9 @@ export function AutomationFunilConnections() {
         Arraste uma linha de uma etapa (ou categoria) até um departamento pra criar a conexão. Clique numa linha pra selecioná-la e configurar condição/ações; no "×" no meio dela pra remover.
       </p>
 
-      <div className="flex gap-3" style={{ height: "68vh" }}>
+      <div className="flex flex-col lg:flex-row gap-3 lg:h-[68vh]">
         {/* Sidebar: Componentes / Propriedades */}
-        <div className="w-[270px] shrink-0 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] overflow-hidden flex flex-col">
+        <div className="order-2 lg:order-1 w-full lg:w-[270px] h-[62dvh] lg:h-auto shrink-0 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] overflow-hidden flex flex-col">
           <div className="flex border-b border-[var(--color-border-subtle)]">
             {(["componentes", "propriedades"] as const).map((v) => (
               <button
@@ -535,12 +535,12 @@ export function AutomationFunilConnections() {
                           key={item.id}
                           type="button"
                           onClick={() => handlePaletaClick(item)}
-                          className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-[var(--color-surface-sunken)] transition-colors text-left"
+                          className="w-full flex items-center gap-2 px-2 py-2.5 lg:py-2 rounded-lg hover:bg-[var(--color-surface-sunken)] transition-colors text-left"
                         >
                           <span className="w-7 h-7 rounded-lg bg-[var(--color-primary-blue)]/10 flex items-center justify-center shrink-0"><item.icon className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /></span>
                           <span className="min-w-0">
-                            <span className="block text-[11px] font-bold text-[var(--color-text-primary)] truncate">{item.nome}</span>
-                            <span className="block text-[9px] text-[var(--color-text-faint)] truncate">{item.descricao}</span>
+                            <span className="block text-[11px] font-bold text-[var(--color-text-primary)] truncate-desktop">{item.nome}</span>
+                            <span className="block text-[9px] text-[var(--color-text-faint)] truncate-desktop">{item.descricao}</span>
                           </span>
                         </button>
                       ))}
@@ -611,7 +611,7 @@ export function AutomationFunilConnections() {
         </div>
 
         {/* Canvas */}
-        <div className="flex-1 rounded-2xl overflow-hidden border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]">
+        <div className="order-1 lg:order-2 h-[58dvh] lg:h-auto lg:flex-1 rounded-2xl overflow-hidden border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -637,6 +637,7 @@ export function AutomationFunilConnections() {
             <Background />
             <Controls showInteractive={false} />
             <MiniMap
+              className="!hidden sm:!block"
               pannable zoomable
               nodeColor={(n) => (n.type === "funil" ? "#2563EB" : n.type === "categorias" ? "#f59e0b" : "#10b981")}
               maskColor="rgba(0,0,0,0.06)"
@@ -651,7 +652,7 @@ export function AutomationFunilConnections() {
               >
                 <LayoutGrid className="w-3 h-3" /> Reorganizar
               </button>
-              <div className="flex flex-col gap-1 px-2.5 py-2 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] shadow-sm text-[9px] text-[var(--color-text-muted)]">
+              <div className="hidden sm:flex flex-col gap-1 px-2.5 py-2 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] shadow-sm text-[9px] text-[var(--color-text-muted)]">
                 <span className="flex items-center gap-1.5 font-bold text-[var(--color-text-faint)] uppercase tracking-wide"><Info className="w-2.5 h-2.5" /> Legenda</span>
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)]" /> Funil do CRM (etapa)</span>
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-warning" /> Categoria de produto</span>
