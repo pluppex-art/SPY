@@ -87,6 +87,28 @@ html.dark {
     }
   }
 
+  /* Celular: sem zoom automático do iOS ao focar em campo (ele dá zoom em fonte < 16px),
+     sem flash cinza no toque, sem atraso de duplo-toque e sem o "puxa e estica" da página
+     arrastando o app inteiro junto. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    overscroll-behavior-y: none;
+  }
+  button, a, [role="button"], select, summary, label {
+    touch-action: manipulation;
+  }
+  @media (max-width: 639px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
   /* Scrollbars Finas e Minimalistas (Estilo macOS) */
   ::-webkit-scrollbar {
     width: 5px;
@@ -105,6 +127,9 @@ html.dark {
 }
 
 @layer utilities {
+  /* Área segura do iPhone (notch / indicador de home). Precisa do viewport-fit=cover no index.html. */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pt-safe { padding-top: env(safe-area-inset-top); }
   .scrollbar-thin {
     scrollbar-width: thin;
   }

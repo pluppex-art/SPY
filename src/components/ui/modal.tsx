@@ -88,12 +88,12 @@ export function Modal({
       {/* Dialog */}
       <div
         className={cn(
-          "relative w-[95vw] sm:w-full bg-[var(--color-surface-elevated)] overflow-hidden flex flex-col animate-in fade-in duration-200",
+          "relative bg-[var(--color-surface-elevated)] overflow-hidden flex flex-col animate-in fade-in duration-200",
           overlay === "light" ? "shadow-2xl shadow-black/20 ring-1 ring-black/5" : "shadow-2xl shadow-black/30 ring-1 ring-black/5",
           maxWidth,
           position === "right"
-            ? "h-full border-l border-[var(--color-border-default)] rounded-l-[var(--radius-panel-lg)] max-h-screen slide-in-from-right-10"
-            : "border border-[var(--color-border-default)] rounded-[var(--radius-panel-lg)] max-h-[90vh] zoom-in-95 slide-in-from-bottom-2",
+            ? "w-full h-full border-l border-[var(--color-border-default)] sm:rounded-l-[var(--radius-panel-lg)] max-h-dvh slide-in-from-right-10"
+            : "w-[calc(100vw-1.5rem)] sm:w-full border border-[var(--color-border-default)] rounded-[var(--radius-panel-lg)] max-h-[92dvh] sm:max-h-[90dvh] zoom-in-95 slide-in-from-bottom-2",
           className
         )}
         role="dialog"
@@ -103,7 +103,7 @@ export function Modal({
       >
         {/* Header */}
         {title !== undefined && title !== null && (
-          <div className="flex items-center justify-between gap-4 px-6 py-5 border-b border-[var(--color-border-default)] shrink-0">
+          <div className="flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-4 sm:py-5 border-b border-[var(--color-border-default)] shrink-0">
             {typeof title === "string" ? (
               <div>
                 <h3
@@ -131,7 +131,7 @@ export function Modal({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors shrink-0"
+              className="p-2.5 sm:p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors shrink-0"
               aria-label="Fechar"
             >
               <X className="w-4 h-4" />
@@ -147,7 +147,7 @@ export function Modal({
             // então este container precisa ser flex-col — sem isso os filhos viram
             // fluxo normal de bloco e o overflow-hidden aqui corta o conteúdo em vez
             // de deixar a área interna rolar (era o caso do editor de contrato).
-            noPadding ? "overflow-hidden flex flex-col" : "p-6 overflow-y-auto"
+            noPadding ? "overflow-hidden flex flex-col" : "p-4 sm:p-6 overflow-y-auto overscroll-contain"
           }`}
         >
           {children}
@@ -155,7 +155,7 @@ export function Modal({
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]/60 shrink-0 flex items-center justify-end gap-3 w-full">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-4 border-t border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]/60 shrink-0 flex flex-wrap items-center justify-end gap-2 sm:gap-3 w-full">
             {footer}
           </div>
         )}

@@ -321,7 +321,7 @@ export function NovoClienteModal({ isOpen, onClose, onAction, cliente }: NovoCli
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Estado — vem primeiro porque a lista de cidades depende dele */}
             <div>
               <label className={labelClass}>Estado (UF)</label>

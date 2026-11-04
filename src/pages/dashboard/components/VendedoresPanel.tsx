@@ -426,7 +426,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                 <p className="text-[11px] text-[var(--color-text-muted)]">Quantidade de leads em cada etapa.</p>
               </div>
             </div>
-            <div className="grid grid-cols-4 gap-1.5 items-stretch">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 items-stretch">
               {etapasFunil.map((e, i) => (
                 <div key={e.label} className="relative">
                   <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-2.5 text-center h-full">

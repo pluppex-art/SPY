@@ -33,8 +33,8 @@ export function DrillDownPanel<T = any>({
 }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} position="right" maxWidth="max-w-2xl" noPadding title={title} description={subtitle}>
-      <div className="flex-1 overflow-y-auto">
-        <table className="w-full text-xs text-left">
+      <div className="flex-1 overflow-auto overscroll-contain">
+        <table className="w-full min-w-[420px] text-xs text-left">
           <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)] sticky top-0">
             <tr>
               {columns.map((c) => (

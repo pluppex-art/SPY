@@ -31,7 +31,7 @@ export default function Layout() {
   }, [user, navigate]);
 
   return (
-    <div className="h-screen overflow-hidden bg-[var(--color-surface)] text-[var(--color-text-primary)] font-sans flex transition-all">
+    <div className="h-dvh overflow-hidden bg-[var(--color-surface)] text-[var(--color-text-primary)] font-sans flex transition-all">
       <Sidebar
         isSidebarCollapsed={isSidebarCollapsed}
         isMobileSidebarOpen={isMobileSidebarOpen}
@@ -51,7 +51,7 @@ export default function Layout() {
 
         <BillingBanner />
 
-        <div className={`flex-1 min-h-0 relative ${location.pathname.includes("/messaging") || location.pathname.includes("/mensageria") ? "overflow-hidden p-1 pb-20 sm:p-2 sm:pb-2.5" : "overflow-y-auto p-4 md:p-8 pb-24 sm:pb-8"}`}>
+        <div className={`flex-1 min-h-0 relative ${location.pathname.includes("/messaging") || location.pathname.includes("/mensageria") ? "overflow-hidden p-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:p-2 sm:pb-2.5" : "overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-8 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-8"}`}>
           <ErrorBoundary resetKey={location.pathname}>
             <Suspense fallback={<div className="flex items-center justify-center py-24 text-sm text-slate-400">Carregando...</div>}>
               {isBlocked ? <SuspendedScreen /> : <Outlet />}
@@ -80,7 +80,7 @@ export default function Layout() {
 
       <Toaster
         theme={theme}
-        position="top-right"
+        position={typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches ? "top-center" : "top-right"}
         richColors
         closeButton
         toastOptions={{

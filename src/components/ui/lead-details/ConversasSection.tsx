@@ -352,7 +352,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
       ) : msgs.length === 0 ? (
         <EmptyState icon={MessageSquareOff} title="Nenhuma conversa encontrada" description={motivoWaha || "Não há mensagens de WhatsApp registradas com o telefone deste lead."} className="h-60" />
       ) : (
-        <div className="max-h-[55vh] overflow-y-auto bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3.5 space-y-2">
+        <div className="max-h-[60dvh] overflow-y-auto overscroll-contain bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3.5 space-y-2">
           {temMais && (
             <div className="flex justify-center">
               <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold" disabled={loading} onClick={() => carregar(msgs[0]?.created_at)}>

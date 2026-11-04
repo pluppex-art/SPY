@@ -114,7 +114,7 @@ export function EmojiStickerPicker({ onEmojiSelect, onStickerSend, onClose }: Pr
   return (
     <div
       ref={containerRef}
-      className="absolute bottom-full left-0 mb-2 w-[340px] bg-[#0F172A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
+      className="absolute bottom-full left-0 mb-2 w-[min(340px,calc(100vw-1.5rem))] bg-[#0F172A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
     >
       {/* Mode tabs */}
       <div className="flex items-center border-b border-white/5 px-3 pt-2 gap-1">

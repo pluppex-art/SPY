@@ -148,7 +148,7 @@ export function NovaMatriculaModal({ isOpen, onClose, onSubmit }: NovaMatriculaM
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 mt-3 flex items-center gap-1.5">
                   <Wallet className="w-3 h-3" /> Cobrança de Mensalidade
                 </label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 block mb-1">Valor (R$)</label>
                     <input

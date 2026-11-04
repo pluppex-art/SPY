@@ -49,7 +49,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
 
   return (
     <>
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 h-16 bg-[var(--color-surface-elevated)]/95 backdrop-blur-lg border-t border-[var(--color-border-default)] flex items-center justify-around px-2 z-40 pb-safe shadow-[var(--shadow-panel)]">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] bg-[var(--color-surface-elevated)]/95 backdrop-blur-lg border-t border-[var(--color-border-default)] flex items-center justify-around px-2 z-40 pb-safe shadow-[var(--shadow-panel)]">
         {[
           { name: "Painel", path: "/app/dashboard", icon: LayoutDashboard },
           { name: "Leads", path: "/app/crm/pipeline", icon: Columns3 },
@@ -84,7 +84,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
       {isMobileMoreOpen && (
         <>
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in duration-200" onClick={() => setIsMobileMoreOpen(false)} />
-          <div className="fixed inset-x-0 bottom-0 z-50 bg-[var(--color-surface-elevated)] border-t border-[var(--color-border-default)] rounded-t-[var(--radius-panel-lg)] max-h-[80vh] overflow-y-auto p-6 pb-12 flex flex-col gap-4 shadow-[var(--shadow-panel)] animate-in slide-in-from-bottom duration-300">
+          <div className="fixed inset-x-0 bottom-0 z-50 bg-[var(--color-surface-elevated)] border-t border-[var(--color-border-default)] rounded-t-[var(--radius-panel-lg)] max-h-[85dvh] overflow-y-auto overscroll-contain p-5 pb-[calc(2rem+env(safe-area-inset-bottom))] flex flex-col gap-4 shadow-[var(--shadow-panel)] animate-in slide-in-from-bottom duration-300">
             <div className="w-12 h-1 bg-[var(--color-border-default)] rounded-full mx-auto mb-2 shrink-0"></div>
 
             <div className="flex justify-between items-center mb-1 shrink-0">
@@ -123,7 +123,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
                     {section.items.map((item: any) => {
                       const isActive = item.path ? location.pathname.startsWith(item.path) : false;
                       const ItemIcon = item.icon;
-                      const btnClass = `flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-[var(--radius-control)] border transition-all ${isActive ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/20 font-black" : "text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"}`;
+                      const btnClass = `flex items-center gap-2 px-3 py-3 min-h-11 text-xs font-semibold rounded-[var(--radius-control)] border transition-all ${isActive ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/20 font-black" : "text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"}`;
 
                       if (item.action) {
                         return (
@@ -155,11 +155,11 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
               <div className="space-y-2.5 border-t border-[var(--color-border-subtle)] pt-4">
                 <div className="text-[10px] font-black text-[var(--color-text-faint)] uppercase tracking-widest">Conta & Configurações</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => { setIsMobileMoreOpen(false); navigate("/app/configuracoes"); }} className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-[var(--radius-control)] border border-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] w-full text-left">
+                  <button onClick={() => { setIsMobileMoreOpen(false); navigate("/app/configuracoes"); }} className="flex items-center gap-2 px-3 py-3 min-h-11 text-xs font-semibold rounded-[var(--radius-control)] border border-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] w-full text-left">
                     <Settings2 className="w-4 h-4 text-[var(--color-accent)] shrink-0" />
                     <span className="truncate">Configurações</span>
                   </button>
-                  <button onClick={() => { setIsMobileMoreOpen(false); handleLogout(); }} className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-[var(--radius-control)] border border-transparent bg-danger/5 hover:bg-danger/10 text-danger w-full text-left">
+                  <button onClick={() => { setIsMobileMoreOpen(false); handleLogout(); }} className="flex items-center gap-2 px-3 py-3 min-h-11 text-xs font-semibold rounded-[var(--radius-control)] border border-transparent bg-danger/5 hover:bg-danger/10 text-danger w-full text-left">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span className="truncate">Sair</span>
                   </button>

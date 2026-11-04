@@ -135,7 +135,7 @@ export function AuroraWidget() {
     <>
       {/* ── Painel de chat ── */}
       {isOpen && (
-        <div className="fixed bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 h-[70vh] sm:h-[560px] max-h-[calc(100vh-8rem)] flex flex-col bg-[var(--color-surface-elevated)] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom))] sm:bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 h-[70dvh] sm:h-[560px] max-h-[calc(100dvh-13rem)] sm:max-h-[calc(100dvh-8rem)] flex flex-col bg-[var(--color-surface-elevated)] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/[0.07] shrink-0">
@@ -250,7 +250,7 @@ export function AuroraWidget() {
       <button
         onClick={() => setIsOpen((v) => !v)}
         style={bubbleRingColor ? { boxShadow: `0 8px 30px rgba(139,92,246,0.35), 0 0 0 2px ${bubbleRingColor}` } : undefined}
-        className="fixed bottom-6 right-4 sm:right-6 z-50 w-14 h-14 rounded-full shadow-[0_8px_30px_rgba(139,92,246,0.35)] flex items-center justify-center transition-all hover:scale-105 overflow-hidden bg-black/20 backdrop-blur-sm"
+        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] sm:bottom-6 right-4 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-[0_8px_30px_rgba(139,92,246,0.35)] flex items-center justify-center transition-all hover:scale-105 overflow-hidden bg-black/20 backdrop-blur-sm"
         title={
           tokenUsage?.limitReached
             ? "Limite de tokens do ciclo atingido"

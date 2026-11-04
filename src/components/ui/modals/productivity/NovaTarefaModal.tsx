@@ -371,7 +371,7 @@ export function NovaTarefaModal({
         </div>
 
         {/* Linha 3: Data + Hora início + Hora fim */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-2">
             <label className={labelClass}>
               <Calendar className="w-3 h-3" /> Data

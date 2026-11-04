@@ -189,7 +189,7 @@ export function PipelineKanbanBoard({
   const pctOf = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 1000) / 10 : 0);
 
   return (
-    <div ref={fillRef} style={{ height: fillHeight }} className="flex gap-3 overflow-x-auto pb-4 min-h-[320px] scrollbar-none select-none items-stretch">
+    <div ref={fillRef} style={{ height: fillHeight }} className="flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory sm:snap-none pb-4 min-h-[320px] scrollbar-none select-none items-stretch">
       {activePipelineStages.map((stage, stageIdx) => {
         const isMinimized = minimizedColumns.has(stage.id);
         const rawStageLeads = filteredItemsList.filter((l: any) => matchesStage(l, stage));
@@ -210,8 +210,8 @@ export function PipelineKanbanBoard({
             onDragLeave={() => setDraggedOverStageId(null)}
             onDrop={(e) => handleDrop(stage, e)}
             style={{ borderTopColor: draggedOverStageId === stage.id ? undefined : stage.color }}
-            className={`shrink-0 flex flex-col bg-[var(--color-surface)]/40 border-2 border-t-4 rounded-3xl transition-all duration-300 h-full ${
-              isMinimized ? "w-[56px] p-2" : "w-[280px] p-3"
+            className={`shrink-0 snap-start flex flex-col bg-[var(--color-surface)]/40 border-2 border-t-4 rounded-3xl transition-all duration-300 h-full ${
+              isMinimized ? "w-[56px] p-2" : "w-[84vw] max-w-[320px] sm:w-[280px] p-3"
             } ${draggedOverStageId === stage.id ? "border-[var(--color-primary-blue)]/60 bg-[var(--color-primary-blue)]/10 scale-[1.01]" : "border-[var(--color-border-default)] hover:bg-[var(--color-surface-elevated)]/60"}`}
           >
             {isMinimized ? (
