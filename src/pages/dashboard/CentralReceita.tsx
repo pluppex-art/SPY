@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line,
@@ -60,6 +60,10 @@ export default function CentralReceita() {
   // todas compartilhando o mesmo filtro de período (dateFrom/dateTo acima)
   // via a prop `dashboard` repassada pra cada uma.
   const [tab, setTab] = useState<RevenueTabId>("mapaReceita");
+  // A aba destacada muda na hora; o conteúdo pesado troca em transição (o toque não congela).
+  const [tabUi, setTabUi] = useState<RevenueTabId>("mapaReceita");
+  const [, startTab] = useTransition();
+  const changeTab = (id: RevenueTabId) => { setTabUi(id); startTab(() => setTab(id)); };
 
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
@@ -179,7 +183,7 @@ export default function CentralReceita() {
           via DashboardTabContent.tsx/Dashboard.tsx (não apagadas, só não
           mais referenciadas por esta página) — ver commit que fez essa
           troca pra reverter se precisar. */}
-      <RevenueTabs activeTab={tab} onTabChange={setTab} />
+      <RevenueTabs activeTab={tabUi} onTabChange={changeTab} />
 
       <DashboardGoalAlerts goalAlerts={goalAlerts} />
 
@@ -216,7 +220,7 @@ export default function CentralReceita() {
               </p>
             </div>
           </div>
-          <Button size="sm" onClick={() => setTab("previsao")} className="shrink-0 h-7 px-3 text-[10px] font-bold !bg-white !text-[var(--color-primary-blue)] hover:!brightness-95">
+          <Button size="sm" onClick={() => changeTab("previsao")} className="shrink-0 h-7 px-3 text-[10px] font-bold !bg-white !text-[var(--color-primary-blue)] hover:!brightness-95">
             Ver todas as ações →
           </Button>
         </div>
@@ -327,7 +331,7 @@ export default function CentralReceita() {
             <SectionTitle>Oportunidades Prioritárias</SectionTitle>
             <div className="flex items-center gap-2">
               <Badge variant="secondary">{oportunidadesPrioritarias.length}</Badge>
-              <Button variant="outline" size="sm" onClick={() => setTab("oportunidades")} className="h-7 px-2.5 text-[10px] font-bold">Ver todas</Button>
+              <Button variant="outline" size="sm" onClick={() => changeTab("oportunidades")} className="h-7 px-2.5 text-[10px] font-bold">Ver todas</Button>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -358,7 +362,7 @@ export default function CentralReceita() {
         <Card className="lg:col-span-2 overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
             <SectionTitle tone="danger"><AlertTriangle className="w-3.5 h-3.5" /> Receita em Risco</SectionTitle>
-            <Button variant="outline" size="sm" onClick={() => setTab("vazamentos")} className="h-7 px-2.5 text-[10px] font-bold">Ver todas</Button>
+            <Button variant="outline" size="sm" onClick={() => changeTab("vazamentos")} className="h-7 px-2.5 text-[10px] font-bold">Ver todas</Button>
           </div>
           <div className="divide-y divide-[var(--color-border-subtle)]">
             {vazamentos.map((v) => (

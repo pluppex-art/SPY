@@ -1,4 +1,5 @@
 import { useState, useEffect, Suspense } from "react";
+import { prefetchMainRoutes } from "../lib/prefetchRoutes";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -24,6 +25,8 @@ export default function Layout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
+
+  useEffect(() => { prefetchMainRoutes(); }, []);
   const [isSDRWebhookOpen, setIsSDRWebhookOpen] = useState(false);
   const isBlocked = useIsBlocked();
 
