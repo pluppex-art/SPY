@@ -66,7 +66,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
         </p>
       </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
         {[
           { aba: "propostas" as const, icon: FileWarning, label: "Propostas sem Follow-up", val: propostasSemFollowUpValue, n: propostasSemFollowUp.length, un: "proposta" },
           { aba: "leads" as const, icon: Flame, label: "Leads Quentes sem Contato", val: leadsQuentesParados.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0), n: leadsQuentesParados.length, un: "lead" },

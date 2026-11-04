@@ -28,7 +28,7 @@ export function QuickStatsGrid({ stats, periodoLabel }: QuickStatsGridProps) {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className={`grid grid-cols-1 sm:grid-cols-2 ${gridColsClass} gap-4`}
+      className={`grid grid-cols-2 ${gridColsClass} gap-2.5 sm:gap-4`}
     >
       {stats.map((stat, i) => (
         <motion.div

@@ -912,3 +912,15 @@ body:has(main .fixed.inset-0[class*="backdrop"]) header,
 body:has(main .fixed.inset-0[class*="bg-black"]) header {
     z-index: 0 !important;
 }
+/* Barra lateral violeta dos títulos de seção no celular. Fica em CSS próprio (e não em
+   "bg-violet-600") porque o tema claro pinta de branco o texto de qualquer elemento com essa classe. */
+@media (max-width: 767px) {
+  .section-title-bar::before {
+    content: "";
+    width: 0.25rem;
+    height: 1.25rem;
+    border-radius: 9999px;
+    background-color: #7c3aed;
+    flex-shrink: 0;
+  }
+}

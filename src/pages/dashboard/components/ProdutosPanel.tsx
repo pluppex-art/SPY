@@ -83,7 +83,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
 
   return (
     <div className="space-y-5">
-      <Card className="p-5 space-y-5 shadow-sm">
+      <Card className="p-5 space-y-5 shadow-sm max-md:p-0 max-md:border-0 max-md:shadow-none max-md:bg-transparent max-md:rounded-none">
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -114,7 +114,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3">
           <KpiCard icon={Wallet} label="Receita total de produtos" cor="#3b82f6">
             <p className="text-xl font-black text-[var(--color-text-primary)] font-mono truncate-desktop">{formatCurrency(totalReceita)}</p>
             <p className="text-[11px] font-semibold">

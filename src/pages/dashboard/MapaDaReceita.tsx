@@ -126,9 +126,9 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       </div>
 
       {/* Fluxo da Receita */}
-      <Card className="p-5 shadow-sm">
+      <Card className="p-5 shadow-sm max-md:p-0 max-md:border-0 max-md:shadow-none max-md:bg-transparent max-md:rounded-none">
         <SectionTitle className="mb-4">Fluxo da Receita</SectionTitle>
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-4">
           {fluxo.map((f, i) => (
             <div key={f.label} className="relative">
               <StatCard icon={f.icon} label={f.label} value={f.value} sub={f.sub} caption={periodo} color={f.color} onClick={() => setDrillKey(f.key)} className="h-full" />
@@ -157,14 +157,14 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
-                <tr><th className="px-4 py-2">Canal</th><th className="px-4 py-2">Receita</th><th className="px-4 py-2">Conv.</th></tr>
+                <tr><th className="px-2.5 md:px-4 py-2">Canal</th><th className="px-2.5 md:px-4 py-2">Receita</th><th className="px-2.5 md:px-4 py-2">Conv.</th></tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
                 {canais.map((c) => (
                   <tr key={c.origem}>
-                    <td className="px-4 py-2 font-bold text-[var(--color-text-primary)] truncate max-w-[110px]">{c.origem}</td>
-                    <td className="px-4 py-2 font-mono text-[var(--color-text-primary)]">{formatCurrency(c.receita)}</td>
-                    <td className="px-4 py-2 text-[var(--color-text-muted)]">{c.conversao}%</td>
+                    <td className="px-2.5 md:px-4 py-2 font-bold text-[var(--color-text-primary)] truncate-desktop md:max-w-[110px]">{c.origem}</td>
+                    <td className="px-2.5 md:px-4 py-2 font-mono text-[var(--color-text-primary)]">{formatCurrency(c.receita)}</td>
+                    <td className="px-2.5 md:px-4 py-2 text-[var(--color-text-muted)]">{c.conversao}%</td>
                   </tr>
                 ))}
                 {canais.length === 0 && <tr><td colSpan={3} className="px-4 py-6 text-center text-[var(--color-text-faint)]">Sem leads ainda.</td></tr>}
@@ -181,14 +181,14 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
-                <tr><th className="px-4 py-2">Produto</th><th className="px-4 py-2">Receita</th><th className="px-4 py-2">Margem</th></tr>
+                <tr><th className="px-2.5 md:px-4 py-2">Produto</th><th className="px-2.5 md:px-4 py-2">Receita</th><th className="px-2.5 md:px-4 py-2">Margem</th></tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
                 {produtos.map((p) => (
                   <tr key={p.produto}>
-                    <td className="px-4 py-2 font-bold text-[var(--color-text-primary)] truncate max-w-[110px]">{p.produto}</td>
-                    <td className="px-4 py-2 font-mono text-[var(--color-text-primary)]">{formatCurrency(p.receita)}</td>
-                    <td className="px-4 py-2 text-[var(--color-text-muted)]">{p.margem !== null ? `${p.margem}%` : "—"}</td>
+                    <td className="px-2.5 md:px-4 py-2 font-bold text-[var(--color-text-primary)] truncate-desktop md:max-w-[110px]">{p.produto}</td>
+                    <td className="px-2.5 md:px-4 py-2 font-mono text-[var(--color-text-primary)]">{formatCurrency(p.receita)}</td>
+                    <td className="px-2.5 md:px-4 py-2 text-[var(--color-text-muted)]">{p.margem !== null ? `${p.margem}%` : "—"}</td>
                   </tr>
                 ))}
                 {produtos.length === 0 && <tr><td colSpan={3} className="px-4 py-6 text-center text-[var(--color-text-faint)]">Nenhuma proposta aceita com itens ainda.</td></tr>}
@@ -240,15 +240,15 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
-                <tr><th className="px-4 py-2.5">Vendedor</th><th className="px-4 py-2.5">Receita</th><th className="px-4 py-2.5">Negócios</th><th className="px-4 py-2.5">Taxa</th></tr>
+                <tr><th className="px-2.5 md:px-4 py-2.5">Vendedor</th><th className="px-2.5 md:px-4 py-2.5">Receita</th><th className="px-2.5 md:px-4 py-2.5">Negócios</th><th className="px-2.5 md:px-4 py-2.5">Taxa</th></tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
                 {salesRanking.map((v) => (
                   <tr key={v.name}>
-                    <td className="px-4 py-2.5 font-bold text-[var(--color-text-primary)] truncate max-w-[140px]">{v.name}</td>
-                    <td className="px-4 py-2.5 font-mono text-[var(--color-text-primary)]">{formatCurrency(v.total)}</td>
-                    <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{v.deals}</td>
-                    <td className="px-4 py-2.5 text-[var(--color-text-muted)]">{v.rate}%</td>
+                    <td className="px-2.5 md:px-4 py-2.5 font-bold text-[var(--color-text-primary)] truncate-desktop md:max-w-[140px]">{v.name}</td>
+                    <td className="px-2.5 md:px-4 py-2.5 font-mono text-[var(--color-text-primary)]">{formatCurrency(v.total)}</td>
+                    <td className="px-2.5 md:px-4 py-2.5 text-[var(--color-text-muted)]">{v.deals}</td>
+                    <td className="px-2.5 md:px-4 py-2.5 text-[var(--color-text-muted)]">{v.rate}%</td>
                   </tr>
                 ))}
                 {salesRanking.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-[var(--color-text-faint)]">Nenhum negócio fechado ainda.</td></tr>}

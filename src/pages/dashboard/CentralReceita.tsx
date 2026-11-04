@@ -193,7 +193,7 @@ export default function CentralReceita() {
       {tab === "central" && (
       <>
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard icon={DollarSign} label="Receita Realizada" value={formatCurrency(totalRevenue)} caption={periodo} onClick={() => setDrillKey("receita")}
           sub={vendasTrend !== null ? <>{vendasTrend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} {vendasTrend >= 0 ? "+" : ""}{vendasTrend}% vs período anterior</> : "Sem período anterior p/ comparar"} />
         <StatCard icon={Workflow} label="Total na Central de Vendas" value={formatCurrency(pipelineValue)} caption={periodo} onClick={() => setDrillKey("pipeline")}

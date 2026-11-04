@@ -170,7 +170,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
 
   return (
     <div className="space-y-5">
-      <Card className="p-5 space-y-5 shadow-sm">
+      <Card className="p-5 space-y-5 shadow-sm max-md:p-0 max-md:border-0 max-md:shadow-none max-md:bg-transparent max-md:rounded-none">
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle>{titulo}</SectionTitle>
@@ -243,7 +243,73 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                   })}
                 </div>
           )}
-          <div className="overflow-x-auto">
+          {/* Celular: um cartão por vendedor (a tabela de 11 colunas só cabe no desktop). */}
+          <div className="md:hidden divide-y divide-[var(--color-border-subtle)] border-t border-[var(--color-border-subtle)]">
+            {ranking.map((v, i) => {
+              const medalha = i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-400 text-white" : i === 2 ? "bg-orange-500 text-white" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]";
+              return (
+                <div
+                  key={v.key}
+                  onClick={sellerRestricted ? undefined : () => escolherVendedor(v.key)}
+                  className={`p-4 space-y-3 ${sellerRestricted ? "" : "cursor-pointer"} ${vendedorSel === v.key ? "bg-[var(--color-primary-blue)]/10" : ""}`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={`w-7 h-7 shrink-0 rounded-full text-[11px] font-black flex items-center justify-center ${medalha}`}>
+                      {i === 0 ? <Crown className="w-4 h-4" /> : i + 1}
+                    </span>
+                    <Avatar v={v} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-[var(--color-text-primary)] break-words leading-tight">{v.nome}</p>
+                      <div className="h-1.5 w-full bg-[var(--color-surface-sunken)] rounded-full overflow-hidden mt-1.5">
+                        <div className="h-full rounded-full" style={{ width: `${Math.max(v.receita > 0 ? 4 : 0, (v.receita / maxReceita) * 100)}%`, backgroundColor: v.cor }} />
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-mono font-black text-sm text-[var(--color-text-primary)] whitespace-nowrap">{formatCurrency(v.receita)}</p>
+                      <p className="text-[11px] text-[var(--color-text-faint)] whitespace-nowrap">{shareReceita(v.receita)} do total</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-center">
+                    {[
+                      ["Leads", String(v.leads)],
+                      ["Oport.", String(v.oportunidades)],
+                      ["Vendas", String(v.vendas)],
+                      ["Ticket", v.vendas > 0 ? formatCurrency(v.ticket) : "—"],
+                      ["Conv.", `${v.conversao}%`],
+                    ].map(([rot, val]) => (
+                      <div key={rot} className="rounded-lg bg-[var(--color-surface-sunken)] py-1.5 px-0.5 min-w-0">
+                        <p className="text-xs font-black text-[var(--color-text-primary)] tabular-nums whitespace-nowrap">{val}</p>
+                        <p className="text-[11px] uppercase font-bold text-[var(--color-text-faint)]">{rot}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      {v.metaPct === null ? (
+                        <span className="text-xs text-[var(--color-text-faint)]">sem meta</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-[var(--color-surface-sunken)] rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${Math.min(100, v.metaPct)}%`, backgroundColor: v.cor }} />
+                          </div>
+                          <span className="text-xs font-bold tabular-nums" style={{ color: v.cor }}>Meta {v.metaPct}%</span>
+                        </div>
+                      )}
+                    </div>
+                    <Tendencia pct={v.tendencia} />
+                    <button
+                      type="button" onClick={(e) => { e.stopPropagation(); setDetalhe(v); }}
+                      className="whitespace-nowrap px-3 h-9 rounded-lg border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] cursor-pointer"
+                    >
+                      Ver detalhes
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {ranking.length === 0 && <p className="px-4 py-8 text-center text-xs text-[var(--color-text-faint)]">Nenhum vendedor encontrado.</p>}
+          </div>
+          <div className="overflow-x-auto max-md:hidden">
             <table className="w-full text-xs text-left min-w-[900px]">
               <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)] border-y border-[var(--color-border-subtle)]">
                 <tr>
@@ -386,8 +452,8 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
         {/* Evolução + Funil */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <Card className="lg:col-span-7 p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div>
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
                 <SectionTitle as="h4">Evolução da receita{sellerRestricted ? "" : " por vendedor"}</SectionTitle>
                 <p className="text-[11px] text-[var(--color-text-muted)]">Receita diária no período selecionado.</p>
               </div>

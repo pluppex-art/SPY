@@ -112,7 +112,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
 
   return (
     <div className="space-y-5">
-      <Card className="p-5 space-y-5 shadow-sm">
+      <Card className="p-5 space-y-5 shadow-sm max-md:p-0 max-md:border-0 max-md:shadow-none max-md:bg-transparent max-md:rounded-none">
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

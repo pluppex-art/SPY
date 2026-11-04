@@ -116,7 +116,7 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard icon={TrendingUp} label="Previsão de Receita (90d)" value={formatCurrency(previsao90dias)} caption={periodo}
           sub={totalRevenue > 0 ? `${Math.round((previsao90dias / totalRevenue) * 100)}% da receita atual · cenário base` : "Cenário base"} />
         <StatCard icon={Target} label="Central de Vendas Ponderada" value={formatCurrency(pipelinePonderado)} caption={periodo}
