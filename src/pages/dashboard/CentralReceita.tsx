@@ -29,6 +29,7 @@ import MapaDaReceita from "./MapaDaReceita";
 import VendedoresPanel from "./components/VendedoresPanel";
 import OportunidadesPriorizadas from "./Oportunidades";
 import VazamentosReceita from "./VazamentosReceita";
+import RupturaReceita from "./RupturaReceita";
 import InteligenciaAurora from "./InteligenciaAurora";
 import PrevisaoDecisao from "./PrevisaoDecisao";
 import {
@@ -190,6 +191,7 @@ export default function CentralReceita() {
       {tab === "mapaReceita" && <MapaDaReceita dashboard={dashboard} />}
       {tab === "oportunidades" && <OportunidadesPriorizadas dashboard={dashboard} />}
       {tab === "vazamentos" && <VazamentosReceita dashboard={dashboard} />}
+      {tab === "ruptura" && <RupturaReceita dashboard={dashboard} />}
       {tab === "aurora" && <InteligenciaAurora dashboard={dashboard} />}
       {tab === "previsao" && <PrevisaoDecisao dashboard={dashboard} />}
       {tab === "vendedores" && <VendedoresPanel dashboard={dashboard} />}
