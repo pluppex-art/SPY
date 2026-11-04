@@ -22,10 +22,10 @@ export function PageContainer({
   const displayDescription = description || subtitle;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
+        <div className="min-w-0">
           {/* Breadcrumb Pattern */}
           <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-faint)] font-bold uppercase tracking-widest mb-2 overflow-x-auto whitespace-nowrap scrollbar-none">
             <Link to="/app/dashboard" className="hover:text-[var(--color-text-primary)] transition-colors flex items-center gap-1">
@@ -49,7 +49,7 @@ export function PageContainer({
             )}
           </div>
 
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-3 break-words">
             {title}
             <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)] animate-pulse hidden md:inline-block"></span>
           </h1>
@@ -59,7 +59,7 @@ export function PageContainer({
         </div>
         
         {actions && (
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0 w-full md:w-auto">
             {actions}
           </div>
         )}

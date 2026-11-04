@@ -46,18 +46,18 @@ export function PipelineFilterBar({
   sourceFilter, setSourceFilter, sourcesList,
 }: PipelineFilterBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2 shrink-0">
+    <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 shrink-0">
       {(comercialFunis.length > 0 || sdrFunis.length > 0) && (
-        <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 py-1.5 h-[38px]">
+        <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 py-1.5 h-[42px] sm:h-[38px] overflow-x-auto scrollbar-none">
           {comercialFunis.length === 1 ? (
             <button
               onClick={() => { setCurrentPipeline("comercial"); setSelectedFunilId(comercialFunis[0].id); }}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer max-w-[180px] ${currentPipeline === "comercial" ? "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer max-w-[220px] sm:max-w-[180px] ${currentPipeline === "comercial" ? "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
             >
               <Briefcase className="w-3 h-3 shrink-0" /> <span className="truncate">{comercialFunis[0].nome}</span>
             </button>
           ) : comercialFunis.length > 1 ? (
-            <div className={`flex items-center gap-1 px-2 rounded-lg max-w-[180px] ${currentPipeline === "comercial" ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)]"}`}>
+            <div className={`flex items-center gap-1 px-2 rounded-lg max-w-[220px] sm:max-w-[180px] ${currentPipeline === "comercial" ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)]"}`}>
               <Briefcase className="w-3 h-3 shrink-0" />
               <select
                 value={selectedFunilId}
@@ -75,12 +75,12 @@ export function PipelineFilterBar({
           {sdrFunis.length === 1 ? (
             <button
               onClick={() => { setCurrentPipeline("sdr"); setSelectedFunilId(sdrFunis[0].id); }}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer max-w-[180px] ${currentPipeline === "sdr" ? "bg-accent/15 text-accent" : "text-[var(--color-text-muted)] hover:text-accent"}`}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer max-w-[220px] sm:max-w-[180px] ${currentPipeline === "sdr" ? "bg-accent/15 text-accent" : "text-[var(--color-text-muted)] hover:text-accent"}`}
             >
               <Zap className="w-3 h-3 shrink-0" /> <span className="truncate">{sdrFunis[0].nome}</span>
             </button>
           ) : sdrFunis.length > 1 ? (
-            <div className={`flex items-center gap-1 px-2 rounded-lg max-w-[180px] ${currentPipeline === "sdr" ? "text-accent" : "text-[var(--color-text-muted)]"}`}>
+            <div className={`flex items-center gap-1 px-2 rounded-lg max-w-[220px] sm:max-w-[180px] ${currentPipeline === "sdr" ? "text-accent" : "text-[var(--color-text-muted)]"}`}>
               <Zap className="w-3 h-3 shrink-0" />
               <select
                 value={selectedFunilId}
@@ -95,18 +95,18 @@ export function PipelineFilterBar({
         </div>
       )}
 
-      <div className="relative flex-1 min-w-[160px]">
+      <div className="relative col-span-2 sm:col-span-1 sm:flex-1 sm:min-w-[160px]">
         <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
         <input
           type="text"
           placeholder="Buscar negócios..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-9 pr-3 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] w-full h-[38px]"
+          className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-9 pr-3 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] w-full h-[42px] sm:h-[38px]"
         />
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px]">
         <MapPin className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -117,7 +117,7 @@ export function PipelineFilterBar({
         </select>
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px]">
         <Filter className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -130,7 +130,7 @@ export function PipelineFilterBar({
 
       <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px]">
         <Layers className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -142,7 +142,7 @@ export function PipelineFilterBar({
         </select>
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[180px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px]">
         <Link2 className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"

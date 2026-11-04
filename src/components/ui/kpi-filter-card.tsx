@@ -48,18 +48,16 @@ export function KpiTiles({ items }: { items: KpiItem[] }) {
   // Até 5 colunas (como no Pipeline); com mais KPIs a linha quebra.
   const cols = items.length >= 5 ? "md:grid-cols-5" : items.length === 4 ? "md:grid-cols-4" : items.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2";
   return (
-    <div className={cn("grid grid-cols-2 gap-2 shrink-0", cols)}>
+    <div className={cn("flex md:grid gap-2 shrink-0 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none -mx-4 px-4 md:mx-0 md:px-0 pb-1 md:pb-0 scrollbar-none", cols)}>
       {items.map(({ label, value, icon: Icon, tone = "primary", hint }, i) => (
         <Card
           key={label}
           title={hint}
           className={cn(
-            "p-4 hover:border-[var(--color-border-default)]/80 transition-all",
-            // KPI ímpar na última posição ocupa a linha toda no mobile.
-            items.length % 2 === 1 && i === items.length - 1 && "col-span-2 md:col-span-1",
+            "p-3 md:p-4 min-w-[128px] md:min-w-0 shrink-0 md:shrink snap-start hover:border-[var(--color-border-default)]/80 transition-all",
           )}
         >
-          {Icon && <Icon className={cn("w-4 h-4 mb-2", TONE_CLASS[tone])} />}
+          {Icon && <Icon className={cn("w-4 h-4 mb-1.5 md:mb-2", TONE_CLASS[tone])} />}
           <div className="text-xl font-display font-black text-[var(--color-text-primary)] mb-1 italic truncate">{value}</div>
           <div className="text-[9px] font-black text-[var(--color-text-muted)] uppercase tracking-widest">{label}</div>
         </Card>
@@ -84,8 +82,11 @@ interface KpiFilterCardProps {
 
 export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], children, activeCount = 0, onClear, defaultOpen = true, className }: KpiFilterCardProps) {
   const { user, updatePreferences } = useAuth();
-  const prefKey = `${id}FiltersOpen`;
-  const [open, setOpen] = useState(defaultOpen);
+  // No celular o card ocupa a tela inteira quando aberto, então começa fechado e guarda a
+  // preferência separada da do desktop (uma não sobrescreve a outra).
+  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+  const prefKey = isMobile ? `${id}FiltersOpenMobile` : `${id}FiltersOpen`;
+  const [open, setOpen] = useState(isMobile ? false : defaultOpen);
 
   useEffect(() => {
     const saved = user?.preferences?.[prefKey];
@@ -105,9 +106,9 @@ export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], childre
           type="button"
           onClick={toggle}
           aria-expanded={open}
-          className="flex-1 flex items-center justify-between gap-2 px-4 py-3 border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors"
+          className="flex-1 min-w-0 flex items-center justify-between gap-2 px-4 py-3.5 md:py-3 border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors"
         >
-          <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">
             <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
             {title}
             {activeCount > 0 && (
@@ -122,7 +123,7 @@ export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], childre
           <button
             type="button"
             onClick={onClear}
-            className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer"
+            className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer py-2 pl-2 shrink-0"
           >
             <X className="w-3 h-3" /> Limpar
           </button>
@@ -130,7 +131,7 @@ export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], childre
       </div>
 
       {open && (
-        <div className="flex flex-col gap-4 px-4 pb-4">
+        <div className="flex flex-col gap-3 md:gap-4 px-3 md:px-4 pb-4">
           <KpiTiles items={kpis} />
           {children}
         </div>
@@ -147,23 +148,23 @@ export const FilterVariantContext = createContext<"default" | "model">("default"
 export const FilterTabsSlotContext = createContext<HTMLElement | null>(null);
 
 const CONTROL_BOX =
-  "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[38px] max-w-[200px]";
+  "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[200px]";
 
 export function FilterBar({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex flex-wrap items-center gap-2 shrink-0", className)}>{children}</div>;
+  return <div className={cn("grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 shrink-0", className)}>{children}</div>;
 }
 
 export function FilterSearch({ value, onChange, placeholder = "Buscar..." }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   const model = useContext(FilterVariantContext) === "model";
   return (
-    <div className={cn("relative flex-1", model ? "min-w-[220px]" : "min-w-[160px]")}>
+    <div className={cn("relative col-span-2 sm:col-span-1 sm:flex-1", model ? "sm:min-w-[220px]" : "sm:min-w-[160px]")}>
       <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
       <input
         type="text"
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className={cn("bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] pl-9 pr-3 text-xs text-[var(--color-text-primary)] focus:outline-none w-full", model ? "rounded-lg h-9 placeholder:text-[var(--color-text-faint)] focus:ring-2 focus:ring-[var(--color-primary-blue)]/40" : "rounded-[var(--radius-control)] h-[38px] focus:border-[var(--color-primary-blue)]")}
+        className={cn("bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] pl-9 pr-3 text-xs text-[var(--color-text-primary)] focus:outline-none w-full", model ? "rounded-lg h-11 sm:h-9 placeholder:text-[var(--color-text-faint)] focus:ring-2 focus:ring-[var(--color-primary-blue)]/40" : "rounded-[var(--radius-control)] h-[42px] sm:h-[38px] focus:border-[var(--color-primary-blue)]")}
       />
     </div>
   );
@@ -186,7 +187,7 @@ interface FilterSelectProps {
 export function FilterSelect({ value, onChange, options, allLabel, allValue = "", icon: Icon, title }: FilterSelectProps) {
   const model = useContext(FilterVariantContext) === "model";
   return (
-    <div className={model ? "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-lg border border-[var(--color-border-default)] h-9 max-w-[240px] focus-within:ring-2 focus-within:ring-[var(--color-primary-blue)]/40" : CONTROL_BOX} title={title}>
+    <div className={model ? "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-lg border border-[var(--color-border-default)] h-11 sm:h-9 min-w-0 sm:max-w-[240px] focus-within:ring-2 focus-within:ring-[var(--color-primary-blue)]/40" : CONTROL_BOX} title={title}>
       {Icon && <Icon className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />}
       <select
         value={value}

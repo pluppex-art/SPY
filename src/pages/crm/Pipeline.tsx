@@ -255,7 +255,7 @@ export default function Pipeline() {
         )}
 
         {view === "lista" && (
-          <div ref={listaRef} style={{ height: listaHeight }} className="overflow-y-auto space-y-4 pr-1">
+          <div ref={listaRef} style={{ height: listaHeight }} className="overflow-y-auto max-sm:!h-auto max-sm:!overflow-visible space-y-4 pr-1">
           <PipelineListaView
             listaLeads={listaLeads}
             temperatureFilter={temperatureFilter} setTemperatureFilter={setTemperatureFilter}

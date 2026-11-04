@@ -189,7 +189,7 @@ export function PipelineKanbanBoard({
   const pctOf = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 1000) / 10 : 0);
 
   return (
-    <div ref={fillRef} style={{ height: fillHeight }} className="flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory sm:snap-none pb-4 min-h-[320px] scrollbar-none select-none items-stretch">
+    <div ref={fillRef} style={{ height: fillHeight }} className="flex gap-3 max-sm:!h-[72dvh] overflow-x-auto overscroll-x-contain snap-x snap-mandatory sm:snap-none pb-4 min-h-[320px] scrollbar-none select-none items-stretch">
       {activePipelineStages.map((stage, stageIdx) => {
         const isMinimized = minimizedColumns.has(stage.id);
         const rawStageLeads = filteredItemsList.filter((l: any) => matchesStage(l, stage));

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, PanelLeftClose, PanelLeftOpen, ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -42,6 +43,11 @@ export function SectionSidebar({ heading, subheading, groups, children }: Sectio
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
+  const activeItem = groups.flatMap((g) => g.items).find((i) => !i.soon && isActive(i.path));
+  const ActiveIcon = activeItem?.icon ?? Menu;
+
+  // Trocou de página (ou girou o aparelho pra desktop): fecha a folha do menu.
+  useEffect(() => { setMobileMenuOpen(false); }, [location.pathname]);
 
   return (
     <div className="flex flex-col lg:flex-row h-full -m-4 md:-m-8 relative overflow-hidden">
@@ -89,27 +95,56 @@ export function SectionSidebar({ heading, subheading, groups, children }: Sectio
         </nav>
       </div>
 
-      <div className="lg:hidden w-full bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-default)] pt-3 shrink-0 z-20 sticky top-0">
-        <div className="px-4 pb-3 flex items-center justify-between">
-          <h2 className="text-lg font-black text-[var(--color-text-primary)] tracking-tight">{t(heading)}</h2>
-          <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen((v) => !v)} className="h-8 w-8">
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </Button>
-        </div>
-
-        {mobileMenuOpen && (
-          <div className="absolute top-full left-0 right-0 bg-[var(--color-surface-elevated)] border-b border-[var(--color-border-default)] shadow-[var(--shadow-panel)] max-h-[75vh] overflow-y-auto p-4 z-40">
-            {groups.map((group) => (
-              <SectionGroup
-                key={group.title}
-                group={group}
-                isActive={isActive}
-                onItemClick={() => setMobileMenuOpen(false)}
-              />
-            ))}
-          </div>
-        )}
+      {/* Celular/tablet: uma barra com o NOME da página atual; tocar abre o menu numa folha por cima
+          de tudo (portal), em vez de um dropdown preso dentro do container e brigando com a barra inferior. */}
+      <div className="lg:hidden w-full bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-default)] shrink-0 z-20">
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-haspopup="dialog"
+          className="w-full px-4 py-2.5 flex items-center gap-3 text-left cursor-pointer border-none bg-transparent"
+        >
+          <span className="w-9 h-9 shrink-0 rounded-xl bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center">
+            <ActiveIcon className="w-4 h-4" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-faint)] leading-none">{t(heading)}</span>
+            <span className="block text-sm font-black text-[var(--color-text-primary)] leading-tight mt-1 break-words">{t(activeItem?.title ?? heading)}</span>
+          </span>
+          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] shrink-0">
+            <Menu className="w-4 h-4" /> Menu
+          </span>
+        </button>
       </div>
+
+      {mobileMenuOpen && createPortal(
+        <div className="fixed inset-0 z-[90] lg:hidden" role="dialog" aria-modal="true" aria-label={t(heading)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setMobileMenuOpen(false)} />
+          <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] flex flex-col bg-[var(--color-surface-elevated)] border-t border-[var(--color-border-default)] rounded-t-[var(--radius-panel-lg)] shadow-[var(--shadow-panel)] animate-in slide-in-from-bottom duration-300">
+            <div className="w-12 h-1 bg-[var(--color-border-default)] rounded-full mx-auto mt-2.5 shrink-0" />
+            <div className="flex items-center justify-between px-5 pt-3 pb-2 shrink-0">
+              <div>
+                <h2 className="text-base font-black text-[var(--color-text-primary)] tracking-tight">{t(heading)}</h2>
+                {subheading && <p className="text-[10px] text-[var(--color-text-faint)] uppercase font-bold tracking-wider mt-0.5">{t(subheading)}</p>}
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)} className="h-10 w-10" aria-label="Fechar menu">
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="overflow-y-auto overscroll-contain px-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+              {groups.map((group) => (
+                <SectionGroup
+                  key={group.title}
+                  group={group}
+                  isActive={isActive}
+                  onItemClick={() => setMobileMenuOpen(false)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       <div className="flex-1 overflow-y-auto p-2 sm:p-4 lg:p-8 relative min-w-0 w-full">{children}</div>
     </div>
@@ -135,11 +170,11 @@ function SectionGroup({
   // Navegar (por link de fora do menu) pra uma página deste grupo abre ele.
   useEffect(() => { if (hasActive) setIsOpen(true); }, [hasActive]);
   return (
-    <div className="px-2 w-full mb-6 last:mb-0">
+    <div className="px-2 w-full mb-4 lg:mb-6 last:mb-0">
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        className="w-full px-4 mb-2 flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-faint)] uppercase tracking-widest hover:text-[var(--color-text-muted)] transition-colors cursor-pointer"
+        className="w-full px-4 py-2 lg:py-0 mb-1 lg:mb-2 flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-faint)] uppercase tracking-widest hover:text-[var(--color-text-muted)] transition-colors cursor-pointer"
       >
         {GroupIcon && <GroupIcon className="w-4 h-4 shrink-0" />}
         <span className="flex-1 text-left">{t(group.title)}</span>
@@ -171,14 +206,14 @@ function SectionGroup({
               to={item.path}
               onClick={onItemClick}
               className={cn(
-                "w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium rounded-[var(--radius-control)] transition-all",
+                "w-full flex items-center gap-2.5 px-4 py-3 lg:py-2 text-sm font-medium rounded-[var(--radius-control)] transition-all",
                 active
                   ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border border-[var(--color-primary-blue)]/20"
                   : "text-[var(--color-text-muted)] border border-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]"
               )}
             >
               {ItemIcon && <ItemIcon className="w-4 h-4 shrink-0" />}
-              <span className="truncate w-full text-left">{t(item.title)}</span>
+              <span className="break-words lg:truncate w-full text-left leading-tight">{t(item.title)}</span>
             </Link>
           );
         })}

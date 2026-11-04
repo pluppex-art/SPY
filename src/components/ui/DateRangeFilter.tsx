@@ -90,13 +90,13 @@ export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, clas
       : `${dateFrom ? fmtBR(dateFrom) : "…"} – ${dateTo ? fmtBR(dateTo) : "…"}`;
 
   return (
-    <div className="relative">
+    <div className="relative max-sm:min-w-0">
       <button
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border transition-colors cursor-pointer text-xs font-bold h-[38px]",
+          "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border transition-colors cursor-pointer text-xs font-bold h-[42px] sm:h-[38px] max-sm:w-full max-sm:justify-between",
           dateFrom || dateTo
             ? "border-[var(--color-primary-blue)]/40 text-[var(--color-primary-blue)]"
             : "border-[var(--color-border-default)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]",
@@ -104,16 +104,16 @@ export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, clas
         )}
       >
         <CalendarRange className="w-3.5 h-3.5 shrink-0" />
-        <span className="whitespace-nowrap">{summary}</span>
+        <span className="whitespace-nowrap max-sm:truncate max-sm:flex-1 max-sm:text-left">{summary}</span>
         <ChevronDown className={cn("w-3 h-3 shrink-0 transition-transform text-[var(--color-text-faint)]", open && "rotate-180")} />
       </button>
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-[80] max-sm:bg-black/50" onClick={() => setOpen(false)} />
           <div
             className={cn(
-              "absolute top-full mt-1.5 z-50 w-[280px] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl p-3 space-y-3",
+              "absolute top-full mt-1.5 z-[81] w-[280px] max-sm:!fixed max-sm:!inset-x-3 max-sm:!top-auto max-sm:!bottom-[calc(0.75rem+env(safe-area-inset-bottom))] max-sm:!w-auto max-sm:max-h-[80dvh] max-sm:overflow-y-auto bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl p-3 space-y-3",
               align === "left" ? "left-0" : "right-0"
             )}
             onClick={(e) => e.stopPropagation()}
@@ -127,7 +127,7 @@ export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, clas
                     type="button"
                     onClick={() => { setDateFrom(p.from); setDateTo(p.to); setOpen(false); }}
                     className={cn(
-                      "flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-left",
+                      "flex items-center justify-between w-full px-2.5 py-2.5 sm:py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-left",
                       isActive
                         ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]"
                         : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"
