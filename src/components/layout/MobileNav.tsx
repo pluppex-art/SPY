@@ -49,7 +49,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
 
   return (
     <>
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] bg-[var(--color-surface-elevated)]/95 backdrop-blur-lg border-t border-[var(--color-border-default)] flex items-center justify-around px-2 z-40 pb-safe shadow-[var(--shadow-panel)]">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 h-[calc(4.5rem+env(safe-area-inset-bottom))] bg-[var(--color-surface-elevated)]/95 backdrop-blur-lg border-t border-[var(--color-border-default)] rounded-t-[28px] flex items-center justify-around px-3 gap-1 z-40 pb-safe shadow-[0_-10px_30px_-12px_rgba(15,23,42,0.18)]">
         {[
           { name: "Painel", path: "/app/dashboard", icon: LayoutDashboard },
           { name: "Leads", path: "/app/crm/pipeline", icon: Columns3 },
@@ -61,22 +61,22 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
             <Link
               key={tab.name}
               to={tab.path}
-              className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all relative active:scale-95 ${isActive ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"}`}
+              className={`flex flex-col items-center justify-center flex-1 h-[calc(100%-1rem)] my-2 rounded-2xl py-1 text-[11px] font-bold transition-all relative active:scale-95 ${isActive ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : "text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"}`}
             >
-              <TabIcon className={`w-5 h-5 mb-0.5 transition-transform duration-200 ${isActive ? "text-[var(--color-primary-blue)] scale-110" : ""}`} />
+              <TabIcon className={`w-6 h-6 mb-0.5 transition-transform duration-200 ${isActive ? "text-[var(--color-primary-blue)] scale-110" : ""}`} />
               <span className={isActive ? "font-black text-[var(--color-primary-blue)] transition-all" : "font-semibold"}>
                 {tab.name}
               </span>
-              {isActive && <span className="absolute top-0 w-8 h-1 bg-[var(--color-primary-blue)] rounded-b-full"></span>}
+              {isActive && <span className="absolute -top-2 w-10 h-1 bg-[var(--color-primary-blue)] rounded-b-full"></span>}
             </Link>
           );
         })}
 
         <button
           onClick={() => setIsMobileMoreOpen(true)}
-          className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all active:scale-95 ${isMobileMoreOpen ? "text-[var(--color-accent)]" : "text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"}`}
+          className={`flex flex-col items-center justify-center flex-1 h-[calc(100%-1rem)] my-2 rounded-2xl py-1 text-[11px] font-bold transition-all active:scale-95 ${isMobileMoreOpen ? "text-[var(--color-accent)]" : "text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"}`}
         >
-          <Menu className={`w-5 h-5 mb-0.5 ${isMobileMoreOpen ? "text-[var(--color-accent)] rotate-90 scale-110" : ""} transition-transform duration-200`} />
+          <Menu className={`w-6 h-6 mb-0.5 ${isMobileMoreOpen ? "text-[var(--color-accent)] rotate-90 scale-110" : ""} transition-transform duration-200`} />
           <span className={isMobileMoreOpen ? "font-black text-[var(--color-accent)]" : "font-semibold"}>Mais</span>
         </button>
       </nav>

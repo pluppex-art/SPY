@@ -23,19 +23,19 @@ const TABS: { id: RevenueTabId; label: string; icon: typeof Gauge }[] = [
 export function RevenueTabs(props: { activeTab: RevenueTabId; onTabChange: (id: RevenueTabId) => void }) {
   const { activeTab, onTabChange } = props;
   return (
-    <div className="flex flex-wrap bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] p-1 w-fit gap-1 shadow-sm">
+    <div className="grid grid-cols-2 md:flex md:flex-wrap bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-panel)] md:rounded-[var(--radius-control)] p-2 md:p-1 w-full md:w-fit gap-1 shadow-[var(--shadow-panel)] md:shadow-sm">
       {TABS.map((tab) => (
         <button
           key={tab.id}
           type="button"
           onClick={() => onTabChange(tab.id)}
-          className={`px-3.5 py-2 text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer border-none ${
+          className={`px-3 md:px-3.5 py-3 md:py-2 text-[13px] md:text-xs rounded-2xl md:rounded-lg transition-all flex items-center gap-2 md:gap-1.5 cursor-pointer border-none min-w-0 text-left ${
             activeTab === tab.id
               ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] font-bold shadow-xs"
               : "bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"
           }`}
         >
-          <tab.icon className="w-3.5 h-3.5" /> {tab.label}
+          <tab.icon className="w-5 h-5 md:w-3.5 md:h-3.5 shrink-0" /> <span className="min-w-0 leading-tight">{tab.label}</span>
         </button>
       ))}
     </div>

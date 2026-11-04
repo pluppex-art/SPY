@@ -40,10 +40,12 @@ function StatCard({ icon: Icon, label, value, sub, caption, footer, hint, tone =
       onClick={onClick}
       className={cn(
         "p-4 sm:p-5 min-w-0 shadow-sm flex flex-col",
+        "max-md:border-b-4 max-md:[border-bottom-color:var(--bar)]",
         onClick && "cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md",
         tone === "danger" && "border-danger/20",
         className,
       )}
+      style={{ "--bar": c } as React.CSSProperties}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center" style={{ backgroundColor: `color-mix(in srgb, ${c} 12%, transparent)` }}>

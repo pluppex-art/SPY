@@ -112,12 +112,12 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-end gap-3">
-        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
+        <div className="flex items-center gap-1 w-full md:w-auto overflow-x-auto scrollbar-none bg-[var(--color-surface-sunken)] p-1.5 md:p-1 rounded-2xl md:rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
           {SUB_ABAS.map((a) => (
             <button
               key={a.id}
               onClick={() => setSubAba(a.id)}
-              className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${subAba === a.id ? "bg-[var(--color-primary-blue)] !text-[#fff]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+              className={`flex-1 md:flex-none whitespace-nowrap px-3 py-2.5 md:py-1.5 text-xs md:text-[11px] font-bold rounded-xl md:rounded-lg transition-all ${subAba === a.id ? "bg-[var(--color-primary-blue)] !text-[#fff]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
             >
               {a.label}
             </button>

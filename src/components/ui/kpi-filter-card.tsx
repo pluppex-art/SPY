@@ -43,6 +43,16 @@ const TONE_CLASS: Record<KpiTone, string> = {
   neutral: "text-[var(--color-text-muted)]",
 };
 
+const TONE_VAR: Record<KpiTone, string> = {
+  primary: "var(--color-primary-blue)",
+  warning: "var(--color-warning)",
+  success: "var(--color-success)",
+  info: "var(--color-info)",
+  accent: "var(--color-accent)",
+  danger: "var(--color-danger)",
+  neutral: "var(--color-border-default)",
+};
+
 export function KpiTiles({ items }: { items: KpiItem[] }) {
   if (items.length === 0) return null;
   // Até 5 colunas (como no Pipeline); com mais KPIs a linha quebra.
@@ -53,8 +63,9 @@ export function KpiTiles({ items }: { items: KpiItem[] }) {
         <Card
           key={label}
           title={hint}
+          style={{ "--bar": TONE_VAR[tone] } as React.CSSProperties}
           className={cn(
-            "p-3 md:p-4 min-w-[128px] md:min-w-0 shrink-0 md:shrink snap-start hover:border-[var(--color-border-default)]/80 transition-all",
+            "max-md:border-b-4 max-md:[border-bottom-color:var(--bar)] p-3 md:p-4 min-w-[128px] md:min-w-0 shrink-0 md:shrink snap-start hover:border-[var(--color-border-default)]/80 transition-all",
           )}
         >
           {Icon && <Icon className={cn("w-4 h-4 mb-1.5 md:mb-2", TONE_CLASS[tone])} />}

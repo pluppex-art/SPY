@@ -63,6 +63,23 @@ html.dark {
   --color-text-faint: #64748B;
 }
 
+/* Celular: visual "cartões macios" (modelo do Painel) — cantos bem arredondados, sombras suaves e fundo
+   levemente acinzentado pros cartões brancos se destacarem. Mexe só nos tokens, então vale pra toda tela
+   que usa Card/Modal/Input/Button; no desktop nada muda. */
+@media (max-width: 767px) {
+  :root {
+    --radius-control: 0.875rem;
+    --radius-panel: 1.5rem;
+    --radius-panel-lg: 1.75rem;
+    --shadow-control: 0 2px 8px -2px rgba(15, 23, 42, 0.10);
+    --shadow-panel: 0 10px 30px -12px rgba(15, 23, 42, 0.20);
+  }
+  html:not(.dark) {
+    --color-surface: #F3F5F9;
+    --color-border-default: #E6EAF1;
+  }
+}
+
 @layer base {
   html, body {
     @apply bg-[var(--color-surface)] text-[var(--color-text-primary)] antialiased scroll-smooth;

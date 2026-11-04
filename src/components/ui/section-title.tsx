@@ -10,7 +10,7 @@ interface SectionTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
 const SectionTitle = ({ as: Tag = "h3", tone = "default", className, ...props }: SectionTitleProps) => (
   <Tag
     className={cn(
-      "flex items-center gap-2 text-xs font-black uppercase tracking-wider",
+      "flex items-center gap-2 text-xs font-black uppercase tracking-wider max-md:text-[13px] max-md:before:content-[''] max-md:before:w-1 max-md:before:h-5 max-md:before:rounded-full max-md:before:bg-violet-600 max-md:before:shrink-0",
       tone === "danger" ? "text-danger" : tone === "muted" ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]",
       className,
     )}

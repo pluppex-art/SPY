@@ -23,7 +23,7 @@ export function DashboardActionsTabs(props: {
           onClick={() => onTabChange(tab.id)}
           className={`px-3.5 sm:px-4 py-2.5 sm:py-2 text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer border-none shrink-0 whitespace-nowrap ${
             activeTab === tab.id
-              ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] font-bold shadow-xs"
+              ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] font-bold shadow-xs max-md:!bg-[var(--color-primary-blue)] max-md:!text-white"
               : "bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"
           }`}
         >

@@ -24,6 +24,7 @@ export interface FinanceKpi {
 }
 
 const ICON_COLORS = ["text-[var(--color-primary-blue)]", "text-emerald-500", "text-cyan-500", "text-rose-500"];
+const BAR_COLORS = ["var(--color-primary-blue)", "#10b981", "#06b6d4", "#f43f5e"];
 
 /**
  * Modelo único dos cards de KPI das telas do Financeiro (mesmo tamanho, organização e cores do
@@ -46,8 +47,9 @@ export function FinanceKpiGrid({ cards, noDeltaLabel = "Sem período p/ compara�
           <Card
             key={k.label}
             onClick={k.onClick}
+            style={{ "--bar": k.danger ? "#f43f5e" : BAR_COLORS[i % BAR_COLORS.length] } as React.CSSProperties}
             className={cn(
-              "p-3.5 sm:p-5 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm",
+              "max-md:border-b-4 max-md:[border-bottom-color:var(--bar)] p-3.5 sm:p-5 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm",
               k.onClick && "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
             )}
           >
