@@ -285,7 +285,7 @@ export default function FinanceiroContasBancarias() {
           </Card>
         ) : (
           <Card className="overflow-hidden">
-            <table className="w-full text-xs text-left">
+            <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
               <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
                 <tr>
                   <th className="px-6 py-3">Conta</th>
@@ -338,7 +338,7 @@ export default function FinanceiroContasBancarias() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           </Card>
         )}
       </div>

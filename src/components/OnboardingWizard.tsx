@@ -98,7 +98,7 @@ export function OnboardingWizard() {
           </button>
         </div>
 
-        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 space-y-4 max-h-[70dvh] overflow-y-auto">
           {step === "pick" && (
             <>
               <p className="text-xs text-[var(--color-text-muted)]">

@@ -49,7 +49,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
 
   return (
     <>
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 h-[calc(4.5rem+env(safe-area-inset-bottom))] bg-[var(--color-surface-elevated)]/95 backdrop-blur-lg border-t border-[var(--color-border-default)] rounded-t-[28px] flex items-center justify-around px-3 gap-1 z-40 pb-safe shadow-[0_-10px_30px_-12px_rgba(15,23,42,0.18)]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(4.5rem+env(safe-area-inset-bottom))] bg-[var(--color-surface-elevated)]/95 backdrop-blur-lg border-t border-[var(--color-border-default)] rounded-t-[28px] flex items-center justify-around px-3 gap-1 z-40 pb-safe shadow-[0_-10px_30px_-12px_rgba(15,23,42,0.18)]">
         {[
           { name: "Painel", path: "/app/dashboard", icon: LayoutDashboard },
           { name: "Leads", path: "/app/crm/pipeline", icon: Columns3 },

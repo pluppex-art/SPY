@@ -213,7 +213,7 @@ export default function BaseExames() {
           <EmptyState icon={FlaskConical} title={exames.length === 0 ? "A base de exames está vazia" : "Nenhum exame encontrado"} description={exames.length === 0 ? "Importe uma planilha ou cadastre os exames para poder comparar tabelas." : "Ajuste a busca."} />
         ) : (
           <Card className="overflow-hidden">
-            <div className="max-h-[65vh] overflow-y-auto">
+            <div className="max-h-[65dvh] overflow-y-auto">
               <table className="w-full text-xs text-left">
                 <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)] sticky top-0">
                   <tr><th className="px-5 py-3">Exame</th><th className="px-5 py-3">Código</th><th className="px-5 py-3">Categoria</th><th className="px-5 py-3 text-right">Custo</th><th className="px-5 py-3 text-right">Valor</th><th className="px-5 py-3">Sinônimos</th><th className="px-5 py-3 w-20" /></tr>
@@ -244,7 +244,7 @@ export default function BaseExames() {
       {/* Cadastro / edição */}
       <Modal isOpen={!!form} onClose={() => setForm(null)} title={form?.id ? "Editar exame" : "Novo exame"} maxWidth="max-w-2xl">
         {form && (
-          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+          <div className="space-y-3 max-h-[70dvh] overflow-y-auto pr-1">
             <div><label className={labelCls}>Nome oficial *</label><input className={inputCls} value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={labelCls}>Código interno</label><input className={inputCls} value={form.codigo_interno} onChange={(e) => setForm({ ...form, codigo_interno: e.target.value })} /></div>
@@ -275,7 +275,7 @@ export default function BaseExames() {
       {/* Importação: mapeamento + prévia */}
       <Modal isOpen={!!table} onClose={() => !importando && setTable(null)} title="Importar exames para a base" description={table?.fileName} maxWidth="max-w-3xl">
         {table && (
-          <div className="space-y-4 max-h-[72vh] overflow-y-auto pr-1">
+          <div className="space-y-4 max-h-[72dvh] overflow-y-auto pr-1">
             <div>
               <p className={labelCls}>1. Confira o mapeamento das colunas</p>
               <div className="grid grid-cols-2 gap-3">

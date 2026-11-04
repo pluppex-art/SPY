@@ -38,7 +38,7 @@ export function PropostaClienteViewModal({ isOpen, onClose, data, itens, viewTok
   const vencida = data.validade ? new Date(data.validade + "T23:59:59") < new Date() : false;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} noPadding maxWidth="max-w-5xl" className="h-[92vh] sm:h-[90vh]">
+    <Modal isOpen={isOpen} onClose={onClose} noPadding maxWidth="max-w-5xl" className="h-[92dvh] sm:h-[90dvh]">
       <div className="flex flex-col h-full min-h-0">
         <div className="flex items-center justify-between gap-3 flex-wrap px-4 sm:px-6 py-3 border-b border-[var(--color-border-default)] shrink-0 bg-[var(--color-surface-elevated)]">
           <div className="min-w-0">

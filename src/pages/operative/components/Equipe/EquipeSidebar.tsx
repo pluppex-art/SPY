@@ -30,7 +30,7 @@ export function EquipeSidebar({
   team, onAddSquad, onNewSquadDone,
 }: EquipeSidebarProps) {
   return (
-    <nav className="w-full lg:w-64 bg-[var(--color-surface)] border-b lg:border-b-0 lg:border-r border-white/5 flex flex-col pt-4 lg:pt-6 shrink-0 z-20 lg:sticky lg:top-0 lg:h-[calc(100vh-80px)] print:hidden">
+    <nav className="w-full lg:w-64 bg-[var(--color-surface)] border-b lg:border-b-0 lg:border-r border-white/5 flex flex-col pt-4 lg:pt-6 shrink-0 z-20 lg:sticky lg:top-0 lg:h-[calc(100dvh-80px)] print:hidden">
       <div className="px-4 lg:px-6 mb-2 lg:mb-4 pb-2 lg:pb-0 hidden lg:block">
         <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Gestão de Equipe</h2>
       </div>

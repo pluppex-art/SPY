@@ -67,7 +67,7 @@ export function TurmaDetalhesPresenca({
             </span>
           </div>
         ) : (
-          <table className="w-full text-left">
+          <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-left">
             <thead>
               <tr className="bg-white/5 border-b border-white/5">
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Aluno</th>
@@ -116,7 +116,7 @@ export function TurmaDetalhesPresenca({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </Card>
     </div>

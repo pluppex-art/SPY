@@ -282,15 +282,15 @@ export function PropostaEditorWordModal({
       noPadding={true}
       maxWidth={
         isMaximized
-          ? "max-w-none w-screen h-screen m-0"
+          ? "max-w-none w-screen h-dvh m-0"
           : "max-w-[1360px] w-[96vw]"
       }
       className={cn(
         "overflow-hidden flex flex-col transition-all duration-200 border",
         "bg-[var(--color-surface-elevated)] border-[var(--color-border-default)] text-[var(--color-text-primary)] shadow-2xl",
         isMaximized
-          ? "fixed inset-0 h-screen max-h-screen rounded-none z-[110]"
-          : "h-[92vh] max-h-[92vh] rounded-2xl"
+          ? "fixed inset-0 h-dvh max-h-screen rounded-none z-[110]"
+          : "h-[92dvh] max-h-[92dvh] rounded-2xl"
       )}
     >
       {/* ── TOP BAR: IDENTIDADE DO DOCUMENTO + FECHAR ── */}

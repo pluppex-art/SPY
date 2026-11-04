@@ -329,7 +329,7 @@ export default function FinanceiroContatos() {
               <p className="text-sm text-[var(--color-text-muted)]">Nenhum contato encontrado.</p>
             </div>
           ) : (
-            <table className="w-full text-xs text-left">
+            <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
               <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
                 <tr><th className="px-6 py-3">Nome</th><th className="px-6 py-3">Tipo</th><th className="px-6 py-3">Documento</th><th className="px-6 py-3">Contato</th><th className="px-6 py-3 text-right">Ações</th></tr>
               </thead>
@@ -356,7 +356,7 @@ export default function FinanceiroContatos() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </Card>
         {semTipo.length > 0 && aba === "todos" && <p className="text-[11px] text-[var(--color-text-faint)]">{semTipo.length} contato(s) sem tipo definido aparecem no grupo "Outros".</p>}

@@ -97,7 +97,7 @@ export function AlunoGradesModal({ isOpen, student, onClose, onAddGrade, onRemov
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-[var(--color-surface-elevated)] border border-white/10 rounded-3xl w-full max-w-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col max-h-[90vh] ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200"
+            className="bg-[var(--color-surface-elevated)] border border-white/10 rounded-3xl w-full max-w-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col max-h-[90dvh] ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200"
           >
             {/* Header */}
             <div className="relative p-6 border-b border-white/10 bg-gradient-to-br from-indigo-600/10 via-transparent to-transparent shrink-0">

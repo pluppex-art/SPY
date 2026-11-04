@@ -54,7 +54,7 @@ export default function PropostaPublica() {
 
   if (proposta === undefined) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#0d0f14] flex flex-col items-center justify-center gap-3">
+      <div className="min-h-dvh bg-slate-50 dark:bg-[#0d0f14] flex flex-col items-center justify-center gap-3">
         <div className="w-10 h-10 border-3 border-blue-500/20 border-t-blue-600 rounded-full animate-spin" />
         <p className="text-slate-500 text-xs font-mono tracking-wider uppercase">
           Carregando proposta comercial autenticada...
@@ -65,7 +65,7 @@ export default function PropostaPublica() {
 
   if (!proposta) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="min-h-dvh bg-slate-50 flex items-center justify-center px-4">
         <Card className="p-8 text-center max-w-md bg-white border border-slate-200 rounded-3xl shadow-xl">
           <AlertTriangle className="w-14 h-14 text-amber-500 mx-auto mb-4 opacity-80" />
           <h1 className="text-xl font-black text-slate-900 mb-2">Proposta não encontrada</h1>
@@ -137,7 +137,7 @@ export default function PropostaPublica() {
   };
 
   return (
-    <div className="min-h-screen font-sans selection:bg-blue-600 selection:text-white pb-20 bg-[var(--color-surface)] text-[var(--color-text-primary)]">
+    <div className="min-h-dvh font-sans selection:bg-blue-600 selection:text-white pb-20 bg-[var(--color-surface)] text-[var(--color-text-primary)]">
       {/* ── TOP NAV INSTITUCIONAL (COM BRANDING DO TENANT) ── */}
       <header className="sticky top-0 z-30 backdrop-blur-md border-b border-[var(--color-border-default)] bg-[var(--color-surface-elevated)]/90 shadow-xs px-4 sm:px-8 py-3.5">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">

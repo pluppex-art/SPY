@@ -102,7 +102,7 @@ export function ProdutoModal(props: ProdutoModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-      <Card className="w-full max-w-3xl bg-[var(--color-surface)] border border-white/10 shadow-3xl rounded-2xl overflow-hidden flex flex-col h-[92vh] max-h-[880px] ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
+      <Card className="w-full max-w-3xl bg-[var(--color-surface)] border border-white/10 shadow-3xl rounded-2xl overflow-hidden flex flex-col h-[92dvh] max-h-[880px] ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
 
         {/* Header */}
         <div className="p-5 border-b border-white/10 flex justify-between items-start bg-white/[0.02] shrink-0">

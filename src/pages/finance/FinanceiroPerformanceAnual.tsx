@@ -215,7 +215,7 @@ export default function FinanceiroPerformanceAnual() {
 
         <Card className="overflow-hidden">
           <div className="p-4 border-b border-[var(--color-border-subtle)]"><h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Movimentações em {ano}</h3></div>
-          <table className="w-full text-xs text-left">
+          <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
             <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
               <tr><th className="px-6 py-3">Linha</th><th className="px-6 py-3 text-right">{ano}</th><th className="px-6 py-3 text-right">{ano - 1}</th><th className="px-6 py-3 text-right">Progresso</th></tr>
             </thead>
@@ -235,7 +235,7 @@ export default function FinanceiroPerformanceAnual() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <p className="px-6 py-2 text-[10px] text-[var(--color-text-faint)] border-t border-[var(--color-border-subtle)]">Progresso compara o valor pago no ano com o mesmo período do ano anterior.</p>
         </Card>
 
@@ -247,14 +247,14 @@ export default function FinanceiroPerformanceAnual() {
           {saldosContas.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] p-6">Nenhuma conta bancária cadastrada.</p>
           ) : (
-            <table className="w-full text-xs text-left">
+            <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
                 {saldosContas.map(c => (
                   <tr key={c.nome}><td className="px-6 py-2.5 text-[var(--color-text-primary)] font-medium">{c.nome}</td><td className="px-6 py-2.5 text-right tabular-nums">{formatCurrency(c.saldo)}</td></tr>
                 ))}
                 <tr className="bg-[var(--color-surface-sunken)] font-semibold"><td className="px-6 py-2.5">Saldo Total</td><td className="px-6 py-2.5 text-right tabular-nums">{formatCurrency(saldoTotal)}</td></tr>
               </tbody>
-            </table>
+            </table></div>
           )}
         </Card>
       </div>

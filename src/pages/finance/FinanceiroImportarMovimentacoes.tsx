@@ -260,7 +260,7 @@ export default function FinanceiroImportarMovimentacoes() {
             <Card className="p-6">
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Regras de preenchimento</h3>
               <p className="text-xs text-[var(--color-text-faint)] mb-4">Apenas arquivos .csv, até 2 MB (esta versão não lê .xlsx binário — exporte sua planilha como CSV).</p>
-              <table className="w-full text-xs text-left mb-4">
+              <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left mb-4">
                 <thead className="text-[10px] uppercase font-semibold text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
                   <tr><th className="py-2">Coluna obrigatória</th><th className="py-2">Regra</th></tr>
                 </thead>
@@ -272,10 +272,10 @@ export default function FinanceiroImportarMovimentacoes() {
                   <tr><td className="py-2 font-medium">Conta</td><td className="py-2 text-[var(--color-text-muted)]">nome exato; se não existir, é criada</td></tr>
                   <tr><td className="py-2 font-medium">Pago</td><td className="py-2 text-[var(--color-text-muted)]">Sim / Não</td></tr>
                 </tbody>
-              </table>
+              </table></div>
               <details className="mb-4">
                 <summary className="text-xs font-semibold text-[var(--color-text-muted)] cursor-pointer">Colunas opcionais</summary>
-                <table className="w-full text-xs text-left mt-3">
+                <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left mt-3">
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">
                     <tr><td className="py-2 font-medium w-44">Data Competência</td><td className="py-2 text-[var(--color-text-muted)]">dd/mm/aaaa</td></tr>
                     <tr><td className="py-2 font-medium">Categoria</td><td className="py-2 text-[var(--color-text-muted)]">nome exato; se não existir, é criada</td></tr>
@@ -286,7 +286,7 @@ export default function FinanceiroImportarMovimentacoes() {
                     <tr><td className="py-2 font-medium">Centro de Custo</td><td className="py-2 text-[var(--color-text-muted)]">nome exato; se não existir, é criado</td></tr>
                     <tr><td className="py-2 font-medium">Tags</td><td className="py-2 text-[var(--color-text-muted)]">uma ou mais separadas por vírgula</td></tr>
                   </tbody>
-                </table>
+                </table></div>
               </details>
               <Button variant="outline" onClick={handleBaixarModelo} className="h-9 px-4 text-xs font-medium gap-1.5"><Download className="w-3.5 h-3.5" /> Baixar modelo</Button>
             </Card>
@@ -319,8 +319,8 @@ export default function FinanceiroImportarMovimentacoes() {
               </Card>
             ) : (
               <>
-                <Card className="overflow-hidden max-h-[50vh] overflow-y-auto">
-                  <table className="w-full text-xs text-left">
+                <Card className="overflow-hidden max-h-[50dvh] overflow-y-auto">
+                  <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
                     <thead className="text-[10px] uppercase font-semibold text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)] sticky top-0">
                       <tr><th className="px-4 py-2">Linha</th><th className="px-4 py-2">Descrição</th><th className="px-4 py-2">Data</th><th className="px-4 py-2 text-right">Valor</th><th className="px-4 py-2">Status</th></tr>
                     </thead>
@@ -337,7 +337,7 @@ export default function FinanceiroImportarMovimentacoes() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </Card>
                 <Button disabled={importando || rows.every(r => r.erro)} onClick={handleImportar} className="h-10 px-6 text-sm font-medium">
                   {importando ? "Importando..." : `Importar ${rows.filter(r => !r.erro).length} lançamento(s)`}

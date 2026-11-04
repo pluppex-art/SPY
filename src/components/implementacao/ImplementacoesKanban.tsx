@@ -107,7 +107,7 @@ export function ImplementacoesKanban({ linhas, aguardando, columns, getColumnId,
               </div>
             </div>
 
-            <div className="flex flex-col gap-2.5 min-h-[80px] max-h-[68vh] overflow-y-auto pr-0.5">
+            <div className="flex flex-col gap-2.5 min-h-[80px] max-h-[68dvh] overflow-y-auto pr-0.5">
               {/* Clientes que fecharam e ainda não começaram */}
               {waiting.map(({ cliente, lead }) => (
                 <div

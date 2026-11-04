@@ -388,7 +388,7 @@ export default function NotaEntradaDetalhe() {
 
       <Modal isOpen={jsonOpen} onClose={() => setJsonOpen(false)} title="Dados da nota (formato do SPY)" description="É este o conjunto de dados que o envio à API externa vai mapear." maxWidth="max-w-2xl">
         <div className="space-y-3">
-          <pre className="text-[11px] bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3 overflow-auto max-h-[50vh] text-[var(--color-text-primary)]">{JSON.stringify(payload, null, 2)}</pre>
+          <pre className="text-[11px] bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3 overflow-auto max-h-[50dvh] text-[var(--color-text-primary)]">{JSON.stringify(payload, null, 2)}</pre>
           <div className="flex justify-end"><Button variant="outline" onClick={() => { navigator.clipboard.writeText(JSON.stringify(payload, null, 2)); toast.success("Copiado."); }} className="h-9 px-4 text-xs gap-1.5"><Copy className="w-3.5 h-3.5" /> Copiar</Button></div>
         </div>
       </Modal>

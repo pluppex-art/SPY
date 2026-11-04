@@ -59,7 +59,7 @@ export function ConfigFinanceiroBloqueioPeriodo() {
         <p className="text-sm text-[var(--color-text-faint)] italic text-center py-8">Nenhum período bloqueado.</p>
       ) : (
         <Card className="overflow-hidden">
-          <table className="w-full text-xs text-left">
+          <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
             <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
               <tr><th className="px-5 py-3">Período Bloqueado</th><th className="px-5 py-3 text-right">Ações</th></tr>
             </thead>
@@ -75,7 +75,7 @@ export function ConfigFinanceiroBloqueioPeriodo() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </Card>
       )}
     </div>

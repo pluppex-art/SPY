@@ -498,7 +498,7 @@ export function AutomationFunilConnections() {
         Arraste uma linha de uma etapa (ou categoria) até um departamento pra criar a conexão. Clique numa linha pra selecioná-la e configurar condição/ações; no "×" no meio dela pra remover.
       </p>
 
-      <div className="flex flex-col lg:flex-row gap-3 lg:h-[68vh]">
+      <div className="flex flex-col lg:flex-row gap-3 lg:h-[68dvh]">
         {/* Sidebar: Componentes / Propriedades */}
         <div className="order-2 lg:order-1 w-full lg:w-[270px] h-[62dvh] lg:h-auto shrink-0 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] overflow-hidden flex flex-col">
           <div className="flex border-b border-[var(--color-border-subtle)]">

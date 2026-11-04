@@ -250,7 +250,7 @@ export default function NotasEntrada() {
           <EmptyState icon={FileText} title={notas.length === 0 ? "Nenhuma nota cadastrada ainda" : "Nenhuma nota para esse filtro"} description={notas.length === 0 ? "Importe o XML da NF-e ou crie uma nota manual." : "Ajuste o filtro ou a busca."} />
         ) : (
           <Card className="overflow-hidden">
-            <table className="w-full text-xs text-left">
+            <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
               <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
                 <tr>
                   <th className="px-6 py-3">Nota</th><th className="px-6 py-3">Fornecedor</th><th className="px-6 py-3">Emissão</th>
@@ -272,7 +272,7 @@ export default function NotasEntrada() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </Card>
         )}
 
@@ -296,8 +296,8 @@ export default function NotasEntrada() {
                   {maxTruncated && <span className="text-warning"> · mais de {maxTotal} na Max, lista parcial</span>}
                 </span>
               </div>
-              <div className="max-h-[50vh] overflow-y-auto border border-[var(--color-border-subtle)] rounded-[var(--radius-control)]">
-                <table className="w-full text-xs text-left">
+              <div className="max-h-[50dvh] overflow-y-auto border border-[var(--color-border-subtle)] rounded-[var(--radius-control)]">
+                <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
                   <thead className="text-[10px] uppercase font-semibold text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] sticky top-0"><tr><th className="px-3 py-2 w-8" /><th className="px-3 py-2">NF</th><th className="px-3 py-2">Fornecedor</th><th className="px-3 py-2">Emissão</th><th className="px-3 py-2 text-right">Total</th><th className="px-3 py-2">Situação</th></tr></thead>
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">
                     {maxFiltradas.map((e) => (
@@ -312,7 +312,7 @@ export default function NotasEntrada() {
                     ))}
                     {maxFiltradas.length === 0 && <tr><td colSpan={6} className="px-3 py-8 text-center text-[var(--color-text-faint)]">Nenhuma entrada encontrada.</td></tr>}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             </>
           )}

@@ -233,7 +233,7 @@ function AppContent() {
     <>
       {isLoginRoute && <Toaster theme={theme} position="bottom-right" richColors closeButton />}
       {isAppRoute && <ConfirmDialogHost />}
-      <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <Suspense fallback={<div className="min-h-dvh bg-white" />}>
       <Routes>
         <Route path="/" element={<Navigate to="/app" replace />} />
         <Route path="/landing" element={<LandingPage />} />

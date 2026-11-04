@@ -212,7 +212,7 @@ export default function FinanceiroExtrato() {
               <span className="text-xs font-semibold text-[var(--color-text-primary)]">{conta.nome} — {new Date(dataInicial + "T12:00:00").toLocaleDateString("pt-BR")} a {new Date(dataFinal + "T12:00:00").toLocaleDateString("pt-BR")}</span>
               <span className="text-xs text-[var(--color-text-muted)]">Saldo Anterior: <span className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(saldoAnterior)}</span></span>
             </div>
-            <table className="w-full text-xs text-left">
+            <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
               <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
                 <tr>
                   <th className="px-4 py-3 w-8"></th>
@@ -246,7 +246,7 @@ export default function FinanceiroExtrato() {
                   <tr className="border-t border-[var(--color-border-default)]"><td colSpan={4} className="px-4 py-2 text-[10px] uppercase text-[var(--color-text-primary)]">Saldo Final</td><td colSpan={2} className="px-4 py-2 text-right tabular-nums text-sm">{formatCurrency(saldoFinal)}</td></tr>
                 </tfoot>
               )}
-            </table>
+            </table></div>
           </Card>
         )}
       </div>

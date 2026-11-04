@@ -210,7 +210,7 @@ export default function ComparacaoTabelas() {
       </div>
 
       <Modal isOpen={open} onClose={() => !processando && setOpen(false)} title="Nova comparação de tabelas" description="Envie a tabela do parceiro, confira as colunas e inicie." maxWidth="max-w-3xl">
-        <div className="space-y-4 max-h-[74vh] overflow-y-auto pr-1">
+        <div className="space-y-4 max-h-[74dvh] overflow-y-auto pr-1">
           {processando ? (
             <div className="py-8 space-y-4">
               {STAGES.map((s, i) => (

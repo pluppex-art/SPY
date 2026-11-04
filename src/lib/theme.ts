@@ -94,6 +94,15 @@ export function updateFaviconColor(hex: string) {
   }
 }
 
+function whiteContrast(hex: string): number {
+  let h = hex.replace("#", "");
+  if (h.length === 3 || h.length === 4) h = h.split("").map((c) => c + c).join("");
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  const f = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const l = 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  return 1.05 / (l + 0.05);
+}
+
 /**
  * Aplica a cor do tema nas variáveis CSS globais e no favicon.
  */
@@ -101,5 +110,8 @@ export function applyThemeColor(hex: string, _tenantName?: string) {
   if (typeof document === "undefined" || !hex || !/^#[0-9a-fA-F]{3,8}$/.test(hex)) return;
   document.documentElement.style.setProperty("--color-primary-blue", hex);
   document.documentElement.style.setProperty("--primary", hex);
+  // Acessibilidade: se a cor da empresa for tão clara que o branco fica ilegível (< 2,5:1),
+  // o texto sobre fundos sólidos dessa cor passa a ser escuro. Cor da marca não muda.
+  document.documentElement.classList.toggle("on-primary-dark", whiteContrast(hex) < 2.5);
   updateFaviconColor(hex);
 }

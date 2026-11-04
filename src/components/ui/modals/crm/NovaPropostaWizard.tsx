@@ -541,7 +541,7 @@ export function NovaPropostaWizard({
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full h-full sm:w-[95vw] sm:h-[92vh] max-w-[1400px] bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="relative w-full h-full sm:w-[95vw] sm:h-[92dvh] max-w-[1400px] bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="shrink-0 px-6 pt-5 pb-4 border-b border-[var(--color-border-subtle)]">
           <div className="flex items-start justify-between gap-4">

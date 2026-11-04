@@ -736,7 +736,7 @@ export function AddProdutoLeadModal({
       title={existingProposal?.id ? "Editar Proposta — Adicionar Produtos" : "Adicionar Produtos"}
       maxWidth="max-w-2xl"
     >
-      <div className="space-y-4 max-h-[75vh] overflow-y-auto scrollbar-thin pr-1">
+      <div className="space-y-4 max-h-[75dvh] overflow-y-auto scrollbar-thin pr-1">
         {/* ── CONTEXTO: cliente + destino + produtos que já estão na proposta ── */}
         <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-4 py-3 space-y-3">
           <div className="flex items-center justify-between gap-3">

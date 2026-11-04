@@ -166,7 +166,7 @@ export function RateioModal({ isOpen, onClose, parent, categoriasDoTipo, onConfi
           </div>
         </div>
 
-        <div className="space-y-3 max-h-[42vh] overflow-y-auto pr-1">
+        <div className="space-y-3 max-h-[42dvh] overflow-y-auto pr-1">
           {divisoes.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--color-border-default)] py-8 text-center">
               <Split className="w-6 h-6 text-[var(--color-text-faint)] mx-auto mb-2" />

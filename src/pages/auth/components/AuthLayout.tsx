@@ -20,7 +20,7 @@ export function hexAlpha(hex: string, alpha: number): string {
 /** Moldura das telas de autenticação (login, redefinir senha): painel de marca + painel do formulário. */
 export function AuthLayout({ primaryColor, title, subtitle, children }: { primaryColor: string; title: string; subtitle: string; children: ReactNode }) {
   return (
-    <div className="min-h-screen flex overflow-hidden" style={{ background: "#070D1A" }}>
+    <div className="min-h-dvh flex overflow-hidden" style={{ background: "#070D1A" }}>
 
       {/* ── Painel esquerdo — branding animado ── */}
       <div className="hidden lg:flex flex-col flex-1 relative overflow-hidden">

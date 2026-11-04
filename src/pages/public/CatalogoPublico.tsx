@@ -26,7 +26,7 @@ export default function CatalogoPublico() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--color-surface)] flex items-center justify-center">
+      <div className="min-h-dvh bg-[var(--color-surface)] flex items-center justify-center">
         <div className="text-center text-slate-500">
           <Package className="w-12 h-12 mx-auto mb-3 opacity-20 animate-pulse" />
           <p className="font-bold">Carregando catálogo...</p>
@@ -37,7 +37,7 @@ export default function CatalogoPublico() {
 
   if (!catalog) {
     return (
-      <div className="min-h-screen bg-[var(--color-surface)] flex items-center justify-center">
+      <div className="min-h-dvh bg-[var(--color-surface)] flex items-center justify-center">
         <div className="text-center">
           <Package className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <h1 className="text-2xl font-black text-white mb-2">Catálogo não encontrado</h1>
@@ -48,7 +48,7 @@ export default function CatalogoPublico() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface)] text-white">
+    <div className="min-h-dvh bg-[var(--color-surface)] text-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
         <a href="/" className="flex items-center gap-1.5 text-[11px] text-slate-600 hover:text-slate-400 transition-colors mb-6 w-fit">
           <ChevronLeft className="w-3.5 h-3.5" /> Voltar ao site

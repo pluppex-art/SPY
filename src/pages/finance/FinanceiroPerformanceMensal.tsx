@@ -139,7 +139,7 @@ export default function FinanceiroPerformanceMensal() {
         </Card>
 
         <Card className="overflow-hidden">
-          <table className="w-full text-xs text-left">
+          <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
             <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
               <tr><th className="px-6 py-3">Mês</th><th className="px-6 py-3 text-right">Receitas</th><th className="px-6 py-3 text-right">Despesas</th><th className="px-6 py-3 text-right">Resultado</th></tr>
             </thead>
@@ -153,7 +153,7 @@ export default function FinanceiroPerformanceMensal() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </Card>
       </div>
 

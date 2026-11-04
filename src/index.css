@@ -22,8 +22,8 @@
   --color-border-default: #E2E8F0;
   --color-border-subtle: #F1F5F9;
   --color-text-primary: #0F172A;
-  --color-text-muted: #64748B;
-  --color-text-faint: #94A3B8;
+  --color-text-muted: #526077;
+  --color-text-faint: #5F6F86;
 
   /* Aliases legados — mantidos para não quebrar componentes que ainda referenciam var() diretamente */
   --color-dark-bg: var(--color-surface);
@@ -60,7 +60,7 @@ html.dark {
   --color-border-subtle: rgba(255, 255, 255, 0.05);
   --color-text-primary: #F8FAFC;
   --color-text-muted: #94A3B8;
-  --color-text-faint: #64748B;
+  --color-text-faint: #8391A7;
 }
 
 /* Celular: visual "cartões macios" (modelo do Painel) — cantos bem arredondados, sombras suaves e fundo
@@ -102,6 +102,38 @@ html.dark {
     html {
       font-size: 100%; /* Telas ultrawide/4k */
     }
+  }
+
+  /* Celular: base de 16px (no desktop segue 14px) e piso de legibilidade pros textos de 8–11px
+     escritos em pixel, que não acompanham a raiz. Rótulos em caixa-alta ficam em 11px. */
+  @media (max-width: 767px) {
+    html { font-size: 100%; }
+    [class*="text-[8px]"], [class*="text-[9px]"], [class*="text-[10px]"] { font-size: 11px !important; line-height: 1.35; }
+    [class*="text-[11px]"] { font-size: 12px !important; }
+    .recharts-text, .recharts-legend-item-text, .recharts-cartesian-axis-tick-value { font-size: 11px !important; }
+    .recharts-legend-wrapper { max-width: 100%; }
+  }
+
+  /* Celular: botões pequenos (h-7/h-8/h-9) ganham área de toque de 40px. Interruptores/checkbox ficam como estão. */
+  @media (max-width: 767px) {
+    button:not([role="switch"]):not([role="checkbox"])[class~="h-7"],
+    button:not([role="switch"]):not([role="checkbox"])[class~="h-8"],
+    button:not([role="switch"]):not([role="checkbox"])[class~="h-9"] { min-height: 40px; }
+    button:not([role="switch"]):not([role="checkbox"])[class~="w-7"][class~="h-7"],
+    button:not([role="switch"]):not([role="checkbox"])[class~="w-8"][class~="h-8"],
+    button:not([role="switch"]):not([role="checkbox"])[class~="w-9"][class~="h-9"] { min-width: 40px; }
+  }
+
+  /* Cor da empresa muito clara: texto escuro sobre fundos sólidos dela (ver applyThemeColor). */
+  html.on-primary-dark [class*="bg-[var(--color-primary-blue)] "],
+  html.on-primary-dark [class$="bg-[var(--color-primary-blue)]"] {
+    color: #0B1120 !important;
+  }
+
+  /* Foco visível pra navegação por teclado (botões/links que escondem o outline padrão). */
+  button:focus-visible, a:focus-visible, [role="button"]:focus-visible, [tabindex]:not([tabindex="-1"]):focus-visible, summary:focus-visible {
+    outline: 2px solid var(--color-primary-blue) !important;
+    outline-offset: 2px;
   }
 
   /* Celular: sem zoom automático do iOS ao focar em campo (ele dá zoom em fonte < 16px),

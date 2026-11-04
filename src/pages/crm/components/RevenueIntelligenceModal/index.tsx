@@ -99,7 +99,7 @@ export function RevenueIntelligenceModal({ lead, stageName, pipelineName, onClos
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-4xl max-h-[92vh] flex flex-col bg-[var(--color-surface)] border border-white/10 rounded-3xl shadow-2xl overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
+      <div className="w-full max-w-4xl max-h-[92dvh] flex flex-col bg-[var(--color-surface)] border border-white/10 rounded-3xl shadow-2xl overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">

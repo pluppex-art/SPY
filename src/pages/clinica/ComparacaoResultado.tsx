@@ -276,7 +276,7 @@ export default function ComparacaoResultado() {
 
       <Modal isOpen={!!detalhe} onClose={() => { setDetalhe(null); setTrocaBusca(""); }} title="Detalhe da correspondência" maxWidth="max-w-2xl">
         {detalhe && (
-          <div className="space-y-4 max-h-[74vh] overflow-y-auto pr-1">
+          <div className="space-y-4 max-h-[74dvh] overflow-y-auto pr-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] p-3 space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-faint)]">Item do parceiro</p>

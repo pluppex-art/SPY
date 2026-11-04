@@ -196,7 +196,7 @@ export function AgentFlowViewerModal({
       maxWidth="max-w-6xl"
       noPadding
     >
-      <div style={{ height: "70vh" }} className="w-full bg-[var(--color-surface-sunken)]">
+      <div style={{ height: "70dvh" }} className="w-full bg-[var(--color-surface-sunken)]">
         <ReactFlow
           nodes={nodes}
           edges={edges}

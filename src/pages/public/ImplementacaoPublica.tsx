@@ -12,7 +12,7 @@ import { SECTION_ICON } from "../../components/implementacao/sectionIcons";
 import { contrastWithWhite, MIN_BRAND_CONTRAST } from "../../lib/theme";
 
 
-const PAGE_BG = "min-h-screen bg-[var(--color-surface)] bg-[radial-gradient(60%_40%_at_50%_0%,color-mix(in_srgb,var(--color-primary-blue)_10%,transparent),transparent)]";
+const PAGE_BG = "min-h-dvh bg-[var(--color-surface)] bg-[radial-gradient(60%_40%_at_50%_0%,color-mix(in_srgb,var(--color-primary-blue)_10%,transparent),transparent)]";
 
 interface PublicImplementation {
   clienteNome: string;
