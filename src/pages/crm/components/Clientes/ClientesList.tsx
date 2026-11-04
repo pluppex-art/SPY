@@ -164,7 +164,7 @@ export function ClientesList({
                     <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
                       <Building2 className="w-4 h-4 text-[var(--color-primary-blue)]" />
                     </div>
-                    <span className="font-bold text-[var(--color-text-primary)] text-sm truncate">{c.name}</span>
+                    <span className="font-bold text-[var(--color-text-primary)] text-sm break-words min-w-0">{c.name}</span>
                   </div>
                   <Badge variant={statusBadgeVariant(c.status)}>{c.status}</Badge>
                 </div>
@@ -219,7 +219,7 @@ export function ClientesList({
                     <div className="flex flex-col gap-0.5">
                       <span className="text-xs font-mono text-[var(--color-text-muted)]">{c.documento || "—"}</span>
                       {decisorPorCliente[c.id] && (
-                        <span className="text-[10px] text-[var(--color-text-faint)] truncate max-w-[140px]" title="Decisor (contato principal)">
+                        <span className="text-[10px] text-[var(--color-text-faint)] break-words" title="Decisor (contato principal)">
                           {decisorPorCliente[c.id].nome}
                           {decisorPorCliente[c.id].cargo ? ` · ${decisorPorCliente[c.id].cargo}` : ""}
                         </span>
@@ -237,7 +237,7 @@ export function ClientesList({
                         <div className="w-6 h-6 rounded-full bg-[var(--color-primary-blue)]/10 flex items-center justify-center shrink-0">
                           <span className="text-[9px] font-black text-[var(--color-primary-blue)]">{initials(c.responsavel)}</span>
                         </div>
-                        <span className="text-xs font-bold text-[var(--color-text-muted)] truncate max-w-[90px]">{c.responsavel}</span>
+                        <span className="text-xs font-bold text-[var(--color-text-muted)] min-w-[110px] break-words">{c.responsavel}</span>
                       </div>
                     ) : <span className="text-xs text-[var(--color-text-faint)]">—</span>}
                   </TableCell>
@@ -266,7 +266,7 @@ export function ClientesList({
                       </div>
                     ) : <span className="text-xs text-[var(--color-text-faint)]">—</span>}
                   </TableCell>
-                  <TableCell className="text-[var(--color-text-muted)] text-xs">{fmtDate(c.created_at)}</TableCell>
+                  <TableCell className="text-[var(--color-text-muted)] text-xs whitespace-nowrap">{fmtDate(c.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">{actionButtons(c)}</div>
                   </TableCell>
@@ -285,7 +285,7 @@ export function ClientesList({
                   <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
                     <Building2 className="w-4 h-4 text-[var(--color-primary-blue)]" />
                   </div>
-                  <span className="font-bold text-[var(--color-text-primary)] text-sm truncate">{c.name}</span>
+                  <span className="font-bold text-[var(--color-text-primary)] text-sm break-words min-w-0">{c.name}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant={statusBadgeVariant(c.status)}>{c.status}</Badge>

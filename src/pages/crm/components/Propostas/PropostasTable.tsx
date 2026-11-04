@@ -271,15 +271,15 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-[10px] font-bold text-[var(--color-text-muted)]">Criada: {fmtDate(item.created_at)}</div>
-                    <div className="text-[10px] font-bold text-danger">Venc: {fmtDate(item.validade)}</div>
+                    <div className="text-[11px] font-bold text-[var(--color-text-muted)] whitespace-nowrap">Criada: {fmtDate(item.created_at)}</div>
+                    <div className="text-[11px] font-bold text-danger whitespace-nowrap">Venc: {fmtDate(item.validade)}</div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-[var(--color-primary-blue)]/10 flex items-center justify-center shrink-0">
                         <span className="text-[9px] font-black text-[var(--color-primary-blue)]">{initials(item.vendedor)}</span>
                       </div>
-                      <span className="text-xs font-bold text-[var(--color-text-muted)] truncate max-w-[90px]">{item.vendedor}</span>
+                      <span className="text-xs font-bold text-[var(--color-text-muted)] min-w-[110px] break-words">{item.vendedor}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
