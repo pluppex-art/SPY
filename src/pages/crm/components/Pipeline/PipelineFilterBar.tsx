@@ -46,7 +46,7 @@ export function PipelineFilterBar({
   sourceFilter, setSourceFilter, sourcesList,
 }: PipelineFilterBarProps) {
   return (
-    <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 shrink-0">
+    <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 shrink-0 max-[479px]:[&>*]:col-span-2">
       {(comercialFunis.length > 0 || sdrFunis.length > 0) && (
         <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 py-1.5 h-[42px] sm:h-[38px] overflow-x-auto scrollbar-none">
           {comercialFunis.length === 1 ? (

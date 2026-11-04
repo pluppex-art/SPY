@@ -56,7 +56,7 @@ export function FinanceiroKPIs({ cards }: { cards: FinanceiroKpiCard[] }) {
   const { formatCurrency } = useLocalization();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
       {cards.map((kpi, i) => {
         const Icon = kpi.icon;
         const displayValue = kpi.format === "percent" ? `${kpi.value.toFixed(1)}%` : formatCurrency(kpi.value);
@@ -69,12 +69,12 @@ export function FinanceiroKPIs({ cards }: { cards: FinanceiroKpiCard[] }) {
         const temSerie = !!kpi.series && kpi.series.length >= 2;
         return (
           <Link key={kpi.label} to={kpi.href} className="group block">
-            <div className="h-full p-5 rounded-[var(--radius-panel)] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm group-hover:-translate-y-0.5 group-hover:shadow-md">
-              <div className="flex items-center justify-between mb-3">
+            <div className="h-full p-3.5 sm:p-5 rounded-[var(--radius-panel)] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm group-hover:-translate-y-0.5 group-hover:shadow-md">
+              <div className="flex items-start justify-between gap-1 mb-2 sm:mb-3">
                 <Icon className={cn("w-5 h-5", ICON_COLORS[i % ICON_COLORS.length])} />
                 <DeltaTop deltaPct={kpi.deltaPct} deltaGoodWhenUp={kpi.deltaGoodWhenUp} />
               </div>
-              <div className={cn("text-2xl font-display font-black mb-1 italic", valueColor)}>
+              <div className={cn("text-lg sm:text-2xl break-words font-display font-black mb-1 italic", valueColor)}>
                 {displayValue}
                 {typeof kpi.count === "number" && (
                   <span className="text-xs font-medium not-italic text-[var(--color-text-faint)] ml-1.5">({kpi.count})</span>

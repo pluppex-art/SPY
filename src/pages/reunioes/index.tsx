@@ -354,7 +354,7 @@ export default function ReunioesList() {
 
         {/* Filtros */}
         <Card className="p-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-3">
-          <div className="grid grid-cols-2 lg:flex lg:flex-row gap-2">
+          <div className="grid grid-cols-2 lg:flex lg:flex-row gap-2 max-[479px]:[&>*]:col-span-2">
             <div className="relative col-span-2 lg:col-span-1 lg:flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
               <input

@@ -245,7 +245,7 @@ export function Topbar({
           {/* Achado de UX 2026-09-21: texto fixo "S.P.Y." aqui, enquanto o
               Sidebar já usa o nome real do tenant como padrão estabelecido —
               alinhado com o mesmo fallback usado lá (Sidebar.tsx). */}
-          <span className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] truncate max-w-[140px]">
+          <span className="text-[0.625rem] sm:text-xs leading-[1.1] font-black uppercase tracking-normal sm:tracking-wider text-[var(--color-text-primary)] break-words max-w-[150px]">
             {activeTenantName || user?.tenantName || "S.P.Y."}
           </span>
         </div>

@@ -162,7 +162,7 @@ const CONTROL_BOX =
   "flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[200px]";
 
 export function FilterBar({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 shrink-0", className)}>{children}</div>;
+  return <div className={cn("grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 shrink-0 max-[479px]:[&>*]:col-span-2", className)}>{children}</div>;
 }
 
 export function FilterSearch({ value, onChange, placeholder = "Buscar..." }: { value: string; onChange: (v: string) => void; placeholder?: string }) {

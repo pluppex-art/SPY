@@ -32,7 +32,7 @@ export function TasksFilter(p: TasksFilterProps) {
   const [showMais, setShowMais] = useState(false);
   return (
     <Card className="p-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-3">
-      <div className="grid grid-cols-2 xl:flex xl:flex-row gap-2">
+      <div className="grid grid-cols-2 xl:flex xl:flex-row gap-2 max-[479px]:[&>*]:col-span-2">
         <div className="relative col-span-2 xl:col-span-1 xl:flex-1 xl:min-w-[220px]">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
           <input
