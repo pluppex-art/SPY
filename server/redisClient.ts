@@ -10,6 +10,7 @@ const REDIS_URL = process.env.REDIS_URL;
 
 let client: Redis | null = null;
 let warnedMissingConfig = false;
+let lastConnError = "";
 
 function getClient(): Redis | null {
   if (!REDIS_URL) {
@@ -28,7 +29,8 @@ function getClient(): Redis | null {
     retryStrategy: (times) => (times > 3 ? null : Math.min(times * 200, 1000)),
     reconnectOnError: () => false,
   });
-  client.on("error", (err) => {
+  client.on("error", (err: any) => {
+    lastConnError = String(err?.code || err?.name || "ERRO").replace(/[^A-Za-z0-9_]/g, "").slice(0, 40);
     console.warn("[Redis-SPY] erro de conexão (fallback pro Supabase):", err.message);
   });
   return client;
@@ -65,7 +67,8 @@ export async function redisHealthCheck(): Promise<{ configured: boolean; connect
     return { configured: true, connected: true, latencyMs: Date.now() - start };
   } catch (err: any) {
     // Só o código do erro (ENOTFOUND, ECONNREFUSED, NOAUTH...) — nunca URL, host ou senha.
-    const reason = String(err?.code || err?.name || "ERRO").replace(/[^A-Za-z0-9_]/g, "").slice(0, 40);
+    const own = String(err?.code || err?.name || "ERRO").replace(/[^A-Za-z0-9_]/g, "").slice(0, 40);
+    const reason = own === "MaxRetriesPerRequestError" && lastConnError ? `${own}:${lastConnError}` : own;
     return { configured: true, connected: false, reason };
   }
 }
