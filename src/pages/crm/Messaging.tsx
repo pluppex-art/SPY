@@ -20,7 +20,7 @@ export default function Messaging() {
   // ── Filtro por IA (SDR / CS / Chatbot) ────────────────────────────────────
   // Cada IA tem o próprio número de WhatsApp (instância); a conversa herda a IA da instância.
   // Quem não tem a IA liberada no perfil não vê as conversas daquele número.
-  const { user } = useAuth();
+  const { user, activeTenantId } = useAuth();
   const { cargos } = useData() as any;
   const [iaPorInstancia, setIaPorInstancia] = useState<Record<string, IaAgentId>>({});
   const [iaFiltro, setIaFiltro] = useState<string>(() => (typeof window !== "undefined" ? window.sessionStorage.getItem("axis_iaFiltro") || "todas" : "todas"));
@@ -28,7 +28,7 @@ export default function Messaging() {
   useEffect(() => {
     let vivo = true;
     const carregar = () =>
-      apiFetch("/api/whatsapp/instances")
+      apiFetch(`/api/whatsapp/instances${activeTenantId ? `?tenantId=${encodeURIComponent(activeTenantId)}` : ""}`)
         .then((r) => (r.ok ? r.json() : []))
         .then((lista: any[]) => {
           if (!vivo) return;
@@ -40,7 +40,7 @@ export default function Messaging() {
     carregar();
     const t = setInterval(carregar, 60000);
     return () => { vivo = false; clearInterval(t); };
-  }, []);
+  }, [activeTenantId]);
   const iasPermitidas = IA_AGENTS.filter((a) => podeVerIa(user, cargos || [], a.id));
 
   const {

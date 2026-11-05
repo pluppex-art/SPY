@@ -5243,7 +5243,11 @@ app.get("/api/whatsapp/provider-status", requireUser, async (_req: any, res) => 
 });
 
 app.get("/api/whatsapp/instances", requireUser, async (req: any, res) => {
-  const { data, error } = await req.supabase.from("whatsapp_instances").select("*").order("created_at", { ascending: false });
+  // Só as instâncias da empresa pedida (?tenantId=, validada com has_tenant_access) — sem isso, quem acessa
+  // várias empresas (master/parceiro) recebia as instâncias de todas misturadas.
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+  const { data, error } = await req.supabase.from("whatsapp_instances").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false });
   if (error) {
     console.error("[whatsapp/instances GET]", error.message);
     return res.status(500).json({ error: "Erro ao carregar instâncias." });
@@ -5966,7 +5970,10 @@ app.get("/api/whatsapp/contacts", requireUser, async (req: any, res) => {
   // 500 mais recentes por conversa (order por last_message_at) é generoso
   // pro uso real de uma caixa de entrada; sem isso, sofreria do mesmo
   // truncamento silencioso em 1000 do PostgREST pra tenants grandes.
-  const { data, error } = await req.supabase.from("chat_contacts").select("*").order("last_message_at", { ascending: false, nullsFirst: false }).limit(500);
+  // Só os contatos da empresa pedida (?tenantId=, validada) — sem o filtro, master/parceiro via as conversas de TODAS as empresas.
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+  const { data, error } = await req.supabase.from("chat_contacts").select("*").eq("tenant_id", tenantId).order("last_message_at", { ascending: false, nullsFirst: false }).limit(500);
   if (error) {
     console.error("[whatsapp/contacts GET]", error.message);
     return res.status(500).json({ error: "Erro ao buscar contatos." });
@@ -6006,7 +6013,9 @@ app.get("/api/whatsapp/messages/:contactId", requireUser, async (req: any, res) 
   // — uma conversa de anos com um cliente recorrente facilmente passa de
   // milhares de mensagens. Traz as 200 mais recentes (desc) e inverte pra
   // manter a ordem cronológica que a UI espera (mais antiga primeiro).
-  const { data, error } = await req.supabase.from("chat_messages").select("*").eq("contact_id", contactId).order("created_at", { ascending: false }).limit(200);
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+  const { data, error } = await req.supabase.from("chat_messages").select("*").eq("tenant_id", tenantId).eq("contact_id", contactId).order("created_at", { ascending: false }).limit(200);
   if (error) {
     console.error("[whatsapp/messages GET]", error.message);
     return res.status(500).json({ error: "Erro ao buscar mensagens." });

@@ -7,8 +7,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "../../../../lib/apiClient";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 export function WhatsAppTriggersSection() {
+  const { activeTenantId } = useAuth();
+  const tenantQuery = activeTenantId ? `?tenantId=${encodeURIComponent(activeTenantId)}` : "";
   const [isSyncing, setIsSyncing] = useState(false);
   const [instances, setInstances] = useState<any[]>([]);
   const [providerStatus, setProviderStatus] = useState<{ provider: "simulator" | "waha"; configured: boolean } | null>(null);
@@ -20,17 +23,17 @@ export function WhatsAppTriggersSection() {
   const [associatedTag, setAssociatedTag] = useState("Interessado Comercial");
 
   const fetchInstances = () => {
-    apiFetch("/api/whatsapp/instances").then(r => r.json()).then(setInstances).catch(() => setInstances([]));
+    apiFetch(`/api/whatsapp/instances${tenantQuery}`).then(r => r.json()).then(setInstances).catch(() => setInstances([]));
   };
 
   useEffect(() => {
     fetchInstances();
     apiFetch("/api/whatsapp/provider-status").then(r => r.json()).then(setProviderStatus).catch(() => setProviderStatus(null));
-  }, []);
+  }, [activeTenantId]);
 
   const handleSyncInstances = () => {
     setIsSyncing(true);
-    apiFetch("/api/whatsapp/instances").then(r => r.json()).then((data) => {
+    apiFetch(`/api/whatsapp/instances${tenantQuery}`).then(r => r.json()).then((data) => {
       setInstances(data);
       setIsSyncing(false);
       toast.success(`${data.length} instância(s) sincronizada(s).`);

@@ -65,7 +65,9 @@ const playIncomingMessageSound = (soundEnabled: boolean) => {
 
 export function useMessaging() {
   const { leads, leadActivities, addLeadActivity } = useData();
-  const { user } = useAuth();
+  const { user, activeTenantId } = useAuth();
+  // Todas as chamadas do WhatsApp levam a empresa ATIVA (master/parceiro podem alternar entre empresas).
+  const q = activeTenantId ? `?tenantId=${encodeURIComponent(activeTenantId)}` : "";
   const soundEnabled = user?.preferences?.whatsappSound !== false;
 
   const parseMessageTimeToTimestamp = (timeStr: string): number => {
@@ -195,13 +197,14 @@ export function useMessaging() {
   const prevUnreadCountRef = useRef<number>(0);
 
   const fetchContacts = () => {
-    apiFetch("/api/whatsapp/contacts")
+    apiFetch(`/api/whatsapp/contacts${q}`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then(data => {
-        if (data && data.length > 0) {
+        // Lista vazia também vale: ao trocar para uma empresa sem conversas, não pode sobrar a lista da anterior.
+        if (Array.isArray(data)) {
           setContacts(data);
           const currentUnread = data.reduce((sum: number, c: any) => sum + (c.unread || 0), 0);
           if (currentUnread > prevUnreadCountRef.current) {
@@ -219,7 +222,7 @@ export function useMessaging() {
 
   const handleManualRetry = () => {
     toast.info("Tentando reconectar...", { id: "retry-fetch" });
-    apiFetch("/api/whatsapp/contacts")
+    apiFetch(`/api/whatsapp/contacts${q}`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -237,7 +240,7 @@ export function useMessaging() {
       });
 
     if (activeChat) {
-      apiFetch(`/api/whatsapp/messages/${activeChat}`)
+      apiFetch(`/api/whatsapp/messages/${activeChat}${q}`)
         .then(res => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json();
@@ -254,16 +257,24 @@ export function useMessaging() {
     }
   };
 
+  // Trocou de empresa: zera conversas, mensagens e chat aberto antes de carregar as da nova empresa.
+  useEffect(() => {
+    setContacts([]);
+    setMessages({});
+    setActiveChat(null);
+    prevUnreadCountRef.current = 0;
+  }, [activeTenantId]);
+
   useEffect(() => {
     fetchContacts();
     const interval = setInterval(fetchContacts, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeTenantId]);
 
   useEffect(() => {
     if (!activeChat) return;
     const fetchChatMessages = () => {
-      apiFetch(`/api/whatsapp/messages/${activeChat}`)
+      apiFetch(`/api/whatsapp/messages/${activeChat}${q}`)
         .then(res => res.json())
         .then(data => {
           if (data) {
@@ -279,7 +290,7 @@ export function useMessaging() {
     fetchChatMessages();
     const interval = setInterval(fetchChatMessages, 3000);
     return () => clearInterval(interval);
-  }, [activeChat]);
+  }, [activeChat, activeTenantId]);
 
   useEffect(() => {
     if (!activeChat) {
@@ -359,7 +370,7 @@ export function useMessaging() {
     })
     .then(res => res.json())
     .then(() => {
-      apiFetch(`/api/whatsapp/messages/${activeChat}`)
+      apiFetch(`/api/whatsapp/messages/${activeChat}${q}`)
         .then(res => res.json())
         .then(data => {
           setMessages(prev => ({ ...prev, [activeChat]: data }));

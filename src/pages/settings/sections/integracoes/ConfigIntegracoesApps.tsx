@@ -670,10 +670,10 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
   useEffect(() => {
     fetchInstances();
     apiFetch("/api/whatsapp/provider-status").then((r) => r.json()).then(setWhatsappProviderStatus).catch(() => setWhatsappProviderStatus(null));
-  }, []);
+  }, [activeTenantId]);
 
   const fetchInstances = () => {
-    apiFetch("/api/whatsapp/instances")
+    apiFetch(`/api/whatsapp/instances${activeTenantId ? `?tenantId=${encodeURIComponent(activeTenantId)}` : ""}`)
       .then((res) => res.json())
       .then((data) => {
         setInstances(data);
