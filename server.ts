@@ -18,6 +18,7 @@ import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
 import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
 import { emailNotifyTenant } from "./server/emailNotify.js";
 import { runNotificationReminders } from "./server/notificationCron.js";
+import { registerDeepHealthRoute } from "./server/healthDeep.js";
 import { getTenantBrand, getBrandForEmail } from "./server/emailBrand.js";
 import { testEmail, passwordResetEmail, passwordChangedEmail } from "./server/emailTemplates.js";
 import { readTenantSnapshot } from "./server/implementationSync.js";
@@ -466,6 +467,17 @@ app.get("/api/health/redis", async (_req, res) => {
   const status = await redisHealthCheck();
   res.json(status);
 });
+
+// Saúde de ponta a ponta (banco, n8n, WAHA, Redis) para o monitor externo: 200 = tudo bem, 503 = algo caiu.
+registerDeepHealthRoute(app, { supabaseService, redisHealthCheck });
+
+// Monitor de erros: só liga com SENTRY_DSN configurado (sem DSN, nada muda). Carrega sob demanda.
+let sentryNode: any = null;
+if (process.env.SENTRY_DSN) {
+  import("@sentry/node")
+    .then((m) => { m.init({ dsn: process.env.SENTRY_DSN, environment: process.env.VERCEL_ENV || process.env.NODE_ENV, tracesSampleRate: 0 }); sentryNode = m; })
+    .catch((e) => console.warn("[sentry] não iniciou:", e?.message));
+}
 
 
 /**
@@ -2186,6 +2198,15 @@ function logApiKeyUsage(req: express.Request, statusCode: number) {
     });
 }
 
+// finance_entries.id e reunioes.id são PRIMARY KEY global (sem tenant): um upsert por id de outra empresa
+// sobrescreveria a linha dela e a moveria para a empresa de quem chamou. Antes de gravar por id, confere
+// se a linha já existe em OUTRA empresa e, nesse caso, recusa (resposta genérica, sem revelar de quem é).
+async function idEmUsoPorOutraEmpresa(table: "finance_entries" | "reunioes", id: string, tenantId: string): Promise<boolean> {
+  if (!supabaseService) return false;
+  const { data } = await supabaseService.from(table).select("tenant_id").eq("id", id).limit(1).maybeSingle();
+  return !!data && data.tenant_id !== tenantId;
+}
+
 // Espelha customFields.reservation (quando presente) na agenda comercial
 // (tabela reunioes) — reaproveita a tela de Agenda/Calendário existente pra
 // mostrar reservas de sistemas externos (ex.: to na pista) como compromissos,
@@ -2212,6 +2233,10 @@ async function syncReuniaoFromReservation(
     reservation.totalValue != null ? `R$ ${reservation.totalValue}` : null,
   ].filter(Boolean).join(" · ");
 
+  if (await idEmUsoPorOutraEmpresa("reunioes", String(reservation.id), tenantId)) {
+    console.warn("[API v1] reserva ignorada: id de reunião já pertence a outra empresa.");
+    return;
+  }
   const { error } = await supabaseService!.from("reunioes").upsert({
     id: reservation.id,
     leadId, leadName, leadEmail, companyName: company || "",
@@ -2535,6 +2560,10 @@ app.post("/api/v1/finance-entries", requireApiKey, async (req, res) => {
   if (Array.isArray(tags)) payload.tags = tags.map((t: any) => String(t).trim()).filter(Boolean);
   if (has(contaBancariaId)) payload.conta_bancaria_id = String(contaBancariaId);
 
+  if (await idEmUsoPorOutraEmpresa("finance_entries", id, tenantId)) {
+    logApiKeyUsage(req, 409);
+    return res.status(409).json({ error: "Este externalId já está em uso. Use um identificador único." });
+  }
   const { error } = await supabaseService.from("finance_entries").upsert(payload, { onConflict: "id" });
 
   if (error) {
@@ -2683,6 +2712,10 @@ app.post("/api/v1/meetings", requireApiKey, async (req, res) => {
   const lead = await findLeadByContact(tenantId, normalizedPhone, normalizedEmail);
   const statusOk = ["Agendada", "Concluída", "Cancelada"].includes(status) ? status : "Agendada";
 
+  if (await idEmUsoPorOutraEmpresa("reunioes", String(externalId), tenantId)) {
+    logApiKeyUsage(req, 409);
+    return res.status(409).json({ error: "Este externalId já está em uso. Use um identificador único." });
+  }
   const { error } = await supabaseService.from("reunioes").upsert({
     id: String(externalId),
     leadId: lead?.id ?? `ext:${externalId}`,
@@ -3900,7 +3933,16 @@ app.post("/api/ai/settings-audit", requireUser, async (req, res) => {
   }
 });
 
-app.get("/api/settings/:category", requireUser, async (req: any, res) => {
+// Categorias aceitas pelas rotas genéricas de configuração. "api-keys" tem rotas próprias mais abaixo
+// (exigem admin): aqui só passamos adiante, senão esta rota genérica as engolia e a revogação de chave não funcionava.
+const SETTINGS_CATEGORIAS = new Set(["sources", "fields", "custom-fields", "custom_lead_fields", "task-categories", "categories", "templates"]);
+const settingsCategoriaGuard = (req: any, res: any, next: any) => {
+  const category = String(req.params.category || "");
+  if (category === "api-keys") return next("route");
+  if (!SETTINGS_CATEGORIAS.has(category)) return res.status(404).json({ error: "Categoria não encontrada" });
+  next();
+};
+app.get("/api/settings/:category", requireUser, settingsCategoriaGuard, async (req: any, res) => {
   const { category } = req.params;
   if (supabase) {
     // req.supabase (escopado com o JWT do chamador) em vez do client de
@@ -3927,7 +3969,7 @@ app.get("/api/settings/:category", requireUser, async (req: any, res) => {
   }
 });
 
-app.post("/api/settings/:category", requireUser, async (req: any, res) => {
+app.post("/api/settings/:category", requireUser, settingsCategoriaGuard, async (req: any, res) => {
   const { category } = req.params;
   const item = req.body;
   const id = Math.random().toString(36).substring(2, 9);
@@ -3958,7 +4000,7 @@ app.post("/api/settings/:category", requireUser, async (req: any, res) => {
   }
 });
 
-app.delete("/api/settings/:category/:id", requireUser, async (req: any, res) => {
+app.delete("/api/settings/:category/:id", requireUser, settingsCategoriaGuard, async (req: any, res) => {
   const { category, id } = req.params;
   if (supabase) {
     const tableName = `crm_${category.replace("-", "_")}`;
@@ -4226,8 +4268,12 @@ const AURORA_TOOLS = [
 // autenticado. No auto-reply do WhatsApp (conversa com cliente/lead externo,
 // sem sessão de usuário) elas ficam de fora — senão qualquer contato poderia
 // ler ou alterar a implantação de um cliente só citando o nome dele.
-const AURORA_INTERNAL_ONLY_TOOLS = new Set(["consultar_implementacao", "atualizar_implementacao"]);
-const AURORA_TOOLS_WHATSAPP = AURORA_TOOLS.filter((t) => !AURORA_INTERNAL_ONLY_TOOLS.has(t.name));
+//
+// Regra atual: no WhatsApp a IA só pode usar ferramentas de PRODUTO (consultar e registrar interesse).
+// Resumos financeiros, de pipeline, clientes, tarefas e agenda são dados internos da empresa — um contato
+// externo poderia induzir a IA a revelá-los por mensagem.
+const AURORA_WHATSAPP_PERMITIDAS = new Set(["buscar_produto", "marcar_produto_interesse"]);
+const AURORA_TOOLS_WHATSAPP = AURORA_TOOLS.filter((t) => AURORA_WHATSAPP_PERMITIDAS.has(t.name));
 
 // Resolve "Fulano" -> a implementação daquele cliente, sem chutar: pergunta
 // quando há mais de um candidato. `scoped` aplica o filtro de tenant.
@@ -4573,7 +4619,7 @@ async function runAuroraAutoReply(tenantId: string, instanceId: string, contactI
     if (!call) {
       replyText = typeof first.text === "function" ? (first as any).text() : (first.text ?? "");
     } else {
-      const toolResult = AURORA_INTERNAL_ONLY_TOOLS.has(call.name)
+      const toolResult = !AURORA_WHATSAPP_PERMITIDAS.has(call.name)
         ? { error: "Ferramenta indisponível neste canal." }
         : await runAuroraTool(call.name, call.args, supabaseService, tenantId);
       const second = await ai.models.generateContent({
@@ -4605,16 +4651,19 @@ app.post("/api/ai/aurora-tenant-chat", requireUser, async (req: any, res: any) =
   if (!message?.trim()) return res.status(400).json({ error: "Mensagem vazia." });
   if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "Aurora operacional não está configurada neste ambiente (GEMINI_API_KEY ausente)." });
 
-  // Gate real de "Agentes vinculados à Aurora" (config em Sistema > Aurora):
-  // req.supabase já é escopado por RLS ao tenant do usuário logado, mesmo
-  // padrão usado pelas AURORA_TOOLS abaixo — nenhum filtro manual de tenant_id
-  // necessário aqui. As AURORA_TOOLS de hoje não têm correspondência 1:1 com
+  // Empresa validada no servidor (a RLS sozinha não basta: master/parceiro enxergam várias empresas,
+  // e as ferramentas agregariam dados de todas elas).
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+
+  // Gate real de "Agentes vinculados à Aurora" (config em Sistema > Aurora).
+  // As AURORA_TOOLS de hoje não têm correspondência 1:1 com
   // esses agentes nomeados (não existe roteamento por ferramenta-por-agente),
   // então o bloqueio é por menção direta do nome na mensagem — o mais honesto
   // dado o que a arquitetura atual realmente suporta.
   let agentGateNotice = "";
   try {
-    const { data: agents } = await req.supabase.from("aurora_agents").select("name, active");
+    const { data: agents } = await req.supabase.from("aurora_agents").select("name, active").eq("tenant_id", tenantId);
     if (agents && agents.length > 0) {
       const lowerMessage = message.toLowerCase();
       const mentionedInactive = (agents as { name: string; active: boolean }[]).find(
@@ -4647,7 +4696,7 @@ app.post("/api/ai/aurora-tenant-chat", requireUser, async (req: any, res: any) =
       return res.json({ output: text || "Não consegui gerar uma resposta agora." });
     }
 
-    const toolResult = await runAuroraTool(call.name, call.args, req.supabase);
+    const toolResult = await runAuroraTool(call.name, call.args, req.supabase, tenantId);
 
     const second = await ai.models.generateContent({
       model: "gemini-3.6-flash",
@@ -5229,7 +5278,7 @@ function mapInstanceRow(row: any) {
     name: row.name,
     phone: row.phone || "-",
     status: row.status,
-    apiKey: row.api_key,
+    apiKey: "", // segredo do provedor nunca vai ao navegador
     webhookUrl: row.webhook_url || "",
     qrcode: row.qrcode || "",
     provider: row.provider,
@@ -5988,13 +6037,13 @@ app.post("/api/whatsapp/contacts", requireUser, async (req: any, res) => {
   if (!tenantId) return;
   const cleanPhone = phone.startsWith("+") ? phone : `+55 ${phone}`;
 
-  const { data: existing } = await req.supabase.from("chat_contacts").select("*").eq("phone", cleanPhone).maybeSingle();
+  const { data: existing } = await req.supabase.from("chat_contacts").select("*").eq("tenant_id", tenantId).eq("phone", cleanPhone).maybeSingle();
   if (existing) return res.json(mapChatContactRow(existing));
 
   // Contato criado manualmente pelo CRM (não por mensagem recebida) — sem
   // instância vinculada ainda; associa à primeira instância conectada do
   // tenant, se houver (pra "Enviar" já funcionar na hora).
-  const { data: inst } = await req.supabase.from("whatsapp_instances").select("id").eq("status", "CONNECTED").limit(1).maybeSingle();
+  const { data: inst } = await req.supabase.from("whatsapp_instances").select("id").eq("tenant_id", tenantId).eq("status", "CONNECTED").limit(1).maybeSingle();
 
   const { data: created, error } = await req.supabase.from("chat_contacts")
     .insert({ tenant_id: tenantId, whatsapp_instance_id: inst?.id ?? null, name, phone: cleanPhone, tags, last_message: "Nova conversa iniciada", last_message_at: new Date().toISOString() })
@@ -6029,7 +6078,7 @@ app.post("/api/whatsapp/messages/send", requireUser, async (req: any, res) => {
   const tenantId = await resolveRequestedTenantId(req, res);
   if (!tenantId) return;
 
-  const { data: contact } = await req.supabase.from("chat_contacts").select("*").eq("id", contactId).maybeSingle();
+  const { data: contact } = await req.supabase.from("chat_contacts").select("*").eq("tenant_id", tenantId).eq("id", contactId).maybeSingle();
   if (!contact) return res.status(404).json({ error: "Contato não encontrado" });
 
   const provider = getWhatsAppProvider();
@@ -6039,7 +6088,7 @@ app.post("/api/whatsapp/messages/send", requireUser, async (req: any, res) => {
     // precisa ser real (nada de eco local fingindo sucesso).
     if (!contact.phone) return res.status(400).json({ error: "Contato sem telefone cadastrado — não é possível enviar via WhatsApp." });
     if (!instanceIdForSend) {
-      const { data: inst } = await req.supabase.from("whatsapp_instances").select("id").eq("status", "CONNECTED").limit(1).maybeSingle();
+      const { data: inst } = await req.supabase.from("whatsapp_instances").select("id").eq("tenant_id", tenantId).eq("status", "CONNECTED").limit(1).maybeSingle();
       if (!inst) return res.status(409).json({ error: "Nenhuma instância WhatsApp conectada. Conecte uma instância antes de enviar mensagens." });
       instanceIdForSend = inst.id;
     }
@@ -6058,7 +6107,7 @@ app.post("/api/whatsapp/messages/send", requireUser, async (req: any, res) => {
     console.error("[whatsapp/messages/send] insert", error?.message);
     return res.status(500).json({ error: "Mensagem enviada mas falhou ao registrar no histórico." });
   }
-  await req.supabase.from("chat_contacts").update({ last_message: text, last_message_at: new Date().toISOString() }).eq("id", contactId);
+  await req.supabase.from("chat_contacts").update({ last_message: text, last_message_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", contactId);
   res.json({ success: true, message: mapChatMessageRow(inserted) });
 });
 
@@ -6629,6 +6678,7 @@ app.use("/api/integrations/google", createGoogleIntegrationsRouter({ requireUser
 // do Postgres) — detalhe completo só no log do servidor.
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error("[S.P.Y.] Unhandled error:", err?.message || err);
+  try { sentryNode?.captureException(err); } catch { /* monitor nunca derruba a resposta */ }
   if (!res.headersSent) {
     res.status(500).json({ error: "Erro interno do servidor." });
   }
