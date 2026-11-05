@@ -56,14 +56,16 @@ export async function cacheSet(key: string, value: unknown, ttlSeconds: number):
   }
 }
 
-export async function redisHealthCheck(): Promise<{ configured: boolean; connected: boolean; latencyMs?: number }> {
+export async function redisHealthCheck(): Promise<{ configured: boolean; connected: boolean; latencyMs?: number; reason?: string }> {
   const redis = getClient();
   if (!redis) return { configured: false, connected: false };
   try {
     const start = Date.now();
     await redis.ping();
     return { configured: true, connected: true, latencyMs: Date.now() - start };
-  } catch {
-    return { configured: true, connected: false };
+  } catch (err: any) {
+    // Só o código do erro (ENOTFOUND, ECONNREFUSED, NOAUTH...) — nunca URL, host ou senha.
+    const reason = String(err?.code || err?.name || "ERRO").replace(/[^A-Za-z0-9_]/g, "").slice(0, 40);
+    return { configured: true, connected: false, reason };
   }
 }

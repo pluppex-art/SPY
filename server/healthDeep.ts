@@ -9,10 +9,10 @@ import axios from "axios";
 
 interface Deps {
   supabaseService: any;
-  redisHealthCheck: () => Promise<{ configured: boolean; connected: boolean; latencyMs?: number }>;
+  redisHealthCheck: () => Promise<{ configured: boolean; connected: boolean; latencyMs?: number; reason?: string }>;
 }
 
-type Check = { configured: boolean; ok: boolean; ms?: number };
+type Check = { configured: boolean; ok: boolean; ms?: number; reason?: string };
 
 async function timed(fn: () => Promise<boolean>): Promise<Check> {
   const t0 = Date.now();
@@ -46,7 +46,7 @@ export function registerDeepHealthRoute(app: Express, { supabaseService, redisHe
         : Promise.resolve<Check>({ configured: false, ok: false }),
       (async (): Promise<Check> => {
         const r = await redisHealthCheck();
-        return { configured: r.configured, ok: r.connected, ms: r.latencyMs };
+        return { configured: r.configured, ok: r.connected, ms: r.latencyMs, reason: r.reason };
       })(),
     ]);
 
