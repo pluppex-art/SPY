@@ -1,0 +1,25 @@
+name: Monitor de saúde (agendado)
+
+# Consulta /api/health/deep a cada 5 min. Se banco, n8n ou WAHA estiverem fora (HTTP 503),
+# o job falha e o GitHub avisa por e-mail quem editou este agendamento por último.
+# Redis fora do ar é só "degraded" (cache) e não falha o job.
+# O GitHub pode atrasar execuções agendadas em alguns minutos; um monitor externo (UptimeRobot) continua sendo o ideal.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checar saúde de ponta a ponta
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -sS --max-time 30 -o /tmp/h.json -w "%{http_code}" https://www.spycrm.com.br/api/health/deep || echo 000)
+            echo "tentativa $i: HTTP $code"; cat /tmp/h.json 2>/dev/null; echo
+            [ "$code" = "200" ] && exit 0
+            sleep 20
+          done
+          echo "::error::S.P.Y. fora do ar ou com componente essencial falhando (veja o JSON acima)."
+          exit 1
