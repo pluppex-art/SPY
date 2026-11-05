@@ -9,6 +9,15 @@ import { applyThemeColor, DEFAULT_BRAND_COLOR } from './lib/theme';
 // DataContext), sem depender de nenhum cache local.
 applyThemeColor(DEFAULT_BRAND_COLOR);
 
+// Monitor de erros: só liga em produção e com VITE_SENTRY_DSN configurado. Carrega depois do app (não pesa a abertura).
+if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
+  window.addEventListener('load', () => {
+    import('@sentry/react')
+      .then((S) => S.init({ dsn: import.meta.env.VITE_SENTRY_DSN, tracesSampleRate: 0, sendDefaultPii: false }))
+      .catch(() => { /* sem monitor o app segue normal */ });
+  });
+}
+
 // PWA: service worker só em produção (em dev ele atrapalharia o HMR). Guarda só o casco do app,
 // nunca /api — ver public/sw.js.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
