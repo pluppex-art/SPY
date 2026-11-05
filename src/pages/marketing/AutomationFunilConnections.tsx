@@ -54,26 +54,26 @@ function funilStageNames(funil: any): string[] {
   return Array.isArray(funil?.etapas) ? funil.etapas : [];
 }
 
-const ROW_H = 28;
-const HEADER_H = 40;
+const ROW_H = 36;
+const HEADER_H = 46;
 
 // ── Nó: funil do CRM, uma linha (e um handle de saída) por etapa ───────────
 function FunilNode({ data }: NodeProps) {
   const { nome, etapas, tipo } = data as unknown as { nome: string; etapas: string[]; tipo?: string };
   return (
-    <div className="rounded-xl border-2 border-[var(--color-primary-blue)]/30 bg-[var(--color-surface-elevated)] shadow-md w-60 overflow-hidden">
+    <div className="rounded-xl border-2 border-[var(--color-primary-blue)]/30 bg-[var(--color-surface-elevated)] shadow-md w-72 overflow-hidden">
       <div className="px-3 py-2 bg-[var(--color-primary-blue)]/10 border-b border-[var(--color-primary-blue)]/20 flex items-center gap-1.5">
         <Workflow className="w-3.5 h-3.5 text-[var(--color-primary-blue)] shrink-0" />
-        <span className="text-[11px] font-bold text-[var(--color-text-primary)] truncate flex-1">{nome}</span>
+        <span className="text-[13px] font-bold text-[var(--color-text-primary)] truncate flex-1">{nome}</span>
         {tipo && (
-          <span className="shrink-0 text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]">
+          <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]">
             {tipo === "sdr_ia" ? "SDR" : "Comercial"}
           </span>
         )}
       </div>
       <div>
         {etapas.map((nomeEtapa, idx) => (
-          <div key={idx} className="relative px-3 flex items-center text-[10px] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
+          <div key={idx} className="relative px-3 flex items-center text-xs text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
             <span className="truncate">{nomeEtapa}</span>
             <Handle
               type="source" id={`etapa:${idx}`} position={Position.Right}
@@ -91,14 +91,14 @@ function FunilNode({ data }: NodeProps) {
 function CategoriasNode({ data }: NodeProps) {
   const { categorias } = data as unknown as { categorias: string[] };
   return (
-    <div className="rounded-xl border-2 border-warning/30 bg-[var(--color-surface-elevated)] shadow-md w-60 overflow-hidden">
+    <div className="rounded-xl border-2 border-warning/30 bg-[var(--color-surface-elevated)] shadow-md w-72 overflow-hidden">
       <div className="px-3 py-2 bg-warning/10 border-b border-warning/20 flex items-center gap-1.5">
         <Tag className="w-3.5 h-3.5 text-warning shrink-0" />
-        <span className="text-[11px] font-bold text-[var(--color-text-primary)]">Proposta aceita com…</span>
+        <span className="text-[13px] font-bold text-[var(--color-text-primary)]">Proposta aceita com…</span>
       </div>
       <div>
         {categorias.map((cat) => (
-          <div key={cat} className="relative px-3 flex items-center text-[10px] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
+          <div key={cat} className="relative px-3 flex items-center text-xs text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
             <span className="truncate">{cat}</span>
             <Handle
               type="source" id={`cat:${cat}`} position={Position.Right}
@@ -116,16 +116,16 @@ function CategoriasNode({ data }: NodeProps) {
 function ProdutosNode({ data }: NodeProps) {
   const { produtos } = data as unknown as { produtos: { id: string; nome: string; categoria: string }[] };
   return (
-    <div className="rounded-xl border-2 border-violet-500/30 bg-[var(--color-surface-elevated)] shadow-md w-60 overflow-hidden">
+    <div className="rounded-xl border-2 border-violet-500/30 bg-[var(--color-surface-elevated)] shadow-md w-72 overflow-hidden">
       <div className="px-3 py-2 bg-violet-500/10 border-b border-violet-500/20 flex items-center gap-1.5">
         <Package className="w-3.5 h-3.5 text-violet-500 shrink-0" />
-        <span className="text-[11px] font-bold text-[var(--color-text-primary)]">Proposta aceita com o produto…</span>
+        <span className="text-[13px] font-bold text-[var(--color-text-primary)]">Proposta aceita com o produto…</span>
       </div>
       <div>
         {produtos.map((p) => (
-          <div key={p.id} className="relative px-3 flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
+          <div key={p.id} className="relative px-3 flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
             <span className="truncate flex-1" title={p.nome}>{p.nome}</span>
-            {p.categoria && <span className="shrink-0 text-[8px] text-[var(--color-text-faint)] uppercase truncate max-w-[70px]">{p.categoria}</span>}
+            {p.categoria && <span className="shrink-0 text-[10px] text-[var(--color-text-faint)] uppercase truncate max-w-[90px]">{p.categoria}</span>}
             <Handle
               type="source" id={`prod:${p.id}`} position={Position.Right}
               style={{ top: "50%", transform: "translateY(-50%)" }}
@@ -151,15 +151,15 @@ const COR_ETAPA_OS: Record<string, string> = {
 function DepartamentoNode({ data }: NodeProps) {
   const { nome, qtd, etapas } = data as unknown as { nome: string; qtd: number; etapas: { id: string; nome: string; cor: string }[] };
   return (
-    <div className="rounded-xl border-2 border-success/30 bg-[var(--color-surface-elevated)] shadow-md w-56 overflow-hidden relative">
+    <div className="rounded-xl border-2 border-success/30 bg-[var(--color-surface-elevated)] shadow-md w-72 overflow-hidden relative">
       <Handle type="target" position={Position.Left} style={{ top: HEADER_H / 2 }} className="!bg-success !w-2.5 !h-2.5 !border-2 !border-[var(--color-surface-elevated)]" />
       <div className="px-3 py-2 bg-success/10 border-b border-success/20 flex items-center gap-1.5" style={{ height: HEADER_H }}>
         <Building2 className="w-3.5 h-3.5 text-success shrink-0" />
-        <span className="text-[11px] font-bold text-[var(--color-text-primary)] truncate flex-1">{nome}</span>
-        {qtd > 0 && <span className="text-[9px] text-[var(--color-text-faint)] shrink-0">{qtd} conexão{qtd > 1 ? "ões" : ""}</span>}
+        <span className="text-[13px] font-bold text-[var(--color-text-primary)] truncate flex-1">{nome}</span>
+        {qtd > 0 && <span className="text-[11px] text-[var(--color-text-faint)] shrink-0">{qtd} conexão{qtd > 1 ? "ões" : ""}</span>}
       </div>
       {etapas.map((e) => (
-        <div key={e.id} className="relative px-3 flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
+        <div key={e.id} className="relative px-3 flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: COR_ETAPA_OS[e.cor] ?? COR_ETAPA_OS.slate }} />
           <span className="truncate">{e.nome}</span>
           <Handle
@@ -567,25 +567,25 @@ export function AutomationFunilConnections() {
           tabelas da automação (ver migration automation_connection_multistep). */}
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-2.5 md:gap-3 [&>*:last-child:nth-child(odd)]:col-span-2 xl:[&>*:last-child:nth-child(odd)]:col-span-1">
         <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Users className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase tracking-wider">Leads no funil</span></div>
+          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Users className="w-3.5 h-3.5" /><span className="text-[11px] font-black uppercase tracking-wider">Leads no funil</span></div>
           <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{leadsNoFunil}</p>
         </Card>
         <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Briefcase className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase tracking-wider">OS criadas por automação</span></div>
+          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Briefcase className="w-3.5 h-3.5" /><span className="text-[11px] font-black uppercase tracking-wider">OS criadas por automação</span></div>
           <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{osCriadasPorAutomacao}</p>
         </Card>
         <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Power className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase tracking-wider">Conexões ativas</span></div>
+          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Power className="w-3.5 h-3.5" /><span className="text-[11px] font-black uppercase tracking-wider">Conexões ativas</span></div>
           <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{conexoesAtivasCount}</p>
         </Card>
         <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Grid2x2 className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase tracking-wider">Departamentos cobertos</span></div>
+          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Grid2x2 className="w-3.5 h-3.5" /><span className="text-[11px] font-black uppercase tracking-wider">Departamentos cobertos</span></div>
           <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{departamentosCobertosPct !== null ? `${departamentosCobertosPct}%` : "—"}</p>
         </Card>
         <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Gauge className="w-3.5 h-3.5" /><span className="text-[9px] font-black uppercase tracking-wider">Taxa de sucesso</span></div>
+          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Gauge className="w-3.5 h-3.5" /><span className="text-[11px] font-black uppercase tracking-wider">Taxa de sucesso</span></div>
           <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{taxaSucessoExecucoes !== null ? `${taxaSucessoExecucoes}%` : "—"}</p>
-          {execucoes.length === 0 && <p className="text-[9px] text-[var(--color-text-faint)] mt-0.5">Ainda sem execuções registradas</p>}
+          {execucoes.length === 0 && <p className="text-[11px] text-[var(--color-text-faint)] mt-0.5">Ainda sem execuções registradas</p>}
         </Card>
       </div>
 
