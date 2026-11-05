@@ -9,7 +9,7 @@ export const TERMOS: DocContent = {
   metaDescription: "Condições de uso do S.P.Y. (spycrm.com.br), plataforma de gestão comercial e operacional multiempresa com a assistente de IA Aurora.",
   title: "Termos de Uso",
   intro: "As regras para usar o S.P.Y. e as páginas públicas do site, escritas de forma direta.",
-  updated: "14 de outubro de 2026",
+  updated: "5 de novembro de 2026",
   sections: [
     {
       id: "aceitacao",
