@@ -1,7 +1,7 @@
 /**
  * Saúde de ponta a ponta — GET /api/health/deep.
  * Pensado para um monitor externo (UptimeRobot, Better Stack...) que avisa por e-mail/WhatsApp quando cair:
- * responde 200 se tudo que está configurado responde, 503 se algo configurado falhou.
+ * responde 200 se tudo que é essencial responde, 503 se algo essencial falhou (cache fora do ar = "degraded", sem 503).
  * Não devolve URL, chave nem dado de empresa — só "ok" por componente e a latência.
  */
 import type { Express } from "express";
@@ -51,8 +51,12 @@ export function registerDeepHealthRoute(app: Express, { supabaseService, redisHe
     ]);
 
     const checks = { supabase, n8n, waha, redis };
-    // Redis é cache opcional: só conta como falha se estiver configurado e fora do ar.
-    const failed = Object.entries(checks).filter(([, c]) => c.configured && !c.ok).map(([k]) => k);
-    res.status(failed.length ? 503 : 200).json({ ok: failed.length === 0, failed, checks, at: new Date().toISOString() });
+    // Redis é só cache (falha aberta: o sistema segue direto no banco). Fora do ar vira "degraded",
+    // que aparece no JSON mas NÃO dá 503 — senão o monitor externo alertaria sem haver queda real.
+    const OPTIONAL = new Set(["redis"]);
+    const down = Object.entries(checks).filter(([, c]) => c.configured && !c.ok).map(([k]) => k);
+    const failed = down.filter((k) => !OPTIONAL.has(k));
+    const degraded = down.filter((k) => OPTIONAL.has(k));
+    res.status(failed.length ? 503 : 200).json({ ok: failed.length === 0, failed, degraded, checks, at: new Date().toISOString() });
   });
 }
