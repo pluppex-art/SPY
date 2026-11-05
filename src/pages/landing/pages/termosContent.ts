@@ -25,6 +25,7 @@ export const TERMOS: DocContent = {
       html: [
       "<p>O S.P.Y. é uma plataforma de gestão comercial e operacional multiempresa. Reúne CRM e pipeline de vendas, propostas e contratos, agenda e tarefas, financeiro e outros módulos, incluindo módulos específicos por segmento, além da Aurora, uma assistente de inteligência artificial.</p>",
       "<p>Os módulos disponíveis para cada empresa dependem do plano e das condições combinadas na proposta ou no contrato. Funcionalidades podem ser evoluídas, ajustadas ou descontinuadas ao longo do tempo.</p>",
+      "<p><strong>Conexão com o WhatsApp.</strong> A integração com o WhatsApp usa uma conexão não oficial, feita por leitura de QR Code (como no WhatsApp Web), e não a API oficial da Meta. Por isso o WhatsApp pode, a seu critério e sem aviso prévio, limitar ou banir números, principalmente em caso de envio em massa, mensagens para quem não conhece o seu número ou denúncias de spam. O S.P.Y. não controla essas decisões e não garante a disponibilidade da conexão. Recomendamos usar a integração para atendimento e relacionamento com pessoas que já têm contato com a empresa, respeitar as regras do WhatsApp e evitar números que não possam ser perdidos.</p>",
       ],
     },
     {
