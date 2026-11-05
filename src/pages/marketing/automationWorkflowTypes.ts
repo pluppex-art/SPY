@@ -27,6 +27,7 @@ export interface ComponentePaleta {
 export const PALETA: ComponentePaleta[] = [
   { id: "gat-novo-lead", categoria: "Gatilhos", nome: "Etapa do Funil", descricao: "Lead entra numa etapa específica", icon: Zap },
   { id: "gat-categoria", categoria: "Gatilhos", nome: "Categoria de Produto", descricao: "Proposta aceita com essa categoria", icon: Zap },
+  { id: "gat-produto", categoria: "Gatilhos", nome: "Produto", descricao: "Proposta aceita com um produto específico", icon: Zap },
   { id: "cond-regra", categoria: "Condições", nome: "Condição", descricao: "Só continua se a regra for verdadeira", icon: Filter, isCondicao: true },
   { id: "acao-mensagem", categoria: "Ações", nome: "Enviar Mensagem", descricao: "WhatsApp (ativo) · E-mail, SMS em breve", icon: MessageSquare, acaoTipo: "mensagem" },
   { id: "acao-tarefa", categoria: "Ações", nome: "Criar Tarefa", descricao: "No CRM, com responsável e prazo", icon: ClipboardList, acaoTipo: "tarefa" },

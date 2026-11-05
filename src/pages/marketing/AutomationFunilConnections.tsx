@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow, Background, Controls, MiniMap, Panel, Handle, Position, EdgeLabelRenderer, getBezierPath,
-  useNodesState, type Node, type Edge, type NodeProps, type EdgeProps, type Connection,
+  useNodesState, type Node, type Edge, type NodeProps, type EdgeProps, type Connection, type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
   Workflow, Tag, Building2, X, Loader2, LayoutGrid, Info, Search, Trash2, Power,
-  Users, Briefcase, Gauge, Grid2x2,
+  Users, Briefcase, Gauge, Grid2x2, Package,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../../components/ui/card";
@@ -28,10 +28,12 @@ interface ConnectionRow {
   id: string;
   nome: string;
   ativo: boolean;
-  gatilho_tipo: "funil_etapa" | "produto_categoria" | "os_etapa";
+  gatilho_tipo: "funil_etapa" | "produto_categoria" | "produto" | "os_etapa";
   gatilho_funil_id: string | null;
   gatilho_etapa_idx: number | null;
   gatilho_categoria: string | null;
+  /** Gatilho "proposta aceita com este produto". */
+  gatilho_produto_id?: string | null;
   /** Gatilho "OS mudou de etapa": departamento e etapa (id estável) da OS de origem. */
   gatilho_os_departamento_id?: string | null;
   gatilho_os_etapa_id?: string | null;
@@ -110,6 +112,32 @@ function CategoriasNode({ data }: NodeProps) {
   );
 }
 
+// ── Nó: produtos — uma linha (e handle) por produto: "proposta aceita com este produto" ──
+function ProdutosNode({ data }: NodeProps) {
+  const { produtos } = data as unknown as { produtos: { id: string; nome: string; categoria: string }[] };
+  return (
+    <div className="rounded-xl border-2 border-violet-500/30 bg-[var(--color-surface-elevated)] shadow-md w-60 overflow-hidden">
+      <div className="px-3 py-2 bg-violet-500/10 border-b border-violet-500/20 flex items-center gap-1.5">
+        <Package className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+        <span className="text-[11px] font-bold text-[var(--color-text-primary)]">Proposta aceita com o produto…</span>
+      </div>
+      <div>
+        {produtos.map((p) => (
+          <div key={p.id} className="relative px-3 flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] last:border-0" style={{ height: ROW_H }}>
+            <span className="truncate flex-1" title={p.nome}>{p.nome}</span>
+            {p.categoria && <span className="shrink-0 text-[8px] text-[var(--color-text-faint)] uppercase truncate max-w-[70px]">{p.categoria}</span>}
+            <Handle
+              type="source" id={`prod:${p.id}`} position={Position.Right}
+              style={{ top: "50%", transform: "translateY(-50%)" }}
+              className="!bg-violet-500 !w-2.5 !h-2.5 !border-2 !border-[var(--color-surface-elevated)]"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Nó: departamento da Operação (OS) ───────────────────────────────────────
 // Recebe conexões (alvo, à esquerda) e mostra o funil do departamento, uma
 // linha por etapa. Cada etapa também é um ponto de SAÍDA: arrastar dela até outro
@@ -152,6 +180,8 @@ function ConnectionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition
   return (
     <>
       <path id={id} className="react-flow__edge-path" d={path} style={style} markerEnd="url(#automacao-arrow)" />
+      {/* Faixa invisível mais larga: facilita clicar na linha e soltar um componente em cima dela. */}
+      <path d={path} fill="none" stroke="transparent" strokeWidth={22} className="react-flow__edge-interaction" />
       <EdgeLabelRenderer>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
@@ -166,7 +196,7 @@ function ConnectionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition
   );
 }
 
-const nodeTypes = { funil: FunilNode, categorias: CategoriasNode, departamento: DepartamentoNode };
+const nodeTypes = { funil: FunilNode, categorias: CategoriasNode, produtos: ProdutosNode, departamento: DepartamentoNode };
 const edgeTypes = { conexao: ConnectionEdge };
 
 /** Canvas interativo (React Flow) pra montar "quando X acontece no CRM, cria
@@ -200,6 +230,17 @@ export function AutomationFunilConnections() {
     [products]
   );
   const departamentosAtivos = useMemo(() => (osDepartamentos as any[]).filter((d) => d.ativo), [osDepartamentos]);
+  // Produtos ativos (até 40) para rotear um produto específico a um departamento.
+  const produtosLista = useMemo(
+    () => (products as any[])
+      .filter((p) => p.active !== false && !p.deleted_at)
+      .map((p) => ({ id: String(p.id), nome: String(p.name ?? "Produto"), categoria: String(p.category ?? "") }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+      .slice(0, 40),
+    [products],
+  );
+  const [rf, setRf] = useState<ReactFlowInstance | null>(null);
+  const [arestaHover, setArestaHover] = useState<string | null>(null);
 
   const fetchRows = useCallback(async () => {
     if (!supabase) { setLoading(false); return; }
@@ -288,6 +329,15 @@ export function AutomationFunilConnections() {
       });
       y += HEADER_H + categorias.length * ROW_H + 24;
     }
+    if (produtosLista.length > 0) {
+      out.push({
+        id: "produtos", type: "produtos",
+        position: { x: 0, y },
+        data: { produtos: produtosLista },
+        draggable: true,
+      });
+      y += HEADER_H + produtosLista.length * ROW_H + 24;
+    }
     // Departamentos empilhados pela altura real (header + uma linha por etapa do funil).
     let yDep = 0;
     departamentosAtivos.forEach((d) => {
@@ -302,7 +352,7 @@ export function AutomationFunilConnections() {
       yDep += HEADER_H + etapas.length * ROW_H + 24;
     });
     return out;
-  }, [funisOrigem, categorias, departamentosAtivos, rows, funilPadraoDe]);
+  }, [funisOrigem, categorias, produtosLista, departamentosAtivos, rows, funilPadraoDe]);
 
   // Estado "de verdade" dos nós (React Flow precisa disso pra arrastar um nó
   // e ele FICAR onde foi solto — sem isso, qualquer recálculo de `rows`
@@ -327,10 +377,10 @@ export function AutomationFunilConnections() {
   const edges: Edge[] = useMemo(() => {
     return rows.map((row) => {
       const source = row.gatilho_tipo === "os_etapa" ? `dep:${row.gatilho_os_departamento_id}`
-        : row.gatilho_tipo === "funil_etapa" ? `funil:${row.gatilho_funil_id}` : "categorias";
+        : row.gatilho_tipo === "funil_etapa" ? `funil:${row.gatilho_funil_id}` : row.gatilho_tipo === "produto" ? "produtos" : "categorias";
       const sourceHandle = row.gatilho_tipo === "os_etapa" ? `os:${row.gatilho_os_etapa_id}`
-        : row.gatilho_tipo === "funil_etapa" ? `etapa:${row.gatilho_etapa_idx}` : `cat:${row.gatilho_categoria}`;
-      const selecionada = row.id === selectedId;
+        : row.gatilho_tipo === "funil_etapa" ? `etapa:${row.gatilho_etapa_idx}` : row.gatilho_tipo === "produto" ? `prod:${row.gatilho_produto_id}` : `cat:${row.gatilho_categoria}`;
+      const selecionada = row.id === selectedId || row.id === arestaHover;
       return {
         id: row.id, type: "conexao",
         source, sourceHandle, target: `dep:${row.os_departamento_id}`,
@@ -342,7 +392,7 @@ export function AutomationFunilConnections() {
         data: { onDelete: () => handleDelete(row) },
       } as Edge;
     });
-  }, [rows, selectedId, handleDelete]);
+  }, [rows, selectedId, arestaHover, handleDelete]);
 
   // ─── Nova conexão arrastada na tela ─────────────────────────────────────
   const onConnect = useCallback(async (conn: Connection) => {
@@ -363,6 +413,10 @@ export function AutomationFunilConnections() {
         nome: `${origem.nome} › ${etapaNome} → ${dep.nome}`,
         gatilho_tipo: "os_etapa", gatilho_os_departamento_id: origem.id, gatilho_os_etapa_id: etapaId, os_departamento_id: dep.id,
       };
+    } else if (conn.source === "produtos") {
+      const prodId = conn.sourceHandle.replace(/^prod:/, "");
+      const prod = produtosLista.find((p) => p.id === prodId);
+      payload = { nome: `${prod?.nome ?? "Produto"} → ${dep.nome}`, gatilho_tipo: "produto", gatilho_produto_id: prodId, os_departamento_id: dep.id };
     } else if (conn.source === "categorias") {
       const cat = conn.sourceHandle.replace(/^cat:/, "");
       payload = { nome: `${cat} → ${dep.nome}`, gatilho_tipo: "produto_categoria", gatilho_categoria: cat, os_departamento_id: dep.id };
@@ -383,7 +437,7 @@ export function AutomationFunilConnections() {
     }
     setRows((prev) => [data as ConnectionRow, ...prev]);
     toast.success(`Conectado: ${payload.nome}`);
-  }, [activeTenantId, departamentosAtivos, funisOrigem, funilPadraoDe]);
+  }, [activeTenantId, departamentosAtivos, funisOrigem, funilPadraoDe, produtosLista]);
 
   // Clicar numa linha agora SELECIONA a conexão (abre o painel de Propriedades
   // à esquerda, com condição + ações) em vez de pausar direto — pausar virou
@@ -433,9 +487,50 @@ export function AutomationFunilConnections() {
     if (error) toast.error("Não foi possível salvar.");
   }, []);
 
+  // Gatilhos (etapa, categoria, produto) já existem como nós no canvas: leva a tela até o nó certo.
+  const focarGatilho = useCallback((item: typeof PALETA[number]) => {
+    const alvo = item.id === "gat-produto" ? "produtos" : item.id === "gat-categoria" ? "categorias" : funisOrigem[0] ? `funil:${funisOrigem[0].id}` : null;
+    if (alvo && rf) rf.fitView({ nodes: [{ id: alvo }], duration: 450, maxZoom: 1, padding: 0.3 });
+    toast.message("Arraste do ponto do item (a bolinha à direita) até um departamento pra criar esse gatilho.");
+  }, [funisOrigem, rf]);
+
+  // Qual linha (conexão) está sob o cursor? (as linhas têm uma faixa de clique larga)
+  const arestaSobCursor = useCallback((x: number, y: number): string | null => {
+    for (const el of document.elementsFromPoint(x, y)) {
+      const id = (el.closest(".react-flow__edge") as HTMLElement | null)?.getAttribute("data-id");
+      if (id) return id;
+    }
+    return null;
+  }, []);
+
+  const onCanvasDragOver = useCallback((e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.types).includes("application/x-spy-paleta")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    const id = arestaSobCursor(e.clientX, e.clientY);
+    setArestaHover((cur) => (cur === id ? cur : id));
+  }, [arestaSobCursor]);
+
+  const onCanvasDrop = useCallback((e: React.DragEvent) => {
+    const itemId = e.dataTransfer.getData("application/x-spy-paleta");
+    if (!itemId) return;
+    e.preventDefault();
+    const item = PALETA.find((p) => p.id === itemId);
+    const sobLinha = arestaSobCursor(e.clientX, e.clientY);
+    setArestaHover(null);
+    if (!item) return;
+    if (!item.acaoTipo && !item.isCondicao) { focarGatilho(item); return; }
+    // Ação/condição pertencem a uma conexão: a linha sob o cursor, a selecionada, ou a única que existe.
+    const alvo = sobLinha ?? selectedId ?? (rows.length === 1 ? rows[0].id : null);
+    if (!alvo) { toast.message("Solte o componente em cima de uma linha (conexão) do canvas."); return; }
+    setSelectedId(alvo);
+    setAbaSidebar("propriedades");
+    if (item.acaoTipo) { adicionarAcao(alvo, item.acaoTipo); toast.success(`"${item.nome}" adicionado à conexão.`); }
+  }, [arestaSobCursor, focarGatilho, selectedId, rows, adicionarAcao]);
+
   const handlePaletaClick = useCallback((item: typeof PALETA[number]) => {
     if (!item.acaoTipo && !item.isCondicao) {
-      toast.message("Arraste uma etapa do funil (ou categoria) até um departamento no canvas pra criar esse gatilho.");
+      focarGatilho(item);
       return;
     }
     if (!selectedId) {
@@ -445,7 +540,7 @@ export function AutomationFunilConnections() {
     if (item.isCondicao) { setAbaSidebar("propriedades"); return; }
     if (item.acaoTipo) adicionarAcao(selectedId, item.acaoTipo);
     setAbaSidebar("propriedades");
-  }, [selectedId, adicionarAcao]);
+  }, [selectedId, adicionarAcao, focarGatilho]);
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-faint)]" /></div>;
@@ -495,7 +590,7 @@ export function AutomationFunilConnections() {
       </div>
 
       <p className="text-[11px] text-[var(--color-text-muted)]">
-        Arraste uma linha de uma etapa (ou categoria) até um departamento pra criar a conexão. Clique numa linha pra selecioná-la e configurar condição/ações; no "×" no meio dela pra remover.
+        Arraste uma linha de uma etapa, categoria ou produto até um departamento pra criar a conexão. Arraste um componente da lateral (ação ou condição) em cima de uma linha pra adicioná-lo a ela; clique na linha pra configurar e no "×" pra remover.
       </p>
 
       <div className="flex flex-col lg:flex-row gap-3 lg:h-[68dvh]">
@@ -534,8 +629,12 @@ export function AutomationFunilConnections() {
                         <button
                           key={item.id}
                           type="button"
+                          draggable
+                          onDragStart={(e) => { e.dataTransfer.setData("application/x-spy-paleta", item.id); e.dataTransfer.effectAllowed = "copy"; }}
+                          onDragEnd={() => setArestaHover(null)}
                           onClick={() => handlePaletaClick(item)}
-                          className="w-full flex items-center gap-2 px-2 py-2.5 lg:py-2 rounded-lg hover:bg-[var(--color-surface-sunken)] transition-colors text-left"
+                          title="Arraste para o canvas (em cima de uma linha) ou clique"
+                          className="w-full flex items-center gap-2 px-2 py-2.5 lg:py-2 rounded-lg hover:bg-[var(--color-surface-sunken)] transition-colors text-left cursor-grab active:cursor-grabbing"
                         >
                           <span className="w-7 h-7 rounded-lg bg-[var(--color-primary-blue)]/10 flex items-center justify-center shrink-0"><item.icon className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /></span>
                           <span className="min-w-0">
@@ -611,12 +710,13 @@ export function AutomationFunilConnections() {
         </div>
 
         {/* Canvas */}
-        <div className="order-1 lg:order-2 h-[58dvh] lg:h-auto lg:flex-1 rounded-2xl overflow-hidden border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]">
+        <div onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={() => setArestaHover(null)} className="order-1 lg:order-2 h-[58dvh] lg:h-auto lg:flex-1 rounded-2xl overflow-hidden border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]">
           <ReactFlow
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
+            onInit={setRf}
             onNodesChange={onNodesChange}
             onConnect={onConnect}
             onEdgeClick={onEdgeClick}
@@ -639,7 +739,7 @@ export function AutomationFunilConnections() {
             <MiniMap
               className="!hidden sm:!block"
               pannable zoomable
-              nodeColor={(n) => (n.type === "funil" ? "#2563EB" : n.type === "categorias" ? "#f59e0b" : "#10b981")}
+              nodeColor={(n) => (n.type === "funil" ? "#2563EB" : n.type === "categorias" ? "#f59e0b" : n.type === "produtos" ? "#8b5cf6" : "#10b981")}
               maskColor="rgba(0,0,0,0.06)"
               style={{ backgroundColor: "var(--color-surface-elevated)" }}
             />
@@ -656,6 +756,7 @@ export function AutomationFunilConnections() {
                 <span className="flex items-center gap-1.5 font-bold text-[var(--color-text-faint)] uppercase tracking-wide"><Info className="w-2.5 h-2.5" /> Legenda</span>
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)]" /> Funil do CRM (etapa)</span>
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-warning" /> Categoria de produto</span>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-violet-500" /> Produto específico</span>
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-success" /> Departamento (OS)</span>
               </div>
             </Panel>
