@@ -35,19 +35,29 @@ export function ConfigEmpresaPermissoes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCargo, setEditingCargo] = useState<any | null>(null);
 
-  // Quem usa o sistema, por cargo: o acesso é aplicado pelo texto exato de users.role = cargos.nome.
-  const [papeis, setPapeis] = useState<string[] | null>(null);
+  // Quem usa o sistema, por cargo: cada pessoa conta em TODOS os cargos que tem
+  // (colaboradores.cargos; na falta, o cargo do login, users.role).
+  const [papeis, setPapeis] = useState<string[][] | null>(null);
   useEffect(() => {
     if (!supabase || !activeTenantId) return;
     let vivo = true;
-    supabase.from("users").select("role").eq("tenant_id", activeTenantId).is("deleted_at", null).eq("active", true)
-      .then(({ data }: any) => { if (vivo) setPapeis((data || []).map((u: any) => String(u.role ?? "").trim())); });
+    Promise.all([
+      supabase.from("users").select("id,email,role").eq("tenant_id", activeTenantId).is("deleted_at", null).eq("active", true),
+      supabase.from("colaboradores").select("user_id,email,cargos").eq("tenant_id", activeTenantId),
+    ]).then(([u, c]: any[]) => {
+      if (!vivo) return;
+      const colabs: any[] = c?.data || [];
+      setPapeis((u?.data || []).map((usr: any) => {
+        const colab = colabs.find((x) => (x.user_id === usr.id || (x.email && x.email === usr.email)) && Array.isArray(x.cargos) && x.cargos.length > 0);
+        return colab ? (colab.cargos as string[]) : [String(usr.role ?? "").trim()];
+      }));
+    });
     return () => { vivo = false; };
   }, [activeTenantId]);
 
   const pessoasPorCargo = useMemo(() => {
     const mapa = new Map<string, number>();
-    for (const r of papeis || []) mapa.set(r, (mapa.get(r) ?? 0) + 1);
+    for (const lista of papeis || []) for (const r of new Set(lista)) mapa.set(r, (mapa.get(r) ?? 0) + 1);
     return mapa;
   }, [papeis]);
 

@@ -1,3 +1,4 @@
+import { restritoAosProprios } from "./cargosUsuario";
 /**
  * Escopo de vendedor: quem tem um cargo marcado com "Restringir aos próprios
  * dados" (cargos.restringir_aos_proprios_dados) enxerga só o que é dele —
@@ -35,6 +36,8 @@ export interface SellerScopeUser {
   id?: string;
   name?: string;
   role?: string;
+  /** Cargos da pessoa (colaboradores.cargos); a restrição só vale se todos restringirem. */
+  roles?: string[];
   isMaster?: boolean;
   isTenantAdmin?: boolean;
 }
@@ -42,8 +45,7 @@ export interface SellerScopeUser {
 /** O usuário está restrito aos próprios dados? (cargo com a opção ligada) */
 export function isSellerRestricted(user: SellerScopeUser | null | undefined, cargos: any[]): boolean {
   if (!user || user.isMaster || user.isTenantAdmin) return false;
-  const cargo = (cargos || []).find((c) => c.nome === user.role);
-  return !!cargo?.restringir_aos_proprios_dados;
+  return restritoAosProprios(user, cargos);
 }
 
 export interface SellerScopeInput {

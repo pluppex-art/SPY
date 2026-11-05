@@ -1,3 +1,4 @@
+import { CargosMultiSelect, cargosIniciais } from "../../CargosMultiSelect";
 import React, { useEffect, useState } from "react";
 import { Pencil } from "lucide-react";
 import { Modal } from "../../modal";
@@ -22,6 +23,7 @@ export function EditarMembroModal({ isOpen, onClose, onSave, member, squads }: E
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [cargo, setCargo] = useState("");
+  const [cargosSel, setCargosSel] = useState<string[]>([]);
   const [status, setStatus] = useState("Ativo");
   const [squad, setSquad] = useState("");
   const [metaMensal, setMetaMensal] = useState("");
@@ -34,6 +36,7 @@ export function EditarMembroModal({ isOpen, onClose, onSave, member, squads }: E
     setEmail(member.email || "");
     setPhone(member.phone || "");
     setCargo(member.role || "");
+    setCargosSel(cargosIniciais(member.cargos, member.role, cargos));
     setStatus(member.status || "Ativo");
     setSquad(member.squad || "");
     setMetaMensal(member.metaMensal ? String(member.metaMensal) : "");
@@ -49,7 +52,8 @@ export function EditarMembroModal({ isOpen, onClose, onSave, member, squads }: E
         name: nome.trim(),
         email: email.trim(),
         phone: phone.trim(),
-        role: cargo.trim(),
+        role: cargosSel.length > 0 ? cargosSel.join(" / ") : cargo.trim(),
+        cargos: cargosSel,
         status,
         squad,
         metaMensal: Number(String(metaMensal).replace(/\./g, "").replace(",", ".")) || 0,
@@ -107,13 +111,11 @@ export function EditarMembroModal({ isOpen, onClose, onSave, member, squads }: E
             <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputBaseClass} placeholder="(11) 99999-9999" />
           </div>
           <div className="space-y-2">
-            <label className={labelClass}>Cargo / Função</label>
-            <select value={cargo} onChange={e => setCargo(e.target.value)} className={inputBaseClass}>
-                <option value="">Selecione um cargo...</option>
-                {cargos.map(c => (
-                  <option key={c.id} value={c.nome}>{c.nome}</option>
-                ))}
-              </select>
+            <label className={labelClass}>Cargo(s) / Área(s)</label>
+            <CargosMultiSelect value={cargosSel} onChange={setCargosSel} options={cargos} />
+            {cargosSel.length === 0 && cargo && (
+              <p className="text-[11px] text-slate-400">Cargo atual (texto antigo): <strong>{cargo}</strong>. Escolha acima para vincular às permissões.</p>
+            )}
           </div>
         </div>
 

@@ -13,6 +13,8 @@ export interface TeamMember {
   revenue: string;
   status: string;
   squad: string;
+  /** Cargos/áreas da pessoa (ex.: Administrador + Dev); `role` guarda o texto "A / B". */
+  cargos?: string[];
   /** Meta mensal de receita (R$) — alimenta "meta x realizado" em Central de Receita > Vendedores. */
   metaMensal?: number;
 }
@@ -40,6 +42,7 @@ function rowToMember(row: any, idx: number): TeamMember {
     revenue: row.revenue || 'R$ 0',
     status: row.status || 'Ativo',
     squad: row.squad || 'Sem squad',
+    cargos: Array.isArray(row.cargos) ? row.cargos : [],
     metaMensal: Number(row.meta_mensal) || 0,
   };
 }
@@ -85,6 +88,7 @@ export function useEquipe() {
       id: member.id || `colab-${Date.now()}`,
       nome: member.name,
       cargo: member.role,
+      cargos: member.cargos || [],
       email: member.email,
       phone: member.phone,
       deals: member.deals || 0,
@@ -99,6 +103,7 @@ export function useEquipe() {
     await updateColaborador(id, {
       ...(member.name !== undefined ? { nome: member.name } : {}),
       ...(member.role !== undefined ? { cargo: member.role } : {}),
+      ...(member.cargos !== undefined ? { cargos: member.cargos } : {}),
       ...(member.email !== undefined ? { email: member.email } : {}),
       ...(member.phone !== undefined ? { phone: member.phone } : {}),
       ...(member.status !== undefined ? { status: member.status } : {}),

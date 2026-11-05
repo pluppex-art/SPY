@@ -1,3 +1,4 @@
+import { CargosMultiSelect } from "../../CargosMultiSelect";
 import React, { useEffect, useMemo, useState } from "react";
 import { UserPlus, ShieldCheck, Eye, EyeOff, User, Mail, Phone, Briefcase, Building2, Users, Lock, Link2, Info, MapPin, Loader2 } from "lucide-react";
 import { Modal } from "../../modal";
@@ -11,7 +12,12 @@ export type NovoMembroPayload = {
   email: string;
   phone: string;
   senha: string;
+  /** Cargo principal (vira o cargo do login). */
   cargo: string;
+  /** Todos os cargos/áreas da pessoa (o principal é o primeiro). */
+  cargos?: string[];
+  /** Texto "A / B" para exibição. */
+  cargoTexto?: string;
   departamento: string;
   squad: string;
   filialId: string;
@@ -65,6 +71,7 @@ export function NovoMembroModal({
   const [modoAcesso, setModoAcesso] = useState<"senha" | "convite">("senha");
   const [tentou, setTentou] = useState(false);
   const [cargo, setCargo] = useState(initialValue?.cargo || "");
+  const [cargosSel, setCargosSel] = useState<string[]>([]);
   const [departamento, setDepartamento] = useState(initialValue?.departamento || "");
   const [squad, setSquad] = useState("");
   const [filialId, setFilialId] = useState(initialValue?.filialId || "");
@@ -84,6 +91,7 @@ export function NovoMembroModal({
     setModoAcesso("senha");
     setTentou(false);
     setCargo(initialValue?.cargo || "");
+    setCargosSel([]);
     setDepartamento(initialValue?.departamento || "");
     setSquad("");
     setFilialId(initialValue?.filialId || "");
@@ -116,7 +124,9 @@ export function NovoMembroModal({
         phone: phone.trim(),
         senha: modoAcesso === "senha" && senha ? senha : generateTempPassword(),
         modoAcesso,
-        cargo: cargo.trim() || "Colaborador",
+        cargo: cargosSel[0] || cargo.trim() || "Colaborador",
+        cargos: cargosSel,
+        cargoTexto: cargosSel.length > 0 ? cargosSel.join(" / ") : (cargo.trim() || "Colaborador"),
         departamento: departamento.trim() || "Geral",
         squad: squad.trim(),
         filialId,
@@ -166,18 +176,21 @@ export function NovoMembroModal({
                 <input type="tel" placeholder="(11) 98765-4321" value={phone} onChange={(e) => setPhone(e.target.value)} className={fieldClass} />
               </div>
             </Field>
-            <Field label="Cargo / Função" hint="Se vazio, será “Colaborador”.">
-              <div className={wrapClass()}>
-                <span className={iconBox}><Briefcase className="w-4 h-4" /></span>
-                <select value={cargo} onChange={(e) => setCargo(e.target.value)} className={`${fieldClass} cursor-pointer`}>
-                  <option value="">Selecione...</option>
-                  {cargos.map((c) => (<option key={c.id} value={c.nome}>{c.nome}</option>))}
-                  <option value="SDR / Pré-Vendas">SDR / Pré-Vendas</option>
-                  <option value="Closer / Executivo">Closer / Executivo</option>
-                  <option value="Gerente Comercial">Gerente Comercial</option>
-                  <option value="Analista de Suporte">Analista de Suporte</option>
-                </select>
-              </div>
+            <Field label="Cargo(s) / Área(s)" hint="Pode escolher mais de uma (ex.: Administrador + Dev). Se vazio, será “Colaborador”.">
+              {cargos.length > 0 ? (
+                <CargosMultiSelect value={cargosSel} onChange={setCargosSel} options={cargos} />
+              ) : (
+                <div className={wrapClass()}>
+                  <span className={iconBox}><Briefcase className="w-4 h-4" /></span>
+                  <select value={cargo} onChange={(e) => setCargo(e.target.value)} className={`${fieldClass} cursor-pointer`}>
+                    <option value="">Selecione...</option>
+                    <option value="SDR / Pré-Vendas">SDR / Pré-Vendas</option>
+                    <option value="Closer / Executivo">Closer / Executivo</option>
+                    <option value="Gerente Comercial">Gerente Comercial</option>
+                    <option value="Analista de Suporte">Analista de Suporte</option>
+                  </select>
+                </div>
+              )}
             </Field>
             <Field label="Departamento" hint="Se vazio, será “Geral”.">
               <div className={wrapClass()}>

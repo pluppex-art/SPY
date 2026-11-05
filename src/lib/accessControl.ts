@@ -1,4 +1,7 @@
 import { navSections } from "../components/layout/navData";
+import { modulosDoCargo } from "./cargosUsuario";
+
+export { modulosDoCargo };
 
 /**
  * Regra única de acesso por perfil (cargo) às páginas do sistema.
@@ -11,12 +14,6 @@ import { navSections } from "../components/layout/navData";
  */
 
 const FAMILIA_CATALOGO = ["catalogo", "imobiliaria", "automotivo", "concessionaria", "varejo"];
-
-/** Módulos liberados ao cargo do usuário; `null` = sem restrição (cargo sem lista, ou usuário sem cargo). */
-export function modulosDoCargo(user: any, cargos: any[]): string[] | null {
-  const cargo = (cargos || []).find((c: any) => c.nome === user?.role);
-  return cargo && Array.isArray(cargo.modulos) && cargo.modulos.length > 0 ? cargo.modulos : null;
-}
 
 /** O módulo do menu (ex.: "agenda", "catalogo-produtos") é liberado por algum módulo do cargo? */
 export function cargoPermiteModulo(modulos: string[] | null, mod: string): boolean {

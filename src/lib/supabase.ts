@@ -145,6 +145,20 @@ export async function fetchUserProfile(userId: string): Promise<{ success: boole
     return { success: false, error: "Usuário não possui uma empresa (tenant) vinculada." };
   }
 
+  // Cargos/áreas da pessoa (ex.: Administrador + Dev), gravados no cadastro de colaborador.
+  let roles: string[] = [];
+  try {
+    const { data: colabs } = await supabase
+      .from("colaboradores")
+      .select("cargos")
+      .eq("tenant_id", tenant.id)
+      .or(`user_id.eq.${data.id},email.eq."${String(data.email).replace(/"/g, "")}"`);
+    const achado = (colabs || []).find((c: any) => Array.isArray(c.cargos) && c.cargos.length > 0);
+    if (achado) roles = achado.cargos as string[];
+  } catch {
+    /* sem o cadastro de colaborador, vale só o role do login */
+  }
+
   return {
     success: true,
     user: {
@@ -152,6 +166,7 @@ export async function fetchUserProfile(userId: string): Promise<{ success: boole
       name: data.name,
       email: data.email,
       role: data.role,
+      roles: roles.length > 0 ? roles : [data.role],
       tenantId: tenant.id,
       tenantName: tenant.name,
       tenantNiche: tenant.niche,

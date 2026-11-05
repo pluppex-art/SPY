@@ -1,3 +1,5 @@
+import { modulosDoCargo } from "./cargosUsuario";
+
 /** IAs que atendem pelo WhatsApp (cada IA tem o próprio número/instância). Usadas no filtro de IA da Mensageria. */
 export type IaAgentId = "sdr" | "cs" | "chatbot";
 
@@ -17,8 +19,7 @@ export function podeVerIa(user: any, cargos: any[], id: IaAgentId): boolean {
   if (user?.isMaster || user?.isTenantAdmin) return true;
   const agente = IA_AGENTS.find((a) => a.id === id);
   if (!agente) return false;
-  const cargo = (cargos || []).find((c: any) => c.nome === user?.role);
-  const modulos: string[] | null = cargo && Array.isArray(cargo.modulos) && cargo.modulos.length > 0 ? cargo.modulos : null;
+  const modulos: string[] | null = modulosDoCargo(user, cargos);
   if (!modulos) return true;
   return modulos.includes(agente.modulo);
 }

@@ -8,7 +8,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { navSections, conditionCheckers, type NavReqCondition } from "./navData";
 import { useUsaOsImplementacao } from "../../pages/os/hooks/useUsaOsImplementacao";
 import { Logo } from "../ui/Logo";
-import { cargoPermiteModulo } from "../../lib/accessControl";
+import { cargoPermiteModulo, modulosDoCargo } from "../../lib/accessControl";
 
 interface SidebarProps {
   isSidebarCollapsed: boolean;
@@ -71,10 +71,7 @@ export function Sidebar({
   const tenantOptions = Object.entries(tenantIdMap).map(([name, id]) => ({ id, name }));
   const canSwitchTenant = (!!user?.isMaster || !!user?.partnerId) && tenantOptions.length > 1;
   const canSwitchFilial = !!(user?.isMaster || user?.isTenantAdmin) && empresaFiliais.length > 0;
-  const userCargo = cargos.find(c => c.nome === user?.role);
-  const cargoModulos: string[] | null = userCargo && Array.isArray(userCargo.modulos) && userCargo.modulos.length > 0
-    ? userCargo.modulos
-    : null;
+  const cargoModulos: string[] | null = modulosDoCargo(user, cargos);
   const checkModule = (mod: string) => {
     if (mod === "automotivo" || mod === "concessionaria") return isModuleEnabled("automotivo") || isModuleEnabled("concessionaria");
     if (mod === "catalogo-produtos") return isModuleEnabled("catalogo") || isModuleEnabled("imobiliaria") || isModuleEnabled("automotivo") || isModuleEnabled("concessionaria") || isModuleEnabled("varejo");

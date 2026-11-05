@@ -1,3 +1,4 @@
+import { CargosMultiSelect, cargosIniciais } from "../../CargosMultiSelect";
 import { useEffect, useState } from "react";
 import { Pencil, ShieldCheck, User, Mail, Phone, Briefcase, Building2, Users, MapPin, Activity, Gauge } from "lucide-react";
 import { useData } from "../../../../contexts/DataContext";
@@ -37,10 +38,12 @@ export function EditarColabModal({ colab, onClose, onSave, canGrantTenantAccess 
   const [permiteTrocarEmpresa, setPermiteTrocarEmpresa] = useState(false);
   const [permiteTrocarEmpresaInicial, setPermiteTrocarEmpresaInicial] = useState(false);
   const [tentou, setTentou] = useState(false);
+  const [cargosSel, setCargosSel] = useState<string[]>([]);
 
   useEffect(() => {
     if (colab) {
       setTentou(false);
+      setCargosSel(cargosIniciais(colab.cargos, colab.cargo, cargosCadastrados));
       setForm({
         nome: colab.nome || "",
         cargo: colab.cargo || "",
@@ -72,6 +75,7 @@ export function EditarColabModal({ colab, onClose, onSave, canGrantTenantAccess 
   }, [colab?.user_id, canGrantTenantAccess]);
 
   const { cargos, squads } = useData();
+  const cargosCadastrados = cargos;
   const departamentoOptions = useDepartamentoOptions();
 
   if (!colab) return null;
@@ -89,7 +93,7 @@ export function EditarColabModal({ colab, onClose, onSave, canGrantTenantAccess 
       ? { userId: colab.user_id, enabled: permiteTrocarEmpresa }
       : undefined;
     // filial_id é FK: "sem filial" precisa ir como null, nunca como string vazia.
-    onSave(colab.id, { ...form, nome: form.nome.trim(), email: form.email.trim(), filial_id: form.filial_id || null }, tenantAccess);
+    onSave(colab.id, { ...form, cargo: cargosSel.length > 0 ? cargosSel.join(" / ") : form.cargo, cargos: cargosSel, nome: form.nome.trim(), email: form.email.trim(), filial_id: form.filial_id || null }, tenantAccess);
     onClose();
   };
 
@@ -140,15 +144,11 @@ export function EditarColabModal({ colab, onClose, onSave, canGrantTenantAccess 
         <section className="space-y-3 pt-4 border-t border-[var(--color-border-subtle)]">
           <SectionTitle>Função na Equipe</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Cargo / Função">
-              <div className={wrapClass()}>
-                <span className={iconBox}><Briefcase className="w-4 h-4" /></span>
-                <select value={form.cargo} onChange={e => set("cargo", e.target.value)} className={`${fieldClass} cursor-pointer`}>
-                  <option value="">Selecione um cargo...</option>
-                  {form.cargo && !cargos.some(c => c.nome === form.cargo) && <option value={form.cargo}>{form.cargo}</option>}
-                  {cargos.map(c => (<option key={c.id} value={c.nome}>{c.nome}</option>))}
-                </select>
-              </div>
+            <Field label="Cargo(s) / Área(s)">
+              <CargosMultiSelect value={cargosSel} onChange={setCargosSel} options={cargos} />
+              {cargosSel.length === 0 && form.cargo && (
+                <p className="text-[11px] text-[var(--color-text-muted)] mt-1">Cargo atual (texto antigo): <strong>{form.cargo}</strong>. Escolha acima para vincular às permissões.</p>
+              )}
             </Field>
             <Field label="Departamento">
               <div className={wrapClass()}>

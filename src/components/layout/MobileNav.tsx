@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { navSections, conditionCheckers, type NavReqCondition } from "./navData";
 import { useUsaOsImplementacao } from "../../pages/os/hooks/useUsaOsImplementacao";
-import { cargoPermiteModulo } from "../../lib/accessControl";
+import { cargoPermiteModulo, modulosDoCargo } from "../../lib/accessControl";
 
 interface MobileNavProps {
   isMobileMoreOpen: boolean;
@@ -26,10 +26,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
   const { cargos } = useData();
   const usaOsImplementacao = useUsaOsImplementacao();
 
-  const userCargo = cargos.find((c: any) => c.nome === user?.role);
-  const cargoModulos: string[] | null = userCargo && Array.isArray(userCargo.modulos) && userCargo.modulos.length > 0
-    ? userCargo.modulos
-    : null;
+  const cargoModulos: string[] | null = modulosDoCargo(user, cargos);
   const checkModule = (mod: string) => {
     if (mod === "automotivo" || mod === "concessionaria") return isModuleEnabled("automotivo") || isModuleEnabled("concessionaria");
     if (mod === "catalogo-produtos") return isModuleEnabled("catalogo") || isModuleEnabled("imobiliaria") || isModuleEnabled("automotivo") || isModuleEnabled("concessionaria") || isModuleEnabled("varejo");

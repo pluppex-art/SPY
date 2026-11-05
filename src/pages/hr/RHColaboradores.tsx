@@ -195,7 +195,8 @@ export default function RHColaboradores() {
       nome: data.nome,
       email: data.email,
       phone: data.phone || "",
-      cargo: data.cargo,
+      cargo: data.cargoTexto ?? data.cargo,
+      cargos: Array.isArray(data.cargos) ? data.cargos : [],
       departamento: data.departamento,
       squad: data.squad || "",
       status: "Ativo",
@@ -226,9 +227,12 @@ export default function RHColaboradores() {
     // para nunca rebaixar quem já era administrador por outro motivo.
     const anterior = (colaboradores as any[]).find((c) => c.id === id);
     const ehAdm = (c?: string) => (c || "").trim().toLowerCase() === "administrador";
-    if (supabase && anterior?.user_id && updates?.cargo !== undefined && ehAdm(updates.cargo) !== ehAdm(anterior.cargo)) {
+    // A pessoa pode ter várias áreas: é administradora se QUALQUER cargo for "Administrador".
+    const listaDeCargos = (c: any): string[] => (Array.isArray(c?.cargos) && c.cargos.length > 0 ? c.cargos : c?.cargo ? [c.cargo] : []);
+    const cargosNovos = updates?.cargos !== undefined || updates?.cargo !== undefined ? listaDeCargos(updates) : null;
+    if (supabase && anterior?.user_id && cargosNovos && cargosNovos.some(ehAdm) !== listaDeCargos(anterior).some(ehAdm)) {
       const { error: roleError } = await supabase.from("users")
-        .update({ role: updates.cargo || "Colaborador", is_tenant_admin: ehAdm(updates.cargo) })
+        .update({ role: cargosNovos[0] || "Colaborador", is_tenant_admin: cargosNovos.some(ehAdm) })
         .eq("id", anterior.user_id);
       if (roleError) toast.error(`Cargo salvo, mas não foi possível atualizar o acesso de administrador: ${roleError.message}`);
     }

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useData } from "../contexts/DataContext";
+import { modulosDoCargo } from "../lib/cargosUsuario";
 
 // Mesmos aliases do Sidebar/MobileNav para chaves de módulo equivalentes.
 const MODULE_ALIASES: Record<string, string[]> = {
@@ -97,11 +98,7 @@ export function ProtectedRoute({
   }
 
   if (requireModule && !user.isMaster) {
-    const userCargo = cargos.find((c) => c.nome === user.role);
-    const cargoModulos: string[] | null =
-      userCargo && Array.isArray(userCargo.modulos) && userCargo.modulos.length > 0
-        ? userCargo.modulos
-        : null;
+    const cargoModulos: string[] | null = modulosDoCargo(user, cargos as any[]);
     const aliasesCargo = MODULE_ALIASES[requireModule] || [requireModule];
     if (cargoModulos && !cargoModulos.some((m) => aliasesCargo.includes(m))) {
       return <Navigate to="/app" replace />;

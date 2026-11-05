@@ -10,6 +10,8 @@ export interface UserSession {
   name: string;
   email: string;
   role: string;
+  /** Cargos/áreas da pessoa (colaboradores.cargos); vazio = só o `role` do login. Permissões = soma dos cargos. */
+  roles?: string[];
   tenantId?: string;
   tenantName: string;
   tenantNiche: TenantNiche;

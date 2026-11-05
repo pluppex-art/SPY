@@ -29,7 +29,8 @@ export default function Equipe() {
   const handleSaveMember = async (data: any) => {
     await addMember({
       name: data.nome,
-      role: data.cargo,
+      role: data.cargoTexto ?? data.cargo,
+      cargos: Array.isArray(data.cargos) ? data.cargos : [],
       email: data.email,
       phone: data.phone || "",
       deals: 0,
