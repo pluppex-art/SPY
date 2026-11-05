@@ -167,7 +167,7 @@ export function computeVendedores(
   const limpaNome = (n: string) => String(n || "Produto").replace(/\s*\((Assinatura|Taxa)[^)]*\)\s*$/i, "").replace(/^Taxa de Implanta[^—]*—\s*/i, "Implantação — ").trim();
 
   const cargosVendedor = new Set((dados.cargos || []).filter((c) => c.restringir_aos_proprios_dados).map((c) => c.nome));
-  const colabVend = (dados.colaboradores || []).filter((c) => cargosVendedor.has(c.cargo) && (c.status || "Ativo") === "Ativo");
+  const colabVend = (dados.colaboradores || []).filter((c) => (Array.isArray(c.cargos) && c.cargos.length > 0 ? c.cargos : [c.cargo]).some((n: string) => cargosVendedor.has(n)) && (c.status || "Ativo") === "Ativo");
   const { clusters, porTexto } = agruparVendedores(dados.leads, colabVend);
 
   const propostasPorLead = new Map<string, any[]>();
