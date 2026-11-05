@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ModeloPassosEditor } from "./ModeloPassosEditor";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Plus, ChevronDown, ChevronRight, Pencil, Trash2, ToggleLeft, ToggleRight, Layers, Check, Star } from "lucide-react";
 import { toast } from "sonner";
@@ -429,6 +430,8 @@ export function ConfigOSFunis() {
                   </DragDropContext>
                 </div>
               )}
+
+              {aberto && <ModeloPassosEditor departamentoId={d.id} nome={d.nome} />}
             </Card>
           );
         })}

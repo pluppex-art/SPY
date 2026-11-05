@@ -1,3 +1,4 @@
+import { semearModeloPassos } from "./useOsPassos";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../../../lib/supabase";
@@ -6,6 +7,7 @@ import { useData } from "../../../contexts/DataContext";
 import { syncImplementationConclusion } from "../../../lib/implementationStage";
 import {
   OS_DEPARTAMENTOS_SUGERIDOS,
+  OS_PASSOS_SUGERIDOS,
   OS_TEMPLATES,
   OS_FLUXO_GERAL,
   etapasFromSeed,
@@ -162,6 +164,9 @@ export function useOS() {
     const d = rowToDepartamento(dep);
     setDepartamentos(prev => [...prev, d]);
     setFunis(prev => [...prev, rowToFunil(fun)]);
+    // Departamento de tipo conhecido (Dev, Tráfego...) já nasce com o passo a passo sugerido; dá para editar em Configurações.
+    const chave = Object.keys(OS_PASSOS_SUGERIDOS).find(k => k.toLowerCase() === nome.trim().toLowerCase());
+    if (chave) void semearModeloPassos(tenantId, dep.id, OS_PASSOS_SUGERIDOS[chave]);
     return d;
   };
 

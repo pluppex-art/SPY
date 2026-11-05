@@ -1,3 +1,4 @@
+import { OsPassosPanel } from "../os/components/OsPassosPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Plus, Printer, Save, Trash2, Package } from "lucide-react";
@@ -309,6 +310,13 @@ export default function OrdemServicoDetalhe() {
             </div>
           )}
         </Card>
+
+        {/* Passo a passo do departamento (cada passo com responsável; salva na hora, sem o botão Salvar) */}
+        {os.departamento_id && (
+          <Card className="p-5">
+            <OsPassosPanel ordemId={os.id} departamentoId={os.departamento_id} desabilitado={locked} />
+          </Card>
+        )}
 
         {/* Condições */}
         <Card className="p-5 space-y-3">

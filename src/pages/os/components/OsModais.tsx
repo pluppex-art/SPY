@@ -5,6 +5,7 @@ import { OS_STATUS_TONE, isOsLocked, osCode } from "../../../lib/ordemServico";
 import { cn } from "../../../lib/utils";
 import type { NovaOrdemPayload, OrdemPatch } from "../hooks/useOS";
 import { ClientePicker } from "./ClientePicker";
+import { OsPassosPanel } from "./OsPassosPanel";
 import { OS_ORIGEM_LABEL, OS_PRIORIDADES, type OrdemServico, type OsDepartamento, type OsEtapa, type OsFunil, type OsPrioridade } from "../osTypes";
 
 const inputCls =
@@ -238,6 +239,9 @@ export function DetalheOsModal({
               <label className={labelCls}>Cliente / projeto</label>
               <input defaultValue={ordem.clienteNome} onBlur={e => salvarCampo("clienteNome", e.target.value)} className={inputCls} />
             </div>
+          </div>
+          <div className="border-t border-[var(--color-border-subtle)] pt-4">
+            <OsPassosPanel ordemId={ordem.id} departamentoId={ordem.departamentoId} desabilitado={travada} />
           </div>
           <p className="text-[10px] text-[var(--color-text-faint)]">
             {ordem.origemTipo && <>Origem: {OS_ORIGEM_LABEL[ordem.origemTipo] ?? ordem.origemTipo} · </>}

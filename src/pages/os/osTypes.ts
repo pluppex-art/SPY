@@ -150,6 +150,31 @@ export const OS_DEPARTAMENTOS_SUGERIDOS: OsDepartamentoTemplate[] = [
   { nome: "Produtos", cor: "amber", etapas: OS_FLUXO_GERAL },
 ];
 
+/**
+ * Passo a passo sugerido por tipo de departamento. Vira o MODELO do departamento (editável em Configurações)
+ * e é copiado para cada OS nova, onde cada passo ganha responsável, prazo e andamento.
+ */
+export const OS_PASSOS_SUGERIDOS: Record<string, string[]> = {
+  "Dev": [
+    "Backlog: levantar e priorizar o que será feito", "Kickoff e alinhamento com o cliente", "Levantamento de requisitos",
+    "Protótipo / design das telas", "Aprovação do escopo", "Repositório e ambientes (dev, homologação, produção)",
+    "Desenvolvimento", "Code review", "Testes e QA", "Homologação com o cliente", "Deploy em produção",
+    "Treinamento e documentação", "Entrega e acompanhamento pós-entrega",
+  ],
+  "Tráfego": [
+    "Briefing e objetivo da campanha", "Acesso às contas de anúncio", "Pixel e conversões instalados", "Público e orçamento",
+    "Criativos aprovados", "Estrutura das campanhas", "Revisão e aprovação do cliente", "Publicação",
+    "Acompanhamento diário", "Otimização semanal", "Relatório mensal",
+  ],
+  "Conteúdo": [
+    "Briefing e linha editorial", "Pauta do período", "Roteiros e legendas", "Gravação / captação", "Edição e design",
+    "Revisão interna", "Aprovação do cliente", "Agendamento", "Publicação", "Métricas e relatório",
+  ],
+  "Serviços": ["Levantamento do pedido", "Agendamento", "Execução do serviço", "Conferência de qualidade", "Entrega ao cliente", "Pós-serviço e avaliação", "Faturamento"],
+  "Produtos": ["Confirmar pedido e pagamento", "Separação", "Embalagem", "Envio", "Confirmação de recebimento", "Pós-venda"],
+  "Implementação": ["Contrato e dados do cliente", "Agendar kickoff", "Configuração inicial", "Migração de dados", "Treinamento da equipe", "Testes e homologação", "Go-live", "Acompanhamento pós go-live"],
+};
+
 export interface OsTemplate {
   id: string;
   nome: string;
