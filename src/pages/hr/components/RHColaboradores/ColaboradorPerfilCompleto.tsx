@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
-import { Mail, Phone, Calendar, Building2, Users, ShieldCheck, Sparkles, Eye, UserRound } from "lucide-react";
+import { Mail, Phone, Calendar, Building2, Users, ShieldCheck, Sparkles, Eye, UserRound, Target } from "lucide-react";
 import { Modal } from "../../../../components/ui/modal";
 import { Badge } from "../../../../components/ui/badge";
 import { StatCard } from "../../../../components/ui/stat-card";
@@ -26,6 +26,13 @@ const fmtData = (v?: string | null) => {
   if (!v) return "—";
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
+};
+
+/** Link do WhatsApp (com DDI 55 quando faltar) ou, se o número não parece de celular/fixo BR, discagem. */
+const linkTelefone = (tel?: string | null): string | undefined => {
+  const d = String(tel || "").replace(/\D/g, "");
+  if (!d) return undefined;
+  return d.length === 10 || d.length === 11 ? `https://wa.me/55${d}` : d.length >= 12 ? `https://wa.me/${d}` : `tel:${d}`;
 };
 
 const thCls = "px-3 py-2 text-[11px] uppercase font-bold text-[var(--color-text-faint)] whitespace-nowrap";
@@ -146,12 +153,25 @@ export function ColaboradorPerfilCompleto({ colab, onClose }: { colab: any; onCl
       }
     >
       <div className="space-y-5">
-        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="flex items-center gap-2 min-w-0"><Building2 className="w-4 h-4 text-[var(--color-text-faint)] shrink-0" /><span className="break-words">{colab.departamento || "Sem departamento"}</span></div>
-          <div className="flex items-center gap-2 min-w-0"><Users className="w-4 h-4 text-[var(--color-text-faint)] shrink-0" /><span className="break-words">{colab.squad || "Sem squad"}</span></div>
-          <div className="flex items-center gap-2 min-w-0"><Mail className="w-4 h-4 text-[var(--color-text-faint)] shrink-0" /><span className="break-all">{colab.email || "—"}</span></div>
-          <div className="flex items-center gap-2 min-w-0"><Phone className="w-4 h-4 text-[var(--color-text-faint)] shrink-0" /><span>{colab.phone || "—"}</span></div>
-          <div className="flex items-center gap-2 min-w-0 col-span-2"><Calendar className="w-4 h-4 text-[var(--color-text-faint)] shrink-0" /><span>Admissão: {colab.dataAdmissao || fmtData(colab.data_admissao || colab.created_at)}</span></div>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          {[
+            { icon: Building2, rotulo: "Departamento", valor: colab.departamento || "Sem departamento" },
+            { icon: Users, rotulo: "Squad", valor: colab.squad || "Sem squad" },
+            { icon: Calendar, rotulo: "Admissão", valor: colab.dataAdmissao || fmtData(colab.data_admissao || colab.created_at) },
+            { icon: Mail, rotulo: "E-mail", valor: colab.email || "—", href: colab.email ? `mailto:${colab.email}` : undefined, quebra: true },
+            { icon: Phone, rotulo: "Telefone / WhatsApp", valor: colab.phone || "—", href: linkTelefone(colab.phone) },
+            ...(Number(colab.meta_mensal) > 0 ? [{ icon: Target, rotulo: "Meta mensal", valor: formatCurrency(Number(colab.meta_mensal)) }] : []),
+          ].map(({ icon: Icone, rotulo, valor, href, quebra }: any) => (
+            <div key={rotulo} className="flex items-center gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/50 px-3 py-2.5 min-w-0">
+              <span className="w-9 h-9 rounded-lg bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center shrink-0"><Icone className="w-4 h-4" /></span>
+              <div className="min-w-0">
+                <dt className="text-[11px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{rotulo}</dt>
+                <dd className={`text-sm font-bold text-[var(--color-text-primary)] ${quebra ? "break-all" : "break-words"}`}>
+                  {href ? <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="text-inherit no-underline hover:underline">{valor}</a> : valor}
+                </dd>
+              </div>
+            </div>
+          ))}
         </dl>
 
         <div className="flex items-center justify-between gap-3 flex-wrap border-b border-[var(--color-border-subtle)]">

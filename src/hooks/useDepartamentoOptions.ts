@@ -1,19 +1,30 @@
 import { useMemo } from "react";
 import { useData } from "../contexts/DataContext";
 
-const DEFAULT_DEPARTAMENTOS = [
-  "Tecnologia",
+// Departamentos padrão, por bloco da empresa (a ordem é a da lista). Os que já existem em squads entram antes.
+export const DEPARTAMENTOS_PADRAO = [
+  "Diretoria",
   "Vendas",
   "Marketing",
   "Sucesso do Cliente",
-  "Produto",
-  "Design",
+  "Atendimento",
   "Financeiro",
   "Administrativo",
   "RH",
   "Operações",
+  "Logística",
+  "Compras",
+  "Qualidade",
+  "Projetos",
+  "Implantação",
+  "Tecnologia",
+  "Produto",
+  "Design",
+  "Dados e BI",
+  "Jurídico",
   "Geral",
 ];
+const DEFAULT_DEPARTAMENTOS = DEPARTAMENTOS_PADRAO;
 
 export function useDepartamentoOptions(): string[] {
   const { squads } = useData();
