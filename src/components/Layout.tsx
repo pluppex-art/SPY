@@ -95,6 +95,7 @@ export default function Layout() {
           ferramentas de escrita está sendo feita em paralelo (n8n / backend); até isso
           terminar, tenants não-master verão o widget mas chamadas à Aurora pessoal ainda
           são bloqueadas no backend (server.ts, rota /api/ai/aurora-chat, checagem is_master). */}
+      {/* A Aurora aparece para TODOS os usuários da empresa: só depende do módulo da empresa, nunca do cargo. */}
       {isModuleEnabled("aurora") && <AuroraWidget />}
       <OnboardingWizard />
       <WhatsAppPairingModal />

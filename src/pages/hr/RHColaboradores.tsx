@@ -17,6 +17,7 @@ import { AgenteSecretoQrModal } from "../../components/AgenteSecretoQrModal";
 import { AGENTE_SECRETO_STATUS_EVENT } from "../../components/AgenteSecretoConexao";
 import { NewSquadModal } from "./components/RHColaboradores/NewSquadModal";
 import { ColaboradorPerfilModal } from "./components/RHColaboradores/ColaboradorPerfilModal";
+import { colaboradoresVisiveis, squadsVisiveis, escopoEquipe, ROTULO_ESCOPO } from "../../lib/escopoEquipe";
 
 export default function RHColaboradores() {
   const {
@@ -33,9 +34,17 @@ export default function RHColaboradores() {
     calcVariable, calcBonus, totalOTE,
   } = useRHColaboradores();
 
-  const { addColaborador, updateColaborador, deleteColaborador, empresaFiliais } = useData();
+  const { addColaborador, updateColaborador, deleteColaborador, empresaFiliais, cargos } = useData() as any;
   const filiaisOptions = empresaFiliais.map((f: any) => ({ id: f.id, nome: f.nome }));
   const { user, activeTenantId, activeTenantName } = useAuth();
+
+  // A página é aberta a todos; a lista depende do nível (Estratégico: todos · Tático: departamento e squad · demais: o próprio perfil e o squad).
+  const podeGerenciar = !!(user?.isMaster || user?.isTenantAdmin);
+  const escopo = escopoEquipe(user, cargos || []);
+  const idsVisiveis = new Set(colaboradoresVisiveis(user, cargos || [], colaboradores as any[]).map((c: any) => c.id));
+  const filteredVisiveis = (filtered as any[]).filter((c) => idsVisiveis.has(c.id));
+  const squadsVis = squadsVisiveis(user, cargos || [], colaboradores as any[], squads as any[]);
+  const colaboradoresVis = (colaboradores as any[]).filter((c) => idsVisiveis.has(c.id));
   const [isMembroModalOpen, setIsMembroModalOpen] = useState(false);
   const [perfilColab, setPerfilColab] = useState<any | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -280,11 +289,11 @@ export default function RHColaboradores() {
       description="Gerencie colaboradores, organize squads por área e acompanhe metas e desempenho da equipe."
       actions={
         <div className="flex items-center gap-2">
-          {activeTab === "squads" ? (
+          {activeTab === "squads" ? (podeGerenciar ? (
             <Button onClick={() => setIsNewSquadOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
               <PlusCircle className="w-3.5 h-3.5" /> Criar Squad
             </Button>
-          ) : (user?.isMaster || user?.isTenantAdmin) ? (
+          ) : null) : podeGerenciar ? (
             <Button onClick={() => setIsMembroModalOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
               <UserPlus className="w-3.5 h-3.5" /> Novo Registro
             </Button>
@@ -296,8 +305,8 @@ export default function RHColaboradores() {
         {/* Navigation Tabs */}
         <div className="flex items-center gap-2 border-b border-[var(--color-border-subtle)] pb-1">
           {[
-            { key: "membros", label: `Membros da Equipe (${filtered.length})` },
-            { key: "squads", label: `Squads da Empresa (${squads.length})` },
+            { key: "membros", label: `Membros da Equipe (${filteredVisiveis.length})` },
+            { key: "squads", label: `${escopo === "todos" ? "Squads da Empresa" : "Meus Squads"} (${squadsVis.length})` },
           ].map(({ key, label }) => (
             <button 
               key={key} 
@@ -314,9 +323,14 @@ export default function RHColaboradores() {
           ))}
         </div>
 
+        {escopo !== "todos" && (
+          <p className="text-xs text-[var(--color-text-muted)]">{ROTULO_ESCOPO[escopo]}.</p>
+        )}
+
         {activeTab === "membros" ? (
           <MembrosSection
-            filtered={filtered} search={search} onSearchChange={setSearch}
+            filtered={filteredVisiveis} search={search} onSearchChange={setSearch}
+            podeGerenciar={podeGerenciar}
             menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId}
             onVerPerfil={setPerfilColab} onEditColab={setEditingColab}
             onChangeStatus={handleChangeStatus} onDesligar={handleDesligar}
@@ -328,7 +342,8 @@ export default function RHColaboradores() {
           />
         ) : (
           <SquadsTabContent
-            squads={squads} handleDeleteSquad={handleDeleteSquad}
+            squads={squadsVis} handleDeleteSquad={handleDeleteSquad}
+            somenteLeitura={!podeGerenciar} podeVerRemuneracao={escopo === "todos"}
             oteBaseSalary={oteBaseSalary} setOteBaseSalary={setOteBaseSalary}
             oteCommPercentage={oteCommPercentage} setOteCommPercentage={setOteCommPercentage}
             oteVendasRealizadas={oteVendasRealizadas} setOteVendasRealizadas={setOteVendasRealizadas}
@@ -336,7 +351,7 @@ export default function RHColaboradores() {
             oteColaboradorId={oteColaboradorId} setOteColaboradorId={setOteColaboradorId}
             oteNivel={oteNivel} setOteNivel={setOteNivel}
             otePeriod={otePeriod} setOtePeriod={setOtePeriod}
-            colaboradores={colaboradores}
+            colaboradores={colaboradoresVis}
             financeCommissionEntries={financeCommissionEntries}
             onSaveOteEntry={handleSaveOteEntry}
             onDeleteOteEntry={handleDeleteOteEntry}

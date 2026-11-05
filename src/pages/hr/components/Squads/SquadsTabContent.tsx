@@ -11,6 +11,10 @@ import { SquadDetailPanel } from "./SquadDetailPanel";
 interface SquadsTabContentProps {
   squads: Squad[];
   handleDeleteSquad: (id: string) => void;
+  /** Só administrador edita/exclui squads e mexe em membros e clientes. */
+  somenteLeitura?: boolean;
+  /** OTE, salário-base e comissões: só quem enxerga toda a equipe. */
+  podeVerRemuneracao?: boolean;
   oteBaseSalary: string;
   setOteBaseSalary: (val: string) => void;
   oteCommPercentage: string;
@@ -35,7 +39,7 @@ interface SquadsTabContentProps {
 }
 
 export function SquadsTabContent({
-  squads, handleDeleteSquad,
+  squads, handleDeleteSquad, somenteLeitura = false, podeVerRemuneracao = true,
   oteBaseSalary, setOteBaseSalary, oteCommPercentage, setOteCommPercentage,
   oteVendasRealizadas, setOteVendasRealizadas, oteAtingimentoMeta, setOteAtingimentoMeta,
   oteColaboradorId, setOteColaboradorId, oteNivel, setOteNivel, otePeriod, setOtePeriod,
@@ -150,6 +154,7 @@ export function SquadsTabContent({
             onSelect={setSelectedId}
             onEdit={openEdit}
             onDelete={handleDeleteSquad}
+            somenteLeitura={somenteLeitura}
           />
         </div>
 
@@ -170,6 +175,7 @@ export function SquadsTabContent({
             onRemoveMember={handleRemoveMember}
             onAddClient={handleAddClient}
             onRemoveClient={handleRemoveClient}
+            somenteLeitura={somenteLeitura}
           />
         </div>
       </div>
@@ -190,7 +196,7 @@ export function SquadsTabContent({
         />
       )}
 
-      <SquadOTECalculator
+      {podeVerRemuneracao && <SquadOTECalculator
         oteBaseSalary={oteBaseSalary} setOteBaseSalary={setOteBaseSalary}
         oteCommPercentage={oteCommPercentage} setOteCommPercentage={setOteCommPercentage}
         oteVendasRealizadas={oteVendasRealizadas} setOteVendasRealizadas={setOteVendasRealizadas}
@@ -203,7 +209,7 @@ export function SquadsTabContent({
         onSaveOteEntry={onSaveOteEntry}
         onDeleteOteEntry={onDeleteOteEntry}
         calcVariable={calcVariable} calcBonus={calcBonus} totalOTE={totalOTE}
-      />
+      />}
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { Modal } from "../../../../components/ui/modal";
 import { Badge } from "../../../../components/ui/badge";
 import { StatCard } from "../../../../components/ui/stat-card";
 import { useData } from "../../../../contexts/DataContext";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { colaboradorDoUsuario, escopoEquipe } from "../../../../lib/escopoEquipe";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
 import { supabase } from "../../../../lib/supabase";
 import { nomeConfere } from "../../../../lib/sellerScope";
@@ -43,6 +45,12 @@ export function ColaboradorPerfilCompleto({ colab, onClose }: { colab: any; onCl
   const data = useData() as any;
   const { leads, proposals, proposalItems, products, contracts, colaboradores, cargos, tasks, reunioes } = data;
   const { formatCurrency } = useLocalization();
+  const { user } = useAuth() as any;
+  // Perfil completo: o próprio e, para quem enxerga o departamento ou a equipe toda, os das pessoas visíveis.
+  // Quem só vê o próprio perfil e o squad enxerga dos colegas apenas o cadastro básico e as tarefas.
+  const escopo = escopoEquipe(user, cargos || []);
+  const eu = colaboradorDoUsuario(user, (colaboradores as any[]) || []);
+  const completo = escopo !== "proprio" || (!!eu && eu.id === colab?.id);
   const [aba, setAba] = useState<Aba>("resumo");
   const [periodo, setPeriodo] = useState<PeriodoOpcao>("mes");
   const [flags, setFlags] = useState<{ admin: boolean; master: boolean }>({ admin: false, master: false });
@@ -99,15 +107,15 @@ export function ColaboradorPerfilCompleto({ colab, onClose }: { colab: any; onCl
   // ── O que mostrar, pelo cargo e departamento ─────────────────────────────
   const texto = `${colab?.cargo || ""} ${colab?.departamento || ""} ${cargosPessoa.join(" ")}`.toLowerCase();
   const restringeCargo = (cargos || []).some((c: any) => cargosPessoa.includes(c.nome) && c.restringir_aos_proprios_dados);
-  const comercial = restringeCargo || /sdr|closer|vend|comerc|pr[eé]-?venda/.test(texto) || (linha?.leads ?? 0) > 0;
+  const comercial = completo && (restringeCargo || /sdr|closer|vend|comerc|pr[eé]-?venda/.test(texto) || (linha?.leads ?? 0) > 0);
   const gestao = flags.admin || /administrador|diretor|gerente|s[oó]cio|executivo/.test(texto);
 
   const abas: { id: Aba; label: string }[] = [
     { id: "resumo", label: "Resumo" },
     ...(comercial ? [{ id: "vendas" as Aba, label: "Vendas" }] : []),
     { id: "tarefas", label: `Tarefas (${tarefasAbertas.length})` },
-    ...(comercial || minhasReunioes.length > 0 ? [{ id: "reunioes" as Aba, label: `Reuniões (${reunioesFuturas.length})` }] : []),
-    { id: "acessos", label: "Acessos" },
+    ...(completo && (comercial || minhasReunioes.length > 0) ? [{ id: "reunioes" as Aba, label: `Reuniões (${reunioesFuturas.length})` }] : []),
+    ...(completo ? [{ id: "acessos" as Aba, label: "Acessos" }] : []),
   ];
 
   // ── Acessos ───────────────────────────────────────────────────────────────

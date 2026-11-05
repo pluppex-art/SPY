@@ -7,9 +7,11 @@ interface SquadsPanelProps {
   onSelect: (id: string) => void;
   onEdit: (sq: Squad) => void;
   onDelete: (id: string) => void;
+  /** Quem só pode ver o squad não tem editar/excluir. */
+  somenteLeitura?: boolean;
 }
 
-export function SquadsPanel({ squads, selectedId, onSelect, onEdit, onDelete }: SquadsPanelProps) {
+export function SquadsPanel({ squads, selectedId, onSelect, onEdit, onDelete, somenteLeitura = false }: SquadsPanelProps) {
   if (squads.length === 0) {
     return (
       <div className="text-center py-16 text-slate-600 italic text-sm">
@@ -45,7 +47,7 @@ export function SquadsPanel({ squads, selectedId, onSelect, onEdit, onDelete }: 
               <Trophy className="w-4 h-4" style={{ color: cor }} />
             </div>
 
-            <div
+            {!somenteLeitura && <div
               className={`absolute top-3 right-3 flex gap-1 transition-opacity ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"} ${sq.logo ? "mt-16" : ""}`}
               style={sq.logo ? { top: "4.5rem" } : {}}
             >
@@ -55,7 +57,7 @@ export function SquadsPanel({ squads, selectedId, onSelect, onEdit, onDelete }: 
               <button className="w-7 h-7 bg-rose-500/20 hover:bg-rose-500/40 rounded-lg flex items-center justify-center transition-colors" onClick={e => { e.stopPropagation(); onDelete(sq.id); }}>
                 <Trash2 className="w-3 h-3 text-rose-400" />
               </button>
-            </div>
+            </div>}
 
             <div className="absolute right-1 bottom-0 opacity-15 pointer-events-none">
               <Users className="w-28 h-28" style={{ color: cor }} />

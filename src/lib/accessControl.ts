@@ -18,6 +18,8 @@ const FAMILIA_CATALOGO = ["catalogo", "imobiliaria", "automotivo", "concessionar
 /** O módulo do menu (ex.: "agenda", "catalogo-produtos") é liberado por algum módulo do cargo? */
 export function cargoPermiteModulo(modulos: string[] | null, mod: string): boolean {
   if (!modulos) return true;
+  // Equipe & RH é aberta a todos (o que cada um vê na lista depende do nível — lib/escopoEquipe).
+  if (mod === "rh") return true;
   return modulos.some(
     (m) =>
       m === mod ||

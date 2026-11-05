@@ -21,6 +21,8 @@ interface MembrosSectionProps {
   onChangeStatus: (colab: any, status: string) => void;
   onDesligar: (colab: any) => void;
   canManageSessions?: boolean;
+  /** Editar, mudar status e desligar: só administrador. Quem não pode vê o perfil e, no próprio card, conecta o WhatsApp. */
+  podeGerenciar?: boolean;
   onCriarSessao?: (colab: any) => void;
   /** Login do usuário atual: só o próprio colaborador conecta o WhatsApp dele (o QR é lido no celular dele). */
   currentUserId?: string | null;
@@ -51,7 +53,7 @@ function AgenteSecretoBadge({ colab, status }: { colab: any; status?: string }) 
 export function MembrosSection({
   filtered: filteredBySearch, search, onSearchChange,
   menuOpenId, setMenuOpenId, onVerPerfil, onEditColab,
-  onChangeStatus, onDesligar, canManageSessions, onCriarSessao, currentUserId, onConectarAgente, agenteStatus,
+  onChangeStatus, onDesligar, canManageSessions, podeGerenciar = true, onCriarSessao, currentUserId, onConectarAgente, agenteStatus,
 }: MembrosSectionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [depto, setDepto] = useState("");
@@ -156,7 +158,7 @@ export function MembrosSection({
                 >
                   Ver Perfil
                 </Button>
-                <Button
+                {podeGerenciar && <Button
                   size="xs" 
                   variant="ghost"
                   onClick={() => onEditColab(colab)}
@@ -164,8 +166,8 @@ export function MembrosSection({
                   title="Editar dados"
                 >
                   <Pencil className="w-3.5 h-3.5" />
-                </Button>
-                <div className="relative" ref={menuOpenId === colab.id ? menuRef : null} data-menu-ref>
+                </Button>}
+                {(podeGerenciar || (onConectarAgente && currentUserId && colab.user_id === currentUserId)) && <div className="relative" ref={menuOpenId === colab.id ? menuRef : null} data-menu-ref>
                   <Button
                     size="xs" 
                     variant="ghost"
@@ -177,6 +179,7 @@ export function MembrosSection({
                   </Button>
                   {menuOpenId === colab.id && (
                     <div className="absolute right-0 bottom-10 z-50 w-48 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl shadow-xl p-1 animate-in fade-in">
+                      {podeGerenciar && (<>
                       <button onClick={() => onChangeStatus(colab, "Férias")} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
                         <Plane className="w-3.5 h-3.5 text-blue-500" /> Marcar como Férias
                       </button>
@@ -186,6 +189,7 @@ export function MembrosSection({
                       <button onClick={() => onChangeStatus(colab, "Ativo")} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
                         <Users className="w-3.5 h-3.5 text-emerald-500" /> Marcar como Ativo
                       </button>
+                      </>)}
                       {onConectarAgente && currentUserId && colab.user_id === currentUserId && (
                         <button onClick={() => { setMenuOpenId(null); onConectarAgente(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
                           {agenteStatus?.[colab.id] === "CONNECTED"
@@ -198,13 +202,15 @@ export function MembrosSection({
                           <Phone className="w-3.5 h-3.5 text-emerald-500" /> Criar sessão do Agente Secreto
                         </button>
                       )}
+                      {podeGerenciar && (<>
                       <div className="h-px bg-[var(--color-border-subtle)] my-1" />
                       <button onClick={() => onDesligar(colab)} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors text-left cursor-pointer">
                         <UserX className="w-3.5 h-3.5" /> Remover Colaborador
                       </button>
+                      </>)}
                     </div>
                   )}
-                </div>
+                </div>}
               </div>
             </Card>
           ))}

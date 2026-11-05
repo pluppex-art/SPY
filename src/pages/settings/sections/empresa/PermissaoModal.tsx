@@ -64,6 +64,8 @@ export function PermissaoModal({ isOpen, onClose, onSave, editing, cargos }: Per
     const key = Object.keys(allTenantModules || {}).find((k) => k.toLowerCase() === tenantName);
     const mods = key ? allTenantModules[key] || {} : null;
     return ALL_MODULES.filter((m) => {
+      // Equipe & RH e Aurora são liberadas a todos os perfis: não são opções de restrição.
+      if (m.id === "aurora" || m.id === "rh") return false;
       if (modulos.includes(m.id)) return true;
       if (!mods) return !NICHE_MODULES.has(m.id) || m.id === "clinica" || m.id === "educacao";
       const aliases = TENANT_ALIASES[m.id] || [m.id];

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { PermissaoModal } from "./PermissaoModal";
 import { ALL_MODULES } from "./ModulesCombobox";
 import { IA_AGENTS } from "../../../../lib/iaAgents";
+import { ROTULO_ESCOPO, type EscopoEquipe } from "../../../../lib/escopoEquipe";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../contexts/AuthContext";
@@ -100,6 +101,7 @@ export function ConfigEmpresaPermissoes() {
           <li><strong>Cargo sem restrições</strong> tem acesso a todas as páginas e IAs da empresa. Ao marcar módulos, o cargo passa a ver <strong>só</strong> o que foi marcado.</li>
           <li>O que não é liberado some do menu e <strong>também não abre</strong> se a pessoa digitar o endereço da página.</li>
           <li>O escopo dos dados ("só os próprios") é definido em <strong>Cargos</strong>. O administrador do sistema (master) nunca é restringido.</li>
+          <li><strong>Equipe & RH</strong> e a <strong>Aurora</strong> são liberadas a todos. Na Equipe, o nível decide quem a pessoa vê: Estratégico, toda a equipe; Tático, o próprio departamento; demais, o próprio perfil. Todos veem o próprio squad.</li>
         </ul>
       </div>
 
@@ -134,7 +136,8 @@ export function ConfigEmpresaPermissoes() {
           {(cargos as any[]).map((cargo) => {
             const nivelClass = NIVEL_COLORS[cargo.nivel as string] ?? NIVEL_COLORS["Operacional"];
             const todos: string[] = Array.isArray(cargo.modulos) ? cargo.modulos : [];
-            const modulos = todos.filter((m) => !IDS_IA.has(m));
+            const modulos = todos.filter((m) => !IDS_IA.has(m) && m !== "rh" && m !== "aurora");
+            const escopoEquipe: EscopoEquipe = cargo.nivel === "Estratégico" ? "todos" : cargo.nivel === "Tático" ? "departamento" : "proprio";
             const ias = IA_AGENTS.filter((a) => todos.includes(a.modulo));
             const irrestrito = todos.length === 0;
             const pessoas = pessoasPorCargo.get(String(cargo.nome || "").trim()) ?? 0;
@@ -189,7 +192,8 @@ export function ConfigEmpresaPermissoes() {
                   </div>
                   <div className="space-y-1.5">
                     <dt className="font-black uppercase tracking-wider text-[var(--color-text-faint)] text-[11px]">Dados</dt>
-                    <dd>
+                    <dd className="flex flex-col items-start gap-1">
+                      <span className={`${chip} text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-[var(--color-border-default)] w-fit mb-1`}><Users className="w-3 h-3" /> {ROTULO_ESCOPO[escopoEquipe]}</span>
                       {soProprios ? (
                         <span className={`${chip} text-amber-600 bg-amber-500/10 border-amber-500/20 w-fit`}><UserRound className="w-3 h-3" /> Só os próprios (leads e negócios dele)</span>
                       ) : (

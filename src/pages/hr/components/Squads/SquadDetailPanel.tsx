@@ -17,12 +17,14 @@ interface SquadDetailPanelProps {
   onRemoveMember: (nome: string) => void;
   onAddClient: () => void;
   onRemoveClient: (id: string) => void;
+  /** Quem só pode ver o squad não adiciona nem remove membros/clientes. */
+  somenteLeitura?: boolean;
 }
 
 export function SquadDetailPanel({
   selectedSquad, detailTab, onTabChange, colaboradores, clienteBase,
   addMemberName, setAddMemberName, addMemberRole, setAddMemberRole,
-  addClientId, setAddClientId, onAddMember, onRemoveMember, onAddClient, onRemoveClient,
+  addClientId, setAddClientId, onAddMember, onRemoveMember, onAddClient, onRemoveClient, somenteLeitura = false,
 }: SquadDetailPanelProps) {
   if (!selectedSquad) {
     return (
@@ -94,15 +96,15 @@ export function SquadDetailPanel({
                       <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full ${funcao === "Gestor" ? "bg-emerald-500 text-white" : "bg-slate-700 text-slate-300"}`}>
                         {funcao}
                       </span>
-                      <button onClick={() => onRemoveMember(nome)} className="w-6 h-6 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                      {!somenteLeitura && <button onClick={() => onRemoveMember(nome)} className="w-6 h-6 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
                         <X className="w-3 h-3" />
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 );
               })
             )}
-            <div className="pt-4 border-t border-white/5 space-y-3">
+            {!somenteLeitura && <div className="pt-4 border-t border-white/5 space-y-3">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Adicionar Membro</p>
               <div className="grid grid-cols-5 gap-2">
                 <div className="col-span-3">
@@ -123,7 +125,7 @@ export function SquadDetailPanel({
               <button onClick={onAddMember} disabled={!addMemberName} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2">
                 <UserPlus className="w-4 h-4" /> Adicionar à Equipe
               </button>
-            </div>
+            </div>}
           </>
         ) : (
           <>
@@ -146,15 +148,15 @@ export function SquadDetailPanel({
                       <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full border ${cliente.status === 'Ativo' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-slate-700/50 text-slate-400 border-slate-600/30'}`}>
                         {cliente.status}
                       </span>
-                      <button onClick={() => onRemoveClient(clientId)} className="w-6 h-6 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                      {!somenteLeitura && <button onClick={() => onRemoveClient(clientId)} className="w-6 h-6 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
                         <X className="w-3 h-3" />
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 );
               })
             )}
-            <div className="pt-4 border-t border-white/5 space-y-3">
+            {!somenteLeitura && <div className="pt-4 border-t border-white/5 space-y-3">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Atribuir Cliente</p>
               <select value={addClientId} onChange={e => setAddClientId(e.target.value)} className="w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-all">
                 <option value="">Selecionar cliente...</option>
@@ -165,7 +167,7 @@ export function SquadDetailPanel({
               <button onClick={onAddClient} disabled={!addClientId} className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all">
                 Atribuir ao Squad
               </button>
-            </div>
+            </div>}
           </>
         )}
       </div>

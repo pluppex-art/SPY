@@ -16,7 +16,7 @@ export interface CargoPadrao {
 }
 
 const IA = ["ia_sdr", "ia_cs", "ia_chatbot"];
-const TODOS = ["crm", "financeiro", "engajamento", "marketing", "rh", "bi", "produtividade", "catalogo", "dev", "aurora", ...IA];
+const TODOS = ["crm", "financeiro", "engajamento", "marketing", "bi", "produtividade", "catalogo", "dev", ...IA];
 
 const c = (
   nivel: NivelCargo, area: string, nome: string, descricao: string, modulos: string[], restringir = false,
@@ -27,9 +27,9 @@ export const CARGOS_PADRAO: CargoPadrao[] = [
   c("Estratégico", "Direção", "Sócio", "Sócio da empresa; acesso a tudo.", TODOS),
   c("Estratégico", "Direção", "Administrador", "Administra a empresa e a configuração do sistema.", TODOS),
   c("Estratégico", "Direção", "Diretor Executivo", "CEO: define a direção e acompanha todos os resultados.", TODOS),
-  c("Estratégico", "Comercial", "Diretor Comercial", "Responde por vendas, metas e receita.", ["crm", "engajamento", "marketing", "bi", "produtividade", "catalogo", "aurora", ...IA]),
-  c("Estratégico", "Financeiro", "Diretor Financeiro", "Responde por caixa, resultado e governança financeira.", ["financeiro", "bi", "produtividade", "catalogo", "aurora"]),
-  c("Estratégico", "Operações", "Diretor de Operações", "Responde por processos, entrega e eficiência.", ["crm", "produtividade", "catalogo", "bi", "rh", "aurora"]),
+  c("Estratégico", "Comercial", "Diretor Comercial", "Responde por vendas, metas e receita.", ["crm", "engajamento", "marketing", "bi", "produtividade", "catalogo", ...IA]),
+  c("Estratégico", "Financeiro", "Diretor Financeiro", "Responde por caixa, resultado e governança financeira.", ["financeiro", "bi", "produtividade", "catalogo"]),
+  c("Estratégico", "Operações", "Diretor de Operações", "Responde por processos, entrega e eficiência.", ["crm", "produtividade", "catalogo", "bi"]),
 
   // ── Tático (gestão e coordenação) ────────────────────────────────────────
   c("Tático", "Comercial", "Gerente Comercial", "Lidera o time de vendas e acompanha metas.", ["crm", "engajamento", "marketing", "bi", "produtividade", "catalogo", "ia_sdr", "ia_cs"]),
@@ -38,7 +38,7 @@ export const CARGOS_PADRAO: CargoPadrao[] = [
   c("Tático", "Financeiro", "Gerente Financeiro", "Gere contas a pagar, a receber e fluxo de caixa.", ["financeiro", "bi", "produtividade"]),
   c("Tático", "Marketing", "Gerente de Marketing", "Gere campanhas, conteúdo e geração de demanda.", ["marketing", "engajamento", "bi", "produtividade", "catalogo"]),
   c("Tático", "Operações", "Gerente de Operações", "Gere processos, projetos e entregas.", ["crm", "produtividade", "catalogo", "bi"]),
-  c("Tático", "Pessoas", "Gerente de RH", "Gere admissão, desempenho e equipe.", ["rh", "produtividade", "bi"]),
+  c("Tático", "Pessoas", "Gerente de RH", "Gere admissão, desempenho e equipe.", ["produtividade", "bi"]),
   c("Tático", "Tecnologia", "Líder Técnico", "Tech lead: orienta o time de desenvolvimento.", ["dev", "produtividade", "bi"]),
 
   // ── Operacional (execução) ───────────────────────────────────────────────
@@ -56,7 +56,7 @@ export const CARGOS_PADRAO: CargoPadrao[] = [
   c("Operacional", "Marketing", "Videomaker", "Grava e edita vídeos.", ["marketing", "engajamento", "produtividade", "catalogo"]),
   c("Operacional", "Marketing", "Criador de Conteúdo", "Produz conteúdo para os canais da empresa.", ["marketing", "engajamento", "produtividade", "catalogo"]),
   c("Operacional", "Financeiro", "Analista Financeiro", "Lançamentos, conciliação, cobrança e relatórios.", ["financeiro", "produtividade"]),
-  c("Operacional", "Pessoas", "Analista de RH", "Rotinas de pessoal, recrutamento e acompanhamento da equipe.", ["rh", "produtividade"]),
+  c("Operacional", "Pessoas", "Analista de RH", "Rotinas de pessoal, recrutamento e acompanhamento da equipe.", ["produtividade"]),
   c("Operacional", "Tecnologia", "Dev", "Desenvolvedor: constrói e mantém o sistema.", ["dev", "produtividade", "bi"]),
   c("Operacional", "Tecnologia", "Analista de Dados", "Dados, BI e indicadores.", ["bi", "dev", "produtividade"]),
   c("Operacional", "Administrativo", "Assistente Administrativo", "Apoio às rotinas administrativas e recepção.", ["crm", "produtividade", "catalogo"]),
