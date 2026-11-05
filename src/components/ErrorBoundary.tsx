@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { relatarErro } from "../lib/errorReporter";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -51,6 +52,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    if (import.meta.env.PROD && !BENIGN_DOM_RACE.test(error.message) && !CHUNK_LOAD_ERROR.test(error.message)) relatarErro(error);
     if (CHUNK_LOAD_ERROR.test(error.message)) {
       const lastReload = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || 0);
       if (Date.now() - lastReload > CHUNK_RELOAD_COOLDOWN_MS) {

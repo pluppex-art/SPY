@@ -20,6 +20,7 @@ import { AdminPlanosCatalogoTab } from "./components/AdminPlanosCatalogoTab";
 import { ModulePlansMatrix } from "./components/ModulePlansMatrix";
 import { AdminLogsTab } from "./components/AdminLogsTab";
 import { AdminHealthTab } from "./components/AdminHealthTab";
+import { AdminErrosTab } from "./components/AdminErrosTab";
 import { NovoTenantModal } from "./components/NovoTenantModal";
 import { ModuleConfigModal } from "./components/ModuleConfigModal";
 import { SystemAlertsModal } from "./components/SystemAlertsModal";
@@ -53,6 +54,7 @@ const SUBTABS: Record<Exclude<TabId, "overview">, { id: string; label: string }[
   ],
   ops: [
     { id: "logs", label: "Logs & Auditoria" },
+    { id: "erros", label: "Erros do app" },
     { id: "health", label: "Saúde & Diagnóstico" },
   ],
 };
@@ -267,6 +269,7 @@ export default function AdminSaaS() {
       {activeTab === "platform" && activeSub === "agents" && <AdminAgentsTab />}
 
       {activeTab === "ops" && activeSub === "logs" && <AdminLogsTab />}
+      {activeTab === "ops" && activeSub === "erros" && <AdminErrosTab />}
       {activeTab === "ops" && activeSub === "health" && <AdminHealthTab />}
 
       {/* Modals */}

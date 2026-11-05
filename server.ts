@@ -19,6 +19,7 @@ import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
 import { emailNotifyTenant } from "./server/emailNotify.js";
 import { runNotificationReminders } from "./server/notificationCron.js";
 import { registerDeepHealthRoute } from "./server/healthDeep.js";
+import { registerClientErrorRoute, registrarErro, urlSegura } from "./server/errorLog.js";
 import { getTenantBrand, getBrandForEmail } from "./server/emailBrand.js";
 import { testEmail, passwordResetEmail, passwordChangedEmail } from "./server/emailTemplates.js";
 import { readTenantSnapshot } from "./server/implementationSync.js";
@@ -470,14 +471,9 @@ app.get("/api/health/redis", async (_req, res) => {
 
 // Saúde de ponta a ponta (banco, n8n, WAHA, Redis) para o monitor externo: 200 = tudo bem, 503 = algo caiu.
 registerDeepHealthRoute(app, { supabaseService, redisHealthCheck });
+// Erros de JavaScript do navegador (registro próprio, sem serviço externo). 20 por minuto por IP.
+registerClientErrorRoute(app, { supabaseService, supabase, limiter: rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false }) });
 
-// Monitor de erros: só liga com SENTRY_DSN configurado (sem DSN, nada muda). Carrega sob demanda.
-let sentryNode: any = null;
-if (process.env.SENTRY_DSN) {
-  import("@sentry/node")
-    .then((m) => { m.init({ dsn: process.env.SENTRY_DSN, environment: process.env.VERCEL_ENV || process.env.NODE_ENV, tracesSampleRate: 0 }); sentryNode = m; })
-    .catch((e) => console.warn("[sentry] não iniciou:", e?.message));
-}
 
 
 /**
@@ -6676,9 +6672,9 @@ app.use("/api/integrations/google", createGoogleIntegrationsRouter({ requireUser
 // Global error handler — catches any unhandled throws in async routes. Nunca
 // devolve err.message pro cliente (pode conter detalhe de tabela/coluna/constraint
 // do Postgres) — detalhe completo só no log do servidor.
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error("[S.P.Y.] Unhandled error:", err?.message || err);
-  try { sentryNode?.captureException(err); } catch { /* monitor nunca derruba a resposta */ }
+  void registrarErro(supabaseService, { origem: "servidor", mensagem: err?.message || String(err), stack: err?.stack, url: `${req.method} ${urlSegura(req.originalUrl)}` });
   if (!res.headersSent) {
     res.status(500).json({ error: "Erro interno do servidor." });
   }
