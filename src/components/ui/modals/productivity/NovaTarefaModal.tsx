@@ -10,8 +10,13 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { connectGoogleCalendar, getGoogleCalendarStatus } from "../../../../lib/google-auth";
 import { createCalendarEvent } from "../../../../lib/google-calendar";
 import { toast } from "sonner";
+import {
+  listarDepartamentosTarefa, mesmoDepartamento, TIPOS_TAREFA_CLIENTE, TIPOS_TAREFA_INTERNA,
+} from "../../../../lib/departamentosTarefa";
 
 export type NovaTarefaPayload = {
+  /** Área responsável pela tarefa (Comercial, Dev, Marketing...). */
+  departamento?: string;
   nome: string;
   tipo: string;
   prioridade: string;
@@ -47,16 +52,7 @@ const labelClass =
 const fieldClass =
   "w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-[var(--color-primary-blue)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/30 transition-all placeholder:text-slate-600";
 
-const TASK_TYPES = [
-  "Reunião Presencial",
-  "Call Online",
-  "Acompanhamento (Follow-up)",
-  "Demonstração",
-  "Envio Docs",
-  "Ligação",
-  "Visita Comercial",
-  "Proposta",
-];
+const TASK_TYPES = TIPOS_TAREFA_CLIENTE;
 
 const PRIORITIES = ["Alta", "Média", "Baixa"];
 
@@ -88,7 +84,7 @@ export function NovaTarefaModal({
   title = "Nova Tarefa / Compromisso",
   submitText = "Agendar Tarefa",
 }: NovaTarefaModalProps) {
-  const { colaboradores, products, leads } = useData();
+  const { colaboradores, products, leads, tasks } = useData();
   const { activeTenantId, user } = useAuth();
 
   // `assigned_to` FK pra `users.id`, não `colaboradores.id` (texto, nem uuid) —
@@ -116,6 +112,16 @@ export function NovaTarefaModal({
   );
 
   /* ─── Campos principais ─────────────────────────────────────── */
+  // Tarefa pode ser de um cliente (lead) ou interna de qualquer departamento.
+  const departamentoDoUsuario = useMemo(() => {
+    const eu = (colaboradores as any[]).find((c) => (user?.id && c.user_id === user.id) || (user?.email && c.email && c.email.toLowerCase() === user.email.toLowerCase()));
+    const d = (eu?.departamento as string) || ""; return /^geral$/i.test(d.trim()) ? "" : d;
+  }, [colaboradores, user?.id, user?.email]);
+  const departamentoOptions = useMemo(() => listarDepartamentosTarefa(colaboradores as any[], tasks as any[]), [colaboradores, tasks]);
+  const [escopo, setEscopo] = useState<"cliente" | "interna">(initialValue && !initialValue.relacionado ? "interna" : "cliente");
+  const [departamento, setDepartamento] = useState(initialValue?.departamento || departamentoDoUsuario || "");
+  const tiposDoEscopo = escopo === "interna" ? TIPOS_TAREFA_INTERNA : TIPOS_TAREFA_CLIENTE;
+
   const [nome, setNome] = useState(initialValue?.nome || "");
   const [tipo, setTipo] = useState(initialValue?.tipo || TASK_TYPES[0]);
   const [prioridade, setPrioridade] = useState(initialValue?.prioridade || "Média");
@@ -142,8 +148,11 @@ export function NovaTarefaModal({
   /* ─── Reset ao abrir ────────────────────────────────────────── */
   useEffect(() => {
     if (!isOpen) return;
+    const ehInterna = !!initialValue && !initialValue.relacionado;
+    setEscopo(ehInterna ? "interna" : "cliente");
+    setDepartamento(initialValue?.departamento || departamentoDoUsuario || "");
     setNome(initialValue?.nome || "");
-    setTipo(initialValue?.tipo || TASK_TYPES[0]);
+    setTipo(initialValue?.tipo || (ehInterna ? TIPOS_TAREFA_INTERNA : TIPOS_TAREFA_CLIENTE)[0]);
     setPrioridade(initialValue?.prioridade || "Média");
     if (initialValue?.dataInicio) {
       const [d, t] = initialValue.dataInicio.split("T");
@@ -271,11 +280,12 @@ export function NovaTarefaModal({
     onSave({
       nome: nome.trim(),
       tipo,
+      departamento: departamento || undefined,
       prioridade,
       dataInicio,
       dataFim,
       data: dataInicio,
-      relacionado,
+      relacionado: escopo === "interna" ? "" : relacionado,
       vendedor,
       produtos,
       tags: tags.trim(),
@@ -299,7 +309,7 @@ export function NovaTarefaModal({
           <div>
             <div className="text-base font-black text-white">{title}</div>
             <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mt-1">
-              Planeje compromissos e organize follow-ups comerciais
+              Tarefas de clientes e de qualquer departamento da empresa
             </div>
           </div>
         </div>
@@ -321,47 +331,95 @@ export function NovaTarefaModal({
       }
     >
       <form id="nova-tarefa-form" onSubmit={handleSubmit} className="space-y-5 text-left">
-        {/* Linha 1: Nome + Relacionado */}
+        {/* Escopo: tarefa de um cliente ou interna de um departamento */}
+        <div className="space-y-2">
+          <label className={labelClass}>Tipo de tarefa</label>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { id: "cliente", rotulo: "De cliente", dica: "Ligada a um lead ou empresa" },
+              { id: "interna", rotulo: "Interna", dica: "Trabalho de um departamento" },
+            ] as const).map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => {
+                  setEscopo(o.id);
+                  const lista = o.id === "interna" ? TIPOS_TAREFA_INTERNA : TIPOS_TAREFA_CLIENTE;
+                  if (!lista.includes(tipo)) setTipo(lista[0]);
+                }}
+                aria-pressed={escopo === o.id}
+                className={`text-left px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${escopo === o.id ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10" : "border-white/10 bg-transparent hover:bg-white/5"}`}
+              >
+                <span className="block text-sm font-black text-white">{o.rotulo}</span>
+                <span className="block text-[11px] text-slate-400">{o.dica}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Linha 1: Nome + Cliente (só tarefa de cliente) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className={labelClass}>
-              <ClipboardList className="w-3 h-3" /> Título do Compromisso
+              <ClipboardList className="w-3 h-3" /> Título da tarefa
             </label>
             <input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               className={fieldClass}
-              placeholder="Ex: Reunião com Cliente Vértice"
+              placeholder={escopo === "interna" ? "Ex: Revisar o layout da landing page" : "Ex: Reunião com Cliente Vértice"}
               required
             />
           </div>
+          {escopo === "cliente" ? (
+            <div className="space-y-2">
+              <label className={labelClass}>
+                <Users className="w-3 h-3" /> Lead / Empresa Associado
+              </label>
+              <select value={relacionado} onChange={(e) => setRelacionado(e.target.value)} className={fieldClass}>
+                <option value="">Nenhum</option>
+                {leadOptions.map((l) => (
+                  <option key={l.id} value={l.id}>{l.label}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className={labelClass}>
+                <Layers className="w-3 h-3" /> Departamento
+              </label>
+              <select value={departamento} onChange={(e) => setDepartamento(e.target.value)} className={fieldClass}>
+                <option value="">Sem departamento</option>
+                {departamentoOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {escopo === "cliente" && (
           <div className="space-y-2">
-            <label className={labelClass}>
-              <Users className="w-3 h-3" /> Lead / Empresa Associado
-            </label>
-            <select value={relacionado} onChange={(e) => setRelacionado(e.target.value)} className={fieldClass}>
-              <option value="">Nenhum (Interno)</option>
-              {leadOptions.map((l) => (
-                <option key={l.id} value={l.id}>{l.label}</option>
-              ))}
+            <label className={labelClass}><Layers className="w-3 h-3" /> Departamento responsável</label>
+            <select value={departamento} onChange={(e) => setDepartamento(e.target.value)} className={fieldClass}>
+              <option value="">Sem departamento</option>
+              {departamentoOptions.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
-        </div>
+        )}
 
         {/* Linha 2: Tipo + Prioridade */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className={labelClass}>
-              <Layers className="w-3 h-3" /> Tipo do Compromisso
+              <Layers className="w-3 h-3" /> Categoria
             </label>
             <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={fieldClass}>
-              {TASK_TYPES.map((option) => (
+              {tiposDoEscopo.map((option) => (
                 <option key={option} value={option}>{option}</option>
               ))}
             </select>
           </div>
           <div className="space-y-2">
-            <label className={labelClass}>Prioridade Comercial</label>
+            <label className={labelClass}>Prioridade</label>
             <select value={prioridade} onChange={(e) => setPrioridade(e.target.value)} className={fieldClass}>
               {PRIORITIES.map((option) => (
                 <option key={option} value={option}>{option}</option>
@@ -413,7 +471,7 @@ export function NovaTarefaModal({
         {/* Linha 4: Vendedor responsável */}
         <div className="space-y-2">
           <label className={labelClass}>
-            <Users className="w-3 h-3" /> Vendedor Responsável
+            <Users className="w-3 h-3" /> Responsável
           </label>
           <select value={vendedor} onChange={(e) => setVendedor(e.target.value)} className={fieldClass}>
             <option value="">Não Atribuído</option>

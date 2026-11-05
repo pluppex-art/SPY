@@ -64,7 +64,7 @@ export function PerformanceMetrics({
           <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Urgente Alta Prioridade</div>
         </div>
         <div className="mt-4 text-[10px] text-rose-400/80 font-semibold uppercase tracking-wider">
-          Prioridade comercial máxima!
+          Prioridade máxima!
         </div>
       </Card>
     </div>

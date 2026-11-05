@@ -33,7 +33,7 @@ export function TasksKanbanCard({
 
   // `assigned_to` FK pra `users.id`, não `colaboradores.id` — usa `user_id`.
   const sellerOptions = (colaboradores as any[])
-    .filter((c) => c.status !== "Desligado" && c.departamento === "Vendas")
+    .filter((c) => c.status !== "Desligado")
     .map((c) => ({ id: c.user_id as string, nome: c.nome as string }))
     .filter((c) => c.id && c.nome);
   const allColabs = (colaboradores as any[]).filter((c) => c.user_id && c.nome);
@@ -108,13 +108,16 @@ export function TasksKanbanCard({
         <h4 className={cn("text-sm font-black leading-snug break-words", done ? "text-[var(--color-text-faint)] line-through" : "text-[var(--color-text-primary)]")}>{task.title}</h4>
       </div>
 
-      <div className="mt-1.5">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {task.departamento && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[10px] font-black uppercase tracking-wide text-[var(--color-text-muted)]">{task.departamento}</span>
+        )}
         {task.lead_id ? (
           <Link draggable={false} to={`/app/crm/pipeline?leadId=${task.lead_id}`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:underline truncate max-w-full" title="Abrir lead no pipeline">
             {leadLabel} <ExternalLink className="w-2.5 h-2.5 shrink-0" />
           </Link>
         ) : (
-          <span className="text-[11px] text-[var(--color-text-faint)]">{leadLabel}</span>
+          <span className="text-[11px] text-[var(--color-text-faint)]">Tarefa interna</span>
         )}
       </div>
 

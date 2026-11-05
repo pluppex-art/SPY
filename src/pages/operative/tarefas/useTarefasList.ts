@@ -19,10 +19,11 @@ const PAGE_SIZE = 50;
 export function useTarefasList(params: {
   searchQuery: string; selectedPriorities: string[]; deadlineFilter: string; active: boolean;
   statusFilter?: string; assigneeFilter?: string; clienteLeadIds?: string[]; clienteFilter?: string;
+  departamentoFilter?: string; escopoFilter?: string;
 }) {
   const { activeTenantId: tenantId, activeFilialId } = useAuth();
-  const { searchQuery, selectedPriorities, deadlineFilter, active, statusFilter = "", assigneeFilter = "", clienteLeadIds = [], clienteFilter = "" } = params;
-  const filtersKey = `${statusFilter}|${assigneeFilter}|${clienteFilter}`;
+  const { searchQuery, selectedPriorities, deadlineFilter, active, statusFilter = "", assigneeFilter = "", clienteLeadIds = [], clienteFilter = "", departamentoFilter = "", escopoFilter = "" } = params;
+  const filtersKey = `${statusFilter}|${assigneeFilter}|${clienteFilter}|${departamentoFilter}|${escopoFilter}`;
 
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<Task[]>([]);
@@ -48,6 +49,11 @@ export function useTarefasList(params: {
       if (deadlineFilter) query = query.lte("due_date", `${deadlineFilter}T23:59:59`);
       if (statusFilter) query = query.eq("status", statusFilter);
       if (assigneeFilter) query = assigneeFilter === "__none__" ? query.is("assigned_to", null) : query.eq("assigned_to", assigneeFilter);
+      if (departamentoFilter) {
+        query = departamentoFilter === "__none__" ? query.is("departamento", null) : query.ilike("departamento", departamentoFilter.replace(/[%_,]/g, ""));
+      }
+      if (escopoFilter === "cliente") query = query.not("lead_id", "is", null);
+      if (escopoFilter === "interna") query = query.is("lead_id", null);
       if (clienteFilter) {
         // cliente sem lead correspondente = nenhuma linha (id impossível evita .in([]) inválido)
         query = query.in("lead_id", clienteLeadIds.length > 0 ? clienteLeadIds : ["00000000-0000-0000-0000-000000000000"]);

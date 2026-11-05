@@ -7,6 +7,7 @@ import { supabase } from "../../../lib/supabase";
 import { connectGoogleCalendar } from "../../../lib/google-auth";
 import { getGoogleIntegrationsStatus, syncGoogleIntegrations } from "../../../lib/googleIntegrations";
 import { toast } from "sonner";
+import { listarDepartamentosTarefa, mesmoDepartamento } from "../../../lib/departamentosTarefa";
 
 export function useTarefas() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,6 +20,9 @@ export function useTarefas() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("");
   const [clienteFilter, setClienteFilter] = useState<string>("");
+  // Departamento da tarefa ("__none__" = sem departamento) e escopo ("cliente" | "interna").
+  const [departamentoFilter, setDepartamentoFilter] = useState<string>("");
+  const [escopoFilter, setEscopoFilter] = useState<string>("");
   const { tasks, addTask, updateTask, deleteTask, appSettings, leads, colaboradores, products } = useData();
   const { activeTenantId, user } = useAuth();
 
@@ -143,6 +147,8 @@ export function useTarefas() {
       const matchesStatus = !statusFilter || t.status === statusFilter;
       const matchesAssignee = !assigneeFilter || (assigneeFilter === "__none__" ? !t.assigned_to : t.assigned_to === assigneeFilter);
       const matchesCliente = !clienteFilter || getLeadLabel(t) === clienteFilter;
+      const matchesDepartamento = !departamentoFilter || (departamentoFilter === "__none__" ? !t.departamento : mesmoDepartamento(t.departamento, departamentoFilter));
+      const matchesEscopo = !escopoFilter || (escopoFilter === "cliente" ? !!t.lead_id : !t.lead_id);
 
       const matchesDeadline = !deadlineFilter || (() => {
         if (!t.due_date) return false;
@@ -151,9 +157,11 @@ export function useTarefas() {
         return taskDate <= limitDate;
       })();
 
-      return matchesSearch && matchesPriority && matchesDeadline && matchesStatus && matchesAssignee && matchesCliente;
+      return matchesSearch && matchesPriority && matchesDeadline && matchesStatus && matchesAssignee && matchesCliente && matchesDepartamento && matchesEscopo;
     });
-  }, [tasks, searchQuery, selectedPriorities, deadlineFilter, statusFilter, assigneeFilter, clienteFilter, leads]);
+  }, [tasks, searchQuery, selectedPriorities, deadlineFilter, statusFilter, assigneeFilter, clienteFilter, departamentoFilter, escopoFilter, leads]);
+
+  const departamentoOptions = useMemo(() => listarDepartamentosTarefa(colaboradores as any[], tasks as any[]), [colaboradores, tasks]);
 
   // Responsáveis possíveis: colaboradores ativos com usuário vinculado
   // (`assigned_to` é FK pra users.id, não pra colaboradores.id).
@@ -178,10 +186,10 @@ export function useTarefas() {
 
   const clearFilters = () => {
     setSearchQuery(""); setSelectedPriorities([]); setDeadlineFilter("");
-    setStatusFilter(""); setAssigneeFilter(""); setClienteFilter("");
+    setStatusFilter(""); setAssigneeFilter(""); setClienteFilter(""); setDepartamentoFilter(""); setEscopoFilter("");
   };
   const activeFilterCount = (searchQuery.trim() ? 1 : 0) + (deadlineFilter ? 1 : 0) + (selectedPriorities.length > 0 ? 1 : 0)
-    + (statusFilter ? 1 : 0) + (assigneeFilter ? 1 : 0) + (clienteFilter ? 1 : 0);
+    + (statusFilter ? 1 : 0) + (assigneeFilter ? 1 : 0) + (clienteFilter ? 1 : 0) + (departamentoFilter ? 1 : 0) + (escopoFilter ? 1 : 0);
 
   const duplicateTask = (task: Task) => {
     addTask({
@@ -191,6 +199,7 @@ export function useTarefas() {
       due_date: task.due_date,
       lead_id: task.lead_id,
       assigned_to: task.assigned_to,
+      departamento: task.departamento,
       status: "Em Aberto",
     } as any);
     toast.success("Tarefa duplicada.");
@@ -237,6 +246,7 @@ export function useTarefas() {
       due_date: dueDateISO,
       lead_id: data.relacionado || undefined,
       assigned_to: data.vendedor || undefined,
+      departamento: data.departamento || null,
       convidados: data.convidados,
       calendarLink: data.calendarLink,
     };
@@ -303,6 +313,7 @@ export function useTarefas() {
     statusFilter, setStatusFilter,
     assigneeFilter, setAssigneeFilter,
     clienteFilter, setClienteFilter,
+    departamentoFilter, setDepartamentoFilter, escopoFilter, setEscopoFilter, departamentoOptions,
     assigneeOptions, clienteOptions, clienteLeadIds,
     clearFilters, activeFilterCount, duplicateTask,
     tasks, addTask, updateTask, deleteTask,

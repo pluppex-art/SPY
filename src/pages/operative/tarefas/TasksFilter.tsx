@@ -20,6 +20,11 @@ interface TasksFilterProps {
   statusOptions: { id: string; nome: string }[];
   assigneeOptions: { id: string; nome: string }[];
   clienteOptions: string[];
+  departamentoFilter: string;
+  setDepartamentoFilter: (v: string) => void;
+  departamentoOptions: string[];
+  escopoFilter: string;
+  setEscopoFilter: (v: string) => void;
   activeCount: number;
   onClear: () => void;
 }
@@ -36,15 +41,15 @@ export function TasksFilter(p: TasksFilterProps) {
   const toggleMobile = () => { const next = !showSel; setShowSel(next); setShowMais(next); };
   return (
     <Card className="p-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-3">
-      <div className="grid grid-cols-2 xl:flex xl:flex-row gap-2 max-[479px]:[&>*]:col-span-2">
-        <div className="relative col-span-2 xl:col-span-1 xl:flex-1 xl:min-w-[220px]">
+      <div className="grid grid-cols-2 xl:flex xl:flex-row xl:flex-wrap gap-2 xl:[&>select]:flex-1 xl:[&>select]:min-w-[150px] max-[479px]:[&>*]:col-span-2">
+        <div className="relative col-span-2 xl:col-span-1 xl:w-full">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
           <input
             type="text"
             value={p.searchQuery}
             onChange={(e) => p.setSearchQuery(e.target.value)}
-            placeholder="Buscar tarefa, cliente, responsável ou palavra-chave..."
-            className={cn(selectCls, "w-full pl-9 font-normal cursor-text")}
+            placeholder="Buscar tarefa, cliente, departamento ou palavra-chave..."
+            className={cn(selectCls, "w-full xl:w-full pl-9 font-normal cursor-text")}
           />
         </div>
         <Button
@@ -57,6 +62,16 @@ export function TasksFilter(p: TasksFilterProps) {
         <select value={p.statusFilter} onChange={(e) => p.setStatusFilter(e.target.value)} className={cn(selectCls, selHide)}>
           <option value="">Status: Todos</option>
           {p.statusOptions.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+        </select>
+        <select value={p.departamentoFilter} onChange={(e) => p.setDepartamentoFilter(e.target.value)} className={cn(selectCls, selHide)}>
+          <option value="">Departamento: Todos</option>
+          <option value="__none__">Sem departamento</option>
+          {p.departamentoOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <select value={p.escopoFilter} onChange={(e) => p.setEscopoFilter(e.target.value)} className={cn(selectCls, selHide)}>
+          <option value="">Tipo: Todas</option>
+          <option value="cliente">De clientes</option>
+          <option value="interna">Internas</option>
         </select>
         <select value={p.assigneeFilter} onChange={(e) => p.setAssigneeFilter(e.target.value)} className={cn(selectCls, selHide)}>
           <option value="">Responsável: Todos</option>
@@ -78,7 +93,7 @@ export function TasksFilter(p: TasksFilterProps) {
         <Button
           variant="outline"
           onClick={() => setShowMais((v) => !v)}
-          className={cn("max-xl:hidden col-span-2 xl:col-span-1 h-11 xl:h-10 gap-2 text-xs font-bold", (showMais || p.deadlineFilter) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}
+          className={cn("max-xl:hidden col-span-2 xl:col-span-1 h-11 xl:h-10 gap-2 whitespace-nowrap text-xs font-bold", (showMais || p.deadlineFilter) && "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]")}
         >
           <Filter className="w-4 h-4" /> Mais filtros
         </Button>

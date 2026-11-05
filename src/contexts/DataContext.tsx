@@ -2224,7 +2224,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const TASK_COLUMNS = [
     'id', 'tenant_id', 'lead_id', 'assigned_to', 'creator_id', 'title',
     'description', 'status', 'priority', 'due_date', 'completed_at',
-    'created_at', 'updated_at', 'deleted_at', 'filial_id',
+    'created_at', 'updated_at', 'deleted_at', 'filial_id', 'departamento',
   ] as const;
 
   const pickTaskColumns = (obj: Record<string, any>) => {

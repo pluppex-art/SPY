@@ -36,6 +36,7 @@ export default function Tarefas() {
     deadlineFilter,
     setDeadlineFilter,
     statusFilter, setStatusFilter, assigneeFilter, setAssigneeFilter, clienteFilter, setClienteFilter,
+    departamentoFilter, setDepartamentoFilter, escopoFilter, setEscopoFilter, departamentoOptions,
     assigneeOptions, clienteOptions, clienteLeadIds, clearFilters, activeFilterCount, duplicateTask,
     needsAuth,
     isSyncing,
@@ -77,7 +78,7 @@ export default function Tarefas() {
     tasks: pagedTasks, total: pagedTotal, page: tasksPage, setPage: setTasksPage,
     totalPages: tasksTotalPages, pageSize: tasksPageSize, loading: tasksLoading,
     refetch: refetchTasksList,
-  } = useTarefasList({ searchQuery, selectedPriorities, deadlineFilter, active: viewMode === "list", statusFilter, assigneeFilter, clienteFilter, clienteLeadIds });
+  } = useTarefasList({ searchQuery, selectedPriorities, deadlineFilter, active: viewMode === "list", statusFilter, assigneeFilter, clienteFilter, clienteLeadIds, departamentoFilter, escopoFilter });
 
   const refetchIfList = () => { if (viewMode === "list") setTimeout(refetchTasksList, 300); };
 
@@ -88,7 +89,7 @@ export default function Tarefas() {
   return (
     <PageContainer
       title="Tarefas S.P.Y."
-      description="Organize suas demandas comerciais, reuniões de diagnóstico e follow-ups de vendas."
+      description="Tarefas de clientes e internas de todos os departamentos: comercial, marketing, dev, tráfego, conteúdo e mais."
       actions={
         <div className="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto">
           <div className="order-1 md:order-none w-full md:w-auto flex items-center bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] p-0.5 h-11 md:h-9 [&>button]:flex-1 md:[&>button]:flex-none [&>button]:justify-center">
@@ -167,6 +168,11 @@ export default function Tarefas() {
           statusOptions={columns.map((c) => ({ id: c.id, nome: c.nome }))}
           assigneeOptions={assigneeOptions}
           clienteOptions={clienteOptions}
+          departamentoFilter={departamentoFilter}
+          setDepartamentoFilter={setDepartamentoFilter}
+          departamentoOptions={departamentoOptions}
+          escopoFilter={escopoFilter}
+          setEscopoFilter={setEscopoFilter}
           activeCount={activeFilterCount}
           onClear={clearFilters}
         />
@@ -245,6 +251,7 @@ export default function Tarefas() {
           dataInicio: dueDateToDatetimeLocal(editingTask.due_date),
           relacionado: editingTask.lead_id || "",
           vendedor: editingTask.assigned_to || "",
+          departamento: editingTask.departamento || "",
         } : undefined}
       />
 

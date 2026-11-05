@@ -139,6 +139,8 @@ export interface Task {
   updated_at?: string;
   deleted_at?: string | null;
   filial_id?: string | null;
+  /** Área responsável pela tarefa (Comercial, Dev, Marketing...). Vazio = sem área definida. */
+  departamento?: string | null;
 
   // Campos auxiliares de integração com Google Calendar — não são colunas da
   // tabela `tasks` (removidos do payload antes do insert/update em

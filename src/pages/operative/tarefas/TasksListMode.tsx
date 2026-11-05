@@ -105,8 +105,11 @@ export function TasksListMode({
                     {t.title}
                   </h4>
                   <p className="text-[11px] text-[var(--color-text-muted)] mt-1 font-medium flex flex-wrap items-center gap-2">
+                    {t.departamento && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[10px] font-black uppercase tracking-wide text-[var(--color-text-muted)]">{t.departamento}</span>
+                    )}
                     <span>
-                      Relacionado a:{" "}
+                      {t.lead_id ? "Cliente:" : "Escopo:"}{" "}
                       {t.lead_id ? (
                         <Link
                           to={`/app/crm/pipeline?leadId=${t.lead_id}`}
@@ -117,7 +120,7 @@ export function TasksListMode({
                           <ExternalLink className="w-2.5 h-2.5" />
                         </Link>
                       ) : (
-                        <strong className="text-[var(--color-primary-blue)]">{getLeadLabel(t)}</strong>
+                        <strong className="text-[var(--color-text-secondary)]">Interna</strong>
                       )}
                     </span>
                     <span className="text-[var(--color-border-default)]">&bull;</span>

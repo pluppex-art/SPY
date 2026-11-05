@@ -217,7 +217,7 @@ export function TaskDetailsModal({ task, onClose, columns, onEdit, onDelete, onD
                 </Button>
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-[var(--color-border-default)] p-3.5 text-xs text-[var(--color-text-faint)] text-center">Tarefa interna — sem lead vinculado.</div>
+              <div className="rounded-2xl border border-dashed border-[var(--color-border-default)] p-3.5 text-xs text-[var(--color-text-faint)] text-center">Tarefa interna{live.departamento ? ` do departamento ${live.departamento}` : ""} — sem cliente vinculado.</div>
             )}
           </div>
 
