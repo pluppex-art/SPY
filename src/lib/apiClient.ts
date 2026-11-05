@@ -16,13 +16,23 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
   // de uma vez todas as chamadas em andamento — e o carregamento inicial ficava sem dados até recarregar a página.
   // Leituras (GET) são seguras de repetir; escritas nunca são repetidas aqui (poderiam duplicar efeito).
   const method = (init.method || 'GET').toUpperCase();
-  const retries = method === 'GET' ? 3 : 0;
+  const retries = method === 'GET' ? 5 : 0;
   for (let attempt = 0; ; attempt++) {
     try {
       return await fetch(input, { ...init, headers });
     } catch (err) {
       if (attempt >= retries || init.signal?.aborted) throw err;
-      await new Promise((ok) => setTimeout(ok, 600 * (attempt + 1)));
+      // Rede ainda caída (Wi-Fi/VPN trocando): espera voltar (evento "online", no máximo 8 s) em vez de gastar as tentativas à toa.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await new Promise<void>((ok) => {
+          const fim = () => { window.removeEventListener('online', fim); clearTimeout(t); ok(); };
+          const t = setTimeout(fim, 8000);
+          window.addEventListener('online', fim);
+        });
+      } else {
+        // Espera crescente com um pouco de aleatoriedade: ~20 chamadas não tentam de novo todas no mesmo instante.
+        await new Promise((ok) => setTimeout(ok, 700 * (attempt + 1) + Math.random() * 400));
+      }
     }
   }
 }
