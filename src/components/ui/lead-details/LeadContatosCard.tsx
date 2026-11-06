@@ -47,6 +47,23 @@ export function LeadContatosCard({ lead }: { lead: any }) {
     if (!nome) { toast.error("Informe o nome da pessoa."); return; }
     if (telefone.replace(/\D/g, "").length < 8) { toast.error("Informe o telefone com DDD."); return; }
     setSalvando(true);
+    // Um número = um card por empresa. Confere (com e sem o 55 do país) antes de salvar: o banco só barra o número idêntico.
+    const d = telefone.replace(/\D/g, "");
+    const variantes = [...new Set([d, d.startsWith("55") ? d.slice(2) : `55${d}`])];
+    const [{ data: lDup }, { data: cDup }] = await Promise.all([
+      supabase.from("leads").select("id, name").eq("tenant_id", lead.tenant_id).is("deleted_at", null).in("phone_digits", variantes).neq("id", lead.id).limit(1),
+      supabase.from("lead_contatos").select("id, nome").eq("tenant_id", lead.tenant_id).in("phone_digits", variantes).neq("id", form.id ?? "00000000-0000-0000-0000-000000000000").limit(1),
+    ]);
+    if (lDup && lDup.length > 0) {
+      setSalvando(false);
+      toast.error(`Esse número já é o telefone principal do card "${lDup[0].name}". Para juntar os dois negócios, mescle os cards.`);
+      return;
+    }
+    if (cDup && cDup.length > 0) {
+      setSalvando(false);
+      toast.error(`Esse número já está cadastrado como "${cDup[0].nome || "outra pessoa"}" em um card da empresa.`);
+      return;
+    }
     const campos = { nome, telefone, papel: form.papel.trim() || null };
     const { error } = form.id
       ? await supabase.from("lead_contatos").update(campos).eq("id", form.id)
