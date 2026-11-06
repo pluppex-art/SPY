@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Brain } from 'lucide-react';
-import { analyzeCall, type RevenueAnalysis, type PromptData, type AIProvider } from '../../../../lib/revenueIntelligence';
+import { analyzeCall, type RevenueAnalysis, type PromptData } from '../../../../lib/revenueIntelligence';
 import { toast } from 'sonner';
 import { useData } from '../../../../contexts/DataContext';
 import { InputForm } from './InputForm';
@@ -18,7 +18,6 @@ export function RevenueIntelligenceModal({ lead, stageName, pipelineName, onClos
   const { addTask } = useData();
 
   const [transcript, setTranscript] = useState('');
-  const [provider, setProvider] = useState<AIProvider>('gemini');
   const [productName, setProductName] = useState('');
   const [officialPrice, setOfficialPrice] = useState('');
   const [enrollmentFee, setEnrollmentFee] = useState('');
@@ -27,13 +26,8 @@ export function RevenueIntelligenceModal({ lead, stageName, pipelineName, onClos
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RevenueAnalysis | null>(null);
 
-  const hasKeys =
-    (provider === 'gemini' && !!import.meta.env.VITE_GEMINI_API_KEY) ||
-    (provider === 'groq' && !!import.meta.env.VITE_GROQ_API_KEY);
-
   async function handleAnalyze() {
     if (!transcript.trim()) { toast.error('Cole a transcrição da ligação antes de analisar.'); return; }
-    if (!hasKeys) { toast.error(`Configure VITE_${provider.toUpperCase()}_API_KEY no arquivo .env`); return; }
     setLoading(true);
     try {
       const data: PromptData = {
@@ -52,7 +46,7 @@ export function RevenueIntelligenceModal({ lead, stageName, pipelineName, onClos
         history: 'Veja histórico no CRM',
         transcript,
       };
-      setResult(await analyzeCall(data, provider));
+      setResult(await analyzeCall(data));
     } catch (err: any) {
       toast.error(err.message ?? 'Erro ao analisar. Tente novamente.');
     } finally {
@@ -80,7 +74,6 @@ export function RevenueIntelligenceModal({ lead, stageName, pipelineName, onClos
       {!result ? (
         <InputForm
           lead={lead}
-          provider={provider} onProviderChange={setProvider} hasKeys={hasKeys}
           transcript={transcript} onTranscriptChange={setTranscript}
           productName={productName} onProductNameChange={setProductName}
           officialPrice={officialPrice} onOfficialPriceChange={setOfficialPrice}

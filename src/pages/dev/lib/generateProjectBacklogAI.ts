@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../lib/apiClient';
 import type { Priority } from '../hooks/useDevSprints';
 
 export type GeneratedBacklogTask = {
@@ -79,94 +80,20 @@ ${input.description}
 `;
 }
 
-async function callGemini(prompt: string) {
-  const key = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-  if (!key) throw new Error('VITE_GEMINI_API_KEY não configurado');
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-        },
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    console.error('[Gemini debug] status', res.status, 'text', text);
-    // Se a chave estiver inválida, sinaliza explicitamente pra não tentar fallback em loop
-    if (text.includes('API key not valid') || text.includes('API_KEY_INVALID')) {
-      throw new Error('GEMINI_API_KEY_INVALID');
-    }
-    throw new Error(`Gemini error ${res.status}: ${text}`);
-  }
-
-
-
-
-
-  const data = await res.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  return safeJsonParse<GeneratedBacklog>(raw);
-}
-
-async function callGroq(prompt: string) {
-  const key = import.meta.env.VITE_GROQ_API_KEY as string | undefined;
-  if (!key) throw new Error('VITE_GROQ_API_KEY não configurado');
-
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+// A chamada à IA acontece no servidor (POST /api/ai/generate-json): nenhuma chave de IA fica no navegador.
+async function callServer(prompt: string) {
+  const res = await apiFetch('/api/ai/generate-json', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Groq error ${res.status}: ${JSON.stringify(err)}`);
-  }
-
-  const data = await res.json();
-  const raw = data.choices?.[0]?.message?.content ?? '';
-  return safeJsonParse<GeneratedBacklog>(raw);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `Falha ao gerar o backlog (HTTP ${res.status}).`);
+  return safeJsonParse<GeneratedBacklog>(String(data.raw ?? ''));
 }
-
-export type AIProvider = 'gemini' | 'groq';
 
 export async function generateProjectBacklogAI(
-  input: { productName: string; description: string },
-  provider: AIProvider = 'gemini'
+  input: { productName: string; description: string }
 ): Promise<GeneratedBacklog> {
-  const prompt = buildPrompt(input);
-
-  if (provider === 'groq') {
-    const groqKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined;
-    if (groqKey) return callGroq(prompt);
-    // Gemini fallback NÃO pode ser usado sem validação, pois a chave pode estar inválida.
-    // Retornamos erro para o caller decidir.
-    throw new Error('GROQ_API_NOT_CONFIGURED');
-
-  }
-
-  const geminiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-  if (!geminiKey) {
-    // preserva a mensagem de erro original, mas evita erro silencioso
-    throw new Error('VITE_GEMINI_API_KEY não configurado');
-  }
-
-  return callGemini(prompt);
+  return callServer(buildPrompt(input));
 }
-

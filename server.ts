@@ -201,9 +201,29 @@ async function resolveDbApiKey(key: string): Promise<{ id: string; tenantId: str
 
 const FORM_CLIENT_ID = process.env.SPY_FORM_CLIENT_ID || process.env.AXIS_FORM_CLIENT_ID || "";
 
-// ── AI Helpers: Gemini → Groq fallback ────────────────────────────────────
+// ── AI Helpers: OpenAI → Gemini → Groq ────────────────────────────────────
 
-async function callGroq(prompt: string): Promise<string> {
+// OpenAI é o provedor principal (Gemini e Groq ficam de reserva — ver generateAI). Modelo configurável por OPENAI_MODEL.
+async function callOpenAI(prompt: string, maxTokens = 1500): Promise<string> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY não configurada.");
+  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const res = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model,
+      messages: [{ role: "user", content: prompt }],
+      max_completion_tokens: maxTokens,
+      // Modelos de raciocínio (o1/o3/gpt-5) não aceitam temperature; a família gpt-4 aceita.
+      ...(model.startsWith("gpt-4") ? { temperature: 0.3 } : {}),
+    },
+    { headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, timeout: 25000 }
+  );
+  saas.recordAiUsage(`openai/${model}`, res.data.usage?.prompt_tokens, res.data.usage?.completion_tokens, res.data.usage?.total_tokens);
+  return (res.data.choices?.[0]?.message?.content ?? "") as string;
+}
+
+async function callGroq(prompt: string, maxTokens = 1500): Promise<string> {
   const key = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
   if (!key) throw new Error("GROQ_API_KEY não configurada.");
   const res = await axios.post(
@@ -212,7 +232,7 @@ async function callGroq(prompt: string): Promise<string> {
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
-      max_tokens: 1500,
+      max_tokens: maxTokens,
     },
     {
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -239,18 +259,29 @@ async function callGemini(prompt: string): Promise<string> {
   return text;
 }
 
-// Tenta Gemini; se falhar, usa Groq automaticamente
-async function generateAI(prompt: string): Promise<string> {
+// Ordem de provedores: OpenAI (principal) → Gemini → Groq. Cada um só é tentado se tiver chave configurada;
+// se um falhar (sem crédito, limite de uso, fora do ar), segue pro próximo em vez de derrubar a funcionalidade.
+async function generateAI(prompt: string, opts: { maxTokens?: number } = {}): Promise<string> {
+  const maxTokens = opts.maxTokens ?? 1500;
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const text = await callOpenAI(prompt, maxTokens);
+      if (text.trim()) return text;
+      throw new Error("OpenAI retornou vazio.");
+    } catch (err: any) {
+      console.warn("[AI] OpenAI falhou, tentando o próximo:", (err?.response?.data?.error?.message || err?.message || "").slice(0, 120));
+    }
+  }
   if (process.env.GEMINI_API_KEY) {
     try {
       const text = await callGemini(prompt);
       if (text.trim()) return text;
       throw new Error("Gemini retornou vazio.");
     } catch (err) {
-      console.warn("[AI] Gemini falhou, usando Groq:", (err as any)?.message?.slice(0, 100));
+      console.warn("[AI] Gemini falhou, tentando o próximo:", (err as any)?.message?.slice(0, 100));
     }
   }
-  return callGroq(prompt);
+  return callGroq(prompt, maxTokens);
 }
 
 // Extrai JSON de respostas que podem ter markdown ou texto extra
@@ -4071,6 +4102,24 @@ app.post("/api/ai/generic-insight", requireUser, async (req, res) => {
 // ── Aurora (chat com o G-TECH AI OS, embutido no S.P.Y.) ─────────────────────
 // Proxy autenticado para o webhook do Chat Trigger da Aurora no n8n (workflow AURORA CORE).
 // A URL do webhook nunca chega ao navegador — só este backend a conhece (AURORA_WEBHOOK_URL).
+// Geração de JSON por IA (análise de ligação, backlog de projetos). Antes o navegador chamava Gemini/Groq direto com chaves VITE_ embutidas
+// no site (visíveis a qualquer visitante); agora a chamada passa pelo servidor, com login e limite de uso.
+app.post("/api/ai/generate-json", requireUser, async (req: any, res: any) => {
+  const prompt = typeof req.body?.prompt === "string" ? req.body.prompt : "";
+  if (!prompt.trim()) return res.status(400).json({ error: "Cole a transcrição da ligação antes de analisar." });
+  if (prompt.length > 60000) return res.status(413).json({ error: "Transcrição muito longa. Envie um trecho menor." });
+  if (!process.env.OPENAI_API_KEY && !process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY && !process.env.VITE_GROQ_API_KEY) {
+    return res.status(503).json({ error: "A IA não está configurada neste ambiente." });
+  }
+  try {
+    const raw = await generateAI(prompt, { maxTokens: 3000 });
+    return res.json({ raw });
+  } catch (err: any) {
+    console.error("[generate-json]", err?.message);
+    return res.status(502).json({ error: "Não foi possível analisar agora. Tente novamente em instantes." });
+  }
+});
+
 app.post("/api/ai/aurora-chat", requireUser, async (req: any, res: any) => {
   const { message, sessionId: clientSessionId } = req.body ?? {};
   if (!message?.trim()) return res.status(400).json({ error: "Mensagem vazia." });

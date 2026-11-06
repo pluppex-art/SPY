@@ -1,12 +1,8 @@
-import { AlertTriangle, Brain, Loader2 } from 'lucide-react';
+import { Brain, Loader2 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import type { AIProvider } from '../../../../lib/revenueIntelligence';
 
 interface InputFormProps {
   lead: any;
-  provider: AIProvider;
-  onProviderChange: (p: AIProvider) => void;
-  hasKeys: boolean;
   transcript: string;
   onTranscriptChange: (v: string) => void;
   productName: string;
@@ -24,7 +20,7 @@ interface InputFormProps {
 }
 
 export function InputForm({
-  lead, provider, onProviderChange, hasKeys,
+  lead,
   transcript, onTranscriptChange,
   productName, onProductNameChange,
   officialPrice, onOfficialPriceChange,
@@ -35,29 +31,6 @@ export function InputForm({
 }: InputFormProps) {
   return (
     <div className="p-6 space-y-5">
-      <div className="flex items-center gap-3">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider shrink-0">Modelo IA:</span>
-        <div className="flex gap-1 bg-[var(--color-surface)] border border-white/5 rounded-xl p-1">
-          {(['gemini', 'groq'] as AIProvider[]).map(p => (
-            <button
-              key={p}
-              onClick={() => onProviderChange(p)}
-              className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg transition-all border-none cursor-pointer ${
-                provider === p ? 'bg-blue-600 text-white' : 'bg-transparent text-slate-400 hover:text-white'
-              }`}
-            >
-              {p === 'gemini' ? 'Google Gemini' : 'Groq (Llama)'}
-            </button>
-          ))}
-        </div>
-        {!hasKeys && (
-          <span className="text-[9px] text-rose-400 font-bold flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" />
-            VITE_{provider.toUpperCase()}_API_KEY não encontrada
-          </span>
-        )}
-      </div>
-
       <div className="grid grid-cols-2 gap-3">
         {[
           { label: 'Produto', value: productName, onChange: onProductNameChange, placeholder: 'Ex: Mentoria Premium' },

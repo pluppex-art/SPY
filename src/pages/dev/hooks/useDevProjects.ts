@@ -130,8 +130,7 @@ export function useDevProjects() {
 
     try {
       // Escolhe provider com base nas chaves configuradas no runtime
-      const selectedProvider: 'groq' | 'gemini' = import.meta.env.VITE_GROQ_API_KEY ? 'groq' : 'gemini';
-      const generated = await generateProjectBacklogAI(backlogAIInput, selectedProvider);
+      const generated = await generateProjectBacklogAI(backlogAIInput);
 
 
       backlogTasks = (generated.tasks || []).slice(0, 10).map(t => ({

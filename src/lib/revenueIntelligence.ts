@@ -1,3 +1,4 @@
+import { apiFetch } from './apiClient';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface BANTItem {
@@ -188,58 +189,16 @@ ${data.transcript}
 
 // ─── API Calls ────────────────────────────────────────────────────────────────
 
-async function callGemini(prompt: string): Promise<RevenueAnalysis> {
-  const key = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!key) throw new Error('VITE_GEMINI_API_KEY não configurado');
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Gemini error ${res.status}: ${JSON.stringify(err)}`);
-  }
-
-  const data = await res.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  return parseAnalysis(raw);
-}
-
-async function callGroq(prompt: string): Promise<RevenueAnalysis> {
-  const key = import.meta.env.VITE_GROQ_API_KEY;
-  if (!key) throw new Error('VITE_GROQ_API_KEY não configurado');
-
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+// A chamada à IA acontece no servidor (POST /api/ai/generate-json): nenhuma chave de IA fica no navegador.
+async function callServer(prompt: string): Promise<RevenueAnalysis> {
+  const res = await apiFetch('/api/ai/generate-json', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.1,
-      response_format: { type: 'json_object' },
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Groq error ${res.status}: ${JSON.stringify(err)}`);
-  }
-
-  const data = await res.json();
-  const raw = data.choices?.[0]?.message?.content ?? '';
-  return parseAnalysis(raw);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `Falha ao analisar (HTTP ${res.status}).`);
+  return parseAnalysis(String(data.raw ?? ''));
 }
 
 function parseAnalysis(raw: string): RevenueAnalysis {
@@ -253,13 +212,6 @@ function parseAnalysis(raw: string): RevenueAnalysis {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export type AIProvider = 'gemini' | 'groq';
-
-export async function analyzeCall(
-  data: PromptData,
-  provider: AIProvider = 'gemini'
-): Promise<RevenueAnalysis> {
-  const prompt = buildPrompt(data);
-  if (provider === 'groq') return callGroq(prompt);
-  return callGemini(prompt);
+export async function analyzeCall(data: PromptData): Promise<RevenueAnalysis> {
+  return callServer(buildPrompt(data));
 }
