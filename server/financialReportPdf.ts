@@ -264,16 +264,27 @@ async function buildPdf(sb: any, payload: ReportTokenPayload): Promise<Buffer> {
   return Buffer.from(doc.output("arraybuffer"));
 }
 
+/**
+ * Checagem pura (sem res/next) de `x-internal-key` contra `N8N_INTERNAL_KEY` —
+ * exportada para que outras rotas (ex: os endpoints de dashboard/resumo em
+ * server.ts) possam aceitar o mesmo caminho de chamada interna da Aurora/n8n
+ * além da sessão de usuário normal, sem duplicar a lógica de comparação.
+ */
+export function isValidInternalKey(req: any): boolean {
+  const configured = process.env.N8N_INTERNAL_KEY || "";
+  if (!configured) return false;
+  const key = (req.headers["x-internal-key"] as string) || "";
+  const a = Buffer.from(key);
+  const b = Buffer.from(configured);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export function registerFinancialReportRoutes(app: Express, deps: Deps) {
   const { supabaseService, hasSupabaseService } = deps;
 
   function requireInternalService(req: any, res: any, next: any) {
-    const configured = process.env.N8N_INTERNAL_KEY || "";
-    if (!configured) return res.status(503).json({ error: "N8N_INTERNAL_KEY não configurada no servidor." });
-    const key = (req.headers["x-internal-key"] as string) || "";
-    const a = Buffer.from(key);
-    const b = Buffer.from(configured);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) return res.status(401).json({ error: "Chave interna inválida ou ausente." });
+    if (!process.env.N8N_INTERNAL_KEY) return res.status(503).json({ error: "N8N_INTERNAL_KEY não configurada no servidor." });
+    if (!isValidInternalKey(req)) return res.status(401).json({ error: "Chave interna inválida ou ausente." });
     next();
   }
 

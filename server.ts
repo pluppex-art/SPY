@@ -30,7 +30,7 @@ import { buildEmpresaDados, tenantReadiness } from "./src/lib/implementationTena
 import { registerTableComparisonExportRoutes } from "./server/tableComparisonExport.js";
 import { registerTableComparisonResearchRoutes } from "./server/tableComparisonResearch.js";
 import { makeN8nAiJson } from "./server/tableComparisonN8n.js";
-import { registerFinancialReportRoutes } from "./server/financialReportPdf.js";
+import { registerFinancialReportRoutes, isValidInternalKey } from "./server/financialReportPdf.js";
 import { registerMessageTriggerRoutes } from "./server/messageTriggers.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
@@ -492,6 +492,27 @@ async function requireUser(req: express.Request, res: express.Response, next: ex
   }
 }
 
+/**
+ * Como requireUser, mas também aceita o header `x-internal-key` da Aurora/n8n
+ * (mesma checagem de server/financialReportPdf.ts) como alternativa à sessão
+ * de usuário — para os endpoints de resumo/dashboard que a Aurora precisa
+ * ler sem um usuário logado. Não é um modo de confiança novo: é o mesmo
+ * padrão já em produção na rota de relatório em PDF, estendido aqui.
+ *
+ * No caminho interno, `req.supabase` vira o client service-role (sem RLS de
+ * usuário) e `req.isInternalService = true` — resolveRequestedTenantId usa
+ * essa flag pra pular has_tenant_access e confiar direto no tenantId pedido,
+ * já que não existe um usuário dono da sessão pra validar contra.
+ */
+async function requireUserOrInternalService(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (isValidInternalKey(req)) {
+    (req as any).isInternalService = true;
+    (req as any).supabase = supabaseService;
+    return next();
+  }
+  return requireUser(req, res, next);
+}
+
 // Status do Redis-SPY (ping + latência). Não expõe dado de tenant nenhum,
 // só topologia/saúde de infra — mesmo nível de sensibilidade de um /healthz
 // comum, por isso fica sem autenticação.
@@ -543,6 +564,21 @@ registerClientErrorRoute(app, { supabaseService, supabase, limiter: rateLimit({ 
  * `if (!tenantId) return;` logo em seguida.
  */
 async function resolveRequestedTenantId(req: any, res: any): Promise<string | null> {
+  // Chamada interna (Aurora/n8n, ver requireUserOrInternalService): não existe usuário dono de
+  // sessão pra validar has_tenant_access contra — confia direto no tenantId pedido, mesmo
+  // modelo de confiança já em produção em server/financialReportPdf.ts.
+  if (req.isInternalService) {
+    const requestedTenantId =
+      typeof req.query.tenantId === "string" ? req.query.tenantId
+      : typeof req.body?.tenantId === "string" ? req.body.tenantId
+      : null;
+    if (!requestedTenantId) {
+      res.status(400).json({ error: "tenantId é obrigatório para chamada interna." });
+      return null;
+    }
+    return requestedTenantId;
+  }
+
   const { data: caller, error: callerError } = await req.supabase
     .from("users").select("tenant_id").eq("id", req.user.id).maybeSingle();
   if (callerError || !caller?.tenant_id) {
@@ -591,7 +627,7 @@ async function fetchAllRowsPaginated(
   return all;
 }
 
-app.get("/api/dashboard/summary", requireUser, async (req: any, res) => {
+app.get("/api/dashboard/summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -701,7 +737,7 @@ app.get("/api/dashboard/summary", requireUser, async (req: any, res) => {
  * e gráfico de fluxo de caixa (mesmo motivo) — nenhum desses é recalculado
  * aqui, todos continuam vindo do financeEngine.ts no navegador.
  */
-app.get("/api/finance/visao-geral-summary", requireUser, async (req: any, res) => {
+app.get("/api/finance/visao-geral-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -804,7 +840,7 @@ app.get("/api/finance/visao-geral-summary", requireUser, async (req: any, res) =
  * "wonAt"/"closedAt" separada — um lead criado num mês e fechado 3 meses
  * depois aparece no mês de CRIAÇÃO, não no mês em que de fato fechou.
  */
-app.get("/api/dashboard/bi-summary", requireUser, async (req: any, res) => {
+app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -997,7 +1033,7 @@ const WEEKDAYS_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
  * antes de agrupar por dia da semana. Sem formato BR misturado (diferente
  * de finance_entries) — confirmado ao vivo antes de implementar.
  */
-app.get("/api/marketing/campanhas-summary", requireUser, async (req: any, res) => {
+app.get("/api/marketing/campanhas-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1072,7 +1108,7 @@ function bucketFor(dias: number) {
  * parsing de texto: dias = diferença em dias UTC entre hoje e a data de
  * vencimento, calculado a partir dos componentes y/m/d, igual ao cliente.
  */
-app.get("/api/finance/inadimplencia-summary", requireUser, async (req: any, res) => {
+app.get("/api/finance/inadimplencia-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1139,7 +1175,7 @@ app.get("/api/finance/inadimplencia-summary", requireUser, async (req: any, res)
 // vem pronto do cliente (periodoRange() em FinanceiroDRE.tsx) pra evitar
 // qualquer divergência de fuso horário entre o cálculo de "período atual"
 // no servidor e no navegador do usuário.
-app.get("/api/finance/dre-summary", requireUser, async (req: any, res) => {
+app.get("/api/finance/dre-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1207,7 +1243,7 @@ const PERF_MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago"
 // Performance Mensal — mesma fórmula de FinanceiroPerformanceMensal.tsx:
 // regime de CAIXA (status "Pago"), últimos N meses (6/12/24) ancorados no
 // mês corrente do servidor.
-app.get("/api/finance/performance-mensal-summary", requireUser, async (req: any, res) => {
+app.get("/api/finance/performance-mensal-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1269,7 +1305,7 @@ const PERF_DRE_TIPO_LABEL: Record<string, string> = { DESPESA_FIXA: "Despesas Fi
 // regime de CAIXA, ano vs. ano anterior. Saldo das contas (saldosContas)
 // fica de fora, igual à Visão Geral — depende de financeBankAccounts +
 // financeTransfers, domínio à parte, sempre client-side.
-app.get("/api/finance/performance-anual-summary", requireUser, async (req: any, res) => {
+app.get("/api/finance/performance-anual-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1352,7 +1388,7 @@ app.get("/api/finance/performance-anual-summary", requireUser, async (req: any, 
 // pronto do cliente (mesma janela de 30/60/90 dias calculada em
 // FinanceiroFluxoCaixa.tsx) pra evitar divergência de fuso horário entre
 // o "hoje" do servidor e o do navegador — mesmo motivo do DRE.
-app.get("/api/finance/fluxo-caixa-summary", requireUser, async (req: any, res) => {
+app.get("/api/finance/fluxo-caixa-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1418,7 +1454,7 @@ app.get("/api/finance/fluxo-caixa-summary", requireUser, async (req: any, res) =
  * iteração E a mesma formatação de locale do Node), então continua 100%
  * client-side, igual já era antes do cache.
  */
-app.get("/api/marketing/analytics-summary", requireUser, async (req: any, res) => {
+app.get("/api/marketing/analytics-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1478,7 +1514,7 @@ app.get("/api/marketing/analytics-summary", requireUser, async (req: any, res) =
  * filtro de data na query) porque leads.date é texto em formato misto sem
  * coluna normalizada — o filtro de período roda em JS, igual ao cliente.
  */
-app.get("/api/crm/relatorios-executivos-summary", requireUser, async (req: any, res) => {
+app.get("/api/crm/relatorios-executivos-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1592,7 +1628,7 @@ app.get("/api/crm/relatorios-executivos-summary", requireUser, async (req: any, 
  * ficam de fora — o primeiro precisa dos leads completos pra qualquer ação
  * de clique, o segundo é uma tabela de configuração já pequena.
  */
-app.get("/api/crm/dashboard-performance-summary", requireUser, async (req: any, res) => {
+app.get("/api/crm/dashboard-performance-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1655,7 +1691,7 @@ app.get("/api/crm/dashboard-performance-summary", requireUser, async (req: any, 
  * nova query no servidor pode classificar um agendamento diferente, então
  * não é seguro replicar fielmente aqui.
  */
-app.get("/api/clinica/estatisticas-summary", requireUser, async (req: any, res) => {
+app.get("/api/clinica/estatisticas-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1704,7 +1740,7 @@ app.get("/api/clinica/estatisticas-summary", requireUser, async (req: any, res) 
  * formato BR (DD/MM/AAAA) falha o parse e é silenciosamente excluído do
  * gráfico, igual já acontece hoje; replicado de propósito, não corrigido.
  */
-app.get("/api/clinica/faturamento-summary", requireUser, async (req: any, res) => {
+app.get("/api/clinica/faturamento-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1773,7 +1809,7 @@ const PAINEL_WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
  * são registros completos pro painel de "jornada do paciente", lista
  * pequena, sem ganho real em cachear.
  */
-app.get("/api/clinica/painel-geral-summary", requireUser, async (req: any, res) => {
+app.get("/api/clinica/painel-geral-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
@@ -1835,7 +1871,7 @@ app.get("/api/clinica/painel-geral-summary", requireUser, async (req: any, res) 
  * corrente usa new Date().toISOString() em UTC — igual ao cliente, sem
  * risco de fuso, já que os dois convertem pro mesmo instante em UTC.
  */
-app.get("/api/education/mensalidades-summary", requireUser, async (req: any, res) => {
+app.get("/api/education/mensalidades-summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
