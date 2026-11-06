@@ -1020,9 +1020,10 @@ export function LeadsPipelineBoard({ tipo }: { tipo: "imovel" | "veiculo" }) {
   const saveToDB = async (lead: Lead) => {
     if (!supabase) return;
     const { id, ...rest } = lead;
-    // `imobiliario_leads` não tem coluna `status` nem `tags` — ficam só no estado
+    // `status` (Ativo/Ganho/Perdido) é gravado na coluna própria; `tags` não tem coluna e fica só no estado
     // local (React), senão o UPDATE inteiro falha por coluna desconhecida.
     const row = {
+      status: rest.status,
       nome: rest.cliente, telefone: rest.telefone, email: rest.email,
       interesse: rest.interesse, bairro: rest.bairro, orcamento: rest.orcamento,
       corretor: rest.corretor, origem: rest.origem, etapa: rest.etapa,
@@ -1059,8 +1060,9 @@ export function LeadsPipelineBoard({ tipo }: { tipo: "imovel" | "veiculo" }) {
     setLeads(prev => [novo, ...prev]);
     if (supabase && activeTenantId) {
       // `tipo` é NOT NULL (discrimina imóvel/veículo) e nunca era enviado — todo
-      // insert falhava. `status`/`tags` não têm coluna própria (ficam só localmente).
+      // insert falhava. `tags` não tem coluna própria (fica só localmente).
       const { data, error } = await supabase.from("imobiliario_leads").insert({
+        status: novo.status,
         nome: novo.cliente, telefone: novo.telefone, email: novo.email,
         interesse: novo.interesse, tipo, bairro: novo.bairro, orcamento: novo.orcamento,
         corretor: novo.corretor, origem: novo.origem, etapa: novo.etapa,
