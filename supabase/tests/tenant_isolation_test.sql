@@ -32,6 +32,7 @@ declare
   lead_b   uuid := 'bbbbbbbb-4444-4444-4444-444444444444';
   v_count int;
   v_rows int;
+  r record;
 begin
   insert into public.tenants (id, name, niche) values (tenant_a, '__TEST TENANT A ISOLATION__', 'geral'), (tenant_b, '__TEST TENANT B ISOLATION__', 'geral');
   insert into public.users (id, tenant_id, name, email, is_master) values
@@ -81,6 +82,16 @@ begin
   reset request.jwt.claims;
   delete from public.leads where id in (lead_a, lead_b);
   delete from public.users where id in (user_a, user_b, master);
+  -- Tabelas criadas depois do teste (ex.: aurora_events) ganham linhas dos tenants de teste por gatilho e tem FK para tenants:
+  -- limpa, pelas FKs, tudo que aponta so para os dois tenants ficticios (UUIDs aaaaaaaa-/bbbbbbbb-) antes de apagar os tenants.
+  for r in
+    select c.conrelid::regclass::text as tbl, a.attname::text as col
+      from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
+     where c.contype = 'f' and c.confrelid = 'public.tenants'::regclass and c.conrelid <> 'public.tenants'::regclass
+       and array_length(c.conkey, 1) = 1
+  loop
+    execute format('delete from %s where %I = any($1)', r.tbl, r.col) using array[tenant_a, tenant_b];
+  end loop;
   delete from public.tenants where id in (tenant_a, tenant_b);
 
   raise notice 'CLEANUP OK: nenhum dado de teste restante no banco.';
