@@ -37,7 +37,8 @@ declare
 begin
   if auth.uid() is null then raise exception 'Faça login para mesclar cards.' using errcode = '28000'; end if;
   if p_target is null or p_source is null or p_target = p_source then
-    raise exception 'Escolha dois cards diferentes.' using errcode = '22023';
+    -- o hint e a marca de versao: o botao Mesclar cards so aparece quando a sondagem devolve "merge_leads v2"
+    raise exception 'Escolha dois cards diferentes.' using errcode = '22023', hint = 'merge_leads v2';
   end if;
 
   -- trava os dois em ordem fixa (evita deadlock se alguem mesclar o par ao contrario ao mesmo tempo)

@@ -11,15 +11,15 @@ import { avisarMudancaDePessoas } from "./useLeadPessoas";
 type Candidato = { id: string; name: string | null; company: string | null; phone: string | null; status: string | null };
 
 /**
- * O botão só aparece quando a função merge_leads existe no banco (migração 20261106_merge_leads.sql).
- * A checagem chama a função com valores vazios: ela recusa antes de mexer em qualquer dado.
+ * O botão só aparece quando a versão FINAL da função merge_leads está no banco (migração 20261106_merge_leads.sql).
+ * A sondagem chama a função com valores vazios: ela recusa antes de mexer em qualquer dado e devolve a marca de versão no hint.
  */
 let disponibilidade: Promise<boolean> | null = null;
 function mesclagemDisponivel(): Promise<boolean> {
   if (!supabase) return Promise.resolve(false);
   if (!disponibilidade) {
     disponibilidade = Promise.resolve(supabase.rpc("merge_leads", { p_target: null, p_source: null }))
-      .then(({ error }) => !(error && (error.code === "PGRST202" || (error as any).status === 404)))
+      .then(({ error }) => !!error && (error as any).hint === "merge_leads v2")
       .catch(() => false);
   }
   return disponibilidade;
