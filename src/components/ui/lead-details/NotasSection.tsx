@@ -110,15 +110,14 @@ export function NotasSection({
   // Pessoas do negócio (sócios, diretor...): cada nota é de uma pessoa; sem pessoa registrada, a nota é do contato principal.
   const pessoas = useLeadPessoas(lead, leadName);
   const variasPessoas = pessoas.length > 1;
-  const [pessoaFiltro, setPessoaFiltro] = useState<string>("todas");
-  const [pessoaNota, setPessoaNota] = useState<string>("principal");
+  // Sempre abre na pessoa principal (quem entrou em contato primeiro); a nota nova é da pessoa da aba aberta.
+  const [pessoaFiltro, setPessoaFiltro] = useState<string>("principal");
   const idValido = (id?: string) => (id && pessoas.some((p) => p.id === id) ? id : "principal");
   const nomeDe = (id: string) => pessoas.find((p) => p.id === id)?.nome ?? leadName;
-  useEffect(() => { setPessoaFiltro("todas"); setPessoaNota("principal"); }, [lead?.id]);
+  useEffect(() => { setPessoaFiltro("principal"); }, [lead?.id]);
   useEffect(() => {
-    if (pessoaFiltro !== "todas" && !pessoas.some((p) => p.id === pessoaFiltro)) setPessoaFiltro("todas");
-    if (!pessoas.some((p) => p.id === pessoaNota)) setPessoaNota("principal");
-  }, [pessoas, pessoaFiltro, pessoaNota]);
+    if (!pessoas.some((p) => p.id === pessoaFiltro)) setPessoaFiltro("principal");
+  }, [pessoas, pessoaFiltro]);
 
   const recognitionRef = useRef<any>(null);
   const inputPrefixRef = useRef("");
@@ -176,7 +175,7 @@ export function NotasSection({
       createdAt: new Date().toISOString(),
       category: cat,
       scoreImpact: scoreImpact !== 0 ? scoreImpact : undefined,
-      ...(variasPessoas ? { pessoaId: idValido(pessoaNota), pessoa: nomeDe(idValido(pessoaNota)) } : {}),
+      ...(variasPessoas ? { pessoaId: idValido(pessoaFiltro), pessoa: nomeDe(idValido(pessoaFiltro)) } : {}),
     };
 
     const updated = [note, ...notes];
@@ -218,14 +217,6 @@ export function NotasSection({
         }
       }
     } catch {}
-  };
-
-  // Passa a nota de uma pessoa para outra (ex.: do Romário para o Murilo).
-  const moverNota = async (noteId: string, novoId: string) => {
-    const updated = notes.map((n) => (n.id === noteId ? { ...n, pessoaId: novoId, pessoa: nomeDe(novoId) } : n));
-    setNotes(updated);
-    await persist(updated);
-    toast.success(`Nota passada para ${nomeDe(novoId)}.`);
   };
 
   const deleteNote = async (noteId: string) => {
@@ -329,7 +320,7 @@ export function NotasSection({
     }, 500);
   };
 
-  const visiveis = !variasPessoas || pessoaFiltro === "todas" ? notes : notes.filter((n) => idValido(n.pessoaId) === pessoaFiltro);
+  const visiveis = !variasPessoas ? notes : notes.filter((n) => idValido(n.pessoaId) === pessoaFiltro);
 
   const tempIcon = temperature === "Quente"
     ? <Flame className="w-4 h-4 text-danger" />
@@ -600,20 +591,6 @@ export function NotasSection({
         </Button>
       </div>
 
-      {variasPessoas && (
-        <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] -mt-2">
-          Nota de
-          <select
-            value={pessoaNota}
-            onChange={(e) => setPessoaNota(e.target.value)}
-            aria-label="Pessoa dona da nota"
-            className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-lg px-2 py-1 text-xs normal-case tracking-normal font-semibold text-[var(--color-text-primary)]"
-          >
-            {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}{p.papel ? ` · ${p.papel}` : p.principal ? " · principal" : ""}</option>)}
-          </select>
-        </label>
-      )}
-
       <div className="flex items-center justify-between -mt-2">
         <p className="text-[10px] text-[var(--color-text-faint)]">
           Autor: <span className="text-[var(--color-text-muted)] font-semibold">{authorName}</span>
@@ -626,13 +603,13 @@ export function NotasSection({
       {/* ── FILTRO POR PESSOA ── */}
       {variasPessoas && (
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1" role="tablist" aria-label="Filtrar notas por pessoa">
-          {[{ id: "todas", nome: "Todas", total: notes.length }, ...pessoas.map((p) => ({ id: p.id, nome: p.nome, total: notes.filter((n) => idValido(n.pessoaId) === p.id).length }))].map((f) => (
+          {pessoas.map((p) => ({ id: p.id, nome: p.nome, total: notes.filter((n) => idValido(n.pessoaId) === p.id).length })).map((f) => (
             <button
               key={f.id}
               type="button"
               role="tab"
               aria-selected={pessoaFiltro === f.id}
-              onClick={() => { setPessoaFiltro(f.id); if (f.id !== "todas") setPessoaNota(f.id); }}
+              onClick={() => setPessoaFiltro(f.id)}
               className={cn(
                 "px-2.5 py-1 rounded-lg border text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer",
                 pessoaFiltro === f.id
@@ -680,23 +657,9 @@ export function NotasSection({
                       </span>
                     )}
                     <span className="text-[10px] text-[var(--color-text-faint)]">por {note.author}</span>
-                    {variasPessoas && pessoaFiltro === "todas" && (
-                      <span className="text-[10px] font-bold text-[var(--color-text-muted)]">· {nomeDe(idValido(note.pessoaId))}</span>
-                    )}
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                  {variasPessoas && (
-                    <select
-                      value={idValido(note.pessoaId)}
-                      onChange={(e) => moverNota(note.id, e.target.value)}
-                      aria-label="Passar esta nota para outra pessoa"
-                      title="Passar esta nota para outra pessoa"
-                      className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-text-muted)] max-w-[110px]"
-                    >
-                      {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                    </select>
-                  )}
                   <button
                     onClick={() => deleteNote(note.id)}
                     className="p-1 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-danger/10 rounded text-[var(--color-text-faint)] hover:text-danger transition-all cursor-pointer"
