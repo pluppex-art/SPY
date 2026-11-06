@@ -9,7 +9,7 @@ export const TERMOS: DocContent = {
   metaDescription: "Condições de uso do S.P.Y. (spycrm.com.br), plataforma de gestão comercial e operacional multiempresa com a assistente de IA Aurora.",
   title: "Termos de Uso",
   intro: "As regras para usar o S.P.Y. e as páginas públicas do site, escritas de forma direta.",
-  updated: "5 de novembro de 2026",
+  updated: "6 de novembro de 2026",
   sections: [
     {
       id: "aceitacao",
@@ -43,6 +43,7 @@ export const TERMOS: DocContent = {
       html: [
       "<p>Você pode usar o S.P.Y. para as atividades comerciais e operacionais legítimas da sua empresa. É proibido:</p>",
       "<ul><li>usar o serviço para fins ilícitos ou que violem direitos de terceiros;</li><li>inserir dados pessoais sem ter base legal adequada para tratá-los;</li><li>tentar acessar áreas, contas ou dados de outras empresas, ou burlar controles de segurança e limites de uso;</li><li>copiar, revender, fazer engenharia reversa ou criar obras derivadas da plataforma, salvo se a lei permitir;</li><li>enviar mensagens em massa não solicitadas ou praticar qualquer abuso dos canais conectados.</li></ul>",
+      "<p><strong>Mensagens enviadas pela sua empresa.</strong> A empresa cliente é a única responsável pelo conteúdo e pelo destino das mensagens que envia pelos canais conectados, inclusive o WhatsApp. Isso inclui ter base legal (como consentimento ou relacionamento prévio) para contatar cada pessoa, oferecer uma forma simples de deixar de receber mensagens, atender prontamente a esse pedido e cumprir as políticas do WhatsApp e a legislação aplicável, como a LGPD e o Código de Defesa do Consumidor.</p>",
       "<p>O descumprimento pode levar à suspensão do acesso, sem prejuízo de outras medidas cabíveis.</p>",
       ],
     },
@@ -90,6 +91,7 @@ export const TERMOS: DocContent = {
       id: "responsabilidade",
       title: "10. Limitação de responsabilidade",
       html: [
+      "<p>Em especial, o S.P.Y. não responde por limitação, suspensão ou banimento de números de WhatsApp, nem por perda de conversas, contatos ou oportunidades decorrentes disso, uma vez que essas decisões cabem exclusivamente ao WhatsApp e a conexão utilizada não é a oficial (ver seção 2).</p>",
       "<p>Na extensão permitida pela lei, o S.P.Y. não responde por danos indiretos, lucros cessantes ou perdas decorrentes de uso inadequado da plataforma, de decisões tomadas com base em conteúdo gerado por IA, de falhas de serviços de terceiros ou de informações incorretas inseridas pelo usuário.</p>",
       "<p>Nada nestes Termos limita responsabilidades que não possam ser limitadas por lei, nem direitos assegurados pelo Código de Defesa do Consumidor, quando aplicável.</p>",
       ],
