@@ -33,7 +33,7 @@ export function registerDeepHealthRoute(app: Express, { supabaseService, redisHe
     const n8nUrl = origin(process.env.AURORA_WEBHOOK_URL) || base(process.env.N8N_API_URL);
     const wahaUrl = base(process.env.WAHA_API_URL);
 
-    const [supabase, n8n, waha, redis] = await Promise.all([
+    const [supabase, n8n, waha, redis, aurora_ia] = await Promise.all([
       supabaseService
         ? timed(async () => !(await supabaseService.from("tenants").select("id").limit(1)).error)
         : Promise.resolve<Check>({ configured: false, ok: false }),
@@ -48,12 +48,21 @@ export function registerDeepHealthRoute(app: Express, { supabaseService, redisHe
         const r = await redisHealthCheck();
         return { configured: r.configured, ok: r.connected, ms: r.latencyMs, reason: r.reason };
       })(),
+      // Falhas do modelo de IA da Aurora (limite de uso, chave sem crédito...) registradas pelo fluxo nos últimos 30 min.
+      // 5 ou mais = "degraded": a Aurora está respondendo com a mensagem de contingência para os clientes.
+      supabaseService
+        ? timed(async () => {
+            const desde = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+            const { count, error } = await supabaseService.from("aurora_model_failures").select("id", { count: "exact", head: true }).gte("created_at", desde);
+            return !error && (count ?? 0) < 5;
+          })
+        : Promise.resolve<Check>({ configured: false, ok: false }),
     ]);
 
-    const checks = { supabase, n8n, waha, redis };
+    const checks = { supabase, n8n, waha, redis, aurora_ia };
     // Redis é só cache (falha aberta: o sistema segue direto no banco). Fora do ar vira "degraded",
     // que aparece no JSON mas NÃO dá 503 — senão o monitor externo alertaria sem haver queda real.
-    const OPTIONAL = new Set(["redis"]);
+    const OPTIONAL = new Set(["redis", "aurora_ia"]);
     const down = Object.entries(checks).filter(([, c]) => c.configured && !c.ok).map(([k]) => k);
     const failed = down.filter((k) => !OPTIONAL.has(k));
     const degraded = down.filter((k) => OPTIONAL.has(k));
