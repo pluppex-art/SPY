@@ -8,12 +8,12 @@ import type { DocContent } from "./docTypes";
 
 /** Dados da empresa responsável. Campos vazios são omitidos (a página orienta o contato pelo formulário do site). */
 const COMPANY = {
-  razaoSocial: "",
-  cnpj: "",
+  razaoSocial: "PLUPPEX DIGITAL MACHINES LTDA - ME",
+  cnpj: "61.542.757/0001-00",
   emailPrivacidade: "",
 };
 
-const LAST_UPDATE = "14 de outubro de 2026";
+const LAST_UPDATE = "6 de novembro de 2026";
 
 const contato = COMPANY.emailPrivacidade
   ? `pelo e-mail <a href="mailto:${COMPANY.emailPrivacidade}">${COMPANY.emailPrivacidade}</a> ou pelo <a href="/contato">formulário de contato do site</a>`

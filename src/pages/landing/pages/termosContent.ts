@@ -1,6 +1,6 @@
 import type { DocContent } from "./docTypes";
 
-const COMPANY = { razaoSocial: "", cnpj: "" };
+const COMPANY = { razaoSocial: "PLUPPEX DIGITAL MACHINES LTDA - ME", cnpj: "61.542.757/0001-00" };
 const company = COMPANY.razaoSocial || COMPANY.cnpj ? `<p>${COMPANY.razaoSocial}${COMPANY.razaoSocial && COMPANY.cnpj ? " — " : ""}${COMPANY.cnpj ? `CNPJ ${COMPANY.cnpj}` : ""}</p>` : "";
 
 export const TERMOS: DocContent = {

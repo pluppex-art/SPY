@@ -48,7 +48,7 @@ Cláusulas já escritas:
 
 ## 6. Lacunas que só o dono do negócio preenche
 
-- **Razão social e CNPJ estão vazios** nos Termos e na Política (`COMPANY` em `termosContent.ts`). Os documentos hoje não identificam quem é o fornecedor.
+- **Fornecedor identificado** nos Termos e na Política: PLUPPEX DIGITAL MACHINES LTDA - ME, CNPJ 61.542.757/0001-00. Confirmar se a grafia da razão social (inclusive o sufixo "- ME") está igual ao cartão CNPJ atual.
 - **Encarregado (DPO) e canal para titulares:** confirmar se a seção "Fale com a gente" informa e-mail do encarregado.
 - **Foro e lei aplicável** (seção 13): confirmar a comarca desejada.
 - **Preços, prazos, multa e fidelidade:** os Termos remetem à proposta/contrato (seção 7). Revisar o modelo de contrato comercial que acompanha.
