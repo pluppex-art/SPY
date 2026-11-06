@@ -4125,11 +4125,15 @@ app.post("/api/ai/aurora-chat", requireUser, async (req: any, res: any) => {
     const { data } = await axios.post(
       webhookUrl,
       { action: "sendMessage", sessionId, chatInput: message, tenantId, tenantName, isMaster: isMasterCaller },
-      { timeout: 60000 }
+      // 55 s: abaixo do maxDuration de 60 s da função (vercel.json), pra responder com mensagem clara em vez de a Vercel cortar a conexão.
+      { timeout: 55000 }
     );
     return res.json({ output: data?.output ?? "", audioBase64: data?.audioBase64 ?? null });
   } catch (err: any) {
     console.error("[Aurora Chat]", err?.response?.data ?? err?.message);
+    if (err?.code === "ECONNABORTED" || err?.code === "ETIMEDOUT") {
+      return res.status(504).json({ error: "A Aurora está demorando mais que o normal. Tente novamente em instantes." });
+    }
     return res.status(502).json({ error: "Aurora está indisponível agora." });
   }
 });
