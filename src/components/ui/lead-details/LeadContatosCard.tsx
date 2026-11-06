@@ -6,10 +6,11 @@ import { Button } from "../button";
 import { supabase } from "../../../lib/supabase";
 import { confirmDialog } from "../confirm-dialog";
 import { friendlyError } from "../../../lib/friendlyError";
+import { avisarMudancaDePessoas } from "./useLeadPessoas";
 
 type Pessoa = { id: string; nome: string | null; telefone: string; papel: string | null };
 
-const PAPEIS = ["Sócio", "Decisor", "Financeiro", "Comprador", "Operacional"];
+const PAPEIS = ["Sócio", "Diretor", "Decisor", "Financeiro", "Comprador", "Operacional"];
 const campo =
   "w-full bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)]";
 
@@ -73,6 +74,7 @@ export function LeadContatosCard({ lead }: { lead: any }) {
     toast.success(form.id ? "Pessoa atualizada." : "Pessoa adicionada ao card.");
     setForm(null);
     carregar();
+    avisarMudancaDePessoas();
   };
 
   const remover = async (p: Pessoa) => {
@@ -87,13 +89,14 @@ export function LeadContatosCard({ lead }: { lead: any }) {
     if (error) { toast.error(erroDaPessoa(error)); return; }
     toast.success("Pessoa removida.");
     carregar();
+    avisarMudancaDePessoas();
   };
 
   return (
     <Card className="p-3.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
       <div className="flex items-center justify-between gap-2 mb-2.5">
         <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5">
-          <Users className="w-3 h-3" /> Pessoas do negócio
+          <Users className="w-3 h-3" /> Pessoas do negócio{lead?.company ? <span className="normal-case tracking-normal font-semibold text-[var(--color-text-faint)]"> · {lead.company}</span> : null}
         </h4>
         {!form && (
           <Button size="sm" variant="ghost" onClick={() => setForm({ id: null, nome: "", telefone: "", papel: "" })} aria-label="Adicionar pessoa ao card">
@@ -135,7 +138,7 @@ export function LeadContatosCard({ lead }: { lead: any }) {
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
           <input id="lc-nome" className={campo} placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} aria-label="Nome da pessoa" />
           <input id="lc-fone" className={campo} placeholder="Telefone com DDD" inputMode="tel" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} aria-label="Telefone da pessoa" />
-          <input id="lc-papel" className={campo} placeholder="Papel (ex.: Sócio)" list="lc-papeis" value={form.papel} onChange={(e) => setForm({ ...form, papel: e.target.value })} aria-label="Papel da pessoa" />
+          <input id="lc-papel" className={campo} placeholder="Papel (ex.: Sócio, Diretor)" list="lc-papeis" value={form.papel} onChange={(e) => setForm({ ...form, papel: e.target.value })} aria-label="Papel da pessoa" />
           <datalist id="lc-papeis">{PAPEIS.map((p) => <option key={p} value={p} />)}</datalist>
           <div className="sm:col-span-3 flex justify-end gap-2">
             <Button size="sm" variant="ghost" onClick={() => setForm(null)} disabled={salvando}><X className="w-3.5 h-3.5 mr-1" /> Cancelar</Button>

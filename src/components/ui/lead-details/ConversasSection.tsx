@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLeadPessoas } from "./useLeadPessoas";
 import { MessageSquareOff, RefreshCw, Loader2, Smartphone, FileText, Mic, Film, FileDown } from "lucide-react";
 import { Button } from "../button";
 import { EmptyState } from "../empty-state";
@@ -180,6 +181,10 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
   const [fonte, setFonte] = useState<"waha" | "banco">("banco");
   const fimRef = useRef<HTMLDivElement>(null);
   const primeiraCarga = useRef(true);
+  // Pessoas do negócio (sócios, diretor...): o seletor "Pessoa" escolhe de quem mostrar a conversa.
+  const pessoas = useLeadPessoas(lead, lead?.name);
+  const [pessoaFiltro, setPessoaFiltro] = useState<string>("todas");
+  useEffect(() => { setPessoaFiltro("todas"); }, [lead?.id]);
 
   const fone = digits(lead?.phone_digits || lead?.phone);
   const chave = fone.length >= 8 ? fone.slice(-8) : "";
@@ -223,7 +228,10 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
       const tenantId = lead?.tenant_id;
       if (!tenantId) { setMsgs([]); setTemMais(false); return; }
       // Outras pessoas do card (lead_contatos): o WhatsApp delas entra na mesma conversa.
-      const { data: extras } = await supabase.from("lead_contatos").select("phone_digits").eq("lead_id", lead.id);
+      const { data: extras } = await supabase.from("lead_contatos").select("nome, phone_digits").eq("lead_id", lead.id);
+      const donoPorChave = new Map<string, string>();
+      if (chave) donoPorChave.set(chave, lead?.name || "Contato principal");
+      (extras || []).forEach((e: any) => { const k = digits(e.phone_digits).slice(-8); if (k.length >= 8) donoPorChave.set(k, e.nome || "Sem nome"); });
       const chaves = [...new Set([chave, ...(extras || []).map((e: any) => digits(e.phone_digits)).filter((d: string) => d.length >= 8).map((d: string) => d.slice(-8))])].slice(0, 5);
       const { data: contatos, error: eC } = await supabase
         .from("chat_contacts")
@@ -233,6 +241,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
         .limit(200);
       if (eC) throw eC;
       const ids = (contatos || []).filter((c: any) => chaves.includes(digits(c.phone).slice(-8))).map((c: any) => c.id);
+      const nomePorContato = new Map<string, string>((contatos || []).map((c: any) => [c.id, donoPorChave.get(digits(c.phone).slice(-8)) || ""]));
       if (ids.length === 0) { setMsgs([]); setTemMais(false); return; }
 
       let q = supabase
@@ -247,7 +256,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
       if (error) throw error;
       const lote = (data || []) as Msg[];
       setTemMais(lote.length > PAGE);
-      const pagina = lote.slice(0, PAGE).reverse();
+      const pagina = lote.slice(0, PAGE).reverse().map((m) => ({ ...m, contato: nomePorContato.get(m.contact_id) || undefined }));
       setMsgs((prev) => (antesDe ? [...pagina, ...prev] : pagina));
 
       const instIds = [...new Set(pagina.map((m) => m.whatsapp_instance_id).filter(Boolean))] as string[];
@@ -300,9 +309,12 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
     return [...mapa.entries()].map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [msgs, instancias, colaboradores]);
-  // Só rotula "quem falou" quando o card tem mais de uma pessoa conversando.
-  const variasPessoas = new Set(msgs.map((m) => m.contato).filter(Boolean)).size > 1;
-  const visiveis = filtro === "todas" ? msgs : msgs.filter((m) => nomeDoVendedor(m.whatsapp_instance_id, m.vendedor) === filtro);
+  // O seletor de pessoa aparece quando o card tem mais de uma pessoa; o rótulo "quem falou" só quando se vê todas juntas.
+  const nomesPessoas = [...new Set(pessoas.map((p) => p.nome))];
+  const temVariasPessoas = nomesPessoas.length > 1;
+  const variasPessoas = temVariasPessoas && pessoaFiltro === "todas";
+  const porPessoa = pessoaFiltro === "todas" ? msgs : msgs.filter((m) => m.contato === pessoaFiltro);
+  const visiveis = filtro === "todas" ? porPessoa : porPessoa.filter((m) => nomeDoVendedor(m.whatsapp_instance_id, m.vendedor) === filtro);
 
   if (!chave) {
     return (
@@ -329,6 +341,23 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
           {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Atualizar
         </Button>
       </div>
+
+      {temVariasPessoas && (
+        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
+          Pessoa
+          <select
+            value={pessoaFiltro}
+            onChange={(e) => setPessoaFiltro(e.target.value)}
+            aria-label="Ver a conversa de qual pessoa"
+            className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-lg px-2 py-1 text-xs normal-case tracking-normal font-semibold text-[var(--color-text-primary)]"
+          >
+            <option value="todas">Todas as pessoas ({msgs.length})</option>
+            {pessoas.map((p) => (
+              <option key={p.id} value={p.nome}>{p.nome}{p.papel ? ` · ${p.papel}` : p.principal ? " · principal" : ""} ({msgs.filter((m) => m.contato === p.nome).length})</option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {agentes.length > 1 && (
         <div className="flex flex-wrap gap-1.5">
@@ -358,6 +387,8 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
         </div>
       ) : msgs.length === 0 ? (
         <EmptyState icon={MessageSquareOff} title="Nenhuma conversa encontrada" description={motivoWaha || "Não há mensagens de WhatsApp registradas com o telefone deste lead."} className="h-60" />
+      ) : visiveis.length === 0 ? (
+        <EmptyState icon={MessageSquareOff} title="Sem mensagens nesta seleção" description={pessoaFiltro !== "todas" ? `Não há conversa de WhatsApp com ${pessoaFiltro}. Escolha outra pessoa ou "Todas as pessoas".` : "Nenhuma mensagem para este filtro."} className="h-60" />
       ) : (
         <div className="max-h-[60dvh] overflow-y-auto overscroll-contain bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3.5 space-y-2">
           {temMais && (
