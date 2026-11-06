@@ -7,6 +7,7 @@ import { supabase } from "../../../lib/supabase";
 import { confirmDialog } from "../confirm-dialog";
 import { friendlyError } from "../../../lib/friendlyError";
 import { avisarMudancaDePessoas } from "./useLeadPessoas";
+import { MesclarCardsButton } from "./MesclarCardsButton";
 
 type Pessoa = { id: string; nome: string | null; telefone: string; papel: string | null };
 
@@ -98,11 +99,14 @@ export function LeadContatosCard({ lead }: { lead: any }) {
         <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5">
           <Users className="w-3 h-3" /> Pessoas do negócio{lead?.company ? <span className="normal-case tracking-normal font-semibold text-[var(--color-text-faint)]"> · {lead.company}</span> : null}
         </h4>
-        {!form && (
-          <Button size="sm" variant="ghost" onClick={() => setForm({ id: null, nome: "", telefone: "", papel: "" })} aria-label="Adicionar pessoa ao card">
-            <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          <MesclarCardsButton lead={lead} />
+          {!form && (
+            <Button size="sm" variant="ghost" onClick={() => setForm({ id: null, nome: "", telefone: "", papel: "" })} aria-label="Adicionar pessoa ao card">
+              <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar
+            </Button>
+          )}
+        </div>
       </div>
 
       <ul className="space-y-1.5 list-none p-0 m-0">
