@@ -12,6 +12,7 @@ import { parseCurrencyBR, whatsappDigits } from "../../../lib/utils";
 import { getMRR } from "../../../lib/revenueMetrics";
 import { toast } from "sonner";
 import { ProfileDataForm } from "./ProfileDataForm";
+import { LeadContatosCard } from "./LeadContatosCard";
 import { leadInterestEstimate } from "./LeadDetailsModal.helpers";
 
 interface ProfileSectionProps {
@@ -269,6 +270,9 @@ export function ProfileSection({
         cnpjFetching={cnpjFetching}
         onFetchCnpj={fetchCnpjData}
       />
+
+      {/* ── Outras pessoas do mesmo negócio (sócios, financeiro...) ── */}
+      <LeadContatosCard lead={lead} />
 
       {/* ── Quick Actions ── */}
       <Card className="p-3.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">

@@ -5942,15 +5942,29 @@ const mediaTypeOf = (mime?: string): "audio" | "image" | "video" | "document" | 
   return "document";
 };
 
+// Telefones que pertencem ao negócio: o principal do lead + o de cada pessoa extra do card (lead_contatos, lidos via RLS).
+// Máximo de 4 números: cada um multiplica as consultas ao gateway (sessões x variantes do número).
+async function telefonesDoLead(req: any, lead: any): Promise<Array<{ digits: string; nome: string }>> {
+  const out: Array<{ digits: string; nome: string }> = [];
+  const principal = String(lead.phone_digits || lead.phone || "").replace(/\D/g, "");
+  if (principal.length >= 10) out.push({ digits: principal, nome: String(lead.name || "") });
+  const { data } = await req.supabase.from("lead_contatos").select("nome, phone_digits").eq("lead_id", lead.id).order("created_at").limit(10);
+  for (const c of data || []) {
+    const d = String(c.phone_digits || "").replace(/\D/g, "");
+    if (d.length >= 10 && !out.some((o) => o.digits === d)) out.push({ digits: d, nome: String(c.nome || "") });
+  }
+  return out.slice(0, 4);
+}
+
 // Valida (via RLS) que o lead é do chamador e que a sessão/chat pedidos pertencem ao tenant e ao telefone do lead —
 // o cliente nunca escolhe uma sessão ou conversa arbitrária do gateway compartilhado.
 async function resolverMidiaWhatsapp(req: any, leadId: string, session: unknown, chat: unknown, messageId: unknown) {
   if (!isWahaConfigured()) return { erro: { status: 503, msg: "WAHA não configurado." } };
   if (typeof session !== "string" || typeof chat !== "string" || typeof messageId !== "string" || !messageId) return { erro: { status: 400, msg: "Parâmetros inválidos." } };
-  const { data: lead } = await req.supabase.from("leads").select("id, tenant_id, phone, phone_digits").eq("id", leadId).maybeSingle();
+  const { data: lead } = await req.supabase.from("leads").select("id, name, tenant_id, phone, phone_digits").eq("id", leadId).maybeSingle();
   if (!lead) return { erro: { status: 404, msg: "Lead não encontrado." } };
-  const digits = String(lead.phone_digits || lead.phone || "").replace(/\D/g, "");
-  if (!foneVariantes(digits).includes(chat)) return { erro: { status: 403, msg: "Conversa não pertence ao lead." } };
+  const fones = await telefonesDoLead(req, lead);
+  if (!fones.some((f) => foneVariantes(f.digits).includes(chat))) return { erro: { status: 403, msg: "Conversa não pertence ao lead." } };
   const { data: insts } = await req.supabase.from("whatsapp_instances").select("id, name, colaborador_id").eq("tenant_id", lead.tenant_id);
   if (!(insts || []).some((i: any) => sessionNameOf(i) === session)) return { erro: { status: 403, msg: "Sessão não pertence ao tenant." } };
   return { lead, session, chatId: `${chat}@c.us`, messageId };
@@ -6006,10 +6020,12 @@ app.post("/api/leads/:id/conversa-whatsapp/transcrever", requireUser, aiLimiter,
 app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async (req: any, res) => {
   if (!isWahaConfigured()) return res.json({ source: "none", reason: "waha_nao_configurado", messages: [] });
   try {
-    const { data: lead, error } = await req.supabase.from("leads").select("id, tenant_id, phone, phone_digits, seller").eq("id", req.params.id).maybeSingle();
+    const { data: lead, error } = await req.supabase.from("leads").select("id, name, tenant_id, phone, phone_digits, seller").eq("id", req.params.id).maybeSingle();
     if (error || !lead) return res.status(404).json({ error: "Lead não encontrado." });
-    const digits = String(lead.phone_digits || lead.phone || "").replace(/\D/g, "");
-    if (digits.length < 10) return res.json({ source: "none", reason: "sem_telefone", messages: [] });
+    // O card pode ter várias pessoas (sócios, financeiro...): a conversa junta o WhatsApp de todas elas.
+    const fones = await telefonesDoLead(req, lead);
+    if (fones.length === 0) return res.json({ source: "none", reason: "sem_telefone", messages: [] });
+    const digits = fones[0].digits;
 
     const [{ data: insts }, { data: colabs }] = await Promise.all([
       // RLS não basta: master e parceiros enxergam VÁRIOS tenants. Sempre restringe ao tenant do lead.
@@ -6037,8 +6053,8 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
     const comTeto = <T,>(p: Promise<T>, fallback: T, ms = 5000) => Promise.race([p, new Promise<T>((ok) => setTimeout(() => ok(fallback), ms))]);
     const consultar = async (c: any) => {
       const session = sessionNameOf(c.inst);
-      const lotes = await Promise.all(foneVariantes(digits).map(async (d) =>
-        (await provider.getChatMessages(session, `${d}@c.us`, 300, { includeMedia: true }).catch(() => [])).map((m) => ({ ...m, chat: d }))));
+      const lotes = await Promise.all(fones.flatMap((f) => foneVariantes(f.digits).map(async (d) =>
+        (await provider.getChatMessages(session, `${d}@c.us`, 300, { includeMedia: true }).catch(() => [])).map((m) => ({ ...m, chat: d, contato: f.nome })))));
       return lotes.flat().map((m) => ({ ...m, vendedor: c.vendedor, papel: c.papel, session }));
     };
 
@@ -6054,13 +6070,13 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
         const mediaType = mediaTypeOf(m.mimetype);
         // Sem legenda, o provider devolve um marcador "[tipo]" — a tela mostra a mídia em si, não o marcador.
         const text = mediaType && /^\[[^\]]*\]$/.test(m.text) ? "" : m.text;
-        return { id: m.id || `${m.timestamp}-${m.fromMe}`, text, fromMe: m.fromMe, created_at: new Date(m.timestamp * 1000).toISOString(), vendedor: m.vendedor, papel: m.papel,
+        return { id: m.id || `${m.timestamp}-${m.fromMe}`, text, fromMe: m.fromMe, created_at: new Date(m.timestamp * 1000).toISOString(), vendedor: m.vendedor, papel: m.papel, contato: m.contato || undefined,
           ...(mediaType && m.id ? { mediaType, session: m.session, chat: m.chat } : {}) };
       });
     const agentes = [...new Set(messages.map((m: any) => m.vendedor))].map((nome) => ({
       nome, papel: messages.find((m: any) => m.vendedor === nome)?.papel, total: messages.filter((m: any) => m.vendedor === nome).length,
     }));
-    res.json({ source: "waha", messages, agentes, sessoes: candidatas.map((c: any) => c.vendedor), digits_final: digits.slice(-4) });
+    res.json({ source: "waha", messages, agentes, sessoes: candidatas.map((c: any) => c.vendedor), digits_final: digits.slice(-4), contatos: fones.map((f) => f.nome).filter(Boolean) });
   } catch (err: any) {
     console.error("[leads/conversa-whatsapp]", err?.message);
     res.status(502).json({ error: `Falha ao consultar o WAHA: ${err?.message || "erro desconhecido"}` });

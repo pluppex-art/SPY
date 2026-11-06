@@ -24,6 +24,8 @@ interface Msg {
   mediaType?: "audio" | "image" | "video" | "document";
   session?: string;
   chat?: string;
+  /** Nome da pessoa do card dona do número (só vem do WAHA, quando o card tem mais de uma pessoa). */
+  contato?: string;
 }
 
 const PAGE = 300;
@@ -207,7 +209,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
             if (j.source === "waha" && Array.isArray(j.messages) && j.messages.length > 0) {
               setFonte("waha");
               setTemMais(false);
-              setMsgs(j.messages.map((m: any) => ({ id: m.id, contact_id: "", whatsapp_instance_id: null, text: m.text, sender: m.fromMe ? "human" : "contact", created_at: m.created_at, vendedor: m.vendedor, mediaType: m.mediaType, session: m.session, chat: m.chat })));
+              setMsgs(j.messages.map((m: any) => ({ id: m.id, contact_id: "", whatsapp_instance_id: null, text: m.text, sender: m.fromMe ? "human" : "contact", created_at: m.created_at, vendedor: m.vendedor, mediaType: m.mediaType, session: m.session, chat: m.chat, contato: m.contato })));
               return;
             }
           }
@@ -220,14 +222,17 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
       // pode existir em outra empresa. Sem tenant conhecido, não mostra nada em vez de arriscar misturar.
       const tenantId = lead?.tenant_id;
       if (!tenantId) { setMsgs([]); setTemMais(false); return; }
+      // Outras pessoas do card (lead_contatos): o WhatsApp delas entra na mesma conversa.
+      const { data: extras } = await supabase.from("lead_contatos").select("phone_digits").eq("lead_id", lead.id);
+      const chaves = [...new Set([chave, ...(extras || []).map((e: any) => digits(e.phone_digits)).filter((d: string) => d.length >= 8).map((d: string) => d.slice(-8))])].slice(0, 5);
       const { data: contatos, error: eC } = await supabase
         .from("chat_contacts")
         .select("id, phone")
         .eq("tenant_id", tenantId)
-        .ilike("phone", `%${chave.slice(-4)}%`)
+        .or(chaves.map((k) => `phone.ilike.%${k.slice(-4)}%`).join(","))
         .limit(200);
       if (eC) throw eC;
-      const ids = (contatos || []).filter((c: any) => digits(c.phone).slice(-8) === chave).map((c: any) => c.id);
+      const ids = (contatos || []).filter((c: any) => chaves.includes(digits(c.phone).slice(-8))).map((c: any) => c.id);
       if (ids.length === 0) { setMsgs([]); setTemMais(false); return; }
 
       let q = supabase
@@ -295,6 +300,8 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
     return [...mapa.entries()].map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [msgs, instancias, colaboradores]);
+  // Só rotula "quem falou" quando o card tem mais de uma pessoa conversando.
+  const variasPessoas = new Set(msgs.map((m) => m.contato).filter(Boolean)).size > 1;
   const visiveis = filtro === "todas" ? msgs : msgs.filter((m) => nomeDoVendedor(m.whatsapp_instance_id, m.vendedor) === filtro);
 
   if (!chave) {
@@ -381,6 +388,9 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
                         : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-tl-none shadow-sm",
                     )}
                   >
+                    {variasPessoas && m.contato && (
+                      <p className="text-[9px] font-black uppercase tracking-wider opacity-70 mb-0.5">{doVendedor ? "para " : ""}{m.contato}</p>
+                    )}
                     {(doVendedor || (filtro === "todas" && agentes.length > 1)) && (
                       <p className="text-[9px] font-black uppercase tracking-wider opacity-70 mb-0.5">{doVendedor ? "" : "via "}{nomeDoVendedor(m.whatsapp_instance_id, m.vendedor)}</p>
                     )}
