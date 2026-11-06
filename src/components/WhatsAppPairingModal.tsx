@@ -19,6 +19,7 @@ export function WhatsAppPairingModal() {
   const [qr, setQr] = useState("");
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const closedRef = useRef(false);
 
   useEffect(() => {
@@ -39,13 +40,13 @@ export function WhatsAppPairingModal() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!open || !instance) return;
+    if (!open || !instance || !accepted) return;
     closedRef.current = false;
     const id = instance.id;
 
     const refreshQr = async () => {
       try {
-        const r = await apiFetch(`/api/whatsapp/instances/${id}/qrcode`, { method: "POST" });
+        const r = await apiFetch(`/api/whatsapp/instances/${id}/qrcode`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aceite: true }) });
         const data = await r.json().catch(() => ({}));
         if (closedRef.current) return;
         if (r.ok && data.qrcode) { setQr(data.qrcode); setError(""); }
@@ -74,7 +75,7 @@ export function WhatsAppPairingModal() {
       clearInterval(qrTimer);
       clearInterval(statusTimer);
     };
-  }, [open, instance]);
+  }, [open, instance, accepted]);
 
   const handleLater = () => {
     try { if (user?.id) sessionStorage.setItem(DISMISS_KEY, user.id); } catch { /* ignore */ }
@@ -91,6 +92,18 @@ export function WhatsAppPairingModal() {
       description="Adicione o Agente Secreto ao seu telefone."
       footer={<Button variant="ghost" onClick={handleLater}>Fazer depois</Button>}
     >
+      {!accepted ? (
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--color-text-muted)]">
+            Esta conexão é feita por QR code, como o WhatsApp Web, e <strong>não é a API oficial do WhatsApp</strong>. O WhatsApp pode limitar ou banir números,
+            principalmente com envio em massa ou mensagens para quem não conhece o seu número. Use para atendimento e relacionamento com contatos que já falam com a empresa.
+          </p>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="mt-1" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
+            <span>Entendi o risco e concordo com o aviso dos <a href="/termos" target="_blank" rel="noopener" className="underline">Termos de Uso</a> sobre a conexão do WhatsApp.</span>
+          </label>
+        </div>
+      ) : (<>
       <ol className="text-sm text-[var(--color-text-muted)] list-decimal pl-5 space-y-1 mb-4">
         <li>Abra o WhatsApp no celular.</li>
         <li>Vá em Aparelhos conectados › Conectar um aparelho.</li>
@@ -107,6 +120,7 @@ export function WhatsAppPairingModal() {
       <p className="text-xs text-[var(--color-text-muted)] mt-3 text-center">
         Sessão: {instance.name}. O QR é renovado automaticamente.
       </p>
+      </>)}
     </Modal>
   );
 }

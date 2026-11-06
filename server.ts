@@ -5641,8 +5641,12 @@ app.post("/api/whatsapp/instances/:id/qrcode", requireUser, async (req: any, res
 
   const provider = getWhatsAppProvider();
   try {
+    // Aceite do aviso de conexão não oficial (Termos, seção 2): a tela só pede o QR depois do aceite, e aqui fica registrado quem/quando.
+    const aceite = req.body?.aceite === true && !inst.risk_accepted_at
+      ? { risk_accepted_at: new Date().toISOString(), risk_accepted_by: req.user.id }
+      : {};
     const result = await provider.getQrCode(sessionNameOf(inst));
-    await req.supabase.from("whatsapp_instances").update({ status: result.status, qrcode: result.qrcode }).eq("id", id);
+    await req.supabase.from("whatsapp_instances").update({ status: result.status, qrcode: result.qrcode, ...aceite }).eq("id", id);
     res.json(result);
   } catch (err: any) {
     console.error(`[whatsapp/instances/qrcode] provider=${provider.name}`, err?.message);
