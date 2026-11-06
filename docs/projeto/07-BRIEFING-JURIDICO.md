@@ -25,7 +25,7 @@ Cláusulas já escritas:
 - **Termos, seção 10:** exclusão de responsabilidade por banimento de número e perda de conversas.
 
 **Perguntas:**
-2. Esse aviso basta para proteger o S.P.Y., ou é preciso aceite explícito (checkbox) no momento de conectar o número?
+2. Já implementamos aceite explícito: o QR só aparece depois de a pessoa marcar "Entendi o risco e concordo com o aviso dos Termos", e o sistema grava quem aceitou e quando (`whatsapp_instances.risk_accepted_at` / `risk_accepted_by`). Esse registro e o texto do checkbox são suficientes como prova de ciência, ou o advogado quer outro formato?
 3. A exclusão de responsabilidade da seção 10 é válida diante do CDC, se o cliente for consumidor final ou pequena empresa?
 4. Vender essa integração sabendo do risco de violação dos termos do WhatsApp expõe o S.P.Y. a alguma responsabilidade própria?
 
