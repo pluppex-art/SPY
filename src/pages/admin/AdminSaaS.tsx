@@ -17,6 +17,7 @@ import { AdminAgentsTab } from "./components/AdminAgentsTab";
 import { AdminBillingTab } from "./components/AdminBillingTab";
 import { AdminAssinaturasTab } from "./components/AdminAssinaturasTab";
 import { AdminPlanosCatalogoTab } from "./components/AdminPlanosCatalogoTab";
+import { AdminCheckoutTab } from "./components/AdminCheckoutTab";
 import { ModulePlansMatrix } from "./components/ModulePlansMatrix";
 import { AdminLogsTab } from "./components/AdminLogsTab";
 import { AdminHealthTab } from "./components/AdminHealthTab";
@@ -45,6 +46,7 @@ const SUBTABS: Record<Exclude<TabId, "overview">, { id: string; label: string }[
     { id: "catalogo", label: "Planos & Pacotes" },
     { id: "modulos", label: "Módulos por plano" },
     { id: "assinaturas", label: "Assinaturas" },
+    { id: "checkout", label: "Checkout (Pix)" },
     { id: "receita", label: "Receita da base" },
   ],
   platform: [
@@ -260,6 +262,7 @@ export default function AdminSaaS() {
       {activeTab === "plans" && activeSub === "catalogo" && <AdminPlanosCatalogoTab />}
       {activeTab === "plans" && activeSub === "modulos" && <ModulePlansMatrix />}
       {activeTab === "plans" && activeSub === "assinaturas" && <AdminAssinaturasTab />}
+      {activeTab === "plans" && activeSub === "checkout" && <AdminCheckoutTab />}
       {activeTab === "plans" && activeSub === "receita" && (
         <AdminBillingTab revenueData={revenueData} CustomTooltip={CustomTooltip} />
       )}

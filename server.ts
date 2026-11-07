@@ -12,6 +12,7 @@ import axios from "axios";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
 import { createGoogleIntegrationsRouter, makeInitialSync } from "./server/googleIntegrations.js";
 import { createSaas, aiContext } from "./server/saas.js";
+import { createCheckoutRouter } from "./server/checkout.js";
 import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./server/whatsappProvider.js";
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
@@ -415,6 +416,10 @@ app.use("/api/whatsapp", saas.aiGate({ enforceBudget: false }));
 app.use("/api/billing/webhook", rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }));
 app.use("/api/billing", saas.billingRouter);
 app.use("/api/lgpd", saas.lgpdRouter);
+app.use("/api/checkout", createCheckoutRouter({
+  requireUser, requireMaster, supabaseService, provisionPlan: saas.provisionPlan,
+  publicAppUrl: (process.env.PUBLIC_APP_URL || "http://localhost:3002").replace(/\/+$/, ""),
+}));
 app.use("/api/ai", aiLimiter);
 app.use("/api/whatsapp", whatsappLimiter);
 app.use("/api/google-calendar", googleCalendarLimiter);

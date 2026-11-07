@@ -193,6 +193,7 @@ const PortfolioCorretor = lazy(() => import("./pages/imobiliario/PortfolioCorret
 const ImovelPublico = lazy(() => import("./pages/imobiliario/ImovelPublico"));
 const PropostaPublica = lazy(() => import("./pages/public/PropostaPublica"));
 const ImplementacaoPublica = lazy(() => import("./pages/public/ImplementacaoPublica"));
+const Checkout = lazy(() => import("./pages/public/Checkout"));
 const CatalogoPublico = lazy(() => import("./pages/public/CatalogoPublico"));
 const VarejoVendas = lazy(() => import("./pages/varejo/Vendas"));
 const VarejoEstoque = lazy(() => import("./pages/varejo/Estoque"));
@@ -603,6 +604,7 @@ function AppContent() {
         {/* Proposta pública com tracking — sem autenticação, acesso só via token */}
         <Route path="/proposta/:token" element={<PropostaPublica />} />
         <Route path="/implantacao/:token" element={<ImplementacaoPublica />} />
+        <Route path="/checkout" element={<Checkout />} />
 
         {/* Marketing/Capture Forms Hub */}
         <Route path="/f/:niche" element={<InteractiveForm />} />
