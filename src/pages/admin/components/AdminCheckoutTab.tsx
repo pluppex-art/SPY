@@ -8,7 +8,7 @@ import { apiFetch } from "../../../lib/apiClient";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { brl } from "../../../lib/saasApi";
 
-type Config = { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null };
+type Config = { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null; list_setup_cents?: number | null; list_monthly_cents?: number | null };
 type Promo = { id: string; code: string | null; label: string; plan_code: string | null; percent_off: number; amount_off_cents: number; setup_waived: boolean; valid_until: string | null; max_uses: number | null; uses: number; active: boolean };
 type Order = { id: string; status: string; plan_name: string; nome: string; empresa: string; email: string; telefone: string; documento: string; total_cents: number; promo_code: string | null; created_at: string; informed_paid_at: string | null; paid_at: string | null; error: string | null; comprovante_path: string | null };
 
@@ -55,7 +55,7 @@ export function AdminCheckoutTab() {
 
   const salvarConfig = () => run(() => call("PUT", "/api/checkout/admin/config", {
     active: cfg.active, pixKey: cfg.pix_key, receiverName: cfg.receiver_name, receiverCity: cfg.receiver_city, notifyEmail: cfg.notify_email,
-    singlePlanCode: cfg.single_plan_code || "", listPriceCents: cfg.list_price_cents, offerCents: cfg.offer_cents,
+    singlePlanCode: cfg.single_plan_code || "", listPriceCents: cfg.list_price_cents, listSetupCents: cfg.list_setup_cents || 0, listMonthlyCents: cfg.list_monthly_cents || 0, offerCents: cfg.offer_cents,
   }), "Configuração salva.");
 
   const criarPromo = () => run(async () => {
@@ -110,8 +110,12 @@ export function AdminCheckoutTab() {
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="text-xs font-semibold text-[var(--color-text-muted)]">Produto único (código do plano)
             <input className={`${campo} mt-1`} value={cfg.single_plan_code ?? ""} onChange={(e) => setCfg({ ...cfg, single_plan_code: e.target.value })} placeholder="start — vazio = cliente escolhe o plano" /></label>
-          <label className="text-xs font-semibold text-[var(--color-text-muted)]">Valor de tabela (riscado), R$
-            <input className={`${campo} mt-1`} inputMode="decimal" value={cfg.list_price_cents ? String(cfg.list_price_cents / 100) : ""} onChange={(e) => setCfg({ ...cfg, list_price_cents: Math.round((Number(e.target.value.replace(",", ".")) || 0) * 100) })} placeholder="7000" /></label>
+          <div className="text-xs font-semibold text-[var(--color-text-muted)]">Valor de tabela (riscado): implantação + mensalidade, R$
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <input className={campo} inputMode="decimal" aria-label="Implantação de tabela" value={cfg.list_setup_cents ? String(cfg.list_setup_cents / 100) : ""} onChange={(e) => setCfg({ ...cfg, list_setup_cents: Math.round((Number(e.target.value.replace(",", ".")) || 0) * 100) || null })} placeholder="5000" />
+              <input className={campo} inputMode="decimal" aria-label="Mensalidade de tabela" value={cfg.list_monthly_cents ? String(cfg.list_monthly_cents / 100) : ""} onChange={(e) => setCfg({ ...cfg, list_monthly_cents: Math.round((Number(e.target.value.replace(",", ".")) || 0) * 100) || null })} placeholder="2000" />
+            </div>
+            <span className="mt-1 block font-normal">Total riscado: {brl((cfg.list_setup_cents || 0) + (cfg.list_monthly_cents || 0) || cfg.list_price_cents)}</span></div>
           <label className="text-xs font-semibold text-[var(--color-text-muted)]">Valor promocional hoje, R$ (sem implantação)
             <input className={`${campo} mt-1`} inputMode="decimal" value={cfg.offer_cents ? String(cfg.offer_cents / 100) : ""} onChange={(e) => setCfg({ ...cfg, offer_cents: Math.round((Number(e.target.value.replace(",", ".")) || 0) * 100) || null })} placeholder="1000" /></label>
         </div>

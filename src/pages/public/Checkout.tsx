@@ -7,7 +7,7 @@ type Quote = {
   plan: { code: string; name: string; tagline: string; interval: "monthly" | "yearly"; features: string[] };
   priceCents: number; setupCents: number; discountCents: number; totalCents: number;
   promo: { label: string; code: string | null; auto: boolean } | null;
-  badge?: string | null; highlight?: boolean; listCents: number;
+  badge?: string | null; highlight?: boolean; listCents: number; listSetupCents?: number | null; listMonthlyCents?: number | null;
 };
 type Dados = { nome: string; telefone: string; email: string; documento: string; empresa: string };
 type Pedido = { token: string; totalCents: number; pixPayload: string; status: string };
@@ -237,6 +237,9 @@ export default function Checkout() {
                 <div className="rounded-xl bg-[var(--color-surface)] p-4">
                   <p className="text-sm font-semibold text-[var(--color-text-primary)]">{single.plan.name} — com tudo incluído</p>
                   <p className="mt-1 text-sm text-[var(--color-text-muted)]">de <span className="line-through">{brl(single.listCents)}</span> por</p>
+                  {single.listSetupCents && single.listMonthlyCents ? (
+                    <p className="text-[11px] text-[var(--color-text-muted)]">(valor de tabela: {brl(single.listSetupCents)} de implantação + {brl(single.listMonthlyCents)} de mensalidade)</p>
+                  ) : null}
                   <p className="text-3xl font-black text-[var(--color-text-primary)]">{brl(pedido.totalCents)}</p>
                   <p className="mt-1 text-xs font-bold text-emerald-500">Sem taxa de implantação</p>
                 </div>

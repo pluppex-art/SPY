@@ -88,7 +88,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
   const pub = rateLimit({ windowMs: 60_000, limit: 40, standardHeaders: true, legacyHeaders: false });
   const pubWrite = rateLimit({ windowMs: 60_000, limit: 8, standardHeaders: true, legacyHeaders: false });
 
-  type Quote = { plan: any; promo: any | null; priceCents: number; setupCents: number; discountCents: number; totalCents: number; listCents: number };
+  type Quote = { plan: any; promo: any | null; priceCents: number; setupCents: number; discountCents: number; totalCents: number; listCents: number; listSetupCents?: number; listMonthlyCents?: number };
 
   async function quoteFor(planCode: string, promoCode?: string): Promise<Quote> {
     if (!db) throw new Error("Indisponível.");
@@ -122,21 +122,22 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     const cfg = await config();
     if (cfg?.single_plan_code && cfg.offer_cents && String(planCode).toLowerCase() === cfg.single_plan_code.toLowerCase()) {
       const q = await quoteFor(cfg.single_plan_code);
-      const lista = Math.max(cfg.list_price_cents || 0, cfg.offer_cents);
-      return { ...q, promo: { label: "Oferta de lançamento", code: null }, priceCents: lista, setupCents: 0, discountCents: lista - cfg.offer_cents, totalCents: cfg.offer_cents, listCents: lista };
+      const detalhado = (cfg.list_setup_cents || 0) > 0 && (cfg.list_monthly_cents || 0) > 0;
+      const lista = Math.max(detalhado ? (cfg.list_setup_cents as number) + (cfg.list_monthly_cents as number) : cfg.list_price_cents || 0, cfg.offer_cents);
+      return { ...q, promo: { label: "Oferta de lançamento", code: null }, priceCents: lista, setupCents: 0, discountCents: lista - cfg.offer_cents, totalCents: cfg.offer_cents, listCents: lista, ...(detalhado ? { listSetupCents: cfg.list_setup_cents as number, listMonthlyCents: cfg.list_monthly_cents as number } : {}) };
     }
     return quoteFor(planCode, promoCode);
   }
 
   const quoteJson = (q: Quote) => ({
     plan: { code: q.plan.code, name: q.plan.name, tagline: q.plan.tagline ?? "", interval: q.plan.billing_interval, features: Array.isArray(q.plan.features) ? q.plan.features : [] },
-    priceCents: q.priceCents, setupCents: q.setupCents, discountCents: q.discountCents, totalCents: q.totalCents, listCents: q.listCents,
+    priceCents: q.priceCents, setupCents: q.setupCents, discountCents: q.discountCents, totalCents: q.totalCents, listCents: q.listCents, listSetupCents: q.listSetupCents ?? null, listMonthlyCents: q.listMonthlyCents ?? null,
     promo: q.promo ? { label: q.promo.label || q.promo.code || "Promoção", code: q.promo.code ?? null, auto: !q.promo.code } : null,
   });
 
   async function config() {
     const { data } = await db!.from("checkout_config").select("*").eq("id", "main").maybeSingle();
-    return data as { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null } | null;
+    return data as { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null; list_setup_cents?: number | null; list_monthly_cents?: number | null } | null;
   }
 
   /** Cria a empresa + acesso, aplica o plano, atualiza o lead e avisa o cliente. Idempotente; `by` = quem confirmou (null = venda automatica pelo comprovante). */
@@ -390,14 +391,17 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       receiver_city: String(b.receiverCity || "").trim().slice(0, 15),
       notify_email: String(b.notifyEmail || "").trim().slice(0, 200),
       single_plan_code: String(b.singlePlanCode || "").trim().toLowerCase() || null,
-      list_price_cents: Math.max(0, Math.round(Number(b.listPriceCents) || 0)),
+      list_price_cents: Math.max(0, Math.round(Number(b.listSetupCents || 0) + Number(b.listMonthlyCents || 0)) || Math.round(Number(b.listPriceCents) || 0)),
       offer_cents: Number(b.offerCents) >= 100 ? Math.round(Number(b.offerCents)) : null,
       updated_at: new Date().toISOString(),
     };
     if (row.active && (!row.pix_key || !row.receiver_name || !row.receiver_city)) {
       return res.status(400).json({ error: "Para ativar, preencha a chave Pix, o nome e a cidade do recebedor." });
     }
-    const { error } = await db.from("checkout_config").upsert(row, { onConflict: "id" });
+    const novos = { list_setup_cents: Math.max(0, Math.round(Number(b.listSetupCents) || 0)) || null, list_monthly_cents: Math.max(0, Math.round(Number(b.listMonthlyCents) || 0)) || null };
+    let { error } = await db.from("checkout_config").upsert({ ...row, ...novos }, { onConflict: "id" });
+    // Banco ainda sem as colunas do detalhamento (SQL pendente): salva o resto normalmente.
+    if (error && /list_setup_cents|list_monthly_cents/.test(error.message || "")) ({ error } = await db.from("checkout_config").upsert(row, { onConflict: "id" }));
     if (error) return res.status(400).json({ error: "Erro ao salvar." });
     res.json({ ok: true });
   });
