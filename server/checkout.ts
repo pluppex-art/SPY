@@ -35,8 +35,19 @@ function crc16(payload: string): string {
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9 .\-]/g, "").trim();
 
+/** O Pix exige a chave "crua": CPF/CNPJ só com números, telefone como +55DDDNÚMERO, e-mail em minúsculas. */
+export function normalizaChavePix(raw: string): string {
+  const k = String(raw || "").trim();
+  if (k.includes("@")) return k.toLowerCase();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k)) return k.toLowerCase();
+  if (/^\+/.test(k)) return `+${k.replace(/\D/g, "")}`;
+  if (/^\(?\d{2}\)?[\s-]?9?\d{4}-?\d{4}$/.test(k) && k.replace(/\D/g, "").length <= 11 && /[()\s]/.test(k)) return `+55${k.replace(/\D/g, "")}`;
+  if (/^[\d.\-/\s]+$/.test(k)) return k.replace(/\D/g, "");
+  return k;
+}
+
 export function pixBrCode(o: { key: string; name: string; city: string; amountCents: number; txid: string }): string {
-  const conta = tlv("00", "br.gov.bcb.pix") + tlv("01", o.key.trim());
+  const conta = tlv("00", "br.gov.bcb.pix") + tlv("01", normalizaChavePix(o.key));
   const body =
     tlv("00", "01") + tlv("01", "12") + tlv("26", conta) + tlv("52", "0000") + tlv("53", "986") +
     tlv("54", (o.amountCents / 100).toFixed(2)) + tlv("58", "BR") +
