@@ -128,6 +128,103 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     return data as { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null } | null;
   }
 
+  /** Cria a empresa + acesso, aplica o plano, atualiza o lead e avisa o cliente. Idempotente; `by` = quem confirmou (null = venda automatica pelo comprovante). */
+  async function fulfill(o: any, by: string | null, res: any) {
+    // Reserva o pedido (evita confirmar em duplicidade com dois cliques ao mesmo tempo).
+    const { data: lock } = await db.from("checkout_orders").update({ status: "paid", paid_at: new Date().toISOString(), confirmed_by: by, error: null })
+      .eq("id", o.id).neq("status", "paid").select("id").maybeSingle();
+    if (!lock) return res.json({ ok: true, jaConfirmado: true });
+    const desfazer = async (msg: string) => { await db.from("checkout_orders").update({ status: o.status, paid_at: null, confirmed_by: null, error: msg }).eq("id", o.id); };
+
+    let tenantId: string | null = o.tenant_id;
+    try {
+      if (!tenantId) {
+        const { data: existente } = await db.from("users").select("id").eq("email", o.email).maybeSingle();
+        if (existente) { await desfazer("Este e-mail já tem acesso ao sistema."); return res.status(409).json({ error: "Este e-mail já tem acesso ao sistema. Peça outro e-mail ao cliente ou crie o acesso manualmente." }); }
+
+        const { data: tenant, error: tErr } = await db.from("tenants").insert({
+          name: o.empresa, niche: "Parceira", plan: o.plan_code, status: "Active", timezone: "America/Sao_Paulo", primary_color: "#2563EB",
+          modules: { crm: true, sdr: false, advDashboard: false, financeiro: true, marketing: false, educacao: false, clinica: false, produtividade: true, rh: false, bi: false, engajamento: false },
+        }).select().maybeSingle();
+        if (tErr || !tenant) { await desfazer("Erro ao criar a empresa."); return res.status(500).json({ error: "Erro ao criar a empresa." }); }
+
+        const senha = randomBytes(18).toString("base64url");
+        const created = await db.auth.admin.createUser({ email: o.email, password: senha, email_confirm: true });
+        if (!created.data?.user) {
+          await db.from("tenants").delete().eq("id", tenant.id);
+          await desfazer("Erro ao criar o acesso (o e-mail pode já ter login).");
+          return res.status(409).json({ error: "Não foi possível criar o acesso: o e-mail pode já ter um login no sistema." });
+        }
+        const { error: uErr } = await db.from("users").insert({
+          id: created.data.user.id, tenant_id: tenant.id, name: o.nome, email: o.email, role: "Admin", is_master: false, is_tenant_admin: true, active: true,
+        });
+        if (uErr) {
+          await db.from("tenants").delete().eq("id", tenant.id);
+          await db.auth.admin.deleteUser(created.data.user.id);
+          await desfazer("Erro ao criar o perfil de acesso.");
+          return res.status(500).json({ error: "Erro ao criar o perfil de acesso." });
+        }
+        tenantId = tenant.id;
+        await db.from("app_settings").insert({ tenant_id: tenant.id, key: "empresa_dados", value: { nome: o.empresa, cnpj: o.documento, email: o.email, telefone: o.telefone } });
+      }
+
+      if (o.plan_id) {
+        await provisionPlan(tenantId!, o.plan_id, by);
+        const { data: plan } = await db.from("subscription_plans").select("billing_interval").eq("id", o.plan_id).maybeSingle();
+        const fim = new Date();
+        if (plan?.billing_interval === "yearly") fim.setFullYear(fim.getFullYear() + 1); else fim.setMonth(fim.getMonth() + 1);
+        await db.from("tenant_subscriptions").update({
+          status: "active", trial_ends_at: null, last_payment_at: new Date().toISOString(), current_period_end: fim.toISOString(), updated_at: new Date().toISOString(),
+        }).eq("tenant_id", tenantId);
+        await db.from("billing_events").insert({ tenant_id: tenantId, type: "payment_confirmed", to_status: "active", amount_cents: o.total_cents, payload: { by: by, source: "checkout_pix", order: o.id } });
+      }
+
+      await db.from("checkout_orders").update({ tenant_id: tenantId }).eq("id", o.id);
+      if (o.promo_id) {
+        const { data: pr } = await db.from("checkout_promos").select("uses").eq("id", o.promo_id).maybeSingle();
+        if (pr) await db.from("checkout_promos").update({ uses: (pr.uses || 0) + 1 }).eq("id", o.promo_id);
+      }
+      if (o.lead_id) await db.from("leads").update({ status: "Fechado", value: o.total_cents / 100, notes: `Checkout: pagamento de ${brl(o.total_cents)} confirmado (${o.plan_name}). Empresa criada e acesso enviado.` }).eq("id", o.lead_id);
+
+      // Acesso: link para o cliente definir a propria senha (nada de senha por e-mail).
+      let emailEnviado = false;
+      try {
+        const link = await db.auth.admin.generateLink({ type: "recovery", email: o.email, options: { redirectTo: `${publicAppUrl}/redefinir-senha` } });
+        const url = link.data?.properties?.action_link;
+        if (url) {
+          await sendPlatformEmail({
+            to: o.email, subject: "Pagamento confirmado — seu acesso ao S.P.Y.",
+            html: `<p>Olá, ${esc(o.nome.split(" ")[0])}!</p><p>Recebemos o pagamento de <strong>${brl(o.total_cents)}</strong> (plano ${esc(o.plan_name)}). A empresa <strong>${esc(o.empresa)}</strong> já está criada.</p><p><a href="${url}">Clique aqui para definir sua senha e entrar</a>.</p><p>Em breve nosso time entra em contato pelo WhatsApp para a implantação.</p>`,
+          });
+          emailEnviado = true;
+        }
+      } catch (e: any) { console.error("[checkout] e-mail de acesso:", e?.message); }
+
+      // Agente de implantacao (n8n), igual ao cadastro manual de empresa. Nunca atrasa nem derruba a confirmacao.
+      const secret = process.env.SPY_IMPLEMENTACAO_WEBHOOK_SECRET;
+      if (secret) {
+        fetch("https://n8n.spycrm.com.br/webhook/spy-agente-implementacao-tenant-criado", {
+          method: "POST", headers: { "Content-Type": "application/json", "X-Webhook-Secret": secret },
+          body: JSON.stringify({ tenant_id: tenantId, company: o.empresa, email: o.email, phone: o.telefone, implementation_id: "" }),
+        }).catch((e: any) => console.error("[checkout] agente de implantação:", e?.message));
+      }
+
+      // Verificacao multi-tenant: a empresa existe, tem admin proprio, assinatura ativa e nenhum outro tenant foi tocado.
+      const [tn, us, sb] = await Promise.all([
+        db.from("tenants").select("id").eq("id", tenantId).maybeSingle(),
+        db.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("email", o.email),
+        db.from("tenant_subscriptions").select("status").eq("tenant_id", tenantId).maybeSingle(),
+      ]);
+      const checks = { empresa: !!tn.data, acesso: (us.count ?? 0) === 1, assinatura: sb.data?.status === "active", agentes: !!secret, email: emailEnviado };
+      if (!checks.agentes) console.error("[checkout] SPY_IMPLEMENTACAO_WEBHOOK_SECRET ausente: agentes não foram acionados.");
+      res.json({ ok: true, tenantId, emailEnviado, checks });
+    } catch (e: any) {
+      console.error("[checkout] confirm:", e?.message);
+      await desfazer("Erro inesperado ao confirmar.");
+      res.status(500).json({ error: "Erro inesperado ao confirmar. Tente de novo." });
+    }
+  }
+
   // ── Publico ────────────────────────────────────────────────────────────────
   router.get("/plans", pub, async (_req, res) => {
     if (!db) return res.status(503).json({ error: "Indisponível." });
@@ -239,17 +336,25 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     if (up.error) { console.error("[checkout] comprovante:", up.error.message); return res.status(500).json({ error: "Não foi possível salvar o comprovante. Tente novamente." }); }
 
     await db.from("checkout_orders").update({ status: "awaiting_confirmation", informed_paid_at: new Date().toISOString(), comprovante_path: path }).eq("id", o.id);
-    if (o.lead_id) await db.from("leads").update({ notes: `Checkout: cliente informou que pagou ${brl(o.total_cents)} (${o.plan_name}). Conferir o Pix e confirmar em Planos > Checkout.` }).eq("id", o.lead_id);
+
+    // Comprovante enviado = venda feita: cria a empresa (multi-tenant) na hora. Se algo impedir, o pedido fica
+    // aguardando e o lead segue no CRM para follow-up.
+    const out: { body?: any } = {};
+    const cap: any = { status: () => cap, json: (b: any) => { out.body = b; return cap; } };
+    await fulfill({ ...o, comprovante_path: path, status: "awaiting_confirmation" }, null, cap);
+    const vendido = out.body?.ok === true;
     try {
       const cfg = await config();
       if (cfg?.notify_email) {
         await sendPlatformEmail({
-          to: cfg.notify_email, subject: `Pix informado: ${o.empresa} — ${brl(o.total_cents)}`,
-          html: `<p><strong>${esc(o.nome)}</strong> (${esc(o.empresa)}) informou o pagamento de <strong>${brl(o.total_cents)}</strong> do plano ${esc(o.plan_name)}.</p><p>Confira o Pix recebido e confirme em <a href="${publicAppUrl}/app/admin?tab=plans&sub=checkout">Planos › Checkout</a>.</p>`,
+          to: cfg.notify_email, subject: `${vendido ? "VENDA" : "Comprovante recebido"}: ${o.empresa} — ${brl(o.total_cents)}`,
+          html: `<p><strong>${esc(o.nome)}</strong> (${esc(o.empresa)}) enviou o comprovante de <strong>${brl(o.total_cents)}</strong> (${esc(o.plan_name)}).</p>` +
+            (vendido ? `<p>A empresa foi criada e o acesso enviado. Confira o Pix no banco e, se não tiver caído, cancele em <a href="${publicAppUrl}/app/admin?tab=plans&sub=checkout">Planos › Checkout</a>.</p>`
+                     : `<p>Não foi possível criar a empresa automaticamente (${esc(String(out.body?.error || "erro"))}). Resolva em <a href="${publicAppUrl}/app/admin?tab=plans&sub=checkout">Planos › Checkout</a>.</p>`),
         });
       }
     } catch (e: any) { console.error("[checkout] aviso interno:", e?.message); }
-    res.json({ status: "awaiting_confirmation" });
+    res.json({ status: vendido ? "paid" : "awaiting_confirmation" });
   });
 
   // ── Administracao (super admin) ────────────────────────────────────────────
@@ -331,110 +436,14 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     res.json({ ok: true });
   });
 
-  /** Confirma o Pix: cria a empresa + acesso, aplica o plano, atualiza o lead e avisa o cliente. Idempotente. */
+  /** Confirmacao manual (reserva): o fluxo normal e automatico quando o cliente anexa o comprovante. */
   router.post("/admin/orders/:id/confirm", requireUser, requireMaster, async (req: any, res) => {
     if (!db) return res.status(503).json({ error: "Service role não configurada." });
     const { data: o } = await db.from("checkout_orders").select("*").eq("id", req.params.id).maybeSingle();
     if (!o) return res.status(404).json({ error: "Pedido não encontrado." });
     if (o.status === "paid") return res.json({ ok: true, jaConfirmado: true, tenantId: o.tenant_id });
     if (o.status === "canceled") return res.status(409).json({ error: "Pedido cancelado." });
-    if (!o.comprovante_path && req.body?.semComprovante !== true) return res.status(409).json({ error: "O cliente ainda não anexou o comprovante do Pix." });
-
-    const falha = async (msg: string, status = 400) => { await db.from("checkout_orders").update({ error: msg }).eq("id", o.id); return res.status(status).json({ error: msg }); };
-
-    // Reserva o pedido (evita confirmar em duplicidade com dois cliques ao mesmo tempo).
-    const { data: lock } = await db.from("checkout_orders").update({ status: "paid", paid_at: new Date().toISOString(), confirmed_by: req.user.id, error: null })
-      .eq("id", o.id).neq("status", "paid").select("id").maybeSingle();
-    if (!lock) return res.json({ ok: true, jaConfirmado: true });
-    const desfazer = async (msg: string) => { await db.from("checkout_orders").update({ status: o.status, paid_at: null, confirmed_by: null, error: msg }).eq("id", o.id); };
-
-    let tenantId: string | null = o.tenant_id;
-    try {
-      if (!tenantId) {
-        const { data: existente } = await db.from("users").select("id").eq("email", o.email).maybeSingle();
-        if (existente) { await desfazer("Este e-mail já tem acesso ao sistema."); return res.status(409).json({ error: "Este e-mail já tem acesso ao sistema. Peça outro e-mail ao cliente ou crie o acesso manualmente." }); }
-
-        const { data: tenant, error: tErr } = await db.from("tenants").insert({
-          name: o.empresa, niche: "Parceira", plan: o.plan_code, status: "Active", timezone: "America/Sao_Paulo", primary_color: "#2563EB",
-          modules: { crm: true, sdr: false, advDashboard: false, financeiro: true, marketing: false, educacao: false, clinica: false, produtividade: true, rh: false, bi: false, engajamento: false },
-        }).select().maybeSingle();
-        if (tErr || !tenant) { await desfazer("Erro ao criar a empresa."); return res.status(500).json({ error: "Erro ao criar a empresa." }); }
-
-        const senha = randomBytes(18).toString("base64url");
-        const created = await db.auth.admin.createUser({ email: o.email, password: senha, email_confirm: true });
-        if (!created.data?.user) {
-          await db.from("tenants").delete().eq("id", tenant.id);
-          await desfazer("Erro ao criar o acesso (o e-mail pode já ter login).");
-          return res.status(409).json({ error: "Não foi possível criar o acesso: o e-mail pode já ter um login no sistema." });
-        }
-        const { error: uErr } = await db.from("users").insert({
-          id: created.data.user.id, tenant_id: tenant.id, name: o.nome, email: o.email, role: "Admin", is_master: false, is_tenant_admin: true, active: true,
-        });
-        if (uErr) {
-          await db.from("tenants").delete().eq("id", tenant.id);
-          await db.auth.admin.deleteUser(created.data.user.id);
-          await desfazer("Erro ao criar o perfil de acesso.");
-          return res.status(500).json({ error: "Erro ao criar o perfil de acesso." });
-        }
-        tenantId = tenant.id;
-        await db.from("app_settings").insert({ tenant_id: tenant.id, key: "empresa_dados", value: { nome: o.empresa, cnpj: o.documento, email: o.email, telefone: o.telefone } });
-      }
-
-      if (o.plan_id) {
-        await provisionPlan(tenantId!, o.plan_id, req.user.id);
-        const { data: plan } = await db.from("subscription_plans").select("billing_interval").eq("id", o.plan_id).maybeSingle();
-        const fim = new Date();
-        if (plan?.billing_interval === "yearly") fim.setFullYear(fim.getFullYear() + 1); else fim.setMonth(fim.getMonth() + 1);
-        await db.from("tenant_subscriptions").update({
-          status: "active", trial_ends_at: null, last_payment_at: new Date().toISOString(), current_period_end: fim.toISOString(), updated_at: new Date().toISOString(),
-        }).eq("tenant_id", tenantId);
-        await db.from("billing_events").insert({ tenant_id: tenantId, type: "payment_confirmed", to_status: "active", amount_cents: o.total_cents, payload: { by: req.user.id, source: "checkout_pix", order: o.id } });
-      }
-
-      await db.from("checkout_orders").update({ tenant_id: tenantId }).eq("id", o.id);
-      if (o.promo_id) {
-        const { data: pr } = await db.from("checkout_promos").select("uses").eq("id", o.promo_id).maybeSingle();
-        if (pr) await db.from("checkout_promos").update({ uses: (pr.uses || 0) + 1 }).eq("id", o.promo_id);
-      }
-      if (o.lead_id) await db.from("leads").update({ status: "Fechado", value: o.total_cents / 100, notes: `Checkout: pagamento de ${brl(o.total_cents)} confirmado (${o.plan_name}). Empresa criada e acesso enviado.` }).eq("id", o.lead_id);
-
-      // Acesso: link para o cliente definir a propria senha (nada de senha por e-mail).
-      let emailEnviado = false;
-      try {
-        const link = await db.auth.admin.generateLink({ type: "recovery", email: o.email, options: { redirectTo: `${publicAppUrl}/redefinir-senha` } });
-        const url = link.data?.properties?.action_link;
-        if (url) {
-          await sendPlatformEmail({
-            to: o.email, subject: "Pagamento confirmado — seu acesso ao S.P.Y.",
-            html: `<p>Olá, ${esc(o.nome.split(" ")[0])}!</p><p>Recebemos o pagamento de <strong>${brl(o.total_cents)}</strong> (plano ${esc(o.plan_name)}). A empresa <strong>${esc(o.empresa)}</strong> já está criada.</p><p><a href="${url}">Clique aqui para definir sua senha e entrar</a>.</p><p>Em breve nosso time entra em contato pelo WhatsApp para a implantação.</p>`,
-          });
-          emailEnviado = true;
-        }
-      } catch (e: any) { console.error("[checkout] e-mail de acesso:", e?.message); }
-
-      // Agente de implantacao (n8n), igual ao cadastro manual de empresa. Nunca atrasa nem derruba a confirmacao.
-      const secret = process.env.SPY_IMPLEMENTACAO_WEBHOOK_SECRET;
-      if (secret) {
-        fetch("https://n8n.spycrm.com.br/webhook/spy-agente-implementacao-tenant-criado", {
-          method: "POST", headers: { "Content-Type": "application/json", "X-Webhook-Secret": secret },
-          body: JSON.stringify({ tenant_id: tenantId, company: o.empresa, email: o.email, phone: o.telefone, implementation_id: "" }),
-        }).catch((e: any) => console.error("[checkout] agente de implantação:", e?.message));
-      }
-
-      // Verificacao multi-tenant: a empresa existe, tem admin proprio, assinatura ativa e nenhum outro tenant foi tocado.
-      const [tn, us, sb] = await Promise.all([
-        db.from("tenants").select("id").eq("id", tenantId).maybeSingle(),
-        db.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("email", o.email),
-        db.from("tenant_subscriptions").select("status").eq("tenant_id", tenantId).maybeSingle(),
-      ]);
-      const checks = { empresa: !!tn.data, acesso: (us.count ?? 0) === 1, assinatura: sb.data?.status === "active", agentes: !!secret, email: emailEnviado };
-      if (!checks.agentes) console.error("[checkout] SPY_IMPLEMENTACAO_WEBHOOK_SECRET ausente: agentes não foram acionados.");
-      res.json({ ok: true, tenantId, emailEnviado, checks });
-    } catch (e: any) {
-      console.error("[checkout] confirm:", e?.message);
-      await desfazer("Erro inesperado ao confirmar.");
-      res.status(500).json({ error: "Erro inesperado ao confirmar. Tente de novo." });
-    }
+    return fulfill(o, req.user.id, res);
   });
 
   return router;
