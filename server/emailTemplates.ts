@@ -408,6 +408,18 @@ export const NOTIFICATION_COPY: Record<string, Copy> = {
     headerLine2: "Venda fechada",
     info: { title: "Onboarding sem atraso", text: "Com a venda fechada, siga para o financeiro e a entrega para o cliente começar bem." },
   },
+  checkout_venda: {
+    pill: "Nova venda no checkout", title1: "Venda", title2: "feita no checkout", icon: "icon-chart",
+    intro: "Um cliente pagou pelo checkout e enviou o comprovante do Pix. A empresa dele já foi criada no S.P.Y. Confira o Pix no banco.",
+    headerLine2: "Venda no checkout",
+    info: { title: "Confira o Pix no banco", text: "A venda é registrada quando o comprovante chega. Se o Pix não tiver caído, cancele o pedido em Planos › Checkout." },
+  },
+  checkout_acesso: {
+    pill: "Pagamento confirmado", title1: "Seu acesso ao", title2: "S.P.Y. está liberado", icon: "icon-user",
+    intro: "Recebemos o seu pagamento e a sua empresa já está criada. Defina sua senha para entrar. Em breve nosso time chama você no WhatsApp para a implantação.",
+    headerLine2: "Pagamento confirmado",
+    info: { title: "Próximo passo: implantação", text: "Nosso time vai configurar o S.P.Y. com você: funil, agentes e integrações. É só aguardar o contato no WhatsApp." },
+  },
   pagamento_recebido: {
     pill: "Pagamento recebido", title1: "Pagamento", title2: "recebido", icon: "icon-chart",
     intro: "Um pagamento foi confirmado e já aparece no financeiro do seu S.P.Y.",

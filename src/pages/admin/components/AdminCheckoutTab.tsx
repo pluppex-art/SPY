@@ -100,8 +100,8 @@ export function AdminCheckoutTab() {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-semibold text-[var(--color-text-muted)]">Chave Pix (onde o dinheiro cai)
             <input className={`${campo} mt-1`} value={cfg.pix_key} onChange={(e) => setCfg({ ...cfg, pix_key: e.target.value })} placeholder="CNPJ, e-mail, telefone ou chave aleatória" /></label>
-          <label className="text-xs font-semibold text-[var(--color-text-muted)]">E-mail para avisos de pagamento
-            <input className={`${campo} mt-1`} value={cfg.notify_email} onChange={(e) => setCfg({ ...cfg, notify_email: e.target.value })} placeholder="voce@empresa.com" /></label>
+          <label className="text-xs font-semibold text-[var(--color-text-muted)]">E-mails que recebem os avisos (financeiro, comercial…)
+            <input className={`${campo} mt-1`} value={cfg.notify_email} onChange={(e) => setCfg({ ...cfg, notify_email: e.target.value })} placeholder="financeiro@empresa.com, comercial@empresa.com" /></label>
           <label className="text-xs font-semibold text-[var(--color-text-muted)]">Nome do recebedor (até 25 letras)
             <input className={`${campo} mt-1`} maxLength={25} value={cfg.receiver_name} onChange={(e) => setCfg({ ...cfg, receiver_name: e.target.value })} /></label>
           <label className="text-xs font-semibold text-[var(--color-text-muted)]">Cidade do recebedor

@@ -13,6 +13,8 @@ import { randomBytes, randomUUID } from "crypto";
 import rateLimit from "express-rate-limit";
 import { sendPlatformEmail } from "./mailer.js";
 import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
+import { notificationEmail, type NotificationKind } from "./emailTemplates.js";
+import { whatsappUrl, formatPhoneBR } from "./emailNotify.js";
 
 type Deps = {
   requireUser: (req: any, res: Response, next: NextFunction) => any;
@@ -84,8 +86,28 @@ const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency"
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Varios destinatarios no mesmo campo (separados por virgula, ponto e virgula ou espaco). */
+const destinatarios = (raw: unknown): string[] => [...new Set(String(raw || "").split(/[,;\s]+/).map((e) => e.trim().toLowerCase()).filter((e) => EMAIL_RE.test(e)))].slice(0, 6);
+
 export function createCheckoutRouter({ requireUser, requireMaster, supabaseService: db, provisionPlan, publicAppUrl }: Deps) {
   const router = Router();
+
+  /** Avisos internos no mesmo modelo dos avisos do S.P.Y. (financeiro/comercial). Nunca lança; espera no máximo 8s. */
+  async function avisarEquipe(copyKey: string, kind: NotificationKind, title: string, description: string, details: { label: string; value: string }[], phone?: string, link = `${publicAppUrl}/app/admin?tab=plans&sub=checkout`) {
+    try {
+      const cfg = await config();
+      const para = destinatarios(cfg?.notify_email);
+      if (!para.length) return;
+      const wa = whatsappUrl(phone);
+      const det = [...details];
+      if (wa && phone) det.push({ label: "WhatsApp", value: formatPhoneBR(phone) });
+      const mail = notificationEmail({ kind, copyKey, title, description, details: det, linkUrl: link, primaryButton: wa ? { label: "Chamar no WhatsApp", url: wa } : undefined, name: "equipe" });
+      await Promise.race([
+        Promise.allSettled(para.map((to) => sendPlatformEmail({ to, ...mail }))),
+        new Promise((r) => setTimeout(r, 8000)),
+      ]);
+    } catch (e: any) { console.error("[checkout] aviso interno:", e?.message); }
+  }
   const pub = rateLimit({ windowMs: 60_000, limit: 40, standardHeaders: true, legacyHeaders: false });
   const pubWrite = rateLimit({ windowMs: 60_000, limit: 8, standardHeaders: true, legacyHeaders: false });
 
@@ -206,10 +228,13 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
         const link = await db.auth.admin.generateLink({ type: "recovery", email: o.email, options: { redirectTo: `${publicAppUrl}/redefinir-senha` } });
         const url = link.data?.properties?.action_link;
         if (url) {
-          await sendPlatformEmail({
-            to: o.email, subject: "Pagamento confirmado — seu acesso ao S.P.Y.",
-            html: `<p>Olá, ${esc(o.nome.split(" ")[0])}!</p><p>Recebemos o pagamento de <strong>${brl(o.total_cents)}</strong> (plano ${esc(o.plan_name)}). A empresa <strong>${esc(o.empresa)}</strong> já está criada.</p><p><a href="${url}">Clique aqui para definir sua senha e entrar</a>.</p><p>Em breve nosso time entra em contato pelo WhatsApp para a implantação.</p>`,
+          const mail = notificationEmail({
+            kind: "success", copyKey: "checkout_acesso", title: "Pagamento confirmado — seu acesso ao S.P.Y.",
+            description: `Recebemos o pagamento de ${brl(o.total_cents)} (plano ${o.plan_name}). Defina sua senha para entrar.`,
+            details: [{ label: "Empresa", value: o.empresa }, { label: "Plano", value: o.plan_name }, { label: "Valor", value: brl(o.total_cents) }],
+            primaryButton: { label: "Definir minha senha e entrar", url: url }, name: o.nome,
           });
+          await sendPlatformEmail({ to: o.email, ...mail });
           emailEnviado = true;
         }
       } catch (e: any) { console.error("[checkout] e-mail de acesso:", e?.message); }
@@ -315,6 +340,9 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       promo_id: q.promo?.id ?? null, promo_code: q.promo?.code ?? null, txid, pix_payload: pixPayload, lead_id: leadId, expires_at: expiresAt,
     });
     if (error) { console.error("[checkout] order:", error.message); return res.status(500).json({ error: "Não foi possível gerar o Pix. Tente novamente." }); }
+    await avisarEquipe("novo_lead", "info", `Novo lead no checkout: ${nome}`, `${nome} (${empresa}) gerou o Pix de ${brl(q.totalCents)} no checkout.`,
+      [{ label: "Nome do lead", value: nome }, { label: "Empresa", value: empresa }, { label: "Plano / valor", value: `${q.plan.name} · ${brl(q.totalCents)}` }], telefone,
+      `${publicAppUrl}/app/admin?tab=plans&sub=checkout`);
     res.json({ token, totalCents: q.totalCents, pixPayload, status: "pending", expiresAt });
   });
 
@@ -357,17 +385,11 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     const cap: any = { status: () => cap, json: (b: any) => { out.body = b; return cap; } };
     await fulfill({ ...o, comprovante_path: path, status: "awaiting_confirmation" }, null, cap);
     const vendido = out.body?.ok === true;
-    try {
-      const cfg = await config();
-      if (cfg?.notify_email) {
-        await sendPlatformEmail({
-          to: cfg.notify_email, subject: `${vendido ? "VENDA" : "Comprovante recebido"}: ${o.empresa} — ${brl(o.total_cents)}`,
-          html: `<p><strong>${esc(o.nome)}</strong> (${esc(o.empresa)}) enviou o comprovante de <strong>${brl(o.total_cents)}</strong> (${esc(o.plan_name)}).</p>` +
-            (vendido ? `<p>A empresa foi criada e o acesso enviado. Confira o Pix no banco e, se não tiver caído, cancele em <a href="${publicAppUrl}/app/admin?tab=plans&sub=checkout">Planos › Checkout</a>.</p>`
-                     : `<p>Não foi possível criar a empresa automaticamente (${esc(String(out.body?.error || "erro"))}). Resolva em <a href="${publicAppUrl}/app/admin?tab=plans&sub=checkout">Planos › Checkout</a>.</p>`),
-        });
-      }
-    } catch (e: any) { console.error("[checkout] aviso interno:", e?.message); }
+    await avisarEquipe(vendido ? "checkout_venda" : "novo_lead", vendido ? "success" : "warning",
+      vendido ? `Venda no checkout: ${o.empresa} — ${brl(o.total_cents)}` : `Comprovante recebido, criar a empresa manualmente: ${o.empresa}`,
+      vendido ? `${o.nome} (${o.empresa}) enviou o comprovante de ${brl(o.total_cents)}. A empresa foi criada e o acesso enviado.`
+              : `${o.nome} (${o.empresa}) enviou o comprovante de ${brl(o.total_cents)}, mas não foi possível criar a empresa automaticamente (${String(out.body?.error || "erro")}). Resolva em Planos › Checkout.`,
+      [{ label: "Cliente", value: o.nome }, { label: "Empresa", value: o.empresa }, { label: "Plano / valor", value: `${o.plan_name} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }], o.telefone);
     res.json({ status: vendido ? "paid" : "awaiting_confirmation" });
   });
 
