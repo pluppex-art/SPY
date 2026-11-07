@@ -8,9 +8,9 @@ import { apiFetch } from "../../../lib/apiClient";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { brl } from "../../../lib/saasApi";
 
-type Config = { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string };
+type Config = { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null };
 type Promo = { id: string; code: string | null; label: string; plan_code: string | null; percent_off: number; amount_off_cents: number; setup_waived: boolean; valid_until: string | null; max_uses: number | null; uses: number; active: boolean };
-type Order = { id: string; status: string; plan_name: string; nome: string; empresa: string; email: string; telefone: string; documento: string; total_cents: number; promo_code: string | null; created_at: string; informed_paid_at: string | null; paid_at: string | null; error: string | null };
+type Order = { id: string; status: string; plan_name: string; nome: string; empresa: string; email: string; telefone: string; documento: string; total_cents: number; promo_code: string | null; created_at: string; informed_paid_at: string | null; paid_at: string | null; error: string | null; comprovante_path: string | null };
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   pending: { label: "Aguardando Pix", cls: "text-[var(--color-text-muted)]" },
@@ -33,7 +33,7 @@ async function call<T = any>(method: string, url: string, body?: unknown): Promi
 
 /** Checkout por Pix: dados do recebedor, promoções (troca de valores) e pedidos para confirmar. */
 export function AdminCheckoutTab() {
-  const [cfg, setCfg] = useState<Config>({ active: false, pix_key: "", receiver_name: "", receiver_city: "", notify_email: "" });
+  const [cfg, setCfg] = useState<Config>({ active: false, pix_key: "", receiver_name: "", receiver_city: "", notify_email: "", single_plan_code: null, list_price_cents: 0, offer_cents: null });
   const [promos, setPromos] = useState<Promo[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [busy, setBusy] = useState(false);
@@ -55,6 +55,7 @@ export function AdminCheckoutTab() {
 
   const salvarConfig = () => run(() => call("PUT", "/api/checkout/admin/config", {
     active: cfg.active, pixKey: cfg.pix_key, receiverName: cfg.receiver_name, receiverCity: cfg.receiver_city, notifyEmail: cfg.notify_email,
+    singlePlanCode: cfg.single_plan_code || "", listPriceCents: cfg.list_price_cents, offerCents: cfg.offer_cents,
   }), "Configuração salva.");
 
   const criarPromo = () => run(async () => {
@@ -66,6 +67,11 @@ export function AdminCheckoutTab() {
     setNovo({ code: "", label: "", planCode: "", percentOff: "", amountOff: "", setupWaived: false, validUntil: "", maxUses: "" });
   }, "Promoção criada.");
 
+  const verComprovante = async (o: Order) => {
+    try { const r = await call<{ url: string }>("GET", `/api/checkout/admin/orders/${o.id}/comprovante`); window.open(r.url, "_blank", "noopener"); }
+    catch (e: any) { toast.error(e.message); }
+  };
+
   const confirmar = async (o: Order) => {
     const ok = await confirmDialog({
       title: "Confirmar pagamento?",
@@ -74,8 +80,10 @@ export function AdminCheckoutTab() {
     });
     if (!ok) return;
     await run(async () => {
-      const r = await call<{ emailEnviado?: boolean }>("POST", `/api/checkout/admin/orders/${o.id}/confirm`);
-      if (r.emailEnviado === false) toast.warning("Acesso criado, mas o e-mail não saiu. Use \"Esqueci a senha\" com o e-mail do cliente.");
+      const r = await call<{ emailEnviado?: boolean; checks?: Record<string, boolean> }>("POST", `/api/checkout/admin/orders/${o.id}/confirm`);
+      const falhou = Object.entries(r.checks || {}).filter(([, v]) => !v).map(([k]) => k);
+      if (falhou.length) toast.warning(`Empresa criada, mas confira: ${falhou.join(", ")}.`);
+      else if (r.emailEnviado === false) toast.warning("Acesso criado, mas o e-mail não saiu. Use \"Esqueci a senha\" com o e-mail do cliente.");
     }, "Pagamento confirmado e acesso liberado.");
   };
 
@@ -98,6 +106,14 @@ export function AdminCheckoutTab() {
             <input className={`${campo} mt-1`} maxLength={25} value={cfg.receiver_name} onChange={(e) => setCfg({ ...cfg, receiver_name: e.target.value })} /></label>
           <label className="text-xs font-semibold text-[var(--color-text-muted)]">Cidade do recebedor
             <input className={`${campo} mt-1`} maxLength={15} value={cfg.receiver_city} onChange={(e) => setCfg({ ...cfg, receiver_city: e.target.value })} /></label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="text-xs font-semibold text-[var(--color-text-muted)]">Produto único (código do plano)
+            <input className={`${campo} mt-1`} value={cfg.single_plan_code ?? ""} onChange={(e) => setCfg({ ...cfg, single_plan_code: e.target.value })} placeholder="start — vazio = cliente escolhe o plano" /></label>
+          <label className="text-xs font-semibold text-[var(--color-text-muted)]">Valor de tabela (riscado), R$
+            <input className={`${campo} mt-1`} inputMode="decimal" value={cfg.list_price_cents ? String(cfg.list_price_cents / 100) : ""} onChange={(e) => setCfg({ ...cfg, list_price_cents: Math.round((Number(e.target.value.replace(",", ".")) || 0) * 100) })} placeholder="7000" /></label>
+          <label className="text-xs font-semibold text-[var(--color-text-muted)]">Valor promocional hoje, R$ (sem implantação)
+            <input className={`${campo} mt-1`} inputMode="decimal" value={cfg.offer_cents ? String(cfg.offer_cents / 100) : ""} onChange={(e) => setCfg({ ...cfg, offer_cents: Math.round((Number(e.target.value.replace(",", ".")) || 0) * 100) || null })} placeholder="1000" /></label>
         </div>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer">
@@ -169,9 +185,10 @@ export function AdminCheckoutTab() {
                       <td className={`text-xs font-semibold ${s.cls}`}>{s.label}</td>
                       <td className="text-xs">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
                       <td className="text-right whitespace-nowrap">
+                        {o.comprovante_path && <Button size="sm" variant="outline" className="mr-1" onClick={() => void verComprovante(o)}>Ver comprovante</Button>}
                         {o.status !== "paid" && o.status !== "canceled" && (
                           <>
-                            <Button size="sm" disabled={busy} onClick={() => void confirmar(o)}><Check className="w-3.5 h-3.5 mr-1" /> Confirmar Pix</Button>
+                            <Button size="sm" disabled={busy || !o.comprovante_path} title={o.comprovante_path ? "" : "Aguardando o comprovante do cliente"} onClick={() => void confirmar(o)}><Check className="w-3.5 h-3.5 mr-1" /> Confirmar Pix</Button>
                             <button type="button" className="ml-1 p-1 hover:text-rose-400" aria-label="Cancelar pedido" disabled={busy} onClick={() => void run(() => call("POST", `/api/checkout/admin/orders/${o.id}/cancel`), "Pedido cancelado.")}><X className="w-3.5 h-3.5" /></button>
                           </>
                         )}

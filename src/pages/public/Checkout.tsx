@@ -7,13 +7,12 @@ type Quote = {
   plan: { code: string; name: string; tagline: string; interval: "monthly" | "yearly"; features: string[] };
   priceCents: number; setupCents: number; discountCents: number; totalCents: number;
   promo: { label: string; code: string | null; auto: boolean } | null;
-  badge?: string | null; highlight?: boolean;
+  badge?: string | null; highlight?: boolean; listCents: number;
 };
 type Dados = { nome: string; telefone: string; email: string; documento: string; empresa: string };
 type Pedido = { token: string; totalCents: number; pixPayload: string; status: string };
 
 const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const PASSOS = ["Seus dados", "Plano", "Pagamento"];
 
 const maskDoc = (v: string) => {
   const d = v.replace(/\D/g, "").slice(0, 14);
@@ -44,6 +43,8 @@ export default function Checkout() {
   const [passo, setPasso] = useState(0);
   const [dados, setDados] = useState<Dados>({ nome: "", telefone: "", email: "", documento: "", empresa: "" });
   const [planos, setPlanos] = useState<Quote[] | null>(null);
+  const [single, setSingle] = useState<Quote | null>(null);
+  const [arquivo, setArquivo] = useState<File | null>(null);
   const [habilitado, setHabilitado] = useState(true);
   const [planoCode, setPlanoCode] = useState(params.get("plano") || "");
   const [cupom, setCupom] = useState(params.get("cupom") || "");
@@ -59,10 +60,11 @@ export default function Checkout() {
   useEffect(() => { document.title = "Assinar o S.P.Y."; }, []);
 
   useEffect(() => {
-    api<{ enabled: boolean; plans: Quote[] }>("/api/checkout/plans")
+    api<{ enabled: boolean; single: Quote | null; plans: Quote[] }>("/api/checkout/plans")
       .then((r) => {
         setHabilitado(r.enabled);
         setPlanos(r.plans);
+        if (r.single) { setSingle(r.single); setCotacao(r.single); setPlanoCode(r.single.plan.code); return; }
         setPlanoCode((atual) => (r.plans.some((p) => p.plan.code === atual) ? atual : (r.plans.find((p) => p.highlight) ?? r.plans[0])?.plan.code ?? ""));
       })
       .catch(() => setPlanos([]));
@@ -75,6 +77,8 @@ export default function Checkout() {
   }, []);
   useEffect(() => { if (passo === 1) void cotar(planoCode, cupom); }, [passo, planoCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const PASSOS = single ? ["Seus dados", "Pagamento"] : ["Seus dados", "Plano", "Pagamento"];
+  const payIdx = PASSOS.length - 1;
   const irPara = (n: number) => { setErro(""); setPasso(n); topo.current?.scrollIntoView({ behavior: "smooth", block: "start" }); };
 
   const dadosOk = useMemo(() => {
@@ -89,7 +93,7 @@ export default function Checkout() {
       const p = await api<Pedido>("/api/checkout/order", { planCode: planoCode, promoCode: cupom, ...dados, documento: dados.documento.replace(/\D/g, "") });
       setPedido(p); setStatus(p.status);
       setQr(await QRCode.toDataURL(p.pixPayload, { margin: 1, width: 320, errorCorrectionLevel: "M" }));
-      irPara(2);
+      irPara(payIdx);
     } catch (e: any) { setErro(e.message); }
     finally { setOcupado(false); }
   };
@@ -109,9 +113,18 @@ export default function Checkout() {
   };
 
   const avisarPagamento = async () => {
-    if (!pedido) return;
+    if (!pedido || !arquivo) return;
     setOcupado(true); setErro("");
-    try { const r = await api<{ status: string }>(`/api/checkout/order/${pedido.token}/paid`, {}); setStatus(r.status); }
+    try {
+      const data = await new Promise<string>((ok, no) => {
+        const fr = new FileReader();
+        fr.onload = () => ok(String(fr.result).split(",")[1] || "");
+        fr.onerror = () => no(new Error("Não foi possível ler o arquivo."));
+        fr.readAsDataURL(arquivo);
+      });
+      const r = await api<{ status: string }>(`/api/checkout/order/${pedido.token}/paid`, { comprovante: { type: arquivo.type, data } });
+      setStatus(r.status);
+    }
     catch (e: any) { setErro(e.message); }
     finally { setOcupado(false); }
   };
@@ -154,7 +167,7 @@ export default function Checkout() {
           )}
 
           {planos !== null && habilitado && passo === 0 && (
-            <form onSubmit={(e) => { e.preventDefault(); if (dadosOk) irPara(1); else setErro("Confira os campos: todos são obrigatórios e o CPF/CNPJ precisa estar completo."); }} className="space-y-4" noValidate>
+            <form onSubmit={(e) => { e.preventDefault(); if (dadosOk) { if (single) void gerarPix(); else irPara(1); } else setErro("Confira os campos: todos são obrigatórios e o CPF/CNPJ precisa estar completo."); }} className="space-y-4" noValidate>
               <h2 className="text-lg font-black text-[var(--color-text-primary)]">Seus dados</h2>
               <div><label className={rotulo} htmlFor="ck-nome">Nome completo</label><input id="ck-nome" className={campo} autoComplete="name" value={dados.nome} onChange={set("nome")} /></div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -166,11 +179,11 @@ export default function Checkout() {
                 <div><label className={rotulo} htmlFor="ck-emp">Nome da empresa</label><input id="ck-emp" className={campo} autoComplete="organization" value={dados.empresa} onChange={set("empresa")} /></div>
               </div>
               {erro && <p role="alert" className="text-sm font-semibold text-rose-500">{erro}</p>}
-              <button type="submit" className={`${botao} w-full`}>Continuar <ArrowRight className="h-4 w-4" /></button>
+              <button type="submit" className={`${botao} w-full`} disabled={ocupado}>{ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {single ? "Ir para o pagamento" : "Continuar"} <ArrowRight className="h-4 w-4" /></button>
             </form>
           )}
 
-          {planos !== null && habilitado && passo === 1 && (
+          {planos !== null && habilitado && !single && passo === 1 && (
             <div className="space-y-5">
               <h2 className="text-lg font-black text-[var(--color-text-primary)]">Escolha seu plano</h2>
               <div className="space-y-2.5" role="radiogroup" aria-label="Plano">
@@ -217,10 +230,18 @@ export default function Checkout() {
             </div>
           )}
 
-          {passo === 2 && pedido && !pago && (
+          {passo === payIdx && pedido && !pago && (
             <div className="space-y-5 text-center">
               <h2 className="text-lg font-black text-[var(--color-text-primary)]">Pague com Pix</h2>
-              <p className="text-3xl font-black text-[var(--color-text-primary)]">{brl(pedido.totalCents)}</p>
+              {single && single.listCents > pedido.totalCents && (
+                <div className="rounded-xl bg-[var(--color-surface)] p-4">
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{single.plan.name} — com tudo incluído</p>
+                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">de <span className="line-through">{brl(single.listCents)}</span> por</p>
+                  <p className="text-3xl font-black text-[var(--color-text-primary)]">{brl(pedido.totalCents)}</p>
+                  <p className="mt-1 text-xs font-bold text-emerald-500">Sem taxa de implantação</p>
+                </div>
+              )}
+              {!(single && single.listCents > pedido.totalCents) && <p className="text-3xl font-black text-[var(--color-text-primary)]">{brl(pedido.totalCents)}</p>}
               {status === "expired" || status === "canceled" ? (
                 <p className="text-sm font-semibold text-rose-500">Este Pix expirou. Volte e gere um novo.</p>
               ) : (
@@ -234,9 +255,14 @@ export default function Checkout() {
                   {status === "awaiting_confirmation" ? (
                     <p className="flex items-center justify-center gap-2 rounded-xl bg-amber-500/10 p-3 text-sm font-semibold text-amber-500"><Loader2 className="h-4 w-4 animate-spin" /> Recebemos seu aviso. Estamos conferindo o Pix — esta tela atualiza sozinha.</p>
                   ) : (
-                    <button type="button" className={`${botao} w-full`} disabled={ocupado} onClick={() => void avisarPagamento()}>
-                      {ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Já fiz o pagamento
-                    </button>
+                    <div className="space-y-3 text-left">
+                      <label className={rotulo} htmlFor="ck-comp">Depois de pagar, anexe o comprovante do Pix (foto ou PDF, até 3 MB)</label>
+                      <input id="ck-comp" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={campo}
+                        onChange={(e) => { const f = e.target.files?.[0] ?? null; setErro(f && f.size > 3 * 1024 * 1024 ? "O comprovante precisa ter até 3 MB." : ""); setArquivo(f && f.size <= 3 * 1024 * 1024 ? f : null); }} />
+                      <button type="button" className={`${botao} w-full`} disabled={ocupado || !arquivo} onClick={() => void avisarPagamento()}>
+                        {ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Já fiz o pagamento
+                      </button>
+                    </div>
                   )}
                 </>
               )}

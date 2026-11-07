@@ -77,7 +77,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
   const pub = rateLimit({ windowMs: 60_000, limit: 40, standardHeaders: true, legacyHeaders: false });
   const pubWrite = rateLimit({ windowMs: 60_000, limit: 8, standardHeaders: true, legacyHeaders: false });
 
-  type Quote = { plan: any; promo: any | null; priceCents: number; setupCents: number; discountCents: number; totalCents: number };
+  type Quote = { plan: any; promo: any | null; priceCents: number; setupCents: number; discountCents: number; totalCents: number; listCents: number };
 
   async function quoteFor(planCode: string, promoCode?: string): Promise<Quote> {
     if (!db) throw new Error("Indisponível.");
@@ -103,18 +103,29 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       promo = (promos || []).filter((p: any) => !p.code && vale(p)).sort((a: any, b: any) => desconto(b) - desconto(a))[0] || null;
     }
     const discountCents = promo ? desconto(promo) : 0;
-    return { plan, promo, priceCents: base, setupCents: setup, discountCents, totalCents: base + setup - discountCents };
+    return { plan, promo, priceCents: base, setupCents: setup, discountCents, totalCents: base + setup - discountCents, listCents: base + setup };
+  }
+
+  /** Produto unico: o valor promocional do checkout (sem implantacao) substitui a tabela do plano; o "de" riscado vem da config. */
+  async function finalQuote(planCode: string, promoCode?: string): Promise<Quote> {
+    const cfg = await config();
+    if (cfg?.single_plan_code && cfg.offer_cents && String(planCode).toLowerCase() === cfg.single_plan_code.toLowerCase()) {
+      const q = await quoteFor(cfg.single_plan_code);
+      const lista = Math.max(cfg.list_price_cents || 0, cfg.offer_cents);
+      return { ...q, promo: { label: "Oferta de lançamento", code: null }, priceCents: lista, setupCents: 0, discountCents: lista - cfg.offer_cents, totalCents: cfg.offer_cents, listCents: lista };
+    }
+    return quoteFor(planCode, promoCode);
   }
 
   const quoteJson = (q: Quote) => ({
     plan: { code: q.plan.code, name: q.plan.name, tagline: q.plan.tagline ?? "", interval: q.plan.billing_interval, features: Array.isArray(q.plan.features) ? q.plan.features : [] },
-    priceCents: q.priceCents, setupCents: q.setupCents, discountCents: q.discountCents, totalCents: q.totalCents,
+    priceCents: q.priceCents, setupCents: q.setupCents, discountCents: q.discountCents, totalCents: q.totalCents, listCents: q.listCents,
     promo: q.promo ? { label: q.promo.label || q.promo.code || "Promoção", code: q.promo.code ?? null, auto: !q.promo.code } : null,
   });
 
   async function config() {
     const { data } = await db!.from("checkout_config").select("*").eq("id", "main").maybeSingle();
-    return data as { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string } | null;
+    return data as { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null } | null;
   }
 
   // ── Publico ────────────────────────────────────────────────────────────────
@@ -124,15 +135,19 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     const { data } = await db.from("subscription_plans")
       .select("code,name,price_cents,billing_interval,setup_price_cents,tagline,badge,features,highlight,sort_order")
       .eq("active", true).eq("show_on_site", true).order("sort_order").order("price_cents");
+    const enabled = !!(cfg?.active && cfg.pix_key);
+    if (cfg?.single_plan_code) {
+      try { return res.json({ enabled, single: quoteJson(await finalQuote(cfg.single_plan_code)), plans: [] }); } catch { /* cai na lista */ }
+    }
     const plans = [];
     for (const p of data || []) {
       try { plans.push({ ...quoteJson(await quoteFor((p as any).code)), badge: (p as any).badge ?? null, highlight: !!(p as any).highlight }); } catch { /* plano sem cotação */ }
     }
-    res.json({ enabled: !!(cfg?.active && cfg.pix_key), plans });
+    res.json({ enabled, single: null, plans });
   });
 
   router.post("/quote", pub, async (req, res) => {
-    try { res.json(quoteJson(await quoteFor(req.body?.planCode, req.body?.promoCode))); }
+    try { res.json(quoteJson(await finalQuote(req.body?.planCode, req.body?.promoCode))); }
     catch (e: any) { res.status(400).json({ error: e?.message || "Não foi possível calcular." }); }
   });
 
@@ -154,7 +169,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     if (!cfg?.active || !cfg.pix_key) return res.status(503).json({ error: "O pagamento ainda não está disponível. Fale com a gente pelo WhatsApp." });
 
     let q: Quote;
-    try { q = await quoteFor(b.planCode, b.promoCode); } catch (e: any) { return res.status(400).json({ error: e?.message || "Plano inválido." }); }
+    try { q = await finalQuote(b.planCode, b.promoCode); } catch (e: any) { return res.status(400).json({ error: e?.message || "Plano inválido." }); }
     if (q.totalCents < 100) return res.status(400).json({ error: "Valor inválido para pagamento via Pix." });
 
     // O mesmo comprador clicando duas vezes reaproveita o pedido aberto (mesmo plano, valor e documento).
@@ -207,7 +222,23 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     if (!o) return res.status(404).json({ error: "Pedido não encontrado." });
     if (o.status === "paid" || o.status === "awaiting_confirmation") return res.json({ status: o.status });
     if (o.status !== "pending") return res.status(409).json({ error: "Este pedido não está mais aberto." });
-    await db.from("checkout_orders").update({ status: "awaiting_confirmation", informed_paid_at: new Date().toISOString() }).eq("id", o.id);
+
+    // Comprovante obrigatorio (imagem ou PDF, ate 3 MB), guardado em bucket privado; so o super admin ve, por link temporario.
+    const c = req.body?.comprovante;
+    const tipos: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
+    if (!c || typeof c.data !== "string" || !tipos[c.type]) return res.status(400).json({ error: "Anexe o comprovante do Pix (foto ou PDF)." });
+    const bytes = Buffer.from(c.data, "base64");
+    if (bytes.length < 500) return res.status(400).json({ error: "Arquivo inválido. Anexe o comprovante do Pix." });
+    if (bytes.length > 3 * 1024 * 1024) return res.status(400).json({ error: "O comprovante precisa ter até 3 MB." });
+    const magic = bytes.subarray(0, 4).toString("hex");
+    const okMagic = (c.type === "application/pdf" && bytes.subarray(0, 4).toString() === "%PDF") || (c.type === "image/png" && magic === "89504e47") ||
+      (c.type === "image/jpeg" && magic.startsWith("ffd8ff")) || (c.type === "image/webp" && bytes.subarray(0, 4).toString() === "RIFF");
+    if (!okMagic) return res.status(400).json({ error: "O arquivo não parece ser uma imagem ou PDF válido." });
+    const path = `${o.id}/${Date.now()}.${tipos[c.type]}`;
+    const up = await db.storage.from("checkout-comprovantes").upload(path, bytes, { contentType: c.type, upsert: false });
+    if (up.error) { console.error("[checkout] comprovante:", up.error.message); return res.status(500).json({ error: "Não foi possível salvar o comprovante. Tente novamente." }); }
+
+    await db.from("checkout_orders").update({ status: "awaiting_confirmation", informed_paid_at: new Date().toISOString(), comprovante_path: path }).eq("id", o.id);
     if (o.lead_id) await db.from("leads").update({ notes: `Checkout: cliente informou que pagou ${brl(o.total_cents)} (${o.plan_name}). Conferir o Pix e confirmar em Planos > Checkout.` }).eq("id", o.lead_id);
     try {
       const cfg = await config();
@@ -227,7 +258,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     const [cfg, promos, orders] = await Promise.all([
       config(),
       db.from("checkout_promos").select("*").order("created_at", { ascending: false }),
-      db.from("checkout_orders").select("id,status,plan_name,nome,empresa,email,telefone,documento,total_cents,discount_cents,promo_code,created_at,informed_paid_at,paid_at,error,tenant_id")
+      db.from("checkout_orders").select("id,status,plan_name,nome,empresa,email,telefone,documento,total_cents,discount_cents,promo_code,created_at,informed_paid_at,paid_at,error,tenant_id,comprovante_path")
         .order("created_at", { ascending: false }).limit(100),
     ]);
     res.json({ config: cfg, promos: promos.data || [], orders: orders.data || [] });
@@ -242,6 +273,9 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       receiver_name: String(b.receiverName || "").trim().slice(0, 25),
       receiver_city: String(b.receiverCity || "").trim().slice(0, 15),
       notify_email: String(b.notifyEmail || "").trim().slice(0, 200),
+      single_plan_code: String(b.singlePlanCode || "").trim().toLowerCase() || null,
+      list_price_cents: Math.max(0, Math.round(Number(b.listPriceCents) || 0)),
+      offer_cents: Number(b.offerCents) >= 100 ? Math.round(Number(b.offerCents)) : null,
       updated_at: new Date().toISOString(),
     };
     if (row.active && (!row.pix_key || !row.receiver_name || !row.receiver_city)) {
@@ -281,6 +315,15 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     res.json({ ok: true });
   });
 
+  router.get("/admin/orders/:id/comprovante", requireUser, requireMaster, async (req, res) => {
+    if (!db) return res.status(503).json({ error: "Service role não configurada." });
+    const { data: o } = await db.from("checkout_orders").select("comprovante_path").eq("id", req.params.id).maybeSingle();
+    if (!o?.comprovante_path) return res.status(404).json({ error: "Sem comprovante neste pedido." });
+    const { data, error } = await db.storage.from("checkout-comprovantes").createSignedUrl(o.comprovante_path, 300);
+    if (error || !data?.signedUrl) return res.status(500).json({ error: "Não foi possível abrir o comprovante." });
+    res.json({ url: data.signedUrl });
+  });
+
   router.post("/admin/orders/:id/cancel", requireUser, requireMaster, async (req, res) => {
     if (!db) return res.status(503).json({ error: "Service role não configurada." });
     const { error } = await db.from("checkout_orders").update({ status: "canceled" }).eq("id", req.params.id).neq("status", "paid");
@@ -295,6 +338,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     if (!o) return res.status(404).json({ error: "Pedido não encontrado." });
     if (o.status === "paid") return res.json({ ok: true, jaConfirmado: true, tenantId: o.tenant_id });
     if (o.status === "canceled") return res.status(409).json({ error: "Pedido cancelado." });
+    if (!o.comprovante_path && req.body?.semComprovante !== true) return res.status(409).json({ error: "O cliente ainda não anexou o comprovante do Pix." });
 
     const falha = async (msg: string, status = 400) => { await db.from("checkout_orders").update({ error: msg }).eq("id", o.id); return res.status(status).json({ error: msg }); };
 
@@ -377,7 +421,15 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
         }).catch((e: any) => console.error("[checkout] agente de implantação:", e?.message));
       }
 
-      res.json({ ok: true, tenantId, emailEnviado });
+      // Verificacao multi-tenant: a empresa existe, tem admin proprio, assinatura ativa e nenhum outro tenant foi tocado.
+      const [tn, us, sb] = await Promise.all([
+        db.from("tenants").select("id").eq("id", tenantId).maybeSingle(),
+        db.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("email", o.email),
+        db.from("tenant_subscriptions").select("status").eq("tenant_id", tenantId).maybeSingle(),
+      ]);
+      const checks = { empresa: !!tn.data, acesso: (us.count ?? 0) === 1, assinatura: sb.data?.status === "active", agentes: !!secret, email: emailEnviado };
+      if (!checks.agentes) console.error("[checkout] SPY_IMPLEMENTACAO_WEBHOOK_SECRET ausente: agentes não foram acionados.");
+      res.json({ ok: true, tenantId, emailEnviado, checks });
     } catch (e: any) {
       console.error("[checkout] confirm:", e?.message);
       await desfazer("Erro inesperado ao confirmar.");
