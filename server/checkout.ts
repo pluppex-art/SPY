@@ -289,7 +289,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       const { error: leadErr } = await db.from("leads").insert({
         id: leadId, tenant_id: sellerTenant, name: nome, email, phone: telefone, company: empresa, cnpj: documento,
         source: "Checkout S.P.Y.", status: "Novo", priority: "Alta", value: q.totalCents / 100, scoreIA: 80,
-        notes: `Checkout: plano ${q.plan.name}, total ${brl(q.totalCents)}${q.promo ? `, promoção ${q.promo.label || q.promo.code}` : ""}. Aguardando Pix.`,
+        notes: `Checkout: plano ${q.plan.name}, total ${brl(q.totalCents)}${q.promo ? `, promoção ${q.promo.label || q.promo.code}` : ""}. Gerou o Pix mas ainda não enviou o comprovante: fazer follow-up.`,
         date: new Date().toISOString().split("T")[0],
       });
       if (leadErr) { console.error("[checkout] lead:", leadErr.message); leadId = null; }
