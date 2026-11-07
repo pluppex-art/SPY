@@ -13,6 +13,7 @@ import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
 import { createGoogleIntegrationsRouter, makeInitialSync } from "./server/googleIntegrations.js";
 import { createSaas, aiContext } from "./server/saas.js";
 import { createCheckoutRouter } from "./server/checkout.js";
+import { upsertLead } from "./server/leadUpsert.js";
 import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./server/whatsappProvider.js";
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
@@ -2875,26 +2876,13 @@ app.post("/api/public/lead-capture", async (req, res) => {
   if (!tenantId) return res.status(503).json({ error: "Captação de leads do site não está configurada neste ambiente." });
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
 
-  const id = randomUUID();
-  const now = new Date().toISOString().split("T")[0];
-  const newLead = {
-    id,
-    name: name.toString().trim().slice(0, 200),
-    email: email?.toString().trim().slice(0, 200) || "",
-    phone: phone?.toString().trim().slice(0, 30) || "",
-    source: `Formulário do site (${niche || "não identificado"})`,
-    status: "Novo",
-    priority: "Média",
-    value: 0,
-    notes: summary?.toString().slice(0, 4000) || "",
-    tenant_id: tenantId,
-    scoreIA: 50,
-    date: now,
-  };
-
   try {
-    const { error } = await supabaseService.from("leads").insert(newLead);
-    if (error) throw new Error(error.message);
+    // Telefone/e-mail que ja existe no sistema: so atualiza o lead; novo entra na primeira etapa do funil comercial.
+    await upsertLead(supabaseService, tenantId, {
+      name: name.toString().trim(), email: email?.toString().trim().slice(0, 200) || "", phone: phone?.toString().trim().slice(0, 30) || "",
+      source: `Formulário do site (${niche || "não identificado"})`, papel: "entrada",
+      nota: summary?.toString().slice(0, 4000) || "Preencheu o formulário do site.",
+    });
     return res.json({ success: true });
   } catch (err: any) {
     console.error("[public/lead-capture]", err?.message);

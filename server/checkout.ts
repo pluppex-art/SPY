@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomBytes, randomUUID } from "crypto";
 import rateLimit from "express-rate-limit";
 import { sendPlatformEmail } from "./mailer.js";
+import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
 
 type Deps = {
   requireUser: (req: any, res: Response, next: NextFunction) => any;
@@ -196,7 +197,8 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
         const { data: pr } = await db.from("checkout_promos").select("uses").eq("id", o.promo_id).maybeSingle();
         if (pr) await db.from("checkout_promos").update({ uses: (pr.uses || 0) + 1 }).eq("id", o.promo_id);
       }
-      if (o.lead_id) await db.from("leads").update({ status: "Fechado", value: o.total_cents / 100, notes: `Checkout: pagamento de ${brl(o.total_cents)} confirmado (${o.plan_name}). Empresa criada e acesso enviado.` }).eq("id", o.lead_id);
+      const vendedor = process.env.SPY_FORM_TENANT_ID || process.env.AXIS_FORM_TENANT_ID;
+      if (o.lead_id && vendedor) await atualizarLeadPorId(db, vendedor, o.lead_id, "ganho", `Checkout: pagamento de ${brl(o.total_cents)} confirmado (${o.plan_name}). Empresa criada e acesso enviado.`, o.total_cents / 100).catch((e: any) => console.error("[checkout] lead ganho:", e?.message));
 
       // Acesso: link para o cliente definir a propria senha (nada de senha por e-mail).
       let emailEnviado = false;
@@ -297,14 +299,14 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     let leadId: string | null = null;
     const sellerTenant = process.env.SPY_FORM_TENANT_ID || process.env.AXIS_FORM_TENANT_ID;
     if (sellerTenant) {
-      leadId = randomUUID();
-      const { error: leadErr } = await db.from("leads").insert({
-        id: leadId, tenant_id: sellerTenant, name: nome, email, phone: telefone, company: empresa, cnpj: documento,
-        source: "Checkout S.P.Y.", status: "Novo", priority: "Alta", value: q.totalCents / 100, scoreIA: 80,
-        notes: `Checkout: plano ${q.plan.name}, total ${brl(q.totalCents)}${q.promo ? `, promoção ${q.promo.label || q.promo.code}` : ""}. Gerou o Pix mas ainda não enviou o comprovante: fazer follow-up.`,
-        date: new Date().toISOString().split("T")[0],
-      });
-      if (leadErr) { console.error("[checkout] lead:", leadErr.message); leadId = null; }
+      try {
+        // Mesmo telefone/e-mail ja no sistema = so atualiza o lead; novo entra na etapa "proposta enviada".
+        leadId = (await upsertLead(db, sellerTenant, {
+          name: nome, email, phone: telefone, company: empresa, cnpj: documento, source: "Checkout S.P.Y.", priority: "Alta", scoreIA: 80,
+          value: q.totalCents / 100, papel: "proposta",
+          nota: `Checkout: plano ${q.plan.name}, total ${brl(q.totalCents)}${q.promo ? `, promoção ${q.promo.label || q.promo.code}` : ""}. Gerou o Pix mas ainda não enviou o comprovante: fazer follow-up.`,
+        })).id;
+      } catch (e: any) { console.error("[checkout] lead:", e?.message); }
     }
 
     const { error } = await db.from("checkout_orders").insert({
