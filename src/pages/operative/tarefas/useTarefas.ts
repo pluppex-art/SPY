@@ -13,7 +13,21 @@ export function useTarefas() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
+  // O modo (lista/kanban) fica salvo nas preferências do usuário: ao recarregar, sair e voltar, continua o escolhido.
+  const { user: usuarioPref, updatePreferences: salvarPreferencia } = useAuth();
+  const [viewMode, setViewModeState] = useState<'list' | 'kanban'>(() => {
+    try { const l = localStorage.getItem("tarefasView"); if (l === "list" || l === "kanban") return l; } catch { /* sem acesso ao armazenamento */ }
+    return 'kanban';
+  });
+  useEffect(() => {
+    const salvo = usuarioPref?.preferences?.tarefasView;
+    if (salvo === "list" || salvo === "kanban") setViewModeState(salvo);
+  }, [usuarioPref?.preferences?.tarefasView]);
+  const setViewMode = (v: 'list' | 'kanban') => {
+    setViewModeState(v);
+    try { localStorage.setItem("tarefasView", v); } catch { /* sem acesso ao armazenamento */ }
+    salvarPreferencia({ tarefasView: v });
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
   const [deadlineFilter, setDeadlineFilter] = useState<string>("");
