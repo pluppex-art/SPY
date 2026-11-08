@@ -51,7 +51,7 @@ function LeadTags({ tags }: { tags: any }) {
 
 export function PipelineListaView({
   listaLeads, sellers,
-  temperatureFilter, setTemperatureFilter, sortOrder, setSortOrder,
+  temperatureFilter, sortOrder,
   setSelectedLead, updateLead,
 }: PipelineListaViewProps) {
   // A visão de lista renderizava TODOS os leads filtrados como <tr>/<Card>
@@ -66,26 +66,6 @@ export function PipelineListaView({
 
   return (
     <>
-      {/* Busca, vendedor, empresa, cidade, cliente e funil já vêm da barra
-          compartilhada (PipelineFilterBar, acima, igual nas duas visões) —
-          aqui só o que é específico da Lista: temperatura e ordenação. */}
-      <div className="flex flex-wrap items-center gap-3 shrink-0">
-        <div className="flex items-center gap-2 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl px-3 h-10">
-          <span className="text-[9px] uppercase font-bold text-[var(--color-text-faint)]">Temp:</span>
-          <select value={temperatureFilter} onChange={(e) => setTemperatureFilter(e.target.value)}
-            className="bg-transparent border-none text-xs text-[var(--color-text-primary)] focus:outline-none cursor-pointer font-bold">
-            <option value="Todas">Todas</option>
-            <option value="quente">🔥 Quente</option>
-            <option value="morno">☀️ Morno</option>
-            <option value="frio">❄️ Frio</option>
-          </select>
-        </div>
-        <button onClick={() => setSortOrder(o => o === "desc" ? "asc" : "desc")}
-          className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl px-3 h-10 text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer">
-          Temp {sortOrder === "desc" ? "▼" : "▲"}
-        </button>
-      </div>
-
       {/* Desktop table */}
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden hidden sm:block">
         <div className="overflow-x-auto">
