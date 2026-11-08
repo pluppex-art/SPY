@@ -67,6 +67,7 @@ export default function Checkout() {
   const [info, setInfo] = useState<Info | null>(null);
   const [semSessao, setSemSessao] = useState(false);
   const renovar = params.get("renovar") === "1";
+  const tentativasAcesso = useRef(0);
   const topo = useRef<HTMLDivElement>(null);
 
   useEffect(() => { document.title = "Assinar o S.P.Y."; }, []);
@@ -113,7 +114,8 @@ export default function Checkout() {
     if (renovar || !token) return;
     api<{ status: string; totalCents: number; pixPayload: string; nome: string; email: string; kind: "new" | "renewal"; emailEnviado: boolean | null; empresa?: string }>(`/api/checkout/order/${token}`)
       .then(async (r) => {
-        if (r.status === "expired" || r.status === "canceled") { lsSet(""); return; }
+        // So restaura pedido novo e ainda em andamento; renovacao nunca (computador compartilhado).
+        if (r.kind !== "new" || r.status === "expired" || r.status === "canceled" || r.status === "paid") { lsSet(""); return; }
         setDados((d) => ({ ...d, nome: r.nome, email: r.email, empresa: r.empresa || d.empresa }));
         setInfo({ kind: r.kind, emailEnviado: r.emailEnviado, email: r.email });
         await mostrarPedido({ token, totalCents: r.totalCents, pixPayload: r.pixPayload, status: r.status });
@@ -135,7 +137,6 @@ export default function Checkout() {
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.error || "Não foi possível gerar o Pix da renovação.");
         if (!vivo) return;
-        lsSet(json.token);
         setInfo({ kind: "renewal", emailEnviado: null, email: data.session.user.email || "" });
         await mostrarPedido(json as Pedido);
         setPasso(0);
@@ -159,14 +160,19 @@ export default function Checkout() {
 
   // Acompanha o pedido: quando o pagamento for confirmado, a tela muda sozinha.
   useEffect(() => {
-    if (!pedido || status === "paid" || status === "expired" || status === "canceled") return;
+    if (!pedido || status === "expired" || status === "canceled") return;
+    // Pago: continua consultando enquanto o envio do acesso nao foi concluido (emailEnviado null), por no maximo ~5 min.
+    if (status === "paid" && (info?.kind === "renewal" || (info?.emailEnviado ?? null) !== null)) return;
     const t = setInterval(() => {
+      if (status === "paid" && ++tentativasAcesso.current > 40) { // desiste de esperar: orienta o caminho seguro ("Esqueci a senha")
+        setInfo((i) => (i ? { ...i, emailEnviado: false } : i)); return;
+      }
       api<{ status: string; kind: "new" | "renewal"; emailEnviado: boolean | null; email: string }>(`/api/checkout/order/${pedido.token}`)
         .then((r) => { setStatus(r.status); setInfo({ kind: r.kind, emailEnviado: r.emailEnviado, email: r.email }); if (r.status === "expired" || r.status === "canceled") lsSet(""); })
         .catch(() => {});
     }, 8000);
     return () => clearInterval(t);
-  }, [pedido, status]);
+  }, [pedido, status, info]);
 
   const copiar = async () => {
     if (!pedido) return;
@@ -367,7 +373,9 @@ export default function Checkout() {
                 <>
                   <h2 className="text-xl font-black text-[var(--color-text-primary)]">Pagamento confirmado!</h2>
                   <p className="text-sm text-[var(--color-text-muted)]">
-                    {info?.emailEnviado === false
+                    {(info?.emailEnviado ?? null) === null
+                      ? <>Estamos finalizando seu acesso… Esta tela atualiza sozinha e, em instantes, você recebe o link para definir sua senha em <strong>{info?.email || dados.email}</strong>.</>
+                      : info?.emailEnviado !== true
                       ? <>Seu acesso foi liberado, mas o e-mail para <strong>{info?.email || dados.email}</strong> não saiu. Abra a tela de login e clique em <strong>“Esqueci a senha”</strong> para criar a sua senha.</>
                       : <>Enviamos para <strong>{info?.email || dados.email}</strong> o link para você definir sua senha e entrar (o link tem validade limitada). Se não encontrar o e-mail ou o link expirar, use <strong>“Esqueci a senha”</strong> na tela de login.</>}
                   </p>

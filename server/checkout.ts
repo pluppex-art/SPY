@@ -85,6 +85,10 @@ export function documentoValido(raw: string): boolean {
 const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Escapa % _ \\ para usar o e-mail em ilike como igualdade case-insensitive. */
+const likeEsc = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
+/** Usuario desativado/excluido nao e reaproveitado pelo checkout (reativacao so pelo admin). */
+const usuarioInativo = (u: any) => !!u && (u.active === false || !!u.deleted_at);
 
 /** Varios destinatarios no mesmo campo (separados por virgula, ponto e virgula ou espaco). */
 const destinatarios = (raw: unknown): string[] => [...new Set(String(raw || "").split(/[,;\s]+/).map((e) => e.trim().toLowerCase()).filter((e) => EMAIL_RE.test(e)))].slice(0, 6);
@@ -228,11 +232,21 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       try {
         if (criado.userRow && userId) await db!.from("users").delete().eq("id", userId);
         if (criado.authUser && userId) await db!.auth.admin.deleteUser(userId);
+        let tenantFicou = false;
         if (criado.tenant && tenantId) {
           await db!.from("app_settings").delete().eq("tenant_id", tenantId);
-          await db!.from("tenants").delete().eq("id", tenantId);
+          const { error: dErr } = await db!.from("tenants").delete().eq("id", tenantId);
+          if (dErr) {
+            tenantFicou = true;
+            console.error("[checkout] rollback: não removeu a empresa:", dErr.message);
+            // Mantem tenant_id/created_user_id no pedido: a retentativa reaproveita o que ficou.
+            await db!.from("checkout_orders").update({ tenant_id: tenantId, created_user_id: userId }).eq("id", o.id);
+            await avisarEquipe("checkout_atencao", "warning", `Atenção no checkout: sobrou empresa incompleta (${o.empresa})`,
+              `A liberação do pedido de ${o.nome} falhou e a empresa criada (${tenantId}) não pôde ser removida (${dErr.message}). O pedido foi mantido ligado a ela: tente confirmar de novo no painel.`,
+              [{ label: "Cliente", value: o.nome }, { label: "E-mail", value: o.email }, { label: "Empresa (id)", value: String(tenantId) }], o.telefone);
+          }
         }
-        if (criado.tenant || criado.authUser) await db!.from("checkout_orders").update({ tenant_id: o.kind === "renewal" ? o.tenant_id : null, created_user_id: null }).eq("id", o.id);
+        if (!tenantFicou && (criado.tenant || criado.authUser)) await db!.from("checkout_orders").update({ tenant_id: o.kind === "renewal" ? o.tenant_id : null, created_user_id: null }).eq("id", o.id);
       } catch (e: any) { console.error("[checkout] rollback:", e?.message); }
     };
 
@@ -243,8 +257,14 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
         if (!ainda) tenantId = null; // a empresa de uma tentativa anterior sumiu: recria
       }
       if (!tenantId) {
-        const { data: existente } = await db!.from("users").select("id,tenant_id,is_master").eq("email", o.email).maybeSingle();
+        const { data: existente } = await db!.from("users").select("*").ilike("email", likeEsc(o.email)).limit(1).maybeSingle();
         if (existente) {
+          if (usuarioInativo(existente)) {
+            await avisarEquipe("checkout_atencao", "warning", `Atenção no checkout: acesso desativado (${o.empresa})`,
+              `${o.nome} (${o.empresa}) pagou, mas o e-mail ${o.email} pertence a um usuário desativado/excluído. A reativação deve ser feita por um administrador; o pedido segue pendente de liberação.`,
+              [{ label: "Cliente", value: o.nome }, { label: "E-mail", value: o.email }, { label: "Plano / valor", value: `${o.plan_name} · ${brl(o.total_cents)}` }], o.telefone);
+            throw new FulfillError("Este e-mail tem um acesso desativado. A reativação deve ser feita por um administrador; a equipe foi avisada.", 409);
+          }
           if (existente.is_master || !existente.tenant_id) throw new FulfillError("Este e-mail pertence a um administrador do sistema. Use outro e-mail ou crie o acesso manualmente.", 409);
           tenantId = existente.tenant_id; reuse = true;
         } else {
@@ -260,7 +280,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       if (!tenantId) throw new FulfillError("Empresa não encontrada para este pedido.");
 
       if (!reuse) {
-        const { data: u } = await db!.from("users").select("id").eq("tenant_id", tenantId).eq("email", o.email).maybeSingle();
+        const { data: u } = await db!.from("users").select("id").eq("tenant_id", tenantId).ilike("email", likeEsc(o.email)).limit(1).maybeSingle();
         if (u) userId = u.id;
         else {
           let authId: string | null = o.created_user_id || (await authIdByEmail(o.email));
@@ -298,6 +318,8 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
           await db!.from("billing_events").insert({ tenant_id: tenantId, type: "payment_confirmed", to_status: "active", amount_cents: o.total_cents, payload: { by, source: "checkout_pix", order: o.id } });
         }
       }
+
+      else throw new FulfillError("Este pedido não tem plano associado. Não foi possível ativar a assinatura; confira o pedido.", 422);
 
       // 3) Concluido no banco: daqui em diante nada desfaz a venda (e-mail e agentes so geram aviso se falharem).
       await db!.from("checkout_orders").update({ tenant_id: tenantId, fulfilled_at: new Date().toISOString() }).eq("id", o.id);
@@ -390,25 +412,33 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     // Pix vencido que ninguem pagou deixa de ocupar a vaga (pedidos 'awaiting_confirmation' nunca expiram sozinhos).
     await db!.from("checkout_orders").update({ status: "expired" }).eq("email", n.email).eq("kind", n.kind).eq("status", "pending").lt("expires_at", agora);
 
+    // Chamada anonima: so quem informa o MESMO documento do pedido existente e tratado como o mesmo solicitante.
+    // Qualquer outra situacao devolve resposta neutra (sem token, sem Pix, sem confirmar que o pedido existe).
+    const neutro = { ok: false as const, status: 409, error: "Não foi possível gerar o Pix agora. Confira os dados informados ou fale com a gente pelo WhatsApp." };
+
     const { data: aguardando } = await db!.from("checkout_orders").select("*").eq("email", n.email).eq("kind", n.kind).eq("status", "awaiting_confirmation")
       .order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (aguardando) return { ok: true, pedido: dtoPedido(aguardando), novo: false };
+    if (aguardando) return aguardando.documento === n.documento ? { ok: true, pedido: dtoPedido(aguardando), novo: false } : neutro;
 
     const { data: aberto } = await db!.from("checkout_orders").select("*").eq("email", n.email).eq("kind", n.kind).eq("status", "pending")
       .order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (aberto && aberto.plan_code === n.plan.code && aberto.total_cents === n.totalCents && aberto.documento === n.documento) return { ok: true, pedido: dtoPedido(aberto), novo: false };
-    if (aberto) await db!.from("checkout_orders").update({ status: "canceled" }).eq("id", aberto.id).eq("status", "pending"); // mudou de plano/valor: o antigo sai
+    if (aberto) {
+      if (aberto.documento !== n.documento) return neutro; // nunca cancela/substitui o pedido de outro solicitante
+      if (aberto.plan_code === n.plan.code && aberto.total_cents === n.totalCents) return { ok: true, pedido: dtoPedido(aberto), novo: false };
+      await db!.from("checkout_orders").update({ status: "canceled" }).eq("id", aberto.id).eq("status", "pending"); // mesmo solicitante mudou de plano/valor
+    }
 
-    // Anti-spam: pedidos por e-mail (24h) e por IP (1h).
+    // Anti-spam: pedidos do mesmo IP+e-mail (24h) e por IP (1h). O limite por e-mail NAO e global: um terceiro nao bloqueia o e-mail alheio.
     const [porEmail, porIp] = await Promise.all([
-      db!.from("checkout_orders").select("id", { count: "exact", head: true }).eq("email", n.email).gte("created_at", new Date(Date.now() - 24 * 3600_000).toISOString()),
+      n.ip ? db!.from("checkout_orders").select("id", { count: "exact", head: true }).eq("email", n.email).eq("consent_ip", n.ip).gte("created_at", new Date(Date.now() - 24 * 3600_000).toISOString()) : Promise.resolve({ count: 0 }),
       n.ip ? db!.from("checkout_orders").select("id", { count: "exact", head: true }).eq("consent_ip", n.ip).gte("created_at", new Date(Date.now() - 3600_000).toISOString()) : Promise.resolve({ count: 0 }),
     ]);
     if ((porEmail.count ?? 0) >= 6 || (porIp.count ?? 0) >= 20) return { ok: false, status: 429, error: "Muitas tentativas em pouco tempo. Aguarde um pouco ou fale com a gente pelo WhatsApp." };
 
-    // Cupom com limite: usos ja consumidos + pedidos abertos que o seguram nao podem passar de max_uses.
+    // Cupom com limite: usos ja consumidos + pedidos que o seguram (pending ainda valido ou aguardando confirmacao) nao podem passar de max_uses.
     if (n.promo?.id && n.promo.max_uses != null) {
-      const { count } = await db!.from("checkout_orders").select("id", { count: "exact", head: true }).eq("promo_id", n.promo.id).in("status", ["pending", "awaiting_confirmation"]);
+      const { count } = await db!.from("checkout_orders").select("id", { count: "exact", head: true }).eq("promo_id", n.promo.id)
+        .or(`status.eq.awaiting_confirmation,and(status.eq.pending,expires_at.gt.${agora})`);
       if ((n.promo.uses || 0) + (count ?? 0) >= n.promo.max_uses) return { ok: false, status: 400, error: "Este cupom esgotou. Tente sem cupom ou fale com a gente." };
     }
 
@@ -426,7 +456,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     if (error) {
       if (error.code === "23505") { // corrida: outro clique criou o pedido aberto neste instante
         const { data: outro } = await db!.from("checkout_orders").select("*").eq("email", n.email).eq("kind", n.kind).eq("status", "pending").limit(1).maybeSingle();
-        if (outro) return { ok: true, pedido: dtoPedido(outro), novo: false };
+        if (outro) return outro.documento === n.documento ? { ok: true, pedido: dtoPedido(outro), novo: false } : neutro;
       }
       console.error("[checkout] order:", error.message);
       return { ok: false, status: 500, error: "Não foi possível gerar o Pix. Tente novamente." };
@@ -481,7 +511,13 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
 
     // E-mail que ja tem acesso (cliente cancelado/suspenso voltando, ou segunda compra): o pedido e de RENOVACAO da empresa
     // que ja existe (um e-mail = uma empresa). Nada e revelado ao comprador: a resposta e igual a de um cliente novo.
-    const { data: existente } = await db.from("users").select("tenant_id,is_master").eq("email", email).maybeSingle();
+    const { data: existente } = await db.from("users").select("*").ilike("email", likeEsc(email)).limit(1).maybeSingle();
+    if (usuarioInativo(existente)) {
+      await avisarEquipe("checkout_atencao", "warning", `Checkout: e-mail de usuário desativado (${empresa})`,
+        `${nome} (${empresa}) tentou comprar com o e-mail ${email}, que pertence a um usuário desativado/excluído. Nenhum pedido foi criado; a reativação é feita só por um administrador.`,
+        [{ label: "Cliente", value: nome }, { label: "E-mail", value: email }], telefone);
+      return res.status(400).json({ error: "Não foi possível usar este e-mail no checkout. Fale com a gente pelo WhatsApp." });
+    }
     if (existente && (existente.is_master || !existente.tenant_id)) return res.status(400).json({ error: "Não foi possível usar este e-mail no checkout. Fale com a gente pelo WhatsApp." });
     const kind = existente ? "renewal" : "new";
 
@@ -515,15 +551,18 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
   // Renovacao pelo proprio cliente logado: Pix do plano atual da empresa dele (sem cupom, sem implantacao).
   router.post("/renewal-order", pubWrite, requireUser, async (req: any, res) => {
     if (!db) return res.status(503).json({ error: "Indisponível." });
-    const { data: me } = await db.from("users").select("name,email,tenant_id").eq("id", req.user.id).maybeSingle();
+    const { data: me } = await db.from("users").select("name,email,tenant_id,is_master,is_tenant_admin,active").eq("id", req.user.id).maybeSingle();
     if (!me?.tenant_id || !EMAIL_RE.test(String(me.email || ""))) return res.status(403).json({ error: "Seu usuário não está ligado a uma empresa." });
+    if (me.active === false || (!me.is_master && !me.is_tenant_admin)) return res.status(403).json({ error: "Somente o administrador da empresa pode renovar a assinatura." });
     const cfg = await config();
     if (!cfg?.active || !cfg.pix_key) return res.status(503).json({ error: "O pagamento ainda não está disponível. Fale com a gente pelo WhatsApp." });
     const [{ data: sub }, { data: tenant }, { data: emp }] = await Promise.all([
-      db.from("tenant_subscriptions").select("plan:subscription_plans(*)").eq("tenant_id", me.tenant_id).maybeSingle(),
+      db.from("tenant_subscriptions").select("gateway,plan:subscription_plans(*)").eq("tenant_id", me.tenant_id).maybeSingle(),
       db.from("tenants").select("name").eq("id", me.tenant_id).maybeSingle(),
       db.from("app_settings").select("value").eq("tenant_id", me.tenant_id).eq("key", "empresa_dados").maybeSingle(),
     ]);
+    const gw = String((sub as any)?.gateway || "").toLowerCase();
+    if (gw && gw !== "manual") return res.status(409).json({ error: "Sua assinatura é cobrada automaticamente. Não é necessário pagar por aqui; para alterar a cobrança, fale com a gente pelo WhatsApp." });
     const plan: any = Array.isArray((sub as any)?.plan) ? (sub as any).plan[0] : (sub as any)?.plan;
     if (!plan) return res.status(400).json({ error: "Sua empresa ainda não tem um plano para renovar. Fale com a gente pelo WhatsApp." });
     const total = Math.max(0, Number(plan.price_cents) || 0);
