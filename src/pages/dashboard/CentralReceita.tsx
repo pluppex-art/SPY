@@ -185,7 +185,7 @@ export default function CentralReceita() {
           troca pra reverter se precisar. */}
       <RevenueTabs activeTab={tabUi} onTabChange={changeTab} />
 
-      {tab !== "mapaReceita" && (
+      {tab !== "mapaReceita" && tab !== "ruptura" && (
         <div className="flex justify-end">
           <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
         </div>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { UserMinus, PackageX, Filter, TrendingDown, AlertTriangle, Percent, CircleOff, Clock, Users, PackageMinus, PackageCheck, Wallet, Ban, Target } from "lucide-react";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { Card } from "../../components/ui/card";
 import { StatCard } from "../../components/ui/stat-card";
 import { SectionTitle } from "../../components/ui/section-title";
@@ -208,6 +209,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-1 w-full md:w-fit overflow-x-auto scrollbar-none bg-[var(--color-surface-sunken)] p-1.5 md:p-1 rounded-2xl md:rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]" role="tablist" aria-label="Tipo de ruptura">
         {VISOES.map((v) => (
           <button
@@ -217,6 +219,8 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
             <v.icon className="w-3.5 h-3.5 shrink-0" /> {v.label}
           </button>
         ))}
+      </div>
+      <DateRangeFilter dateFrom={dashboard.dateFrom} setDateFrom={dashboard.setDateFrom} dateTo={dashboard.dateTo} setDateTo={dashboard.setDateTo} />
       </div>
 
       {visao === "churn" && (
