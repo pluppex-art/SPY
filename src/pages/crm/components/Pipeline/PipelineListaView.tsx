@@ -154,37 +154,26 @@ export function PipelineListaView({
         </div>
       </Card>
 
-      {/* Mobile cards */}
-      <div className="space-y-3 sm:hidden">
-        {pageLeads.map((lead: any) => (
-          <Card key={lead.id} onClick={() => setSelectedLead(lead)}
-            className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] active:border-[var(--color-primary-blue)]/40 transition-all flex flex-col gap-3 cursor-pointer">
-            <div className="flex justify-between items-start">
-              <div className="min-w-0">
-                <h4 className="font-bold text-[var(--color-text-primary)] text-sm truncate-desktop">{lead.name}</h4>
-                <p className="text-xs text-[var(--color-text-muted)] truncate-desktop">{lead.company}</p>
-                <LeadTags tags={lead.tags} />
-              </div>
-              <Badge variant={PRIORITY_VARIANT[lead.priority] ?? "neutral"} className="text-[8px] px-2 py-0.5 uppercase shrink-0 ml-2">{lead.priority}</Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs border-y border-[var(--color-border-subtle)] py-2 px-1">
-              <div>
-                <span className="text-[8px] text-[var(--color-text-faint)] uppercase font-bold block mb-0.5">Valor</span>
-                <span className="font-mono text-[var(--color-text-primary)] text-xs">{lead.value}</span>
-              </div>
-              <div>
-                <span className="text-[8px] text-[var(--color-text-faint)] uppercase font-bold block mb-0.5">Status</span>
-                <Badge variant={STATUS_VARIANT[lead.status] ?? "neutral"} className="text-[8px] px-2 py-0.5">{lead.status}</Badge>
-              </div>
-            </div>
-            <div className="flex justify-between items-center text-[10px] text-[var(--color-text-faint)]">
-              <span className="truncate-desktop">{lead.email}</span>
-              <span className="shrink-0 font-medium ml-2">{lead.phone}</span>
-            </div>
-          </Card>
-        ))}
-        {listaLeads.length === 0 && (
-          <div className="p-8 border border-dashed border-[var(--color-border-default)] rounded-xl text-center text-[var(--color-text-faint)]">Nenhum lead encontrado</div>
+      {/* Celular: lista de verdade — uma linha compacta por lead, divididas por filete, sem cartões. */}
+      <div className="sm:hidden bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl overflow-hidden">
+        {pageLeads.length === 0 ? (
+          <p className="p-8 text-center text-sm text-[var(--color-text-faint)]">Nenhum lead encontrado</p>
+        ) : (
+          <ul className="divide-y divide-[var(--color-border-subtle)]">
+            {pageLeads.map((lead: any) => (
+              <li key={lead.id} onClick={() => setSelectedLead(lead)}
+                className="px-3.5 py-2.5 flex items-center gap-3 cursor-pointer active:bg-[var(--color-surface-sunken)]">
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-[13px] text-[var(--color-text-primary)] truncate">{lead.name}</p>
+                  <p className="text-[11px] text-[var(--color-text-muted)] truncate">{[lead.company, lead.phone].filter(Boolean).join(" · ") || lead.email}</p>
+                </div>
+                <div className="shrink-0 flex flex-col items-end gap-1">
+                  <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{lead.value}</span>
+                  <Badge variant={STATUS_VARIANT[lead.status] ?? "neutral"} className="text-[8px] px-2 py-0.5">{lead.status}</Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
