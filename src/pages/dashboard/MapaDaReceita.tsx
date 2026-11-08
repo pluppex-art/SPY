@@ -16,6 +16,7 @@ import { leadDrillColumns, contractDrillColumns, isContractAtivo } from "../../c
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import SegmentosPanel from "./components/SegmentosPanel";
 import ProdutosPanel from "./components/ProdutosPanel";
 import CanaisPanel from "./components/CanaisPanel";
@@ -111,7 +112,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1 w-full md:w-auto overflow-x-auto scrollbar-none bg-[var(--color-surface-sunken)] p-1.5 md:p-1 rounded-2xl md:rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
           {SUB_ABAS.map((a) => (
             <button
@@ -123,6 +124,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
             </button>
           ))}
         </div>
+        <DateRangeFilter dateFrom={dashboard.dateFrom} setDateFrom={dashboard.setDateFrom} dateTo={dashboard.dateTo} setDateTo={dashboard.setDateTo} />
       </div>
 
       {/* Fluxo da Receita — mesmos cards (StatCard) soltos da aba Previsão & Decisão, sem caixa em volta. */}

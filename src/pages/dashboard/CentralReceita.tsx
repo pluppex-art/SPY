@@ -173,7 +173,7 @@ export default function CentralReceita() {
           </h1>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">Aqui está o panorama da sua receita, o que importa agora e as ações recomendadas pela Aurora.</p>
         </div>
-        <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
+        {tab !== "mapaReceita" && <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />}
       </div>
 
       {/* As 6 telas da suíte de Receita (Central, Mapa, Oportunidades,
