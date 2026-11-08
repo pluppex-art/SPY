@@ -15,7 +15,7 @@ const ICON_COLORS = ["text-indigo-500", "text-emerald-500", "text-blue-500", "te
 
 export function TurmaDetalhesKPIs({ stats }: TurmaDetalhesKPIsProps) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {stats.map((stat, i) => (
         <Card key={i} className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
           <stat.icon className={`w-5 h-5 ${ICON_COLORS[i % ICON_COLORS.length]} mb-4`} />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckSquare, TrendingUp, X, Calendar, ArrowLeft, Plus } from "lucide-react";
+import { CheckSquare, TrendingUp, X, ArrowLeft, Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
 import { toast } from "sonner";
@@ -37,7 +37,6 @@ export default function EducationTurmaDetalhes({ turma, students, onBack }: Educ
     { label: "Alunos na Turma", value: students.length.toString(), icon: CheckSquare, color: "text-[var(--color-primary-blue)]" },
     { label: "Progresso Médio", value: students.length ? `${progressoMedio}%` : "—", icon: TrendingUp, color: "text-emerald-500" },
     { label: "Alunos em Risco", value: students.filter(s => s.status === "at_risk").length.toString(), icon: X, color: "text-rose-500" },
-    { label: "Controle de Presença", value: "Em breve", icon: Calendar, color: "text-purple-500" },
   ];
 
   return (
