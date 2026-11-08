@@ -9,7 +9,7 @@ export const TERMOS: DocContent = {
   metaDescription: "Condições de uso do S.P.Y. (spycrm.com.br), plataforma de gestão comercial e operacional multiempresa com a assistente de IA Aurora.",
   title: "Termos de Uso",
   intro: "As regras para usar o S.P.Y. e as páginas públicas do site, escritas de forma direta.",
-  updated: "6 de novembro de 2026",
+  updated: "8 de novembro de 2026",
   sections: [
     {
       id: "aceitacao",
@@ -59,7 +59,7 @@ export const TERMOS: DocContent = {
       id: "ia",
       title: "6. Uso de inteligência artificial",
       html: [
-      "<p>A Aurora e os demais recursos de IA geram respostas, resumos, classificações e sugestões a partir dos dados da sua empresa. Esse conteúdo pode conter imprecisões e deve ser revisado por uma pessoa antes de orientar decisões importantes.</p>",
+      "<p>A Aurora, a assistente de IA da plataforma, gera respostas, resumos, classificações e sugestões a partir dos dados da sua empresa, usando provedores de IA de terceiros (OpenAI, Google Gemini e Groq), conforme a Política de Privacidade. A resposta automática a clientes finais e outras funções de IA fora da Aurora ficam desligadas por padrão. Esse conteúdo pode conter imprecisões e deve ser revisado por uma pessoa antes de orientar decisões importantes.</p>",
       "<ul><li>o uso de IA está sujeito a um teto definido por empresa;</li><li>a empresa pode, opcionalmente, utilizar a sua própria chave de API de provedor compatível;</li><li>a empresa escolhe quais agentes de IA ficam ligados no seu ambiente.</li></ul>",
       ],
     },
@@ -67,6 +67,8 @@ export const TERMOS: DocContent = {
       id: "contratacao",
       title: "7. Contratação e pagamento",
       html: [
+      "<p><strong>Contratação pelo checkout.</strong> A assinatura pode ser contratada pelo checkout do site: você informa os dados do contratante (nome, telefone, e-mail, CPF ou CNPJ e empresa), aceita estes Termos e a Política de Privacidade, escolhe o plano e paga por <strong>Pix</strong>, anexando o comprovante. O pagamento é <strong>conferido e confirmado manualmente</strong> pela equipe do S.P.Y.; o acesso à plataforma é liberado somente <strong>após essa confirmação</strong>, e os dados de acesso são enviados ao e-mail informado.</p>",
+      "<p><strong>Renovação e falta de pagamento.</strong> A assinatura é renovada mensalmente, também por Pix e com confirmação manual (o aviso e o link de renovação são enviados por e-mail, cerca de 5 dias antes do vencimento, no vencimento e após o atraso). Vencido o período sem pagamento, a assinatura passa a constar como em atraso e, após o prazo de carência — padrão de 7 dias corridos, que pode ser ajustado por conta —, o acesso é suspenso. Enquanto suspenso, o uso da plataforma fica bloqueado até a regularização; após o pagamento ser confirmado, o acesso é reativado. Multa, juros, fidelidade, cancelamento e reajuste, quando houver, constam da proposta ou do contrato. [REVISAR pelo advogado: adequação da régua de atraso e suspensão, e do acesso aos dados durante a suspensão.]</p>",
       "<p>As condições comerciais, como plano, valores, implantação, forma e data de pagamento, são definidas na proposta e no contrato firmados com a empresa cliente. Em caso de divergência, prevalecem as condições do contrato.</p>",
       "<p>Valores apresentados em páginas públicas têm caráter informativo e podem ser atualizados. Condições adicionais de cancelamento, reajuste e demais obrigações financeiras constam do contrato aplicável.</p>",
       ],

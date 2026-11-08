@@ -243,7 +243,7 @@ export default function Checkout() {
               </div>
               <label className="flex items-start gap-2 text-xs text-[var(--color-text-muted)]">
                 <input type="checkbox" className="mt-0.5" checked={aceite} onChange={(e) => setAceite(e.target.checked)} />
-                <span>Concordo que o S.P.Y. use meus dados para o cadastro, a cobrança e o contato sobre a minha assinatura (LGPD).</span>
+                <span>Li e concordo com os <a href="/termos" target="_blank" rel="noopener noreferrer" className="underline">Termos de Uso</a> e com a <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="underline">Política de Privacidade</a>, e autorizo o uso dos meus dados para o cadastro, a cobrança e o contato sobre a minha assinatura (LGPD).</span>
               </label>
               {erro && <p role="alert" className="text-sm font-semibold text-rose-500">{erro}</p>}
               <button type="submit" className={`${botao} w-full`} disabled={ocupado}>{ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {single ? "Ir para o pagamento" : "Continuar"} <ArrowRight className="h-4 w-4" /></button>
