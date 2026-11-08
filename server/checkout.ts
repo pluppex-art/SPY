@@ -269,7 +269,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
           tenantId = existente.tenant_id; reuse = true;
         } else {
           const { data: tenant, error: tErr } = await db!.from("tenants").insert({
-            name: o.empresa, niche: "Geral", plan: o.plan_code, status: "Active", timezone: "America/Sao_Paulo", primary_color: "#2563EB",
+            name: o.empresa, niche: "Geral", plan: o.plan_code, status: "Active", timezone: "America/Sao_Paulo", primary_color: "#F97316",
             modules: { crm: true, sdr: false, advDashboard: false, financeiro: true, marketing: false, educacao: false, clinica: false, produtividade: true, rh: false, bi: false, engajamento: false },
           }).select().maybeSingle();
           if (tErr || !tenant) throw new FulfillError("Erro ao criar a empresa.");
