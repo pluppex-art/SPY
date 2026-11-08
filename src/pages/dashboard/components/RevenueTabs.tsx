@@ -30,13 +30,13 @@ export function RevenueTabs(props: { activeTab: RevenueTabId; onTabChange: (id: 
           key={tab.id}
           type="button"
           onClick={() => onTabChange(tab.id)}
-          className={`px-3.5 py-2.5 md:py-2 text-[13px] md:text-xs rounded-xl md:rounded-lg transition-all flex items-center gap-2 md:gap-1.5 cursor-pointer border-none text-left whitespace-nowrap shrink-0 ${
+          className={`basis-[31%] md:basis-auto px-1.5 md:px-3.5 py-2 md:py-2 text-[11px] md:text-xs rounded-xl md:rounded-lg transition-all flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-1.5 cursor-pointer border-none text-center md:text-left md:whitespace-nowrap shrink-0 ${
             activeTab === tab.id
               ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] font-bold md:shadow-xs"
               : "bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"
           }`}
         >
-          <tab.icon className="w-4 h-4 md:w-3.5 md:h-3.5 shrink-0" /> <span className="leading-tight">{tab.label}</span>
+          <tab.icon className="w-4 h-4 md:w-3.5 md:h-3.5 shrink-0" /> <span className="leading-tight text-balance">{tab.label}</span>
         </button>
       ))}
     </div>
