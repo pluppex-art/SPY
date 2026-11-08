@@ -210,7 +210,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-1 w-full md:w-fit overflow-x-auto scrollbar-none bg-[var(--color-surface-elevated)] shadow-sm p-1.5 md:p-1 rounded-2xl md:rounded-[var(--radius-control)] border border-[var(--color-border-default)]" role="tablist" aria-label="Tipo de ruptura">
+      <div className="flex items-center gap-1 w-full md:w-fit overflow-x-auto scrollbar-none bg-[var(--color-surface-sunken)] p-1.5 md:p-1 rounded-2xl md:rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]" role="tablist" aria-label="Tipo de ruptura">
         {VISOES.map((v) => (
           <button
             key={v.id} type="button" role="tab" aria-selected={visao === v.id} onClick={() => setVisao(v.id)}
