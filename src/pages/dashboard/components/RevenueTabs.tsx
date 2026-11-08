@@ -24,16 +24,16 @@ const TABS: { id: RevenueTabId; label: string; icon: typeof Gauge }[] = [
 export function RevenueTabs(props: { activeTab: RevenueTabId; onTabChange: (id: RevenueTabId) => void }) {
   const { activeTab, onTabChange } = props;
   return (
-    <div className="grid grid-cols-2 md:flex md:flex-wrap bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-panel)] md:rounded-[var(--radius-control)] p-2 md:p-1 w-full md:w-fit gap-1 shadow-[var(--shadow-panel)] md:shadow-sm">
+    <div className="flex flex-col md:flex-row md:flex-wrap bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-panel)] md:rounded-[var(--radius-control)] overflow-hidden md:overflow-visible p-0 md:p-1 w-full md:w-fit gap-0 md:gap-1 divide-y divide-[var(--color-border-subtle)] md:divide-y-0 shadow-sm">
       {TABS.map((tab) => (
         <button
           key={tab.id}
           type="button"
           onClick={() => onTabChange(tab.id)}
-          className={`px-3 md:px-3.5 py-3 md:py-2 text-[13px] md:text-xs rounded-2xl md:rounded-lg transition-all flex items-center gap-2 md:gap-1.5 cursor-pointer border-none min-w-0 text-left ${
+          className={`px-4 md:px-3.5 py-3.5 md:py-2 text-sm md:text-xs rounded-none md:rounded-lg transition-all flex items-center gap-3 md:gap-1.5 cursor-pointer border-none min-w-0 text-left w-full md:w-auto ${
             activeTab === tab.id
-              ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] font-bold shadow-xs"
-              : "bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"
+              ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] font-bold md:shadow-xs"
+              : "bg-[var(--color-surface-elevated)] md:bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"
           }`}
         >
           <tab.icon className="w-5 h-5 md:w-3.5 md:h-3.5 shrink-0" /> <span className="min-w-0 leading-tight">{tab.label}</span>

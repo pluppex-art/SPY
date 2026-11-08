@@ -113,7 +113,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 w-full md:w-auto overflow-x-auto scrollbar-none bg-[var(--color-surface-sunken)] p-1.5 md:p-1 rounded-2xl md:rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
+        <div className="flex items-center gap-1 w-full md:w-auto overflow-x-auto scrollbar-none bg-[var(--color-surface-elevated)] shadow-sm p-1.5 md:p-1 rounded-2xl md:rounded-[var(--radius-control)] border border-[var(--color-border-default)]">
           {SUB_ABAS.map((a) => (
             <button
               key={a.id}
