@@ -1,4 +1,5 @@
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../lib/featureFlags";
 import { useState, useMemo, useEffect } from "react";
 import { Users, BookOpen, Target, Star, Download, UserPlus } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -149,7 +150,7 @@ export default function Alunos() {
           onDelete={handleDelete}
         />
 
-        <AlunosInsight />
+        {AI_OUTSIDE_AURORA_ENABLED && <AlunosInsight />}
       </div>
 
       <NovaMatriculaModal

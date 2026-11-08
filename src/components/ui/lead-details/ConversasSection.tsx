@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { useLeadPessoas } from "./useLeadPessoas";
 import { MessageSquareOff, RefreshCw, Loader2, Smartphone, FileText, Mic, Film, FileDown } from "lucide-react";
 import { Button } from "../button";
@@ -105,7 +106,7 @@ function MidiaMensagem({ leadId, m, doVendedor }: { leadId: string; m: Msg; doVe
 
   // Áudio: assim que o arquivo entra na tela e carrega, a IA "escuta" e transcreve sozinha (cache evita refazer).
   useEffect(() => {
-    if (m.mediaType === "audio" && url && texto === null && !transcrevendo && !erroT) transcrever();
+    if (AI_OUTSIDE_AURORA_ENABLED && m.mediaType === "audio" && url && texto === null && !transcrevendo && !erroT) transcrever();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
@@ -130,7 +131,7 @@ function MidiaMensagem({ leadId, m, doVendedor }: { leadId: string; m: Msg; doVe
             {estado === "carregando" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mic className="w-3.5 h-3.5" />} {estado === "erro" ? "Áudio indisponível · tentar de novo" : "Ouvir áudio"}
           </button>
         )}
-        {texto === null ? (
+        {!AI_OUTSIDE_AURORA_ENABLED ? null : texto === null ? (
           transcrevendo ? (
             <p className="text-[11px] italic opacity-80 flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Transcrevendo áudio…</p>
           ) : (url || erroT) && (

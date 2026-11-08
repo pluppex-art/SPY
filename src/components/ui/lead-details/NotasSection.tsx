@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import {
   Phone,
   Mic,
@@ -198,6 +199,7 @@ export function NotasSection({
     }
 
     // AI Grammar & refinement check
+    if (!AI_OUTSIDE_AURORA_ENABLED) return;
     try {
       const res = await apiFetch("/api/ai/corrigir-nota", {
         method: "POST",

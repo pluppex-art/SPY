@@ -1,4 +1,5 @@
 import { Briefcase, Sparkles } from "lucide-react";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { Button } from "../button";
 import { FormField } from "../form-field";
 import { Input } from "../input";
@@ -110,7 +111,7 @@ export function QualificationBlock({
           <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
             Notas & Tags do Lead
           </label>
-          <Button
+          {AI_OUTSIDE_AURORA_ENABLED && <Button
             type="button"
             variant="outline"
             size="sm"
@@ -119,7 +120,7 @@ export function QualificationBlock({
             className="h-7 text-[10px] gap-1 font-bold"
           >
             <Sparkles className="w-3 h-3 text-purple-500" /> {aiLoading ? "Gerando..." : "Sugerir Tags (IA)"}
-          </Button>
+          </Button>}
         </div>
         <textarea
           name="notes"

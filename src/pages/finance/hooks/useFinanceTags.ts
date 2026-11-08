@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { friendlyError } from "../../../lib/friendlyError";
 import { toast } from "sonner";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -106,7 +107,7 @@ export function useFinanceTags() {
       }
       if (req === reqRef.current) setTags(all);
     } catch (e: any) {
-      if (req === reqRef.current) toast.error(`Não foi possível carregar as tags: ${e?.message || "erro desconhecido"}`);
+      if (req === reqRef.current) toast.error(`Não foi possível carregar as tags: ${friendlyError(e)}`);
     } finally {
       if (req === reqRef.current) setLoading(false);
     }
@@ -134,7 +135,7 @@ export function useFinanceTags() {
       .select()
       .single();
     if (error) {
-      toast.error(error.code === "23505" ? `Já existe uma tag chamada "${nome}".` : `Erro ao criar a tag: ${error.message}`);
+      toast.error(error.code === "23505" ? `Já existe uma tag chamada "${nome}".` : `Erro ao criar a tag: ${friendlyError(error)}`);
       return null;
     }
     const created = data as FinanceTag;
@@ -149,7 +150,7 @@ export function useFinanceTags() {
     const rows = MAIN_FINANCE_TAGS.filter(t => !have.has(norm(t.nome))).map(t => ({ tenant_id: tenantId, ...t, ativo: true }));
     if (rows.length === 0) return 0;
     const { data, error } = await supabase.from("finance_tags").insert(rows).select();
-    if (error) { toast.error(`Erro ao criar as tags principais: ${error.message}`); return 0; }
+    if (error) { toast.error(`Erro ao criar as tags principais: ${friendlyError(error)}`); return 0; }
     const created = (data as FinanceTag[]) || [];
     setTags(prev => [...prev, ...created].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
     return created.length;
@@ -169,7 +170,7 @@ export function useFinanceTags() {
     if (patch.descricao !== undefined) next.descricao = patch.descricao?.trim() || null;
     const { data, error } = await supabase.from("finance_tags").update(next).eq("id", id).select().single();
     if (error) {
-      toast.error(error.code === "23505" ? "Já existe uma tag com esse nome." : `Erro ao atualizar a tag: ${error.message}`);
+      toast.error(error.code === "23505" ? "Já existe uma tag com esse nome." : `Erro ao atualizar a tag: ${friendlyError(error)}`);
       return false;
     }
     setTags(prev => prev.map(t => (t.id === id ? (data as FinanceTag) : t)).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
@@ -178,7 +179,7 @@ export function useFinanceTags() {
 
   const removeTag = useCallback(async (id: string): Promise<boolean> => {
     const { error } = await supabase.from("finance_tags").delete().eq("id", id);
-    if (error) { toast.error(`Erro ao excluir a tag: ${error.message}`); return false; }
+    if (error) { toast.error(`Erro ao excluir a tag: ${friendlyError(error)}`); return false; }
     setTags(prev => prev.filter(t => t.id !== id));
     return true;
   }, []);

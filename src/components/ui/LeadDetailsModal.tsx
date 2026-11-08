@@ -1,4 +1,5 @@
 import { useAuth } from "../../contexts/AuthContext";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../lib/featureFlags";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AgendarReuniaoModal } from "./modals/crm/AgendarReuniaoModal";
@@ -421,7 +422,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
         />
       )}
 
-      {showCopilot && (
+      {AI_OUTSIDE_AURORA_ENABLED && showCopilot && (
         <div className="fixed inset-0 lg:inset-auto lg:top-0 lg:bottom-0 lg:right-[546px] w-full lg:w-[300px] z-[110] bg-[var(--color-surface)] lg:border-r border-[var(--color-border-subtle)] overflow-hidden shadow-2xl lg:rounded-l-2xl animate-in slide-in-from-right-10 duration-200 flex flex-col">
           <LeadCopilot
             onClose={() => setShowCopilot(false)}

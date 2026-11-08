@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { Card } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import {
@@ -127,7 +128,7 @@ export function TaskDetailsDrawer({
            { id: 'overview', label: 'GERAL', icon: AlignLeft },
            { id: 'script', label: 'ROTEIRO', icon: FileText },
            { id: 'refs', label: 'REFERÊNCIAS', icon: Globe },
-           { id: 'ai', label: 'ASSISTENTE IA', icon: Zap },
+           ...(AI_OUTSIDE_AURORA_ENABLED ? [{ id: 'ai', label: 'ASSISTENTE IA', icon: Zap }] : []),
          ].map((tab) => {
            const isActive = activeTab === tab.id;
            return (
@@ -285,7 +286,7 @@ export function TaskDetailsDrawer({
               value={generatedScript}
               onChange={(e) => setGeneratedScript(e.target.value)}
               className="w-full bg-white/5 border border-white/5 rounded-2xl p-6 text-slate-300 text-sm leading-relaxed focus:border-blue-500 outline-none transition-all min-h-[300px] shadow-inner font-mono"
-              placeholder="Escreva seu roteiro passo-a-passo aqui, ou gere um com IA na aba Assistente IA..."
+              placeholder="Escreva seu roteiro passo-a-passo aqui..."
             ></textarea>
           </div>
         )}
@@ -305,7 +306,7 @@ export function TaskDetailsDrawer({
           </div>
         )}
 
-        {activeTab === 'ai' && (
+        {AI_OUTSIDE_AURORA_ENABLED && activeTab === 'ai' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             <div className="bg-gradient-to-br from-blue-600/10 to-purple-600/10 border border-blue-500/20 rounded-2xl p-6 relative overflow-hidden">
                <div className="relative z-10">

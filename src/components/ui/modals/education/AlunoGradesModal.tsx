@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../../../lib/featureFlags";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Brain, Zap, Plus, Trash2, Calculator, RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Button } from "../../button";
@@ -121,7 +122,7 @@ export function AlunoGradesModal({ isOpen, student, onClose, onAddGrade, onRemov
             {/* Scrollable body */}
             <div className="overflow-y-auto flex-1 p-6 space-y-5">
               {/* IA Panel */}
-              <div className="p-5 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-2xl relative overflow-hidden">
+              {AI_OUTSIDE_AURORA_ENABLED && <div className="p-5 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-2xl rounded-full pointer-events-none" />
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2">
@@ -143,7 +144,7 @@ export function AlunoGradesModal({ isOpen, student, onClose, onAddGrade, onRemov
                 ) : (
                   <p className="text-xs text-slate-500 italic">Peça para a Master IA analisar o histórico de notas e prever o engajamento do aluno.</p>
                 )}
-              </div>
+              </div>}
 
               {/* Add grade form */}
               <form onSubmit={handleAddGrade} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">

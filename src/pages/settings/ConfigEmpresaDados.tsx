@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { friendlyError } from "../../lib/friendlyError";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { toast } from "sonner";
@@ -142,7 +143,7 @@ export default function ConfigEmpresaDados() {
       await saveAppSetting(SETTING_KEY, next);
       toast.success("Logo da empresa atualizada — já aparece no cabeçalho dos contratos.");
     } catch (err: any) {
-      toast.error(`Falha ao enviar a logo: ${err.message || err}`);
+      toast.error(`Falha ao enviar a logo: ${friendlyError(err)}`);
     } finally {
       setUploadingLogo(false);
     }

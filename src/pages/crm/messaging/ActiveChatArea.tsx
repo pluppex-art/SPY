@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { 
   ArrowLeft, Phone, MoreVertical, Sparkles, MessageCircle, 
   CheckCheck, Send, Mic, Paperclip, Camera, Clock, 
@@ -150,15 +151,15 @@ export function ActiveChatArea({
         </div>
         
         <div className="flex items-center gap-1 text-[var(--color-text-muted)] shrink-0">
-          <button 
+          {AI_OUTSIDE_AURORA_ENABLED && (<button 
             type="button"
             onClick={() => setRightPanel(p => p === "ai" ? "none" : "ai")}
             title="Assistente de IA"
             className={`p-2 rounded-lg cursor-pointer transition-all ${rightPanel === "ai" ? 'bg-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)] ring-1 ring-[var(--color-primary-blue)]/50' : 'hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)]'}`}
           >
             <Sparkles className={`w-4 h-4 ${rightPanel === "ai" ? 'animate-pulse' : ''}`} />
-          </button>
-          <div className="w-[1px] h-5 bg-[var(--color-border-subtle)] mx-1"></div>
+          </button>)}
+          {AI_OUTSIDE_AURORA_ENABLED && <div className="w-[1px] h-5 bg-[var(--color-border-subtle)] mx-1"></div>}
           <button type="button" className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] hover:text-[var(--color-text-primary)] rounded-lg cursor-pointer transition-colors hidden sm:flex"><Search className="w-4 h-4" /></button>
           <button type="button" className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] hover:text-[var(--color-text-primary)] rounded-lg cursor-pointer transition-colors"><Phone className="w-4 h-4" /></button>
           <button 
@@ -381,13 +382,13 @@ export function ActiveChatArea({
               rows={1}
             />
             
-            <button 
+            {AI_OUTSIDE_AURORA_ENABLED && (<button 
               onClick={() => setRightPanel(p => p === "ai" ? "none" : "ai")}
               className="p-3.5 text-blue-400 hover:text-blue-300 shrink-0 cursor-pointer transition-colors hidden sm:block"
               title="Sugestão com IA"
             >
                <Sparkles className="w-5 h-5" />
-            </button>
+            </button>)}
 
             <button className="p-3 sm:p-3.5 text-slate-400 hover:text-white shrink-0 cursor-pointer transition-colors">
                <Paperclip className="w-5 h-5 -rotate-45" />

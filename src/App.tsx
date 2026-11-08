@@ -1,5 +1,6 @@
 import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import { AI_OUTSIDE_AURORA_ENABLED } from "./lib/featureFlags";
 import { requestNotificationPermission } from "./lib/notifications";
 import { LpRedirect } from "./pages/landing/LpRedirect";
 const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
@@ -265,7 +266,7 @@ function AppContent() {
           <Route path="clientes" element={<Navigate to="/app/crm/clientes" replace />} />
           <Route path="propostas" element={<Navigate to="/app/crm/propostas" replace />} />
           <Route path="documentos" element={<Contracts />} />
-          <Route path="performance-ia" element={<PerformanceIA />} />
+          <Route path="performance-ia" element={AI_OUTSIDE_AURORA_ENABLED ? <PerformanceIA /> : <Navigate to="/app/dashboard" replace />} />
           <Route path="conhecimento" element={<ConhecimentoSurfSense />} />
 
           {/* Módulo CRM (Núcleo Central do S.P.Y.) */}

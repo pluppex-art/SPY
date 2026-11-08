@@ -124,6 +124,14 @@ html.dark {
     button:not([role="switch"]):not([role="checkbox"])[class~="w-9"][class~="h-9"] { min-width: 40px; }
   }
 
+  /* Celular: botões só-ícone com padding curto (p-1/p-1.5) também ganham alvo de toque de 40px. */
+  @media (max-width: 767px) {
+    button:not([role="switch"]):not([role="checkbox"]):has(> svg:only-child)[class~="p-1"],
+    button:not([role="switch"]):not([role="checkbox"]):has(> svg:only-child)[class~="p-1.5"] {
+      min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center;
+    }
+  }
+
   /* Cor da empresa muito clara: texto escuro sobre fundos sólidos dela (ver applyThemeColor). */
   html.on-primary-dark [class*="bg-[var(--color-primary-blue)] "],
   html.on-primary-dark [class$="bg-[var(--color-primary-blue)]"] {

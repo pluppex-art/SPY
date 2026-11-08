@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { friendlyError } from "../../../../lib/friendlyError";
 import { FileText, List, PenLine, Upload, Loader2 } from "lucide-react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
@@ -98,7 +99,7 @@ export function CriarPropostaModal({
             setLinkPdf(data.publicUrl);
             toast.success("Arquivo anexado com sucesso.");
         } catch (err: any) {
-            toast.error(`Falha ao enviar arquivo: ${err.message || err}`);
+            toast.error(`Falha ao enviar arquivo: ${friendlyError(err)}`);
         } finally {
             setUploading(false);
         }

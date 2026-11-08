@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { friendlyError } from "../../lib/friendlyError";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { DropResult } from "@hello-pangea/dnd";
@@ -91,7 +92,7 @@ export function useMarketingConteudo() {
 
         if (error) {
           console.error("Supabase upsert failure:", error.message);
-          toast.error("Não foi possível salvar a pauta: " + error.message);
+          toast.error("Não foi possível salvar a pauta: " + friendlyError(error));
         }
       } catch (err) {
         console.error("Supabase communication exception:", err);

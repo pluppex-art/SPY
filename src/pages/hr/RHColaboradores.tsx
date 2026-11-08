@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { friendlyError } from "../../lib/friendlyError";
 import { PageContainer } from "../../components/PageContainer";
 import { UserPlus, PlusCircle, Users } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -243,7 +244,7 @@ export default function RHColaboradores() {
       const { error: roleError } = await supabase.from("users")
         .update({ role: cargosNovos[0] || "Colaborador", is_tenant_admin: cargosNovos.some(ehAdm) })
         .eq("id", anterior.user_id);
-      if (roleError) toast.error(`Cargo salvo, mas não foi possível atualizar o acesso de administrador: ${roleError.message}`);
+      if (roleError) toast.error(`Cargo salvo, mas não foi possível atualizar o acesso de administrador: ${friendlyError(roleError)}`);
     }
     updateColaborador(id, updates);
     toast.success(`${updates.nome} atualizado com sucesso!`);

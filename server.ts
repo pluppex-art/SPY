@@ -538,6 +538,29 @@ app.use("/api/checkout", createCheckoutRouter({
   publicAppUrl: (process.env.PUBLIC_APP_URL || "http://localhost:3002").replace(/\/+$/, ""),
 }));
 app.use("/api/ai", aiLimiter);
+
+// Decisão de produto: a IA existe SOMENTE dentro da Aurora (chat, InteligenciaAurora, reuniões com a Aurora).
+// Recursos de IA fora dela ficam escondidos atrás desta flag (código preservado). Para religar:
+// AI_OUTSIDE_AURORA_ENABLED=true no ambiente do servidor (e AI_OUTSIDE_AURORA_ENABLED em src/lib/featureFlags.ts).
+const AI_OUTSIDE_AURORA_ENABLED = process.env.AI_OUTSIDE_AURORA_ENABLED === "true";
+if (!AI_OUTSIDE_AURORA_ENABLED) {
+  const recursoIndisponivel = (_req: any, res: any) => res.status(410).json({ error: "Recurso indisponível" });
+  for (const p of [
+    "/api/leads/suggest-tags",
+    "/api/ai/student-performance-insight",
+    "/api/ai/performance-audit",
+    "/api/ai/content-script",
+    "/api/ai/pipeline-audit",
+    "/api/ai/marketing-advisor",
+    "/api/ai/settings-audit",
+    "/api/ai/suggest-new-config",
+    "/api/ai/generic-insight",
+    "/api/ai/corrigir-nota",
+    "/api/ai/lead-copilot",
+    "/api/leads/:id/conversa-whatsapp/transcrever",
+    "/api/whatsapp/copilot/analyze",
+  ]) app.post(p, recursoIndisponivel);
+}
 app.use("/api/whatsapp", whatsappLimiter);
 app.use("/api/google-calendar", googleCalendarLimiter);
 app.use("/api/integrations/google", googleCalendarLimiter);
@@ -5907,6 +5930,7 @@ app.post("/api/whatsapp/webhook/:instanceId", async (req: any, res) => {
     if (msgErr) return; // duplicata (23505) ou falha real — não dispara auto-reply de novo pro mesmo evento.
 
     // Tenant suspenso ou sem saldo de IA: a mensagem já foi salva (dados guardados), mas a IA não responde.
+    if (!AI_OUTSIDE_AURORA_ENABLED) return; // resposta automática da IA no WhatsApp desligada por decisão de produto.
     if (!(await saas.isAiAllowed(inst.tenant_id))) return;
     await aiContext.run({ tenantId: inst.tenant_id }, () => runAuroraAutoReply(inst.tenant_id, inst.id, contact.id, contact.phone, text));
   } catch (err: any) {

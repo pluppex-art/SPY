@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -129,6 +130,7 @@ export function useDevProjects() {
     }> = AI_TASKS_FALLBACK;
 
     try {
+      if (!AI_OUTSIDE_AURORA_ENABLED) throw new Error('__ia_desligada__'); // IA só na Aurora: usa o backlog mínimo padrão.
       // Escolhe provider com base nas chaves configuradas no runtime
       const generated = await generateProjectBacklogAI(backlogAIInput);
 
@@ -147,6 +149,9 @@ export function useDevProjects() {
     } catch (e: any) {
       // Se a IA falhar por chave inválida, cria backlog mínimo mas não deve “quebrar” a criação.
       const msg = String(e?.message || e);
+      if (msg === '__ia_desligada__') {
+        backlogTasks = AI_TASKS_FALLBACK;
+      } else {
       console.error('Falha ao gerar backlog por IA:', e);
 
       if (msg.includes('GEMINI_API_KEY_INVALID')) {
@@ -155,6 +160,7 @@ export function useDevProjects() {
       } else {
         toast.error('Falha ao gerar backlog por IA. Criando backlog mínimo.');
         backlogTasks = AI_TASKS_FALLBACK;
+      }
       }
     }
 

@@ -140,7 +140,7 @@ export default function FinanceiroConciliacao() {
       }
       if (cancelled) return;
       if (error) {
-        toast.error("Erro ao carregar extrato importado: " + error.message);
+        toast.error("Erro ao carregar extrato importado: " + friendlyError(error));
         return;
       }
       const mapped: ExtratoItem[] = (data || []).map((row: any) => ({
@@ -218,7 +218,7 @@ export default function FinanceiroConciliacao() {
         .update({ conciliado: true })
         .eq("id", id);
       if (error) {
-        toast.error("Erro ao conciliar transação: " + error.message);
+        toast.error("Erro ao conciliar transação: " + friendlyError(error));
         return;
       }
     }

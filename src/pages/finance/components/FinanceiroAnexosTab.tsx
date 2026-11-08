@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { friendlyError } from "../../../lib/friendlyError";
 import { Upload, FileText, Image, FileSpreadsheet, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../../lib/supabase";
@@ -44,7 +45,7 @@ export function FinanceiroAnexosTab({ transacaoId }: FinanceiroAnexosTabProps) {
       }
       toast.success("Arquivo(s) anexado(s).");
     } catch (err: any) {
-      toast.error(`Falha ao enviar arquivo: ${err.message || err}`);
+      toast.error(`Falha ao enviar arquivo: ${friendlyError(err)}`);
     } finally {
       setUploading(false);
     }

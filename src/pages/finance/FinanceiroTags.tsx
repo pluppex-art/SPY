@@ -1,3 +1,4 @@
+import { friendlyError } from "../../lib/friendlyError";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Tag, Plus, Sparkles, Eye, Edit2, Trash2, CheckCircle2, Layers, Download, FileText, Palette } from "lucide-react";
 import { toast } from "sonner";
@@ -45,7 +46,7 @@ export default function FinanceiroTags() {
     try {
       setUsage(await fetchFinanceTagUsage(tenantId, activeFilialId));
     } catch (e: any) {
-      toast.error(`Não foi possível contar o uso das tags: ${e?.message || "erro desconhecido"}`);
+      toast.error(`Não foi possível contar o uso das tags: ${friendlyError(e)}`);
     } finally {
       setUsageLoading(false);
     }
@@ -130,7 +131,7 @@ export default function FinanceiroTags() {
       await reload();
       if (criadas > 0) toast.success(`${criadas} tag(s) importada(s) dos lançamentos.`);
     } catch (e: any) {
-      toast.error(`Erro ao importar tags: ${e?.message || "erro desconhecido"}`);
+      toast.error(`Erro ao importar tags: ${friendlyError(e)}`);
     } finally {
       setImporting(false);
     }

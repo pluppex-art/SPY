@@ -47,6 +47,7 @@ import {
   Truck,
   GitCompare,
 } from "lucide-react";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../lib/featureFlags";
 
 /**
  * Condições de visibilidade que dependem do usuário logado (não dá pra
@@ -122,7 +123,7 @@ export const navSections = [
     title: "Inteligência & BI",
     reqModule: "bi",
     items: [
-      { name: "Performance SDR / IA", path: "/app/performance-ia", icon: Brain },
+      ...(AI_OUTSIDE_AURORA_ENABLED ? [{ name: "Performance SDR / IA", path: "/app/performance-ia", icon: Brain }] : []),
       { name: "CPM & Indicadores", path: "/app/indicadores", icon: BarChart2 },
       { name: "Relatórios Executivos", path: "/app/relatorios", icon: PieChart },
     ],

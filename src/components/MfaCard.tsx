@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { friendlyError } from "../lib/friendlyError";
 import { toast } from "sonner";
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { Card } from "./ui/card";
@@ -50,7 +51,7 @@ export function MfaCard() {
     if (!supabase || !factorId) return;
     if (!(await confirmDialog({ title: "Desativar verificação em duas etapas", description: "Sua conta voltará a depender só da senha. Deseja continuar?", confirmText: "Desativar" }))) return;
     const { error } = await supabase.auth.mfa.unenroll({ factorId });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(friendlyError(error)); return; }
     toast.success("Verificação em duas etapas desativada."); await load();
   };
 

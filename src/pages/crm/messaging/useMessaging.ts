@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { useData } from "../../../contexts/DataContext";
 import { useAuth } from "../../../contexts/AuthContext";
 import { toast } from "sonner";
@@ -298,7 +299,7 @@ export function useMessaging() {
   }, [activeChat, activeTenantId]);
 
   useEffect(() => {
-    if (!activeChat) {
+    if (!activeChat || !AI_OUTSIDE_AURORA_ENABLED) {
       setSentiment("");
       setAiAnalysis("");
       setAiSuggestion("");

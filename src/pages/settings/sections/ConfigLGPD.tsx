@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { friendlyError } from "../../../lib/friendlyError";
 import { toast } from "sonner";
 import { Search, Download, EyeOff, ShieldCheck, FileCheck2 } from "lucide-react";
 import { Card } from "../../../components/ui/card";
@@ -29,7 +30,7 @@ export default function ConfigLGPD() {
     if (q.trim().length < 3) { toast.info("Digite ao menos 3 caracteres (nome, e-mail ou telefone)."); return; }
     setBusy(true);
     try { setHits(await saasApi.lgpdSearch(q.trim(), activeTenantId)); }
-    catch (e: any) { toast.error(e.message); }
+    catch (e: any) { toast.error(friendlyError(e)); }
     finally { setBusy(false); }
   };
 
@@ -41,7 +42,7 @@ export default function ConfigLGPD() {
       a.href = url; a.download = `lgpd-${h.type}-${h.id.slice(0, 8)}.json`; a.click();
       URL.revokeObjectURL(url);
       toast.success("Dados do titular exportados."); loadHistory();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(friendlyError(e)); }
   };
 
   const doAnonymize = async (h: Hit) => {
@@ -53,12 +54,12 @@ export default function ConfigLGPD() {
     try {
       await saasApi.lgpdAnonymize(h.type, h.id, activeTenantId);
       toast.success("Titular anonimizado."); setHits((x) => x.filter((i) => i.id !== h.id)); loadHistory();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(friendlyError(e)); }
   };
 
   const doConsent = async (h: Hit, granted: boolean) => {
     try { await saasApi.lgpdConsent({ subjectType: h.type, subjectId: h.id, granted, channel: "painel" }, activeTenantId); toast.success(granted ? "Consentimento registrado." : "Revogação registrada."); loadHistory(); }
-    catch (e: any) { toast.error(e.message); }
+    catch (e: any) { toast.error(friendlyError(e)); }
   };
 
   return (

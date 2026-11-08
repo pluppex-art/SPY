@@ -156,7 +156,7 @@ export function ConfigPerfilUsuario() {
         toast.success("Foto de perfil atualizada e salva!");
       }
     } catch (err: any) {
-      toast.error(`Falha ao enviar imagem: ${err.message || err}`);
+      toast.error(`Falha ao enviar imagem: ${friendlyError(err)}`);
     } finally {
       setUploadingAvatar(false);
     }

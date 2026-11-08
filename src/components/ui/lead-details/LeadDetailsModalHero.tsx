@@ -1,4 +1,5 @@
 import React from "react";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { Trophy, ThumbsDown, X, Brain, ChevronRight, User, Check, CalendarPlus } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { toast } from "sonner";
@@ -116,7 +117,7 @@ export function LeadDetailsModalHero({
                 <span className="hidden sm:inline">Reunião</span>
               </button>
             )}
-            <button
+            {AI_OUTSIDE_AURORA_ENABLED && (<button
               type="button"
               onClick={() => setShowCopilot(!showCopilot)}
               title="IA Copilot"
@@ -128,7 +129,7 @@ export function LeadDetailsModalHero({
               )}
             >
               <Brain className="w-4 h-4" />
-            </button>
+            </button>)}
             <button
               type="button"
               onClick={onClose}
