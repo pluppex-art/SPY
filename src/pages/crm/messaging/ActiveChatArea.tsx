@@ -160,8 +160,11 @@ export function ActiveChatArea({
             <Sparkles className={`w-4 h-4 ${rightPanel === "ai" ? 'animate-pulse' : ''}`} />
           </button>)}
           {AI_OUTSIDE_AURORA_ENABLED && <div className="w-[1px] h-5 bg-[var(--color-border-subtle)] mx-1"></div>}
-          <button type="button" className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] hover:text-[var(--color-text-primary)] rounded-lg cursor-pointer transition-colors hidden sm:flex"><Search className="w-4 h-4" /></button>
-          <button type="button" className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] hover:text-[var(--color-text-primary)] rounded-lg cursor-pointer transition-colors"><Phone className="w-4 h-4" /></button>
+          {/* Busca na conversa escondida: sem implementação. */}
+          {false && <button type="button" className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-lg cursor-pointer transition-colors hidden sm:flex"><Search className="w-4 h-4" /></button>}
+          {currentContact.phone && (
+            <a href={`tel:${String(currentContact.phone).replace(/[^\d+]/g, "")}`} title="Ligar" className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] hover:text-[var(--color-text-primary)] rounded-lg cursor-pointer transition-colors"><Phone className="w-4 h-4" /></a>
+          )}
           <button 
             type="button"
             onClick={() => setRightPanel(p => p === "info" ? "none" : "info")}
@@ -364,9 +367,10 @@ export function ActiveChatArea({
       <div className="p-3 sm:p-4 shrink-0 relative bg-[#0F172A]/80 border-t border-white/5 backdrop-blur-md z-10 w-full box-border">
         <div className="flex items-end gap-2 sm:gap-3 mx-auto w-full max-w-4xl">
           <div className="flex-1 bg-[var(--color-surface-elevated)] border border-white/5 rounded-2xl flex items-end min-h-[50px] shadow-inner transition-colors focus-within:border-blue-500/50 min-w-0">
-            <button className="p-3 sm:p-3.5 text-slate-400 hover:text-white shrink-0 cursor-pointer transition-colors">
+            {/* Emoji escondido: sem seletor de emojis implementado. */}
+            {false && <button className="p-3 sm:p-3.5 text-slate-400 hover:text-white shrink-0 cursor-pointer transition-colors">
                <SmileIcon className="w-5 h-5" />
-            </button>
+            </button>}
             
             <textarea 
               value={inputText}
@@ -378,7 +382,7 @@ export function ActiveChatArea({
                 }
               }}
               placeholder="Mensagem..."
-              className="flex-1 min-w-0 w-full max-h-[120px] bg-transparent text-white border-0 focus:ring-0 resize-none py-[14px] px-1 text-[15px] outline-none placeholder-slate-500 overflow-y-auto block"
+              className="flex-1 min-w-0 w-full max-h-[120px] bg-transparent text-white border-0 focus:ring-0 resize-none py-[14px] px-3 text-[15px] outline-none placeholder-slate-500 overflow-y-auto block"
               rows={1}
             />
             
@@ -390,10 +394,11 @@ export function ActiveChatArea({
                <Sparkles className="w-5 h-5" />
             </button>)}
 
-            <button className="p-3 sm:p-3.5 text-slate-400 hover:text-white shrink-0 cursor-pointer transition-colors">
+            {/* Anexo e câmera escondidos: sem upload de mídia implementado no envio. */}
+            {false && <button className="p-3 sm:p-3.5 text-slate-400 hover:text-white shrink-0 cursor-pointer transition-colors">
                <Paperclip className="w-5 h-5 -rotate-45" />
-            </button>
-            {!inputText && (
+            </button>}
+            {false && !inputText && (
               <button className="p-3 sm:p-3.5 pl-1 pr-3 sm:pr-4 text-slate-400 hover:text-white shrink-0 cursor-pointer transition-colors">
                  <Camera className="w-5 h-5" />
               </button>

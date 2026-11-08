@@ -374,7 +374,18 @@ export function useMessaging() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contactId: activeChat, text: textToSend })
     })
-    .then(res => res.json())
+    .then(async res => {
+      if (!res.ok) {
+        let msg = "Não foi possível enviar a mensagem";
+        try {
+          const body = await res.json();
+          if (body && typeof body.error === "string" && body.error.trim()) msg = body.error;
+          else if (body && typeof body.message === "string" && body.message.trim()) msg = body.message;
+        } catch { /* corpo não-JSON: mantém a mensagem padrão */ }
+        throw new Error(msg);
+      }
+      return res.json().catch(() => null);
+    })
     .then(() => {
       apiFetch(`/api/whatsapp/messages/${activeChat}${q}`)
         .then(res => res.json())
@@ -388,7 +399,11 @@ export function useMessaging() {
     })
     .catch(err => {
       console.warn("Error sending message:", err);
-      toast.error("Erro ao enviar mensagem.");
+      setMessages(prev => ({
+        ...prev,
+        [activeChat]: (prev[activeChat] || []).filter(m => m.id !== optMessage.id)
+      }));
+      toast.error(err instanceof Error && err.message ? err.message : "Não foi possível enviar a mensagem");
     });
   };
 
@@ -403,7 +418,7 @@ export function useMessaging() {
       newActivityType,
       newActivityTitle.trim(),
       newActivityDesc.trim(),
-      "Carlos Eduardo Mendes"
+      user?.name?.trim() || "Usuário"
     );
 
     toast.success("Evento registrado com sucesso no histórico do Lead!");

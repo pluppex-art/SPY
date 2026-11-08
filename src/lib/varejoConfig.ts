@@ -51,7 +51,7 @@ export const DEFAULT_VAREJO_CONFIG: VarejoConfig = {
   pagamentos: { habilitadas: [...FORMAS_PAGAMENTO], padrao: "Dinheiro", crediarioPrazoPadraoDias: 30, crediarioExigeCliente: true },
   estoque: { estoqueMinimoPadrao: 5, alertaEstoqueBaixo: true },
   cupom: { mostrarDadosEmpresa: true, cabecalho: "", rodape: "Obrigado pela preferência!", mensagemTroca: "", mostrarVendedor: true },
-  fiscal: { mostrarEspelhoNfce: true, exigirCpfNaNota: false, vincularItensAutomaticamente: true },
+  fiscal: { mostrarEspelhoNfce: false, exigirCpfNaNota: false, vincularItensAutomaticamente: true },
   compras: { prazoEntregaPadraoDias: 7, margemMinimaPct: 0 },
 };
 

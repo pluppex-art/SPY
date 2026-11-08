@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Gauge, Map, Target, AlertTriangle, Brain, LineChart, Users, Unlink } from "lucide-react";
 
 // Tabs da Central de Receita — pedido explícito do usuário: trocar as abas
@@ -23,11 +24,20 @@ const TABS: { id: RevenueTabId; label: string; icon: typeof Gauge }[] = [
 
 export function RevenueTabs(props: { activeTab: RevenueTabId; onTabChange: (id: RevenueTabId) => void }) {
   const { activeTab, onTabChange } = props;
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+  // Em telas estreitas a barra rola na horizontal: traz a aba ativa para a vista.
+  useEffect(() => {
+    const el = activeRef.current;
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }, [activeTab]);
   return (
     <div className="flex flex-row md:flex-wrap overflow-x-auto md:overflow-visible scrollbar-none bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-panel)] md:rounded-[var(--radius-control)] p-1.5 md:p-1 w-full md:w-fit gap-1 shadow-sm">
       {TABS.map((tab) => (
         <button
           key={tab.id}
+          ref={activeTab === tab.id ? activeRef : undefined}
           type="button"
           onClick={() => onTabChange(tab.id)}
           className={`px-2.5 md:px-3.5 py-2 text-[11px] md:text-xs rounded-xl md:rounded-lg transition-all flex items-center gap-1.5 cursor-pointer border-none text-left whitespace-nowrap shrink-0 ${

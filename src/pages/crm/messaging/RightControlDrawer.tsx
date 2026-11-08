@@ -76,12 +76,24 @@ export function RightControlDrawer({
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <button className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-colors cursor-pointer">
+            {currentContact.phone ? (
+            <a href={`tel:${String(currentContact.phone).replace(/[^\d+]/g, "")}`} className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-colors cursor-pointer">
+              <Phone className="w-3.5 h-3.5"/> Ligar
+            </a>
+            ) : (
+            <button type="button" disabled className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 opacity-40 cursor-not-allowed">
               <Phone className="w-3.5 h-3.5"/> Ligar
             </button>
-            <button className="bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)] p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-[var(--color-primary-blue)]/20 transition-colors cursor-pointer">
+            )}
+            {currentContact.email ? (
+            <a href={`mailto:${currentContact.email}`} className="bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)] p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-[var(--color-primary-blue)]/20 transition-colors cursor-pointer">
+              <Mail className="w-3.5 h-3.5"/> E-mail
+            </a>
+            ) : (
+            <button type="button" disabled className="bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)] p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 opacity-40 cursor-not-allowed">
               <Mail className="w-3.5 h-3.5"/> E-mail
             </button>
+            )}
           </div>
 
           <div className="bg-[var(--color-surface-sunken)] rounded-xl p-4 border border-[var(--color-border-subtle)] space-y-4 text-left">
@@ -110,9 +122,10 @@ export function RightControlDrawer({
                       {tag}
                     </span>
                   ))}
-                  <button className="px-2 py-0.5 border border-dashed border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)] rounded-md text-[10px] font-bold transition-colors cursor-pointer uppercase">
+                  {/* "+ Tag" escondido: sem handler/endpoint de edição de tags de contato do chat. */}
+                  {false && <button className="px-2 py-0.5 border border-dashed border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)] rounded-md text-[10px] font-bold transition-colors cursor-pointer uppercase">
                     + Tag
-                  </button>
+                  </button>}
                 </div>
               </div>
               <div>
@@ -133,6 +146,9 @@ export function RightControlDrawer({
               </div>
           </div>
 
+          {/* "Apagar Conversa" e "Bloquear Contato" escondidos: não há endpoint/ação implementada
+              (apagar histórico e bloqueio exigem backend). Código preservado abaixo. */}
+          {false && (
           <div className="space-y-2 pt-2 border-t border-[var(--color-border-subtle)]">
               <button className="w-full text-left text-rose-500 bg-rose-500/10 border border-rose-500/20 text-xs p-3 hover:bg-rose-500/20 rounded-xl transition-colors flex items-center gap-2.5 font-bold cursor-pointer">
                 <Trash2 className="w-4 h-4"/> Apagar Conversa
@@ -141,6 +157,7 @@ export function RightControlDrawer({
                 <ShieldCheck className="w-4 h-4"/> Bloquear Contato
               </button>
           </div>
+          )}
         </div>
 
         {/* Panel Content: AI */}

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
+import { friendlyError } from "../../lib/friendlyError";
+import { toast } from "sonner";
 
 export type TransacoesTab = "todos" | "entradas" | "saidas" | "pendentes";
 export type TransacoesOrdem = "data_desc" | "data_asc" | "valor_desc" | "valor_asc";
@@ -100,7 +102,10 @@ export function useFinanceTransacoesList(params: TransacoesParams) {
       const from = page * pageSize;
       const { data, count, error } = await query.range(from, from + pageSize - 1);
       if (requestId !== requestIdRef.current) return;
-      if (!error && data) { setRows(data); setTotal(count ?? 0); }
+      if (error) toast.error(friendlyError(error)); // mantém a lista anterior
+      else if (data) { setRows(data); setTotal(count ?? 0); }
+    } catch (err) {
+      if (requestId === requestIdRef.current) toast.error(friendlyError(err));
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }

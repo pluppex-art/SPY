@@ -60,8 +60,11 @@ export function ChatListSidebar({
       <div className="shrink-0 h-[64px] px-5 flex items-center justify-between border-b border-[var(--color-border-subtle)]">
         <h1 className="text-base font-bold text-[var(--color-text-primary)] tracking-tight">Mensagens</h1>
         <div className="flex items-center gap-1 text-[var(--color-text-muted)]">
+          {/* Busca e menu "mais" escondidos: sem implementação. */}
+          {false && (<>
           <button className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] rounded-lg transition-colors cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"><Search className="w-4 h-4" /></button>
           <button className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] rounded-lg transition-colors cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"><MoreVertical className="w-4 h-4" /></button>
+          </>)}
         </div>
       </div>
 

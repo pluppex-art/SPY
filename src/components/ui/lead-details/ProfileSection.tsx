@@ -11,6 +11,7 @@ import { useLocalization } from "../../../contexts/LocalizationContext";
 import { parseCurrencyBR, whatsappDigits } from "../../../lib/utils";
 import { getMRR } from "../../../lib/revenueMetrics";
 import { toast } from "sonner";
+import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { ProfileDataForm } from "./ProfileDataForm";
 import { LeadContatosCard } from "./LeadContatosCard";
 import { leadInterestEstimate } from "./LeadDetailsModal.helpers";
@@ -296,7 +297,8 @@ export function ProfileSection({
         </div>
       </Card>
 
-      {/* ── AI Copilot Recommendation ── */}
+      {/* ── AI Copilot Recommendation ── (IA fora da Aurora: escondida pela flag) */}
+      {AI_OUTSIDE_AURORA_ENABLED && (
       <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-primary-blue)]/20 shadow-sm relative overflow-hidden">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -328,6 +330,7 @@ export function ProfileSection({
           </button>
         </div>
       </Card>
+      )}
 
       {/* ── Tags ── */}
       <Card className="p-3.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">

@@ -3,6 +3,8 @@ import { supabase } from "../../../lib/supabase";
 import { limpaBusca } from "../../../lib/pgrst";
 import { useAuth } from "../../../contexts/AuthContext";
 import { Task } from "../../../types";
+import { friendlyError } from "../../../lib/friendlyError";
+import { toast } from "sonner";
 
 const PAGE_SIZE = 50;
 
@@ -65,10 +67,15 @@ export function useTarefasList(params: {
       const { data, count, error } = await query.order("created_at", { ascending: false }).range(from, to);
 
       if (requestId !== requestIdRef.current) return;
-      if (!error && data) {
+      if (error) {
+        // Mantém a lista anterior (não finge "nenhum resultado") e avisa o usuário.
+        toast.error(friendlyError(error));
+      } else if (data) {
         setRows(data as Task[]);
         setTotal(count ?? 0);
       }
+    } catch (err) {
+      if (requestId === requestIdRef.current) toast.error(friendlyError(err));
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }

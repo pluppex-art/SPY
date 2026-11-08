@@ -2044,7 +2044,7 @@ export default function VarejoVendas() {
                     : "text-[var(--color-text-muted)]"
                 }`}
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> NFC-e Autorizada (SEFAZ)
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> NFC-e (simulação)
               </button>}
             </div>
 
@@ -2147,7 +2147,7 @@ export default function VarejoVendas() {
               <div className="p-4 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-3 text-xs">
                 <div className="flex items-center gap-2 text-emerald-500 font-bold pb-2 border-b border-[var(--color-border-subtle)]">
                   <ShieldCheck className="w-4 h-4" />
-                  <span>NFC-e Autorizada pelo SEFAZ SP</span>
+                  <span>SIMULAÇÃO — sem validade fiscal</span>
                 </div>
 
                 <div>
@@ -2168,19 +2168,19 @@ export default function VarejoVendas() {
 
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div>
-                    <span className="text-[10px] text-[var(--color-text-muted)] block">Protocolo de Autorização</span>
+                    <span className="text-[10px] text-[var(--color-text-muted)] block">Protocolo (simulado)</span>
                     <strong className="font-mono text-[var(--color-text-primary)]">{receiptVenda.nfce_protocolo || "135260089234812"}</strong>
                   </div>
                   <div>
                     <span className="text-[10px] text-[var(--color-text-muted)] block">Ambiente</span>
-                    <strong className="text-emerald-500">Produção</strong>
+                    <strong className="text-amber-500">Simulação</strong>
                   </div>
                 </div>
 
                 <div className="p-2.5 rounded-lg bg-white p-2 text-slate-900 flex items-center justify-between gap-2">
                   <div className="text-[10px]">
                     <p className="font-bold">Consulta via Leitor QR Code:</p>
-                    <p className="text-[9px] text-slate-600">Aponte a câmera do celular para consultar a nota no portal oficial da SEFAZ.</p>
+                    <p className="text-[9px] text-slate-600">Simulação: este QR Code não consulta nenhuma nota real.</p>
                   </div>
                   <QrCode className="w-12 h-12 shrink-0 text-slate-900" />
                 </div>

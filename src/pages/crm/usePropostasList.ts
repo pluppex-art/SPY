@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { limpaBusca } from "../../lib/pgrst";
+import { limpaBusca, fetchAllRows } from "../../lib/pgrst";
+import { friendlyError } from "../../lib/friendlyError";
+import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 
 const PAGE_SIZE = 50;
@@ -88,7 +90,10 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
       const { data, count, error } = await query.order("created_at", { ascending: false }).range(from, to);
 
       if (requestId !== requestIdRef.current) return;
-      if (!error && data) {
+      if (error) {
+        // Mantém a lista anterior (não finge "nenhum resultado") e avisa o usuário.
+        toast.error(friendlyError(error));
+      } else if (data) {
         setRows(data);
         setTotal(count ?? 0);
 
@@ -100,6 +105,8 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
           setProposalItems([]);
         }
       }
+    } catch (err) {
+      if (requestId === requestIdRef.current) toast.error(friendlyError(err));
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
@@ -108,16 +115,21 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
   const fetchKpis = async () => {
     if (!supabase || !tenantId) return;
     const projection = "id,valor,status,created_at,cliente,titulo,vendedor,first_viewed_at";
-    let filteredQuery = supabase.from("proposals").select(projection).eq("tenant_id", tenantId);
-    if (dateFrom) filteredQuery = filteredQuery.gte("created_at", dateFrom);
-    if (dateTo) filteredQuery = filteredQuery.lte("created_at", `${dateTo}T23:59:59`);
-
-    const [filteredRes, allRes] = await Promise.all([
-      filteredQuery,
-      supabase.from("proposals").select(projection).eq("tenant_id", tenantId),
-    ]);
-    if (filteredRes.data) setKpiFilteredRows(filteredRes.data);
-    if (allRes.data) setKpiAllRows(allRes.data);
+    try {
+      const [filteredRows, allRows] = await Promise.all([
+        fetchAllRows(() => {
+          let q = supabase!.from("proposals").select(projection).eq("tenant_id", tenantId);
+          if (dateFrom) q = q.gte("created_at", dateFrom);
+          if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59`);
+          return q.order("id", { ascending: true });
+        }),
+        fetchAllRows(() => supabase!.from("proposals").select(projection).eq("tenant_id", tenantId).order("id", { ascending: true })),
+      ]);
+      setKpiFilteredRows(filteredRows);
+      setKpiAllRows(allRows);
+    } catch (err) {
+      toast.error(friendlyError(err));
+    }
   };
 
   useEffect(() => {

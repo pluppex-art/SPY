@@ -80,11 +80,13 @@ export default function Tarefas() {
     refetch: refetchTasksList,
   } = useTarefasList({ searchQuery, selectedPriorities, deadlineFilter, active: viewMode === "list", statusFilter, assigneeFilter, clienteFilter, clienteLeadIds, departamentoFilter, escopoFilter });
 
-  const refetchIfList = () => { if (viewMode === "list") setTimeout(refetchTasksList, 300); };
+  const refetchIfList = () => { if (viewMode === "list") refetchTasksList(); };
+  // Refetch logo após a promise de salvar resolver (em vez de um atraso fixo).
+  const refetchAfter = (p?: Promise<unknown> | void) => { Promise.resolve(p).then(refetchIfList, refetchIfList); };
 
-  const listToggleTaskStatus = (id: string, status: string) => { toggleTaskStatus(id, status); refetchIfList(); };
-  const listMoveTaskStatus = (id: string, newStatus: any) => { moveTaskStatus(id, newStatus); refetchIfList(); };
-  const listUpdateTask = (id: string, updates: any) => { updateTask(id, updates); refetchIfList(); };
+  const listToggleTaskStatus = (id: string, status: string) => { refetchAfter(toggleTaskStatus(id, status)); };
+  const listMoveTaskStatus = (id: string, newStatus: any) => { refetchAfter(moveTaskStatus(id, newStatus)); };
+  const listUpdateTask = (id: string, updates: any) => { refetchAfter(updateTask(id, updates)); };
 
   return (
     <PageContainer

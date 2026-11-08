@@ -38,6 +38,12 @@ export default function Clientes() {
   const [sectorFilter, setSectorFilter] = useState("Todos os setores");
   const [contratoStatusFilter, setContratoStatusFilter] = useState("Todos os status");
   const [searchQuery, setSearchQuery] = useState("");
+  // Busca com debounce (~250ms): o campo responde na hora, o filtro/consulta usam o valor atrasado.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 250);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const somenteConsulta = () => { toast.info("Cliente vindo da Max Data: somente consulta."); };
 
   // Decisor por cliente, pra mostrar na tabela junto com o Documento — vem do
@@ -73,12 +79,24 @@ export default function Clientes() {
   // "mesmo nome = mesma entidade" já usada no resto do app (ex.: busca de
   // contrato vinculado em PropostasTable.tsx).
   const clientesEnriquecidos = useMemo(() => {
+    // Índices construídos uma única vez: clientId -> leads; nome do cliente -> contratos.
+    const leadsPorCliente = new Map<string, any[]>();
+    for (const l of (leads || []) as any[]) {
+      if (l.clientId == null) continue;
+      const arr = leadsPorCliente.get(l.clientId);
+      if (arr) arr.push(l); else leadsPorCliente.set(l.clientId, [l]);
+    }
+    const contratosPorNome = new Map<string, any[]>();
+    for (const ct of contracts as any[]) {
+      const arr = contratosPorNome.get(ct.client);
+      if (arr) arr.push(ct); else contratosPorNome.set(ct.client, [ct]);
+    }
     return clientes.map((c: any) => {
-      const dealLeads = (leads || []).filter((l: any) => l.clientId === c.id);
+      const dealLeads = leadsPorCliente.get(c.id) || [];
       const leadMaisRecente = [...dealLeads].sort((a: any, b: any) =>
         new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime()
       )[0];
-      const contratosDoCliente = (contracts as any[]).filter((ct: any) => ct.client === c.name);
+      const contratosDoCliente = contratosPorNome.get(c.name) || [];
       const contratoAtivo = contratosDoCliente.find((ct: any) => ct.status === "Ativo") || contratosDoCliente[0] || null;
       const mrr = contratosDoCliente
         .filter((ct: any) => ct.status !== "Cancelado")
@@ -109,8 +127,8 @@ export default function Clientes() {
     if (statusFilter !== NEUTRO_SITUACAO && c.status !== statusFilter) return false;
     if (sectorFilter !== NEUTRO_SETOR && c.industry !== sectorFilter) return false;
     if (contratoStatusFilter !== NEUTRO_CONTRATO && contratoStatusLabel(c.contratoStatus) !== contratoStatusFilter) return false;
-    if (searchQuery) {
-      const term = normalizeText(searchQuery);
+    if (debouncedSearch) {
+      const term = normalizeText(debouncedSearch);
       return normalizeText(c.name).includes(term) ||
              normalizeText(c.documento).includes(term) ||
              normalizeText(c.responsavel).includes(term) ||
@@ -118,7 +136,7 @@ export default function Clientes() {
              normalizeText(c.phone).includes(term);
     }
     return true;
-  }), [clientesEnriquecidos, statusFilter, sectorFilter, contratoStatusFilter, searchQuery]);
+  }), [clientesEnriquecidos, statusFilter, sectorFilter, contratoStatusFilter, debouncedSearch]);
 
   // Origem: no varejo a lista abre MISTURADA (base do CRM + Max Data). A Max Data é lida do servidor
   // página a página (dezenas de milhares de clientes não cabem no carregamento integral do navegador);
@@ -133,11 +151,11 @@ export default function Clientes() {
   const inicioPagina = maxPage * MAX_PAGE_SIZE;
   const crmFatia = misto ? clientesFiltrados.slice(inicioPagina, inicioPagina + MAX_PAGE_SIZE) : [];
   const mx = useMaxdataPage({
-    table: "maxdata_clientes", origem, tenantId: activeTenantId, term: searchQuery, page: maxPage, pageSize: MAX_PAGE_SIZE,
+    table: "maxdata_clientes", origem, tenantId: activeTenantId, term: debouncedSearch, page: maxPage, pageSize: MAX_PAGE_SIZE,
     from: misto ? Math.max(0, inicioPagina - crmLen) : undefined, count: misto ? MAX_PAGE_SIZE - crmFatia.length : undefined,
     searchCols: ["name", "documento", "email", "phone"], orderBy: "name",
   });
-  useEffect(() => { setMaxPage(0); }, [searchQuery, origem]);
+  useEffect(() => { setMaxPage(0); }, [debouncedSearch, origem]);
   const maxRows = useMemo(() => mx.rows.map((c: any) => ({ ...c, responsavel: null, contratoStatus: null, mrr: 0 })), [mx.rows]);
   const idsMax = useMemo(() => new Set(maxRows.map((c: any) => c.id)), [maxRows]);
 

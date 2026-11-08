@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { limpaBusca, fetchAllRows } from "../../lib/pgrst";
 import { useAuth } from "../../contexts/AuthContext";
+import { friendlyError } from "../../lib/friendlyError";
+import { toast } from "sonner";
 
 const DEFAULT_PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -84,10 +86,15 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
       const { data, count, error } = await query.range(from, to);
 
       if (requestId !== requestIdRef.current) return;
-      if (!error && data) {
+      if (error) {
+        // Mantém a lista anterior (não finge "nenhum resultado") e avisa o usuário.
+        toast.error(friendlyError(error));
+      } else if (data) {
         setRows(data);
         setTotal(count ?? 0);
       }
+    } catch (err) {
+      if (requestId === requestIdRef.current) toast.error(friendlyError(err));
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
