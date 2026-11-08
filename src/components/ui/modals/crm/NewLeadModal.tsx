@@ -161,9 +161,15 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: formData.get("name"), company: companyValue, notes: formData.get("notes") }),
       });
-      const data = await response.json();
-      if (data.tags) setTags(data.tags.join(", "));
-    } catch { } finally { setAiLoading(false); }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !Array.isArray(data.tags)) {
+        import("sonner").then(({ toast }) => toast.error(data?.error || "IA indisponível no momento. Digite as tags manualmente."));
+      } else {
+        setTags(data.tags.join(", "));
+      }
+    } catch {
+      import("sonner").then(({ toast }) => toast.error("IA indisponível no momento. Digite as tags manualmente."));
+    } finally { setAiLoading(false); }
   };
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {

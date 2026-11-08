@@ -13,6 +13,7 @@ export default function PerformanceIA() {
   const {
     isSimulating,
     aiRecommendations,
+    aiUnavailable,
     simulationData,
     runSimulation,
     currentCAC,
@@ -39,6 +40,7 @@ export default function PerformanceIA() {
           runSimulation={runSimulation}
           simulationData={simulationData}
           aiRecommendations={aiRecommendations}
+          aiUnavailable={aiUnavailable}
         />
 
         {/* Deep Learning Insights */}

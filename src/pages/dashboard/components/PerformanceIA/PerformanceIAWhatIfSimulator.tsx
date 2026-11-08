@@ -10,8 +10,9 @@ export function PerformanceIAWhatIfSimulator(props: {
   runSimulation: () => void;
   simulationData: Array<{ name: string; mrr: number; cac: number; ltv: number }>;
   aiRecommendations: any[];
+  aiUnavailable?: boolean;
 }) {
-  const { isSimulating, runSimulation, simulationData, aiRecommendations } = props;
+  const { isSimulating, runSimulation, simulationData, aiRecommendations, aiUnavailable } = props;
 
   return (
     <div className="grid lg:grid-cols-3 gap-4">
@@ -21,7 +22,7 @@ export function PerformanceIAWhatIfSimulator(props: {
             <SectionTitle>
               <Play className="w-5 h-5 text-[var(--color-primary-blue)]" /> Simulador de Cenários
             </SectionTitle>
-            <p className="text-xs text-[var(--color-text-muted)] mt-2">Modele o crescimento alterando variáveis críticas de aquisição.</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-2">Simulação ilustrativa com premissas fixas (+20% e +40% de MRR sobre o valor atual) — não é uma previsão.</p>
           </div>
           <Button
             onClick={runSimulation}
@@ -76,7 +77,14 @@ export function PerformanceIAWhatIfSimulator(props: {
           <div
             className={`flex-1 space-y-6 transition-all duration-500 ${isSimulating ? "opacity-30 blur-sm" : "opacity-100"}`}
           >
-            {(aiRecommendations.length > 0
+            {(aiUnavailable
+              ? [{
+                  title: "Análise indisponível",
+                  desc: "A IA não respondeu agora. Tente executar a auditoria novamente em instantes.",
+                  impact: "--",
+                  color: "text-[var(--color-text-muted)]",
+                }]
+              : aiRecommendations.length > 0
               ? aiRecommendations
               : [{
                   title: "Analisando...",

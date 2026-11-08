@@ -3,7 +3,6 @@ import { toast } from "sonner";
 
 import { useData } from "../../../../contexts/DataContext";
 import { apiFetch } from "../../../../lib/apiClient";
-import { useLocalization } from "../../../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../../../lib/utils";
 import { getMRR } from "../../../../lib/revenueMetrics";
 
@@ -11,10 +10,10 @@ type AiRecommendation = any;
 
 export function usePerformanceIA() {
   const { leads, financeEntries, contracts } = useData();
-  const { formatCurrency } = useLocalization();
 
   const [isSimulating, setIsSimulating] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<AiRecommendation[]>([]);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
 
   const currentMRR = useMemo(() => {
     if (contracts && contracts.length > 0) {
@@ -48,22 +47,16 @@ export function usePerformanceIA() {
     return [
       { name: "Atual", mrr: currentMRR, cac: currentCAC, ltv: currentLTV },
       {
-        name: "Cenário A (+Leads)",
+        name: "Simulação A (+20% MRR)",
         mrr: currentMRR * 1.2,
         cac: currentCAC * 0.9,
         ltv: currentLTV * 1.1,
       },
       {
-        name: "Cenário B (Ticket+)",
+        name: "Simulação B (+40% MRR)",
         mrr: currentMRR * 1.4,
         cac: currentCAC * 1.1,
         ltv: currentLTV * 1.3,
-      },
-      {
-        name: "Otimizado IA",
-        mrr: currentMRR * 1.6,
-        cac: currentCAC * 0.8,
-        ltv: currentLTV * 1.5,
       },
     ];
   }, [currentMRR, currentCAC, currentLTV]);
@@ -87,54 +80,15 @@ export function usePerformanceIA() {
 
       if (response.ok) {
         const data = await response.json();
-        setAiRecommendations(data);
+        setAiRecommendations(Array.isArray(data) ? data : []);
+        setAiUnavailable(false);
       } else {
-        const ratio = currentCAC > 0 ? (currentLTV / currentCAC).toFixed(1) : "3.5";
-        setAiRecommendations([
-          {
-            title: "Otimização de LTV/CAC e Retenção",
-            desc: `Relação LTV/CAC calculada em ${ratio}x. Priorize estratégias de retenção e upsell de clientes atuais para elevar o ROI em até 35%.`,
-            impact: "+35% ROI",
-            color: "text-blue-400"
-          },
-          {
-            title: "Aceleração do Funil de Conversão",
-            desc: `Base ativa de ${leads.length} oportunidades com ${dealsCount} fechamentos. Aumente o follow-up nas primeiras 2 horas para dobrar a taxa de conversão.`,
-            impact: "+40% Conversão",
-            color: "text-emerald-400"
-          },
-          {
-            title: "Expansão de Receita Recorrente (MRR)",
-            desc: `MRR atual em ${formatCurrency(currentMRR)}. Implemente planos anuais com desconto para reduzir churn e estabilizar fluxo de caixa.`,
-            impact: "+25% Previsibilidade",
-            color: "text-purple-400"
-          }
-        ]);
+        setAiRecommendations([]);
+        setAiUnavailable(true);
       }
     } catch {
-      // Falha de rede silenciosa com fallback
-      const dealsCount = leads.filter((l: any) => l.status === "Fechado").length;
-      const ratio = currentCAC > 0 ? (currentLTV / currentCAC).toFixed(1) : "3.5";
-      setAiRecommendations([
-        {
-          title: "Otimização de LTV/CAC e Retenção",
-          desc: `Relação LTV/CAC calculada em ${ratio}x. Priorize estratégias de retenção e upsell de clientes atuais para elevar o ROI em até 35%.`,
-          impact: "+35% ROI",
-          color: "text-blue-400"
-        },
-        {
-          title: "Aceleração do Funil de Conversão",
-          desc: `Base ativa de ${leads.length} oportunidades com ${dealsCount} fechamentos. Aumente o follow-up nas primeiras 2 horas para dobrar a taxa de conversão.`,
-          impact: "+40% Conversão",
-          color: "text-emerald-400"
-        },
-        {
-          title: "Expansão de Receita Recorrente (MRR)",
-          desc: `MRR atual em ${formatCurrency(currentMRR)}. Implemente planos anuais com desconto para reduzir churn e estabilizar fluxo de caixa.`,
-          impact: "+25% Previsibilidade",
-          color: "text-purple-400"
-        }
-      ]);
+      setAiRecommendations([]);
+      setAiUnavailable(true);
     } finally {
       setIsSimulating(false);
     }
@@ -151,6 +105,7 @@ export function usePerformanceIA() {
     contracts,
     isSimulating,
     aiRecommendations,
+    aiUnavailable,
     simulationData,
     runSimulation,
     currentCAC,

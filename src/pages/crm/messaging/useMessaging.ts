@@ -266,9 +266,12 @@ export function useMessaging() {
   }, [activeTenantId]);
 
   useEffect(() => {
+    // Pausa a busca periódica com a aba oculta e atualiza na hora ao voltar.
     fetchContacts();
-    const interval = setInterval(fetchContacts, 4000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => { if (!document.hidden) fetchContacts(); }, 10000);
+    const onVisible = () => { if (!document.hidden) fetchContacts(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
   }, [activeTenantId]);
 
   useEffect(() => {
@@ -288,8 +291,10 @@ export function useMessaging() {
         });
     };
     fetchChatMessages();
-    const interval = setInterval(fetchChatMessages, 3000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => { if (!document.hidden) fetchChatMessages(); }, 6000);
+    const onVisible = () => { if (!document.hidden) fetchChatMessages(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
   }, [activeChat, activeTenantId]);
 
   useEffect(() => {

@@ -1,4 +1,7 @@
 import dns from "dns/promises";
+import dnsCb from "dns";
+import http from "http";
+import https from "https";
 import net from "net";
 
 // Bloqueia loopback, RFC1918, link-local (metadata 169.254.x), CGNAT, multicast e IPv6 locais.
@@ -71,3 +74,28 @@ export async function assertSafeSmtpTarget(host: unknown, port: unknown): Promis
   if (!SMTP_PORTS.has(p)) throw new Error("Porta SMTP não permitida (use 25, 465, 587 ou 2525).");
   return assertPublicHost(String(host));
 }
+
+/**
+ * lookup() customizado para http(s).Agent: o IP validado é exatamente o IP usado na conexão.
+ * Sem isso há uma janela de DNS rebinding entre a validação (assertSafeHttpUrl) e o connect,
+ * em que o DNS poderia devolver um IP interno na segunda resolução.
+ */
+function safeLookup(hostname: string, options: any, callback: any) {
+  const opts = typeof options === "function" ? {} : (options || {});
+  const cb = typeof options === "function" ? options : callback;
+  dnsCb.lookup(hostname, { ...opts, all: true }, (err: any, records: any) => {
+    if (err) return cb(err);
+    const list = (records || []) as { address: string; family: number }[];
+    if (!list.length || list.some((r) => isPrivateIp(r.address))) {
+      return cb(Object.assign(new Error("Destino não permitido."), { code: "ESSRF" }));
+    }
+    if (opts.all) return cb(null, list);
+    return cb(null, list[0].address, list[0].family);
+  });
+}
+
+/** Agents que só conectam a IPs públicos (validação feita no momento da conexão). Use em axios: { httpAgent, httpsAgent }. */
+export const ssrfSafeAgents = {
+  httpAgent: new http.Agent({ lookup: safeLookup as any }),
+  httpsAgent: new https.Agent({ lookup: safeLookup as any }),
+};

@@ -16,7 +16,7 @@ import { createCheckoutRouter } from "./server/checkout.js";
 import { upsertLead } from "./server/leadUpsert.js";
 import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./server/whatsappProvider.js";
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
-import { assertSafeHttpUrl, assertSafeSmtpTarget } from "./server/ssrfGuard.js";
+import { assertSafeHttpUrl, assertSafeSmtpTarget, ssrfSafeAgents } from "./server/ssrfGuard.js";
 import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
 import { emailNotifyTenant } from "./server/emailNotify.js";
 import { runNotificationReminders } from "./server/notificationCron.js";
@@ -286,6 +286,113 @@ async function generateAI(prompt: string, opts: { maxTokens?: number } = {}): Pr
   return callGroq(prompt, maxTokens);
 }
 
+// Chat com ferramentas (function calling) e fallback de provedor: OpenAI → Gemini → Groq.
+// A ferramenta é executada no máximo uma vez por chamada (resultado em cache), mesmo se o segundo
+// passo falhar num provedor e for refeito no seguinte.
+function toOpenAiSchema(node: any): any {
+  if (Array.isArray(node)) return node.map(toOpenAiSchema);
+  if (node && typeof node === "object") {
+    const out: any = {};
+    for (const [k, v] of Object.entries(node)) out[k] = k === "type" && typeof v === "string" ? v.toLowerCase() : toOpenAiSchema(v);
+    return out;
+  }
+  return node;
+}
+
+async function aiChatWithTools(opts: {
+  system: string;
+  messages: { role: "user" | "model"; text: string }[];
+  tools: any[];
+  runTool: (name: string, args: any) => Promise<any>;
+  maxTokens?: number;
+}): Promise<{ text: string; tool?: string }> {
+  const toolCache = new Map<string, any>();
+  const run = async (name: string, args: any) => {
+    const key = name + "|" + JSON.stringify(args ?? {});
+    if (!toolCache.has(key)) toolCache.set(key, await opts.runTool(name, args));
+    return toolCache.get(key);
+  };
+  const oaiTools = opts.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: toOpenAiSchema(t.parameters ?? { type: "object", properties: {} }) } }));
+  const oaiMessages: any[] = [
+    { role: "system", content: opts.system },
+    ...opts.messages.map((m) => ({ role: m.role === "model" ? "assistant" : "user", content: m.text })),
+  ];
+
+  const viaOpenAiCompat = async (url: string, key: string, model: string, tokenField: string, usageTag: string) => {
+    const headers = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+    const base: any = { model, [tokenField]: opts.maxTokens ?? 1500 };
+    const first = await axios.post(url, { ...base, messages: oaiMessages, tools: oaiTools }, { headers, timeout: 25000 });
+    saas.recordAiUsage(usageTag, first.data.usage?.prompt_tokens, first.data.usage?.completion_tokens, first.data.usage?.total_tokens);
+    const msg = first.data.choices?.[0]?.message;
+    const call = msg?.tool_calls?.[0];
+    if (!call) return { text: String(msg?.content ?? "") };
+    let args: any = {};
+    try { args = JSON.parse(call.function?.arguments || "{}"); } catch { /* args vazios */ }
+    const result = await run(call.function.name, args);
+    const second = await axios.post(url, {
+      ...base,
+      messages: [...oaiMessages, msg, { role: "tool", tool_call_id: call.id, content: JSON.stringify(result) }],
+    }, { headers, timeout: 25000 });
+    saas.recordAiUsage(usageTag, second.data.usage?.prompt_tokens, second.data.usage?.completion_tokens, second.data.usage?.total_tokens);
+    return { text: String(second.data.choices?.[0]?.message?.content ?? ""), tool: call.function.name };
+  };
+
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+      const r = await viaOpenAiCompat("https://api.openai.com/v1/chat/completions", process.env.OPENAI_API_KEY, model, "max_completion_tokens", `openai/${model}`);
+      if (r.text.trim()) return r;
+    } catch (err: any) {
+      console.warn("[AI tools] OpenAI falhou, tentando o próximo:", (err?.response?.data?.error?.message || err?.message || "").slice(0, 120));
+    }
+  }
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const contents: any[] = opts.messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
+      const config = { systemInstruction: opts.system, tools: [{ functionDeclarations: opts.tools }] };
+      const first = await ai.models.generateContent({ model: "gemini-3.6-flash", contents, config });
+      const call = (first as any).functionCalls?.[0];
+      if (!call) {
+        const text = typeof first.text === "function" ? (first as any).text() : (first.text ?? "");
+        if (String(text).trim()) return { text: String(text) };
+      } else {
+        const toolResult = await run(call.name, call.args);
+        const second = await ai.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: [
+            ...contents,
+            { role: "model", parts: [{ functionCall: call }] },
+            { role: "user", parts: [{ functionResponse: { name: call.name, response: toolResult } }] },
+          ],
+          config,
+        });
+        const text = typeof second.text === "function" ? (second as any).text() : (second.text ?? "");
+        if (String(text).trim()) return { text: String(text), tool: call.name };
+      }
+    } catch (err: any) {
+      console.warn("[AI tools] Gemini falhou, tentando o próximo:", String(err?.message || "").slice(0, 100));
+    }
+  }
+  const groqKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+  if (groqKey) return viaOpenAiCompat("https://api.groq.com/openai/v1/chat/completions", groqKey, "llama-3.3-70b-versatile", "max_tokens", "groq/llama-3.3-70b");
+  throw new Error(AI_UNAVAILABLE_MSG);
+}
+
+// True se existe ao menos um provedor de IA configurado (OpenAI, Gemini ou Groq).
+function hasAnyAI(): boolean {
+  return !!(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY);
+}
+const AI_UNAVAILABLE_MSG = "IA indisponível no momento.";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// Comparação em tempo constante de segredos (evita ataque de tempo).
+function safeEqualStr(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
 // Extrai JSON de respostas que podem ter markdown ou texto extra
 function extractJSON(raw: string): any {
   let text = raw.trim()
@@ -321,6 +428,15 @@ for (const m of ["get", "post", "put", "patch", "delete"] as const) {
   };
 }
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
+// Cabeçalhos de segurança básicos nas respostas /api (respostas JSON: nada deve ser embutido nem cacheado).
+app.use("/api", (_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-site");
+  next();
+});
 
 // Vercel pre-parses the body before passing to Express — skip json() if already parsed
 app.use((req: any, res, next) => {
@@ -3543,24 +3659,21 @@ app.post("/api/public-proposal/:token/accept", async (req, res) => {
 
 app.post("/api/leads/suggest-tags", requireUser, async (req, res) => {
   const { name, company, notes } = req.body;
-  if (!process.env.GEMINI_API_KEY) return res.json({ tags: ["Interesse", "Novo Lead", "PME"] });
+  if (!hasAnyAI()) return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Suggest 3-5 relevant tags for a lead with the following info:
-      Name: ${name}
-      Company: ${company}
-      Description: ${notes}
-      Return the tags as a JSON array of strings.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } },
-      },
-    });
-    res.json({ tags: JSON.parse(response.text ?? "[]") });
+    const raw = await generateAI(`Sugira de 3 a 5 tags curtas e relevantes, em português, para um lead com estes dados:
+Nome: ${name || ""}
+Empresa: ${company || ""}
+Descrição: ${notes || ""}
+Responda SOMENTE com um array JSON de strings, sem markdown.`, { maxTokens: 300 });
+    const txt = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+    const a = txt.indexOf("["), b = txt.lastIndexOf("]");
+    if (a === -1 || b === -1) throw new Error("Resposta sem array JSON.");
+    const tags = (JSON.parse(txt.slice(a, b + 1)) as any[]).filter((t) => typeof t === "string" && t.trim()).map((t) => t.trim()).slice(0, 8);
+    res.json({ tags });
   } catch (error) {
     console.error("AI Tag Suggestion Error:", error);
-    res.status(500).json({ error: "Failed to suggest tags" });
+    res.status(503).json({ error: "Não foi possível sugerir tags agora. Tente novamente em instantes." });
   }
 });
 
@@ -3570,23 +3683,20 @@ app.post("/api/leads/suggest-tags", requireUser, async (req, res) => {
 // sem nenhuma IA de verdade por trás. Agora chama Gemini de fato.
 app.post("/api/ai/student-performance-insight", requireUser, async (req, res) => {
   const { name, progress, grades } = req.body || {};
-  if (!process.env.GEMINI_API_KEY) {
+  if (!hasAnyAI()) {
     return res.json({ insight: "IA indisponível no momento — configure a chave de IA para habilitar esta análise." });
   }
   try {
     const gradesText = Array.isArray(grades) && grades.length > 0
       ? grades.map((g: any) => `${g.subject}: ${g.value}`).join(", ")
       : "sem notas lançadas ainda";
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Você é um coordenador pedagógico. Analise o desempenho deste aluno e escreva 2-3 frases objetivas
+    const text = await generateAI(`Você é um coordenador pedagógico. Analise o desempenho deste aluno e escreva 2-3 frases objetivas
 em português, destacando pontos fortes, riscos de evasão/desengajamento e uma recomendação prática.
 Nome: ${name || "Aluno"}
 Progresso no curso: ${progress ?? "desconhecido"}%
 Notas lançadas: ${gradesText}
-Não invente notas ou fatos que não foram informados acima.`,
-    });
-    res.json({ insight: (response.text || "Não foi possível gerar uma análise no momento.").trim() });
+Não invente notas ou fatos que não foram informados acima.`, { maxTokens: 400 });
+    res.json({ insight: (text || "Não foi possível gerar uma análise no momento.").trim() });
   } catch (error: any) {
     console.error("Student Performance Insight Error:", error?.message);
     res.status(500).json({ error: "Falha ao gerar análise de desempenho." });
@@ -3599,7 +3709,7 @@ const ALLOWED_FATURA_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/web
 
 app.post("/api/ai/solar-analyze-fatura", requireUser, async (req, res) => {
   const { imageBase64, mimeType } = req.body || {};
-  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "IA Offline — GEMINI_API_KEY não configurada." });
+  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "IA indisponível no momento (a leitura de fatura precisa da chave Gemini configurada)." });
   if (!imageBase64 || typeof imageBase64 !== "string") return res.status(400).json({ error: "Imagem da fatura é obrigatória." });
   if (!ALLOWED_FATURA_MIME_TYPES.has(mimeType)) return res.status(400).json({ error: "Formato de imagem não suportado. Use JPEG, PNG ou WebP." });
   // ~4MB decodificados (base64 é ~33% maior que o binário original)
@@ -3737,7 +3847,7 @@ app.post("/api/cnpj/validate", requireUser, async (req, res) => {
 
 app.post("/api/leads/calculate-score", requireUser, async (req, res) => {
   const { lead, activities } = req.body;
-  if (!lead) return res.status(400).json({ error: "Lead data is required for score calculation" });
+  if (!lead) return res.status(400).json({ error: "Dados do lead são obrigatórios para calcular a pontuação." });
 
   if (process.env.GEMINI_API_KEY) {
     try {
@@ -3815,91 +3925,31 @@ app.post("/api/leads/calculate-score", requireUser, async (req, res) => {
 
 app.post("/api/ai/performance-audit", requireUser, async (req, res) => {
   const { mrr, cac, ltv, leadsCount, dealsCount } = req.body;
-  const mrrNum = Number(mrr) || 0;
-  const cacNum = Number(cac) || 0;
-  const ltvNum = Number(ltv) || 0;
-  const ratio = cacNum > 0 ? (ltvNum / cacNum).toFixed(1) : "3.8";
-
-  const fallbackRecommendations = [
-    {
-      title: "Otimização de LTV/CAC e Retenção",
-      desc: `Relação LTV/CAC calculada em ${ratio}x. Priorize estratégias de onboarding guiado e upsell nos primeiros 60 dias para elevar a retenção em 20%.`,
-      impact: "+35% ROI",
-      color: "text-blue-400"
-    },
-    {
-      title: "Eficiência do Funil Comercial",
-      desc: `Base ativa de ${leadsCount || 0} oportunidades com ${dealsCount || 0} conversões registradas. Reduza o tempo de primeiro contato para menos de 15 minutos para maximizar o fechamento.`,
-      impact: "+42% Conversão",
-      color: "text-emerald-400"
-    },
-    {
-      title: "Expansão da Receita Recorrente (MRR)",
-      desc: `MRR atual de R$ ${mrrNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}. Ofereça incentivos e planos anuais com desconto para estabilizar o fluxo de caixa.`,
-      impact: "+28% Previsibilidade",
-      color: "text-purple-400"
-    }
-  ];
-
-  if (!process.env.GEMINI_API_KEY) {
-    return res.json(fallbackRecommendations);
-  }
-
+  if (!hasAnyAI()) return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Você é o Master IA do S.P.Y. CRM. Analise estes indicadores:
-      MRR: ${mrr}, CAC: ${cac}, LTV: ${ltv}, Leads: ${leadsCount}, Fechamentos: ${dealsCount}.
-      Gere 3 recomendações estratégicas baseadas em dados para otimizar o ROI.
-      Retorne estritamente um JSON array de objetos: [{"title": string, "desc": string, "impact": string, "color": "text-blue-400" | "text-emerald-400" | "text-purple-400"}].`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING }, desc: { type: Type.STRING },
-              impact: { type: Type.STRING }, color: { type: Type.STRING }
-            },
-            required: ["title", "desc", "impact", "color"]
-          }
-        }
-      }
-    });
-    const parsed = JSON.parse(response.text ?? "[]");
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return res.json(parsed);
-    }
-    res.json(fallbackRecommendations);
+    const raw = await generateAI(`Você é o Master IA do S.P.Y. CRM. Analise estes indicadores reais (não invente números além dos fornecidos):
+MRR: ${mrr}, CAC: ${cac}, LTV: ${ltv}, Leads: ${leadsCount}, Fechamentos: ${dealsCount}.
+Gere 3 recomendações estratégicas, em português, baseadas nesses dados. No campo "impact" use um rótulo qualitativo curto (ex.: "Alto impacto"), sem prometer percentuais.
+Responda SOMENTE com um array JSON, sem markdown: [{"title": string, "desc": string, "impact": string, "color": "text-blue-400" | "text-emerald-400" | "text-purple-400"}].`, { maxTokens: 1200 });
+    const t = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+    const i = t.indexOf("["), j = t.lastIndexOf("]");
+    const parsed = i >= 0 && j > i ? JSON.parse(t.slice(i, j + 1)) : null;
+    if (Array.isArray(parsed) && parsed.length > 0) return res.json(parsed);
+    return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   } catch (err: any) {
-    console.warn("[performance-audit] Gemini fallback:", err?.message);
-    res.json(fallbackRecommendations);
+    console.warn("[performance-audit] IA falhou:", err?.message);
+    return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   }
 });
 
 app.post("/api/ai/content-script", requireUser, async (req, res) => {
   const { title, desc, platform } = req.body;
   if (!title) return res.status(400).json({ error: "Informe o título da pauta." });
-  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "Chave de IA não configurada." });
+  if (!hasAnyAI()) return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Você é um redator de conteúdo para redes sociais. Crie um roteiro curto (15-30 segundos de leitura) para um post de "${platform || "Instagram"}" com o tema "${title}". Contexto adicional: ${desc || "nenhum"}.
-      Retorne estritamente um JSON: {"script": string, "hashtags": string[]} (hashtags sem o caractere #, só a palavra).`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            script: { type: Type.STRING },
-            hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
-          },
-          required: ["script", "hashtags"],
-        },
-      },
-    });
-    res.json(JSON.parse(response.text ?? "{}"));
+    const raw = await generateAI(`Você é um redator de conteúdo para redes sociais. Crie um roteiro curto (15-30 segundos de leitura) para um post de "${platform || "Instagram"}" com o tema "${title}". Contexto adicional: ${desc || "nenhum"}.
+Retorne estritamente um JSON: {"script": string, "hashtags": string[]} (hashtags sem o caractere #, só a palavra).`, { maxTokens: 800 });
+    res.json(extractJSON(raw));
   } catch {
     res.status(500).json({ error: "Falha ao gerar script." });
   }
@@ -3907,24 +3957,13 @@ app.post("/api/ai/content-script", requireUser, async (req, res) => {
 
 app.post("/api/ai/pipeline-audit", requireUser, async (req, res) => {
   const { stageName, leads } = req.body;
-  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "IA Offline" });
+  if (!hasAnyAI()) return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Analise a etapa "${stageName}" do funil com estes leads:
-      ${JSON.stringify(leads.map((l: any) => ({ name: l.name, score: l.scoreIA, temp: l.temperature })))}
-      Forneça um insight rápido e uma ação imediata para o vendedor.
-      Retorne JSON: {"insight": string, "action": string}.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: { insight: { type: Type.STRING }, action: { type: Type.STRING } },
-          required: ["insight", "action"]
-        }
-      }
-    });
-    res.json(JSON.parse(response.text ?? "{}"));
+    const raw = await generateAI(`Analise a etapa "${stageName}" do funil com estes leads:
+${JSON.stringify((Array.isArray(leads) ? leads : []).map((l: any) => ({ name: l.name, score: l.scoreIA, temp: l.temperature })))}
+Forneça um insight rápido e uma ação imediata para o vendedor, em português.
+Retorne JSON: {"insight": string, "action": string}.`, { maxTokens: 600 });
+    res.json(extractJSON(raw));
   } catch {
     res.status(500).json({ error: "Falha ao auditar funil." });
   }
@@ -3932,30 +3971,19 @@ app.post("/api/ai/pipeline-audit", requireUser, async (req, res) => {
 
 app.post("/api/ai/marketing-advisor", requireUser, async (req, res) => {
   const { leads, spent } = req.body;
-  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "IA Offline" });
+  if (!hasAnyAI()) return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   try {
-    const sourceData = leads.reduce((acc: any, l: any) => {
+    const sourceData = (Array.isArray(leads) ? leads : []).reduce((acc: any, l: any) => {
       const src = l.source || "Orgânico";
       acc[src] = (acc[src] || 0) + 1;
       return acc;
     }, {});
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Análise de Marketing:
-      Gasto Total: R$ ${spent}
-      Conversão por Origem: ${JSON.stringify(sourceData)}
-      Sugira onde realocar verba para diminuir o CAC.
-      Retorne JSON: {"suggestion": string, "rationale": string}.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: { suggestion: { type: Type.STRING }, rationale: { type: Type.STRING } },
-          required: ["suggestion", "rationale"]
-        }
-      }
-    });
-    res.json(JSON.parse(response.text ?? "{}"));
+    const raw = await generateAI(`Análise de Marketing:
+Gasto Total: R$ ${spent}
+Conversão por Origem: ${JSON.stringify(sourceData)}
+Sugira, em português, onde realocar verba para diminuir o CAC.
+Retorne JSON: {"suggestion": string, "rationale": string}.`, { maxTokens: 600 });
+    res.json(extractJSON(raw));
   } catch {
     res.status(500).json({ error: "Falha na análise de marketing." });
   }
@@ -3963,27 +3991,13 @@ app.post("/api/ai/marketing-advisor", requireUser, async (req, res) => {
 
 app.post("/api/ai/settings-audit", requireUser, async (req, res) => {
   const { type, config } = req.body;
-  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "IA Offline" });
+  if (!hasAnyAI()) return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Você é o Auditor Master do S.P.Y. CRM. Analise esta configuração de ${type}:
-      ${JSON.stringify(config)}
-      Identifique possíveis gargalos, regras redundantes ou melhorias na lógica.
-      Retorne estritamente um JSON: {"audit": string, "suggestions": string[]}.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            audit: { type: Type.STRING },
-            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } }
-          },
-          required: ["audit", "suggestions"]
-        }
-      }
-    });
-    res.json(JSON.parse(response.text ?? "{}"));
+    const raw = await generateAI(`Você é o Auditor Master do S.P.Y. CRM. Analise esta configuração de ${type}:
+${JSON.stringify(config)}
+Identifique possíveis gargalos, regras redundantes ou melhorias na lógica, em português.
+Retorne estritamente um JSON: {"audit": string, "suggestions": string[]}.`, { maxTokens: 900 });
+    res.json(extractJSON(raw));
   } catch {
     res.status(500).json({ error: "Falha ao auditar configurações." });
   }
@@ -4083,20 +4097,16 @@ app.delete("/api/settings/:category/:id", requireUser, settingsCategoriaGuard, a
 
 app.post("/api/ai/suggest-new-config", requireUser, async (req, res) => {
   const { type } = req.body;
-  if (!process.env.GEMINI_API_KEY) return res.json({ suggestion: null });
+  if (!hasAnyAI()) return res.json({ suggestion: null });
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Você é um consultor de CRM. Sugira um exemplo para "${type}".
+    const raw = await generateAI(`Você é um consultor de CRM. Sugira um exemplo para "${type}".
       NÃO inclua campos como 'target'. Use os campos exatos abaixo.
       Responda APENAS com JSON:
       - Se for "Campo Personalizado": {"name": "Data de Aniversário", "type": "Data", "required": false}
       - Se for "Origem": {"nome": "Indicação Parceiro Premium"}
       - Se for "Categoria de Tarefa": {"nome": "Follow-up Estratégico", "cor": "bg-purple-500"}
-      - Se for "Modelo": {"name": "Boas-vindas", "content": "Olá {{name}}, seja bem-vindo!", "category": "Vendas"}`,
-      config: { responseMimeType: "application/json" }
-    });
-    res.json(JSON.parse(response.text ?? "{}"));
+      - Se for "Modelo": {"name": "Boas-vindas", "content": "Olá {{name}}, seja bem-vindo!", "category": "Vendas"}`, { maxTokens: 400 });
+    res.json(extractJSON(raw));
   } catch {
     res.status(500).json({ error: "Erro na sugestão da IA" });
   }
@@ -4104,19 +4114,16 @@ app.post("/api/ai/suggest-new-config", requireUser, async (req, res) => {
 
 app.post("/api/ai/generic-insight", requireUser, async (req, res) => {
   const { context, data } = req.body;
-  if (!process.env.GEMINI_API_KEY) {
+  if (!hasAnyAI()) {
     return res.json({ insight: "A Master IA está em modo offline no momento. Conecte sua API Key para obter insights estratégicos." });
   }
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Você é o cérebro analítico do S.P.Y. CRM.
+    const insight = await generateAI(`Você é o cérebro analítico do S.P.Y. CRM.
       Contexto da solicitação: ${context}.
       Dados brutos para análise: ${JSON.stringify(data)}.
       Sua tarefa: Forneça um insight estratégico curto, direto e acionável em português (máximo 3 frases).
-      Foque em melhoria de ROI, conversão ou retenção.`,
-    });
-    res.json({ insight: response.text ?? "" });
+      Foque em melhoria de ROI, conversão ou retenção.`, { maxTokens: 400 });
+    res.json({ insight });
   } catch (error) {
     console.error("Erro na Master IA:", error);
     res.status(500).json({ error: "Falha ao processar insight cerebral." });
@@ -4666,7 +4673,7 @@ async function runAuroraTool(name: string, args: any, supabaseClient: any, tenan
  * sessão de usuário aqui) — por isso runAuroraTool recebe tenantId explícito.
  */
 async function runAuroraAutoReply(tenantId: string, instanceId: string, contactId: string, phone: string, incomingText: string): Promise<void> {
-  if (!supabaseService || !process.env.GEMINI_API_KEY) return;
+  if (!supabaseService || !hasAnyAI()) return;
 
   try {
     const { data: activeAgent } = await supabaseService
@@ -4676,41 +4683,24 @@ async function runAuroraAutoReply(tenantId: string, instanceId: string, contactI
     const { data: history } = await supabaseService
       .from("chat_messages").select("text,sender").eq("contact_id", contactId)
       .order("created_at", { ascending: false }).limit(15);
-    const contents = [...(history ?? [])].reverse().map((m: any) => ({
-      role: m.sender === "contact" ? "user" : "model",
-      parts: [{ text: m.text }],
+    const msgs: { role: "user" | "model"; text: string }[] = [...(history ?? [])].reverse().map((m: any) => ({
+      role: m.sender === "contact" ? "user" as const : "model" as const,
+      text: String(m.text ?? ""),
     }));
-    if (contents.length === 0 || contents[contents.length - 1].role !== "user") {
-      contents.push({ role: "user", parts: [{ text: incomingText }] });
+    if (msgs.length === 0 || msgs[msgs.length - 1].role !== "user") {
+      msgs.push({ role: "user", text: incomingText });
     }
 
     const systemInstruction = "Você é a Aurora, atendente virtual do S.P.Y. CRM conversando por WhatsApp com um cliente/lead da empresa. Responda de forma curta, natural e cordial, como uma conversa real de WhatsApp — não como um relatório. Use as ferramentas disponíveis SOMENTE se precisar consultar dado real da empresa (pipeline, financeiro, tarefas) pra responder; nunca invente números, nomes ou datas. Responda em português do Brasil.";
 
-    const first = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents,
-      config: { systemInstruction, tools: [{ functionDeclarations: AURORA_TOOLS_WHATSAPP }] },
-    });
-
-    let replyText: string;
-    const call = (first as any).functionCalls?.[0];
-    if (!call) {
-      replyText = typeof first.text === "function" ? (first as any).text() : (first.text ?? "");
-    } else {
-      const toolResult = !AURORA_WHATSAPP_PERMITIDAS.has(call.name)
+    const { text: replyText } = await aiChatWithTools({
+      system: systemInstruction,
+      messages: msgs,
+      tools: AURORA_TOOLS_WHATSAPP,
+      runTool: async (name, args) => !AURORA_WHATSAPP_PERMITIDAS.has(name)
         ? { error: "Ferramenta indisponível neste canal." }
-        : await runAuroraTool(call.name, call.args, supabaseService, tenantId);
-      const second = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: [
-          ...contents,
-          { role: "model", parts: [{ functionCall: call }] },
-          { role: "user", parts: [{ functionResponse: { name: call.name, response: toolResult } }] },
-        ],
-        config: { systemInstruction, tools: [{ functionDeclarations: AURORA_TOOLS_WHATSAPP }] },
-      });
-      replyText = typeof second.text === "function" ? (second as any).text() : (second.text ?? "");
-    }
+        : await runAuroraTool(name, args, supabaseService, tenantId),
+    });
     if (!replyText?.trim()) return;
 
     const provider = getWhatsAppProvider();
@@ -4727,7 +4717,7 @@ async function runAuroraAutoReply(tenantId: string, instanceId: string, contactI
 app.post("/api/ai/aurora-tenant-chat", requireUser, async (req: any, res: any) => {
   const { message } = req.body ?? {};
   if (!message?.trim()) return res.status(400).json({ error: "Mensagem vazia." });
-  if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "Aurora operacional não está configurada neste ambiente (GEMINI_API_KEY ausente)." });
+  if (!hasAnyAI()) return res.status(503).json({ error: "IA indisponível no momento. A Aurora operacional não está configurada neste ambiente." });
 
   // Empresa validada no servidor (a RLS sozinha não basta: master/parceiro enxergam várias empresas,
   // e as ferramentas agregariam dados de todas elas).
@@ -4762,31 +4752,15 @@ app.post("/api/ai/aurora-tenant-chat", requireUser, async (req: any, res: any) =
   const systemInstruction = "Você é a Aurora, assistente operacional do S.P.Y. CRM. Responda SOMENTE com base no resultado real das ferramentas disponíveis — nunca invente números, nomes ou datas. Se a pergunta não puder ser respondida com as ferramentas disponíveis, diga isso claramente em vez de adivinhar. Responda em português do Brasil, de forma direta e objetiva." + agentGateNotice;
 
   try {
-    const first = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: [{ role: "user", parts: [{ text: message }] }],
-      config: { systemInstruction, tools: [{ functionDeclarations: AURORA_TOOLS }] },
+    const r = await aiChatWithTools({
+      system: systemInstruction,
+      messages: [{ role: "user", text: message }],
+      tools: AURORA_TOOLS,
+      runTool: (name, args) => runAuroraTool(name, args, req.supabase, tenantId),
     });
-
-    const call = (first as any).functionCalls?.[0];
-    if (!call) {
-      const text = typeof first.text === "function" ? (first as any).text() : (first.text ?? "");
-      return res.json({ output: text || "Não consegui gerar uma resposta agora." });
-    }
-
-    const toolResult = await runAuroraTool(call.name, call.args, req.supabase, tenantId);
-
-    const second = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: [
-        { role: "user", parts: [{ text: message }] },
-        { role: "model", parts: [{ functionCall: call }] },
-        { role: "user", parts: [{ functionResponse: { name: call.name, response: toolResult } }] },
-      ],
-      config: { systemInstruction, tools: [{ functionDeclarations: AURORA_TOOLS }] },
-    });
-    const text = typeof second.text === "function" ? (second as any).text() : (second.text ?? "");
-    return res.json({ output: text || "Não consegui interpretar o resultado agora.", tool: call.name });
+    return res.json(r.tool
+      ? { output: r.text || "Não consegui interpretar o resultado agora.", tool: r.tool }
+      : { output: r.text || "Não consegui gerar uma resposta agora." });
   } catch (err: any) {
     console.error("[Aurora Tenant Chat]", err?.message);
     return res.status(502).json({ error: "Aurora está indisponível agora." });
@@ -5117,8 +5091,11 @@ app.post("/api/admin/tenant-user/:userId/credentials", requireUser, requireMaste
     if (!email && !password) {
       return res.status(400).json({ error: "Informe um novo e-mail e/ou senha para atualizar." });
     }
-    if (password && password.length < 6) {
-      return res.status(400).json({ error: "A senha precisa ter pelo menos 6 caracteres." });
+    if (password && (typeof password !== "string" || password.length < 8)) {
+      return res.status(400).json({ error: "A senha precisa ter pelo menos 8 caracteres." });
+    }
+    if (email && (typeof email !== "string" || !EMAIL_RE.test(email.trim()))) {
+      return res.status(400).json({ error: "E-mail inválido." });
     }
 
     const authUpdates: { email?: string; password?: string } = {};
@@ -5156,7 +5133,8 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
   const { tenantName, niche, adminEmail, adminPassword, plan, planId, primaryColor, timezone, modules, implementationId } = req.body ?? {};
   if (!tenantName?.trim()) return res.status(400).json({ error: "Informe o nome da empresa." });
   if (!adminEmail?.trim()) return res.status(400).json({ error: "Informe o e-mail do administrador da empresa." });
-  if (!adminPassword || adminPassword.length < 6) return res.status(400).json({ error: "A senha do administrador precisa ter pelo menos 6 caracteres." });
+  if (typeof adminEmail !== "string" || !EMAIL_RE.test(adminEmail.trim())) return res.status(400).json({ error: "E-mail do administrador inválido." });
+  if (!adminPassword || typeof adminPassword !== "string" || adminPassword.length < 8) return res.status(400).json({ error: "A senha do administrador precisa ter pelo menos 8 caracteres." });
 
   try {
     const { data: existingUser } = await supabaseService.from("users").select("id").eq("email", adminEmail.trim()).maybeSingle();
@@ -5334,6 +5312,7 @@ function mapChatContactRow(row: any) {
     phone: row.phone,
     tags: row.tags || [],
     instanceId: row.whatsapp_instance_id ?? null,
+    lastMessageAt: row.last_message_at ?? null, // cursor para ?before= na paginação
   };
 }
 
@@ -5383,6 +5362,7 @@ app.get("/api/whatsapp/instances", requireUser, async (req: any, res) => {
 });
 
 app.post("/api/whatsapp/instances", requireUser, async (req: any, res) => {
+  if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores podem gerenciar instâncias de WhatsApp." });
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: "Nome da instância é obrigatório" });
 
@@ -5724,7 +5704,8 @@ app.post("/api/whatsapp/instances/:id/qrcode", requireUser, async (req: any, res
       ? { risk_accepted_at: new Date().toISOString(), risk_accepted_by: req.user.id }
       : {};
     const result = await provider.getQrCode(sessionNameOf(inst));
-    await req.supabase.from("whatsapp_instances").update({ status: result.status, qrcode: result.qrcode, ...aceite }).eq("id", id);
+    // Escrita via service role: a RLS só deixa admin gravar em whatsapp_instances, mas o pareamento é feito pelo colaborador (posse já validada pelo SELECT acima).
+    await (supabaseService ?? req.supabase).from("whatsapp_instances").update({ status: result.status, qrcode: result.qrcode, ...aceite }).eq("id", id).eq("tenant_id", inst.tenant_id);
     res.json(result);
   } catch (err: any) {
     console.error(`[whatsapp/instances/qrcode] provider=${provider.name}`, err?.message);
@@ -5740,10 +5721,10 @@ app.post("/api/whatsapp/instances/:id/connect", requireUser, async (req: any, re
   const provider = getWhatsAppProvider();
   try {
     const result = await provider.getConnectionState(sessionNameOf(inst));
-    const { data: updated } = await req.supabase
+    const { data: updated } = await (supabaseService ?? req.supabase)
       .from("whatsapp_instances")
       .update({ status: result.status, phone: result.phone ?? inst.phone, qrcode: null })
-      .eq("id", id).select().maybeSingle();
+      .eq("id", id).eq("tenant_id", inst.tenant_id).select().maybeSingle();
     res.json({ status: result.status, instance: mapInstanceRow(updated || inst) });
   } catch (err: any) {
     console.error(`[whatsapp/instances/connect] provider=${provider.name}`, err?.message);
@@ -5811,6 +5792,7 @@ app.post("/api/whatsapp/instances/:id/backfill", requireUser, async (req: any, r
 });
 
 app.delete("/api/whatsapp/instances/:id", requireUser, async (req: any, res) => {
+  if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores podem gerenciar instâncias de WhatsApp." });
   const { id } = req.params;
   // Posse primeiro: só a instância visível ao chamador (RLS) chega ao gateway WAHA compartilhado.
   const { data: owned, error: ownErr } = await req.supabase.from("whatsapp_instances").select("id").eq("id", id).maybeSingle();
@@ -5824,6 +5806,7 @@ app.delete("/api/whatsapp/instances/:id", requireUser, async (req: any, res) => 
 });
 
 app.put("/api/whatsapp/instances/:id", requireUser, async (req: any, res) => {
+  if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores podem gerenciar instâncias de WhatsApp." });
   const { id } = req.params;
   // webhookUrl não é mais editável por aqui de propósito — é gerado e
   // registrado no WAHA só na criação (POST acima), com o token da própria
@@ -6022,7 +6005,7 @@ app.post("/api/leads/:id/conversa-whatsapp/transcrever", requireUser, aiLimiter,
     const tenantId = r.lead.tenant_id;
     const { data: cache } = await req.supabase.from("whatsapp_transcricoes").select("texto").eq("tenant_id", tenantId).eq("wa_message_id", r.messageId).maybeSingle();
     if (cache?.texto) return res.json({ texto: cache.texto, cache: true });
-    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "IA de transcrição não configurada (GEMINI_API_KEY)." });
+    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "A transcrição de áudio precisa da chave Gemini (GEMINI_API_KEY), que não está configurada." });
     if (!(await saas.isAiAllowed(tenantId))) return res.status(402).json({ error: "Sem saldo de IA neste tenant." });
 
     const media = await getWhatsAppProvider().downloadMedia?.(r.session, r.chatId, r.messageId);
@@ -6120,7 +6103,17 @@ app.get("/api/whatsapp/contacts", requireUser, async (req: any, res) => {
   // Só os contatos da empresa pedida (?tenantId=, validada) — sem o filtro, master/parceiro via as conversas de TODAS as empresas.
   const tenantId = await resolveRequestedTenantId(req, res);
   if (!tenantId) return;
-  const { data, error } = await req.supabase.from("chat_contacts").select("*").eq("tenant_id", tenantId).order("last_message_at", { ascending: false, nullsFirst: false }).limit(500);
+  // Paginação opcional (compatível com o front antigo, que não envia nada e recebe os 500 mais recentes):
+  //   ?q=texto   → busca no servidor por nome/telefone/última mensagem
+  //   ?before=ISO → só conversas com last_message_at anterior ao cursor (use o last_message_at da última recebida)
+  //   ?limit=N   → até 500
+  const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? "500"), 10) || 500, 1), 500);
+  let query = req.supabase.from("chat_contacts").select("*").eq("tenant_id", tenantId);
+  const qText = typeof req.query.q === "string" ? pgrstSafe(req.query.q) : "";
+  if (qText) query = query.or(`name.ilike.%${qText}%,phone.ilike.%${qText}%,last_message.ilike.%${qText}%`);
+  const before = typeof req.query.before === "string" ? req.query.before : "";
+  if (before && !Number.isNaN(Date.parse(before))) query = query.lt("last_message_at", new Date(before).toISOString());
+  const { data, error } = await query.order("last_message_at", { ascending: false, nullsFirst: false }).limit(limit);
   if (error) {
     console.error("[whatsapp/contacts GET]", error.message);
     return res.status(500).json({ error: "Erro ao buscar contatos." });
@@ -6286,30 +6279,13 @@ app.post("/api/whatsapp/copilot/analyze", requireUser, async (req: any, res) => 
   - suggestion (o rascunho exato da mensagem pronta para o vendedor usar)
   - sentiment (Positivo, Neutro ou Negativo)`;
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      const lastMsg = chatHistory[chatHistory.length - 1];
-      let sugg = `Olá ${contact ? contact.name : ""}, compreendo sua dúvida! Estamos analisando sua solicitação. De qualquer forma, gostaria de agendar uma ligação rápida hoje às 14h para fecharmos os detalhes?`;
-      if (lastMsg.text.toLowerCase().includes("frete")) {
-        sugg = `Olá ${contact ? contact.name : ""}, com certeza! Para sua região, nós conseguimos fazer o frete com um desconto especial de 50%, ou até GRÁTIS se fecharmos o contrato Pro hoje. O que acha?`;
-      }
-      return res.json({ analysis: "O cliente demonstrou interesse inicial. A IA sugere oferecer atendimento ágil para acelerar o fechamento.", suggestion: sugg, sentiment: "Positivo" });
-    }
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: promptContext,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: { analysis: { type: Type.STRING }, suggestion: { type: Type.STRING }, sentiment: { type: Type.STRING } },
-          required: ["analysis", "suggestion", "sentiment"]
-        },
-      },
-    });
-    res.json(JSON.parse(response.text ?? "{}"));
+    if (!hasAnyAI()) return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
+    const raw = await generateAI(promptContext + "\nResponda SOMENTE com um objeto JSON válido, sem markdown. Nunca prometa desconto, frete grátis ou condições que não constem no histórico.", { maxTokens: 800 });
+    const parsed = extractJSON(raw);
+    res.json({ analysis: parsed.analysis ?? "", suggestion: parsed.suggestion ?? "", sentiment: parsed.sentiment ?? "Neutro" });
   } catch (e) {
     console.error("Copilot analysis failure:", e);
-    res.status(500).json({ error: "Erro de processamento da IA" });
+    res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   }
 });
 
@@ -6333,7 +6309,7 @@ app.post("/api/integrations/webhook-test", requireUser, async (req: any, res) =>
     const response = await axios.post(
       safeUrl.toString(),
       payload ?? { event: event || "test_ping", test: true, timestamp: new Date().toISOString() },
-      { timeout: 8000, validateStatus: () => true, maxRedirects: 0, maxContentLength: 1_000_000 }
+      { timeout: 8000, validateStatus: () => true, maxRedirects: 0, maxContentLength: 1_000_000, ...ssrfSafeAgents }
     );
     const ok = response.status >= 200 && response.status < 300;
     res.json({ ok, status: response.status, latencyMs: Date.now() - started });
@@ -6480,7 +6456,7 @@ app.post("/api/integrations/external/:id/test", requireUser, requireTenantAdmin,
     const response = await axios.post(
       safeUrl.toString(),
       { event: "test_ping", integration: integration.name, timestamp: new Date().toISOString() },
-      { headers, timeout: 8000, validateStatus: () => true, maxRedirects: 0, maxContentLength: 1_000_000 }
+      { headers, timeout: 8000, validateStatus: () => true, maxRedirects: 0, maxContentLength: 1_000_000, ...ssrfSafeAgents }
     );
     const ok = response.status >= 200 && response.status < 300;
     res.json({ ok, status: response.status, latencyMs: Date.now() - started });
@@ -6627,7 +6603,7 @@ app.post("/api/auth/password-changed", requireUser, async (req: any, res) => {
 // rotina do Google). Sem CRON_SECRET configurado, fica desligada.
 app.get("/api/notifications/cron", async (req: any, res) => {
   const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.authorization !== `Bearer ${secret}`) return res.status(401).json({ error: "unauthorized" });
+  if (!secret || !safeEqualStr(String(req.headers.authorization || ""), `Bearer ${secret}`)) return res.status(401).json({ error: "unauthorized" });
   if (!supabaseService) return res.status(503).json({ error: "not_configured" });
   try {
     res.json({ ok: true, ...(await runNotificationReminders(supabaseService, PUBLIC_APP_URL)) });
