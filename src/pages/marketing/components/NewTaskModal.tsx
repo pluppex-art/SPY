@@ -43,7 +43,7 @@ export function NewTaskModal({
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-[var(--color-surface-elevated)] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200"
+        className="bg-[var(--color-surface-elevated)] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90dvh] overflow-y-auto ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200"
       >
          <div className="p-6 border-b border-white/10 flex justify-between items-center text-white text-left">
             <h3 className="text-lg font-black uppercase tracking-tighter">Criar Nova Pauta</h3>

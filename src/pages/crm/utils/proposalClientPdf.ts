@@ -2,7 +2,6 @@ import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { toPng } from "html-to-image";
-import jsPDF from "jspdf";
 import { toast } from "sonner";
 import {
   PropostaDocumento,
@@ -233,6 +232,7 @@ export async function downloadPropostaClientePdf(
       start = end;
     }
 
+    const { default: jsPDF } = await import("jspdf");
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const total = slices.length;
     for (let i = 0; i < total; i++) {

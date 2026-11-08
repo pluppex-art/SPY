@@ -10,8 +10,14 @@ import {defineConfig, loadEnv, type Plugin} from 'vite';
 function buildIdPlugin(buildId: string): Plugin {
   return {
     name: 'emit-build-id',
-    writeBundle() {
+    apply: 'build',
+    closeBundle() {
       fs.writeFileSync(path.resolve(__dirname, 'dist/build-id.txt'), buildId);
+      // Versiona o cache do service worker pelo build (limpa assets antigos no "activate").
+      const swPath = path.resolve(__dirname, 'dist/sw.js');
+      if (fs.existsSync(swPath)) {
+        fs.writeFileSync(swPath, fs.readFileSync(swPath, 'utf8').replace('__BUILD_ID__', buildId.slice(0, 12)));
+      }
     },
   };
 }

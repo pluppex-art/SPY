@@ -236,7 +236,7 @@ export default function AnaliseFatura() {
                 className="flex flex-col items-center justify-center gap-2 h-40 border-2 border-dashed border-[var(--color-border-default)] rounded-xl cursor-pointer hover:border-amber-500/50 transition-colors overflow-hidden"
               >
                 {preview ? (
-                  <img src={preview} alt="Preview da fatura" className="h-full w-full object-contain" />
+                  <img loading="lazy" decoding="async" src={preview} alt="Preview da fatura" className="h-full w-full object-contain" />
                 ) : (
                   <>
                     <Upload className="w-6 h-6 text-[var(--color-text-faint)]" />

@@ -1,5 +1,4 @@
 import { resumoValorProposta } from "../../../lib/propostaValor";
-import jsPDF from "jspdf";
 
 export interface Proposta {
   id: string;
@@ -57,6 +56,7 @@ export const handleDownloadPdf = async (
   itens: PropostaItemPdf[] = [],
   branding?: PropostaBranding
 ) => {
+  const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF();
 
   if (branding?.logoUrl) {

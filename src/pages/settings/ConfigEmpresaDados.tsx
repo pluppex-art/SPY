@@ -191,7 +191,7 @@ export default function ConfigEmpresaDados() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 pb-4 border-b border-[var(--color-border-subtle)]">
             <div className="w-20 h-20 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] flex items-center justify-center overflow-hidden shrink-0">
               {empresa.logoUrl ? (
-                <img src={empresa.logoUrl} alt="Logo da empresa" className="w-full h-full object-contain p-1.5" />
+                <img loading="lazy" decoding="async" src={empresa.logoUrl} alt="Logo da empresa" className="w-full h-full object-contain p-1.5" />
               ) : (
                 <ImageOff className="w-6 h-6 text-[var(--color-text-faint)]" />
               )}

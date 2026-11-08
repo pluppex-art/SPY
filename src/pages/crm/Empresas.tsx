@@ -45,15 +45,25 @@ export default function Empresas() {
     }
     // Sem o filtro de tenant, contas de parceiro (has_tenant_access verdadeiro
     // pra vários tenants) recebiam via RLS linhas de todos os tenants acessíveis.
-    const { data, error } = await supabase
-      .from("clientes")
-      .select("*")
-      .eq("tenant_id", activeTenantId)
-      .order("name", { ascending: true });
+    // Pagina em blocos de 1000 (limite do PostgREST) para não cortar a lista em bases grandes.
+    const data: any[] = [];
+    let error: any = null;
+    for (let from = 0; ; from += 1000) {
+      const res = await supabase
+        .from("clientes")
+        .select("*")
+        .eq("tenant_id", activeTenantId)
+        .order("name", { ascending: true })
+        .order("id")
+        .range(from, from + 999);
+      if (res.error) { error = res.error; break; }
+      data.push(...(res.data || []));
+      if ((res.data || []).length < 1000) break;
+    }
 
     if (error) {
       toast.error(`Erro ao carregar empresas: ${friendlyError(error)}`);
-    } else if (data) {
+    } else {
       setEmpresas(data);
     }
     setLoading(false);

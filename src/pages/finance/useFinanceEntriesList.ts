@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { limpaBusca, fetchAllRows } from "../../lib/pgrst";
 import { useAuth } from "../../contexts/AuthContext";
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -58,7 +59,7 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
     if (contraparte) q = q.eq("counterparty", contraparte);
     if (activeFilialId) q = q.or(`filial_id.is.null,filial_id.eq.${activeFilialId}`);
     if (search.trim()) {
-      const term = search.trim().replace(/[%,]/g, "");
+      const term = limpaBusca(search);
       q = q.or(`description.ilike.%${term}%,category.ilike.%${term}%,counterparty.ilike.%${term}%`);
     }
     if (categoriaId) q = q.eq("category_id", categoriaId);
@@ -129,9 +130,9 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
   // batem o filtro atual, sem paginação, só pra montar o CSV completo.
   const fetchAllForExport = async (): Promise<any[]> => {
     if (!supabase || !tenantId) return [];
-    const { data } = await applyFilters(supabase.from("finance_entries").select("*").eq("tenant_id", tenantId))
-      .order("date_normalized", { ascending: false, nullsFirst: false });
-    return data || [];
+    return fetchAllRows(() => applyFilters(supabase!.from("finance_entries").select("*").eq("tenant_id", tenantId))
+      .order("date_normalized", { ascending: false, nullsFirst: false })
+      .order("id"));
   };
 
   return {

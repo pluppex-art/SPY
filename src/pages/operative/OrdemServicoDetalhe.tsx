@@ -19,6 +19,7 @@ import {
 import { cn } from "../../lib/utils";
 import { ClientePicker } from "../os/components/ClientePicker";
 import { dadosDoCliente } from "../os/clienteOs";
+import { friendlyError } from "../../lib/friendlyError";
 
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] disabled:opacity-60";
@@ -102,7 +103,7 @@ export default function OrdemServicoDetalhe() {
       await carregar();
       return true;
     } catch (e: any) {
-      toast.error("Não foi possível salvar: " + (e?.message || "erro"));
+      toast.error("Não foi possível salvar: " + friendlyError(e));
       return false;
     } finally {
       setSalvando(false);
@@ -252,7 +253,7 @@ export default function OrdemServicoDetalhe() {
             <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Serviço</h3>
             <div><label className={labelCls}>Título do serviço</label><input className={inputCls} disabled={locked} value={os.titulo || ""} onChange={(e) => setField("titulo", e.target.value)} placeholder="Ex.: Instalação de ar-condicionado" /></div>
             <div><label className={labelCls}>Descrição / escopo</label><textarea rows={3} className={inputCls} disabled={locked} value={os.descricao || ""} onChange={(e) => setField("descricao", e.target.value)} /></div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div><label className={labelCls}>Abertura</label><input type="date" className={inputCls} disabled={locked} value={os.data_abertura || ""} onChange={(e) => setField("data_abertura", e.target.value)} /></div>
               <div><label className={labelCls}>Previsão</label><input type="date" className={inputCls} disabled={locked} value={os.data_prevista || ""} onChange={(e) => setField("data_prevista", e.target.value)} /></div>
               <div><label className={labelCls}>Prioridade</label>

@@ -4,8 +4,6 @@ import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import confetti from "canvas-confetti";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
 import { parseCurrencyBR, normalizeText } from "../../lib/utils";
@@ -317,7 +315,9 @@ export function usePipeline() {
     });
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text(`Relatório de Pipeline — ${activeFunil?.nome ?? currentPipeline}`, 14, 22);
@@ -344,8 +344,10 @@ export function usePipeline() {
     toast.success("PDF exportado com sucesso!");
   };
 
-  const handleExportIAResume = (e: any, lead: any) => {
+  const handleExportIAResume = async (e: any, lead: any) => {
     e.stopPropagation();
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF();
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);

@@ -113,7 +113,7 @@ function MidiaMensagem({ leadId, m, doVendedor }: { leadId: string; m: Msg; doVe
     return (
       <div ref={ref} className="mb-1">
         {url ? (
-          <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Imagem da conversa" className="rounded-xl max-h-64 max-w-full object-cover" /></a>
+          <a href={url} target="_blank" rel="noreferrer"><img loading="lazy" decoding="async" src={url} alt="Imagem da conversa" className="rounded-xl max-h-64 max-w-full object-cover" /></a>
         ) : (
           <div className="h-24 w-40 rounded-xl bg-black/10 flex items-center justify-center text-[10px] opacity-70">
             {estado === "erro" ? <button type="button" className={btn} onClick={carregar}>Imagem indisponível · tentar de novo</button> : <Loader2 className="w-4 h-4 animate-spin" />}

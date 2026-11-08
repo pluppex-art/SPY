@@ -131,8 +131,7 @@ const ConfigIntegracoesWebhooks = lazy(() => import("./pages/settings/ConfigInte
 const ConfigConexoes = lazy(() => import("./pages/settings/sections/integracoes/ConfigConexoes").then(m => ({ default: m.ConfigConexoes })));
 const ConfigConectoresExternos = lazy(() => import("./pages/settings/ConfigConectoresExternos").then(m => ({ default: m.ConfigConectoresExternos })));
 const ConfigLinksDinamicos = lazy(() => import("./pages/settings/ConfigLinksDinamicos").then(m => ({ default: m.ConfigLinksDinamicos })));
-const SettingsGenericForm = lazy(() => import("./pages/settings/SettingsGenericForm"));
-const GenericPlaceholder = lazy(() => import("./pages/common/GenericPlaceholder"));
+const RotaInexistente = lazy(() => import("./pages/common/RotaInexistente"));
 const EducationTurmas = lazy(() => import("./pages/education/Turmas"));
 const EducationConteudo = lazy(() => import("./pages/education/Conteudo"));
 const EducationCertificados = lazy(() => import("./pages/education/Certificados"));
@@ -366,8 +365,8 @@ function AppContent() {
             <Route path="contatos" element={<FinanceiroContatos />} />
             <Route path="indicacoes" element={<Indicacoes />} />
             <Route path="faturas" element={<Contracts />} />
-            <Route path="categorias" element={<SettingsGenericForm />} />
-            <Route path="*" element={<GenericPlaceholder />} />
+            <Route path="categorias" element={<Navigate to="/app/financeiro/plano-contas" replace />} />
+            <Route path="*" element={<RotaInexistente to="/app/financeiro" />} />
           </Route>
 
           {/* Verticais de Nicho: Imobiliário */}
@@ -568,7 +567,7 @@ function AppContent() {
                 (sistema/aurora) — redirect pra quem tiver o link antigo salvo. */}
             <Route path="ia/aurora" element={<Navigate to="/app/configuracoes/sistema/aurora" replace />} />
 
-            <Route path="*" element={<SettingsGenericForm />} />
+            <Route path="*" element={<RotaInexistente to="/app/configuracoes" />} />
           </Route>
 
           {/* Dev & Tecnologia */}

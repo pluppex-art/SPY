@@ -1,4 +1,3 @@
-import jsPDF from "jspdf";
 
 export interface CertificateForPdf {
   id: string;
@@ -9,7 +8,8 @@ export interface CertificateForPdf {
   grade: string;
 }
 
-export function downloadCertificatePdf(cert: CertificateForPdf) {
+export async function downloadCertificatePdf(cert: CertificateForPdf) {
+  const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "landscape" });
 
   doc.setDrawColor(217, 119, 6); // amber-600

@@ -40,7 +40,7 @@ export function SquadsPanel({ squads, selectedId, onSelect, onEdit, onDelete, so
             <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at 75% 40%, ${cor}25, transparent 65%)` }} />
 
             {sq.logo && (
-              <img src={sq.logo} alt="logo" className="absolute right-3 top-3 w-14 h-14 rounded-xl object-cover opacity-75" />
+              <img loading="lazy" decoding="async" src={sq.logo} alt="logo" className="absolute right-3 top-3 w-14 h-14 rounded-xl object-cover opacity-75" />
             )}
 
             <div className="absolute top-3 left-3 w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${cor}30`, border: `1px solid ${cor}50` }}>

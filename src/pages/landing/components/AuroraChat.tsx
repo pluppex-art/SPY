@@ -68,7 +68,7 @@ export function AuroraChat() {
   return (
     <div className="sp-chat" role="img" aria-label="Exemplo ilustrativo de conversa com a Aurora" ref={ref}>
       <div className="sp-chat__head" aria-hidden="true">
-        <img src="/avatar-ia.png" alt="" width={40} height={40} loading="lazy" />
+        <img src="/avatar-ia.webp" alt="" width={40} height={40} loading="lazy" decoding="async" />
         <div>
           <strong>Aurora</strong>
           <small>Assistente de IA do S.P.Y.</small>

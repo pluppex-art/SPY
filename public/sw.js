@@ -6,7 +6,9 @@
  *  - /assets/* (nome com hash, imutável): cache primeiro.
  *  - Push: recebe e mostra notificações; o clique abre a URL enviada (só do mesmo domínio).
  */
-const VERSION = "spy-v1";
+// O sufixo do VERSION é trocado a cada build (ver buildIdPlugin em vite.config.ts): cada deploy tem seu próprio cache,
+// e o "activate" abaixo apaga os caches de versões anteriores (assets antigos não se acumulam).
+const VERSION = "spy-__BUILD_ID__";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const OFFLINE_URL = "/offline.html";
@@ -40,14 +42,19 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.open(ASSET_CACHE).then(async (cache) => {
         const hit = await cache.match(req);
-        if (hit) return hit;
+        if (hit && !isHtml(hit)) return hit;
         const res = await fetch(req);
-        if (res.ok) cache.put(req, res.clone());
+        // O rewrite da Vercel devolve index.html (200) para chunk inexistente: nunca guardar HTML em /assets/.
+        if (res.ok && !isHtml(res)) cache.put(req, res.clone());
         return res;
       }),
     );
   }
 });
+
+function isHtml(res) {
+  return (res.headers.get("content-type") || "").toLowerCase().includes("text/html");
+}
 
 self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") self.skipWaiting();

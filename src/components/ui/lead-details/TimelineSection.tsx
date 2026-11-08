@@ -170,7 +170,7 @@ export function TimelineSection({ lead }: TimelineSectionProps) {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
           { label: "Vendas", value: String(ordenadas.length) },
           { label: "Total vendido", value: brl(total) },

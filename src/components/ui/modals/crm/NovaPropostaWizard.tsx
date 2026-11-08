@@ -12,6 +12,7 @@ import { useLocalization } from "../../../../contexts/LocalizationContext";
 import { cn, normalizeText } from "../../../../lib/utils";
 import { toast } from "sonner";
 import { confirmDialog } from "../../confirm-dialog";
+import { friendlyError } from "../../../../lib/friendlyError";
 
 // ─── Tipos locais ───────────────────────────────────────────────────────────
 
@@ -501,7 +502,7 @@ export function NovaPropostaWizard({
       onDone?.(`📄 ${payload.titulo} — ${formatCurrency(totalProposta)} (${existingProposal ? "editada" : status === "Rascunho" ? "rascunho" : "enviada"}).`);
       onClose();
     } catch (err: any) {
-      toast.error("Erro ao salvar proposta: " + (err?.message || "tente novamente."));
+      toast.error("Erro ao salvar proposta: " + friendlyError(err));
     } finally {
       setSaving(false);
     }
@@ -530,7 +531,7 @@ export function NovaPropostaWizard({
         onClose();
       }
     } catch (err: any) {
-      toast.error("Erro ao excluir proposta: " + (err?.message || "tente novamente."));
+      toast.error("Erro ao excluir proposta: " + friendlyError(err));
     } finally {
       setSaving(false);
     }
@@ -1274,7 +1275,7 @@ function StepRevisao(props: any) {
         <SectionCard icon={Building2} title="Cliente e oportunidade" onEdit={() => setStep(1)}>
           <p className="text-sm font-black text-[var(--color-text-primary)]">{clientName}</p>
           <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">{tituloProposta}</p>
-          <div className="grid grid-cols-3 gap-2 mt-2 text-[10px]">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 text-[10px]">
             <SummaryRow label="Fechamento" value={formatDateBR(previsaoFechamento)} />
             <SummaryRow label="Probabilidade" value={`${probabilidade}%`} />
             <SummaryRow label="Valor estimado" value={formatCurrencyBR(Number(valorEstimado) || 0)} />

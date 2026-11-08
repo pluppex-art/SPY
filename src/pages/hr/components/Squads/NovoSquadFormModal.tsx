@@ -37,7 +37,7 @@ export function NovoSquadFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
-      <div className="w-full max-w-xl bg-[var(--color-surface)] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-xl bg-[var(--color-surface)] border border-white/10 rounded-[2.5rem] max-h-[90dvh] overflow-y-auto shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200" onClick={e => e.stopPropagation()}>
 
         <div
           className="px-8 pt-8 pb-5 border-b border-white/5 flex items-center justify-between"
@@ -103,7 +103,7 @@ export function NovoSquadFormModal({
             <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Emblema / Logo <span className="text-slate-600 normal-case font-normal">(opcional)</span></label>
             <label className="flex items-center gap-4 p-4 border border-dashed border-white/10 rounded-xl cursor-pointer hover:border-blue-500/40 transition-all group">
               {newSquadLogo
-                ? <img src={newSquadLogo} className="w-12 h-12 rounded-xl object-cover" alt="logo" />
+                ? <img loading="lazy" decoding="async" src={newSquadLogo} className="w-12 h-12 rounded-xl object-cover" alt="logo" />
                 : <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-all"><ImagePlus className="w-5 h-5 text-slate-500" /></div>
               }
               <div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../../lib/supabase";
+import { limpaBusca } from "../../../lib/pgrst";
 import { useAuth } from "../../../contexts/AuthContext";
 import { Task } from "../../../types";
 
@@ -42,7 +43,7 @@ export function useTarefasList(params: {
       let query = supabase.from("tasks").select("*", { count: "exact" }).eq("tenant_id", tenantId);
       if (activeFilialId) query = query.or(`filial_id.is.null,filial_id.eq.${activeFilialId}`);
       if (searchQuery.trim()) {
-        const q = searchQuery.trim().replace(/[%,]/g, "");
+        const q = limpaBusca(searchQuery);
         query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
       }
       if (selectedPriorities.length > 0) query = query.in("priority", selectedPriorities);

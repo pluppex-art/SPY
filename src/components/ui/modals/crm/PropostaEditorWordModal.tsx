@@ -20,6 +20,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { downloadPropostaClientePdf } from "../../../../pages/crm/utils/proposalClientPdf";
 import { cn } from "../../../../lib/utils";
 import { PropostaDocumento } from "../../../proposta/PropostaDocumento";
+import { friendlyError } from "../../../../lib/friendlyError";
 
 export interface PropostaEditorData {
   id?: string;
@@ -242,7 +243,7 @@ export function PropostaEditorWordModal({
         description: "Diretrizes, escopo e termos contratuais sincronizados no banco de dados.",
       });
     } catch (err: any) {
-      toast.error("Erro ao salvar proposta: " + err?.message);
+      toast.error("Erro ao salvar proposta: " + friendlyError(err));
     } finally {
       setIsSaving(false);
     }
@@ -298,7 +299,7 @@ export function PropostaEditorWordModal({
         <div className="flex items-center gap-3 min-w-0">
           {empresaDados?.logoUrl ? (
             <div className="w-10 h-10 rounded-xl bg-white border border-[var(--color-border-default)] flex items-center justify-center shadow-md shrink-0 overflow-hidden">
-              <img src={empresaDados.logoUrl} alt={tenantName} className="w-full h-full object-contain p-1" />
+              <img loading="lazy" decoding="async" src={empresaDados.logoUrl} alt={tenantName} className="w-full h-full object-contain p-1" />
             </div>
           ) : (
             <div

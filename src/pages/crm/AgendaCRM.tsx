@@ -39,6 +39,7 @@ import { connectGoogleCalendar, consumeGoogleCalendarRedirectResult, disconnectG
 import { getGoogleIntegrationsStatus } from "../../lib/googleIntegrations";
 import { supabase } from "../../lib/supabase";
 import { normalizeText, dataLocalISO } from "../../lib/utils";
+import { friendlyError } from "../../lib/friendlyError";
 
 type TipoFiltro = "Todos" | TipoCompromisso;
 
@@ -361,7 +362,7 @@ export default function AgendaCRM() {
         : `Google Calendar sincronizado! ${imported} eventos importados, ${updated} atualizados.`);
     } catch (err: any) {
       if (/reauth|expir/i.test(err?.message || "")) setGoogleUserEmail(null);
-      toast.error(err?.message || "Erro ao sincronizar com Google Calendar.");
+      toast.error(friendlyError(err));
     } finally {
       setIsSyncing(false);
     }
@@ -372,7 +373,7 @@ export default function AgendaCRM() {
     try {
       await connectGoogleCalendar(activeTenantId, window.location.pathname);
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao conectar ao Google.");
+      toast.error(friendlyError(err));
     }
   };
 

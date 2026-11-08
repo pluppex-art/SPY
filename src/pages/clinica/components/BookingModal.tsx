@@ -146,7 +146,7 @@ export function BookingModal({ isOpen, onClose, leads, addTask, addAppointment }
             initial={{ scale: 0.95, opacity: 0, y: 15 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 15 }}
-            className="relative w-full max-w-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-panel)] overflow-hidden shadow-2xl"
+            className="relative w-full max-w-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-panel)] max-h-[90dvh] overflow-y-auto shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6 bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">

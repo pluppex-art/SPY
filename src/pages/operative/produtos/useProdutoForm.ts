@@ -6,6 +6,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { BASE_TYPES, isUniqueAssetType, statusToStock } from "./typeSchemas";
 import { useNicheProfiles } from "./useNicheProfiles";
 import { resolveTypeOptions, getDefaultType, getDefaultCategory, profileCategories, hidesSubscription, persistDefaultsFor } from "./nicheProfiles";
+import { friendlyError } from "../../../lib/friendlyError";
 
 export function useProdutoForm() {
   // A visualização escolhida (cards ou lista) fica salva por usuário em users.preferences.
@@ -222,7 +223,7 @@ export function useProdutoForm() {
     } catch (err: any) {
       // Nunca falhar em silêncio: o botão "Salvar" sem resposta era a queixa.
       console.error("[Produtos] erro ao salvar:", err);
-      toast.error(`Não foi possível salvar o produto: ${err?.message || "erro inesperado."}`);
+      toast.error(`Não foi possível salvar o produto: ${friendlyError(err)}`);
     }
   };
 

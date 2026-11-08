@@ -111,7 +111,7 @@ export function WhatsAppPairingModal() {
       </ol>
       <div className="flex items-center justify-center min-h-[260px] rounded-xl bg-white p-3">
         {qr.startsWith("data:") ? (
-          <img src={qr} alt="QR code do WhatsApp" className="w-60 h-60" />
+          <img loading="lazy" decoding="async" src={qr} alt="QR code do WhatsApp" className="w-60 h-60" />
         ) : (
           <span className="text-sm text-neutral-500">{error || "Gerando QR code..."}</span>
         )}

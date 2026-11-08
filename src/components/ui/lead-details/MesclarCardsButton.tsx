@@ -7,11 +7,9 @@ import { supabase } from "../../../lib/supabase";
 import { confirmDialog } from "../confirm-dialog";
 import { friendlyError } from "../../../lib/friendlyError";
 import { avisarMudancaDePessoas } from "./useLeadPessoas";
+import { limpaBusca } from "../../../lib/pgrst";
 
 type Candidato = { id: string; name: string | null; company: string | null; phone: string | null; status: string | null };
-
-/** Remove caracteres que quebram o filtro `or` do PostgREST. */
-const limpaBusca = (v: string) => v.replace(/[,()%*\\]/g, " ").trim();
 
 const campo =
   "w-full bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)]";

@@ -37,7 +37,7 @@ export function SquadEditModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose} />
       <div
-        className="relative w-full max-w-md bg-[var(--color-surface)] border border-white/10 rounded-3xl p-7 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200"
+        className="relative w-full max-w-md bg-[var(--color-surface)] border border-white/10 rounded-3xl p-7 max-h-[90dvh] overflow-y-auto shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200"
         style={{ borderLeft: `4px solid ${editCor}` }}
       >
         <div className="flex items-center justify-between mb-6">
@@ -94,7 +94,7 @@ export function SquadEditModal({
             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Emblema / Logo</label>
             <label className="flex items-center gap-3 p-3 border border-dashed border-white/20 rounded-xl cursor-pointer hover:border-white/40 transition-colors group">
               {editLogo
-                ? <img src={editLogo} className="w-10 h-10 rounded-lg object-cover" alt="logo" />
+                ? <img loading="lazy" decoding="async" src={editLogo} className="w-10 h-10 rounded-lg object-cover" alt="logo" />
                 : <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center"><ImagePlus className="w-5 h-5 text-slate-500 group-hover:text-slate-300 transition-colors" /></div>
               }
               <div>

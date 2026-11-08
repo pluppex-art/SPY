@@ -245,7 +245,7 @@ export function ConfigPerfilUsuario() {
           <div className="relative group">
             <div className="w-20 h-20 rounded-2xl bg-[var(--color-primary-blue)] text-white flex items-center justify-center text-2xl font-bold shadow-md overflow-hidden border-2 border-[var(--color-border-default)]">
               {profile.avatar ? (
-                <img src={profile.avatar} alt={nomeExibido} className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={profile.avatar} alt={nomeExibido} className="w-full h-full object-cover" />
               ) : (
                 nomeExibido.substring(0, 2).toUpperCase()
               )}

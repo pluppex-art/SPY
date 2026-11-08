@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
+import { friendlyError } from "../../../../lib/friendlyError";
 
 const COMBO_DISCOUNT = 0.1;
 
@@ -51,7 +52,7 @@ export function ProdutosAICombo() {
       });
       toast.success("Combo sugerido importado para as propostas!");
     } catch (err: any) {
-      toast.error(`Falha ao criar proposta do combo: ${err.message || err}`);
+      toast.error(`Falha ao criar proposta do combo: ${friendlyError(err)}`);
     } finally {
       setCreating(false);
     }

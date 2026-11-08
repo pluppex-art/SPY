@@ -1,4 +1,3 @@
-import jsPDF from "jspdf";
 
 export interface DevProjectPdfData {
   id: string;
@@ -10,7 +9,8 @@ export interface DevProjectPdfData {
   valor_estimado?: number | null;
 }
 
-export const handleDownloadDevProjectPdf = (project: DevProjectPdfData) => {
+export const handleDownloadDevProjectPdf = async (project: DevProjectPdfData) => {
+  const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF();
 
   // Header

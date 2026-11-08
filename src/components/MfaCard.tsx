@@ -65,7 +65,7 @@ export function MfaCard() {
       ) : enroll ? (
         <div className="space-y-3">
           <p className="text-sm text-[var(--color-text-muted)]">1. Escaneie o QR code no Google Authenticator ou Authy. 2. Digite o código de 6 dígitos gerado.</p>
-          <img src={enroll.qr} alt="QR code para o aplicativo autenticador" className="w-40 h-40 bg-white p-2 rounded-lg" />
+          <img loading="lazy" decoding="async" src={enroll.qr} alt="QR code para o aplicativo autenticador" className="w-40 h-40 bg-white p-2 rounded-lg" />
           <p className="text-xs text-[var(--color-text-muted)]">Sem câmera? Chave manual: <code className="select-all">{enroll.secret}</code></p>
           <div className="flex gap-2">
             <input className="w-36 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] px-3 py-2 text-sm tracking-widest text-center" inputMode="numeric" maxLength={6} placeholder="000000" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />

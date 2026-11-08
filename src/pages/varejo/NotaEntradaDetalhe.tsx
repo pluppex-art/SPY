@@ -17,6 +17,7 @@ import {
   NOTA_STATUS_MANUAL, NOTA_STATUS_TONE, defaultQtdEstoque, isNotaLocked, normText, stockBlockers, type NotaStatus,
 } from "../../lib/notaEntrada";
 import { cn } from "../../lib/utils";
+import { friendlyError } from "../../lib/friendlyError";
 
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] disabled:opacity-60";
@@ -210,7 +211,7 @@ export default function NotaEntradaDetalhe() {
     setLancando(true);
     try {
       const { error } = await supabase.rpc("lancar_nota_entrada_estoque", { p_nota_id: nota.id, p_atualizar_custo: atualizarCusto });
-      if (error) { toast.error(error.message || "Não foi possível dar entrada no estoque."); return; }
+      if (error) { toast.error(friendlyError(error)); return; }
       // Reflete no catálogo em memória (o Estoque/PDV leem daqui) sem esperar recarregar.
       const porProduto = new Map<string, { qtd: number; custo: number }>();
       for (const i of itens) {

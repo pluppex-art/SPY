@@ -67,7 +67,7 @@ export function InstallAppPrompt() {
 
   return (
     <div className="md:hidden mx-4 mt-3 rounded-[var(--radius-panel)] border border-[var(--color-primary-blue)]/25 bg-[var(--color-primary-blue)]/5 p-3.5 flex items-start gap-3">
-      <img src="/pwa-192.png" alt="" className="w-10 h-10 rounded-xl shrink-0" />
+      <img loading="lazy" decoding="async" src="/pwa-192.png" alt="" className="w-10 h-10 rounded-xl shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-xs font-black text-[var(--color-text-primary)]">Instale o S.P.Y. no celular</p>
         {evt ? (

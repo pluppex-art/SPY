@@ -11,6 +11,7 @@ import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } fro
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
+import { limpaBusca } from "../../lib/pgrst";
 import { apiFetch } from "../../lib/apiClient";
 import { cn } from "../../lib/utils";
 import { COMPARISON_STATUS_LABEL, COMPARISON_STATUS_TONE } from "./ComparacaoTabelas";
@@ -78,7 +79,7 @@ export default function ComparacaoResultado() {
     if (filtro === "confirmado") q = q.eq("status", "confirmado");
     else if (filtro === "nao_identificado") q = q.in("status", ["nao_identificado", "rejeitado"]);
     else if (filtro !== "todos") q = q.eq("status", filtro);
-    const termo = busca.trim().replace(/[%,()]/g, " ");
+    const termo = limpaBusca(busca);
     if (termo) q = q.or(`nome_parceiro.ilike.%${termo}%,codigo_parceiro.ilike.%${termo}%`);
     if (ordem === "maior_diferenca") q = q.order("diferenca", { ascending: false, nullsFirst: false });
     else if (ordem === "maior_impacto") q = q.order("diferenca", { ascending: true, nullsFirst: false });
@@ -102,7 +103,7 @@ export default function ComparacaoResultado() {
   useEffect(() => {
     if (!detalhe || !supabase || !activeTenantId || trocaBusca.trim().length < 2) { setTrocaRes([]); return; }
     const t = window.setTimeout(async () => {
-      const termo = trocaBusca.trim().replace(/[%,()]/g, " ");
+      const termo = limpaBusca(trocaBusca);
       const { data } = await supabase!.from("saude_exames_base").select("id,nome,codigo_interno,custo,valor")
         .eq("tenant_id", activeTenantId).eq("ativo", true).or(`nome.ilike.%${termo}%,codigo_interno.ilike.%${termo}%`).limit(8);
       setTrocaRes(data || []);

@@ -10,6 +10,7 @@ import { useAgentPrompts } from "../../../hooks/useAgentPrompts";
 import { useData } from "../../../contexts/DataContext";
 import { ConfigSistemaConhecimentoIA } from "./SettingsSistemaConhecimento";
 import { ConfigSistemaAprendizados } from "./SettingsSistemaAprendizados";
+import { friendlyError } from "../../../lib/friendlyError";
 
 // Os 4 agentes do modelo padrão. `key` é o agent_key que o n8n lê ao vivo por empresa
 // (ai_agent_prompts): o que for salvo aqui entra no prompt do agente na próxima execução,
@@ -73,7 +74,7 @@ function AgenteTreino({ agente }: { agente: (typeof AGENTES)[number] }) {
       .eq("agent_key", agente.key)
       .is("tenant_id", null);
     setSalvandoBase(false);
-    if (error) return toast.error(`Não foi possível salvar: ${error.message}`);
+    if (error) return toast.error(`Não foi possível salvar: ${friendlyError(error)}`);
     setBaseDraft(null);
     await refresh();
     toast.success("Prompt base atualizado para todas as empresas.");

@@ -923,7 +923,7 @@ export default function VarejoVendas() {
       .select()
       .single();
     if (error || !data) {
-      toast.error(`Falha ao registrar operação de caixa: ${error?.message || "erro desconhecido"}`);
+      toast.error(`Falha ao registrar operação de caixa: ${friendlyError(error)}`);
       return null;
     }
     const novaOp: CaixaOperacao = {

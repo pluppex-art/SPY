@@ -123,11 +123,21 @@ export default function FinanceiroConciliacao() {
     if (!supabase || !activeTenantId) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase!
-        .from("finance_extratos_importados")
-        .select("*")
-        .eq("tenant_id", activeTenantId)
-        .order("created_at", { ascending: false });
+      // Pagina em blocos de 1000 (limite do PostgREST) para não cortar extratos grandes.
+      const data: any[] = [];
+      let error: any = null;
+      for (let from = 0; ; from += 1000) {
+        const res = await supabase!
+          .from("finance_extratos_importados")
+          .select("*")
+          .eq("tenant_id", activeTenantId)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(from, from + 999);
+        if (res.error) { error = res.error; break; }
+        data.push(...(res.data || []));
+        if ((res.data || []).length < 1000) break;
+      }
       if (cancelled) return;
       if (error) {
         toast.error("Erro ao carregar extrato importado: " + error.message);

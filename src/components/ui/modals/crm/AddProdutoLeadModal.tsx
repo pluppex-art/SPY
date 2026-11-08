@@ -16,6 +16,7 @@ import {
   calculateSale, FREQUENCY_LABELS, cycleMonthsFor, OPEN_ENDED_BATCH_CYCLES, getSaleRealValue, getSalesHeadlineValue,
   type Frequencia, type BillingType, type DiscountType,
 } from "../../../../lib/saleCalculator";
+import { friendlyError } from "../../../../lib/friendlyError";
 
 const PAYMENT_OPTIONS = [
   { id: "Pix", label: "Pix", icon: QrCode },
@@ -701,7 +702,7 @@ export function AddProdutoLeadModal({
       onDone?.(`📄 ${productNames} — ${existingProposal?.id ? "proposta atualizada" : "proposta criada"} (${formatCurrency(totalValor)}).`);
       onClose();
     } catch (err: any) {
-      toast.error("Erro ao processar a venda: " + err?.message);
+      toast.error("Erro ao processar a venda: " + friendlyError(err));
     } finally {
       setSaving(false);
     }
@@ -1154,7 +1155,7 @@ export function AddProdutoLeadModal({
                 </div>
               </div>
               {isFinancialBreakdownOpen && (
-                <div className="grid grid-cols-3 gap-2 text-xs font-mono pt-1 animate-in fade-in">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-mono pt-1 animate-in fade-in">
                   <div className="bg-[var(--color-surface-elevated)] p-2 rounded-lg border border-[var(--color-border-subtle)] space-y-0.5">
                     <span className="text-[9px] text-[var(--color-text-faint)] flex items-center gap-1 uppercase"><TrendingDown className="w-2.5 h-2.5" /> Custos</span>
                     <span className="text-rose-500 font-bold text-[11px] block">{formatCurrency(totalCost)}</span>
@@ -1182,7 +1183,7 @@ export function AddProdutoLeadModal({
                     <span className="text-lg font-black text-[var(--color-text-primary)] font-mono">{formatCurrency(sale.cycleAmount)}</span>
                     <span className="text-[10px] font-bold text-[var(--color-text-muted)]">/ {freqLabel.toLowerCase()} · {sale.numberOfCycles} ciclo{sale.numberOfCycles > 1 ? "s" : ""}{sale.isOpenEnded ? " (contínua)" : ""}</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-xs font-mono pt-2 border-t border-[var(--color-primary-blue)]/10">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-mono pt-2 border-t border-[var(--color-primary-blue)]/10">
                     <div>
                       <span className="text-[9px] text-[var(--color-text-faint)] uppercase font-bold block">1ª cobrança</span>
                       <span className="font-black text-[var(--color-text-primary)]">{formatCurrency(sale.firstChargeAmount)}</span>

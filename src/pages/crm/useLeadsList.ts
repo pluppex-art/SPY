@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { limpaBusca } from "../../lib/pgrst";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 
@@ -80,7 +81,7 @@ export function useLeadsList() {
         query = query.or(`filial_id.is.null,filial_id.eq.${activeFilialId}`);
       }
       if (searchQuery.trim()) {
-        const q = searchQuery.trim().replace(/[%,]/g, "");
+        const q = limpaBusca(searchQuery);
         query = query.or(`name.ilike.%${q}%,company.ilike.%${q}%,email.ilike.%${q}%`);
       }
       if (temperatureFilter !== "Todas") {

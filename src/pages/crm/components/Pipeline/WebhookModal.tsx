@@ -61,7 +61,7 @@ export function WebhookModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 animate-in fade-in duration-150">
-      <div className="bg-[var(--color-surface)] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl relative text-left ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
+      <div className="bg-[var(--color-surface)] border border-white/10 rounded-2xl p-6 max-h-[90dvh] overflow-y-auto w-full max-w-md shadow-2xl relative text-left ring-1 ring-black/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
         <button onClick={() => setWebhookModalLead(null)} className="absolute top-4 right-4 p-2 text-slate-500 hover:text-white rounded-lg hover:bg-white/5 transition-colors border-none bg-transparent cursor-pointer">
           ✕
         </button>

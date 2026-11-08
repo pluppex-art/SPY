@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { limpaBusca } from "../../lib/pgrst";
 import { useAuth } from "../../contexts/AuthContext";
 
 const PAGE_SIZE = 50;
@@ -74,7 +75,7 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
     try {
       let query = supabase.from("proposals").select("*", { count: "exact" }).eq("tenant_id", tenantId);
       if (searchQuery.trim()) {
-        const q = searchQuery.trim().replace(/[%,]/g, "");
+        const q = limpaBusca(searchQuery);
         query = query.or(`cliente.ilike.%${q}%,titulo.ilike.%${q}%,vendedor.ilike.%${q}%`);
       }
       if (dateFrom) query = query.gte("created_at", dateFrom);

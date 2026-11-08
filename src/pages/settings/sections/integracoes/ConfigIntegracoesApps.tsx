@@ -220,7 +220,7 @@ function MaxDataConnectionModal({
         <FormField label="Descrição da aplicação (application_description)" required>
           <Input type="text" name={`maxdata-${which}-app-desc`} autoComplete="off" value={config.applicationDescription} onChange={(e) => setConfig((p) => ({ ...p, applicationDescription: e.target.value }))} placeholder="EMPRESA_SPYCRM" />
         </FormField>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <FormField label="Terminal" required hint="Ex.: PDV01">
             <Input type="text" name={`maxdata-${which}-terminal`} autoComplete="off" value={config.terminal} onChange={(e) => setConfig((p) => ({ ...p, terminal: e.target.value }))} />
           </FormField>

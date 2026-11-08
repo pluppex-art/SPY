@@ -43,7 +43,7 @@ export function SquadDetailPanel({
       <div className="px-6 pt-5 pb-4 border-b border-white/5" style={{ borderLeft: `4px solid ${cor}` }}>
         <div className="flex items-center gap-3">
           {selectedSquad.logo ? (
-            <img src={selectedSquad.logo} className="w-10 h-10 rounded-xl object-cover" alt="logo" />
+            <img loading="lazy" decoding="async" src={selectedSquad.logo} className="w-10 h-10 rounded-xl object-cover" alt="logo" />
           ) : (
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${cor}20`, border: `1px solid ${cor}40` }}>
               <Trophy className="w-5 h-5" style={{ color: cor }} />

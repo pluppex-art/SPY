@@ -33,7 +33,7 @@ export function NewSquadModal({
   const departamentoOptions = useDepartamentoOptions();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
-      <div className="w-full max-w-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl max-h-[90dvh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
         <div
           className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between bg-[var(--color-surface-sunken)]"
           style={{ borderLeft: `4px solid ${newSquadCor}` }}
@@ -100,7 +100,7 @@ export function NewSquadModal({
             <label className={labelClass}>Emblema / Logo <span className="text-[var(--color-text-faint)] font-normal">(opcional)</span></label>
             <label className="flex items-center gap-3 p-3 border border-dashed border-[var(--color-border-default)] rounded-[var(--radius-control)] cursor-pointer hover:border-[var(--color-primary-blue)] transition-all group bg-[var(--color-surface-sunken)]">
               {newSquadLogo ? (
-                <img src={newSquadLogo} className="w-10 h-10 rounded-lg object-cover" alt="logo" />
+                <img loading="lazy" decoding="async" src={newSquadLogo} className="w-10 h-10 rounded-lg object-cover" alt="logo" />
               ) : (
                 <div className="w-10 h-10 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-default)] flex items-center justify-center">
                   <ImagePlus className="w-4 h-4 text-[var(--color-text-muted)]" />

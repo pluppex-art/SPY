@@ -14,6 +14,7 @@ import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { toast } from "sonner";
 import { cn, dataLocalISO, dataHoraLocalISO } from "../../../../lib/utils";
+import { friendlyError } from "../../../../lib/friendlyError";
 
 interface AgendarReuniaoModalProps {
   isOpen: boolean;
@@ -222,7 +223,7 @@ export function AgendarReuniaoModal({ isOpen, onClose, lead, onConfirm }: Agenda
           : "Reunião presencial agendada com sucesso!"
         );
       } catch (err: any) {
-        toast.error("Erro ao agendar reunião presencial: " + (err.message || "Tente novamente"));
+        toast.error("Erro ao agendar reunião presencial: " + friendlyError(err));
       } finally {
         setLoading(false);
       }
@@ -266,7 +267,7 @@ export function AgendarReuniaoModal({ isOpen, onClose, lead, onConfirm }: Agenda
           : "Sala S.P.Y. criada! O vídeo abre direto no sistema."
         );
       } catch (err: any) {
-        toast.error("Erro ao criar sala: " + (err.message || "Tente novamente"));
+        toast.error("Erro ao criar sala: " + friendlyError(err));
       } finally {
         setLoading(false);
       }
@@ -309,7 +310,7 @@ export function AgendarReuniaoModal({ isOpen, onClose, lead, onConfirm }: Agenda
         setGoogleEmail(null);
         toast.error("Sua conexão com o Google expirou ou foi desfeita — reconecte e tente novamente.");
       } else {
-        toast.error("Erro ao criar reunião: " + (err.message || "Tente novamente"));
+        toast.error("Erro ao criar reunião: " + friendlyError(err));
       }
     } finally {
       setLoading(false);
