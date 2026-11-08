@@ -50,7 +50,6 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
   const { formatCurrency } = useLocalization();
   const periodo = periodoCaption(dashboard.dateFrom, dashboard.dateTo);
   const [visao, setVisao] = useState<Visao>("churn");
-  const [limiteDias, setLimiteDias] = useState(60);
 
   // ── Churn ────────────────────────────────────────────────────────────────
   const churn = useMemo(() => {
@@ -151,23 +150,25 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
     }
     for (const c of (contracts || []) as any[]) marca(String(c.client || ""), parse(c.date), parseCurrencyBR(c.mrr));
 
+    // Parado = sem compra desde o início do período escolhido na página (sem período, 60 dias).
+    const corte = dataDe(dashboard.dateFrom ? `${dashboard.dateFrom}T00:00:00` : null) ?? new Date(hoje - 60 * dia);
     const dias = (d: Date) => Math.max(0, Math.floor((hoje - d.getTime()) / dia));
     const listaClientes = [...clientes.values()].map((c) => ({ ...c, dias: dias(c.ultima) })).sort((a, b) => b.dias - a.dias);
-    const paradosC = listaClientes.filter((c) => c.dias >= limiteDias);
+    const paradosC = listaClientes.filter((c) => c.ultima < corte);
     const semCompra = ((clienteBase as any[]) || []).filter((c) => !clientes.has(norm(c.name))).length;
 
     const listaProdutos = ((products as any[]) || []).filter((p) => p.active !== false).map((p) => {
       const u = produtos.get(String(p.id));
       return { p, ultima: u ?? null, dias: u ? dias(u) : null as number | null };
     });
-    const paradosP = listaProdutos.filter((x) => x.dias === null || x.dias >= limiteDias)
+    const paradosP = listaProdutos.filter((x) => !x.ultima || x.ultima < corte)
       .sort((a, b) => (b.dias ?? 1e9) - (a.dias ?? 1e9));
     return {
       paradosC, paradosP, semCompra, totalC: listaClientes.length, totalP: listaProdutos.length,
       valorEmRisco: paradosC.reduce((s, c) => s + (c.compras > 0 ? c.valor / c.compras : 0), 0),
       nuncaVendidos: paradosP.filter((x) => x.dias === null).length,
     };
-  }, [dashboard.leads, contracts, products, clienteBase, limiteDias]);
+  }, [dashboard.leads, dashboard.dateFrom, contracts, products, clienteBase]);
 
   // ── Funil ────────────────────────────────────────────────────────────────
   const funil = useMemo(() => {
@@ -366,20 +367,10 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
       {visao === "tempo" && (
         <>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-[var(--color-text-muted)]">Considerar parado a partir de:</span>
-            {[30, 60, 90, 180].map((d) => (
-              <button key={d} type="button" onClick={() => setLimiteDias(d)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg border cursor-pointer ${limiteDias === d ? "bg-[var(--color-primary-blue)] !text-[#fff] border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-subtle)]"}`}>
-                {d} dias
-              </button>
-            ))}
-          </div>
-
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
-            <StatCard icon={Users} tone="danger" label="Clientes sem comprar" value={String(tempo.paradosC.length)} caption="agora" sub={`há ${limiteDias} dias ou mais · de ${tempo.totalC} com compra`} />
+            <StatCard icon={Users} tone="danger" label="Clientes sem comprar" value={String(tempo.paradosC.length)} caption="agora" sub={`sem compra no período · de ${tempo.totalC} com compra`} />
             <StatCard icon={TrendingDown} tone="warning" label="Valor médio em risco" value={formatCurrency(tempo.valorEmRisco)} caption="agora" sub="soma da compra média desses clientes" />
-            <StatCard icon={PackageX} tone="danger" label="Produtos parados" value={String(tempo.paradosP.length)} caption="agora" sub={`sem venda há ${limiteDias} dias ou mais`} />
+            <StatCard icon={PackageX} tone="danger" label="Produtos parados" value={String(tempo.paradosP.length)} caption="agora" sub="sem venda no período" />
             <StatCard icon={Ban} tone="warning" label="Nunca vendidos" value={String(tempo.nuncaVendidos)} caption="agora" sub={`${tempo.semCompra} cliente(s) cadastrado(s) sem nenhuma compra`} />
           </div>
 
@@ -389,7 +380,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
                 <SectionTitle as="h4">Clientes há muito tempo sem comprar</SectionTitle>
                 <p className="text-[11px] text-[var(--color-text-muted)]">Do mais antigo para o mais recente. Boa hora para um contato de retomada.</p>
               </div>
-              {tempo.paradosC.length === 0 ? <Vazio>Nenhum cliente parado há {limiteDias} dias ou mais.</Vazio> : (
+              {tempo.paradosC.length === 0 ? <Vazio>Nenhum cliente parado no período.</Vazio> : (
                 <ul className="divide-y divide-[var(--color-border-subtle)] border-t border-[var(--color-border-subtle)] max-h-[480px] overflow-y-auto">
                   {tempo.paradosC.slice(0, 50).map((c) => (
                     <li key={c.nome} className="px-5 py-3 flex items-center justify-between gap-3">
@@ -406,7 +397,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
                 <SectionTitle as="h4">Produtos há muito tempo sem vender</SectionTitle>
                 <p className="text-[11px] text-[var(--color-text-muted)]">Pela data da última venda fechada com o produto.</p>
               </div>
-              {tempo.paradosP.length === 0 ? <Vazio>Nenhum produto parado há {limiteDias} dias ou mais.</Vazio> : (
+              {tempo.paradosP.length === 0 ? <Vazio>Nenhum produto parado no período.</Vazio> : (
                 <ul className="divide-y divide-[var(--color-border-subtle)] border-t border-[var(--color-border-subtle)] max-h-[480px] overflow-y-auto">
                   {tempo.paradosP.slice(0, 50).map(({ p, ultima, dias }) => (
                     <li key={p.id} className="px-5 py-3 flex items-center justify-between gap-3">
