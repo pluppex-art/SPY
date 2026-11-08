@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { UserMinus, PackageX, Filter, TrendingDown, AlertTriangle, Percent, CircleOff, PackageMinus, PackageCheck, Wallet, Ban, Target } from "lucide-react";
+import { UserMinus, PackageX, Filter, TrendingDown, AlertTriangle, Percent, CircleOff, Clock, Users, PackageMinus, PackageCheck, Wallet, Ban, Target } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { StatCard } from "../../components/ui/stat-card";
 import { SectionTitle } from "../../components/ui/section-title";
@@ -12,11 +12,12 @@ import { isLeadLost } from "../../lib/leadStatus";
 import { categoriaDoMotivo } from "../../lib/motivos";
 import type { DashboardData } from "./revenueInsights";
 
-type Visao = "churn" | "estoque" | "funil";
+type Visao = "churn" | "estoque" | "tempo" | "funil";
 
 const VISOES: { id: Visao; label: string; icon: typeof UserMinus }[] = [
-  { id: "churn", label: "Churn / cancelamentos", icon: UserMinus },
+  { id: "churn", label: "Cancelamentos", icon: UserMinus },
   { id: "estoque", label: "Estoque", icon: PackageX },
+  { id: "tempo", label: "Tempo sem comprar", icon: Clock },
   { id: "funil", label: "Funil", icon: Filter },
 ];
 
@@ -45,10 +46,11 @@ function Vazio({ children }: { children: React.ReactNode }) {
 
 /** Aba "Ruptura": onde a receita se rompe — contratos cancelados (churn), produtos sem estoque e leads que se perdem no funil. */
 export default function RupturaReceita({ dashboard }: { dashboard: DashboardData }) {
-  const { contracts, products } = useData() as any;
+  const { contracts, products, clienteBase } = useData() as any;
   const { formatCurrency } = useLocalization();
   const periodo = periodoCaption(dashboard.dateFrom, dashboard.dateTo);
   const [visao, setVisao] = useState<Visao>("churn");
+  const [limiteDias, setLimiteDias] = useState(60);
 
   // ── Churn ────────────────────────────────────────────────────────────────
   const churn = useMemo(() => {
@@ -121,6 +123,52 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
     };
   }, [products]);
 
+  // ── Tempo sem comprar ────────────────────────────────────────────────────
+  // Última compra por cliente e última venda por produto, a partir das vendas fechadas e dos contratos.
+  const tempo = useMemo(() => {
+    const hoje = Date.now();
+    const dia = 86400000;
+    const parse = (v: unknown): Date | null => {
+      const t = String(v ?? "").trim();
+      const br = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(t);
+      return dataDe(br ? `${br[3]}-${br[2]}-${br[1]}` : t);
+    };
+    const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+    const clientes = new Map<string, { nome: string; ultima: Date; compras: number; valor: number }>();
+    const produtos = new Map<string, Date>();
+    const marca = (nome: string, d: Date | null, valor: number) => {
+      const k = norm(nome);
+      if (!k || !d) return;
+      const cur = clientes.get(k);
+      if (!cur) clientes.set(k, { nome, ultima: d, compras: 1, valor });
+      else { cur.compras += 1; cur.valor += valor; if (d > cur.ultima) cur.ultima = d; }
+    };
+    for (const l of (dashboard.leads || []) as any[]) {
+      if (l.status !== "Fechado") continue;
+      const d = parse(l.date) ?? parse(l.createdAt);
+      marca(String(l.clientName || l.company || l.name || ""), d, parseCurrencyBR(l.value));
+      if (d) for (const id of l.productIds || []) { const ant = produtos.get(String(id)); if (!ant || d > ant) produtos.set(String(id), d); }
+    }
+    for (const c of (contracts || []) as any[]) marca(String(c.client || ""), parse(c.date), parseCurrencyBR(c.mrr));
+
+    const dias = (d: Date) => Math.max(0, Math.floor((hoje - d.getTime()) / dia));
+    const listaClientes = [...clientes.values()].map((c) => ({ ...c, dias: dias(c.ultima) })).sort((a, b) => b.dias - a.dias);
+    const paradosC = listaClientes.filter((c) => c.dias >= limiteDias);
+    const semCompra = ((clienteBase as any[]) || []).filter((c) => !clientes.has(norm(c.name))).length;
+
+    const listaProdutos = ((products as any[]) || []).filter((p) => p.active !== false).map((p) => {
+      const u = produtos.get(String(p.id));
+      return { p, ultima: u ?? null, dias: u ? dias(u) : null as number | null };
+    });
+    const paradosP = listaProdutos.filter((x) => x.dias === null || x.dias >= limiteDias)
+      .sort((a, b) => (b.dias ?? 1e9) - (a.dias ?? 1e9));
+    return {
+      paradosC, paradosP, semCompra, totalC: listaClientes.length, totalP: listaProdutos.length,
+      valorEmRisco: paradosC.reduce((s, c) => s + (c.compras > 0 ? c.valor / c.compras : 0), 0),
+      nuncaVendidos: paradosP.filter((x) => x.dias === null).length,
+    };
+  }, [dashboard.leads, contracts, products, clienteBase, limiteDias]);
+
   // ── Funil ────────────────────────────────────────────────────────────────
   const funil = useMemo(() => {
     const leads: any[] = dashboard.leads || [];
@@ -174,9 +222,9 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
         <>
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
             <StatCard icon={UserMinus} tone="danger" label="Contratos cancelados" value={String(churn.noPeriodo.length)} caption={periodo} sub="no período" />
-            <StatCard icon={TrendingDown} tone="danger" label="MRR perdido" value={formatCurrency(churn.mrrPerdido)} caption={periodo} sub="receita recorrente que saiu" />
-            <StatCard icon={Percent} tone="warning" label="Taxa de churn" value={`${churn.taxa}%`} caption={periodo} sub="cancelados ÷ base de contratos" />
-            <StatCard icon={AlertTriangle} tone="warning" label="Em risco (inadimplentes)" value={formatCurrency(churn.mrrRisco)} caption="agora" sub={`${churn.inadimplentes.length} contrato${churn.inadimplentes.length === 1 ? "" : "s"}`} />
+            <StatCard icon={TrendingDown} tone="danger" label="Receita mensal perdida" value={formatCurrency(churn.mrrPerdido)} caption={periodo} sub="receita recorrente que saiu" />
+            <StatCard icon={Percent} tone="warning" label="Taxa de cancelamento" value={`${churn.taxa}%`} caption={periodo} sub="cancelados ÷ base de contratos" />
+            <StatCard icon={AlertTriangle} tone="warning" label="Em risco (atrasados)" value={formatCurrency(churn.mrrRisco)} caption="agora" sub={`${churn.inadimplentes.length} contrato${churn.inadimplentes.length === 1 ? "" : "s"}`} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -191,7 +239,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
                     <YAxis allowDecimals={false} stroke="var(--color-text-faint)" fontSize={11} tickLine={false} axisLine={false} width={28} />
                     <Tooltip
                       contentStyle={{ backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: 12, fontSize: 12 }}
-                      formatter={(v: number, _n: string, item: any) => [`${v} (${formatCurrency(item.payload.mrr)} de MRR)`, "Cancelamentos"]}
+                      formatter={(v: number, _n: string, item: any) => [`${v} (${formatCurrency(item.payload.mrr)} de mensalidade)`, "Cancelamentos"]}
                     />
                     <Bar dataKey="cancelamentos" fill="#ef4444" radius={[6, 6, 0, 0]} />
                   </BarChart>
@@ -246,7 +294,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left min-w-[640px]">
                   <thead className="bg-[var(--color-surface-sunken)] border-y border-[var(--color-border-subtle)]"><tr>
-                    <th className={thCls}>Cliente</th><th className={thCls}>Plano</th><th className={`${thCls} text-right`}>MRR</th><th className={thCls}>Cancelado em</th><th className={thCls}>Motivo</th><th className={thCls}>Tempo de casa</th>
+                    <th className={thCls}>Cliente</th><th className={thCls}>Plano</th><th className={`${thCls} text-right`}>Mensalidade</th><th className={thCls}>Cancelado em</th><th className={thCls}>Motivo</th><th className={thCls}>Tempo de casa</th>
                   </tr></thead>
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">
                     {churn.noPeriodo.map((c) => {
@@ -316,19 +364,76 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
         </>
       )}
 
+      {visao === "tempo" && (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-[var(--color-text-muted)]">Considerar parado a partir de:</span>
+            {[30, 60, 90, 180].map((d) => (
+              <button key={d} type="button" onClick={() => setLimiteDias(d)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg border cursor-pointer ${limiteDias === d ? "bg-[var(--color-primary-blue)] !text-[#fff] border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-subtle)]"}`}>
+                {d} dias
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
+            <StatCard icon={Users} tone="danger" label="Clientes sem comprar" value={String(tempo.paradosC.length)} caption="agora" sub={`há ${limiteDias} dias ou mais · de ${tempo.totalC} com compra`} />
+            <StatCard icon={TrendingDown} tone="warning" label="Valor médio em risco" value={formatCurrency(tempo.valorEmRisco)} caption="agora" sub="soma da compra média desses clientes" />
+            <StatCard icon={PackageX} tone="danger" label="Produtos parados" value={String(tempo.paradosP.length)} caption="agora" sub={`sem venda há ${limiteDias} dias ou mais`} />
+            <StatCard icon={Ban} tone="warning" label="Nunca vendidos" value={String(tempo.nuncaVendidos)} caption="agora" sub={`${tempo.semCompra} cliente(s) cadastrado(s) sem nenhuma compra`} />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card className="shadow-sm overflow-hidden">
+              <div className="p-5 pb-3">
+                <SectionTitle as="h4">Clientes há muito tempo sem comprar</SectionTitle>
+                <p className="text-[11px] text-[var(--color-text-muted)]">Do mais antigo para o mais recente. Boa hora para um contato de retomada.</p>
+              </div>
+              {tempo.paradosC.length === 0 ? <Vazio>Nenhum cliente parado há {limiteDias} dias ou mais.</Vazio> : (
+                <ul className="divide-y divide-[var(--color-border-subtle)] border-t border-[var(--color-border-subtle)] max-h-[480px] overflow-y-auto">
+                  {tempo.paradosC.slice(0, 50).map((c) => (
+                    <li key={c.nome} className="px-5 py-3 flex items-center justify-between gap-3">
+                      <span className="min-w-0"><b className="text-xs text-[var(--color-text-primary)] break-words">{c.nome}</b><br /><span className="text-[11px] text-[var(--color-text-muted)]">última compra em {fmtData(c.ultima)} · {c.compras} compra{c.compras === 1 ? "" : "s"}</span></span>
+                      <span className={`text-xs font-bold shrink-0 ${c.dias >= 180 ? "text-rose-600" : "text-amber-600"}`}>{c.dias} dias</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            <Card className="shadow-sm overflow-hidden">
+              <div className="p-5 pb-3">
+                <SectionTitle as="h4">Produtos há muito tempo sem vender</SectionTitle>
+                <p className="text-[11px] text-[var(--color-text-muted)]">Pela data da última venda fechada com o produto.</p>
+              </div>
+              {tempo.paradosP.length === 0 ? <Vazio>Nenhum produto parado há {limiteDias} dias ou mais.</Vazio> : (
+                <ul className="divide-y divide-[var(--color-border-subtle)] border-t border-[var(--color-border-subtle)] max-h-[480px] overflow-y-auto">
+                  {tempo.paradosP.slice(0, 50).map(({ p, ultima, dias }) => (
+                    <li key={p.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                      <span className="min-w-0"><b className="text-xs text-[var(--color-text-primary)] break-words">{p.name}</b><br /><span className="text-[11px] text-[var(--color-text-muted)]">{ultima ? `última venda em ${fmtData(ultima)}` : "nenhuma venda registrada"}</span></span>
+                      <span className={`text-xs font-bold shrink-0 ${dias === null || dias >= 180 ? "text-rose-600" : "text-amber-600"}`}>{dias === null ? "nunca vendeu" : `${dias} dias`}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
+        </>
+      )}
+
       {visao === "funil" && (
         <>
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
-            <StatCard icon={ Ban } tone="danger" label="Leads perdidos" value={String(funil.perdidos.length)} caption={periodo} sub="perdidos + desqualificados" />
-            <StatCard icon={TrendingDown} tone="danger" label="Valor perdido" value={formatCurrency(funil.valorPerdido)} caption={periodo} sub="soma dos valores dos leads" />
-            <StatCard icon={Percent} tone="warning" label="Taxa de perda" value={`${funil.taxa}%`} caption={periodo} sub={`de ${funil.total} leads`} />
+            <StatCard icon={ Ban } tone="danger" label="Oportunidades perdidas" value={String(funil.perdidos.length)} caption={periodo} sub="perdidos + desqualificados" />
+            <StatCard icon={TrendingDown} tone="danger" label="Valor perdido" value={formatCurrency(funil.valorPerdido)} caption={periodo} sub="soma dos valores das oportunidades" />
+            <StatCard icon={Percent} tone="warning" label="Taxa de perda" value={`${funil.taxa}%`} caption={periodo} sub={`de ${funil.total} oportunidades`} />
             <StatCard icon={Target} tone="warning" label="Maior gargalo" value={funil.gargalo ? `${funil.gargalo.drop}%` : "—"} caption="queda entre etapas" sub={funil.gargalo ? `na etapa ${funil.gargalo.label}` : "sem base de comparação"} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card className="p-5 shadow-sm">
               <SectionTitle as="h4">Onde o funil se rompe</SectionTitle>
-              <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Queda de leads de uma etapa para a seguinte.</p>
+              <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Queda de oportunidades de uma etapa para a seguinte.</p>
               {funil.etapas.length === 0 ? <Vazio>Sem dados de funil.</Vazio> : (
                 <ul className="space-y-3">
                   {funil.etapas.map((e) => (
@@ -350,7 +455,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
               {([["Por que se perdem", funil.porMotivo], ["Perdas por origem", funil.porOrigem], ["Perdas por vendedor", funil.porVendedor]] as const).map(([titulo, lista]) => (
                 <Card key={titulo} className="p-5 shadow-sm">
                   <SectionTitle as="h4">{titulo}</SectionTitle>
-                  {lista.length === 0 ? <Vazio>Nenhum lead perdido no período.</Vazio> : (
+                  {lista.length === 0 ? <Vazio>Nenhuma oportunidade perdida no período.</Vazio> : (
                     <ul className="divide-y divide-[var(--color-border-subtle)] mt-2">
                       {lista.map((i) => (
                         <li key={i.nome} className="py-2.5 flex items-center justify-between gap-3">
@@ -368,13 +473,13 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
           <Card className="shadow-sm overflow-hidden">
             <div className="p-5 pb-3">
               <SectionTitle as="h4">Maiores oportunidades perdidas</SectionTitle>
-              <p className="text-[11px] text-[var(--color-text-muted)]">Com o motivo informado ao perder o lead.</p>
+              <p className="text-[11px] text-[var(--color-text-muted)]">Com o motivo informado ao perder a oportunidade.</p>
             </div>
-            {funil.maiores.length === 0 ? <Vazio>Nenhum lead perdido no período.</Vazio> : (
+            {funil.maiores.length === 0 ? <Vazio>Nenhuma oportunidade perdida no período.</Vazio> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left min-w-[560px]">
                   <thead className="bg-[var(--color-surface-sunken)] border-y border-[var(--color-border-subtle)]"><tr>
-                    <th className={thCls}>Lead</th><th className={thCls}>Origem</th><th className={thCls}>Vendedor</th><th className={thCls}>Status</th><th className={thCls}>Motivo</th><th className={`${thCls} text-right`}>Valor</th>
+                    <th className={thCls}>Oportunidade</th><th className={thCls}>Origem</th><th className={thCls}>Vendedor</th><th className={thCls}>Status</th><th className={thCls}>Motivo</th><th className={`${thCls} text-right`}>Valor</th>
                   </tr></thead>
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">
                     {funil.maiores.map((l: any) => (
