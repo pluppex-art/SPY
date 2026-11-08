@@ -10,21 +10,6 @@ import { avisarMudancaDePessoas } from "./useLeadPessoas";
 
 type Candidato = { id: string; name: string | null; company: string | null; phone: string | null; status: string | null };
 
-/**
- * O botão só aparece quando a versão FINAL da função merge_leads está no banco (migração 20261106_merge_leads.sql).
- * A sondagem chama a função com valores vazios: ela recusa antes de mexer em qualquer dado e devolve a marca de versão no hint.
- */
-let disponibilidade: Promise<boolean> | null = null;
-function mesclagemDisponivel(): Promise<boolean> {
-  if (!supabase) return Promise.resolve(false);
-  if (!disponibilidade) {
-    disponibilidade = Promise.resolve(supabase.rpc("merge_leads", { p_target: null, p_source: null }))
-      .then(({ error }) => !!error && (error as any).hint === "merge_leads v2")
-      .catch(() => false);
-  }
-  return disponibilidade;
-}
-
 /** Remove caracteres que quebram o filtro `or` do PostgREST. */
 const limpaBusca = (v: string) => v.replace(/[,()%*\\]/g, " ").trim();
 
@@ -37,15 +22,12 @@ const campo =
  * vira uma "pessoa do negócio" daqui.
  */
 export function MesclarCardsButton({ lead }: { lead: any }) {
-  const [disponivel, setDisponivel] = useState(false);
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [lista, setLista] = useState<Candidato[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [escolhido, setEscolhido] = useState<Candidato | null>(null);
   const [mesclando, setMesclando] = useState(false);
-
-  useEffect(() => { let vivo = true; mesclagemDisponivel().then((ok) => { if (vivo) setDisponivel(ok); }); return () => { vivo = false; }; }, []);
 
   useEffect(() => {
     if (!aberto || !supabase || !lead?.id || !lead?.tenant_id) return;
@@ -83,7 +65,7 @@ export function MesclarCardsButton({ lead }: { lead: any }) {
     fechar();
   };
 
-  if (!disponivel) return null;
+  if (!supabase) return null;
 
   return (
     <>
