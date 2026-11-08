@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { CreditCard, Sparkles, CalendarClock } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
@@ -50,6 +51,11 @@ export default function ConfigPlanoUso() {
                   <dt className="text-[var(--color-text-muted)]">Último pagamento</dt><dd>{fmtDate(sub.last_payment_at)}</dd>
                   <dt className="text-[var(--color-text-muted)]">Carência após vencer</dt><dd>{sub.grace_days} dias</dd>
                 </dl>
+                {(!sub.gateway || sub.gateway === "manual") && sub.plan && sub.plan.price_cents >= 100 && (
+                  <Link to="/checkout?renovar=1" className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-blue)] px-4 py-2 text-sm font-bold text-white">
+                    {sub.status === "active" || sub.status === "trial" ? "Renovar / pagar" : "Regularizar pagamento"}
+                  </Link>
+                )}
                 {sub.plan?.features?.length ? (
                   <ul className="text-sm list-disc pl-5 text-[var(--color-text-muted)]">{sub.plan.features.map((f) => <li key={f}>{f}</li>)}</ul>
                 ) : null}

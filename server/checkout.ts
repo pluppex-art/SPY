@@ -9,7 +9,7 @@
 import { Router } from "express";
 import type { NextFunction, Response } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { randomBytes, randomUUID } from "crypto";
+import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import rateLimit from "express-rate-limit";
 import { sendPlatformEmail } from "./mailer.js";
 import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
@@ -163,105 +163,275 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     return data as { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null; list_setup_cents?: number | null; list_monthly_cents?: number | null } | null;
   }
 
-  /** Cria a empresa + acesso, aplica o plano, atualiza o lead e avisa o cliente. Idempotente; `by` = quem confirmou (null = venda automatica pelo comprovante). */
-  async function fulfill(o: any, by: string | null, res: any) {
-    // Reserva o pedido (evita confirmar em duplicidade com dois cliques ao mesmo tempo).
-    const { data: lock } = await db.from("checkout_orders").update({ status: "paid", paid_at: new Date().toISOString(), confirmed_by: by, error: null })
-      .eq("id", o.id).neq("status", "paid").select("id").maybeSingle();
-    if (!lock) return res.json({ ok: true, jaConfirmado: true });
-    const desfazer = async (msg: string) => { await db.from("checkout_orders").update({ status: o.status, paid_at: null, confirmed_by: null, error: msg }).eq("id", o.id); };
+  class FulfillError extends Error { constructor(msg: string, public code = 500) { super(msg); } }
 
-    let tenantId: string | null = o.tenant_id;
+  const AUTO_FULFILL = () => process.env.CHECKOUT_AUTO_FULFILL === "true";
+  const addPeriod = (from: Date, interval?: string | null) => { const d = new Date(from); if (interval === "yearly") d.setFullYear(d.getFullYear() + 1); else d.setMonth(d.getMonth() + 1); return d; };
+  const clientIp = (req: any) => String(req.headers?.["x-forwarded-for"] || req.ip || "").split(",")[0].trim().slice(0, 64) || null;
+
+  /** Id do usuario no Auth por e-mail (RPC so do service role). Null se nao existe ou a RPC ainda nao foi aplicada. */
+  async function authIdByEmail(email: string): Promise<string | null> {
+    const { data, error } = await db!.rpc("auth_user_id_by_email", { p_email: email });
+    if (error) { console.error("[checkout] auth_user_id_by_email:", error.message); return null; }
+    return (data as string | null) || null;
+  }
+
+  /**
+   * Agente de implantacao (n8n), igual ao cadastro manual de empresa. Aguarda a resposta por ate 6s (AbortController);
+   * o resultado e gravado no pedido e, se falhar, a equipe e avisada. URL e implementation_id vem de env (com o padrao atual).
+   */
+  async function acionarAgentes(o: any, tenantId: string): Promise<{ ok: boolean; erro: string | null }> {
+    const secret = process.env.SPY_IMPLEMENTACAO_WEBHOOK_SECRET;
+    if (!secret) return { ok: false, erro: "SPY_IMPLEMENTACAO_WEBHOOK_SECRET não configurada: agentes não acionados." };
+    const url = process.env.SPY_IMPLEMENTACAO_WEBHOOK_URL || "https://n8n.spycrm.com.br/webhook/spy-agente-implementacao-tenant-criado";
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 6000);
     try {
+      const r = await fetch(url, {
+        method: "POST", headers: { "Content-Type": "application/json", "X-Webhook-Secret": secret }, signal: ac.signal,
+        body: JSON.stringify({ tenant_id: tenantId, company: o.empresa, email: o.email, phone: o.telefone, implementation_id: process.env.SPY_IMPLEMENTACAO_ID || "" }),
+      });
+      if (!r.ok) return { ok: false, erro: `n8n respondeu HTTP ${r.status}` };
+      return { ok: true, erro: null };
+    } catch (e: any) {
+      return { ok: false, erro: e?.name === "AbortError" ? "n8n não respondeu em 6 segundos" : String(e?.message || "falha ao chamar o n8n").slice(0, 200) };
+    } finally { clearTimeout(timer); }
+  }
+
+  /**
+   * Libera o pedido. Dois caminhos:
+   *  - kind 'new': cria empresa + admin + assinatura (ou, se o e-mail JA tem acesso, reaproveita a empresa dele: ver abaixo);
+   *  - kind 'renewal' (renovacao, cliente cancelado/suspenso voltando, segunda compra do mesmo e-mail): NAO cria empresa nova.
+   *    Decisao de modelo: um e-mail = uma empresa (users.email e unico). Entao reativa/estende a assinatura da empresa que ja existe.
+   * Idempotente e recuperavel: tenant_id e created_user_id sao gravados no pedido logo que existem; uma retentativa reaproveita
+   * o que ja foi criado. Se este passe criou algo e falhar antes de concluir, desfaz TUDO que ele criou (sem orfaos).
+   * `by` = quem confirmou (null = venda automatica pelo comprovante, so com CHECKOUT_AUTO_FULFILL=true).
+   */
+  async function fulfill(o: any, by: string | null, res: any, opts: { recover?: boolean } = {}) {
+    const agora = new Date().toISOString();
+    // Reserva o pedido (evita confirmar em duplicidade com dois cliques ao mesmo tempo).
+    const base = db!.from("checkout_orders").update({ status: "paid", paid_at: agora, confirmed_by: by, error: null }).eq("id", o.id);
+    const { data: lock } = await (opts.recover
+      ? base.eq("status", "paid").is("fulfilled_at", null).lt("paid_at", new Date(Date.now() - 3 * 60_000).toISOString())
+      : base.neq("status", "paid")).select("id").maybeSingle();
+    if (!lock) return opts.recover
+      ? res.status(409).json({ error: "Este pedido ainda está sendo processado. Aguarde 3 minutos e tente de novo." })
+      : res.json({ ok: true, jaConfirmado: true });
+    const desfazer = async (msg: string) => { await db!.from("checkout_orders").update({ status: o.status, paid_at: opts.recover ? o.paid_at : null, confirmed_by: null, error: msg }).eq("id", o.id); };
+
+    let tenantId: string | null = o.tenant_id || null;
+    let userId: string | null = o.created_user_id || null;
+    const criado = { tenant: false, authUser: false, userRow: false };
+    let reuse = o.kind === "renewal"; // true = empresa que ja existia (nao e venda nova)
+
+    const rollback = async () => {
+      try {
+        if (criado.userRow && userId) await db!.from("users").delete().eq("id", userId);
+        if (criado.authUser && userId) await db!.auth.admin.deleteUser(userId);
+        if (criado.tenant && tenantId) {
+          await db!.from("app_settings").delete().eq("tenant_id", tenantId);
+          await db!.from("tenants").delete().eq("id", tenantId);
+        }
+        if (criado.tenant || criado.authUser) await db!.from("checkout_orders").update({ tenant_id: o.kind === "renewal" ? o.tenant_id : null, created_user_id: null }).eq("id", o.id);
+      } catch (e: any) { console.error("[checkout] rollback:", e?.message); }
+    };
+
+    try {
+      // 1) Empresa + acesso
+      if (tenantId && o.kind !== "renewal") {
+        const { data: ainda } = await db!.from("tenants").select("id").eq("id", tenantId).maybeSingle();
+        if (!ainda) tenantId = null; // a empresa de uma tentativa anterior sumiu: recria
+      }
       if (!tenantId) {
-        const { data: existente } = await db.from("users").select("id").eq("email", o.email).maybeSingle();
-        if (existente) { await desfazer("Este e-mail já tem acesso ao sistema."); return res.status(409).json({ error: "Este e-mail já tem acesso ao sistema. Peça outro e-mail ao cliente ou crie o acesso manualmente." }); }
-
-        const { data: tenant, error: tErr } = await db.from("tenants").insert({
-          name: o.empresa, niche: "Parceira", plan: o.plan_code, status: "Active", timezone: "America/Sao_Paulo", primary_color: "#2563EB",
-          modules: { crm: true, sdr: false, advDashboard: false, financeiro: true, marketing: false, educacao: false, clinica: false, produtividade: true, rh: false, bi: false, engajamento: false },
-        }).select().maybeSingle();
-        if (tErr || !tenant) { await desfazer("Erro ao criar a empresa."); return res.status(500).json({ error: "Erro ao criar a empresa." }); }
-
-        const senha = randomBytes(18).toString("base64url");
-        const created = await db.auth.admin.createUser({ email: o.email, password: senha, email_confirm: true });
-        if (!created.data?.user) {
-          await db.from("tenants").delete().eq("id", tenant.id);
-          await desfazer("Erro ao criar o acesso (o e-mail pode já ter login).");
-          return res.status(409).json({ error: "Não foi possível criar o acesso: o e-mail pode já ter um login no sistema." });
+        const { data: existente } = await db!.from("users").select("id,tenant_id,is_master").eq("email", o.email).maybeSingle();
+        if (existente) {
+          if (existente.is_master || !existente.tenant_id) throw new FulfillError("Este e-mail pertence a um administrador do sistema. Use outro e-mail ou crie o acesso manualmente.", 409);
+          tenantId = existente.tenant_id; reuse = true;
+        } else {
+          const { data: tenant, error: tErr } = await db!.from("tenants").insert({
+            name: o.empresa, niche: "Geral", plan: o.plan_code, status: "Active", timezone: "America/Sao_Paulo", primary_color: "#2563EB",
+            modules: { crm: true, sdr: false, advDashboard: false, financeiro: true, marketing: false, educacao: false, clinica: false, produtividade: true, rh: false, bi: false, engajamento: false },
+          }).select().maybeSingle();
+          if (tErr || !tenant) throw new FulfillError("Erro ao criar a empresa.");
+          tenantId = tenant.id; criado.tenant = true;
+          await db!.from("checkout_orders").update({ tenant_id: tenantId }).eq("id", o.id); // recuperavel numa retentativa
         }
-        const { error: uErr } = await db.from("users").insert({
-          id: created.data.user.id, tenant_id: tenant.id, name: o.nome, email: o.email, role: "Admin", is_master: false, is_tenant_admin: true, active: true,
-        });
-        if (uErr) {
-          await db.from("tenants").delete().eq("id", tenant.id);
-          await db.auth.admin.deleteUser(created.data.user.id);
-          await desfazer("Erro ao criar o perfil de acesso.");
-          return res.status(500).json({ error: "Erro ao criar o perfil de acesso." });
+      }
+      if (!tenantId) throw new FulfillError("Empresa não encontrada para este pedido.");
+
+      if (!reuse) {
+        const { data: u } = await db!.from("users").select("id").eq("tenant_id", tenantId).eq("email", o.email).maybeSingle();
+        if (u) userId = u.id;
+        else {
+          let authId: string | null = o.created_user_id || (await authIdByEmail(o.email));
+          if (!authId) {
+            const senha = randomBytes(18).toString("base64url");
+            const c = await db!.auth.admin.createUser({ email: o.email, password: senha, email_confirm: true });
+            if (!c.data?.user) throw new FulfillError("Não foi possível criar o acesso: o e-mail pode já ter um login no sistema.", 409);
+            authId = c.data.user.id; criado.authUser = true;
+          }
+          userId = authId;
+          await db!.from("checkout_orders").update({ created_user_id: authId }).eq("id", o.id);
+          const { error: uErr } = await db!.from("users").insert({
+            id: authId, tenant_id: tenantId, name: o.nome, email: o.email, role: "Admin", is_master: false, is_tenant_admin: true, active: true,
+          });
+          if (uErr) throw new FulfillError("Erro ao criar o perfil de acesso.");
+          criado.userRow = true;
         }
-        tenantId = tenant.id;
-        await db.from("app_settings").insert({ tenant_id: tenant.id, key: "empresa_dados", value: { nome: o.empresa, cnpj: o.documento, email: o.email, telefone: o.telefone } });
+        const { data: emp } = await db!.from("app_settings").select("tenant_id").eq("tenant_id", tenantId).eq("key", "empresa_dados").maybeSingle();
+        if (!emp) await db!.from("app_settings").insert({ tenant_id: tenantId, key: "empresa_dados", value: { nome: o.empresa, cnpj: o.documento, email: o.email, telefone: o.telefone } });
       }
 
+      // 2) Assinatura: plano (so quando preciso) + periodo pago. O periodo so e estendido uma vez por pedido.
       if (o.plan_id) {
-        await provisionPlan(tenantId!, o.plan_id, by);
-        const { data: plan } = await db.from("subscription_plans").select("billing_interval").eq("id", o.plan_id).maybeSingle();
-        const fim = new Date();
-        if (plan?.billing_interval === "yearly") fim.setFullYear(fim.getFullYear() + 1); else fim.setMonth(fim.getMonth() + 1);
-        await db.from("tenant_subscriptions").update({
-          status: "active", trial_ends_at: null, last_payment_at: new Date().toISOString(), current_period_end: fim.toISOString(), updated_at: new Date().toISOString(),
-        }).eq("tenant_id", tenantId);
-        await db.from("billing_events").insert({ tenant_id: tenantId, type: "payment_confirmed", to_status: "active", amount_cents: o.total_cents, payload: { by: by, source: "checkout_pix", order: o.id } });
+        const { data: sub } = await db!.from("tenant_subscriptions").select("status,plan_id,current_period_end").eq("tenant_id", tenantId).maybeSingle();
+        const precisaPlano = !reuse || !sub || sub.plan_id !== o.plan_id || ["canceled", "suspended"].includes(sub.status);
+        if (precisaPlano) await provisionPlan(tenantId, o.plan_id, by || undefined);
+        const { data: jaAplicado } = await db!.from("billing_events").select("id").eq("tenant_id", tenantId).eq("type", "payment_confirmed").contains("payload", { order: o.id }).limit(1).maybeSingle();
+        if (!jaAplicado) {
+          const { data: plan } = await db!.from("subscription_plans").select("billing_interval").eq("id", o.plan_id).maybeSingle();
+          const atualFim = reuse && sub?.current_period_end && new Date(sub.current_period_end) > new Date() ? new Date(sub.current_period_end) : new Date();
+          const { error: sErr } = await db!.from("tenant_subscriptions").update({
+            status: "active", trial_ends_at: null, last_payment_at: agora, current_period_end: addPeriod(atualFim, plan?.billing_interval).toISOString(), suspended_at: null, updated_at: agora,
+          }).eq("tenant_id", tenantId);
+          if (sErr) throw new FulfillError("Erro ao ativar a assinatura.");
+          await db!.from("billing_events").insert({ tenant_id: tenantId, type: "payment_confirmed", to_status: "active", amount_cents: o.total_cents, payload: { by, source: "checkout_pix", order: o.id } });
+        }
       }
 
-      await db.from("checkout_orders").update({ tenant_id: tenantId }).eq("id", o.id);
+      // 3) Concluido no banco: daqui em diante nada desfaz a venda (e-mail e agentes so geram aviso se falharem).
+      await db!.from("checkout_orders").update({ tenant_id: tenantId, fulfilled_at: new Date().toISOString() }).eq("id", o.id);
       if (o.promo_id) {
-        const { data: pr } = await db.from("checkout_promos").select("uses").eq("id", o.promo_id).maybeSingle();
-        if (pr) await db.from("checkout_promos").update({ uses: (pr.uses || 0) + 1 }).eq("id", o.promo_id);
+        const { data: marcou } = await db!.from("checkout_orders").update({ promo_consumed_at: agora }).eq("id", o.id).is("promo_consumed_at", null).select("id").maybeSingle();
+        if (marcou) {
+          const { data: okUso, error: uErr } = await db!.rpc("checkout_promo_consume", { p_id: o.promo_id });
+          if (uErr) console.error("[checkout] cupom:", uErr.message);
+          else if (okUso === false) console.warn("[checkout] cupom esgotou entre o pedido e a confirmação; venda mantida:", o.promo_id);
+        }
       }
       const vendedor = process.env.SPY_FORM_TENANT_ID || process.env.AXIS_FORM_TENANT_ID;
-      if (o.lead_id && vendedor) await atualizarLeadPorId(db, vendedor, o.lead_id, "ganho", `Checkout: pagamento de ${brl(o.total_cents)} confirmado (${o.plan_name}). Empresa criada e acesso enviado.`, o.total_cents / 100).catch((e: any) => console.error("[checkout] lead ganho:", e?.message));
+      if (o.lead_id && vendedor) await atualizarLeadPorId(db!, vendedor, o.lead_id, "ganho", `Checkout: pagamento de ${brl(o.total_cents)} confirmado (${o.plan_name}). ${reuse ? "Assinatura renovada/reativada." : "Empresa criada e acesso enviado."}`, o.total_cents / 100).catch((e: any) => console.error("[checkout] lead ganho:", e?.message));
 
-      // Acesso: link para o cliente definir a propria senha (nada de senha por e-mail).
-      let emailEnviado = false;
-      try {
-        const link = await db.auth.admin.generateLink({ type: "recovery", email: o.email, options: { redirectTo: `${publicAppUrl}/redefinir-senha` } });
-        const url = link.data?.properties?.action_link;
-        if (url) {
-          const mail = notificationEmail({
-            kind: "success", copyKey: "checkout_acesso", title: "Pagamento confirmado — seu acesso ao S.P.Y.",
-            description: `Recebemos o pagamento de ${brl(o.total_cents)} (plano ${o.plan_name}). Defina sua senha para entrar.`,
-            details: [{ label: "Empresa", value: o.empresa }, { label: "Plano", value: o.plan_name }, { label: "Valor", value: brl(o.total_cents) }],
-            primaryButton: { label: "Definir minha senha e entrar", url: url }, name: o.nome,
-          });
+      // 4) E-mail ao cliente e agentes n8n, em paralelo (cada um com seu proprio tratamento de erro).
+      const enviarEmail = async (): Promise<boolean> => {
+        try {
+          let mail;
+          if (!reuse) {
+            // Acesso: link para o cliente definir a propria senha (nada de senha por e-mail). O link tem validade limitada.
+            const link = await db!.auth.admin.generateLink({ type: "recovery", email: o.email, options: { redirectTo: `${publicAppUrl}/redefinir-senha` } });
+            const url = link.data?.properties?.action_link;
+            if (!url) return false;
+            mail = notificationEmail({
+              kind: "success", copyKey: "checkout_acesso", title: "Pagamento confirmado — seu acesso ao S.P.Y.",
+              description: `Recebemos o pagamento de ${brl(o.total_cents)} (plano ${o.plan_name}). Defina sua senha para entrar.`,
+              details: [{ label: "Empresa", value: o.empresa }, { label: "Plano", value: o.plan_name }, { label: "Valor", value: brl(o.total_cents) }, { label: "Validade do link", value: "limitada (cerca de 1 hora). Se expirar, use “Esqueci a senha” em " + publicAppUrl.replace(/^https?:\/\//, "") + "/login" }],
+              primaryButton: { label: "Definir minha senha e entrar", url }, name: o.nome,
+            });
+          } else {
+            mail = notificationEmail({
+              kind: "success", copyKey: "checkout_renovacao", title: "Pagamento confirmado — assinatura em dia",
+              description: `Recebemos o pagamento de ${brl(o.total_cents)} (plano ${o.plan_name}).`,
+              details: [{ label: "Empresa", value: o.empresa }, { label: "Plano", value: o.plan_name }, { label: "Valor", value: brl(o.total_cents) }],
+              primaryButton: { label: "Entrar no S.P.Y.", url: `${publicAppUrl}/login` }, name: o.nome,
+            });
+          }
           await sendPlatformEmail({ to: o.email, ...mail });
-          emailEnviado = true;
-        }
-      } catch (e: any) { console.error("[checkout] e-mail de acesso:", e?.message); }
+          return true;
+        } catch (e: any) { console.error("[checkout] e-mail de acesso:", e?.message); return false; }
+      };
+      const [emailEnviado, agentes] = await Promise.all([
+        enviarEmail(),
+        reuse ? Promise.resolve({ ok: true, erro: null as string | null }) : acionarAgentes(o, tenantId),
+      ]);
+      await db!.from("checkout_orders").update({ acesso_email_ok: emailEnviado, agentes_ok: reuse ? null : agentes.ok, agentes_erro: agentes.erro }).eq("id", o.id);
+      if (!agentes.ok) console.error("[checkout] agentes:", agentes.erro);
 
-      // Agente de implantacao (n8n), igual ao cadastro manual de empresa. Nunca atrasa nem derruba a confirmacao.
-      const secret = process.env.SPY_IMPLEMENTACAO_WEBHOOK_SECRET;
-      if (secret) {
-        fetch("https://n8n.spycrm.com.br/webhook/spy-agente-implementacao-tenant-criado", {
-          method: "POST", headers: { "Content-Type": "application/json", "X-Webhook-Secret": secret },
-          body: JSON.stringify({ tenant_id: tenantId, company: o.empresa, email: o.email, phone: o.telefone, implementation_id: "" }),
-        }).catch((e: any) => console.error("[checkout] agente de implantação:", e?.message));
+      const problemas: string[] = [];
+      if (!emailEnviado) problemas.push(`O e-mail de acesso para ${o.email} NÃO foi enviado. Oriente o cliente a abrir a tela de login e usar “Esqueci a senha”.`);
+      if (!agentes.ok) problemas.push(`Os agentes de implantação (n8n) não foram acionados: ${agentes.erro}. Acione manualmente.`);
+      const info = [{ label: "Cliente", value: o.nome }, { label: "Empresa", value: o.empresa }, { label: "Plano / valor", value: `${o.plan_name} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }];
+      if (problemas.length) {
+        await avisarEquipe("checkout_atencao", "warning", `Atenção no checkout: ${o.empresa}`, `Venda confirmada, mas ${problemas.join(" ")}`, info, o.telefone);
+      } else if (by === null) {
+        await avisarEquipe("checkout_venda", "success", `Venda no checkout: ${o.empresa} — ${brl(o.total_cents)}`, `${o.nome} (${o.empresa}) enviou o comprovante de ${brl(o.total_cents)} e a venda foi liberada automaticamente. Confira o Pix no banco.`, info, o.telefone);
       }
 
       // Verificacao multi-tenant: a empresa existe, tem admin proprio, assinatura ativa e nenhum outro tenant foi tocado.
       const [tn, us, sb] = await Promise.all([
-        db.from("tenants").select("id").eq("id", tenantId).maybeSingle(),
-        db.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("email", o.email),
-        db.from("tenant_subscriptions").select("status").eq("tenant_id", tenantId).maybeSingle(),
+        db!.from("tenants").select("id").eq("id", tenantId).maybeSingle(),
+        db!.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("email", o.email),
+        db!.from("tenant_subscriptions").select("status").eq("tenant_id", tenantId).maybeSingle(),
       ]);
-      const checks = { empresa: !!tn.data, acesso: (us.count ?? 0) === 1, assinatura: sb.data?.status === "active", agentes: !!secret, email: emailEnviado };
-      if (!checks.agentes) console.error("[checkout] SPY_IMPLEMENTACAO_WEBHOOK_SECRET ausente: agentes não foram acionados.");
-      res.json({ ok: true, tenantId, emailEnviado, checks });
+      const checks = { empresa: !!tn.data, acesso: (us.count ?? 0) >= 1, assinatura: sb.data?.status === "active", agentes: reuse ? true : agentes.ok, email: emailEnviado };
+      res.json({ ok: true, tenantId, emailEnviado, checks, renovacao: reuse });
     } catch (e: any) {
+      const msg = e instanceof FulfillError ? e.message : "Erro inesperado ao confirmar. Tente de novo.";
       console.error("[checkout] confirm:", e?.message);
-      await desfazer("Erro inesperado ao confirmar.");
-      res.status(500).json({ error: "Erro inesperado ao confirmar. Tente de novo." });
+      await rollback();
+      await desfazer(msg);
+      res.status(e instanceof FulfillError ? e.code : 500).json({ error: msg });
     }
+  }
+
+  /**
+   * Abre (ou reaproveita) um pedido Pix. Cuida de: expirar vencidos, nao duplicar pedido aberto do mesmo e-mail,
+   * limites anti-spam e limite de usos do cupom. `antes` roda so quando um pedido novo vai mesmo ser criado (ex.: lead no CRM).
+   */
+  type NovoPedido = {
+    kind: "new" | "renewal"; tenantId: string | null; plan: any; planId: string; nome: string; telefone: string; email: string; documento: string; empresa: string;
+    priceCents: number; setupCents: number; discountCents: number; totalCents: number; promo: any | null; ip: string | null;
+    consent?: { version: string }; antes?: () => Promise<string | null>;
+  };
+  type Aberto = { token: string; totalCents: number; pixPayload: string; status: string; expiresAt: string };
+  const dtoPedido = (p: any): Aberto => ({ token: p.token, totalCents: p.total_cents, pixPayload: p.pix_payload, status: p.status, expiresAt: p.expires_at });
+
+  async function abrirPedido(n: NovoPedido, cfg: NonNullable<Awaited<ReturnType<typeof config>>>): Promise<{ ok: true; pedido: Aberto; novo: boolean } | { ok: false; status: number; error: string }> {
+    const agora = new Date().toISOString();
+    // Pix vencido que ninguem pagou deixa de ocupar a vaga (pedidos 'awaiting_confirmation' nunca expiram sozinhos).
+    await db!.from("checkout_orders").update({ status: "expired" }).eq("email", n.email).eq("kind", n.kind).eq("status", "pending").lt("expires_at", agora);
+
+    const { data: aguardando } = await db!.from("checkout_orders").select("*").eq("email", n.email).eq("kind", n.kind).eq("status", "awaiting_confirmation")
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (aguardando) return { ok: true, pedido: dtoPedido(aguardando), novo: false };
+
+    const { data: aberto } = await db!.from("checkout_orders").select("*").eq("email", n.email).eq("kind", n.kind).eq("status", "pending")
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (aberto && aberto.plan_code === n.plan.code && aberto.total_cents === n.totalCents && aberto.documento === n.documento) return { ok: true, pedido: dtoPedido(aberto), novo: false };
+    if (aberto) await db!.from("checkout_orders").update({ status: "canceled" }).eq("id", aberto.id).eq("status", "pending"); // mudou de plano/valor: o antigo sai
+
+    // Anti-spam: pedidos por e-mail (24h) e por IP (1h).
+    const [porEmail, porIp] = await Promise.all([
+      db!.from("checkout_orders").select("id", { count: "exact", head: true }).eq("email", n.email).gte("created_at", new Date(Date.now() - 24 * 3600_000).toISOString()),
+      n.ip ? db!.from("checkout_orders").select("id", { count: "exact", head: true }).eq("consent_ip", n.ip).gte("created_at", new Date(Date.now() - 3600_000).toISOString()) : Promise.resolve({ count: 0 }),
+    ]);
+    if ((porEmail.count ?? 0) >= 6 || (porIp.count ?? 0) >= 20) return { ok: false, status: 429, error: "Muitas tentativas em pouco tempo. Aguarde um pouco ou fale com a gente pelo WhatsApp." };
+
+    // Cupom com limite: usos ja consumidos + pedidos abertos que o seguram nao podem passar de max_uses.
+    if (n.promo?.id && n.promo.max_uses != null) {
+      const { count } = await db!.from("checkout_orders").select("id", { count: "exact", head: true }).eq("promo_id", n.promo.id).in("status", ["pending", "awaiting_confirmation"]);
+      if ((n.promo.uses || 0) + (count ?? 0) >= n.promo.max_uses) return { ok: false, status: 400, error: "Este cupom esgotou. Tente sem cupom ou fale com a gente." };
+    }
+
+    const leadId = n.antes ? await n.antes() : null;
+    const token = randomBytes(18).toString("hex");
+    const txid = `SPY${token.slice(0, 20).toUpperCase()}`;
+    const pixPayload = pixBrCode({ key: cfg.pix_key, name: cfg.receiver_name, city: cfg.receiver_city, amountCents: n.totalCents, txid });
+    const expiresAt = new Date(Date.now() + 24 * 3600_000).toISOString();
+    const { error } = await db!.from("checkout_orders").insert({
+      token, kind: n.kind, tenant_id: n.tenantId, plan_id: n.planId, plan_code: n.plan.code, plan_name: n.plan.name, nome: n.nome, telefone: n.telefone, email: n.email, documento: n.documento, empresa: n.empresa,
+      price_cents: n.priceCents, setup_cents: n.setupCents, discount_cents: n.discountCents, total_cents: n.totalCents,
+      promo_id: n.promo?.id ?? null, promo_code: n.promo?.code ?? null, txid, pix_payload: pixPayload, lead_id: leadId, expires_at: expiresAt,
+      consent_at: n.consent ? agora : null, consent_ip: n.ip, consent_version: n.consent?.version ?? null,
+    });
+    if (error) {
+      if (error.code === "23505") { // corrida: outro clique criou o pedido aberto neste instante
+        const { data: outro } = await db!.from("checkout_orders").select("*").eq("email", n.email).eq("kind", n.kind).eq("status", "pending").limit(1).maybeSingle();
+        if (outro) return { ok: true, pedido: dtoPedido(outro), novo: false };
+      }
+      console.error("[checkout] order:", error.message);
+      return { ok: false, status: 500, error: "Não foi possível gerar o Pix. Tente novamente." };
+    }
+    return { ok: true, pedido: { token, totalCents: n.totalCents, pixPayload, status: "pending", expiresAt }, novo: true };
   }
 
   // ── Publico ────────────────────────────────────────────────────────────────
@@ -300,6 +470,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     if (telefone.replace(/\D/g, "").length < 10) return res.status(400).json({ error: "Informe o telefone com DDD." });
     if (!documentoValido(documento)) return res.status(400).json({ error: "CPF ou CNPJ inválido." });
     if (empresa.length < 2) return res.status(400).json({ error: "Informe o nome da empresa." });
+    if (b.consentimento !== true) return res.status(400).json({ error: "Para continuar, aceite o uso dos seus dados (política de privacidade)." });
 
     const cfg = await config();
     if (!cfg?.active || !cfg.pix_key) return res.status(503).json({ error: "O pagamento ainda não está disponível. Fale com a gente pelo WhatsApp." });
@@ -308,58 +479,85 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     try { q = await finalQuote(b.planCode, b.promoCode); } catch (e: any) { return res.status(400).json({ error: e?.message || "Plano inválido." }); }
     if (q.totalCents < 100) return res.status(400).json({ error: "Valor inválido para pagamento via Pix." });
 
-    // O mesmo comprador clicando duas vezes reaproveita o pedido aberto (mesmo plano, valor e documento).
-    const { data: aberto } = await db.from("checkout_orders").select("*")
-      .eq("documento", documento).eq("email", email).eq("plan_code", q.plan.code).eq("total_cents", q.totalCents)
-      .in("status", ["pending", "awaiting_confirmation"]).gt("expires_at", new Date().toISOString())
-      .order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (aberto) return res.json({ token: aberto.token, totalCents: aberto.total_cents, pixPayload: aberto.pix_payload, status: aberto.status, expiresAt: aberto.expires_at });
+    // E-mail que ja tem acesso (cliente cancelado/suspenso voltando, ou segunda compra): o pedido e de RENOVACAO da empresa
+    // que ja existe (um e-mail = uma empresa). Nada e revelado ao comprador: a resposta e igual a de um cliente novo.
+    const { data: existente } = await db.from("users").select("tenant_id,is_master").eq("email", email).maybeSingle();
+    if (existente && (existente.is_master || !existente.tenant_id)) return res.status(400).json({ error: "Não foi possível usar este e-mail no checkout. Fale com a gente pelo WhatsApp." });
+    const kind = existente ? "renewal" : "new";
 
-    const token = randomBytes(18).toString("hex");
-    const txid = `SPY${token.slice(0, 20).toUpperCase()}`;
-    const pixPayload = pixBrCode({ key: cfg.pix_key, name: cfg.receiver_name, city: cfg.receiver_city, amountCents: q.totalCents, txid });
-    const expiresAt = new Date(Date.now() + 24 * 3600_000).toISOString();
-
-    // Lead no CRM de quem vende, ja na hora do cadastro (quem desistiu do Pix tambem vira lead para follow-up).
-    let leadId: string | null = null;
     const sellerTenant = process.env.SPY_FORM_TENANT_ID || process.env.AXIS_FORM_TENANT_ID;
-    if (sellerTenant) {
-      try {
-        // Mesmo telefone/e-mail ja no sistema = so atualiza o lead; novo entra na etapa "proposta enviada".
-        leadId = (await upsertLead(db, sellerTenant, {
-          name: nome, email, phone: telefone, company: empresa, cnpj: documento, source: "Checkout S.P.Y.", priority: "Alta", scoreIA: 80,
-          value: q.totalCents / 100, papel: "proposta",
-          nota: `Checkout: plano ${q.plan.name}, total ${brl(q.totalCents)}${q.promo ? `, promoção ${q.promo.label || q.promo.code}` : ""}. Gerou o Pix mas ainda não enviou o comprovante: fazer follow-up.`,
-        })).id;
-      } catch (e: any) { console.error("[checkout] lead:", e?.message); }
+    const r = await abrirPedido({
+      kind, tenantId: existente?.tenant_id ?? null, plan: q.plan, planId: q.plan.id, nome, telefone, email, documento, empresa,
+      priceCents: q.priceCents, setupCents: q.setupCents, discountCents: q.discountCents, totalCents: q.totalCents, promo: q.promo, ip: clientIp(req),
+      consent: { version: String(b.politicaVersao || process.env.CHECKOUT_POLICY_VERSION || "2026-11").slice(0, 40) },
+      // Lead no CRM de quem vende, ja na hora do cadastro (quem desistiu do Pix tambem vira lead para follow-up).
+      antes: async () => {
+        if (!sellerTenant) return null;
+        try {
+          // Mesmo telefone/e-mail ja no sistema = so atualiza o lead; novo entra na etapa "proposta enviada".
+          return (await upsertLead(db, sellerTenant, {
+            name: nome, email, phone: telefone, company: empresa, cnpj: documento, source: "Checkout S.P.Y.", priority: "Alta", scoreIA: 80,
+            value: q.totalCents / 100, papel: "proposta",
+            nota: `Checkout: plano ${q.plan.name}, total ${brl(q.totalCents)}${q.promo ? `, promoção ${q.promo.label || q.promo.code}` : ""}. Gerou o Pix mas ainda não enviou o comprovante: fazer follow-up.`,
+          })).id;
+        } catch (e: any) { console.error("[checkout] lead:", e?.message); return null; }
+      },
+    }, cfg);
+    if ("error" in r) return res.status(r.status).json({ error: r.error });
+    if (r.novo) {
+      await avisarEquipe("novo_lead", "info", `Novo lead no checkout: ${nome}`, `${nome} (${empresa}) gerou o Pix de ${brl(q.totalCents)} no checkout${existente ? " (e-mail que já tem acesso: renovação/reativação)" : ""}.`,
+        [{ label: "Nome do lead", value: nome }, { label: "Empresa", value: empresa }, { label: "Plano / valor", value: `${q.plan.name} · ${brl(q.totalCents)}` }], telefone,
+        `${publicAppUrl}/app/admin?tab=plans&sub=checkout`);
     }
+    res.json(r.pedido);
+  });
 
-    const { error } = await db.from("checkout_orders").insert({
-      token, plan_id: q.plan.id, plan_code: q.plan.code, plan_name: q.plan.name, nome, telefone, email, documento, empresa,
-      price_cents: q.priceCents, setup_cents: q.setupCents, discount_cents: q.discountCents, total_cents: q.totalCents,
-      promo_id: q.promo?.id ?? null, promo_code: q.promo?.code ?? null, txid, pix_payload: pixPayload, lead_id: leadId, expires_at: expiresAt,
-    });
-    if (error) { console.error("[checkout] order:", error.message); return res.status(500).json({ error: "Não foi possível gerar o Pix. Tente novamente." }); }
-    await avisarEquipe("novo_lead", "info", `Novo lead no checkout: ${nome}`, `${nome} (${empresa}) gerou o Pix de ${brl(q.totalCents)} no checkout.`,
-      [{ label: "Nome do lead", value: nome }, { label: "Empresa", value: empresa }, { label: "Plano / valor", value: `${q.plan.name} · ${brl(q.totalCents)}` }], telefone,
-      `${publicAppUrl}/app/admin?tab=plans&sub=checkout`);
-    res.json({ token, totalCents: q.totalCents, pixPayload, status: "pending", expiresAt });
+  // Renovacao pelo proprio cliente logado: Pix do plano atual da empresa dele (sem cupom, sem implantacao).
+  router.post("/renewal-order", pubWrite, requireUser, async (req: any, res) => {
+    if (!db) return res.status(503).json({ error: "Indisponível." });
+    const { data: me } = await db.from("users").select("name,email,tenant_id").eq("id", req.user.id).maybeSingle();
+    if (!me?.tenant_id || !EMAIL_RE.test(String(me.email || ""))) return res.status(403).json({ error: "Seu usuário não está ligado a uma empresa." });
+    const cfg = await config();
+    if (!cfg?.active || !cfg.pix_key) return res.status(503).json({ error: "O pagamento ainda não está disponível. Fale com a gente pelo WhatsApp." });
+    const [{ data: sub }, { data: tenant }, { data: emp }] = await Promise.all([
+      db.from("tenant_subscriptions").select("plan:subscription_plans(*)").eq("tenant_id", me.tenant_id).maybeSingle(),
+      db.from("tenants").select("name").eq("id", me.tenant_id).maybeSingle(),
+      db.from("app_settings").select("value").eq("tenant_id", me.tenant_id).eq("key", "empresa_dados").maybeSingle(),
+    ]);
+    const plan: any = Array.isArray((sub as any)?.plan) ? (sub as any).plan[0] : (sub as any)?.plan;
+    if (!plan) return res.status(400).json({ error: "Sua empresa ainda não tem um plano para renovar. Fale com a gente pelo WhatsApp." });
+    const total = Math.max(0, Number(plan.price_cents) || 0);
+    if (total < 100) return res.status(400).json({ error: "O plano da sua empresa não é cobrado por Pix. Fale com a gente pelo WhatsApp." });
+    const dados: any = emp?.value || {};
+    const r = await abrirPedido({
+      kind: "renewal", tenantId: me.tenant_id, plan, planId: plan.id, nome: String(me.name || "Cliente").slice(0, 120), telefone: String(dados.telefone || "").slice(0, 30),
+      email: String(me.email).toLowerCase(), documento: String(dados.cnpj || "").replace(/\D/g, ""), empresa: String(tenant?.name || dados.nome || "Empresa").slice(0, 160),
+      priceCents: total, setupCents: 0, discountCents: 0, totalCents: total, promo: null, ip: clientIp(req),
+    }, cfg);
+    if ("error" in r) return res.status(r.status).json({ error: r.error });
+    res.json({ ...r.pedido, planName: plan.name, empresa: tenant?.name ?? null });
   });
 
   router.get("/order/:token", pub, async (req, res) => {
     if (!db) return res.status(503).json({ error: "Indisponível." });
-    const { data } = await db.from("checkout_orders").select("status,total_cents,plan_name,pix_payload,expires_at,nome,email").eq("token", String(req.params.token).slice(0, 80)).maybeSingle();
+    const { data } = await db.from("checkout_orders").select("status,total_cents,plan_name,pix_payload,expires_at,nome,email,kind,acesso_email_ok,empresa").eq("token", String(req.params.token).slice(0, 80)).maybeSingle();
     if (!data) return res.status(404).json({ error: "Pedido não encontrado." });
+    // Só 'pending' expira sozinho; 'awaiting_confirmation' espera a conferência da equipe.
     const expirado = data.status === "pending" && new Date(data.expires_at).getTime() < Date.now();
-    res.json({ status: expirado ? "expired" : data.status, totalCents: data.total_cents, planName: data.plan_name, pixPayload: data.pix_payload, nome: data.nome, email: data.email });
+    res.json({ status: expirado ? "expired" : data.status, totalCents: data.total_cents, planName: data.plan_name, pixPayload: data.pix_payload, nome: data.nome, email: data.email, kind: data.kind, emailEnviado: data.acesso_email_ok ?? null, empresa: data.empresa });
   });
 
-  // "Já paguei": avisa quem vende para conferir o Pix e confirmar.
+  // "Já paguei": guarda o comprovante, move o pedido para 'awaiting_confirmation' e avisa a equipe para conferir o Pix e confirmar.
+  // A empresa so e criada na confirmacao (/admin/orders/:id/confirm) — exceto com CHECKOUT_AUTO_FULFILL=true.
   router.post("/order/:token/paid", pubWrite, async (req, res) => {
     if (!db) return res.status(503).json({ error: "Indisponível." });
     const { data: o } = await db.from("checkout_orders").select("*").eq("token", String(req.params.token).slice(0, 80)).maybeSingle();
     if (!o) return res.status(404).json({ error: "Pedido não encontrado." });
     if (o.status === "paid" || o.status === "awaiting_confirmation") return res.json({ status: o.status });
+    if (o.status === "pending" && new Date(o.expires_at).getTime() < Date.now()) {
+      await db.from("checkout_orders").update({ status: "expired" }).eq("id", o.id).eq("status", "pending");
+      return res.status(410).json({ error: "Este Pix expirou. Volte e gere um novo. Se você já pagou, fale com a gente pelo WhatsApp." });
+    }
     if (o.status !== "pending") return res.status(409).json({ error: "Este pedido não está mais aberto." });
 
     // Comprovante obrigatorio (imagem ou PDF, ate 3 MB), guardado em bucket privado; so o super admin ve, por link temporario.
@@ -377,20 +575,118 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     const up = await db.storage.from("checkout-comprovantes").upload(path, bytes, { contentType: c.type, upsert: false });
     if (up.error) { console.error("[checkout] comprovante:", up.error.message); return res.status(500).json({ error: "Não foi possível salvar o comprovante. Tente novamente." }); }
 
-    await db.from("checkout_orders").update({ status: "awaiting_confirmation", informed_paid_at: new Date().toISOString(), comprovante_path: path }).eq("id", o.id);
+    const { data: movido } = await db.from("checkout_orders").update({ status: "awaiting_confirmation", informed_paid_at: new Date().toISOString(), comprovante_path: path })
+      .eq("id", o.id).eq("status", "pending").select("id").maybeSingle();
+    if (!movido) return res.json({ status: "awaiting_confirmation" }); // outro envio ganhou a corrida
 
-    // Comprovante enviado = venda feita: cria a empresa (multi-tenant) na hora. Se algo impedir, o pedido fica
-    // aguardando e o lead segue no CRM para follow-up.
+    const resumo = [{ label: "Cliente", value: o.nome }, { label: "Empresa", value: o.empresa }, { label: "Plano / valor", value: `${o.plan_name} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }];
+    if (!AUTO_FULFILL()) {
+      await avisarEquipe("checkout_comprovante", "warning", `Comprovante recebido — confira o Pix: ${o.empresa}`,
+        `Comprovante recebido — confira o Pix de ${brl(o.total_cents)} de ${o.nome} (${o.empresa}) e confirme no painel (Planos › Checkout). O acesso só é liberado depois da sua confirmação.`, resumo, o.telefone);
+      return res.json({ status: "awaiting_confirmation" });
+    }
+
+    // Modo automatico (opt-in): comprovante enviado = venda feita. Se algo impedir, o pedido segue aguardando confirmacao manual.
     const out: { body?: any } = {};
     const cap: any = { status: () => cap, json: (b: any) => { out.body = b; return cap; } };
     await fulfill({ ...o, comprovante_path: path, status: "awaiting_confirmation" }, null, cap);
     const vendido = out.body?.ok === true;
-    await avisarEquipe(vendido ? "checkout_venda" : "novo_lead", vendido ? "success" : "warning",
-      vendido ? `Venda no checkout: ${o.empresa} — ${brl(o.total_cents)}` : `Comprovante recebido, criar a empresa manualmente: ${o.empresa}`,
-      vendido ? `${o.nome} (${o.empresa}) enviou o comprovante de ${brl(o.total_cents)}. A empresa foi criada e o acesso enviado.`
-              : `${o.nome} (${o.empresa}) enviou o comprovante de ${brl(o.total_cents)}, mas não foi possível criar a empresa automaticamente (${String(out.body?.error || "erro")}). Resolva em Planos › Checkout.`,
-      [{ label: "Cliente", value: o.nome }, { label: "Empresa", value: o.empresa }, { label: "Plano / valor", value: `${o.plan_name} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }], o.telefone);
+    if (!vendido) {
+      await avisarEquipe("checkout_comprovante", "warning", `Comprovante recebido, liberar manualmente: ${o.empresa}`,
+        `${o.nome} (${o.empresa}) enviou o comprovante de ${brl(o.total_cents)}, mas a liberação automática falhou (${String(out.body?.error || "erro")}). Confira o Pix e confirme em Planos › Checkout.`, resumo, o.telefone);
+    }
     res.json({ status: vendido ? "paid" : "awaiting_confirmation" });
+  });
+
+  // ── Cron (protegido por CRON_SECRET; o dono mapeia em vercel.json — ver supabase/migrations/20261108_cron_billing.sql.example) ──
+  const sha = (v: string) => createHash("sha256").update(v).digest();
+  function cronAuth(req: any, res: Response, next: NextFunction) {
+    const secret = process.env.CRON_SECRET;
+    if (!secret) return res.status(503).json({ error: "CRON_SECRET não configurado." });
+    const h = String(req.headers["authorization"] || "");
+    const got = h.startsWith("Bearer ") ? h.slice(7) : String(req.headers["x-cron-secret"] || "");
+    if (!got || !timingSafeEqual(sha(got), sha(secret))) return res.status(401).json({ error: "Não autorizado." });
+    next();
+  }
+
+  /** Avisos de vencimento: D-5 (faltam ate 5 dias), D0 (venceu ha menos de 3 dias) e D+3 (venceu ha 3 dias ou mais). Uma vez por tenant+tipo+vencimento. */
+  async function enviarAvisosVencimento() {
+    const DAY = 86_400_000;
+    const now = Date.now();
+    const de = new Date(now - 10 * DAY).toISOString();
+    const ate = new Date(now + 5 * DAY).toISOString();
+    const subs: any[] = [];
+    const campos = "tenant_id,status,gateway,current_period_end,trial_ends_at,plan:subscription_plans(name,price_cents)";
+    for (const [col, status] of [["current_period_end", ["active", "past_due"]], ["trial_ends_at", ["trial"]]] as const) {
+      for (let from = 0; from < 5000; from += 1000) {
+        const { data, error } = await db!.from("tenant_subscriptions").select(campos).in("status", status as unknown as string[]).gte(col, de).lte(col, ate).order("tenant_id").range(from, from + 999);
+        if (error) throw new Error(error.message);
+        subs.push(...(data || []));
+        if ((data || []).length < 1000) break;
+      }
+    }
+    // Cobranca automatica (gateway) cuida de si; aqui so as assinaturas manuais/Pix.
+    const candidatos = subs.filter((s) => !s.gateway || s.gateway === "manual").map((s) => {
+      const due = new Date(s.status === "trial" ? s.trial_ends_at : s.current_period_end).getTime();
+      const diff = due - now;
+      const kind = diff > 0 ? "d-5" : -diff < 3 * DAY ? "d0" : "d+3";
+      return { s, due: new Date(due).toISOString(), kind };
+    });
+    let enviados = 0, jaEnviados = 0, semDestinatario = 0, falhas = 0;
+    const inicio = Date.now();
+    for (let i = 0; i < candidatos.length; i += 200) {
+      const lote = candidatos.slice(i, i + 200);
+      const ids = [...new Set(lote.map((c) => c.s.tenant_id))];
+      const [{ data: feitos }, { data: admins }] = await Promise.all([
+        db!.from("billing_notices").select("tenant_id,kind,period_end").in("tenant_id", ids),
+        db!.from("users").select("tenant_id,email,name,created_at").in("tenant_id", ids).eq("is_tenant_admin", true).eq("active", true).order("created_at"),
+      ]);
+      const feito = new Set((feitos || []).map((f: any) => `${f.tenant_id}|${f.kind}|${new Date(f.period_end).getTime()}`));
+      const admin = new Map<string, any>();
+      for (const a of admins || []) if (!admin.has((a as any).tenant_id) && EMAIL_RE.test(String((a as any).email || ""))) admin.set((a as any).tenant_id, a);
+      for (const c of lote) {
+        if (Date.now() - inicio > 45_000) return { enviados, jaEnviados, semDestinatario, falhas, parcial: true };
+        if (feito.has(`${c.s.tenant_id}|${c.kind}|${new Date(c.due).getTime()}`)) { jaEnviados++; continue; }
+        const dest = admin.get(c.s.tenant_id);
+        if (!dest) { semDestinatario++; continue; }
+        // Reserva o aviso ANTES de enviar (chave unica = sem duplicar mesmo com duas execucoes ao mesmo tempo); se o envio falhar, libera.
+        const { error: insErr } = await db!.from("billing_notices").insert({ tenant_id: c.s.tenant_id, kind: c.kind, period_end: c.due, to_email: dest.email });
+        if (insErr) { if (insErr.code === "23505") jaEnviados++; else { falhas++; console.error("[checkout] billing_notices:", insErr.message); } continue; }
+        const plano = Array.isArray(c.s.plan) ? c.s.plan[0] : c.s.plan;
+        const venc = new Date(c.due).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+        const copy = c.kind === "d-5" ? "cobranca_vence_em_breve" : c.kind === "d0" ? "cobranca_vence_hoje" : "cobranca_em_atraso";
+        const titulo = c.kind === "d-5" ? `Sua assinatura do S.P.Y. vence em ${venc}` : c.kind === "d0" ? "Sua assinatura do S.P.Y. vence hoje" : "Pagamento da assinatura do S.P.Y. em atraso";
+        try {
+          const mail = notificationEmail({
+            kind: c.kind === "d+3" ? "warning" : "info", copyKey: copy, title: titulo, description: titulo,
+            details: [...(plano?.name ? [{ label: "Plano", value: plano.name }] : []), ...(plano?.price_cents ? [{ label: "Valor", value: brl(plano.price_cents) }] : []), { label: "Vencimento", value: venc }],
+            primaryButton: { label: "Renovar / pagar", url: `${publicAppUrl}/checkout?renovar=1` }, name: dest.name,
+          });
+          await sendPlatformEmail({ to: dest.email, ...mail });
+          enviados++;
+        } catch (e: any) {
+          falhas++; console.error("[checkout] aviso de vencimento:", e?.message);
+          await db!.from("billing_notices").delete().eq("tenant_id", c.s.tenant_id).eq("kind", c.kind).eq("period_end", c.due);
+        }
+      }
+    }
+    return { enviados, jaEnviados, semDestinatario, falhas, parcial: false };
+  }
+
+  router.all("/cron/renewal-notices", cronAuth, async (req, res) => {
+    if (req.method !== "GET" && req.method !== "POST") return res.status(405).json({ error: "Método não permitido." });
+    if (!db) return res.status(503).json({ error: "Indisponível." });
+    try { res.json({ ok: true, ...(await enviarAvisosVencimento()) }); }
+    catch (e: any) { console.error("[checkout] renewal-notices:", e?.message); res.status(500).json({ error: "Erro ao enviar os avisos de vencimento." }); }
+  });
+
+  // Regua de inadimplencia: mesmo efeito do billing_tick() agendado no banco (trial/ativo -> em atraso -> suspenso).
+  router.all("/cron/billing-tick", cronAuth, async (req, res) => {
+    if (req.method !== "GET" && req.method !== "POST") return res.status(405).json({ error: "Método não permitido." });
+    if (!db) return res.status(503).json({ error: "Indisponível." });
+    const { data, error } = await db.rpc("billing_tick");
+    if (error) { console.error("[checkout] billing_tick:", error.message); return res.status(500).json({ error: "Erro ao executar a régua de cobrança." }); }
+    res.json({ ok: true, changed: data });
   });
 
   // ── Administracao (super admin) ────────────────────────────────────────────
@@ -399,7 +695,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     const [cfg, promos, orders] = await Promise.all([
       config(),
       db.from("checkout_promos").select("*").order("created_at", { ascending: false }),
-      db.from("checkout_orders").select("id,status,plan_name,nome,empresa,email,telefone,documento,total_cents,discount_cents,promo_code,created_at,informed_paid_at,paid_at,error,tenant_id,comprovante_path")
+      db.from("checkout_orders").select("id,status,plan_name,nome,empresa,email,telefone,documento,total_cents,discount_cents,promo_code,created_at,informed_paid_at,paid_at,error,tenant_id,comprovante_path,kind,fulfilled_at,agentes_ok,agentes_erro,acesso_email_ok")
         .order("created_at", { ascending: false }).limit(100),
     ]);
     res.json({ config: cfg, promos: promos.data || [], orders: orders.data || [] });
@@ -475,12 +771,15 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     res.json({ ok: true });
   });
 
-  /** Confirmacao manual (reserva): o fluxo normal e automatico quando o cliente anexa o comprovante. */
+  /** Confirmacao pela equipe depois de conferir o Pix: e aqui que a empresa e criada (ou a assinatura renovada). Tambem retoma pedido 'paid' que travou no meio. */
   router.post("/admin/orders/:id/confirm", requireUser, requireMaster, async (req: any, res) => {
     if (!db) return res.status(503).json({ error: "Service role não configurada." });
     const { data: o } = await db.from("checkout_orders").select("*").eq("id", req.params.id).maybeSingle();
     if (!o) return res.status(404).json({ error: "Pedido não encontrado." });
-    if (o.status === "paid") return res.json({ ok: true, jaConfirmado: true, tenantId: o.tenant_id });
+    if (o.status === "paid") {
+      if (o.fulfilled_at !== null) return res.json({ ok: true, jaConfirmado: true, tenantId: o.tenant_id });
+      return fulfill(o, req.user.id, res, { recover: true }); // pago mas nao concluido: retoma de onde parou
+    }
     if (o.status === "canceled") return res.status(409).json({ error: "Pedido cancelado." });
     return fulfill(o, req.user.id, res);
   });

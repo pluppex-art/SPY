@@ -1,0 +1,23 @@
+-- OPCIONAL / MANUAL: agendamento da cobranca recorrente (renovacao). Nada aqui roda sozinho.
+--
+-- O servidor expoe duas rotas protegidas por CRON_SECRET (Authorization: Bearer $CRON_SECRET), aceitando GET ou POST:
+--   /api/checkout/cron/renewal-notices   -> e-mails de vencimento D-5, D0 e D+3 ao responsavel (sem duplicar; tabela billing_notices)
+--   /api/checkout/cron/billing-tick      -> regua de inadimplencia (trial/ativo -> em atraso -> suspenso), igual ao billing_tick()
+--
+-- OPCAO A (recomendada na Vercel): em vercel.json, adicione (a Vercel envia o CRON_SECRET sozinha como Bearer quando a env existe):
+--   "crons": [
+--     { "path": "/api/checkout/cron/renewal-notices", "schedule": "0 11 * * *" },
+--     { "path": "/api/checkout/cron/billing-tick",    "schedule": "15 6 * * *" }
+--   ]
+--   e defina a env CRON_SECRET na Vercel (qualquer texto longo e aleatorio).
+--
+-- OPCAO B (pg_cron + pg_net, so a regua de inadimplencia no proprio banco):
+--   select cron.schedule('spy_billing_tick', '15 6 * * *', 'select public.billing_tick()');
+--
+-- OPCAO C (pg_cron chamando o servidor para os e-mails; troque URL e SEGREDO):
+--   select cron.schedule('spy_renewal_notices', '0 11 * * *', $$
+--     select net.http_get(url := 'https://SEU-DOMINIO/api/checkout/cron/renewal-notices',
+--                         headers := jsonb_build_object('Authorization', 'Bearer SEGREDO'));
+--   $$);
+--
+-- Use A (ou B + C), nao as duas formas de billing_tick ao mesmo tempo (e inofensivo, mas redundante).

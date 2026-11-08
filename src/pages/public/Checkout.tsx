@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
+import { supabase } from "../../lib/supabase";
+import { apiFetch } from "../../lib/apiClient";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Lock, ShieldCheck, Tag } from "lucide-react";
 
 type Quote = {
@@ -11,6 +13,12 @@ type Quote = {
 };
 type Dados = { nome: string; telefone: string; email: string; documento: string; empresa: string };
 type Pedido = { token: string; totalCents: number; pixPayload: string; status: string };
+type Info = { kind: "new" | "renewal"; emailEnviado: boolean | null; email: string };
+
+const LS_TOKEN = "spy_checkout_token";
+const POLITICA_VERSAO = "2026-11";
+const lsGet = () => { try { return localStorage.getItem(LS_TOKEN) || ""; } catch { return ""; } };
+const lsSet = (v: string) => { try { if (v) localStorage.setItem(LS_TOKEN, v); else localStorage.removeItem(LS_TOKEN); } catch { /* sem armazenamento: segue sem */ } };
 
 const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -55,6 +63,10 @@ export default function Checkout() {
   const [status, setStatus] = useState("pending");
   const [qr, setQr] = useState("");
   const [copiado, setCopiado] = useState(false);
+  const [aceite, setAceite] = useState(false);
+  const [info, setInfo] = useState<Info | null>(null);
+  const [semSessao, setSemSessao] = useState(false);
+  const renovar = params.get("renovar") === "1";
   const topo = useRef<HTMLDivElement>(null);
 
   useEffect(() => { document.title = "Assinar o S.P.Y."; }, []);
@@ -77,22 +89,69 @@ export default function Checkout() {
   }, []);
   useEffect(() => { if (passo === 1) void cotar(planoCode, cupom); }, [passo, planoCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const PASSOS = single ? ["Seus dados", "Pagamento"] : ["Seus dados", "Plano", "Pagamento"];
+  const PASSOS = renovar ? ["Pagamento"] : single ? ["Seus dados", "Pagamento"] : ["Seus dados", "Plano", "Pagamento"];
   const payIdx = PASSOS.length - 1;
   const irPara = (n: number) => { setErro(""); setPasso(n); topo.current?.scrollIntoView({ behavior: "smooth", block: "start" }); };
 
   const dadosOk = useMemo(() => {
     const d = dados.documento.replace(/\D/g, "");
     return dados.nome.trim().length >= 3 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email) && dados.telefone.replace(/\D/g, "").length >= 10 &&
-      (d.length === 11 || d.length === 14) && dados.empresa.trim().length >= 2;
-  }, [dados]);
+      (d.length === 11 || d.length === 14) && dados.empresa.trim().length >= 2 && aceite;
+  }, [dados, aceite]);
+
+  const mostrarPedido = useCallback(async (p: Pedido) => {
+    setPedido(p); setStatus(p.status);
+    setQr(await QRCode.toDataURL(p.pixPayload, { margin: 1, width: 320, errorCorrectionLevel: "M" }));
+  }, []);
+
+  // Recarregar a página (ou voltar depois) reaproveita o pedido aberto: nunca gera um segundo Pix para quem já pagou.
+  const restaurado = useRef(false);
+  useEffect(() => {
+    if (planos === null || restaurado.current) return;
+    restaurado.current = true;
+    const token = lsGet();
+    if (renovar || !token) return;
+    api<{ status: string; totalCents: number; pixPayload: string; nome: string; email: string; kind: "new" | "renewal"; emailEnviado: boolean | null; empresa?: string }>(`/api/checkout/order/${token}`)
+      .then(async (r) => {
+        if (r.status === "expired" || r.status === "canceled") { lsSet(""); return; }
+        setDados((d) => ({ ...d, nome: r.nome, email: r.email, empresa: r.empresa || d.empresa }));
+        setInfo({ kind: r.kind, emailEnviado: r.emailEnviado, email: r.email });
+        await mostrarPedido({ token, totalCents: r.totalCents, pixPayload: r.pixPayload, status: r.status });
+        setPasso(PASSOS.length - 1);
+      })
+      .catch(() => lsSet(""));
+  }, [planos, single, renovar]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Renovação: cliente logado gera o Pix do plano atual da empresa dele.
+  useEffect(() => {
+    if (!renovar || !supabase) return;
+    let vivo = true;
+    (async () => {
+      const { data } = await supabase!.auth.getSession();
+      if (!data.session) { if (vivo) setSemSessao(true); return; }
+      setOcupado(true);
+      try {
+        const res = await apiFetch("/api/checkout/renewal-order", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error || "Não foi possível gerar o Pix da renovação.");
+        if (!vivo) return;
+        lsSet(json.token);
+        setInfo({ kind: "renewal", emailEnviado: null, email: data.session.user.email || "" });
+        await mostrarPedido(json as Pedido);
+        setPasso(0);
+      } catch (e: any) { if (vivo) setErro(e.message); }
+      finally { if (vivo) setOcupado(false); }
+    })();
+    return () => { vivo = false; };
+  }, [renovar, mostrarPedido]);
 
   const gerarPix = async () => {
     setOcupado(true); setErro("");
     try {
-      const p = await api<Pedido>("/api/checkout/order", { planCode: planoCode, promoCode: cupom, ...dados, documento: dados.documento.replace(/\D/g, "") });
-      setPedido(p); setStatus(p.status);
-      setQr(await QRCode.toDataURL(p.pixPayload, { margin: 1, width: 320, errorCorrectionLevel: "M" }));
+      const p = await api<Pedido>("/api/checkout/order", { planCode: planoCode, promoCode: cupom, ...dados, documento: dados.documento.replace(/\D/g, ""), consentimento: aceite, politicaVersao: POLITICA_VERSAO });
+      lsSet(p.token);
+      setInfo({ kind: "new", emailEnviado: null, email: dados.email });
+      await mostrarPedido(p);
       irPara(payIdx);
     } catch (e: any) { setErro(e.message); }
     finally { setOcupado(false); }
@@ -102,7 +161,9 @@ export default function Checkout() {
   useEffect(() => {
     if (!pedido || status === "paid" || status === "expired" || status === "canceled") return;
     const t = setInterval(() => {
-      api<{ status: string }>(`/api/checkout/order/${pedido.token}`).then((r) => setStatus(r.status)).catch(() => {});
+      api<{ status: string; kind: "new" | "renewal"; emailEnviado: boolean | null; email: string }>(`/api/checkout/order/${pedido.token}`)
+        .then((r) => { setStatus(r.status); setInfo({ kind: r.kind, emailEnviado: r.emailEnviado, email: r.email }); if (r.status === "expired" || r.status === "canceled") lsSet(""); })
+        .catch(() => {});
     }, 8000);
     return () => clearInterval(t);
   }, [pedido, status]);
@@ -125,7 +186,7 @@ export default function Checkout() {
       const r = await api<{ status: string }>(`/api/checkout/order/${pedido.token}/paid`, { comprovante: { type: arquivo.type, data } });
       setStatus(r.status);
     }
-    catch (e: any) { setErro(e.message); }
+    catch (e: any) { setErro(e.message); if (/expirou/i.test(e.message)) setStatus("expired"); }
     finally { setOcupado(false); }
   };
 
@@ -135,6 +196,8 @@ export default function Checkout() {
   };
 
   const pago = status === "paid";
+  useEffect(() => { if (pago) lsSet(""); }, [pago]);
+  const novoPedido = () => { lsSet(""); setPedido(null); setQr(""); setStatus("pending"); setArquivo(null); setErro(""); if (renovar) window.location.reload(); else irPara(single ? 0 : 1); };
 
   return (
     <div className="min-h-dvh bg-[var(--color-surface)] bg-[radial-gradient(60%_40%_at_50%_0%,color-mix(in_srgb,var(--color-primary-blue)_10%,transparent),transparent)] px-4 py-8 sm:py-12">
@@ -166,8 +229,8 @@ export default function Checkout() {
             <p className="text-sm text-[var(--color-text-primary)]">O pagamento online ainda não está liberado. Fale com a gente pelo WhatsApp e finalizamos juntos.</p>
           )}
 
-          {planos !== null && habilitado && passo === 0 && (
-            <form onSubmit={(e) => { e.preventDefault(); if (dadosOk) { if (single) void gerarPix(); else irPara(1); } else setErro("Confira os campos: todos são obrigatórios e o CPF/CNPJ precisa estar completo."); }} className="space-y-4" noValidate>
+          {planos !== null && habilitado && !renovar && passo === 0 && (
+            <form onSubmit={(e) => { e.preventDefault(); if (dadosOk) { if (single) void gerarPix(); else irPara(1); } else setErro("Confira os campos: todos são obrigatórios, o CPF/CNPJ precisa estar completo e você precisa aceitar o uso dos dados."); }} className="space-y-4" noValidate>
               <h2 className="text-lg font-black text-[var(--color-text-primary)]">Seus dados</h2>
               <div><label className={rotulo} htmlFor="ck-nome">Nome completo</label><input id="ck-nome" className={campo} autoComplete="name" value={dados.nome} onChange={set("nome")} /></div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -178,12 +241,16 @@ export default function Checkout() {
                 <div><label className={rotulo} htmlFor="ck-doc">CPF ou CNPJ</label><input id="ck-doc" className={campo} inputMode="numeric" value={dados.documento} onChange={set("documento")} /></div>
                 <div><label className={rotulo} htmlFor="ck-emp">Nome da empresa</label><input id="ck-emp" className={campo} autoComplete="organization" value={dados.empresa} onChange={set("empresa")} /></div>
               </div>
+              <label className="flex items-start gap-2 text-xs text-[var(--color-text-muted)]">
+                <input type="checkbox" className="mt-0.5" checked={aceite} onChange={(e) => setAceite(e.target.checked)} />
+                <span>Concordo que o S.P.Y. use meus dados para o cadastro, a cobrança e o contato sobre a minha assinatura (LGPD).</span>
+              </label>
               {erro && <p role="alert" className="text-sm font-semibold text-rose-500">{erro}</p>}
               <button type="submit" className={`${botao} w-full`} disabled={ocupado}>{ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {single ? "Ir para o pagamento" : "Continuar"} <ArrowRight className="h-4 w-4" /></button>
             </form>
           )}
 
-          {planos !== null && habilitado && !single && passo === 1 && (
+          {planos !== null && habilitado && !renovar && !single && passo === 1 && (
             <div className="space-y-5">
               <h2 className="text-lg font-black text-[var(--color-text-primary)]">Escolha seu plano</h2>
               <div className="space-y-2.5" role="radiogroup" aria-label="Plano">
@@ -230,6 +297,17 @@ export default function Checkout() {
             </div>
           )}
 
+          {renovar && !pedido && semSessao && (
+            <div className="space-y-3 text-center">
+              <p className="text-sm text-[var(--color-text-primary)]">Entre na sua conta do S.P.Y. para renovar a assinatura.</p>
+              <Link to="/login" className={`${botao} w-full`}>Entrar</Link>
+            </div>
+          )}
+          {renovar && !pedido && !semSessao && (
+            erro ? <p role="alert" className="text-sm font-semibold text-rose-500">{erro}</p>
+              : <p className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Gerando o Pix da renovação…</p>
+          )}
+
           {passo === payIdx && pedido && !pago && (
             <div className="space-y-5 text-center">
               <h2 className="text-lg font-black text-[var(--color-text-primary)]">Pague com Pix</h2>
@@ -246,7 +324,10 @@ export default function Checkout() {
               )}
               {!(single && single.listCents > pedido.totalCents) && <p className="text-3xl font-black text-[var(--color-text-primary)]">{brl(pedido.totalCents)}</p>}
               {status === "expired" || status === "canceled" ? (
-                <p className="text-sm font-semibold text-rose-500">Este Pix expirou. Volte e gere um novo.</p>
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-rose-500">Este Pix {status === "canceled" ? "foi cancelado" : "expirou"}. Gere um novo para continuar.</p>
+                  <button type="button" className={`${botao} w-full`} onClick={novoPedido}>Gerar novo Pix</button>
+                </div>
               ) : (
                 <>
                   {qr && <img src={qr} alt="QR Code do Pix" width={240} height={240} className="mx-auto rounded-xl bg-white p-2" />}
@@ -256,7 +337,7 @@ export default function Checkout() {
                     <button type="button" className={botaoSec} onClick={() => void copiar()}>{copiado ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />} {copiado ? "Copiado" : "Copiar"}</button>
                   </div>
                   {status === "awaiting_confirmation" ? (
-                    <p className="flex items-center justify-center gap-2 rounded-xl bg-amber-500/10 p-3 text-sm font-semibold text-amber-500"><Loader2 className="h-4 w-4 animate-spin" /> Recebemos seu aviso. Estamos conferindo o Pix — esta tela atualiza sozinha.</p>
+                    <p className="flex items-center justify-center gap-2 rounded-xl bg-amber-500/10 p-3 text-sm font-semibold text-amber-500"><Loader2 className="h-4 w-4 animate-spin" /> Comprovante recebido! Assim que a nossa equipe conferir o pagamento, liberamos o seu acesso e avisamos por e-mail. Esta tela atualiza sozinha.</p>
                   ) : (
                     <div className="space-y-3 text-left">
                       <label className={rotulo} htmlFor="ck-comp">Depois de pagar, anexe o comprovante do Pix (foto ou PDF, até 3 MB)</label>
@@ -277,8 +358,23 @@ export default function Checkout() {
           {pago && (
             <div className="space-y-3 py-4 text-center">
               <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-500" />
-              <h2 className="text-xl font-black text-[var(--color-text-primary)]">Pagamento confirmado!</h2>
-              <p className="text-sm text-[var(--color-text-muted)]">Enviamos para <strong>{dados.email}</strong> o link para você definir sua senha e entrar. Nosso time vai chamar no WhatsApp para a implantação.</p>
+              {info?.kind === "renewal" ? (
+                <>
+                  <h2 className="text-xl font-black text-[var(--color-text-primary)]">Pagamento confirmado!</h2>
+                  <p className="text-sm text-[var(--color-text-muted)]">Sua assinatura está em dia. É só entrar normalmente.</p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-xl font-black text-[var(--color-text-primary)]">Pagamento confirmado!</h2>
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    {info?.emailEnviado === false
+                      ? <>Seu acesso foi liberado, mas o e-mail para <strong>{info?.email || dados.email}</strong> não saiu. Abra a tela de login e clique em <strong>“Esqueci a senha”</strong> para criar a sua senha.</>
+                      : <>Enviamos para <strong>{info?.email || dados.email}</strong> o link para você definir sua senha e entrar (o link tem validade limitada). Se não encontrar o e-mail ou o link expirar, use <strong>“Esqueci a senha”</strong> na tela de login.</>}
+                  </p>
+                  <p className="text-sm text-[var(--color-text-muted)]">Nosso time vai chamar no WhatsApp para a implantação.</p>
+                </>
+              )}
+              <Link to="/login" className={`${botao} w-full`}>Ir para o login</Link>
             </div>
           )}
         </div>

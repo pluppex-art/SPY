@@ -15,8 +15,8 @@ const supabaseAnonKeyRaw = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const supabaseUrl = normalizeSupabaseUrl(supabaseUrlRaw);
 const supabaseAnonKey = (supabaseAnonKeyRaw || '').trim();
 
-console.log('[Supabase] env VITE_SUPABASE_URL set?', Boolean(supabaseUrlRaw));
-console.log('[Supabase] env VITE_SUPABASE_ANON_KEY set?', Boolean(supabaseAnonKeyRaw));
+if (import.meta.env.DEV) console.log('[Supabase] env VITE_SUPABASE_URL set?', Boolean(supabaseUrlRaw));
+if (import.meta.env.DEV) console.log('[Supabase] env VITE_SUPABASE_ANON_KEY set?', Boolean(supabaseAnonKeyRaw));
 
 // Initialize client if credentials are configured
 export const supabase = supabaseUrl && supabaseAnonKey
@@ -25,7 +25,7 @@ export const supabase = supabaseUrl && supabaseAnonKey
 
 // Log Supabase configuration status for debugging
 if (supabase) {
-  console.log('[Supabase] ✅ Configurado e pronto para uso');
+  if (import.meta.env.DEV) console.log('[Supabase] ✅ Configurado e pronto para uso');
 } else {
   console.warn(
     '[Supabase] ⚠️ NÃO CONFIGURADO\n' +
@@ -275,6 +275,18 @@ export async function notifyPasswordChanged(): Promise<void> {
   } catch { /* aviso é opcional */ }
 }
 
+/** Erros do Supabase na redefinição de senha, em português (sessão ausente, link expirado, senha igual/fraca). */
+export function translateResetError(err: { message?: string; code?: string; status?: number } | null | undefined): string {
+  const code = String(err?.code || '').toLowerCase();
+  const msg = String(err?.message || '').toLowerCase();
+  if (code === 'same_password' || msg.includes('different from the old password') || msg.includes('same as the old')) return 'A nova senha precisa ser diferente da senha atual.';
+  if (code === 'weak_password' || msg.includes('weak') || msg.includes('should be at least') || msg.includes('password is too short')) return 'Senha fraca. Use pelo menos 6 caracteres, misturando letras e números.';
+  if (code === 'otp_expired' || msg.includes('expired') || msg.includes('invalid or has expired')) return 'O link expirou ou já foi usado. Peça um novo link para redefinir a senha.';
+  if (code === 'session_not_found' || code === 'session_expired' || msg.includes('session missing') || msg.includes('auth session missing') || msg.includes('not authenticated') || msg.includes('jwt')) return 'Sua sessão de recuperação não foi encontrada ou expirou. Peça um novo link para redefinir a senha.';
+  if (code === 'over_request_rate_limit' || err?.status === 429) return 'Muitas tentativas. Aguarde um minuto e tente de novo.';
+  return 'Não foi possível redefinir a senha. Tente de novo ou peça um novo link.';
+}
+
 /**
  * Define uma nova senha para a sessão de recuperação ativa (o clique no link
  * do e-mail já autentica temporariamente o usuário via Supabase Auth).
@@ -282,7 +294,7 @@ export async function notifyPasswordChanged(): Promise<void> {
 export async function updatePassword(newPassword: string): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Não foi possível conectar ao servidor.' };
   const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: translateResetError(error) };
   void notifyPasswordChanged();
   return { success: true };
 }

@@ -29,7 +29,8 @@ export function BillingBanner() {
     return (
       <div className="bg-warning/15 border-b border-warning/30 text-warning text-xs px-4 py-2 flex items-center gap-2">
         <AlertTriangle className="w-3.5 h-3.5" /> Pagamento em atraso. Regularize para evitar a suspensão do acesso.
-        <Link to="/app/configuracoes/empresa/plano" className="underline font-semibold ml-1">Ver plano</Link>
+        <Link to="/checkout?renovar=1" className="underline font-semibold ml-1">Renovar / pagar</Link>
+        <Link to="/app/configuracoes/empresa/plano" className="underline ml-2">Ver plano</Link>
       </div>
     );
   }
@@ -39,10 +40,20 @@ export function BillingBanner() {
       return (
         <div className="bg-info/15 border-b border-info/30 text-info text-xs px-4 py-2 flex items-center gap-2">
           <Clock className="w-3.5 h-3.5" /> Seu período de teste termina em {d === 0 ? "hoje" : `${d} dia${d > 1 ? "s" : ""}`} ({fmtDate(sub.trial_ends_at)}).
-          <Link to="/app/configuracoes/empresa/plano" className="underline font-semibold ml-1">Ver plano</Link>
+          <Link to="/checkout?renovar=1" className="underline font-semibold ml-1">Renovar / pagar</Link>
+          <Link to="/app/configuracoes/empresa/plano" className="underline ml-2">Ver plano</Link>
         </div>
       );
     }
+  }
+  const dEnd = sub.status === "active" ? daysLeft(sub.current_period_end) : null;
+  if (dEnd !== null && dEnd <= 5 && dEnd >= 0 && (!sub.gateway || sub.gateway === "manual")) {
+    return (
+      <div className="bg-info/15 border-b border-info/30 text-info text-xs px-4 py-2 flex items-center gap-2">
+        <Clock className="w-3.5 h-3.5" /> Sua assinatura vence {dEnd === 0 ? "hoje" : `em ${dEnd} dia${dEnd > 1 ? "s" : ""}`} ({fmtDate(sub.current_period_end)}).
+        <Link to="/checkout?renovar=1" className="underline font-semibold ml-1">Renovar / pagar</Link>
+      </div>
+    );
   }
   return null;
 }
@@ -58,9 +69,10 @@ export function SuspendedScreen() {
         <h1 className="text-xl font-black text-[var(--color-text-primary)]">Acesso suspenso</h1>
         <p className="text-sm text-[var(--color-text-muted)]">
           A assinatura desta empresa está suspensa. Seus dados continuam guardados e o acesso volta assim que o pagamento for regularizado.
-          Fale com o responsável pela sua conta.
+          Para voltar a usar, renove o plano pelo Pix. O acesso é liberado assim que o pagamento for conferido.
         </p>
-        <button onClick={logout} className="text-sm underline text-[var(--color-text-muted)]">Sair</button>
+        <Link to="/checkout?renovar=1" className="inline-flex items-center justify-center rounded-xl bg-[var(--color-primary-blue)] px-5 py-3 text-sm font-bold text-white">Renovar / pagar</Link>
+        <div><button onClick={logout} className="text-sm underline text-[var(--color-text-muted)]">Sair</button></div>
       </div>
     </div>
   );

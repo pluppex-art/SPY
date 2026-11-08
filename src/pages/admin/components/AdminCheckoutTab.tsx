@@ -10,7 +10,7 @@ import { brl } from "../../../lib/saasApi";
 
 type Config = { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null; list_setup_cents?: number | null; list_monthly_cents?: number | null };
 type Promo = { id: string; code: string | null; label: string; plan_code: string | null; percent_off: number; amount_off_cents: number; setup_waived: boolean; valid_until: string | null; max_uses: number | null; uses: number; active: boolean };
-type Order = { id: string; status: string; plan_name: string; nome: string; empresa: string; email: string; telefone: string; documento: string; total_cents: number; promo_code: string | null; created_at: string; informed_paid_at: string | null; paid_at: string | null; error: string | null; comprovante_path: string | null };
+type Order = { id: string; status: string; plan_name: string; nome: string; empresa: string; email: string; telefone: string; documento: string; total_cents: number; promo_code: string | null; created_at: string; informed_paid_at: string | null; paid_at: string | null; error: string | null; comprovante_path: string | null; kind?: string; fulfilled_at?: string | null; agentes_ok?: boolean | null; agentes_erro?: string | null; acesso_email_ok?: boolean | null };
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   pending: { label: "Aguardando Pix", cls: "text-[var(--color-text-muted)]" },
@@ -75,7 +75,9 @@ export function AdminCheckoutTab() {
   const confirmar = async (o: Order) => {
     const ok = await confirmDialog({
       title: "Confirmar pagamento?",
-      description: `Confirme que o Pix de ${brl(o.total_cents)} de ${o.nome} (${o.empresa}) caiu na conta. Isso cria a empresa, libera o acesso e envia o e-mail de senha ao cliente.`,
+      description: o.kind === "renewal"
+        ? `Confirme que o Pix de ${brl(o.total_cents)} de ${o.nome} (${o.empresa}) caiu na conta. Isso renova/reativa a assinatura da empresa que já existe.`
+        : `Confirme que o Pix de ${brl(o.total_cents)} de ${o.nome} (${o.empresa}) caiu na conta. Isso cria a empresa, libera o acesso e envia o e-mail de senha ao cliente.`,
       confirmText: "Confirmar e liberar",
     });
     if (!ok) return;
@@ -183,13 +185,20 @@ export function AdminCheckoutTab() {
                   const s = STATUS[o.status] ?? STATUS.pending;
                   return (
                     <tr key={o.id} className={row}>
-                      <td className="py-2"><span className="font-semibold">{o.nome}</span><span className="block text-xs text-[var(--color-text-muted)]">{o.empresa} · {o.telefone} · {o.email}</span>{o.error && <span className="block text-xs text-rose-500">{o.error}</span>}</td>
+                      <td className="py-2"><span className="font-semibold">{o.nome}</span><span className="block text-xs text-[var(--color-text-muted)]">{o.empresa} · {o.telefone} · {o.email}</span>{o.error && <span className="block text-xs text-rose-500">{o.error}</span>}
+                        {o.kind === "renewal" && <span className="block text-xs text-[var(--color-text-muted)]">Renovação / reativação</span>}
+                        {o.status === "paid" && o.acesso_email_ok === false && <span className="block text-xs text-amber-500">E-mail de acesso não saiu: peça para usar “Esqueci a senha”.</span>}
+                        {o.status === "paid" && o.agentes_ok === false && <span className="block text-xs text-amber-500">Agentes n8n não acionados{o.agentes_erro ? `: ${o.agentes_erro}` : ""}.</span>}
+                        {o.status === "paid" && o.fulfilled_at === null && <span className="block text-xs text-rose-500">Pago, mas a liberação não terminou: clique em “Retomar”.</span>}</td>
                       <td className="text-xs">{o.plan_name}{o.promo_code ? <Badge className="ml-1">{o.promo_code}</Badge> : null}</td>
                       <td className="font-semibold">{brl(o.total_cents)}</td>
                       <td className={`text-xs font-semibold ${s.cls}`}>{s.label}</td>
                       <td className="text-xs">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
                       <td className="text-right whitespace-nowrap">
                         {o.comprovante_path && <Button size="sm" variant="outline" className="mr-1" onClick={() => void verComprovante(o)}>Ver comprovante</Button>}
+                        {o.status === "paid" && o.fulfilled_at === null && (
+                          <Button size="sm" disabled={busy} onClick={() => void confirmar(o)}><Check className="w-3.5 h-3.5 mr-1" /> Retomar</Button>
+                        )}
                         {o.status !== "paid" && o.status !== "canceled" && (
                           <>
                             <Button size="sm" disabled={busy || !o.comprovante_path} title={o.comprovante_path ? "" : "Aguardando o comprovante do cliente"} onClick={() => void confirmar(o)}><Check className="w-3.5 h-3.5 mr-1" /> Confirmar Pix</Button>
