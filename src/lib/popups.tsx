@@ -1,73 +1,76 @@
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, Info, AlertTriangle, XCircle, Trophy, X } from "lucide-react";
+import { CheckCircle2, Info, AlertTriangle, XCircle, CircleDollarSign, X } from "lucide-react";
 import type { ReactNode } from "react";
 
-// Pop-ups ricos do S.P.Y. (notificações e venda fechada). Renderizados pelo <Toaster /> do Layout via
-// toast.custom, então rodam dentro do Router (useNavigate funciona) e usam só tokens do tema — a cor da
-// marca vem de --color-primary-blue, igual ao resto do app, sem nada específico de tenant.
+// Pop-ups do S.P.Y. no formato de notificação de app (banner do Instagram/TikTok/YouTube): logo do S.P.Y. com um
+// emblema do tipo no canto, "S.P.Y. · agora", título e texto, cartão inteiro clicável. A venda fechada segue o
+// estilo Hotmart ("Venda realizada!" com o valor em destaque). Renderizados pelo <Toaster /> do Layout via
+// toast.custom (dentro do Router, então useNavigate funciona) e usando só tokens do tema.
 
 export type PopupKind = "success" | "info" | "warning" | "error";
 
 const KIND_STYLE: Record<PopupKind, { icon: ReactNode; color: string }> = {
-  success: { icon: <CheckCircle2 className="w-5 h-5" />, color: "var(--color-success)" },
-  info: { icon: <Info className="w-5 h-5" />, color: "var(--color-primary-blue)" },
-  warning: { icon: <AlertTriangle className="w-5 h-5" />, color: "var(--color-warning)" },
-  error: { icon: <XCircle className="w-5 h-5" />, color: "var(--color-danger)" },
+  success: { icon: <CheckCircle2 className="w-3 h-3" strokeWidth={3} />, color: "var(--color-success)" },
+  info: { icon: <Info className="w-3 h-3" strokeWidth={3} />, color: "var(--color-primary-blue)" },
+  warning: { icon: <AlertTriangle className="w-3 h-3" strokeWidth={3} />, color: "var(--color-warning)" },
+  error: { icon: <XCircle className="w-3 h-3" strokeWidth={3} />, color: "var(--color-danger)" },
 };
 
 interface CardProps {
   toastId: string | number;
-  icon: ReactNode;
+  badge: ReactNode;
   color: string;
   title: string;
   description?: string;
+  meta?: string;
   highlight?: string;
-  actionLabel?: string;
   linkUrl?: string | null;
   celebratory?: boolean;
 }
 
-function PopupCard({ toastId, icon, color, title, description, highlight, actionLabel = "Ver", linkUrl, celebratory }: CardProps) {
+function PopupCard({ toastId, badge, color, title, description, meta, highlight, linkUrl, celebratory }: CardProps) {
   const navigate = useNavigate();
   // Só segue links internos do app (nunca um endereço externo vindo de uma notificação).
   const internalLink = linkUrl && linkUrl.startsWith("/") && !linkUrl.startsWith("//") ? linkUrl : null;
+  const open = () => { if (internalLink) navigate(internalLink); toast.dismiss(toastId); };
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="w-full sm:w-[360px] flex items-start gap-3 p-3.5 rounded-[var(--radius-panel)] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-[var(--shadow-panel)]"
-      style={{ borderLeft: `4px solid ${color}`, ...(celebratory ? { background: `color-mix(in srgb, ${color} 7%, var(--color-surface-elevated))` } : null) }}
-    >
-      <span
-        className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center"
-        style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }}
+    <div className="relative w-[calc(100vw-1.5rem)] sm:w-[380px]">
+      <button
+        type="button"
+        onClick={open}
+        aria-label={[title, description, meta, highlight].filter(Boolean).join(". ")}
+        className="w-full text-left flex items-start gap-3 p-3 rounded-[22px] border border-[var(--color-border-default)] backdrop-blur-xl shadow-[0_12px_32px_-8px_rgba(15,23,42,0.35)] cursor-pointer active:scale-[0.98] transition-transform"
+        style={{ background: `color-mix(in srgb, ${celebratory ? color : "var(--color-surface-elevated)"} ${celebratory ? 9 : 0}%, color-mix(in srgb, var(--color-surface-elevated) 92%, transparent))` }}
       >
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-black text-[var(--color-text-primary)] leading-tight break-words">{title}</p>
-        {description && <p className="mt-0.5 text-xs text-[var(--color-text-muted)] leading-snug line-clamp-2 break-words">{description}</p>}
-        {highlight && <p className="mt-1 text-base font-black leading-none" style={{ color }}>{highlight}</p>}
-        {internalLink && (
-          <button
-            type="button"
-            onClick={() => { navigate(internalLink); toast.dismiss(toastId); }}
-            className="mt-2 min-h-8 px-3 rounded-lg text-xs font-bold text-white active:scale-95 transition-transform cursor-pointer border-none"
+        <span className="relative shrink-0 mt-0.5">
+          <img src="/pwa-192.png" alt="" aria-hidden="true" width={40} height={40} className="w-10 h-10 rounded-[10px] object-cover" />
+          <span
+            className="absolute -right-1.5 -bottom-1.5 w-[18px] h-[18px] rounded-full flex items-center justify-center text-white ring-2 ring-[var(--color-surface-elevated)]"
             style={{ background: color }}
           >
-            {actionLabel}
-          </button>
-        )}
-      </div>
+            {badge}
+          </span>
+        </span>
+        <span className="min-w-0 flex-1 pr-1">
+          <span className="flex items-center justify-between gap-2 text-[11px] leading-none text-[var(--color-text-faint)]">
+            <span className="font-bold tracking-wide uppercase">S.P.Y.</span>
+            <span className="sm:mr-7">agora</span>
+          </span>
+          <span className="block mt-1 text-[15px] font-extrabold text-[var(--color-text-primary)] leading-tight break-words">{title}</span>
+          {description && <span className="mt-0.5 text-[13px] text-[var(--color-text-muted)] leading-snug line-clamp-2 break-words">{description}</span>}
+          {meta && <span className="block text-xs text-[var(--color-text-faint)] leading-snug">{meta}</span>}
+          {highlight && <span className="block mt-1 text-[22px] font-black leading-none tracking-tight" style={{ color }}>{highlight}</span>}
+        </span>
+      </button>
       <button
         type="button"
         onClick={() => toast.dismiss(toastId)}
         aria-label="Fechar aviso"
-        className="w-8 h-8 -mr-1 -mt-1 shrink-0 flex items-center justify-center rounded-lg text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] bg-transparent border-none cursor-pointer"
+        className="hidden sm:flex absolute top-2 right-2.5 w-8 h-8 items-center justify-center rounded-full text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] bg-transparent border-none cursor-pointer"
       >
-        <X className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" />
       </button>
     </div>
   );
@@ -77,7 +80,7 @@ export function showNotificationPopup(n: { title: string; description?: string |
   const kind: PopupKind = n.type === "success" || n.type === "warning" || n.type === "error" ? n.type : "info";
   const s = KIND_STYLE[kind];
   toast.custom(
-    (id) => <PopupCard toastId={id} icon={s.icon} color={s.color} title={n.title} description={n.description || undefined} linkUrl={n.link_url} />,
+    (id) => <PopupCard toastId={id} badge={s.icon} color={s.color} title={n.title} description={n.description || undefined} linkUrl={n.link_url} />,
     { duration: kind === "error" ? 9000 : 6500 },
   );
 }
@@ -107,18 +110,17 @@ async function celebrate() {
 }
 
 export function showSalePopup(sale: { leadId: string; name: string; company?: string | null; seller?: string | null; value?: unknown }) {
-  const detail = [sale.company, sale.seller ? `Vendedor: ${sale.seller}` : null].filter(Boolean).join(" · ");
   toast.custom(
     (id) => (
       <PopupCard
         toastId={id}
-        icon={<Trophy className="w-5 h-5" />}
+        badge={<CircleDollarSign className="w-3 h-3" strokeWidth={3} />}
         color="var(--color-success)"
-        title={`Venda fechada! ${sale.name}`}
-        description={detail || undefined}
+        title="Venda realizada!"
+        description={[sale.name, sale.company].filter(Boolean).join(" · ")}
+        meta={sale.seller ? `Vendedor: ${sale.seller}` : undefined}
         highlight={formatLeadValue(sale.value)}
         linkUrl={`/app/crm/pipeline?leadId=${encodeURIComponent(sale.leadId)}`}
-        actionLabel="Ver lead"
         celebratory
       />
     ),
