@@ -142,7 +142,7 @@ export default function FinanceiroLayout() {
         <button
           type="button"
           onClick={() => setNovaOperacaoOpen(true)}
-          className="fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-4 md:right-6 z-40 h-12 w-12 rounded-full bg-[var(--color-primary-blue)] text-white shadow-lg flex items-center justify-center hover:brightness-110 active:scale-95 transition-all cursor-pointer print:hidden"
+          className="fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom))] lg:bottom-6 right-4 md:right-6 z-40 h-12 w-12 rounded-full bg-[var(--color-primary-blue)] text-white shadow-lg flex items-center justify-center hover:brightness-110 active:scale-95 transition-all cursor-pointer print:hidden"
           title="Nova Operação"
         >
           <Plus className="w-5 h-5" />

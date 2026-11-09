@@ -82,7 +82,7 @@ export default function Pipeline() {
     handleWinStageDrop,
   } = usePipeline();
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const nicho = searchParams.get("nicho") || searchParams.get("filtro");
     if (nicho) {
@@ -92,6 +92,15 @@ export default function Pipeline() {
     }
   }, [searchParams, setSearchQuery]);
 
+
+  // Atalho "＋ Novo lead" da barra inferior (celular/tablet): abre o cadastro e limpa o parâmetro.
+  useEffect(() => {
+    if (searchParams.get("novo") !== "1") return;
+    setIsModalOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("novo");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, setIsModalOpen]);
   useEffect(() => {
     const targetLeadId = searchParams.get("leadId") || searchParams.get("lead");
     if (targetLeadId && (leads as any[]).length > 0) {

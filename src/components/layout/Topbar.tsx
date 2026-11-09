@@ -117,6 +117,13 @@ export function Topbar({
   const notificationsRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
+  // A barra inferior (celular/tablet) abre o painel de avisos por este evento.
+  useEffect(() => {
+    const open = () => { setIsUserMenuOpen(false); setIsNotificationsOpen(true); };
+    window.addEventListener("spy:open-notifications", open);
+    return () => window.removeEventListener("spy:open-notifications", open);
+  }, []);
+
   const toggleNotifications = () => {
     setConfirmingClear(false);
     setIsNotificationsOpen((prev) => {

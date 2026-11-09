@@ -73,7 +73,7 @@ export default function Layout() {
         <BillingBanner />
         <InstallAppPrompt />
 
-        <div className={`flex-1 min-h-0 relative ${location.pathname.includes("/messaging") || location.pathname.includes("/mensageria") ? "overflow-hidden p-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-2 md:pb-2.5" : "overflow-y-auto overscroll-contain p-4 md:p-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8"}`}>
+        <div className={`flex-1 min-h-0 relative ${location.pathname.includes("/messaging") || location.pathname.includes("/mensageria") ? "overflow-hidden p-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-2 md:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-2.5" : "overflow-y-auto overscroll-contain p-4 md:p-8 md:pb-[calc(6rem+env(safe-area-inset-bottom))] pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-8"}`}>
           <ErrorBoundary resetKey={location.pathname}>
             <Suspense fallback={<div role="status" aria-live="polite" className="flex items-center justify-center py-24 text-sm text-[var(--color-text-faint)]">Carregando...</div>}>
               {isBlocked ? <SuspendedScreen /> : <AcessoPorPerfil><Outlet /></AcessoPorPerfil>}
