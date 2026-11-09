@@ -120,7 +120,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
             <div className="w-12 h-1 bg-[var(--color-border-default)] rounded-full mx-auto mb-2 shrink-0"></div>
 
             <div className="flex justify-between items-center mb-1 shrink-0">
-              <h3 className="text-xs font-black text-[var(--color-accent)] uppercase tracking-widest">
+              <h3 className="text-xs font-black text-[var(--color-primary-blue)] uppercase tracking-widest">
                 Navegação Completa
               </h3>
               <button className="text-[10px] font-bold bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] hover:bg-[var(--color-border-subtle)] px-3.5 py-1.5 rounded-[var(--radius-control)] text-[var(--color-text-muted)] transition-colors uppercase tracking-wider" onClick={() => setIsMobileMoreOpen(false)}>
@@ -167,7 +167,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
                             }}
                             className={btnClass}
                           >
-                            <ItemIcon className="w-4 h-4 text-[var(--color-accent)] shrink-0" />
+                            <ItemIcon className="w-4 h-4 text-[var(--color-primary-blue)] shrink-0" />
                             <span className="leading-tight break-words min-w-0">{item.name}</span>
                           </button>
                         );
@@ -175,7 +175,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
 
                       return (
                         <Link key={item.name} to={item.path} onClick={() => setIsMobileMoreOpen(false)} className={btnClass}>
-                          <ItemIcon className="w-4 h-4 text-[var(--color-accent)] shrink-0" />
+                          <ItemIcon className="w-4 h-4 text-[var(--color-primary-blue)] shrink-0" />
                           <span className="leading-tight break-words min-w-0">{item.name}</span>
                         </Link>
                       );
@@ -188,7 +188,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
                 <div className="text-[10px] font-black text-[var(--color-text-faint)] uppercase tracking-widest">Conta & Configurações</div>
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => { setIsMobileMoreOpen(false); navigate("/app/configuracoes"); }} className="flex items-center gap-2 px-3 py-3 min-h-11 text-xs font-semibold rounded-[var(--radius-control)] border border-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] w-full text-left">
-                    <Settings2 className="w-4 h-4 text-[var(--color-accent)] shrink-0" />
+                    <Settings2 className="w-4 h-4 text-[var(--color-primary-blue)] shrink-0" />
                     <span className="truncate">Configurações</span>
                   </button>
                   <button onClick={() => { setIsMobileMoreOpen(false); handleLogout(); }} className="flex items-center gap-2 px-3 py-3 min-h-11 text-xs font-semibold rounded-[var(--radius-control)] border border-transparent bg-danger/5 hover:bg-danger/10 text-danger w-full text-left">
