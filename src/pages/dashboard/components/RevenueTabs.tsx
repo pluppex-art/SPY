@@ -37,7 +37,7 @@ export function RevenueTabs(props: { activeTab: RevenueTabId; onTabChange: (id: 
     bar.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
   }, [activeTab]);
   return (
-    <div ref={barRef} className="flex flex-row md:flex-wrap overflow-x-auto md:overflow-visible scrollbar-none bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-panel)] md:rounded-[var(--radius-control)] p-1.5 md:p-1 w-full md:w-fit gap-1 shadow-sm">
+    <div ref={barRef} className="relative flex flex-row md:flex-wrap overflow-x-auto md:overflow-visible scrollbar-none bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-panel)] md:rounded-[var(--radius-control)] p-1.5 md:p-1 w-full md:w-fit gap-1 shadow-sm">
       {TABS.map((tab) => (
         <button
           key={tab.id}
