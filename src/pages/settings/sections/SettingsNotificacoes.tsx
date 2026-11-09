@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../lib/apiClient";
 import { ensurePushSubscription } from "../../../lib/push";
 import React, { useState, useEffect } from "react";
 import { Card } from "../../../components/ui/card";
@@ -265,6 +266,18 @@ export function ConfigNotificacoesPreferencias() {
     }
   };
 
+  // Teste de verdade do push do sistema: o servidor manda uma notificação só para os aparelhos do próprio usuário.
+  const handleTestPush = async () => {
+    try {
+      const res = await apiFetch("/api/push/test", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) toast.success(`Teste enviado para ${data.devices} aparelho${data.devices > 1 ? "s" : ""}. Olhe a tela de bloqueio.`);
+      else toast.error(data.error || "Não foi possível enviar o teste.");
+    } catch {
+      toast.error("Não foi possível enviar o teste agora.");
+    }
+  };
+
   const handleTestNotification = () => {
     if (soundEnabled) {
       playNotificationSound();
@@ -307,15 +320,26 @@ export function ConfigNotificacoesPreferencias() {
           </p>
         </div>
 
-        <Button
-          onClick={handleTestNotification}
-          variant="outline"
-          size="sm"
-          className="text-xs font-bold gap-1.5 h-9 shrink-0 shadow-xs hover:border-[var(--color-primary-blue)]"
-        >
-          <Send className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />
-          Testar Notificação
-        </Button>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Button
+            onClick={handleTestNotification}
+            variant="outline"
+            size="sm"
+            className="text-xs font-bold gap-1.5 h-9 shadow-xs hover:border-[var(--color-primary-blue)]"
+          >
+            <Send className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />
+            Testar Notificação
+          </Button>
+          <Button
+            onClick={handleTestPush}
+            variant="outline"
+            size="sm"
+            className="text-xs font-bold gap-1.5 h-9 shadow-xs hover:border-[var(--color-primary-blue)]"
+          >
+            <Bell className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />
+            Enviar teste para meus aparelhos
+          </Button>
+        </div>
       </div>
 
       {/* 4 Cards de Canais Globais */}

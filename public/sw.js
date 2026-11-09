@@ -67,7 +67,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     // Com o app aberto e visível o pop-up interno já mostrou o aviso: não duplica na bandeja do sistema.
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-      if (list.some((c) => c.visibilityState === "visible")) return;
+      if (!data.test && list.some((c) => c.visibilityState === "visible")) return;
       return self.registration.showNotification(title, {
         body: data.body || "",
         icon: "/pwa-192.png",

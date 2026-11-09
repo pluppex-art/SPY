@@ -44,6 +44,8 @@ export interface PushPayload {
   /** Caminho interno do app (ex.: "/app/crm/pipeline"); qualquer outra coisa vira "/app". */
   url?: string | null;
   tag?: string;
+  /** Teste do próprio usuário: o aparelho mostra a notificação mesmo com o app aberto na tela. */
+  test?: boolean;
 }
 
 const safePath = (u?: string | null) => (typeof u === "string" && /^\/app[\w\-./?=&%]*$/.test(u) ? u : "/app");
@@ -52,16 +54,13 @@ const safePath = (u?: string | null) => (typeof u === "string" && /^\/app[\w\-./
  * Manda a notificação para todos os aparelhos inscritos dos usuários informados (sempre dentro do tenant).
  * Nunca lança: push é complemento do sino. Inscrições mortas (404/410) são apagadas.
  */
-export async function sendWebPushToUsers(db: any, tenantId: string, userIds: string[], payload: PushPayload): Promise<{ sent: number; failed: number; removed: number }> {
+export async function sendWebPushToUsers(db: any, tenantId: string | null, userIds: string[], payload: PushPayload): Promise<{ sent: number; failed: number; removed: number }> {
   const out = { sent: 0, failed: 0, removed: 0 };
   try {
     if (!isWebPushConfigured() || !db || userIds.length === 0) return out;
-    const { data: subs, error } = await db
-      .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
-      .eq("tenant_id", tenantId)
-      .in("user_id", userIds.slice(0, 100))
-      .limit(500);
+    let q = db.from("push_subscriptions").select("id, endpoint, p256dh, auth");
+    if (tenantId) q = q.eq("tenant_id", tenantId); // null só no teste do próprio usuário (filtrado por user_id)
+    const { data: subs, error } = await q.in("user_id", userIds.slice(0, 100)).limit(500);
     if (error || !subs?.length) return out; // tabela ainda não criada ou ninguém inscrito
 
     const body = JSON.stringify({
@@ -69,6 +68,7 @@ export async function sendWebPushToUsers(db: any, tenantId: string, userIds: str
       body: payload.body.slice(0, 200),
       url: safePath(payload.url),
       tag: payload.tag,
+      test: payload.test === true,
     });
     const dead: string[] = [];
 
@@ -133,6 +133,22 @@ export function registerPushRoutes(app: Express, { requireUser, resolveRequested
       return res.status(500).json({ error: "Não foi possível salvar a inscrição." });
     }
     res.json({ ok: true });
+  });
+
+  // Teste: manda uma notificação SÓ para os aparelhos do próprio usuário (nunca para outras pessoas).
+  app.post("/api/push/test", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return res.status(503).json({ error: "Servidor sem acesso ao banco." });
+    if (!isWebPushConfigured()) return res.status(503).json({ error: "As chaves de envio (VAPID) ainda não foram configuradas no servidor." });
+    const { data: mine, error } = await supabaseService.from("push_subscriptions").select("id").eq("user_id", req.user.id).limit(20);
+    if (error) return res.status(503).json({ error: "A tabela de inscrições ainda não foi criada no banco." });
+    if (!mine?.length) return res.status(409).json({ error: "Nenhum aparelho seu está inscrito. Ative as notificações neste aparelho primeiro." });
+    const r = await sendWebPushToUsers(supabaseService, null, [req.user.id], {
+      title: "S.P.Y. — teste de notificação",
+      body: "Se você está vendo isto, as notificações do sistema estão funcionando neste aparelho.",
+      url: "/app/configuracoes/usuario/notificacoes",
+      test: true,
+    });
+    res.json({ ok: r.sent > 0, devices: mine.length, ...r });
   });
 
   app.post("/api/push/unsubscribe", requireUser, limiter, async (req: any, res: any) => {
