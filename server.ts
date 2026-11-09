@@ -20,6 +20,7 @@ import { assertSafeHttpUrl, assertSafeSmtpTarget, ssrfSafeAgents } from "./serve
 import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
 import { emailNotifyTenant } from "./server/emailNotify.js";
 import { registerPushRoutes } from "./server/webPush.js";
+import { registerTenantSocialProofRoutes } from "./server/tenantSocialProof.js";
 import { runNotificationReminders } from "./server/notificationCron.js";
 import { registerDeepHealthRoute } from "./server/healthDeep.js";
 import { registerClientErrorRoute, registrarErro, urlSegura } from "./server/errorLog.js";
@@ -6686,6 +6687,10 @@ app.post("/api/notifications/email", requireUser, notifyEmailLimiter, async (req
 // dentro de emailNotifyTenant, junto do e-mail do mesmo aviso (mesmos destinatários e preferências).
 const pushLimiter = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false });
 registerPushRoutes(app, { requireUser, resolveRequestedTenantId, limiter: pushLimiter, supabaseService });
+
+// Prova social das páginas públicas de cada empresa (catálogo e proposta): só responde se a empresa ligou.
+const tenantProofLimiter = rateLimit({ windowMs: 60_000, limit: 40, standardHeaders: true, legacyHeaders: false });
+registerTenantSocialProofRoutes(app, { supabaseService, limiter: tenantProofLimiter });
 
 // Meta Conversions API (CAPI) — dispara um evento de teste real contra a
 // Graph API usando o Pixel ID e o token informados pelo tenant. Antes disso o

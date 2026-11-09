@@ -1,3 +1,4 @@
+import { TenantSocialProofPopup } from "../../components/TenantSocialProofPopup";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Package, ChevronLeft, ShoppingBag, CheckCircle2, XCircle } from "lucide-react";
@@ -99,6 +100,7 @@ export default function CatalogoPublico() {
           Catálogo gerado por <span className="text-blue-500 font-bold">S.P.Y. CRM</span>
         </footer>
       </div>
+      <TenantSocialProofPopup tenantId={tenantId} />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { TenantSocialProofPopup } from "../../components/TenantSocialProofPopup";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
@@ -275,6 +276,7 @@ export default function PropostaPublica() {
           }
         />
       </main>
+      <TenantSocialProofPopup token={token} />
     </div>
   );
 }

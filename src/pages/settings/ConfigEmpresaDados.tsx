@@ -8,6 +8,7 @@ import { CheckCircle2, AlertTriangle, Building2, Save, Globe, Mail, Phone, MapPi
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { Switch } from "../../components/ui/switch";
 
 type CnpjStatus = "idle" | "checking" | "active" | "inactive" | "invalid";
 
@@ -383,6 +384,23 @@ export default function ConfigEmpresaDados() {
             </Button>
           </div>
         </form>
+      </Card>
+
+      <Card className="p-6 space-y-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+        <h3 className="text-sm font-black text-[var(--color-text-primary)]">Prova social nas páginas públicas</h3>
+        <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+          Mostra no seu catálogo público e nas propostas um aviso com a sua marca, como "38 clientes já compraram [produto]". Usa só vendas
+          reais fechadas aqui no S.P.Y., e só para produtos com 3 vendas ou mais. Não mostra nome de cliente nem valores. Fica desligado até você ativar.
+        </p>
+        <Switch
+          checked={appSettings?.social_proof_publico?.enabled === true}
+          onCheckedChange={async (enabled) => {
+            await saveAppSetting("social_proof_publico", { enabled });
+            toast.success(enabled ? "Prova social ativada nas páginas públicas." : "Prova social desativada.");
+          }}
+          label="Mostrar prova social nas páginas públicas"
+          description="Pode levar alguns minutos para aparecer ou sumir nas páginas."
+        />
       </Card>
     </div>
   );
