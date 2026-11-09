@@ -32,7 +32,7 @@ declare
   v_dt text; v_dt_alt text; v_ds text; v_ds_alt text;
   v_nt jsonb; v_ns jsonb; v_notes jsonb;
   v_cf_t jsonb; v_cf_s jsonb; v_cf jsonb;
-  v_contato uuid; v_novo boolean := false;
+  v_contato uuid; v_novo boolean := false; v_tel_outro boolean := false;
   r record; n bigint; v_moved jsonb := '{}'::jsonb; v_reunioes bigint := 0; v_extras_removidos bigint := 0;
 begin
   if auth.uid() is null then raise exception 'Faça login para mesclar cards.' using errcode = '28000'; end if;
@@ -73,11 +73,16 @@ begin
   select id into v_contato from public.lead_contatos
    where tenant_id = t.tenant_id and phone_digits in (v_ds, v_ds_alt) and lead_id in (p_source, p_target) limit 1;
   if v_contato is null and length(v_ds) >= 8 and v_dt not in (v_ds, v_ds_alt) then
-    if exists (select 1 from public.lead_contatos where tenant_id = t.tenant_id and phone_digits in (v_ds, v_ds_alt)) then
-      raise exception 'O telefone do card escolhido já está cadastrado como pessoa em outro card.' using errcode = '23505';
+    -- se esse numero ja pertence a OUTRO card (principal ou pessoa), a mescla nao pode falhar por isso: o card e
+    -- mesclado do mesmo jeito, so nao cria a pessoa (a copia completa continua guardada em customFields.mergedLeads)
+    if exists (select 1 from public.lead_contatos where tenant_id = t.tenant_id and phone_digits in (v_ds, v_ds_alt))
+       or exists (select 1 from public.leads l where l.tenant_id = t.tenant_id and l.deleted_at is null
+                   and l.id not in (p_target, p_source) and l.phone_digits in (v_ds, v_ds_alt)) then
+      v_tel_outro := true;
+    else
+      v_contato := gen_random_uuid();
+      v_novo := true;
     end if;
-    v_contato := gen_random_uuid();
-    v_novo := true;
   end if;
 
   -- notas: junta as duas listas; as do card de origem ficam na aba da pessoa dele
@@ -149,7 +154,7 @@ begin
   end if;
 
   return jsonb_build_object('ok', true, 'principal', p_target, 'mesclado', p_source,
-    'movido', v_moved, 'reunioes', v_reunioes, 'pessoa_criada', v_novo,
+    'movido', v_moved, 'reunioes', v_reunioes, 'pessoa_criada', v_novo, 'telefone_em_outro_card', v_tel_outro,
     'notas', jsonb_array_length(v_notes), 'telefones_repetidos_removidos', v_extras_removidos);
 end
 $fn$;
