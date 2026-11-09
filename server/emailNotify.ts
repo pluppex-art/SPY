@@ -1,6 +1,7 @@
 import { sendTenantEmail } from "./mailer.js";
 import { notificationEmail, type NotificationKind } from "./emailTemplates.js";
 import { getTenantBrand } from "./emailBrand.js";
+import { sendWebPushToUsers } from "./webPush.js";
 
 // Espelha DEFAULT_NOTIFICATION_PREFS (SettingsNotificacoes.tsx): vale quando o usuário nunca mexeu
 // nas preferências. O id também funciona como allowlist de quais avisos podem virar e-mail.
@@ -63,6 +64,8 @@ interface NotifyInput {
   externalButton?: { label: string; url: string };
   /** Chave de controle: o mesmo aviso (ex.: "tarefa_vencida:<id>") nunca é enviado duas vezes. */
   dedupeKey?: string;
+  /** Quem causou o aviso (não recebe a notificação do sistema dele mesmo). Só vale para o push. */
+  excludeUserId?: string;
 }
 
 /**
@@ -93,6 +96,20 @@ export async function emailNotifyTenant(db: any, tenantId: string, baseUrl: stri
     const recipients = (users || [])
       .filter((u: any) => u.active !== false && !u.is_master && typeof u.email === "string" && u.email.includes("@") && wants(u) && (!n.adminsOnly || u.is_tenant_admin))
       .slice(0, MAX_RECIPIENTS);
+
+    // Notificação do sistema (Web Push, app fechado): mesmos candidatos do aviso, respeitando a preferência
+    // "No app" de cada usuário (padrão ligado) e só para quem ativou as notificações no aparelho.
+    const wantsPush = (u: any) => {
+      const prefs = Array.isArray(u.preferences?.notification_prefs) ? u.preferences.notification_prefs : null;
+      const own = prefs?.find((p: any) => p?.id === n.triggerId);
+      return typeof own?.inApp === "boolean" ? own.inApp : true;
+    };
+    const pushIds = (users || [])
+      .filter((u: any) => u.active !== false && !u.is_master && u.id !== n.excludeUserId && wantsPush(u) && (!n.adminsOnly || u.is_tenant_admin))
+      .map((u: any) => u.id);
+    if (pushIds.length > 0) {
+      await sendWebPushToUsers(db, tenantId, pushIds, { title: n.title, body: n.description, url: n.linkPath, tag: n.dedupeKey });
+    }
 
     const brand = await getTenantBrand(db, tenantId);
     const path = typeof n.linkPath === "string" && /^\/app\/[\w\-./?=&%]*$/.test(n.linkPath) ? n.linkPath : "";

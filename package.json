@@ -55,6 +55,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "three": "^0.185.1",
+    "web-push": "3.6.7",
     "zod": "^4.4.3"
   },
   "overrides": {
@@ -68,6 +69,7 @@
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "playwright": "^1.63.0",

@@ -1,3 +1,4 @@
+import { ensurePushSubscription } from "../../../lib/push";
 import React, { useState, useEffect } from "react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
@@ -255,7 +256,10 @@ export function ConfigNotificacoesPreferencias() {
     setPushPermission(perm);
     if (perm === "granted") {
       sendPushNotification("S.P.Y. Notificações", "Alertas nativos do navegador ativados com sucesso! 🚀");
-      toast.success("Notificações no navegador ativadas!");
+      const reg = await ensurePushSubscription();
+      if (reg === "subscribed") toast.success("Notificações ativadas neste aparelho — chegam mesmo com o app fechado.");
+      else if (reg === "not-configured") toast.success("Notificações ativadas com o app aberto. Com o app fechado ficam disponíveis assim que o servidor receber as chaves de envio.");
+      else toast.success("Notificações no navegador ativadas!");
     } else if (perm === "denied") {
       toast.error("Permissão de notificações bloqueada nas configurações do navegador.");
     }

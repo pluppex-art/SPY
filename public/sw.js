@@ -65,12 +65,16 @@ self.addEventListener("push", (event) => {
   try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data && event.data.text() }; }
   const title = data.title || "S.P.Y.";
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || "",
-      icon: "/pwa-192.png",
-      badge: "/pwa-192.png",
-      tag: data.tag,
-      data: { url: data.url || "/app/dashboard" },
+    // Com o app aberto e visível o pop-up interno já mostrou o aviso: não duplica na bandeja do sistema.
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      if (list.some((c) => c.visibilityState === "visible")) return;
+      return self.registration.showNotification(title, {
+        body: data.body || "",
+        icon: "/pwa-192.png",
+        badge: "/pwa-192.png",
+        tag: data.tag,
+        data: { url: data.url || "/app/dashboard" },
+      });
     }),
   );
 });

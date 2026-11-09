@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { AI_OUTSIDE_AURORA_ENABLED } from "./lib/featureFlags";
 import { requestNotificationPermission } from "./lib/notifications";
+import { ensurePushSubscription } from "./lib/push";
 import { LpRedirect } from "./pages/landing/LpRedirect";
 const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
 // Lazy: páginas públicas de marketing/institucionais, sem dependência do app autenticado — ficam no
@@ -224,7 +225,7 @@ function AppContent() {
 
   useEffect(() => {
     if (isAppRoute) {
-      requestNotificationPermission();
+      requestNotificationPermission().then((perm) => { if (perm === "granted") void ensurePushSubscription(); });
     }
   }, [isAppRoute]);
 

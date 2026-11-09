@@ -18,7 +18,7 @@ export const requestNotificationPermission = async (): Promise<NotificationPermi
   }
 };
 
-export const sendPushNotification = (title: string, body: string, icon = "/icon-192.png") => {
+export const sendPushNotification = (title: string, body: string, icon = "/pwa-192.png") => {
   if (isPushSupported() && Notification.permission === "granted") {
     try {
       new Notification(title, {
