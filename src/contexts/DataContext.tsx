@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+import { showNotificationPopup, showSalePopup } from '../lib/popups';
 import { sendPushNotification } from "../lib/notifications";
 import { isSupabaseReachable, supabase, fetchTenantPrimaryColor, updateTenantTheme } from '../lib/supabase';
 import { DEFAULT_BRAND_COLOR, applyThemeColor } from '../lib/theme';
@@ -985,12 +986,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // aqui precisam do valor atual de tenantId, não de um valor congelado.
       if (!supabase || !tenantId) return;
 
+      const shownSalePopups = new Set<string>(); // um pop-up de venda por lead nesta sessão
       channel = supabase.channel('global-db-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
           // Patch incremental em vez de refetch da tabela inteira — ver
           // applyRealtimeUpsert acima. INSERT ainda mostra o toast de aviso.
           if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId && !createdLeadIdsRef.current.has((payload.new as any).id)) {
-            toast.info(`Novo lead: ${payload.new.name}`, { description: 'Recebido via Realtime' });
+            showNotificationPopup({ title: `Novo lead: ${payload.new.name}`, description: 'Recebido agora', type: 'info', link_url: `/app/crm/pipeline?leadId=${encodeURIComponent((payload.new as any).id)}` });
+          }
+          // Venda fechada por QUALQUER pessoa do tenant aparece pra equipe toda. Quem fechou aqui já tem o
+          // status otimista em leadsRef (a transição não existe mais quando o eco do banco chega), então
+          // não recebe o pop-up em duplicidade; já o resto da equipe ainda tinha o status antigo.
+          if (payload.eventType === 'UPDATE' && payload.new && (payload.new as any).tenant_id === tenantId && (payload.new as any).status === 'Fechado') {
+            const wonId = String((payload.new as any).id);
+            const before = leadsRef.current.find((l) => l.id === wonId);
+            if (before && before.status !== 'Fechado' && !shownSalePopups.has(wonId)) {
+              shownSalePopups.add(wonId);
+              const won = mapLeadRow(payload.new) as Lead;
+              showSalePopup({ leadId: wonId, name: won.name, company: won.company, seller: won.seller, value: won.value });
+            }
           }
           applyRealtimeUpsert(setLeads, payload, (r) => mapLeadRow(r) as Lead, tenantId);
         })
@@ -1061,7 +1075,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, () => debouncedRefetch('app_settings', fetchAppSettings))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
           if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId) {
-            toast.info((payload.new as any).title, { description: (payload.new as any).description || 'Nova notificação' });
+            const n = payload.new as any;
+            showNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
           }
           applyRealtimeUpsert(setNotifications, payload, (r) => r as Notification, tenantId);
         })
