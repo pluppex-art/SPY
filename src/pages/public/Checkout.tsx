@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/apiClient";
+import { SocialProofPopup } from "../../components/SocialProofPopup";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Lock, ShieldCheck, Tag } from "lucide-react";
 
 type Quote = {
@@ -387,6 +388,7 @@ export default function Checkout() {
           )}
         </div>
 
+        <SocialProofPopup />
         <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-[var(--color-text-muted)]"><ShieldCheck className="h-3.5 w-3.5" /> Seus dados são usados só para o cadastro e a cobrança (LGPD).</p>
       </div>
     </div>

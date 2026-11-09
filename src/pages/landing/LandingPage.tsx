@@ -19,6 +19,7 @@ import { useDocumentMeta } from "./useDocumentMeta";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useRevealOnScroll } from "./useRevealOnScroll";
+import { SocialProofPopup } from "../../components/SocialProofPopup";
 import "./landing.css";
 
 export default function LandingPage() {
@@ -58,6 +59,7 @@ export default function LandingPage() {
         <ContactSection />
       </main>
       <SiteFooter />
+      <SocialProofPopup />
     </div>
   );
 }

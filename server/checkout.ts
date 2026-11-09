@@ -6,6 +6,7 @@
 // Seguranca: preco NUNCA vem do cliente; rotas publicas com limite de requisicoes e sem dados sensiveis na resposta;
 // rotas de administracao exigem super admin; o pedido e acessado por um token aleatorio (nao adivinhavel).
 
+import { socialProofItems, type SocialProofItem } from "./socialProof.js";
 import { Router } from "express";
 import type { NextFunction, Response } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -465,6 +466,25 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
   }
 
   // ── Publico ────────────────────────────────────────────────────────────────
+  // Prova social: só vendas reais (pedido pago, cliente novo, últimos 30 dias), sem dado pessoal. Sem vendas
+  // recentes devolve lista vazia e o popup do site/checkout simplesmente não aparece.
+  let socialCache: { at: number; items: SocialProofItem[] } | null = null;
+  router.get("/social-proof", pub, async (_req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=60");
+    if (!db) return res.json({ items: [] });
+    if (socialCache && Date.now() - socialCache.at < 60_000) return res.json({ items: socialCache.items });
+    try {
+      const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+      const { data } = await db.from("checkout_orders").select("plan_name, paid_at")
+        .eq("status", "paid").eq("kind", "new").gte("paid_at", since).order("paid_at", { ascending: false }).limit(8);
+      const items = socialProofItems(data || []);
+      socialCache = { at: Date.now(), items };
+      res.json({ items });
+    } catch {
+      res.json({ items: [] });
+    }
+  });
+
   router.get("/plans", pub, async (_req, res) => {
     if (!db) return res.status(503).json({ error: "Indisponível." });
     const cfg = await config();
