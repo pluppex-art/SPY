@@ -34,7 +34,7 @@ export function MesclarCardsButton({ lead }: { lead: any }) {
     setCarregando(true);
     const t = setTimeout(async () => {
       let query = supabase!.from("leads").select("id, name, company, phone, status")
-        .eq("tenant_id", lead.tenant_id).is("deleted_at", null).neq("id", lead.id).limit(8);
+        .eq("tenant_id", lead.tenant_id).neq("id", lead.id).limit(8);
       if (q.length >= 2) query = query.or(`name.ilike.%${q}%,company.ilike.%${q}%,phone.ilike.%${q}%`);
       else if (lead.company && String(lead.company).trim().length >= 2) query = query.ilike("company", String(lead.company).trim());
       else { if (vivo) { setLista([]); setCarregando(false); } return; }

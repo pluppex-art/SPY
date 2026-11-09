@@ -43,9 +43,10 @@ begin
 
   -- trava os dois em ordem fixa (evita deadlock se alguem mesclar o par ao contrario ao mesmo tempo)
   perform 1 from public.leads where id in (p_target, p_source) order by id for update;
-  select * into t from public.leads where id = p_target and deleted_at is null;
-  select * into s from public.leads where id = p_source and deleted_at is null;
-  if t.id is null or s.id is null then raise exception 'Card não encontrado (já foi mesclado ou excluído).' using errcode = 'P0002'; end if;
+  -- o app mostra cards com deleted_at preenchido (so some quando apaga de verdade), entao a mescla aceita esses cards tambem
+  select * into t from public.leads where id = p_target;
+  select * into s from public.leads where id = p_source;
+  if t.id is null or s.id is null then raise exception 'Card não encontrado (já foi mesclado ou excluído).' using errcode = 'P0001'; end if;
   if t.tenant_id is distinct from s.tenant_id then raise exception 'Os dois cards precisam ser da mesma empresa.' using errcode = '22023'; end if;
   if not public.has_tenant_access(t.tenant_id) then raise exception 'Sem acesso a esta empresa.' using errcode = '42501'; end if;
   if public.usuario_restrito_aos_proprios_dados()
