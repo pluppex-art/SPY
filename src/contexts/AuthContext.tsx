@@ -1,4 +1,5 @@
 import { snapshotClearAll } from "../lib/tableCache";
+import { removePushSubscription } from "../lib/push";
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { supabase, fetchTenants, fetchTenantIdMap, fetchUserProfile, updateTenantModulesInDB } from "../lib/supabase";
 
@@ -273,9 +274,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       Object.keys(localStorage).filter((k) => k.startsWith("axis_google_token:")).forEach((k) => localStorage.removeItem(k));
       Object.keys(sessionStorage).filter((k) => k.startsWith("spy_cache:")).forEach((k) => sessionStorage.removeItem(k));
     } catch { /* storage indisponível */ }
+    // O aparelho não pode continuar recebendo push da empresa de quem saiu (outra pessoa pode entrar nele):
+    // cancela a inscrição ANTES de encerrar a sessão (a rota precisa do token), com limite de tempo.
+    const cancelPush = Promise.race([removePushSubscription(), new Promise<void>((r) => setTimeout(r, 3000))]).catch(() => undefined);
     setUser(null);
     void snapshotClearAll();
-    supabase?.auth.signOut();
+    void cancelPush.finally(() => { supabase?.auth.signOut(); });
   };
 
   // Re-busca o perfil em public.users — usado depois que uma tela (ex.: Meu
