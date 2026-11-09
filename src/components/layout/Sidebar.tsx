@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Building2, MapPin, ChevronDown } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -8,7 +8,6 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { navSections, conditionCheckers, type NavReqCondition } from "./navData";
 import { useUsaOsImplementacao } from "../../pages/os/hooks/useUsaOsImplementacao";
 import { Logo } from "../ui/Logo";
-import { useSwipeToDismiss } from "../../hooks/useSwipeGestures";
 import { cargoPermiteModulo, modulosDoCargo } from "../../lib/accessControl";
 
 interface SidebarProps {
@@ -33,9 +32,6 @@ export function Sidebar({
   const { cargos, empresaFiliais, tenantPrimaryColor, funis } = useData();
   const navigate = useNavigate();
   const [funisOpen, setFunisOpen] = useState(false);
-  // Gaveta do celular/tablet: arrastar para a esquerda fecha.
-  const drawerRef = useRef<HTMLElement>(null);
-  useSwipeToDismiss(drawerRef, "left", () => setIsMobileSidebarOpen(false), isMobileSidebarOpen);
   // Funis comerciais ativos: com mais de um, "Central de Vendas" vira um combo com a lista.
   const pipelineFunis = ((funis as any[]) || []).filter((f) => f.ativo !== false && f.tipo === "comercial");
   // Abre sozinho ao entrar no pipeline, mas o usuário pode fechar/abrir à vontade depois.
@@ -99,7 +95,6 @@ export function Sidebar({
       )}
 
       <aside
-        ref={drawerRef}
         className={`
         fixed inset-y-0 left-0 z-50 lg:z-30 lg:relative lg:h-full
         ${isSidebarCollapsed ? "lg:w-20" : "lg:w-68"}

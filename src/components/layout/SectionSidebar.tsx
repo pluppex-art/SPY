@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, PanelLeftClose, PanelLeftOpen, ChevronDown } from "lucide-react";
+import { LayoutList, X, PanelLeftClose, PanelLeftOpen, ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
@@ -48,7 +48,7 @@ export function SectionSidebar({ heading, subheading, groups, children }: Sectio
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
   const activeItem = groups.flatMap((g) => g.items).find((i) => !i.soon && isActive(i.path));
-  const ActiveIcon = activeItem?.icon ?? Menu;
+  const ActiveIcon = activeItem?.icon ?? LayoutList;
 
   // Trocou de página (ou girou o aparelho pra desktop): fecha a folha do menu.
   useEffect(() => { setMobileMenuOpen(false); }, [location.pathname]);
@@ -116,7 +116,7 @@ export function SectionSidebar({ heading, subheading, groups, children }: Sectio
             <span className="block text-sm font-black text-[var(--color-text-primary)] leading-tight mt-1 break-words">{t(activeItem?.title ?? heading)}</span>
           </span>
           <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] shrink-0">
-            <Menu className="w-4 h-4" /> Menu
+            Seções <ChevronDown className="w-4 h-4" />
           </span>
         </button>
       </div>

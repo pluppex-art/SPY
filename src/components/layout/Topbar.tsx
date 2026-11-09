@@ -233,7 +233,7 @@ export function Topbar({
               setIsSidebarCollapsed(!isSidebarCollapsed);
             }
           }}
-          className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-2xl transition-colors mr-2 max-md:mr-0 cursor-pointer border-none max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent max-md:shadow-none max-md:border-none"
+          className="max-lg:hidden p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-2xl transition-colors mr-2 max-md:mr-0 cursor-pointer border-none max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent max-md:shadow-none max-md:border-none"
         >
           <Menu className="w-5 h-5" />
         </button>
