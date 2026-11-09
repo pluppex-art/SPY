@@ -17,8 +17,10 @@ create index if not exists idx_push_subscriptions_tenant on public.push_subscrip
 
 alter table public.push_subscriptions enable row level security;
 
-drop policy if exists push_subscriptions_own on public.push_subscriptions;
-create policy push_subscriptions_own on public.push_subscriptions
-  for all to authenticated
-  using (user_id = (select auth.uid()))
-  with check (user_id = (select auth.uid()) and (select public.has_tenant_access(tenant_id)));
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'push_subscriptions' and policyname = 'push_subscriptions_own') then
+    create policy push_subscriptions_own on public.push_subscriptions for all to authenticated
+      using (user_id = (select auth.uid()))
+      with check (user_id = (select auth.uid()) and (select public.has_tenant_access(tenant_id)));
+  end if;
+end $$;
