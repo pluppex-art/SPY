@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, PanelLeftClose, PanelLeftOpen, ChevronDown } from "lucide-react";
@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 import { useLocalization } from "../../contexts/LocalizationContext";
+import { useSwipeToDismiss } from "../../hooks/useSwipeGestures";
 
 export interface SectionNavItem {
   title: string;
@@ -40,6 +41,9 @@ export function SectionSidebar({ heading, subheading, groups, children }: Sectio
   const { t } = useLocalization();
   const [isHidden, setIsHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  // Folha do celular/tablet: arrastar para baixo (com o conteúdo no topo) fecha.
+  useSwipeToDismiss(sheetRef, "down", () => setMobileMenuOpen(false), mobileMenuOpen);
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
@@ -131,7 +135,7 @@ export function SectionSidebar({ heading, subheading, groups, children }: Sectio
                 <X className="w-5 h-5" />
               </Button>
             </div>
-            <div className="overflow-y-auto overscroll-contain px-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+            <div ref={sheetRef} className="overflow-y-auto overscroll-contain px-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
               {groups.map((group) => (
                 <SectionGroup
                   key={group.title}

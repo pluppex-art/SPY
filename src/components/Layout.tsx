@@ -1,3 +1,4 @@
+import { useEdgeSwipeBack } from "../hooks/useSwipeGestures";
 import { useState, useEffect, Suspense } from "react";
 import { prefetchMainRoutes } from "../lib/prefetchRoutes";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -41,9 +42,17 @@ export default function Layout() {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
 
   useEffect(() => { prefetchMainRoutes(); }, []);
+
+  // Arrastar da borda esquerda = voltar (celular/tablet). Com o menu aberto, fecha o menu; com um modal
+  // aberto não faz nada; sem histórico pra voltar também não faz nada.
+  useEdgeSwipeBack(() => {
+    if (window.innerWidth >= 1024) return;
+    if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    if (isMobileSidebarOpen) { setIsMobileSidebarOpen(false); return; }
+    if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
+  });
   const [isSDRWebhookOpen, setIsSDRWebhookOpen] = useState(false);
   const isBlocked = useIsBlocked();
 
@@ -82,11 +91,7 @@ export default function Layout() {
         </div>
       </main>
 
-      <MobileNav
-        isMobileMoreOpen={isMobileMoreOpen}
-        setIsMobileMoreOpen={setIsMobileMoreOpen}
-        setIsSDRWebhookOpen={setIsSDRWebhookOpen}
-      />
+      <MobileNav isMobileSidebarOpen={isMobileSidebarOpen} setIsMobileSidebarOpen={setIsMobileSidebarOpen} />
       <SDRWebhookModal isOpen={isSDRWebhookOpen} onClose={() => setIsSDRWebhookOpen(false)} />
 
       {/* Aurora era restrita a usuários master (G-TECH) porque as ferramentas de escrita

@@ -1,218 +1,79 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
-import { useData } from "../../contexts/DataContext";
-import {
-  LayoutDashboard,
-  Columns3,
-  Plus,
-  Bell,
-  Menu,
-  Search,
-  Settings2,
-  AlertCircle,
-} from "lucide-react";
-import { navSections, conditionCheckers, type NavReqCondition } from "./navData";
-import { useUsaOsImplementacao } from "../../pages/os/hooks/useUsaOsImplementacao";
-import { cargoPermiteModulo, modulosDoCargo } from "../../lib/accessControl";
+import { LayoutDashboard, Columns3, Plus, Search, Menu } from "lucide-react";
 
 interface MobileNavProps {
-  isMobileMoreOpen: boolean;
-  setIsMobileMoreOpen: (val: boolean) => void;
-  setIsSDRWebhookOpen: (val: boolean) => void;
+  isMobileSidebarOpen: boolean;
+  setIsMobileSidebarOpen: (val: boolean) => void;
 }
 
-export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebhookOpen }: MobileNavProps) {
+/**
+ * Barra inferior (celular e tablet, até 1023px) no padrão que o usuário já conhece de outros apps
+ * (Lei de Jakob): início à esquerda, ação principal no centro, busca e "mais" à direita.
+ * "Mais" abre o MESMO menu do hambúrguer da Topbar (Sidebar) — não existe um segundo menu.
+ * Avisos ficam só no sino da Topbar (não duplicar).
+ */
+export function MobileNav({ isMobileSidebarOpen, setIsMobileSidebarOpen }: MobileNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, user, isModuleEnabled } = useAuth();
-  const { cargos, notifications } = useData();
-  const unreadNotifications = (notifications || []).filter((n: any) => !n.is_read).length;
-  const usaOsImplementacao = useUsaOsImplementacao();
 
-  const cargoModulos: string[] | null = modulosDoCargo(user, cargos);
-  const checkModule = (mod: string) => {
-    if (mod === "automotivo" || mod === "concessionaria") return isModuleEnabled("automotivo") || isModuleEnabled("concessionaria");
-    if (mod === "catalogo-produtos") return isModuleEnabled("catalogo") || isModuleEnabled("imobiliaria") || isModuleEnabled("automotivo") || isModuleEnabled("concessionaria") || isModuleEnabled("varejo");
-    if (mod === "agenda") return isModuleEnabled("agenda") || isModuleEnabled("crm");
-    if (mod === "documentos") return isModuleEnabled("documentos") || isModuleEnabled("crm");
-    return isModuleEnabled(mod as any);
-  };
-  const canAccessModule = (mod: string) => {
-    if (user?.isMaster) return checkModule(mod);
-    if (!cargoModulos) return checkModule(mod);
-    return checkModule(mod) && cargoPermiteModulo(cargoModulos, mod);
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
+  const itemBase = "flex flex-col items-center justify-center min-h-12 my-2 rounded-2xl py-1 text-[11px] font-bold transition-all active:scale-95";
+  const idle = "text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]";
 
   return (
-    <>
-      {/* Barra inferior (celular e tablet, até 1023px) no padrão que o usuário já conhece de outros apps
-          (Lei de Jakob): início à esquerda, ação principal no centro, avisos e "mais" à direita. */}
-      <nav aria-label="Navegação principal" className="lg:hidden fixed bottom-0 left-0 right-0 h-[calc(4.5rem+env(safe-area-inset-bottom))] bg-[var(--color-surface-elevated)]/95 backdrop-blur-lg border-t border-[var(--color-border-default)] rounded-t-[28px] grid grid-cols-5 items-center px-3 gap-1 z-40 pb-safe shadow-[0_-10px_30px_-12px_rgba(15,23,42,0.18)]">
-        {[
-          { name: "Painel", path: "/app/dashboard", icon: LayoutDashboard },
-          { name: "Leads", path: "/app/crm/pipeline", icon: Columns3 },
-        ].map((tab) => {
-          const isActive = location.pathname.startsWith(tab.path);
-          const TabIcon = tab.icon;
-          return (
-            <Link
-              key={tab.name}
-              to={tab.path}
-              aria-current={isActive ? "page" : undefined}
-              className={`flex flex-col items-center justify-center min-h-12 my-2 rounded-2xl py-1 text-[11px] font-bold transition-all relative active:scale-95 ${isActive ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : "text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"}`}
-            >
-              <TabIcon className={`w-6 h-6 mb-0.5 transition-transform duration-200 ${isActive ? "text-[var(--color-primary-blue)] scale-110" : ""}`} />
-              <span className={isActive ? "font-black text-[var(--color-primary-blue)] transition-all" : "font-semibold"}>
-                {tab.name}
-              </span>
-              {isActive && <span className="absolute -top-2 w-10 h-1 bg-[var(--color-primary-blue)] rounded-b-full"></span>}
-            </Link>
-          );
-        })}
+    <nav aria-label="Navegação principal" className="lg:hidden fixed bottom-0 left-0 right-0 h-[calc(4.5rem+env(safe-area-inset-bottom))] bg-[var(--color-surface-elevated)]/95 backdrop-blur-lg border-t border-[var(--color-border-default)] rounded-t-[28px] grid grid-cols-5 items-center px-3 gap-1 z-40 pb-safe shadow-[0_-10px_30px_-12px_rgba(15,23,42,0.18)]">
+      {[
+        { name: "Painel", path: "/app/dashboard", icon: LayoutDashboard },
+        { name: "Leads", path: "/app/crm/pipeline", icon: Columns3 },
+      ].map((tab) => {
+        const isActive = location.pathname.startsWith(tab.path);
+        const TabIcon = tab.icon;
+        return (
+          <Link
+            key={tab.name}
+            to={tab.path}
+            aria-current={isActive ? "page" : undefined}
+            className={`${itemBase} relative ${isActive ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : idle}`}
+          >
+            <TabIcon className={`w-6 h-6 mb-0.5 transition-transform duration-200 ${isActive ? "text-[var(--color-primary-blue)] scale-110" : ""}`} />
+            <span className={isActive ? "font-black text-[var(--color-primary-blue)]" : "font-semibold"}>{tab.name}</span>
+            {isActive && <span className="absolute -top-2 w-10 h-1 bg-[var(--color-primary-blue)] rounded-b-full"></span>}
+          </Link>
+        );
+      })}
 
-        {/* Ação principal no centro: abre o cadastro de novo lead (o Pipeline abre o modal por ?novo=1). */}
-        <button
-          type="button"
-          onClick={() => navigate("/app/crm/pipeline?novo=1")}
-          aria-label="Novo lead"
-          className="flex flex-col items-center justify-center min-h-12 my-2 text-[11px] font-semibold text-[var(--color-text-faint)] active:scale-95 transition-all"
-        >
-          <span className="-mt-5 mb-0.5 flex items-center justify-center w-14 h-14 rounded-full bg-[var(--color-primary-blue)] text-white shadow-lg shadow-[var(--color-primary-blue)]/30 border-4 border-[var(--color-surface-elevated)]">
-            <Plus className="w-7 h-7" strokeWidth={2.5} />
-          </span>
-          <span>Novo lead</span>
-        </button>
+      {/* Ação principal no centro: abre o cadastro de novo lead (o Pipeline abre o modal por ?novo=1). */}
+      <button
+        type="button"
+        onClick={() => navigate("/app/crm/pipeline?novo=1")}
+        aria-label="Novo lead"
+        className="flex flex-col items-center justify-center min-h-12 my-2 text-[11px] font-semibold text-[var(--color-text-faint)] active:scale-95 transition-all"
+      >
+        <span className="-mt-5 mb-0.5 flex items-center justify-center w-14 h-14 rounded-full bg-[var(--color-primary-blue)] text-white shadow-lg shadow-[var(--color-primary-blue)]/30 border-4 border-[var(--color-surface-elevated)]">
+          <Plus className="w-7 h-7" strokeWidth={2.5} />
+        </span>
+        <span>Novo lead</span>
+      </button>
 
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new Event("spy:open-notifications"))}
-          aria-label={unreadNotifications > 0 ? `Avisos, ${unreadNotifications} não lidos` : "Avisos"}
-          className="flex flex-col items-center justify-center min-h-12 my-2 rounded-2xl py-1 text-[11px] font-bold transition-all active:scale-95 text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] relative"
-        >
-          <span className="relative">
-            <Bell className="w-6 h-6 mb-0.5" />
-            {unreadNotifications > 0 && (
-              <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white">
-                {unreadNotifications > 99 ? "99+" : unreadNotifications}
-              </span>
-            )}
-          </span>
-          <span className="font-semibold">Avisos</span>
-        </button>
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event("spy:open-search"))}
+        aria-label="Buscar"
+        className={`${itemBase} ${idle}`}
+      >
+        <Search className="w-6 h-6 mb-0.5" />
+        <span className="font-semibold">Buscar</span>
+      </button>
 
-        <button
-          type="button"
-          onClick={() => setIsMobileMoreOpen(true)}
-          aria-label="Mais opções"
-          aria-haspopup="dialog"
-          className="flex flex-col items-center justify-center min-h-12 my-2 rounded-2xl py-1 text-[11px] font-bold transition-all active:scale-95 text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"
-        >
-          <Menu className="w-6 h-6 mb-0.5" />
-          <span className="font-semibold">Mais</span>
-        </button>
-      </nav>
-
-      {isMobileMoreOpen && (
-        <>
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in duration-200" onClick={() => setIsMobileMoreOpen(false)} />
-          <div className="fixed inset-x-0 bottom-0 z-50 bg-[var(--color-surface-elevated)] border-t border-[var(--color-border-default)] rounded-t-[var(--radius-panel-lg)] max-h-[85dvh] overflow-y-auto overscroll-contain p-5 pb-[calc(2rem+env(safe-area-inset-bottom))] flex flex-col gap-4 shadow-[var(--shadow-panel)] animate-in slide-in-from-bottom duration-300">
-            <div className="w-12 h-1 bg-[var(--color-border-default)] rounded-full mx-auto mb-2 shrink-0"></div>
-
-            <div className="flex justify-between items-center mb-1 shrink-0">
-              <h3 className="text-xs font-black text-[var(--color-accent)] uppercase tracking-widest">
-                Navegação Completa
-              </h3>
-              <button className="text-[10px] font-bold bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] hover:bg-[var(--color-border-subtle)] px-3.5 py-1.5 rounded-[var(--radius-control)] text-[var(--color-text-muted)] transition-colors uppercase tracking-wider" onClick={() => setIsMobileMoreOpen(false)}>
-                Fechar
-              </button>
-            </div>
-
-            <div className="space-y-6 overflow-y-auto">
-              <button
-                type="button"
-                onClick={() => { setIsMobileMoreOpen(false); window.dispatchEvent(new Event("spy:open-search")); }}
-                className="flex items-center gap-2 w-full px-3 py-3 min-h-12 text-sm font-semibold rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] text-left"
-              >
-                <Search className="w-4 h-4 text-[var(--color-accent)] shrink-0" />
-                <span>Buscar leads, clientes e páginas</span>
-              </button>
-              {navSections
-                .map((section) => {
-                  if (section.reqModule && !canAccessModule(section.reqModule)) {
-                    return null;
-                  }
-
-                  const visibleItems = section.items.filter((item: any) => {
-                    if (item.reqModule && item.reqModule !== 'master' && !canAccessModule(item.reqModule)) return false;
-                    if (item.reqModule === 'master' && !user?.isMaster) return false;
-                    if (item.reqCondition && !conditionCheckers[item.reqCondition as NavReqCondition](user)) return false;
-                    if (item.hideWhen === 'os-implementacao' && usaOsImplementacao) return false;
-                    return true;
-                  });
-
-                  if (visibleItems.length === 0) return null;
-
-                  return { ...section, items: visibleItems };
-                })
-                .filter(Boolean)
-                .map((section: any, idx) => (
-                <div key={idx} className="space-y-2.5 border-t border-[var(--color-border-subtle)] pt-4 first:border-none first:pt-0">
-                  <div className="text-[10px] font-black text-[var(--color-text-faint)] uppercase tracking-widest">{section.title}</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {section.items.map((item: any) => {
-                      const isActive = item.path ? location.pathname.startsWith(item.path) : false;
-                      const ItemIcon = item.icon;
-                      const btnClass = `flex items-center gap-2 px-3 py-3 min-h-11 text-xs font-semibold rounded-[var(--radius-control)] border transition-all ${isActive ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/20 font-black" : "text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"}`;
-
-                      if (item.action) {
-                        return (
-                          <button
-                            key={item.name}
-                            onClick={() => {
-                              if (item.action === "sdr-webhooks") setIsSDRWebhookOpen(true);
-                              setIsMobileMoreOpen(false);
-                            }}
-                            className={btnClass}
-                          >
-                            <ItemIcon className="w-4 h-4 text-[var(--color-accent)] shrink-0" />
-                            <span className="leading-tight break-words min-w-0">{item.name}</span>
-                          </button>
-                        );
-                      }
-
-                      return (
-                        <Link key={item.name} to={item.path} onClick={() => setIsMobileMoreOpen(false)} className={btnClass}>
-                          <ItemIcon className="w-4 h-4 text-[var(--color-accent)] shrink-0" />
-                          <span className="leading-tight break-words min-w-0">{item.name}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-
-              <div className="space-y-2.5 border-t border-[var(--color-border-subtle)] pt-4">
-                <div className="text-[10px] font-black text-[var(--color-text-faint)] uppercase tracking-widest">Conta & Configurações</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => { setIsMobileMoreOpen(false); navigate("/app/configuracoes"); }} className="flex items-center gap-2 px-3 py-3 min-h-11 text-xs font-semibold rounded-[var(--radius-control)] border border-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] w-full text-left">
-                    <Settings2 className="w-4 h-4 text-[var(--color-accent)] shrink-0" />
-                    <span className="truncate">Configurações</span>
-                  </button>
-                  <button onClick={() => { setIsMobileMoreOpen(false); handleLogout(); }} className="flex items-center gap-2 px-3 py-3 min-h-11 text-xs font-semibold rounded-[var(--radius-control)] border border-transparent bg-danger/5 hover:bg-danger/10 text-danger w-full text-left">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Sair</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-    </>
+      <button
+        type="button"
+        onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+        aria-label="Mais opções"
+        aria-expanded={isMobileSidebarOpen}
+        className={`${itemBase} ${isMobileSidebarOpen ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : idle}`}
+      >
+        <Menu className="w-6 h-6 mb-0.5" />
+        <span className="font-semibold">Mais</span>
+      </button>
+    </nav>
   );
 }
