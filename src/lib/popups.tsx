@@ -2,6 +2,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Info, AlertTriangle, XCircle, CircleDollarSign, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { isSaleSoundEnabled, playSaleSound } from "./notifications";
 
 // Pop-ups do S.P.Y. no formato de notificação de app (banner do Instagram/TikTok/YouTube): logo do S.P.Y. com um
 // emblema do tipo no canto, "S.P.Y. · agora", título e texto, cartão inteiro clicável. A venda fechada segue o
@@ -127,4 +128,5 @@ export function showSalePopup(sale: { leadId: string; name: string; company?: st
     { duration: 10000 },
   );
   void celebrate();
+  if (isSaleSoundEnabled()) playSaleSound();
 }

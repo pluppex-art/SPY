@@ -1,4 +1,5 @@
 import { useEdgeSwipeBack } from "../hooks/useSwipeGestures";
+import { setSaleSoundEnabled } from "../lib/notifications";
 import { useState, useEffect, Suspense } from "react";
 import { prefetchMainRoutes } from "../lib/prefetchRoutes";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -45,6 +46,7 @@ export default function Layout() {
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
 
   useEffect(() => { prefetchMainRoutes(); }, []);
+  useEffect(() => { setSaleSoundEnabled(user?.preferences?.saleSound === true); }, [user?.preferences?.saleSound]);
 
   // Arrastar da borda esquerda = voltar (celular/tablet). Com um modal ou a folha "Mais" aberta não faz
   // nada (elas têm o próprio gesto de fechar); sem histórico pra voltar também não faz nada.

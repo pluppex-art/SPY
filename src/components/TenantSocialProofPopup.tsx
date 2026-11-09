@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { ShoppingBag, X } from "lucide-react";
+import { formatAgo } from "../lib/socialProof";
 
-interface Item { product: string; count: number }
+type Item =
+  | { kind: "recent"; product: string; closedAt: string }
+  | { kind: "top"; product: string; count: number };
 interface Brand { name: string | null; color: string | null; logoUrl: string | null }
 
 const FIRST_DELAY_MS = 8_000;
@@ -11,6 +14,7 @@ const MAX_SHOWS = 3;
 
 /**
  * Prova social nas páginas públicas DA EMPRESA (catálogo e proposta), com os produtos dela e a marca dela:
+ * "Alguém acabou de comprar Plano Ouro · há 12 min" (só com venda de data real, últimos 7 dias) ou
  * "38 clientes já compraram Plano Ouro". Só aparece se a empresa ligou em Configurações › Dados da empresa e
  * se o produto tem vendas reais suficientes (o servidor decide). Sem dado pessoal. Até 3 aparições por visita.
  */
@@ -32,9 +36,14 @@ export function TenantSocialProofPopup({ tenantId, token }: { tenantId?: string;
         const res = await fetch(`/api/public/tenant-social-proof?${qs}`);
         if (!res.ok) return;
         const data = await res.json();
-        const list: Item[] = Array.isArray(data?.items)
-          ? data.items.filter((i: any) => typeof i?.product === "string" && Number.isFinite(i?.count)).slice(0, MAX_SHOWS)
+        const recent: Item[] = Array.isArray(data?.recent)
+          ? data.recent.filter((i: any) => typeof i?.product === "string" && Number.isFinite(Date.parse(i?.closedAt))).map((i: any) => ({ kind: "recent" as const, product: i.product, closedAt: i.closedAt }))
           : [];
+        const top: Item[] = Array.isArray(data?.items)
+          ? data.items.filter((i: any) => typeof i?.product === "string" && Number.isFinite(i?.count)).map((i: any) => ({ kind: "top" as const, product: i.product, count: i.count }))
+          : [];
+        // Vendas recentes (verdadeiras e frescas) primeiro; depois o ranking por contagem.
+        const list = [...recent, ...top].slice(0, MAX_SHOWS);
         if (!alive || !data?.enabled || list.length === 0) return;
         setBrand(data.brand || null);
         setItems(list);
@@ -51,6 +60,9 @@ export function TenantSocialProofPopup({ tenantId, token }: { tenantId?: string;
   if (!shown || items.length === 0) return null;
   const color = brand?.color || "var(--color-primary-blue, #F97316)";
   const initial = (brand?.name || "?").trim().charAt(0).toUpperCase() || "?";
+  const ago = shown.kind === "recent" ? formatAgo(shown.closedAt) : "";
+  // "acabou de comprar" só quando a venda foi mesmo agora (< 1 h); senão, "comprou" + quando.
+  const justNow = shown.kind === "recent" && (ago === "agora mesmo" || /^há \d+ min$/.test(ago));
 
   return (
     <div
@@ -71,11 +83,15 @@ export function TenantSocialProofPopup({ tenantId, token }: { tenantId?: string;
       <div className="min-w-0 flex-1">
         <p className="flex items-center justify-between gap-2 text-[11px] leading-none text-[var(--color-text-faint,#5f6f86)]">
           <span className="font-bold tracking-wide uppercase truncate">{brand?.name || "Mais vendido"}</span>
-          <span className="shrink-0">mais vendido</span>
+          <span className="shrink-0">{shown.kind === "recent" ? ago : "mais vendido"}</span>
         </p>
         <p className="mt-1 text-[15px] font-extrabold text-[var(--color-text-primary,#0f172a)] leading-tight break-words">{shown.product}</p>
         <p className="mt-0.5 text-[13px] text-[var(--color-text-muted,#526077)] leading-snug">
-          <strong style={{ color }}>{shown.count.toLocaleString("pt-BR")}</strong> clientes já compraram
+          {shown.kind === "recent" ? (
+            <>{justNow ? "Alguém acabou de comprar" : "Alguém comprou"}</>
+          ) : (
+            <><strong style={{ color }}>{shown.count.toLocaleString("pt-BR")}</strong> clientes já compraram</>
+          )}
         </p>
       </div>
       <button

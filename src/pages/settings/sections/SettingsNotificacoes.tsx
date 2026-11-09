@@ -1,5 +1,6 @@
 import { apiFetch } from "../../../lib/apiClient";
 import { ensurePushSubscription } from "../../../lib/push";
+import { playSaleSound, setSaleSoundEnabled } from "../../../lib/notifications";
 import React, { useState, useEffect } from "react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
@@ -248,6 +249,14 @@ export function ConfigNotificacoesPreferencias() {
     toast.info("Reproduzindo som de notificação padrão.");
   };
 
+  const saleSoundOn = user?.preferences?.saleSound === true;
+  const toggleSaleSound = () => {
+    const next = !saleSoundOn;
+    updatePreferences({ saleSound: next });
+    setSaleSoundEnabled(next);
+    if (next) playSaleSound(); // já toca uma vez para a pessoa ouvir o que ligou
+  };
+
   const handleRequestPush = async () => {
     if (!isPushSupported()) {
       toast.error("Notificações do navegador não são suportadas neste dispositivo.");
@@ -458,6 +467,29 @@ export function ConfigNotificacoesPreferencias() {
           </button>
         </Card>
       </div>
+
+      {/* Som de venda (por usuário, desligado por padrão) */}
+      <Card className="p-4 flex items-center justify-between gap-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-xs">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-xs font-bold text-[var(--color-text-primary)]">Som de venda realizada</h4>
+            <button type="button" onClick={playSaleSound} aria-label="Ouvir o som de venda" className="text-[var(--color-primary-blue)] hover:brightness-110 p-0.5 rounded cursor-pointer border-none bg-transparent">
+              <Play className="w-3 h-3 fill-current" />
+            </button>
+          </div>
+          <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">Toca um "cha-ching" quando alguém da equipe fecha uma venda. Vale só para você e fica desligado até ativar.</p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={saleSoundOn}
+          aria-label="Som de venda realizada"
+          onClick={toggleSaleSound}
+          className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 border-none ${saleSoundOn ? "bg-[var(--color-primary-blue)]" : "bg-[var(--color-border-default)]"}`}
+        >
+          <div className={`bg-white w-4 h-4 rounded-full shadow-xs transform duration-200 ${saleSoundOn ? "translate-x-4" : "translate-x-0"}`} />
+        </button>
+      </Card>
 
       {/* Push no Navegador (Web Notification) Banner */}
       <Card className="p-4 bg-[var(--color-primary-blue)]/5 border border-[var(--color-primary-blue)]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">

@@ -17,9 +17,12 @@ const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 export interface TenantProofItem { product: string; count: number }
+export interface TenantRecentSale { product: string; closedAt: string }
 export interface TenantProofResponse {
   enabled: boolean;
   items: TenantProofItem[];
+  /** Vendas dos últimos 7 dias COM data real de fechamento (closed_at), horário arredondado a 10 min. */
+  recent: TenantRecentSale[];
   brand?: { name: string | null; color: string | null; logoUrl: string | null };
 }
 
@@ -41,6 +44,28 @@ export function topProducts(leadRows: any[], productRows: any[]): TenantProofIte
     .map(([id, n]) => ({ product: names.get(id)!, count: n }));
 }
 
+const TEN_MIN = 10 * 60_000;
+export const RECENT_WINDOW_MS = 7 * 86_400_000;
+
+/** Vendas recentes (uma por produto, a mais nova) só quando o lead tem closed_at real. Sem dado pessoal. */
+export function recentSales(leadRows: any[], productRows: any[], now = Date.now()): TenantRecentSale[] {
+  const names = new Map<string, string>();
+  for (const p of productRows || []) if (p?.id && typeof p.name === "string" && p.name.trim()) names.set(p.id, p.name.trim().slice(0, 80));
+  const out = new Map<string, TenantRecentSale>();
+  const sorted = [...(leadRows || [])]
+    .filter((l) => l?.closed_at && Number.isFinite(Date.parse(l.closed_at)) && Date.parse(l.closed_at) <= now + 60_000 && now - Date.parse(l.closed_at) <= RECENT_WINDOW_MS)
+    .sort((a, b) => Date.parse(b.closed_at) - Date.parse(a.closed_at));
+  for (const l of sorted) {
+    const ids: unknown = l.productIds;
+    if (!Array.isArray(ids)) continue;
+    for (const id of ids) {
+      if (typeof id !== "string" || !names.has(id) || out.has(id)) continue;
+      out.set(id, { product: names.get(id)!, closedAt: new Date(Math.round(Date.parse(l.closed_at) / TEN_MIN) * TEN_MIN).toISOString() });
+    }
+  }
+  return [...out.values()].slice(0, 5);
+}
+
 const safeLogo = (u: unknown): string | null => (typeof u === "string" && /^https:\/\/[^\s]{4,500}$/.test(u) ? u : null);
 
 const cache = new Map<string, { at: number; data: TenantProofResponse }>();
@@ -49,7 +74,7 @@ export async function buildTenantProof(db: any, tenantId: string): Promise<Tenan
   const hit = cache.get(tenantId);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
 
-  let data: TenantProofResponse = { enabled: false, items: [] };
+  let data: TenantProofResponse = { enabled: false, items: [], recent: [] };
   try {
     const { data: setting } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", SETTING_KEY).maybeSingle();
     if (setting?.value?.enabled === true) {
@@ -57,6 +82,10 @@ export async function buildTenantProof(db: any, tenantId: string): Promise<Tenan
         .eq("tenant_id", tenantId).eq("status", "Fechado").is("deleted_at", null).limit(MAX_LEADS_SCANNED);
       const { data: products } = await db.from("products").select("id, name").eq("tenant_id", tenantId).limit(2000);
       const items = topProducts(leads || [], products || []);
+      const since = new Date(Date.now() - RECENT_WINDOW_MS).toISOString();
+      const { data: recentLeads } = await db.from("leads").select("productIds, closed_at")
+        .eq("tenant_id", tenantId).eq("status", "Fechado").is("deleted_at", null).gte("closed_at", since).order("closed_at", { ascending: false }).limit(100);
+      const recent = recentSales(recentLeads || [], products || []);
 
       const [{ data: tenant }, { data: emp }] = await Promise.all([
         db.from("tenants").select("name, primary_color").eq("id", tenantId).maybeSingle(),
@@ -65,6 +94,7 @@ export async function buildTenantProof(db: any, tenantId: string): Promise<Tenan
       data = {
         enabled: true,
         items,
+        recent,
         brand: {
           name: typeof tenant?.name === "string" ? tenant.name.slice(0, 80) : null,
           color: HEX.test(tenant?.primary_color || "") ? tenant.primary_color : null,
@@ -74,7 +104,7 @@ export async function buildTenantProof(db: any, tenantId: string): Promise<Tenan
     }
   } catch (err: any) {
     console.error("[tenant-social-proof]", err?.message);
-    return { enabled: false, items: [] }; // erro não entra no cache
+    return { enabled: false, items: [], recent: [] }; // erro não entra no cache
   }
   if (cache.size > 500) cache.clear();
   cache.set(tenantId, { at: Date.now(), data });
@@ -90,7 +120,7 @@ export function registerTenantSocialProofRoutes(app: Express, { supabaseService,
   // Público (catálogo e proposta). A empresa vem do id do catálogo OU do token da proposta — nunca de outro lugar.
   app.get("/api/public/tenant-social-proof", limiter, async (req: any, res: any) => {
     res.setHeader("Cache-Control", "public, max-age=300");
-    const none: TenantProofResponse = { enabled: false, items: [] };
+    const none: TenantProofResponse = { enabled: false, items: [], recent: [] };
     if (!supabaseService) return res.json(none);
 
     let tenantId: string | null = null;
@@ -108,7 +138,7 @@ export function registerTenantSocialProofRoutes(app: Express, { supabaseService,
 
     const out = await buildTenantProof(supabaseService, tenantId);
     // Desligado ou sem produto com vendas suficientes: não expõe nem a marca.
-    if (!out.enabled || out.items.length === 0) return res.json(none);
+    if (!out.enabled || (out.items.length === 0 && out.recent.length === 0)) return res.json(none);
     res.json(out);
   });
 }
