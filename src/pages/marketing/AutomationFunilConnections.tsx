@@ -258,6 +258,13 @@ export function AutomationFunilConnections() {
       .slice(0, 40),
     [products],
   );
+  // Modelo pronto: "lead qualificado → mover para o comercial + avisar o time (score, temperatura, interesse)".
+  const [modeloAberto, setModeloAberto] = useState(false);
+  const [modQualFunil, setModQualFunil] = useState("");
+  const [modQualEtapa, setModQualEtapa] = useState("");
+  const [modDestFunil, setModDestFunil] = useState("");
+  const [modAvisar, setModAvisar] = useState(true);
+  const [modCriando, setModCriando] = useState(false);
   const [novoFunilId, setNovoFunilId] = useState("");
   const [novaEtapa, setNovaEtapa] = useState("");
   const [rf, setRf] = useState<ReactFlowInstance | null>(null);
@@ -442,6 +449,45 @@ export function AutomationFunilConnections() {
     toast.success("Gatilho criado. Adicione as ações que ele deve executar.");
   }, [activeTenantId, funisOrigem]);
 
+  // Padrões do modelo: origem = funil SDR (etapa de entrega ao closer) ou o 1º funil; destino = 1º funil comercial.
+  const modOrigemFunil = funisOrigem.find((f) => f.id === modQualFunil) ?? funisOrigem.find((f) => f.tipo === "sdr_ia") ?? funisOrigem[0];
+  const modOrigemEtapas = modOrigemFunil ? funilStageNames(modOrigemFunil) : [];
+  const modEtapaPadrao = (() => {
+    const handoff = String(modOrigemFunil?.sdrEtapaHandoff ?? "").trim().toLowerCase();
+    let i = handoff ? modOrigemEtapas.findIndex((n) => n.trim().toLowerCase() === handoff) : -1;
+    if (i < 0) i = modOrigemEtapas.findIndex((n) => /^qualificad[oa]s?\b|promovido|reuni[aã]o agendada/i.test(n));
+    return i < 0 ? 0 : i;
+  })();
+  const modEtapaIdx = modQualEtapa !== "" ? Number(modQualEtapa) : modEtapaPadrao;
+  const modDestino = funisOrigem.find((f) => f.id === modDestFunil) ?? funisOrigem.find((f) => f.tipo === "comercial") ?? funisOrigem[0];
+
+  const criarModeloQualificado = async () => {
+    if (!supabase || !activeTenantId || !modOrigemFunil || !modDestino) return;
+    if (modOrigemFunil.id === modDestino.id && modEtapaIdx === 0) { toast.error("Escolha uma etapa de origem diferente da primeira etapa do funil de destino."); return; }
+    setModCriando(true);
+    try {
+      const etapaNome = modOrigemEtapas[modEtapaIdx] ?? String(modEtapaIdx);
+      const { data: conn, error } = await supabase.from("automation_connections").insert({
+        tenant_id: activeTenantId, ativo: true, nome: `Qualificado (${etapaNome}) → ${modDestino.nome}`,
+        gatilho_tipo: "funil_etapa", gatilho_funil_id: modOrigemFunil.id, gatilho_etapa_idx: modEtapaIdx, os_departamento_id: null,
+      }).select().maybeSingle();
+      if (error || !conn) throw new Error("Não foi possível criar o gatilho.");
+      const acoesNovas: any[] = [{
+        tenant_id: activeTenantId, connection_id: conn.id, ordem: 0, tipo: "mover_funil",
+        config: { funil_destino_id: modDestino.id, etapa_idx: "0", pipeline_id: modDestino.tipo === "sdr_ia" ? "sdr" : "comercial", etapa_id: getStageId(modDestino.id, 0) },
+      }];
+      if (modAvisar) acoesNovas.push({
+        tenant_id: activeTenantId, connection_id: conn.id, ordem: 1, tipo: "notificar",
+        config: { titulo: "Lead qualificado: {nome}", mensagem: "Score {score} · Temperatura {temperatura} · Interesse: {interesse} · Origem: {origem}" },
+      });
+      const { error: e2 } = await supabase.from("automation_connection_acoes").insert(acoesNovas);
+      if (e2) { await supabase.from("automation_connections").delete().eq("id", conn.id); throw new Error("Não foi possível criar as ações do gatilho."); }
+      await fetchRows();
+      setSelectedId(conn.id); setAbaSidebar("propriedades"); setModeloAberto(false);
+      toast.success("Modelo criado. Quando um lead chegar nessa etapa, ele vai para o comercial e o time é avisado.");
+    } catch (e: any) { toast.error(e?.message || "Falha ao criar o modelo."); } finally { setModCriando(false); }
+  };
+
   // ─── Nova conexão arrastada na tela ─────────────────────────────────────
   const onConnect = useCallback(async (conn: Connection) => {
     if (!supabase || !activeTenantId || !conn.source || !conn.target || !conn.sourceHandle) return;
@@ -616,6 +662,35 @@ export function AutomationFunilConnections() {
 
   return (
     <div className="space-y-4">
+      {/* Modelo pronto: lead qualificado -> comercial + aviso ao time */}
+      <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
+        <button type="button" onClick={() => setModeloAberto((v) => !v)} className="w-full flex items-center justify-between gap-3 text-left bg-transparent border-none cursor-pointer p-0">
+          <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]"><Zap className="w-4 h-4 text-[var(--color-primary-blue)]" /> Modelo pronto: lead qualificado → comercial + avisar o time</span>
+          <span className="text-[11px] font-bold text-[var(--color-primary-blue)]">{modeloAberto ? "Fechar" : "Usar modelo"}</span>
+        </button>
+        {modeloAberto && (
+          <div className="mt-3 space-y-3">
+            <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">Quando o lead chegar na etapa que significa "qualificado" (no SDR IA, a etapa de entrega ao closer), ele é movido para o funil comercial e todo o time recebe um aviso com nome, score, temperatura e interesse. Você pode editar tudo depois, no painel de propriedades.</p>
+            <div className="grid sm:grid-cols-3 gap-3">
+              <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Quando chegar em (funil)
+                <select value={modOrigemFunil?.id ?? ""} onChange={(e) => { setModQualFunil(e.target.value); setModQualEtapa(""); }} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]">
+                  {funisOrigem.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </select></label>
+              <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">…na etapa
+                <select value={String(modEtapaIdx)} onChange={(e) => setModQualEtapa(e.target.value)} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]">
+                  {modOrigemEtapas.map((n, i) => <option key={i} value={String(i)}>{n}</option>)}
+                </select></label>
+              <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Mover para o funil
+                <select value={modDestino?.id ?? ""} onChange={(e) => setModDestFunil(e.target.value)} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]">
+                  {funisOrigem.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </select></label>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-[var(--color-text-primary)] cursor-pointer"><input type="checkbox" checked={modAvisar} onChange={(e) => setModAvisar(e.target.checked)} /> Avisar o time (nome, score, temperatura, interesse e origem)</label>
+            <div className="flex justify-end"><Button onClick={() => void criarModeloQualificado()} disabled={modCriando || !modOrigemFunil || !modDestino} className="h-9 px-5 text-xs font-bold gap-1.5">{modCriando && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Criar gatilho</Button></div>
+          </div>
+        )}
+      </Card>
+
       {/* KPIs — tudo real: leads/pipeline já carregados no app, OS/execuções contadas nas
           tabelas da automação (ver migration automation_connection_multistep). */}
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-2.5 md:gap-3 [&>*:last-child:nth-child(odd)]:col-span-2 xl:[&>*:last-child:nth-child(odd)]:col-span-1">
@@ -918,6 +993,9 @@ function AcaoCard({ acao, funisOrigem, onRemove, onSaveConfig }: {
         <button type="button" onClick={() => onRemove(acao.id)} className="text-[var(--color-text-faint)] hover:text-danger"><X className="w-3 h-3" /></button>
       </div>
 
+      {campoPrincipal && (
+        <p className="text-[10px] leading-snug text-[var(--color-text-faint)] mb-1">Dá para usar dados do lead: {"{nome}"} {"{primeiro_nome}"} {"{score}"} {"{temperatura}"} {"{interesse}"} {"{origem}"} {"{empresa}"}</p>
+      )}
       {campoPrincipal && (
         campoPrincipal.textarea ? (
           <textarea
