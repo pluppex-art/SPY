@@ -122,7 +122,8 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
         tenant_id: ctx.tenantId,
         scoreIA: 50,
         date: new Date().toISOString().split("T")[0],
-        customFields: {},
+        // O formulário do lead e os filtros leem cidade/estado em customFields; grava nos dois lugares.
+        customFields: { ...(v.city ? { cidade: String(v.city).trim() } : {}), ...(v.state ? { estado: String(v.state).trim().toUpperCase().slice(0, 2) } : {}) },
       };
     },
     insertBatch: (rows) => insertInto("leads", rows),

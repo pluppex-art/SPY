@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { formatPhoneBR, whatsappDigits } from "../../../../lib/utils";
+import { leadCity, leadState } from "../../../../lib/leadLocation";
 import { Card } from "../../../../components/ui/card";
 import { Badge, type BadgeProps } from "../../../../components/ui/badge";
 import { Pagination } from "../../../../components/ui/Pagination";
-import { Mail, Phone, Calendar, MoreHorizontal, Tag } from "lucide-react";
+import { Mail, Phone, Calendar, MoreHorizontal, Tag, MapPin } from "lucide-react";
 
 const PAGE_SIZE = 50;
 
@@ -93,6 +94,7 @@ export function PipelineListaView({
               <tr>
                 <th className="px-6 py-4">Nome & Empresa</th>
                 <th className="px-6 py-4">Contato</th>
+                <th className="px-6 py-4">Cidade / Estado</th>
                 <th className="px-6 py-4">Status / Prioridade</th>
                 <th className="px-6 py-4">Valor</th>
                 <th className="px-6 py-4">Responsável</th>
@@ -116,6 +118,21 @@ export function PipelineListaView({
                       <ContatoLinha icon={<Mail className="w-3.5 h-3.5" />} rotulo="E-mail" valor={String(lead.email ?? "").trim()} vazio="Sem e-mail"
                         href={String(lead.email ?? "").trim() ? `mailto:${String(lead.email).trim()}` : undefined} dica="Enviar e-mail" quebra />
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {(() => {
+                      const cidade = leadCity(lead), uf = leadState(lead);
+                      if (!cidade && !uf) return <span className="text-xs italic text-[var(--color-text-faint)]">Sem localização</span>;
+                      return (
+                        <div className="flex items-start gap-2.5 min-w-[150px]">
+                          <span className="mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]"><MapPin className="w-3.5 h-3.5" /></span>
+                          <span className="min-w-0 flex flex-col leading-tight">
+                            <span className="text-[13px] font-semibold text-[var(--color-text-primary)] break-words">{cidade || "—"}</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{uf || "Estado não informado"}</span>
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1.5">
