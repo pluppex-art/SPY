@@ -1,7 +1,7 @@
 // Definições do que cada tela importa de planilha (campos, duplicados, gravação). O motor é um só
 // (ImportadorPlanilha); aqui só mudam os campos e a tabela. Tudo sempre dentro do tenant da sessão.
 import { supabase } from "./supabase";
-import { extrasToNotes, normalizeEmail, stripText, type BuiltRow, type ImportField, type ImportSpec } from "./importer";
+import { distribuir, parseDist, extrasToNotes, normalizeEmail, stripText, type BuiltRow, type ImportField, type ImportSpec } from "./importer";
 import { funilStageNames, getStageId, phoneKey, pipelineIdDoFunil } from "./funnelIds";
 import { friendlyError } from "./friendlyError";
 
@@ -42,7 +42,7 @@ const F_NOME: ImportField = { key: "name", label: "Nome", required: true, aliase
 const F_EMAIL: ImportField = { key: "email", label: "E-mail", kind: "email", aliases: ["e-mail", "email", "endereco de e mail"] };
 const F_FONE: ImportField = { key: "phone", label: "Telefone / WhatsApp", kind: "phone", aliases: ["whatsapp", "telefone", "celular", "fone", "tel", "contato", "phone"] };
 
-export interface LeadsCtx { tenantId: string; filialId?: string | null; sellerName: string; funis: any[]; onDone?: () => void }
+export interface LeadsCtx { tenantId: string; filialId?: string | null; sellerName: string; sellerUserId?: string | null; sellers?: { nome: string; userId?: string | null }[]; rodizioElegiveis?: number; funis: any[]; onDone?: () => void }
 
 export function leadsSpec(ctx: LeadsCtx): ImportSpec {
   const funis = ctx.funis.filter((f) => f.ativo !== false && funilStageNames(f).length > 0);
@@ -68,6 +68,7 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
       const fid = v.funil || padrao?.id || "";
       const f = funis.find((x) => x.id === fid) ?? padrao;
       return [
+        { key: "distribuicao", label: "Quem recebe estes leads", type: "vendedores", vendedores: ctx.sellers ?? [], rodizioElegiveis: ctx.rodizioElegiveis },
         { key: "funil", label: "Funil de destino", type: "select", choices: funis.map((x) => ({ value: x.id, label: x.nome || x.name || x.id })), default: padrao?.id },
         { key: "etapa", label: "Etapa inicial", type: "select", choices: (f ? funilStageNames(f) : []).map((n, i) => ({ value: String(i), label: n })), default: "0" },
         { key: "origem", label: "Origem padrão (quando a linha não tiver)", type: "text", placeholder: "Ex.: Treinão 14/11", default: "Importação de planilha" },
@@ -76,6 +77,26 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
     rowKeys: (v) => [emailKey(v.email), phoneKeyOf(v.phone), docKey(v.document_id)].filter(Boolean),
     loadExistingKeys: (onProgress) => loadKeys("leads", "email, phone, mobile_wa, document_id", ctx.tenantId,
       (r) => [emailKey(r.email), phoneKeyOf(r.phone), phoneKeyOf(r.mobile_wa), docKey(r.document_id)], onProgress, true),
+    // Atribui o responsável de cada lead conforme a distribuição escolhida (depois de tirar os duplicados, para a conta fechar).
+    resolve: async (rows, o) => {
+      const cfg = parseDist(o.distribuicao ?? "");
+      const notes: string[] = [];
+      if (cfg.modo === "eu") { notes.push(`Responsável: ${ctx.sellerName} (todos os ${rows.length} leads).`); return { rows, rejected: [], notes }; }
+      // Sem closer elegível no rodízio, o banco não escolheria ninguém e o lead ficaria sem responsável: nesse caso fica com quem importou.
+      const semRodizio = ctx.rodizioElegiveis === 0;
+      if (cfg.modo === "rodizio" && semRodizio) { notes.push(`O rodízio automático não tem nenhum closer ativo; os ${rows.length} lead(s) ficaram com ${ctx.sellerName}.`); return { rows, rejected: [], notes }; }
+      if (cfg.modo === "rodizio") { notes.push(`${rows.length} lead(s) enviados ao rodízio automático do sistema.`); return { rows: rows.map((r) => ({ ...r, values: { ...r.values, __seller: "" } })), rejected: [], notes }; }
+      const d = distribuir(rows.length, cfg);
+      const restanteEu = cfg.restante === "eu" || semRodizio;
+      const out = rows.map((r, i) => {
+        const k = d.atribuicao[i];
+        if (k >= 0) return { ...r, values: { ...r.values, __seller: cfg.itens[k].nome, __sellerId: cfg.itens[k].userId ?? null } };
+        return { ...r, values: { ...r.values, __seller: restanteEu ? ctx.sellerName : "", __sellerId: restanteEu ? ctx.sellerUserId ?? null : null } };
+      });
+      cfg.itens.forEach((it, i) => { if (d.contagem[i] > 0) notes.push(`${it.nome}: ${d.contagem[i]} lead(s).`); });
+      if (d.restante > 0) notes.push(restanteEu ? `${d.restante} lead(s) ficaram com ${ctx.sellerName}.` : `${d.restante} lead(s) foram para o rodízio automático.`);
+      return { rows: out, rejected: [], notes };
+    },
     build: (v, extras, o) => {
       const f = funis.find((x) => x.id === o.funil) ?? padrao;
       const notes = [v.notes, extrasToNotes(extras)].filter(Boolean).join("\n");
@@ -95,7 +116,9 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
         stageId: f ? getStageId(f.id, Number(o.etapa) || 0) : "1",
         pipelineId: f ? pipelineIdDoFunil(f) : "comercial",
         filial_id: ctx.filialId ?? null,
-        seller: ctx.sellerName || "Sistema",
+        // __seller definido pela distribuição: "" = deixa o rodízio automático do banco escolher; ausente = quem importou.
+        seller: v.__seller !== undefined ? v.__seller : ctx.sellerName || "Sistema",
+        ...(v.__sellerId ? { seller_id: v.__sellerId } : {}),
         tenant_id: ctx.tenantId,
         scoreIA: 50,
         date: new Date().toISOString().split("T")[0],

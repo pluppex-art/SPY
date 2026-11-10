@@ -17,8 +17,12 @@ export interface ImportField {
 export interface ImportOption {
   key: string;
   label: string;
-  type: "text" | "select";
+  type: "text" | "select" | "vendedores";
   choices?: { value: string; label: string }[];
+  /** type "vendedores": quem pode receber leads (nome + id do usuário, quando houver). */
+  vendedores?: { nome: string; userId?: string | null }[];
+  /** type "vendedores": quantos closers estão elegíveis no rodízio automático (0 = o rodízio deixaria o lead sem dono). */
+  rodizioElegiveis?: number;
   placeholder?: string;
   default?: string;
 }
@@ -41,7 +45,7 @@ export interface ImportSpec {
   /** Chaves já cadastradas na empresa (lê do banco, paginado). */
   loadExistingKeys?: (onProgress: (n: number) => void) => Promise<Set<string>>;
   /** Passo opcional antes de gravar: resolve vínculos (ex.: empresa do contato) e recusa linhas sem vínculo. */
-  resolve?: (rows: BuiltRow[]) => Promise<{ rows: BuiltRow[]; rejected: { line: number; reason: string }[] }>;
+  resolve?: (rows: BuiltRow[], opt: Record<string, string>) => Promise<{ rows: BuiltRow[]; rejected: { line: number; reason: string }[]; notes?: string[] }>;
   /** Monta a linha do banco. `extras` = colunas do arquivo que não foram mapeadas. */
   build: (v: Record<string, any>, extras: ExtraCell[], opt: Record<string, string>) => Record<string, any>;
   /** Grava um lote. Devolve a mensagem de erro, se houver. */
@@ -187,4 +191,51 @@ export function parseManualText(text: string): { email: string; name: string }[]
     }
   }
   return out;
+}
+
+
+// ─── Distribuição dos leads entre vendedores ─────────────────────────────────
+
+export type DistModo = "eu" | "quantidades" | "igual" | "rodizio";
+export interface DistItem { nome: string; userId?: string | null; qtd: number }
+export interface DistConfig { modo: DistModo; itens: DistItem[]; restante: "rodizio" | "eu" }
+
+export const DIST_PADRAO = '{"modo":"eu","itens":[],"restante":"rodizio"}';
+
+/** Texto salvo na opção -> configuração válida (qualquer lixo vira "tudo para mim"). */
+export function parseDist(raw: string): DistConfig {
+  try {
+    const j = JSON.parse(raw);
+    const modo: DistModo = ["eu", "quantidades", "igual", "rodizio"].includes(j?.modo) ? j.modo : "eu";
+    const itens: DistItem[] = (Array.isArray(j?.itens) ? j.itens : [])
+      .map((i: any) => ({ nome: String(i?.nome ?? "").trim().slice(0, 120), userId: i?.userId ? String(i.userId) : null, qtd: Math.max(0, Math.floor(Number(i?.qtd) || 0)) }))
+      .filter((i: DistItem) => i.nome)
+      .slice(0, 60);
+    return { modo, itens, restante: j?.restante === "eu" ? "eu" : "rodizio" };
+  } catch { return { modo: "eu", itens: [], restante: "rodizio" }; }
+}
+
+/**
+ * Reparte `total` leads (na ordem do arquivo) entre os vendedores, intercalando (um para cada, na vez) até acabar a cota
+ * de cada um — ninguém fica só com os primeiros da planilha. `atribuicao[i]` = índice do vendedor, ou -1 (sem dono
+ * definido aqui: "o restante"). "igual" ignora as quantidades e divide por igual (sobras para os primeiros).
+ */
+export function distribuir(total: number, cfg: DistConfig): { atribuicao: number[]; contagem: number[]; restante: number } {
+  const n = cfg.itens.length;
+  const atribuicao: number[] = new Array(Math.max(0, total)).fill(-1);
+  if ((cfg.modo !== "quantidades" && cfg.modo !== "igual") || n === 0 || total <= 0) return { atribuicao, contagem: new Array(n).fill(0), restante: Math.max(0, total) };
+  let cota: number[];
+  if (cfg.modo === "igual") cota = cfg.itens.map((_, i) => Math.floor(total / n) + (i < total % n ? 1 : 0));
+  else {
+    cota = cfg.itens.map((i) => i.qtd);
+    let soma = cota.reduce((a, b) => a + b, 0);
+    for (let i = n - 1; soma > total && i >= 0; i--) { const corta = Math.min(cota[i], soma - total); cota[i] -= corta; soma -= corta; } // passou do total: tira dos últimos
+  }
+  const contagem = new Array(n).fill(0);
+  let pos = 0, vez = 0;
+  while (pos < total && cota.some((c, i) => c > contagem[i])) {
+    if (contagem[vez] < cota[vez]) { atribuicao[pos++] = vez; contagem[vez]++; }
+    vez = (vez + 1) % n;
+  }
+  return { atribuicao, contagem, restante: total - pos };
 }
