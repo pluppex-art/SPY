@@ -8,6 +8,7 @@ import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { apiFetch } from "../../lib/apiClient";
+import { useAuth } from "../../contexts/AuthContext";
 import { readTableFile } from "../../lib/tableFile";
 import { EMAIL_IN_TEXT, parseManualText } from "../../lib/importer";
 import { FileSpreadsheet } from "lucide-react";
@@ -25,6 +26,13 @@ const STATUS_LABEL: Record<string, string> = { ready: "Pronta para enviar", send
 const json = async (r: Response) => { const b = await r.json().catch(() => ({})); if (!r.ok) throw new Error(b?.error || "Falha na requisição."); return b; };
 
 export default function MarketingEmail() {
+  // Empresa ATIVA (master/parceiro troca de empresa na barra): toda chamada leva o tenantId. Sem isso o servidor
+  // cai na empresa do próprio usuário e a tela mostraria leads/campanhas de outra empresa.
+  const { activeTenantId } = useAuth();
+  const apiFetchTenant = (path: string, init?: RequestInit) => {
+    if (!activeTenantId) return Promise.reject(new Error("Empresa não identificada."));
+    return apiFetch(`${path}${path.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(activeTenantId)}`, init);
+  };
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [options, setOptions] = useState<Options | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +41,7 @@ export default function MarketingEmail() {
   const [checking, setChecking] = useState(false);
   const verifySender = async () => {
     setChecking(true);
-    try { setCheck(await apiFetch("/api/email-campaigns/sender-check").then(json)); } catch (e: any) { toast.error(e.message); } finally { setChecking(false); }
+    try { setCheck(await apiFetchTenant("/api/email-campaigns/sender-check").then(json)); } catch (e: any) { toast.error(e.message); } finally { setChecking(false); }
   };
   const stopRef = useRef(false);
 
@@ -75,31 +83,41 @@ export default function MarketingEmail() {
   const [previewing, setPreviewing] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  const tenantRef = useRef(activeTenantId);
+  tenantRef.current = activeTenantId;
   const load = useCallback(async () => {
+    const t = activeTenantId;
     try {
-      const [c, o] = await Promise.all([apiFetch("/api/email-campaigns").then(json), apiFetch("/api/email-campaigns/audience-options").then(json)]);
+      const [c, o] = await Promise.all([apiFetchTenant("/api/email-campaigns").then(json), apiFetchTenant("/api/email-campaigns/audience-options").then(json)]);
+      if (tenantRef.current !== t) return; // trocou de empresa no meio: descarta a resposta da anterior
       setCampaigns(c.campaigns || []); setOptions(o);
-    } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
-  }, []);
-  useEffect(() => { void load(); }, [load]);
+    } catch (e: any) { if (tenantRef.current === t) toast.error(e.message); } finally { if (tenantRef.current === t) setLoading(false); }
+  }, [activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setCampaigns([]); setOptions(null); setCheck(null); setPreview(null); setLoading(true);
+    setExcluir([]); setManual([]); setManualText(""); setFileName(""); setSources([]); setStatuses([]);
+    setOpen(false);
+    if (activeTenantId) void load();
+  }, [activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Prévia do público ao mudar os filtros.
   useEffect(() => {
     if (!open) return;
     setPreviewing(true);
+    const t0 = activeTenantId;
     const t = setTimeout(() => {
-      apiFetch("/api/email-campaigns/audience-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audience }) })
-        .then(json).then(setPreview).catch(() => setPreview(null)).finally(() => setPreviewing(false));
+      apiFetchTenant("/api/email-campaigns/audience-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audience }) })
+        .then(json).then((p) => { if (tenantRef.current === t0) setPreview(p); }).catch(() => setPreview(null)).finally(() => setPreviewing(false));
     }, 350);
     return () => clearTimeout(t);
-  }, [open, sources, statuses, inclLeads, inclClientes, inclContatos, inclEquipe, manual, excluir]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, activeTenantId, sources, statuses, inclLeads, inclClientes, inclContatos, inclEquipe, manual, excluir]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (list: string[], set: (v: string[]) => void, v: string) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
   const create = async () => {
     setCreating(true);
     try {
-      const r = await apiFetch("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body, audience }) }).then(json);
+      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body, audience }) }).then(json);
       toast.success(`Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
       setOpen(false); setName(""); setSubject(""); setBody(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
       await load();
@@ -108,7 +126,7 @@ export default function MarketingEmail() {
 
   const test = async (c: Campaign) => {
     try {
-      const r = await apiFetch(`/api/email-campaigns/${c.id}/test`, { method: "POST" }).then(json);
+      const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/test`, { method: "POST" }).then(json);
       toast.success(`Teste enviado para ${r.to}. Confira a caixa de entrada e o spam.`);
     } catch (e: any) { toast.error(e.message); }
   };
@@ -117,7 +135,7 @@ export default function MarketingEmail() {
     stopRef.current = false; setRunning(c.id);
     try {
       for (;;) {
-        const r = await apiFetch(`/api/email-campaigns/${c.id}/send-batch`, { method: "POST" }).then(json);
+        const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/send-batch`, { method: "POST" }).then(json);
         setCampaigns((prev) => prev.map((x) => (x.id === c.id ? { ...x, sent: r.sent, failed: r.failed, status: r.status } : x)));
         if (r.done) { toast.success(`Envio concluído: ${r.sent} enviado(s), ${r.failed} falha(s).`); break; }
         if (stopRef.current) { toast.info("Envio pausado. Você pode retomar quando quiser."); break; }
@@ -134,7 +152,7 @@ export default function MarketingEmail() {
   const cancel = async (c: Campaign) => {
     if (!(await confirmDialog({ title: "Cancelar campanha?", description: "Quem ainda não recebeu não receberá. O que já foi enviado não volta.", confirmLabel: "Cancelar campanha", variant: "danger" } as any))) return;
     stopRef.current = true;
-    try { await apiFetch(`/api/email-campaigns/${c.id}/cancel`, { method: "POST" }).then(json); await load(); } catch (e: any) { toast.error(e.message); }
+    try { await apiFetchTenant(`/api/email-campaigns/${c.id}/cancel`, { method: "POST" }).then(json); await load(); } catch (e: any) { toast.error(e.message); }
   };
 
   const canCreate = name.trim() && subject.trim() && body.trim() && (preview?.total ?? 0) > 0 && !creating;
