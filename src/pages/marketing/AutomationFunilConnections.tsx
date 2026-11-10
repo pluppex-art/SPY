@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow, Background, Controls, MiniMap, Panel, Handle, Position, EdgeLabelRenderer, getBezierPath,
   useNodesState, type Node, type Edge, type NodeProps, type EdgeProps, type Connection, type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
-  Workflow, Tag, Building2, X, Loader2, LayoutGrid, Info, Search, Trash2, Power,
+  Workflow, Zap, Plus, Tag, Building2, X, Loader2, LayoutGrid, Info, Search, Trash2, Power,
   Users, Briefcase, Gauge, Grid2x2, Package,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -38,7 +38,8 @@ interface ConnectionRow {
   /** Gatilho "OS mudou de etapa": departamento e etapa (id estável) da OS de origem. */
   gatilho_os_departamento_id?: string | null;
   gatilho_os_etapa_id?: string | null;
-  os_departamento_id: string;
+  /** Nulo = gatilho só de ações (sem Ordem de Serviço): qualquer empresa pode usar. */
+  os_departamento_id: string | null;
   condicao: CondicaoConfig | null;
 }
 
@@ -197,7 +198,22 @@ function ConnectionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition
   );
 }
 
-const nodeTypes = { funil: FunilNode, categorias: CategoriasNode, produtos: ProdutosNode, departamento: DepartamentoNode };
+function AcoesNode({ data }: NodeProps) {
+  const { qtd } = data as unknown as { qtd: number };
+  return (
+    <div className="rounded-xl border-2 border-dashed border-success/40 bg-[var(--color-surface-elevated)] shadow-md w-72 overflow-hidden relative">
+      <Handle type="target" position={Position.Left} style={{ top: HEADER_H / 2 }} className="!bg-success !w-2.5 !h-2.5 !border-2 !border-[var(--color-surface-elevated)]" />
+      <div className="px-3 py-2 bg-success/10 flex items-center gap-1.5" style={{ height: HEADER_H }}>
+        <Zap className="w-3.5 h-3.5 text-success shrink-0" />
+        <span className="text-[13px] font-bold text-[var(--color-text-primary)] truncate flex-1">Executar ações</span>
+        {qtd > 0 && <span className="text-[11px] text-[var(--color-text-faint)] shrink-0">{qtd} gatilho{qtd > 1 ? "s" : ""}</span>}
+      </div>
+      <p className="px-3 py-2 text-[11px] leading-snug text-[var(--color-text-muted)]">Ligue uma etapa aqui para mover o lead de funil, enviar mensagem, criar tarefa ou avisar o time — sem precisar de Ordem de Serviço.</p>
+    </div>
+  );
+}
+
+const nodeTypes = { funil: FunilNode, categorias: CategoriasNode, produtos: ProdutosNode, departamento: DepartamentoNode, acoes: AcoesNode };
 const edgeTypes = { conexao: ConnectionEdge };
 
 /** Canvas interativo (React Flow) pra montar "quando X acontece no CRM, cria
@@ -240,22 +256,28 @@ export function AutomationFunilConnections() {
       .slice(0, 40),
     [products],
   );
+  const [novoFunilId, setNovoFunilId] = useState("");
+  const [novaEtapa, setNovaEtapa] = useState("");
   const [rf, setRf] = useState<ReactFlowInstance | null>(null);
   const [arestaHover, setArestaHover] = useState<string | null>(null);
 
+  const tenantRef = useRef(activeTenantId);
+  tenantRef.current = activeTenantId;
   const fetchRows = useCallback(async () => {
-    if (!supabase) { setLoading(false); return; }
+    if (!supabase || !activeTenantId) { setLoading(false); return; }
+    const t = activeTenantId;
     const [{ data, error }, { data: acoesData }, { data: execData }] = await Promise.all([
-      supabase.from("automation_connections").select("*").order("created_at", { ascending: false }),
-      supabase.from("automation_connection_acoes").select("*").order("ordem", { ascending: true }),
-      supabase.from("automation_connection_execucoes").select("status").order("created_at", { ascending: false }).limit(500),
+      supabase.from("automation_connections").select("*").eq("tenant_id", t).order("created_at", { ascending: false }),
+      supabase.from("automation_connection_acoes").select("*").eq("tenant_id", t).order("ordem", { ascending: true }),
+      supabase.from("automation_connection_execucoes").select("status").eq("tenant_id", t).order("created_at", { ascending: false }).limit(500),
     ]);
+    if (tenantRef.current !== t) return; // trocou de empresa no meio: descarta a resposta da anterior
     if (!error) setRows((data as ConnectionRow[]) || []);
     setAcoes((acoesData as AcaoRow[]) || []);
     setExecucoes((execData as { status: string }[]) || []);
     setLoading(false);
-  }, []);
-  useEffect(() => { fetchRows(); }, [fetchRows]);
+  }, [activeTenantId]);
+  useEffect(() => { setRows([]); setAcoes([]); setExecucoes([]); setSelectedId(null); setLoading(true); fetchRows(); }, [fetchRows]);
 
   // ─── KPIs (todos reais: dado já carregado no app, ou contado nas tabelas
   // novas da migration automation_connection_multistep) ───────────────────
@@ -286,7 +308,7 @@ export function AutomationFunilConnections() {
     const q = buscaLead.trim().toLowerCase();
     const todos = (leads as any[]).filter((l) => !q || (l.name || "").toLowerCase().includes(q) || (l.company || "").toLowerCase().includes(q));
     if (selecionada?.gatilho_tipo === "funil_etapa") {
-      const stageIdAlvo = `${selecionada.gatilho_funil_id}-${selecionada.gatilho_etapa_idx}`;
+      const stageIdAlvo = getStageId(String(selecionada.gatilho_funil_id), Number(selecionada.gatilho_etapa_idx));
       todos.sort((a, b) => (b.stageId === stageIdAlvo ? 1 : 0) - (a.stageId === stageIdAlvo ? 1 : 0));
     }
     return todos.slice(0, 30);
@@ -352,6 +374,12 @@ export function AutomationFunilConnections() {
       });
       yDep += HEADER_H + etapas.length * ROW_H + 24;
     });
+    out.push({
+      id: "acoes:livre", type: "acoes",
+      position: { x: 560, y: yDep },
+      data: { qtd: rows.filter((r) => !r.os_departamento_id).length },
+      draggable: true,
+    });
     return out;
   }, [funisOrigem, categorias, produtosLista, departamentosAtivos, rows, funilPadraoDe]);
 
@@ -384,7 +412,7 @@ export function AutomationFunilConnections() {
       const selecionada = row.id === selectedId || row.id === arestaHover;
       return {
         id: row.id, type: "conexao",
-        source, sourceHandle, target: `dep:${row.os_departamento_id}`,
+        source, sourceHandle, target: row.os_departamento_id ? `dep:${row.os_departamento_id}` : "acoes:livre",
         style: {
           stroke: selecionada ? "#f59e0b" : row.ativo ? "var(--color-primary-blue)" : "var(--color-text-faint)",
           strokeWidth: selecionada ? 3 : 2,
@@ -395,10 +423,34 @@ export function AutomationFunilConnections() {
     });
   }, [rows, selectedId, arestaHover, handleDelete]);
 
+  // Gatilho de funil SEM Ordem de Serviço: vale para qualquer empresa. A etapa dispara as ações cadastradas
+  // (mover no funil, mensagem, tarefa, notificar...). Já abre o painel para adicionar a primeira ação.
+  const criarGatilhoLivre = useCallback(async (funilId: string, idx: number) => {
+    if (!supabase || !activeTenantId) return;
+    const funil = funisOrigem.find((f) => f.id === funilId);
+    const etapaNome = funil ? funilStageNames(funil)[idx] : String(idx);
+    const { data, error } = await supabase.from("automation_connections").insert({
+      tenant_id: activeTenantId, ativo: true, nome: `${funil?.nome ?? "Funil"} › ${etapaNome} → ações`,
+      gatilho_tipo: "funil_etapa", gatilho_funil_id: funilId, gatilho_etapa_idx: idx, os_departamento_id: null,
+    }).select().maybeSingle();
+    if (error || !data) { toast.error("Não foi possível criar o gatilho."); return; }
+    setRows((prev) => [data as ConnectionRow, ...prev]);
+    setSelectedId((data as ConnectionRow).id);
+    setAbaSidebar("propriedades");
+    toast.success("Gatilho criado. Adicione as ações que ele deve executar.");
+  }, [activeTenantId, funisOrigem]);
+
   // ─── Nova conexão arrastada na tela ─────────────────────────────────────
   const onConnect = useCallback(async (conn: Connection) => {
     if (!supabase || !activeTenantId || !conn.source || !conn.target || !conn.sourceHandle) return;
 
+    if (conn.target === "acoes:livre") {
+      if (!conn.source.startsWith("funil:")) { toast.error("Gatilho sem OS só funciona a partir de uma etapa de funil."); return; }
+      const funilId = conn.source.replace(/^funil:/, "");
+      const idx = Number(conn.sourceHandle.replace(/^etapa:/, ""));
+      await criarGatilhoLivre(funilId, idx);
+      return;
+    }
     const dep = departamentosAtivos.find((d) => `dep:${d.id}` === conn.target);
     if (!dep) return;
 
@@ -438,7 +490,7 @@ export function AutomationFunilConnections() {
     }
     setRows((prev) => [data as ConnectionRow, ...prev]);
     toast.success(`Conectado: ${payload.nome}`);
-  }, [activeTenantId, departamentosAtivos, funisOrigem, funilPadraoDe, produtosLista]);
+  }, [activeTenantId, departamentosAtivos, funisOrigem, funilPadraoDe, produtosLista, criarGatilhoLivre]);
 
   // Clicar numa linha agora SELECIONA a conexão (abre o painel de Propriedades
   // à esquerda, com condição + ações) em vez de pausar direto — pausar virou
@@ -547,12 +599,10 @@ export function AutomationFunilConnections() {
     return <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-faint)]" /></div>;
   }
 
-  if (funisOrigem.length === 0 || departamentosAtivos.length === 0) {
+  if (funisOrigem.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--color-border-default)] p-10 text-center text-xs text-[var(--color-text-faint)]">
-        {funisOrigem.length === 0
-          ? "Nenhum funil encontrado no CRM."
-          : "Nenhum departamento ativo na Operação — crie um em Configurações › Operação › Funis."}
+        Nenhum funil encontrado no CRM — crie um em Configurações › CRM › Funis para usar gatilhos.
       </div>
     );
   }
@@ -745,6 +795,18 @@ export function AutomationFunilConnections() {
               style={{ backgroundColor: "var(--color-surface-elevated)" }}
             />
             <Panel position="top-right" className="flex flex-col items-end gap-2">
+              <div className="flex flex-col gap-1.5 px-3 py-2.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] shadow-sm w-60 max-w-[70vw]">
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-faint)]"><Plus className="w-3.5 h-3.5" /> Novo gatilho de funil</span>
+                <select value={novoFunilId} onChange={(e) => { setNovoFunilId(e.target.value); setNovaEtapa(""); }} aria-label="Funil do gatilho" className="h-8 px-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[11px] text-[var(--color-text-primary)]">
+                  <option value="">Escolha o funil…</option>
+                  {funisOrigem.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </select>
+                <select value={novaEtapa} onChange={(e) => setNovaEtapa(e.target.value)} disabled={!novoFunilId} aria-label="Etapa do gatilho" className="h-8 px-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[11px] text-[var(--color-text-primary)] disabled:opacity-50">
+                  <option value="">Quando chegar na etapa…</option>
+                  {(funisOrigem.find((f) => f.id === novoFunilId) ? funilStageNames(funisOrigem.find((f) => f.id === novoFunilId)) : []).map((n, i) => <option key={i} value={String(i)}>{n}</option>)}
+                </select>
+                <button type="button" disabled={!novoFunilId || novaEtapa === ""} onClick={() => { void criarGatilhoLivre(novoFunilId, Number(novaEtapa)); setNovaEtapa(""); }} className="h-8 rounded-md bg-[var(--color-primary-blue)] !text-white text-[11px] font-bold cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed">Criar gatilho</button>
+              </div>
               <button
                 type="button"
                 onClick={reorganizar}
@@ -758,7 +820,7 @@ export function AutomationFunilConnections() {
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary-blue)]" /> Funil do CRM (etapa)</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-warning" /> Categoria de produto</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-violet-500" /> Produto específico</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-success" /> Departamento (OS)</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-success" /> Departamento (OS) ou "Executar ações"</span>
               </div>
             </Panel>
           </ReactFlow>
