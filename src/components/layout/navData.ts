@@ -108,6 +108,7 @@ export const navSections = [
       { name: "Campanhas de Mkt", path: "/app/marketing/campanhas", icon: Megaphone, reqModule: "marketing" },
       { name: "Landing Pages", path: "/app/marketing/landing-pages", icon: Globe, reqModule: "marketing" },
       { name: "Formulários", path: "/app/marketing/formularios", icon: FileText, reqModule: "marketing" },
+      { name: "E-mail em massa", path: "/app/marketing/email", icon: Mail, reqModule: "marketing" },
       { name: "Conteúdo & Social", path: "/app/marketing/conteudo", icon: Edit3, reqModule: "marketing" },
       { name: "Analytics de Mkt", path: "/app/marketing/analytics", icon: BarChart2, reqModule: "marketing" },
     ],

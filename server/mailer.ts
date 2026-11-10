@@ -4,6 +4,9 @@ import { assertSafeSmtpTarget } from "./ssrfGuard.js";
 export interface OutgoingEmail {
   to: string | string[];
   subject: string;
+  /** Cabeçalhos extras (ex.: List-Unsubscribe nos disparos em massa). */
+  headers?: Record<string, string>;
+  replyTo?: string;
   html?: string;
   text?: string;
   /** Imagens embutidas (CID) — ex.: a logo do S.P.Y. nos e-mails com layout. */
@@ -46,7 +49,7 @@ export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingE
     greetingTimeout: 8000,
     socketTimeout: 15000,
   });
-  const info = await transporter.sendMail({ from, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments });
+  const info = await transporter.sendMail({ from, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments, headers: mail.headers, replyTo: mail.replyTo });
   return { messageId: String(info.messageId || ""), via: tenantReady ? "tenant" : "platform" };
 }
 

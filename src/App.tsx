@@ -150,6 +150,7 @@ const MarketingSocial = lazy(() => import("./pages/marketing/MarketingSocial"));
 const MarketingLandingPages = lazy(() => import("./pages/marketing/MarketingLandingPages"));
 const EEmpreendaEditor = lazy(() => import("./pages/marketing/EEmpreendaEditor"));
 const MarketingFormularios = lazy(() => import("./pages/marketing/MarketingFormularios"));
+const MarketingEmail = lazy(() => import("./pages/marketing/MarketingEmail"));
 const RHColaboradores = lazy(() => import("./pages/hr/RHColaboradores"));
 const ReunioesList = lazy(() => import("./pages/reunioes/index"));
 const ReuniaoRoom = lazy(() => import("./pages/reunioes/ReuniaoRoom"));
@@ -326,6 +327,7 @@ function AppContent() {
             <Route path="landing-pages" element={<MarketingLandingPages />} />
             <Route path="landing-pages/eempreenda" element={<EEmpreendaEditor />} />
             <Route path="formularios" element={<MarketingFormularios />} />
+            <Route path="email" element={<MarketingEmail />} />
           </Route>
 
           {/* Módulo Financeiro */}
