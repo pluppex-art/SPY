@@ -24,6 +24,8 @@ export interface Audience {
   leads?: boolean; clientes?: boolean; contatos?: boolean; equipe?: boolean;
   /** Lista própria: pessoas que podem nem estar no sistema (inscritos de um formulário, etc.). */
   manual?: { email: string; name?: string }[];
+  /** E-mails que o usuário tirou da lista na prévia. */
+  excluir?: string[];
 }
 interface Candidate { id: string; email: unknown; name?: string | null; company?: string | null }
 
@@ -35,9 +37,19 @@ export function optoutUrl(base: string, tenantId: string, email: string): string
   return `${base}/api/email/optout?t=${tenantId}&e=${e}&s=${sign(tenantId, email)}`;
 }
 
+// Endereços que nunca são de uma pessoa real: domínios reservados para exemplo/teste (RFC 2606) e erros de digitação
+// muito comuns (gmai.com, hotmail.con...). Enviar para eles só gera devolução e piora a reputação do remetente.
+const RESERVED_DOMAIN = /(^|\.)(example\.(com|net|org)|invalid|test|localhost|local)$/;
+const TYPO_DOMAINS = new Set([
+  "gmai.com", "gmial.com", "gmil.com", "gmail.con", "gmail.co", "gmail.cm", "gmaill.com", "gamil.com", "gnail.com",
+  "hotmai.com", "hotmial.com", "hotmail.con", "hotmal.com", "hotamil.com", "outlok.com", "outloock.com", "outlook.con",
+  "yaho.com", "yahoo.con", "yahho.com", "yahoo.com.b", "icloud.con", "bol.com.b",
+]);
 export const cleanEmail = (raw: unknown): string => {
   const e = String(raw ?? "").trim().toLowerCase();
-  return e.length <= 254 && EMAIL_RE.test(e) ? e : "";
+  if (e.length > 254 || !EMAIL_RE.test(e)) return "";
+  const domain = e.split("@")[1];
+  return RESERVED_DOMAIN.test(domain) || TYPO_DOMAINS.has(domain) ? "" : e;
 };
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -104,19 +116,20 @@ function filterLeads(leads: any[], aud: Audience): Candidate[] {
 }
 
 /** Tira inválidos, descadastrados e repetidos (o mesmo e-mail entra uma vez só, venha de onde vier). */
-export function dedupeCandidates(cands: Candidate[], optouts: Set<string>) {
+export function dedupeCandidates(cands: Candidate[], optouts: Set<string>, excluir: Set<string> = new Set()) {
   const seen = new Set<string>();
   const rows: { lead_id: string; email: string; name: string; company: string | null }[] = [];
-  let semEmail = 0, descadastrados = 0, repetidos = 0;
+  let semEmail = 0, descadastrados = 0, repetidos = 0, excluidos = 0;
   for (const c of cands) {
     const email = cleanEmail(c.email);
     if (!email) { semEmail++; continue; }
+    if (excluir.has(email)) { excluidos++; continue; }
     if (optouts.has(email)) { descadastrados++; continue; }
     if (seen.has(email)) { repetidos++; continue; }
     seen.add(email);
     rows.push({ lead_id: c.id, email, name: String(c.name || "").trim().slice(0, 120), company: c.company ? String(c.company).slice(0, 120) : null });
   }
-  return { rows, semEmail, descadastrados, repetidos };
+  return { rows, semEmail, descadastrados, repetidos, excluidos };
 }
 
 export function selectAudience(leads: any[], aud: Audience, optouts: Set<string>) {
@@ -144,7 +157,7 @@ export async function resolveAudience(db: any, tenantId: string, aud: Audience) 
   if (aud.contatos) cands.push(...(await pagedTable(db, "cliente_contatos", "id, nome, email", tenantId, (q) => q.not("email", "is", null).neq("email", ""))).map((r) => ({ id: `contato:${r.id}`, email: r.email, name: r.nome })));
   if (aud.equipe) cands.push(...(await pagedTable(db, "users", "id, name, email, active", tenantId)).filter((r) => r.active !== false).map((r) => ({ id: `usuario:${r.id}`, email: r.email, name: r.name })));
   if (Array.isArray(aud.manual)) cands.push(...aud.manual.slice(0, MAX_RECIPIENTS + 1).map((m, i) => ({ id: "manual", email: m?.email, name: m?.name })));
-  return dedupeCandidates(cands, await optoutSet(db, tenantId));
+  return dedupeCandidates(cands, await optoutSet(db, tenantId), new Set((aud.excluir || []).map((e) => String(e).trim().toLowerCase())));
 }
 
 /** Corpo da requisição → público (só campos conhecidos, com limites). */
@@ -153,6 +166,7 @@ export function parseAudience(raw: any): Audience {
   return {
     sources: arr(raw?.sources), statuses: arr(raw?.statuses),
     leads: raw?.leads !== false, clientes: raw?.clientes === true, contatos: raw?.contatos === true, equipe: raw?.equipe === true,
+    excluir: Array.isArray(raw?.excluir) ? raw.excluir.map((e: any) => String(e).slice(0, 254)).slice(0, 20_000) : [],
     manual: Array.isArray(raw?.manual) ? raw.manual.slice(0, MAX_RECIPIENTS + 1).map((m: any) => ({ email: String(m?.email ?? "").slice(0, 254), name: String(m?.name ?? "").slice(0, 120) })) : [],
   };
 }
@@ -192,7 +206,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     try {
       const sel = await resolveAudience(supabaseService, tenantId, parseAudience(req.body?.audience));
-      res.json({ total: sel.rows.length, semEmail: sel.semEmail, descadastrados: sel.descadastrados, repetidos: sel.repetidos, sample: sel.rows.slice(0, 5).map((r) => ({ name: r.name, email: r.email })) });
+      res.json({ total: sel.rows.length, semEmail: sel.semEmail, descadastrados: sel.descadastrados, repetidos: sel.repetidos, excluidos: sel.excluidos, sample: sel.rows.slice(0, 200).map((r) => ({ name: r.name, email: r.email })) });
     } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao calcular o público." }); }
   });
 

@@ -18,7 +18,7 @@ import { FileSpreadsheet } from "lucide-react";
 interface Campaign { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; sender: string | null; created_at: string }
 interface Option { value: string; count: number }
 interface Options { sources: Option[]; statuses: Option[]; sender: { kind: "tenant" | "platform"; from?: string } }
-interface Preview { total: number; semEmail: number; descadastrados: number; repetidos: number; sample: { name: string; email: string }[] }
+interface Preview { total: number; semEmail: number; descadastrados: number; repetidos: number; excluidos?: number; sample: { name: string; email: string }[] }
 
 const STATUS_LABEL: Record<string, string> = { ready: "Pronta para enviar", sending: "Enviando", done: "Concluída", cancelled: "Cancelada" };
 
@@ -50,7 +50,9 @@ export default function MarketingEmail() {
   const [manual, setManual] = useState<{ email: string; name: string }[]>([]);
   const [manualText, setManualText] = useState("");
   const [fileName, setFileName] = useState("");
-  const audience = { leads: inclLeads, clientes: inclClientes, contatos: inclContatos, equipe: inclEquipe, sources, statuses, manual };
+  const [excluir, setExcluir] = useState<string[]>([]);
+  const [showList, setShowList] = useState(false);
+  const audience = { leads: inclLeads, clientes: inclClientes, contatos: inclContatos, equipe: inclEquipe, sources, statuses, manual, excluir };
 
   const onManualText = (t: string) => { setManualText(t); setFileName(""); setManual(parseManualText(t)); };
   const onSheet = async (file?: File | null) => {
@@ -90,7 +92,7 @@ export default function MarketingEmail() {
         .then(json).then(setPreview).catch(() => setPreview(null)).finally(() => setPreviewing(false));
     }, 350);
     return () => clearTimeout(t);
-  }, [open, sources, statuses, inclLeads, inclClientes, inclContatos, inclEquipe, manual]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, sources, statuses, inclLeads, inclClientes, inclContatos, inclEquipe, manual, excluir]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (list: string[], set: (v: string[]) => void, v: string) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
@@ -99,7 +101,7 @@ export default function MarketingEmail() {
     try {
       const r = await apiFetch("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body, audience }) }).then(json);
       toast.success(`Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
-      setOpen(false); setName(""); setSubject(""); setBody(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
+      setOpen(false); setName(""); setSubject(""); setBody(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
       await load();
     } catch (e: any) { toast.error(e.message); } finally { setCreating(false); }
   };
@@ -235,7 +237,21 @@ export default function MarketingEmail() {
             <div className="p-3 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)]">
               {previewing ? <span className="inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculando…</span>
                 : preview ? <><b className="text-[var(--color-text-primary)] text-sm">{preview.total.toLocaleString("pt-BR")}</b> destinatário(s){preview.repetidos + preview.descadastrados + preview.semEmail > 0 && <> · fora da lista: {preview.repetidos} repetido(s), {preview.descadastrados} descadastrado(s), {preview.semEmail} com e-mail inválido</>}
-                  {preview.sample.length > 0 && <div className="mt-1 truncate">Ex.: {preview.sample.map((s) => s.email).join(", ")}</div>}</>
+                  {!!preview.excluidos && <> · {preview.excluidos} retirado(s) por você</>}
+                  {preview.sample.length > 0 && (
+                    <div className="mt-1.5">
+                      <button type="button" onClick={() => setShowList((v) => !v)} className="font-bold text-[var(--color-primary-blue)] bg-transparent border-none cursor-pointer p-0">{showList ? "Ocultar lista" : "Ver e retirar destinatários"}</button>
+                      {excluir.length > 0 && <button type="button" onClick={() => setExcluir([])} className="ml-3 font-bold text-[var(--color-text-muted)] bg-transparent border-none cursor-pointer p-0">Desfazer retiradas ({excluir.length})</button>}
+                      {showList && (
+                        <ul className="mt-1.5 max-h-40 overflow-auto divide-y divide-[var(--color-border-subtle)] rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
+                          {preview.sample.map((s) => (
+                            <li key={s.email} className="flex items-center justify-between gap-2 px-2 py-1">
+                              <span className="truncate"><span className="text-[var(--color-text-primary)] font-medium">{s.email}</span>{s.name && <span> · {s.name}</span>}</span>
+                              <button type="button" aria-label={`Retirar ${s.email}`} onClick={() => setExcluir((p) => [...p, s.email])} className="shrink-0 font-bold text-[var(--color-danger)] bg-transparent border-none cursor-pointer">Retirar</button>
+                            </li>))}
+                        </ul>)}
+                      {showList && preview.total > preview.sample.length && <p className="mt-1">Mostrando os {preview.sample.length} primeiros de {preview.total}.</p>}
+                    </div>)}</>
                   : "Não foi possível calcular o público."}
             </div>
           </div>
