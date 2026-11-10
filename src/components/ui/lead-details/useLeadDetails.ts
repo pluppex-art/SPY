@@ -7,6 +7,7 @@ import { calculateLeadScore } from "../../../lib/leadScore";
 import { aoGanharNegocio } from "../../../lib/implementationAutoStart";
 import { useAuth } from "../../../contexts/AuthContext";
 import { getStageId, findWonStage } from "../../../lib/funilStages";
+import { FUNIS_DEFAULT } from "../../../pages/settings/sections/crm/funisTypes";
 import { WIN_FUNIL_CONFIG_KEY } from "../../../lib/implementationStage";
 import { statusFromStageName } from "../../../lib/leadStatus";
 
@@ -45,8 +46,10 @@ function buildStages(funis: any[], isSDR: boolean, preferredFunilId?: string | n
 
 export function useLeadDetails(lead: any, onClose: () => void) {
   const { activeTenantId } = useAuth();
-  const { leadActivities, addLeadActivity, updateLead, deleteLead, customLeadFields, products, addProduct, turmas, addTurma, funis, students, addStudent, proposals, appSettings, clienteBase, addImplementation, updateClienteBase } = useData();
+  const { leadActivities, addLeadActivity, updateLead, deleteLead, customLeadFields, products, addProduct, turmas, addTurma, funis: funisDb, students, addStudent, proposals, appSettings, clienteBase, addImplementation, updateClienteBase } = useData();
   const { formatCurrency } = useLocalization();
+  // Empresa sem funil gravado usa os funis padrão (mesma regra do Pipeline, Radar e Configurações).
+  const funis = funisDb.length > 0 ? funisDb : (FUNIS_DEFAULT as any[]);
 
   // ── Exclusão ─────────────────────────────────────────────────────────────────
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);

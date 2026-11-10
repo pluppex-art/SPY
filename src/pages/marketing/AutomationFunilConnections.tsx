@@ -14,6 +14,7 @@ import { Button } from "../../components/ui/button";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useData } from "../../contexts/DataContext";
 import { getStageId } from "../../lib/funilStages";
+import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
 import { useOS } from "../os/hooks/useOS";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
@@ -241,7 +242,8 @@ export function AutomationFunilConnections() {
   // Qualquer funil ativo do CRM pode ser origem — antes só entrava "comercial",
   // deixando o funil de SDR de fora sem motivo real (o gatilho no banco,
   // trg_automacao_lead_etapa, já casa por stageId genérico, não por tipo).
-  const funisOrigem = useMemo(() => (funis as any[]).filter((f) => f.ativo !== false), [funis]);
+  // Empresa sem funil gravado usa os funis padrão (mesma regra do Pipeline, Radar e Configurações).
+  const funisOrigem = useMemo(() => ((funis as any[]).length > 0 ? (funis as any[]) : FUNIS_DEFAULT).filter((f: any) => f.ativo !== false), [funis]);
   const categorias = useMemo(
     () => [...new Set((products as any[]).map((p) => p.category).filter(Boolean))].sort(),
     [products]
