@@ -247,7 +247,7 @@ export default function MarketingEmail() {
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-[var(--color-text-muted)]">Lista própria (não precisa estar no sistema)</span>
                 <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[var(--color-primary-blue)] cursor-pointer"><FileSpreadsheet className="w-3.5 h-3.5" /> Carregar planilha
-                  <input type="file" accept=".xlsx,.csv,.txt" className="hidden" onChange={(e) => { void onSheet(e.target.files?.[0]); e.target.value = ""; }} /></label>
+                  <input type="file" accept=".xlsx,.xls,.csv,.txt" className="hidden" onChange={(e) => { void onSheet(e.target.files?.[0]); e.target.value = ""; }} /></label>
               </div>
               <textarea value={manualText} onChange={(e) => onManualText(e.target.value)} rows={3} placeholder={"Cole e-mails, um por linha. Pode ser:\nana@email.com\nBruno Alves, bruno@email.com"} className="w-full px-2 py-1.5 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" />
               {(fileName || manual.length > 0) && <p className="text-[11px] text-[var(--color-text-muted)]">{fileName || `${manual.length} e-mail(s) colado(s)`} — a planilha só precisa ter uma coluna com e-mail (e, se quiser, uma "Nome").</p>}

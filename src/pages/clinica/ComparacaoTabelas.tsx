@@ -227,7 +227,7 @@ export default function ComparacaoTabelas() {
                 <div><label className={labelCls}>Parceiro / origem da tabela *</label><input className={inputCls} value={parceiro} onChange={(e) => setParceiro(e.target.value)} placeholder="Ex.: Laboratório parceiro" /></div>
                 <div>
                   <label className={labelCls}>Arquivo (.xlsx ou .csv, até 5 MB)</label>
-                  <input ref={fileRef} type="file" accept=".csv,.xlsx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
+                  <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
                   <Button variant="outline" onClick={() => fileRef.current?.click()} className="h-9 w-full text-xs gap-1.5 justify-start"><Upload className="w-3.5 h-3.5" /> {table ? table.fileName : "Escolher arquivo…"}</Button>
                 </div>
               </div>

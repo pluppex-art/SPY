@@ -137,9 +137,9 @@ export function ImportadorPlanilha({ spec, open, onClose }: { spec: ImportSpec; 
             {reading ? <Loader2 className="w-10 h-10 animate-spin text-[var(--color-primary-blue)]" /> : <UploadCloud className="w-10 h-10 text-[var(--color-primary-blue)]" />}
             <span className="text-sm font-bold text-[var(--color-text-primary)]">{reading ? "Lendo a planilha…" : "Escolha ou arraste a planilha"}</span>
             <span className="text-xs text-[var(--color-text-muted)] max-w-md">
-              Aceita <b>.xlsx</b> e <b>.csv</b> — inclusive o que você baixa do Google Forms / Google Planilhas (Arquivo › Fazer download). Até {MAX_IMPORT_ROWS.toLocaleString("pt-BR")} linhas. A primeira linha precisa ser o cabeçalho.
+              Aceita <b>.xlsx</b>, <b>.xls</b> e <b>.csv</b> — inclusive o que você baixa do Google Forms / Google Planilhas (Arquivo › Fazer download). Até {MAX_IMPORT_ROWS.toLocaleString("pt-BR")} linhas. A primeira linha precisa ser o cabeçalho.
             </span>
-            <input type="file" accept=".xlsx,.csv,.txt" className="hidden" disabled={reading} onChange={(e) => { void handleFile(e.target.files?.[0]); e.target.value = ""; }} />
+            <input type="file" accept=".xlsx,.xls,.csv,.txt" className="hidden" disabled={reading} onChange={(e) => { void handleFile(e.target.files?.[0]); e.target.value = ""; }} />
           </label>
           <div className="flex justify-end">
             <Button variant="outline" onClick={downloadTemplate} className="h-9 px-3.5 text-xs font-bold gap-1.5 rounded-xl"><Download className="w-3.5 h-3.5" /> Baixar planilha modelo</Button>

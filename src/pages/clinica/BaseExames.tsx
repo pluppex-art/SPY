@@ -182,7 +182,7 @@ export default function BaseExames() {
       breadcrumb={[{ label: "Clínica & Saúde" }, { label: "Base de Exames" }]}
       actions={
         <div className="flex items-center gap-2">
-          <input ref={fileRef} type="file" accept=".csv,.xlsx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
+          <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
           <Button variant="outline" onClick={() => fileRef.current?.click()} className="h-9 px-4 text-xs font-medium gap-1.5"><FileUp className="w-3.5 h-3.5" /> Importar planilha</Button>
           <Button onClick={() => setForm({ ...EMPTY })} className="h-9 px-4 text-xs font-medium gap-1.5"><Plus className="w-3.5 h-3.5" /> Novo exame</Button>
         </div>

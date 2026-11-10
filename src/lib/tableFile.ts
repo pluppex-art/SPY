@@ -5,7 +5,7 @@ import { parseMoney } from "./tableMatch";
 
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const MAX_ROWS = 8000;
-const ALLOWED_EXT = ["csv", "xlsx"];
+const ALLOWED_EXT = ["csv", "xlsx", "xls"];
 
 export interface ParsedTable {
   headers: string[];
@@ -25,13 +25,13 @@ const cellToString = (v: any): string => {
   return String(v).trim();
 };
 
-/** Lê CSV ou XLSX (1ª planilha). Valida extensão, tamanho e quantidade de linhas. */
+/** Lê CSV, XLSX ou XLS antigo (1ª planilha). Valida extensão, tamanho e quantidade de linhas. */
 export async function readTableFile(file: File, opts: { maxBytes?: number; maxRows?: number } = {}): Promise<ParsedTable> {
   const maxBytes = opts.maxBytes ?? MAX_FILE_BYTES;
   const maxRows = opts.maxRows ?? MAX_ROWS;
   const ext = (file.name.split(".").pop() || "").toLowerCase();
   if (!ALLOWED_EXT.includes(ext)) {
-    throw new Error(ext === "xls" ? "Arquivos .xls antigos não são suportados. Salve como .xlsx ou .csv." : "Use um arquivo .xlsx ou .csv.");
+    throw new Error("Use um arquivo .xlsx, .xls ou .csv.");
   }
   if (file.size > maxBytes) throw new Error(`Arquivo maior que ${Math.round(maxBytes / 1024 / 1024)} MB.`);
 
@@ -40,6 +40,9 @@ export async function readTableFile(file: File, opts: { maxBytes?: number; maxRo
     const text = await file.text();
     const parsed = Papa.parse<string[]>(text, { skipEmptyLines: "greedy" });
     matrix = (parsed.data as string[][]).map((r) => r.map((c) => String(c ?? "").trim()));
+  } else if (ext === "xls") {
+    const { readXlsMatrix } = await import("./xlsLegacy");
+    matrix = readXlsMatrix(await file.arrayBuffer());
   } else {
     const ExcelJS = (await import("exceljs")).default ?? (await import("exceljs"));
     const wb = new (ExcelJS as any).Workbook();
