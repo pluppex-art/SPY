@@ -56,13 +56,13 @@ function ContatoLinha({ icon, rotulo, valor, vazio, href, dica, quebra }: { icon
   return (
     <div className="flex items-start gap-2.5">
       <span className={`mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${valor ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-faint)]"}`}>{icon}</span>
-      <span className="min-w-0 flex flex-col leading-tight">
+      <span className="min-w-0 flex flex-col leading-snug">
         <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{rotulo}</span>
         {valor ? (
           href ? (
             <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer" title={dica} onClick={(e) => e.stopPropagation()}
-              className={`text-[13px] font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-primary-blue)] hover:underline ${quebra ? "break-all" : "whitespace-nowrap"}`}>{valor}</a>
-          ) : <span className={`text-[13px] font-semibold text-[var(--color-text-primary)] ${quebra ? "break-all" : ""}`}>{valor}</span>
+              className={`text-[13px] font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-primary-blue)] hover:underline ${quebra ? "block max-w-[230px] truncate" : "whitespace-nowrap"}`}>{valor}</a>
+          ) : <span title={valor} className={`text-[13px] font-semibold text-[var(--color-text-primary)] ${quebra ? "block max-w-[230px] truncate" : ""}`}>{valor}</span>
         ) : <span className="text-xs italic text-[var(--color-text-faint)]">{vazio}</span>}
       </span>
     </div>
@@ -89,66 +89,66 @@ export function PipelineListaView({
       {/* Desktop table */}
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden hidden sm:block">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <table className="w-full min-w-[1180px] text-sm text-left">
             <thead className="text-[10px] uppercase font-bold tracking-wider text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-default)]">
               <tr>
-                <th className="px-6 py-4">Nome & Empresa</th>
-                <th className="px-6 py-4">Contato</th>
-                <th className="px-6 py-4">Cidade / Estado</th>
-                <th className="px-6 py-4">Status / Prioridade</th>
-                <th className="px-6 py-4">Valor</th>
-                <th className="px-6 py-4">Responsável</th>
-                <th className="px-6 py-4">Última Interação</th>
-                <th className="px-6 py-4 text-right">Ação</th>
+                <th className="pl-6 pr-3 py-3.5 min-w-[210px]">Nome & Empresa</th>
+                <th className="px-3 py-3.5 min-w-[250px]">Contato</th>
+                <th className="px-3 py-3.5 min-w-[150px]">Cidade / Estado</th>
+                <th className="px-3 py-3.5">Status / Prioridade</th>
+                <th className="px-3 py-3.5">Valor</th>
+                <th className="px-3 py-3.5">Responsável</th>
+                <th className="px-3 py-3.5">Última Interação</th>
+                <th className="pl-3 pr-6 py-3.5 text-right">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">
               {pageLeads.map((lead: any) => (
                 <tr key={lead.id} onClick={() => setSelectedLead(lead)}
                   className="hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer group">
-                  <td className="px-6 py-4">
+                  <td className="pl-6 pr-3 py-3.5 align-top">
                     <div className="font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-primary-blue)] transition-colors">{lead.name}</div>
                     <div className="text-[var(--color-text-muted)] text-xs">{lead.company}</div>
                     <LeadTags tags={lead.tags} />
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-2.5 min-w-[220px]">
+                  <td className="px-3 py-3.5 align-top">
+                    <div className="flex flex-col gap-2 min-w-[240px]">
                       <ContatoLinha icon={<Phone className="w-3.5 h-3.5" />} rotulo="Telefone" valor={formatPhoneBR(lead.phone)} vazio="Sem telefone"
                         href={whatsappDigits(lead.phone) ? `https://wa.me/${whatsappDigits(lead.phone)}` : undefined} dica="Abrir no WhatsApp" />
                       <ContatoLinha icon={<Mail className="w-3.5 h-3.5" />} rotulo="E-mail" valor={String(lead.email ?? "").trim()} vazio="Sem e-mail"
                         href={String(lead.email ?? "").trim() ? `mailto:${String(lead.email).trim()}` : undefined} dica="Enviar e-mail" quebra />
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-3.5 align-top">
                     {(() => {
                       const cidade = leadCity(lead), uf = leadState(lead);
-                      if (!cidade && !uf) return <span className="text-xs italic text-[var(--color-text-faint)]">Sem localização</span>;
+                      if (!cidade && !uf) return <span className="text-xs italic text-[var(--color-text-faint)]">—</span>;
                       return (
-                        <div className="flex items-start gap-2.5 min-w-[150px]">
+                        <div className="flex items-center gap-2.5 min-w-[130px]">
                           <span className="mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]"><MapPin className="w-3.5 h-3.5" /></span>
                           <span className="min-w-0 flex flex-col leading-tight">
-                            <span className="text-[13px] font-semibold text-[var(--color-text-primary)] break-words">{cidade || "—"}</span>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{uf || "Estado não informado"}</span>
+                            <span className="text-[13px] font-semibold text-[var(--color-text-primary)] break-words">{cidade || uf}</span>
+                            {cidade && uf && <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{uf}</span>}
                           </span>
                         </div>
                       );
                     })()}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-3.5 align-top">
                     <div className="flex flex-col gap-1.5">
                       <Badge variant={STATUS_VARIANT[lead.status] ?? "neutral"} className="w-fit text-[9px] px-2.5 py-0.5">{lead.status}</Badge>
                       <Badge variant={PRIORITY_VARIANT[lead.priority] ?? "neutral"} className="w-fit text-[8px] px-2 py-0.5 uppercase">{lead.priority}</Badge>
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-mono text-xs text-[var(--color-text-primary)]">{lead.value}</td>
-                  <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-3 py-3.5 align-top font-mono text-xs whitespace-nowrap text-[var(--color-text-primary)]">{lead.value}</td>
+                  <td className="px-3 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
                     <select value={lead.seller || ""} onChange={(e) => updateLead(lead.id, { seller: e.target.value })}
                       className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] cursor-pointer hover:bg-[var(--color-surface-elevated)]">
                       <option value="">Sem Vendedor</option>
                       {sellers.filter((s: string) => s !== "Todos").map((s: string) => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </td>
-                  <td className="px-6 py-4 text-[var(--color-text-muted)] text-xs">
+                  <td className="px-3 py-3.5 align-top text-[var(--color-text-muted)] text-xs">
                     <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {lead.date}</div>
                     <div className="text-[10px] mt-1 italic">{lead.title}</div>
                     {lead.timeIdle !== undefined && (
@@ -159,7 +159,7 @@ export function PipelineListaView({
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="pl-3 pr-6 py-3.5 align-top text-right">
                     <button className="p-2 bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] rounded-lg hover:bg-[var(--color-border-subtle)] transition-colors">
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
