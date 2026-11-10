@@ -7,6 +7,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useMemo, useState, useEffect } from "react";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
+import { AquisicaoPanel } from "./AquisicaoPanel";
 import { apiFetch } from "../../lib/apiClient";
 
 const COLORS = ['#3b82f6', '#f43f5e', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4'];
@@ -119,8 +120,10 @@ export default function MarketingAnalytics() {
   return (
     <PageContainer
       title="Métricas de Marketing Avançadas"
-      subtitle="Analise CAC, LTV, ROI e performance geral dos seus canais."
+      subtitle="Analise CPL, CPLQ, CAC, ROAS e performance geral dos seus canais."
     >
+      <AquisicaoPanel />
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
           <DollarSign className="w-5 h-5 text-emerald-500 mb-4" />
@@ -131,7 +134,7 @@ export default function MarketingAnalytics() {
         <Card className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
           <TrendingUp className="w-5 h-5 text-rose-500 mb-4" />
           <div className="text-2xl font-display font-black text-white mb-1 italic">{formatCurrency(cac)}</div>
-          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custo Aquisição (CAC)</div>
+          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custo por lead (CPL)</div>
         </Card>
 
         <Card className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
@@ -150,7 +153,7 @@ export default function MarketingAnalytics() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="p-6 bg-[var(--color-surface-elevated)] border-white/5 lg:col-span-2">
           <h3 className="text-sm font-black text-white uppercase tracking-wider mb-6 flex items-center gap-2">
-            <BarChart2 className="w-4 h-4 text-blue-500" /> Receita Marketing vs Investimento (CAC)
+            <BarChart2 className="w-4 h-4 text-blue-500" /> Receita Marketing vs Investimento (custo por lead)
           </h3>
           {performanceData.length === 0 ? (
             <div className="h-72 flex flex-col items-center justify-center gap-4 opacity-40">

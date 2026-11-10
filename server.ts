@@ -21,6 +21,7 @@ import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
 import { emailNotifyTenant } from "./server/emailNotify.js";
 import { registerPushRoutes } from "./server/webPush.js";
 import { registerEmailCampaignRoutes } from "./server/emailCampaigns.js";
+import { registerAcquisitionRoutes } from "./server/acquisition.js";
 import { registerTenantSocialProofRoutes } from "./server/tenantSocialProof.js";
 import { runNotificationReminders } from "./server/notificationCron.js";
 import { registerDeepHealthRoute } from "./server/healthDeep.js";
@@ -6692,6 +6693,9 @@ registerPushRoutes(app, { requireUser, resolveRequestedTenantId, limiter: pushLi
 // Disparo de e-mail em massa por empresa (campanhas, lotes, descadastro).
 const emailCampaignLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
 registerEmailCampaignRoutes(app, { requireUser, resolveRequestedTenantId, limiter: emailCampaignLimiter, supabaseService });
+
+// Métricas de aquisição (CPL, MQL, CPLQ, CAC, ROAS) por empresa.
+registerAcquisitionRoutes(app, { requireUserOrInternalService, resolveRequestedTenantId, limiter: emailCampaignLimiter });
 
 // Prova social das páginas públicas de cada empresa (catálogo e proposta): só responde se a empresa ligou.
 const tenantProofLimiter = rateLimit({ windowMs: 60_000, limit: 40, standardHeaders: true, legacyHeaders: false });
