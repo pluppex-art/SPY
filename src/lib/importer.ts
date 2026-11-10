@@ -23,6 +23,8 @@ export interface ImportOption {
   vendedores?: { nome: string; userId?: string | null }[];
   /** type "vendedores": quantos closers estão elegíveis no rodízio automático (0 = o rodízio deixaria o lead sem dono). */
   rodizioElegiveis?: number;
+  /** type "vendedores": quem importa não é da empresa (ex.: administrador da plataforma) — não existe "todos para mim". */
+  semEu?: boolean;
   placeholder?: string;
   default?: string;
 }

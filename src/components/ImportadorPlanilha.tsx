@@ -14,6 +14,7 @@ import { Upload } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useData } from "../contexts/DataContext";
 import { leadsSpec } from "../lib/importSpecs";
+import { isVendedorColab } from "../lib/sellers";
 import { DIST_PADRAO, distribuir, parseDist, type DistConfig, type DistModo } from "../lib/importer";
 
 // Importador de planilha genérico (CSV/XLSX, inclusive a exportação do Google Forms/Sheets): 1) arquivo,
@@ -156,7 +157,7 @@ export function ImportadorPlanilha({ spec, open, onClose }: { spec: ImportSpec; 
           </div>
 
           {options.filter((o) => o.type === "vendedores").map((o) => (
-            <DistribuicaoEditor key={o.key} label={o.label} vendedores={o.vendedores || []} rodizioElegiveis={o.rodizioElegiveis} value={optValues[o.key]} total={built.rows.length}
+            <DistribuicaoEditor key={o.key} label={o.label} vendedores={o.vendedores || []} rodizioElegiveis={o.rodizioElegiveis} semEu={o.semEu} value={optValues[o.key]} total={built.rows.length}
               onChange={(v) => setOpt((p) => ({ ...p, [o.key]: v }))} />
           ))}
 
@@ -289,10 +290,12 @@ export function BotaoImportarLeads({ className = "", label }: { className?: stri
   if (!activeTenantId) return null;
   // Vendedores: mesma regra do "Novo lead" (departamento Vendas, não desligados) + quem está importando.
   const rodizioElegiveis = ((colaboradores || []) as any[]).filter((c: any) => c.status === "Ativo" && String(c.cargo || "").toLowerCase().includes("closer") && c.rotation_active !== false && !c.rotation_blocked).length;
+  // Vendedores da EMPRESA ATIVA (cargo ou departamento comercial; ver lib/sellers). Quem importa só entra na lista (e só
+  // pode ficar com os leads) se for mesmo desta empresa — admin/parceiro da plataforma vendo a empresa não vira responsável.
+  const importadorDaEmpresa = !!user && (user as any).tenantId === activeTenantId;
   const sellers: { nome: string; userId?: string | null }[] = [];
-  for (const c of (colaboradores || []) as any[]) if (c.nome && c.status !== "Desligado" && c.departamento === "Vendas" && !sellers.some((s) => s.nome === c.nome)) sellers.push({ nome: c.nome, userId: c.user_id ?? c.userId ?? null });
-  if (user?.name && !sellers.some((s) => s.nome === user.name)) sellers.unshift({ nome: user.name, userId: user?.id ?? null });
-  const spec = leadsSpec({ tenantId: activeTenantId, filialId: activeFilialId, sellerName: user?.name || "Sistema", sellerUserId: user?.id ?? null, sellers, rodizioElegiveis, funis: funis || [] });
+  for (const c of (colaboradores || []) as any[]) if (isVendedorColab(c) && !sellers.some((s) => s.nome === c.nome)) sellers.push({ nome: c.nome, userId: c.user_id ?? c.userId ?? null });
+  const spec = leadsSpec({ tenantId: activeTenantId, filialId: activeFilialId, sellerName: importadorDaEmpresa ? (user?.name || "") : "", sellerUserId: importadorDaEmpresa ? user?.id ?? null : null, sellers, rodizioElegiveis, funis: funis || [] });
   return <BotaoImportar spec={spec} className={className} label={label} />;
 }
 
@@ -305,7 +308,7 @@ const MODOS: { id: DistModo; titulo: string; desc: string }[] = [
 ];
 
 /** Quem recebe os leads importados: o próprio usuário, vendedores com quantidades, divisão igual ou o rodízio do sistema. */
-function DistribuicaoEditor({ label, vendedores, rodizioElegiveis, value, total, onChange }: { label: string; vendedores: { nome: string; userId?: string | null }[]; rodizioElegiveis?: number; value: string; total: number; onChange: (v: string) => void }) {
+function DistribuicaoEditor({ label, vendedores, rodizioElegiveis, semEu, value, total, onChange }: { label: string; vendedores: { nome: string; userId?: string | null }[]; rodizioElegiveis?: number; semEu?: boolean; value: string; total: number; onChange: (v: string) => void }) {
   const semRodizio = rodizioElegiveis === 0;
   const cfg = parseDist(value);
   const set = (patch: Partial<DistConfig>) => onChange(JSON.stringify({ ...cfg, ...patch }));
@@ -329,8 +332,9 @@ function DistribuicaoEditor({ label, vendedores, rodizioElegiveis, value, total,
   return (
     <div className="p-3 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] space-y-3">
       <div className="text-[11px] font-bold text-[var(--color-text-muted)]">{label}</div>
+      {semEu && <p className="text-[11px] text-[var(--color-text-muted)]">Você não faz parte desta empresa, então os leads vão para os vendedores dela. Escolha quem recebe.</p>}
       <div className="grid sm:grid-cols-2 gap-2">
-        {MODOS.map((m) => (
+        {MODOS.filter((m) => !(semEu && m.id === "eu")).map((m) => (
           <label key={m.id} className={`flex items-start gap-2 p-2.5 rounded-lg border text-xs cursor-pointer ${cfg.modo === m.id ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/5" : "border-[var(--color-border-default)]"}`}>
             <input type="radio" name="dist-modo" checked={cfg.modo === m.id} onChange={() => trocaModo(m.id)} className="mt-0.5" />
             <span><b className="text-[var(--color-text-primary)]">{m.titulo}</b><br /><span className="text-[var(--color-text-muted)]">{m.desc}</span></span>
@@ -363,7 +367,7 @@ function DistribuicaoEditor({ label, vendedores, rodizioElegiveis, value, total,
               {calc.restante > 0 && (
                 <span> · restante <b>{calc.restante}</b> vai para{" "}
                   <select value={cfg.restante} onChange={(e) => set({ restante: e.target.value as any })} aria-label="Destino do restante" className={`${field} h-7`}>
-                    <option value="rodizio">o rodízio automático</option><option value="eu">mim</option>
+                    <option value="rodizio">o rodízio automático</option>{!semEu && <option value="eu">mim</option>}
                   </select>
                 </span>
               )}
@@ -373,7 +377,7 @@ function DistribuicaoEditor({ label, vendedores, rodizioElegiveis, value, total,
         </div>
       )}
       {semRodizio && (cfg.modo === "rodizio" || (cfg.modo === "quantidades" && cfg.restante === "rodizio" && calc.restante > 0)) && (
-        <p className="text-xs font-bold text-[var(--color-warning)]">O rodízio automático não tem nenhum closer ativo (Configurações › CRM › Rodízio de Leads). Por isso esses leads ficariam com você, não sem responsável.</p>
+        <p className="text-xs font-bold text-[var(--color-warning)]">O rodízio automático não tem nenhum closer ativo (Configurações › CRM › Rodízio de Leads). {semEu ? "Por isso o que sobrar será dividido entre os vendedores escolhidos." : "Por isso esses leads ficariam com você, não sem responsável."}</p>
       )}
       <p className="text-[11px] text-[var(--color-text-faint)]">Os leads são repartidos intercalados, na ordem da planilha, e cada vendedor passa a ser o responsável pelos que recebe.</p>
     </div>

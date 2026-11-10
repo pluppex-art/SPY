@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { isVendedorColab } from "../../../lib/sellers";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar, CheckCircle2, Circle, Clock, Copy, ExternalLink, Flag, Mail, Pencil, Phone,
@@ -49,7 +50,7 @@ export function TaskDetailsModal({ task, onClose, columns, onEdit, onDelete, onD
   const colabs = (colaboradores as any[]).filter((c) => c.user_id && c.nome);
   const assigneeName = live?.assigned_to ? colabs.find((c) => c.user_id === live.assigned_to)?.nome : null;
   const creatorName = live?.creator_id ? colabs.find((c) => c.user_id === live.creator_id)?.nome : null;
-  const sellerOptions = colabs.filter((c) => c.status !== "Desligado" && c.departamento === "Vendas");
+  const sellerOptions = colabs.filter((c) => isVendedorColab(c));
   const assigneeOptions = live?.assigned_to && !sellerOptions.some((c) => c.user_id === live.assigned_to) && assigneeName
     ? [colabs.find((c) => c.user_id === live.assigned_to)!, ...sellerOptions]
     : sellerOptions;

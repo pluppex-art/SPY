@@ -68,7 +68,9 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
       const fid = v.funil || padrao?.id || "";
       const f = funis.find((x) => x.id === fid) ?? padrao;
       return [
-        { key: "distribuicao", label: "Quem recebe estes leads", type: "vendedores", vendedores: ctx.sellers ?? [], rodizioElegiveis: ctx.rodizioElegiveis },
+        { key: "distribuicao", label: "Quem recebe estes leads", type: "vendedores", vendedores: ctx.sellers ?? [], rodizioElegiveis: ctx.rodizioElegiveis, semEu: !ctx.sellerName,
+          // Quem não é da empresa não pode ficar com os leads: já abre dividindo igualmente entre todos os vendedores dela.
+          default: ctx.sellerName ? undefined : JSON.stringify({ modo: "igual", itens: (ctx.sellers ?? []).map((s) => ({ nome: s.nome, userId: s.userId ?? null, qtd: 0 })), restante: "rodizio" }) },
         { key: "funil", label: "Funil de destino", type: "select", choices: funis.map((x) => ({ value: x.id, label: x.nome || x.name || x.id })), default: padrao?.id },
         { key: "etapa", label: "Etapa inicial", type: "select", choices: (f ? funilStageNames(f) : []).map((n, i) => ({ value: String(i), label: n })), default: "0" },
         { key: "origem", label: "Origem padrão (quando a linha não tiver)", type: "text", placeholder: "Ex.: Treinão 14/11", default: "Importação de planilha" },
@@ -81,20 +83,27 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
     resolve: async (rows, o) => {
       const cfg = parseDist(o.distribuicao ?? "");
       const notes: string[] = [];
-      if (cfg.modo === "eu") { notes.push(`Responsável: ${ctx.sellerName} (todos os ${rows.length} leads).`); return { rows, rejected: [], notes }; }
+      if (cfg.modo === "eu" && ctx.sellerName) { notes.push(`Responsável: ${ctx.sellerName} (todos os ${rows.length} leads).`); return { rows, rejected: [], notes }; }
+      if (!ctx.sellerName && (cfg.modo === "eu" || cfg.itens.length === 0) && cfg.modo !== "rodizio") return { rows: [], rejected: rows.map((r) => ({ line: r.line, reason: "Escolha ao menos um vendedor desta empresa para receber os leads" })), notes };
       // Sem closer elegível no rodízio, o banco não escolheria ninguém e o lead ficaria sem responsável: nesse caso fica com quem importou.
       const semRodizio = ctx.rodizioElegiveis === 0;
-      if (cfg.modo === "rodizio" && semRodizio) { notes.push(`O rodízio automático não tem nenhum closer ativo; os ${rows.length} lead(s) ficaram com ${ctx.sellerName}.`); return { rows, rejected: [], notes }; }
+      if (cfg.modo === "rodizio" && semRodizio && !ctx.sellerName) return { rows: [], rejected: rows.map((r) => ({ line: r.line, reason: "O rodízio automático desta empresa não tem closer ativo; escolha os vendedores que recebem os leads" })), notes };
+      if (cfg.modo === "rodizio" && semRodizio && ctx.sellerName) { notes.push(`O rodízio automático não tem nenhum closer ativo; os ${rows.length} lead(s) ficaram com ${ctx.sellerName}.`); return { rows, rejected: [], notes }; }
       if (cfg.modo === "rodizio") { notes.push(`${rows.length} lead(s) enviados ao rodízio automático do sistema.`); return { rows: rows.map((r) => ({ ...r, values: { ...r.values, __seller: "" } })), rejected: [], notes }; }
       const d = distribuir(rows.length, cfg);
-      const restanteEu = cfg.restante === "eu" || semRodizio;
+      const restanteEu = !!ctx.sellerName && (cfg.restante === "eu" || semRodizio);
+      // Quem não é da empresa e sem rodízio possível: o que sobrar é dividido entre os mesmos vendedores (nunca fica sem dono).
+      const sobraParaVendedores = !ctx.sellerName && semRodizio && cfg.itens.length > 0;
+      let giro = 0;
       const out = rows.map((r, i) => {
-        const k = d.atribuicao[i];
+        let k = d.atribuicao[i];
+        if (k < 0 && sobraParaVendedores) { k = giro % cfg.itens.length; giro++; d.contagem[k]++; }
         if (k >= 0) return { ...r, values: { ...r.values, __seller: cfg.itens[k].nome, __sellerId: cfg.itens[k].userId ?? null } };
         return { ...r, values: { ...r.values, __seller: restanteEu ? ctx.sellerName : "", __sellerId: restanteEu ? ctx.sellerUserId ?? null : null } };
       });
       cfg.itens.forEach((it, i) => { if (d.contagem[i] > 0) notes.push(`${it.nome}: ${d.contagem[i]} lead(s).`); });
-      if (d.restante > 0) notes.push(restanteEu ? `${d.restante} lead(s) ficaram com ${ctx.sellerName}.` : `${d.restante} lead(s) foram para o rodízio automático.`);
+      if (d.restante > 0 && sobraParaVendedores) notes.push(`${d.restante} lead(s) a mais foram divididos entre os vendedores escolhidos.`);
+      else if (d.restante > 0) notes.push(restanteEu ? `${d.restante} lead(s) ficaram com ${ctx.sellerName}.` : `${d.restante} lead(s) foram para o rodízio automático.`);
       return { rows: out, rejected: [], notes };
     },
     build: (v, extras, o) => {

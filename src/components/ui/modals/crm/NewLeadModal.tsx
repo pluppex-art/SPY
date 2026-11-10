@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { isVendedorColab } from "../../../../lib/sellers";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
 import { useData } from "../../../../contexts/DataContext";
@@ -64,7 +65,7 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
   const sellerOptions = useMemo<string[]>(() => {
     let list: string[] = [];
     if (colaboradores && colaboradores.length > 0) {
-      list = colaboradores.filter((c: any) => c.nome && c.status !== "Desligado" && c.departamento === "Vendas").map((c: any) => c.nome as string);
+      list = colaboradores.filter((c: any) => isVendedorColab(c)).map((c: any) => c.nome as string);
     } else {
       list = Array.from(new Set(leads.map((l: any) => l.seller).filter(Boolean))) as string[];
     }

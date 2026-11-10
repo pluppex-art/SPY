@@ -1,4 +1,5 @@
 import { Card } from "../../../components/ui/card";
+import { isVendedorColab } from "../../../lib/sellers";
 import { Link } from "react-router-dom";
 import {
   CheckCircle2, Calendar, Edit, Trash2, CheckSquare, ExternalLink
@@ -48,7 +49,7 @@ export function TasksListMode({
   const { colaboradores, leads } = useData();
   // `assigned_to` FK pra `users.id`, não `colaboradores.id` — usa `user_id`.
   const sellerOptions = (colaboradores as any[])
-    .filter(c => c.status !== "Desligado" && c.departamento === "Vendas")
+    .filter(c => isVendedorColab(c))
     .map(c => ({ id: c.user_id as string, nome: c.nome as string }))
     .filter(c => c.id && c.nome);
 

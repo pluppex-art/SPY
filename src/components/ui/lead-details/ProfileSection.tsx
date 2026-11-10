@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { isVendedorColab } from "../../../lib/sellers";
 import { Card } from "../card";
 import {
   Sparkles, Brain, ArrowRight, Tag, Trophy,
@@ -81,7 +82,7 @@ export function ProfileSection({
 
   const sellerOptions = useMemo(() => {
     const fromColab = (colaboradores as any[])
-      .filter((c: any) => c.status !== "Desligado" && c.departamento === "Vendas")
+      .filter((c: any) => isVendedorColab(c))
       .map((c: any) => c.nome)
       .filter(Boolean);
     if (fromColab.length > 0) return fromColab as string[];
