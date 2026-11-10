@@ -26,12 +26,14 @@ const cellToString = (v: any): string => {
 };
 
 /** Lê CSV ou XLSX (1ª planilha). Valida extensão, tamanho e quantidade de linhas. */
-export async function readTableFile(file: File): Promise<ParsedTable> {
+export async function readTableFile(file: File, opts: { maxBytes?: number; maxRows?: number } = {}): Promise<ParsedTable> {
+  const maxBytes = opts.maxBytes ?? MAX_FILE_BYTES;
+  const maxRows = opts.maxRows ?? MAX_ROWS;
   const ext = (file.name.split(".").pop() || "").toLowerCase();
   if (!ALLOWED_EXT.includes(ext)) {
     throw new Error(ext === "xls" ? "Arquivos .xls antigos não são suportados. Salve como .xlsx ou .csv." : "Use um arquivo .xlsx ou .csv.");
   }
-  if (file.size > MAX_FILE_BYTES) throw new Error("Arquivo maior que 5 MB.");
+  if (file.size > maxBytes) throw new Error(`Arquivo maior que ${Math.round(maxBytes / 1024 / 1024)} MB.`);
 
   let matrix: string[][] = [];
   if (ext === "csv") {
@@ -55,7 +57,7 @@ export async function readTableFile(file: File): Promise<ParsedTable> {
   const width = Math.max(...matrix.map((r) => r.length));
   const headers = matrix[0].concat(Array(Math.max(0, width - matrix[0].length)).fill("")).map((h, i) => h || `Coluna ${i + 1}`);
   const rows = matrix.slice(1).map((r) => r.concat(Array(Math.max(0, width - r.length)).fill("")));
-  if (rows.length > MAX_ROWS) throw new Error(`A tabela tem ${rows.length} linhas; o limite por comparação é ${MAX_ROWS}.`);
+  if (rows.length > maxRows) throw new Error(`A tabela tem ${rows.length} linhas; o limite é ${maxRows}.`);
   return { headers, rows, fileName: file.name };
 }
 

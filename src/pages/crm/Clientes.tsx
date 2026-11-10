@@ -7,6 +7,9 @@ import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { PageContainer } from "../../components/PageContainer";
+import { BotaoImportar } from "../../components/ImportadorPlanilha";
+import { clientesSpec } from "../../lib/importSpecs";
+
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -273,12 +276,15 @@ export default function Clientes() {
       title="Base de Clientes S.P.Y."
       description="Gerencie a carteira de clientes ativos e em implantação de forma inteligente."
       actions={
+        <div className="flex items-center gap-2 flex-wrap">
+        {activeTenantId && <BotaoImportar spec={clientesSpec({ tenantId: activeTenantId })} />}
         <Button 
           onClick={() => setIsModalOpen(true)} 
           className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs"
         >
           <Plus className="w-3.5 h-3.5" /> Novo Cliente
         </Button>
+        </div>
       }
     >
       {/* Card "KPIs & Filtros" compartilhado. Os KPIs de Clientes mantêm drill-down e sparkline

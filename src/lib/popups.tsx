@@ -9,6 +9,11 @@ import { isSaleSoundEnabled, playSaleSound } from "./notifications";
 // estilo Hotmart ("Venda realizada!" com o valor em destaque). Renderizados pelo <Toaster /> do Layout via
 // toast.custom (dentro do Router, então useNavigate funciona) e usando só tokens do tema.
 
+// Importação em massa: centenas de leads novos chegam pelo tempo real de uma vez e não podem virar centenas de pop-ups.
+let suppressedUntil = 0;
+export function suppressPopups(ms: number) { suppressedUntil = Math.max(suppressedUntil, Date.now() + ms); }
+const popupsSuppressed = () => Date.now() < suppressedUntil;
+
 export type PopupKind = "success" | "info" | "warning" | "error";
 
 const KIND_STYLE: Record<PopupKind, { icon: ReactNode; color: string }> = {
@@ -78,6 +83,7 @@ function PopupCard({ toastId, badge, color, title, description, meta, highlight,
 }
 
 export function showNotificationPopup(n: { title: string; description?: string | null; type?: string | null; link_url?: string | null }) {
+  if (popupsSuppressed()) return;
   const kind: PopupKind = n.type === "success" || n.type === "warning" || n.type === "error" ? n.type : "info";
   const s = KIND_STYLE[kind];
   toast.custom(
@@ -111,6 +117,7 @@ async function celebrate() {
 }
 
 export function showSalePopup(sale: { leadId: string; name: string; company?: string | null; seller?: string | null; value?: unknown }) {
+  if (popupsSuppressed()) return;
   toast.custom(
     (id) => (
       <PopupCard

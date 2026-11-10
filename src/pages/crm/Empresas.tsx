@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
+import { BotaoImportar } from "../../components/ImportadorPlanilha";
+import { clientesSpec } from "../../lib/importSpecs";
+
 import { Button } from "../../components/ui/button";
 import {
   Building2, Plus, MapPin, Globe, Phone, Mail,
@@ -140,9 +143,12 @@ export default function Empresas() {
       title="Empresas & Contas B2B"
       description="Diretório corporativo de contas comerciais, filiais e parceiros estratégicos."
       actions={
+        <div className="flex items-center gap-2 flex-wrap">
+        {activeTenantId && <BotaoImportar spec={clientesSpec({ tenantId: activeTenantId, onDone: fetchEmpresas }, "empresas")} />}
         <Button onClick={() => setShowModal(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-3.5 h-3.5" /> Nova Empresa
         </Button>
+        </div>
       }
     >
       <KpiFilterCard className="mb-4"

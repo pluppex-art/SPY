@@ -9,6 +9,9 @@ import { Badge } from "../../components/ui/badge";
 import { EmptyState } from "../../components/ui/empty-state";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { PageContainer } from "../../components/PageContainer";
+import { BotaoImportar } from "../../components/ImportadorPlanilha";
+import { pacientesSpec } from "../../lib/importSpecs";
+
 import { motion, AnimatePresence } from "motion/react";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -232,6 +235,7 @@ export default function Pacientes() {
       description="Cadastro completo de pacientes, convênios, alergias e histórico de atendimento."
       actions={
         <div className="flex items-center gap-3 flex-wrap">
+          {activeTenantId && <BotaoImportar spec={pacientesSpec({ tenantId: activeTenantId, onDone: refetch })} />}
           <Button
             onClick={() => {
               if (filteredPatients.length === 0) return toast.error("Nenhum dado para exportar");

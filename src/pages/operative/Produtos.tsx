@@ -4,6 +4,9 @@ import { Plus, Package, FileSpreadsheet, Activity, TrendingUp, Sparkles } from "
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
+import { BotaoImportar } from "../../components/ImportadorPlanilha";
+import { produtosSpec } from "../../lib/importSpecs";
+
 import { Pagination } from "../../components/ui/Pagination";
 import { useProdutoForm } from "./produtos/useProdutoForm";
 import { ProdutoModal } from "./produtos/ProdutoModal";
@@ -156,7 +159,8 @@ export default function Catalog() {
       title="Produtos & SKUs S.P.Y."
       description="Painel Central de Gestão de Preços, Margem de Lucro, SKU e Comissionamento Comercial."
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {activeTenantId && <BotaoImportar spec={produtosSpec({ tenantId: activeTenantId })} />}
           <Button
             variant="outline"
             onClick={exportProductsToCSV}

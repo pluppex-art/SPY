@@ -4,6 +4,9 @@ import { useState, useMemo, useEffect } from "react";
 import { Users, BookOpen, Target, Star, Download, UserPlus } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
+import { BotaoImportar } from "../../components/ImportadorPlanilha";
+import { alunosSpec } from "../../lib/importSpecs";
+import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { exportToCSV } from "../../lib/exportCsv";
@@ -25,6 +28,7 @@ interface Student {
 }
 
 export default function Alunos() {
+  const { activeTenantId } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCurso, setFilterCurso] = useState("");
@@ -101,7 +105,8 @@ export default function Alunos() {
       title="Gestão de Alunos S.P.Y."
       description="Base centralizada de matrículas, desempenho acadêmico e engajamento."
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {activeTenantId && <BotaoImportar spec={alunosSpec({ tenantId: activeTenantId })} />}
           <Button
             onClick={() => {
               if (filteredAlunos.length === 0) return toast.error("Nenhum dado para exportar");
