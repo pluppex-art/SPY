@@ -856,7 +856,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const newFunil = { ...f, id: f.id || crypto.randomUUID() };
     setFunis(prev => [...prev, newFunil]);
     if (supabase) {
-      const { error } = await supabase.from('crm_funis').insert(funilToRow(newFunil));
+      // A coluna tenant_id tem default current_tenant_id() = empresa do USUÁRIO LOGADO. Sem mandar a empresa ATIVA, um
+      // administrador/parceiro vendo outra empresa criava o funil na empresa dele (e ele sumia da empresa certa).
+      if (!tenantId) { setFunis(prev => prev.filter(x => x.id !== newFunil.id)); toast.error('Erro ao salvar funil: empresa não identificada.'); return; }
+      const { error } = await supabase.from('crm_funis').insert({ ...funilToRow(newFunil), tenant_id: tenantId });
       if (error) { console.error('[Supabase] insert crm_funis error:', error.message); toast.error(`Erro ao salvar funil: ${friendlyError(error)}`); }
     }
   };
@@ -865,7 +868,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const anterior = funis.find(f => f.id === id);
     setFunis(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
     if (supabase) {
-      const { error } = await supabase.from('crm_funis').update(funilToRow(updates)).eq('id', id);
+      let q = supabase.from('crm_funis').update(funilToRow(updates)).eq('id', id);
+      if (tenantId) q = q.eq('tenant_id', tenantId); // nunca altera o funil de outra empresa
+      const { error } = await q;
       if (error) {
         console.error('[Supabase] update crm_funis error:', error.message);
         if (anterior) setFunis(prev => prev.map(f => f.id === id ? anterior : f));
@@ -878,7 +883,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const removido = funis.find(f => f.id === id);
     setFunis(prev => prev.filter(f => f.id !== id));
     if (supabase) {
-      const { data, error } = await supabase.from('crm_funis').delete().eq('id', id).select('id');
+      let dq = supabase.from('crm_funis').delete().eq('id', id);
+      if (tenantId) dq = dq.eq('tenant_id', tenantId); // nunca apaga o funil de outra empresa
+      const { data, error } = await dq.select('id');
       if (error || !data || data.length === 0) {
         console.error('[Supabase] delete crm_funis error:', error?.message ?? 'nenhuma linha afetada');
         if (removido) setFunis(prev => [...prev, removido]);

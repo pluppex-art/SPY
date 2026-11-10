@@ -152,7 +152,9 @@ export default function Contatos() {
       return;
     }
 
+    if (!activeTenantId) { toast.error("Empresa não identificada."); return; }
     const { data, error } = await supabase.from("cliente_contatos").insert({
+      tenant_id: activeTenantId, // empresa ATIVA (o default do banco usaria a empresa do usuário logado)
       cliente_id: novoContato.clienteId,
       nome: novoContato.nome,
       email: novoContato.email,

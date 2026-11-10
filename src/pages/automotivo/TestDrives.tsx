@@ -121,6 +121,7 @@ export default function TestDrives() {
     const { data: row, error } = await supabase
       .from("imobiliario_visitas")
       .insert({
+        tenant_id: activeTenantId, // empresa ATIVA (o default do banco usaria a empresa do usuário logado)
         imovel: veiculoLabel,
         veiculo_id: veiculoId,
         cliente: cliente.trim(),

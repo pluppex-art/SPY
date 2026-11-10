@@ -134,6 +134,7 @@ export default function TrocasVeiculos() {
     const { data: row, error } = await supabase
       .from("veiculo_financiamentos")
       .insert({
+        tenant_id: activeTenantId, // empresa ATIVA (o default do banco usaria a empresa do usuário logado)
         veiculo_id: veiculoSaidaId,
         cliente: cliente.trim(),
         telefone: telefone.trim() || null,

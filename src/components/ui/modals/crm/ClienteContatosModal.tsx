@@ -7,6 +7,7 @@ import { supabase } from "../../../../lib/supabase";
 import { toast } from "sonner";
 import { confirmDialog } from "../../confirm-dialog";
 import { friendlyError } from "../../../../lib/friendlyError";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 interface ClienteContato {
   id: string;
@@ -53,6 +54,7 @@ const EMPTY_FORM = {
 };
 
 export function ClienteContatosModal({ isOpen, onClose, clienteId, clienteNome }: ClienteContatosModalProps) {
+  const { activeTenantId } = useAuth();
   const [contatos, setContatos] = useState<ClienteContato[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -75,9 +77,11 @@ export function ClienteContatosModal({ isOpen, onClose, clienteId, clienteNome }
 
   const handleAdd = async () => {
     if (!clienteId || !supabase) return;
+    if (!activeTenantId) { toast.error("Empresa não identificada."); return; }
     if (!form.nome.trim()) { toast.error("Nome do contato é obrigatório."); return; }
     
     const payload: any = {
+      tenant_id: activeTenantId, // empresa ATIVA (o default do banco usaria a empresa do usuário logado)
       cliente_id: clienteId,
       nome: form.nome.trim(),
       cargo: form.cargo.trim() || null,
