@@ -44,6 +44,10 @@ export interface ImportSpec {
   options?: (values: Record<string, string>) => ImportOption[];
   /** Chaves que identificam a mesma pessoa/coisa (e-mail, telefone, documento...). Vazio = não checa. */
   rowKeys?: (v: Record<string, any>) => string[];
+  /** Como loadExistingKeys, mas guardando QUEM é o cadastro existente (id e status), para poder movê-lo. */
+  loadExistingRefs?: (onProgress: (n: number) => void) => Promise<Map<string, { id: string; status: string }>>;
+  /** Move os cadastros que já existiam (ex.: leads para o funil escolhido). Devolve o que foi feito. */
+  moveExisting?: (existing: { id: string; status: string }[], opt: Record<string, string>) => Promise<{ moved: number; kept: number; notes: string[] }>;
   /** Chaves já cadastradas na empresa (lê do banco, paginado). */
   loadExistingKeys?: (onProgress: (n: number) => void) => Promise<Set<string>>;
   /** Passo opcional antes de gravar: resolve vínculos (ex.: empresa do contato) e recusa linhas sem vínculo. */
@@ -64,6 +68,16 @@ export const MAX_IMPORT_ROWS = 50_000;
 export const MAX_IMPORT_BYTES = 20 * 1024 * 1024;
 
 export const stripText = (s: string) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** Célula com mais de um telefone ("(63) 3414-4109, (63) 3412-4357"): devolve cada número válido, sem repetir. */
+export function splitPhones(raw: unknown): string[] {
+  const out: string[] = [];
+  for (const parte of String(raw ?? "").split(/[;,/|\n]|\s{2,}|\s+e\s+/i)) {
+    const n = normalizePhone(parte);
+    if (n && !out.includes(n)) out.push(n);
+  }
+  return out;
+}
 
 /** Telefone para WhatsApp: só dígitos; 10–11 dígitos ganham o 55. Vazio se não parecer telefone. */
 export function normalizePhone(raw: unknown): string {
@@ -95,7 +109,7 @@ export function parseCell(raw: string, kind: FieldKind = "text"): any {
   const v = String(raw ?? "").trim();
   switch (kind) {
     case "money": return v ? parseMoney(v) : null;
-    case "phone": return normalizePhone(v);
+    case "phone": return splitPhones(v)[0] ?? "";
     case "email": return normalizeEmail(v);
     case "date": return normalizeDate(v);
     case "digits": return v.replace(/\D/g, "");
@@ -142,7 +156,10 @@ export function buildRows(headers: string[], rows: string[][], columnMap: string
       const raw = (r[c] ?? "").trim();
       const key = columnMap[c];
       if (key) {
-        if (raw && (values[key] === undefined || values[key] === "")) values[key] = parseCell(raw, kinds.get(key));
+        if (raw && (values[key] === undefined || values[key] === "")) {
+          values[key] = parseCell(raw, kinds.get(key));
+          if (kinds.get(key) === "phone") { const todos = splitPhones(raw); if (todos.length > 1) values[`${key}__todos`] = todos; } // todos os números da célula (dedupe e observações)
+        }
       } else if (raw) {
         extras.push({ header: h, value: raw });
       }

@@ -26,8 +26,29 @@ async function loadKeys(
   return out;
 }
 
+/** Como loadKeys, mas devolve chave -> {id, status} do cadastro existente (a 1ª ocorrência vale). */
+async function loadRefs(
+  table: string, columns: string, tenantId: string,
+  toKeys: (row: any) => string[], onProgress: (n: number) => void, softDelete = false,
+): Promise<Map<string, { id: string; status: string }>> {
+  const out = new Map<string, { id: string; status: string }>();
+  if (!supabase) return out;
+  for (let from = 0; ; from += PAGE) {
+    let q: any = supabase.from(table).select(`id, status, ${columns}`).eq("tenant_id", tenantId);
+    if (softDelete) q = q.is("deleted_at", null);
+    const { data, error } = await q.order("created_at", { ascending: true }).range(from, from + PAGE - 1);
+    if (error) throw new Error(friendlyError(error));
+    for (const r of data || []) for (const k of toKeys(r)) if (k && !out.has(k)) out.set(k, { id: String(r.id), status: String(r.status ?? "") });
+    onProgress(from + (data?.length || 0));
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
+}
+
 const emailKey = (e: unknown) => { const v = normalizeEmail(e); return v ? `e:${v}` : ""; };
 const phoneKeyOf = (p: unknown) => { const k = phoneKey(p); return k.length >= 8 ? `t:${k}` : ""; };
+/** Chaves de TODOS os telefones da linha (a célula pode ter mais de um número). */
+const phonesKeys = (v: Record<string, any>, key: string) => [v[key], ...(v[`${key}__todos`] || [])].map(phoneKeyOf).filter(Boolean);
 const docKey = (d: unknown) => { const v = String(d ?? "").replace(/\D/g, ""); return v.length >= 11 ? `d:${v}` : ""; };
 
 /** Erro do banco em português, dizendo QUAL campo/valor deu problema quando dá para saber. */
@@ -87,11 +108,41 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
         { key: "funil", label: "Funil de destino", type: "select", choices: funis.map((x) => ({ value: x.id, label: x.nome || x.name || x.id })), default: padrao?.id },
         { key: "etapa", label: "Etapa inicial", type: "select", choices: (f ? funilStageNames(f) : []).map((n, i) => ({ value: String(i), label: n })), default: "0" },
         { key: "origem", label: "Origem padrão (quando a linha não tiver)", type: "text", placeholder: "Ex.: Treinão 14/11", default: "Importação de planilha" },
+        { key: "jaExistem", label: "Quem já está cadastrado (mesmo telefone, e-mail ou documento)", type: "select", default: "pular", choices: [
+          { value: "pular", label: "Não mexer (pular)" },
+          { value: "mover", label: "Mover para o funil e a etapa acima (clientes já fechados ficam como estão)" },
+          { value: "mover_todos", label: "Mover todos, inclusive os já fechados" },
+        ] },
       ];
     },
-    rowKeys: (v) => [emailKey(v.email), phoneKeyOf(v.phone), docKey(v.document_id)].filter(Boolean),
+    rowKeys: (v) => [emailKey(v.email), ...phonesKeys(v, "phone"), docKey(v.document_id)].filter(Boolean),
     loadExistingKeys: (onProgress) => loadKeys("leads", "email, phone, mobile_wa, document_id", ctx.tenantId,
       (r) => [emailKey(r.email), phoneKeyOf(r.phone), phoneKeyOf(r.mobile_wa), docKey(r.document_id)], onProgress, true),
+    loadExistingRefs: (onProgress) => loadRefs("leads", "email, phone, mobile_wa, document_id", ctx.tenantId,
+      (r) => [emailKey(r.email), phoneKeyOf(r.phone), phoneKeyOf(r.mobile_wa), docKey(r.document_id)], onProgress, true),
+    // Move para o funil/etapa escolhidos os leads que já existiam. Vendas fechadas só mudam se o usuário pedir ("mover_todos").
+    moveExisting: async (existing, o) => {
+      const f = funis.find((x) => x.id === o.funil) ?? padrao;
+      if (!supabase || !f) return { moved: 0, kept: 0, notes: [] };
+      const idx = Number(o.etapa) || 0;
+      const nomeEtapa = funilStageNames(f)[idx] ?? String(idx);
+      const incluirFechados = o.jaExistem === "mover_todos";
+      const alvo = existing.filter((e) => incluirFechados || e.status !== "Fechado");
+      const kept = existing.length - alvo.length;
+      let moved = 0;
+      for (let i = 0; i < alvo.length; i += 100) {
+        const ids = alvo.slice(i, i + 100).map((e) => e.id);
+        const { data, error } = await supabase.from("leads")
+          .update({ pipelineId: pipelineIdDoFunil(f), stageId: getStageId(f.id, idx), status: "Novo" })
+          .in("id", ids).eq("tenant_id", ctx.tenantId).select("id");
+        if (error) throw new Error(describeDbError(error));
+        moved += data?.length ?? 0;
+      }
+      const notes: string[] = [];
+      if (moved > 0) notes.push(`${moved.toLocaleString("pt-BR")} lead(s) que já existiam foram movidos para "${f.nome} › ${nomeEtapa}".`);
+      if (kept > 0) notes.push(`${kept.toLocaleString("pt-BR")} que já eram clientes fechados ficaram como estavam.`);
+      return { moved, kept, notes };
+    },
     // Atribui o responsável de cada lead conforme a distribuição escolhida (depois de tirar os duplicados, para a conta fechar).
     resolve: async (rows, o) => {
       const cfg = parseDist(o.distribuicao ?? "");
@@ -121,7 +172,8 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
     },
     build: (v, extras, o) => {
       const f = funis.find((x) => x.id === o.funil) ?? padrao;
-      const notes = [v.notes, extrasToNotes(extras)].filter(Boolean).join("\n");
+      const outros = Array.isArray(v.phone__todos) && v.phone__todos.length > 1 ? `Outros telefones: ${v.phone__todos.slice(1).join(", ")}` : "";
+      const notes = [v.notes, outros, extrasToNotes(extras)].filter(Boolean).join("\n");
       return {
         name: v.name || v.email || v.phone || "Lead importado",
         company: v.company || null,
@@ -179,7 +231,7 @@ export function clientesSpec(ctx: { tenantId: string; onDone?: () => void }, kin
       { key: "bairro", label: "Bairro", aliases: ["bairro"] },
     ],
     needOne: ["name"],
-    rowKeys: (v) => [docKey(v.documento), emailKey(v.email), phoneKeyOf(v.phone)].filter(Boolean),
+    rowKeys: (v) => [docKey(v.documento), emailKey(v.email), ...phonesKeys(v, "phone")].filter(Boolean),
     loadExistingKeys: (onProgress) => loadKeys("clientes", "documento, email, phone", ctx.tenantId, (r) => [docKey(r.documento), emailKey(r.email), phoneKeyOf(r.phone)], onProgress),
     build: (v, _x, o) => ({
       ...(kind === "financeiro" ? { tipos: [o.tipo || "CLIENTE"], tipo_pessoa: String(v.documento || "").length === 14 ? "PJ" : "PF" } : {}),
@@ -226,7 +278,7 @@ export function pacientesSpec(ctx: { tenantId: string; onDone?: () => void }): I
       { key: "observacoes", label: "Observações", aliases: ["observacoes", "observacao", "obs"] },
     ],
     needOne: ["nome"],
-    rowKeys: (v) => [docKey(v.cpf), emailKey(v.email), phoneKeyOf(v.telefone)].filter(Boolean),
+    rowKeys: (v) => [docKey(v.cpf), emailKey(v.email), ...phonesKeys(v, "telefone")].filter(Boolean),
     loadExistingKeys: (onProgress) => loadKeys("pacientes", "cpf, email, telefone", ctx.tenantId, (r) => [docKey(r.cpf), emailKey(r.email), phoneKeyOf(r.telefone)], onProgress),
     build: (v, extras) => ({
       nome: v.nome,
@@ -263,7 +315,7 @@ export function alunosSpec(ctx: { tenantId: string; turmaId?: string | null; onD
       { key: "telefone", label: "Telefone / WhatsApp", kind: "phone", aliases: ["whatsapp", "telefone", "celular", "fone"] },
     ],
     needOne: ["nome"],
-    rowKeys: (v) => [emailKey(v.email), phoneKeyOf(v.telefone)].filter(Boolean),
+    rowKeys: (v) => [emailKey(v.email), ...phonesKeys(v, "telefone")].filter(Boolean),
     loadExistingKeys: (onProgress) => loadKeys("students", "email, telefone", ctx.tenantId, (r) => [emailKey(r.email), phoneKeyOf(r.telefone)], onProgress),
     build: (v) => ({
       nome: v.nome,
@@ -345,7 +397,7 @@ export function contatosSpec(ctx: { tenantId: string; onDone?: () => void }): Im
       { key: "observacoes", label: "Observações", aliases: ["observacoes", "observacao", "obs"] },
     ],
     needOne: ["nome"],
-    rowKeys: (v) => [emailKey(v.email), phoneKeyOf(v.whatsapp), phoneKeyOf(v.telefone)].filter(Boolean),
+    rowKeys: (v) => [emailKey(v.email), ...phonesKeys(v, "whatsapp"), ...phonesKeys(v, "telefone")].filter(Boolean),
     loadExistingKeys: (onProgress) => loadKeys("cliente_contatos", "email, telefone, whatsapp", ctx.tenantId, (r) => [emailKey(r.email), phoneKeyOf(r.telefone), phoneKeyOf(r.whatsapp)], onProgress),
     resolve: async (rows: BuiltRow[]) => {
       const byName = new Map<string, string>(), byDoc = new Map<string, string>();
@@ -403,7 +455,7 @@ export function fornecedoresSpec(ctx: { tenantId: string; onDone?: () => void })
       { key: "categorias", label: "Categorias", aliases: ["categorias", "categoria", "linha", "segmento"] },
     ],
     needOne: ["razao_social"],
-    rowKeys: (v) => [docKey(v.cnpj), emailKey(v.email), phoneKeyOf(v.telefone)].filter(Boolean),
+    rowKeys: (v) => [docKey(v.cnpj), emailKey(v.email), ...phonesKeys(v, "telefone")].filter(Boolean),
     loadExistingKeys: (onProgress) => loadKeys("varejo_fornecedores", "cnpj, email, telefone", ctx.tenantId, (r) => [docKey(r.cnpj), emailKey(r.email), phoneKeyOf(r.telefone)], onProgress),
     build: (v) => ({ razao_social: v.razao_social, cnpj: v.cnpj || null, contato: v.contato || null, telefone: v.telefone || null, email: v.email || null, prazo_entrega: v.prazo_entrega || null, categorias: v.categorias || null, tenant_id: ctx.tenantId }),
     insertBatch: (rows) => insertInto("varejo_fornecedores", rows),
@@ -430,7 +482,7 @@ export function proprietariosSpec(ctx: { tenantId: string; onDone?: () => void }
       { key: "tipo", label: "Tipo", aliases: ["tipo", "pessoa"] },
     ],
     needOne: ["nome"],
-    rowKeys: (v) => [emailKey(v.email), phoneKeyOf(v.telefone)].filter(Boolean),
+    rowKeys: (v) => [emailKey(v.email), ...phonesKeys(v, "telefone")].filter(Boolean),
     loadExistingKeys: (onProgress) => loadKeys("imobiliario_proprietarios", "email, telefone", ctx.tenantId, (r) => [emailKey(r.email), phoneKeyOf(r.telefone)], onProgress),
     build: (v) => ({ nome: v.nome, telefone: v.telefone || null, email: v.email || null, tipo: v.tipo || "Pessoa Física", status: "Ativo", tenant_id: ctx.tenantId }),
     insertBatch: (rows) => insertInto("imobiliario_proprietarios", rows),

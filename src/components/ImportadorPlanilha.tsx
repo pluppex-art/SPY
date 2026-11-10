@@ -85,12 +85,29 @@ export function ImportadorPlanilha({ spec, open, onClose }: { spec: ImportSpec; 
     const res: Result = { inserted: 0, duplicates: 0, failed: 0, empty: built.empty, errors: [], notes: [] };
     try {
       let existing = new Set<string>();
-      if (spec.loadExistingKeys && spec.rowKeys) {
+      let refs: Map<string, { id: string; status: string }> | null = null;
+      const mover = !!spec.moveExisting && !!spec.loadExistingRefs && String(optValues.jaExistem || "pular").startsWith("mover");
+      if (mover) {
+        setProgress({ label: "Conferindo quem já está cadastrado…", done: 0, total: 0 });
+        refs = await spec.loadExistingRefs!((n) => setProgress({ label: "Conferindo quem já está cadastrado…", done: n, total: 0 }));
+        existing = new Set(refs.keys());
+      } else if (spec.loadExistingKeys && spec.rowKeys) {
         setProgress({ label: "Conferindo quem já está cadastrado…", done: 0, total: 0 });
         existing = await spec.loadExistingKeys((n) => setProgress({ label: "Conferindo quem já está cadastrado…", done: n, total: 0 }));
       }
       const dups = findDuplicates(built.rows, spec, existing);
       res.duplicates = dups.size;
+      if (mover && refs && dups.size > 0) { // leva para o funil escolhido quem já existia (em vez de só pular)
+        const achados = new Map<string, { id: string; status: string }>();
+        dups.forEach((i) => { for (const k of spec.rowKeys!(built.rows[i].values)) { const r = refs!.get(k); if (r) { achados.set(r.id, r); break; } } });
+        setProgress({ label: "Movendo quem já estava cadastrado…", done: 0, total: 0 });
+        try {
+          const mv = await spec.moveExisting!(Array.from(achados.values()), optValues);
+          res.notes.push(...mv.notes);
+        } catch (e: any) { // falha ao mover não pode impedir a importação dos novos
+          res.errors.push(`Não consegui mover os que já existiam: ${e?.message || "erro desconhecido"}`);
+        }
+      }
       let todo = built.rows.filter((_, i) => !dups.has(i));
       if (spec.resolve) {
         setProgress({ label: "Ligando cada linha ao cadastro certo…", done: 0, total: 0 });
