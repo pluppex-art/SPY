@@ -8,6 +8,9 @@ import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { apiFetch } from "../../lib/apiClient";
+import { readTableFile } from "../../lib/tableFile";
+import { EMAIL_IN_TEXT, parseManualText } from "../../lib/importer";
+import { FileSpreadsheet } from "lucide-react";
 
 // Disparo de e-mail em massa: monta o público a partir dos leads da empresa (por origem/status), cria a campanha
 // e envia em lotes com progresso. Sai pelo SMTP da empresa (Integrações → SMTP) ou, sem ele, pelo da plataforma.
@@ -40,6 +43,32 @@ export default function MarketingEmail() {
   const [body, setBody] = useState("");
   const [sources, setSources] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
+  const [inclLeads, setInclLeads] = useState(true);
+  const [inclClientes, setInclClientes] = useState(false);
+  const [inclContatos, setInclContatos] = useState(false);
+  const [inclEquipe, setInclEquipe] = useState(false);
+  const [manual, setManual] = useState<{ email: string; name: string }[]>([]);
+  const [manualText, setManualText] = useState("");
+  const [fileName, setFileName] = useState("");
+  const audience = { leads: inclLeads, clientes: inclClientes, contatos: inclContatos, equipe: inclEquipe, sources, statuses, manual };
+
+  const onManualText = (t: string) => { setManualText(t); setFileName(""); setManual(parseManualText(t)); };
+  const onSheet = async (file?: File | null) => {
+    if (!file) return;
+    try {
+      const t = await readTableFile(file, { maxBytes: 20 * 1024 * 1024, maxRows: 50_000 });
+      const nameCol = t.headers.findIndex((h) => /nome|name/i.test(h));
+      const people: { email: string; name: string }[] = [];
+      for (const r of t.rows) {
+        const idx = r.findIndex((c) => EMAIL_IN_TEXT.test(c));
+        if (idx < 0) continue;
+        const email = r[idx].match(EMAIL_IN_TEXT)![0].toLowerCase();
+        people.push({ email, name: nameCol >= 0 && nameCol !== idx ? r[nameCol] : "" });
+      }
+      if (!people.length) { toast.error("Não encontrei nenhum e-mail nessa planilha."); return; }
+      setManual(people); setManualText(""); setFileName(`${file.name} · ${people.length} e-mail(s)`);
+    } catch (e: any) { toast.error(e?.message || "Não consegui ler a planilha."); }
+  };
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -57,20 +86,20 @@ export default function MarketingEmail() {
     if (!open) return;
     setPreviewing(true);
     const t = setTimeout(() => {
-      apiFetch("/api/email-campaigns/audience-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audience: { sources, statuses } }) })
+      apiFetch("/api/email-campaigns/audience-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audience }) })
         .then(json).then(setPreview).catch(() => setPreview(null)).finally(() => setPreviewing(false));
     }, 350);
     return () => clearTimeout(t);
-  }, [open, sources, statuses]);
+  }, [open, sources, statuses, inclLeads, inclClientes, inclContatos, inclEquipe, manual]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (list: string[], set: (v: string[]) => void, v: string) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
   const create = async () => {
     setCreating(true);
     try {
-      const r = await apiFetch("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body, audience: { sources, statuses } }) }).then(json);
+      const r = await apiFetch("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body, audience }) }).then(json);
       toast.success(`Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
-      setOpen(false); setName(""); setSubject(""); setBody(""); setSources([]); setStatuses([]);
+      setOpen(false); setName(""); setSubject(""); setBody(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
       await load();
     } catch (e: any) { toast.error(e.message); } finally { setCreating(false); }
   };
@@ -111,7 +140,7 @@ export default function MarketingEmail() {
   return (
     <PageContainer
       title="E-mail em massa"
-      description="Envie um e-mail para uma lista de leads (por exemplo, todos os inscritos de um evento) com descadastro automático."
+      description="Envie um e-mail para leads, clientes, contatos, equipe ou uma lista própria (colada ou de planilha) — com ou sem cadastro no sistema — com descadastro automático."
       actions={<div className="flex gap-2"><Button variant="outline" onClick={() => void load()} className="h-9 px-3 text-xs gap-1.5"><RefreshCw className="w-3.5 h-3.5" /></Button><Button onClick={() => setOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5"><Plus className="w-3.5 h-3.5" /> Nova campanha</Button></div>}
     >
       <div className="space-y-4 max-w-4xl">
@@ -180,15 +209,29 @@ export default function MarketingEmail() {
             <span className="font-normal">Use <code>{"{{nome}}"}</code>, <code>{"{{primeiro_nome}}"}</code> e <code>{"{{empresa}}"}</code>. O link para sair da lista é adicionado sozinho no rodapé.</span></label>
 
           <div className="space-y-2">
-            <p className="text-[11px] font-bold text-[var(--color-text-muted)]">Quem recebe — filtre por origem (ex.: o evento) e/ou status. Sem filtro = todos os leads com e-mail.</p>
-            {options && options.sources.length > 0 && (
+            <p className="text-[11px] font-bold text-[var(--color-text-muted)]">Quem recebe — pode ser gente que está no sistema ou não. Marque as fontes e/ou use uma lista própria.</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-[var(--color-text-primary)]">
+              {([["Leads", inclLeads, setInclLeads], ["Clientes", inclClientes, setInclClientes], ["Contatos das empresas", inclContatos, setInclContatos], ["Equipe (usuários do sistema)", inclEquipe, setInclEquipe]] as const).map(([l, v, set]) => (
+                <label key={l} className="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={v} onChange={(e) => set(e.target.checked)} /> {l}</label>))}
+            </div>
+            {inclLeads && <p className="text-[11px] text-[var(--color-text-muted)]">Leads: sem filtro = todos com e-mail. Filtre por origem (ex.: o evento) e/ou status:</p>}
+            {inclLeads && options && options.sources.length > 0 && (
               <div className="flex flex-wrap gap-1.5">{options.sources.slice(0, 40).map((o) => (
                 <button key={`s-${o.value}`} type="button" onClick={() => toggle(sources, setSources, o.value)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${sources.includes(o.value) ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>{o.value || "(sem origem)"} · {o.count}</button>))}</div>
             )}
-            {options && options.statuses.length > 0 && (
+            {inclLeads && options && options.statuses.length > 0 && (
               <div className="flex flex-wrap gap-1.5">{options.statuses.map((o) => (
                 <button key={`t-${o.value}`} type="button" onClick={() => toggle(statuses, setStatuses, o.value)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${statuses.includes(o.value) ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>Status: {o.value || "—"} · {o.count}</button>))}</div>
             )}
+            <div className="space-y-1.5 p-3 rounded-xl border border-dashed border-[var(--color-border-default)]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-[var(--color-text-muted)]">Lista própria (não precisa estar no sistema)</span>
+                <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[var(--color-primary-blue)] cursor-pointer"><FileSpreadsheet className="w-3.5 h-3.5" /> Carregar planilha
+                  <input type="file" accept=".xlsx,.csv,.txt" className="hidden" onChange={(e) => { void onSheet(e.target.files?.[0]); e.target.value = ""; }} /></label>
+              </div>
+              <textarea value={manualText} onChange={(e) => onManualText(e.target.value)} rows={3} placeholder={"Cole e-mails, um por linha. Pode ser:\nana@email.com\nBruno Alves, bruno@email.com"} className="w-full px-2 py-1.5 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" />
+              {(fileName || manual.length > 0) && <p className="text-[11px] text-[var(--color-text-muted)]">{fileName || `${manual.length} e-mail(s) colado(s)`} — a planilha só precisa ter uma coluna com e-mail (e, se quiser, uma "Nome").</p>}
+            </div>
             <div className="p-3 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)]">
               {previewing ? <span className="inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculando…</span>
                 : preview ? <><b className="text-[var(--color-text-primary)] text-sm">{preview.total.toLocaleString("pt-BR")}</b> destinatário(s){preview.repetidos + preview.descadastrados + preview.semEmail > 0 && <> · fora da lista: {preview.repetidos} repetido(s), {preview.descadastrados} descadastrado(s), {preview.semEmail} com e-mail inválido</>}

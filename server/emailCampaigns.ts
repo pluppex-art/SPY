@@ -17,7 +17,15 @@ const PAGE = 1000;
 const EMAIL_RE = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-export interface Audience { sources?: string[]; statuses?: string[] }
+export interface Audience {
+  /** Filtros aplicados só aos leads. */
+  sources?: string[]; statuses?: string[];
+  /** Quais cadastros entram. Leads entra por padrão (false para desligar). */
+  leads?: boolean; clientes?: boolean; contatos?: boolean; equipe?: boolean;
+  /** Lista própria: pessoas que podem nem estar no sistema (inscritos de um formulário, etc.). */
+  manual?: { email: string; name?: string }[];
+}
+interface Candidate { id: string; email: unknown; name?: string | null; company?: string | null }
 
 const secret = () => process.env.EMAIL_OPTOUT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || "";
 const sign = (tenantId: string, email: string) => crypto.createHmac("sha256", secret()).update(`${tenantId}|${email}`).digest("hex").slice(0, 32);
@@ -88,23 +96,65 @@ async function optoutSet(db: any, tenantId: string): Promise<Set<string>> {
   return s;
 }
 
-export function selectAudience(leads: any[], aud: Audience, optouts: Set<string>) {
+function filterLeads(leads: any[], aud: Audience): Candidate[] {
   const sources = new Set((aud.sources || []).map(String));
   const statuses = new Set((aud.statuses || []).map(String));
+  return leads.filter((l) => (!sources.size || sources.has(String(l.source ?? ""))) && (!statuses.size || statuses.has(String(l.status ?? ""))))
+    .map((l) => ({ id: `lead:${l.id}`, email: l.email, name: l.name, company: l.company }));
+}
+
+/** Tira inválidos, descadastrados e repetidos (o mesmo e-mail entra uma vez só, venha de onde vier). */
+export function dedupeCandidates(cands: Candidate[], optouts: Set<string>) {
   const seen = new Set<string>();
   const rows: { lead_id: string; email: string; name: string; company: string | null }[] = [];
   let semEmail = 0, descadastrados = 0, repetidos = 0;
-  for (const l of leads) {
-    if (sources.size && !sources.has(String(l.source ?? ""))) continue;
-    if (statuses.size && !statuses.has(String(l.status ?? ""))) continue;
-    const email = cleanEmail(l.email);
+  for (const c of cands) {
+    const email = cleanEmail(c.email);
     if (!email) { semEmail++; continue; }
     if (optouts.has(email)) { descadastrados++; continue; }
     if (seen.has(email)) { repetidos++; continue; }
     seen.add(email);
-    rows.push({ lead_id: String(l.id), email, name: String(l.name || ""), company: l.company ? String(l.company) : null });
+    rows.push({ lead_id: c.id, email, name: String(c.name || "").trim().slice(0, 120), company: c.company ? String(c.company).slice(0, 120) : null });
   }
   return { rows, semEmail, descadastrados, repetidos };
+}
+
+export function selectAudience(leads: any[], aud: Audience, optouts: Set<string>) {
+  return dedupeCandidates(filterLeads(leads, aud), optouts);
+}
+
+async function pagedTable(db: any, table: string, columns: string, tenantId: string, extra?: (q: any) => any): Promise<any[]> {
+  const out: any[] = [];
+  for (let from = 0; from < 60_000; from += PAGE) {
+    let q = db.from(table).select(columns).eq("tenant_id", tenantId);
+    if (extra) q = extra(q);
+    const { data, error } = await q.range(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    out.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
+}
+
+/** Junta todas as fontes escolhidas (leads, clientes, contatos, equipe e lista própria) já sem repetidos/descadastrados. */
+export async function resolveAudience(db: any, tenantId: string, aud: Audience) {
+  const cands: Candidate[] = [];
+  if (aud.leads !== false) cands.push(...filterLeads(await pagedLeads(db, tenantId), aud));
+  if (aud.clientes) cands.push(...(await pagedTable(db, "clientes", "id, name, email", tenantId, (q) => q.not("email", "is", null).neq("email", ""))).map((r) => ({ id: `cliente:${r.id}`, email: r.email, name: r.name, company: r.name })));
+  if (aud.contatos) cands.push(...(await pagedTable(db, "cliente_contatos", "id, nome, email", tenantId, (q) => q.not("email", "is", null).neq("email", ""))).map((r) => ({ id: `contato:${r.id}`, email: r.email, name: r.nome })));
+  if (aud.equipe) cands.push(...(await pagedTable(db, "users", "id, name, email, active", tenantId)).filter((r) => r.active !== false).map((r) => ({ id: `usuario:${r.id}`, email: r.email, name: r.name })));
+  if (Array.isArray(aud.manual)) cands.push(...aud.manual.slice(0, MAX_RECIPIENTS + 1).map((m, i) => ({ id: "manual", email: m?.email, name: m?.name })));
+  return dedupeCandidates(cands, await optoutSet(db, tenantId));
+}
+
+/** Corpo da requisição → público (só campos conhecidos, com limites). */
+export function parseAudience(raw: any): Audience {
+  const arr = (v: any) => (Array.isArray(v) ? v.map(String).slice(0, 100) : []);
+  return {
+    sources: arr(raw?.sources), statuses: arr(raw?.statuses),
+    leads: raw?.leads !== false, clientes: raw?.clientes === true, contatos: raw?.contatos === true, equipe: raw?.equipe === true,
+    manual: Array.isArray(raw?.manual) ? raw.manual.slice(0, MAX_RECIPIENTS + 1).map((m: any) => ({ email: String(m?.email ?? "").slice(0, 254), name: String(m?.name ?? "").slice(0, 120) })) : [],
+  };
 }
 
 const baseUrl = (req: any) => (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, "");
@@ -141,7 +191,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     try {
-      const sel = selectAudience(await pagedLeads(supabaseService, tenantId), req.body?.audience || {}, await optoutSet(supabaseService, tenantId));
+      const sel = await resolveAudience(supabaseService, tenantId, parseAudience(req.body?.audience));
       res.json({ total: sel.rows.length, semEmail: sel.semEmail, descadastrados: sel.descadastrados, repetidos: sel.repetidos, sample: sel.rows.slice(0, 5).map((r) => ({ name: r.name, email: r.email })) });
     } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao calcular o público." }); }
   });
@@ -164,10 +214,11 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const body = String(req.body?.body || "").trim().slice(0, 20_000);
     if (!name || !subject || !body) return res.status(400).json({ error: "Informe nome, assunto e mensagem." });
     try {
-      const sel = selectAudience(await pagedLeads(supabaseService, tenantId), req.body?.audience || {}, await optoutSet(supabaseService, tenantId));
+      const aud = parseAudience(req.body?.audience);
+      const sel = await resolveAudience(supabaseService, tenantId, aud);
       if (sel.rows.length === 0) return res.status(400).json({ error: "Nenhum destinatário com e-mail válido nesse público." });
       if (sel.rows.length > MAX_RECIPIENTS) return res.status(400).json({ error: `Público com ${sel.rows.length} pessoas; o máximo por campanha é ${MAX_RECIPIENTS}. Filtre por origem ou status.` });
-      const audience = { sources: (req.body?.audience?.sources || []).map(String).slice(0, 100), statuses: (req.body?.audience?.statuses || []).map(String).slice(0, 100) };
+      const audience = { ...aud, manual: undefined, manualCount: aud.manual?.length || 0 }; // a lista própria fica nos destinatários, não duplicada aqui
       const { data: camp, error } = await supabaseService.from("email_campaigns")
         .insert({ tenant_id: tenantId, name, subject, body, audience, total: sel.rows.length, status: "ready", created_by: req.user.id }).select("id").single();
       if (error) throw new Error(error.message);

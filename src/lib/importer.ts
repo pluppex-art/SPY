@@ -171,3 +171,20 @@ export function templateToCsv(template: string[][]): string {
   const esc = (c: string) => (/[",\n;]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c);
   return "﻿" + template.map((r) => r.map(esc).join(",")).join("\r\n");
 }
+
+export const EMAIL_IN_TEXT = /[^\s@,;<>()"']+@[^\s@,;<>()"']+\.[^\s@,;<>()"']+/;
+
+/** Texto colado → pessoas. Aceita um e-mail por linha, "Nome, email" ou "Nome <email>"; vários e-mails na mesma linha (vírgula, ; ou tab) também. */
+export function parseManualText(text: string): { email: string; name: string }[] {
+  const out: { email: string; name: string }[] = [];
+  const re = new RegExp(EMAIL_IN_TEXT.source, "g");
+  for (const line of text.split(/\r?\n/)) {
+    for (const part of line.split(/[;\t]/)) {
+      const emails = part.match(re);
+      if (!emails) continue;
+      const name = emails.length === 1 ? part.replace(emails[0], "").replace(/[<>,;"]/g, " ").replace(/\s+/g, " ").trim() : "";
+      emails.forEach((e) => out.push({ email: e.toLowerCase(), name }));
+    }
+  }
+  return out;
+}
