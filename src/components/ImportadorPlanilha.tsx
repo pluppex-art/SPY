@@ -6,7 +6,7 @@ import { Button } from "./ui/button";
 import { readTableFile, type ParsedTable } from "../lib/tableFile";
 import {
   MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, buildRows, findDuplicates, guessColumns, templateToCsv,
-  type ImportSpec,
+  type BuiltRow, type ImportSpec,
 } from "../lib/importer";
 import { friendlyError } from "../lib/friendlyError";
 import { suppressPopups } from "../lib/popups";
@@ -99,18 +99,56 @@ export function ImportadorPlanilha({ spec, open, onClose }: { spec: ImportSpec; 
         res.notes.push(...(r.notes || []));
         res.failed += r.rejected.length;
         const byReason = new Map<string, number[]>();
-        r.rejected.forEach((x) => byReason.set(x.reason, [...(byReason.get(x.reason) || []), x.line + 1]));
+        r.rejected.forEach((x) => byReason.set(x.reason, [...(byReason.get(x.reason) || []), x.line + off]));
         byReason.forEach((lines, reason) => res.errors.push(`${reason} — ${lines.length} linha(s), ex.: ${lines.slice(0, 5).join(", ")}`));
       }
+      if (off > 1) res.notes.push(`Cabeçalho encontrado na linha ${off}; as ${off - 1} linha(s) de título acima foram ignoradas.`);
+
+      // Um lote que falha NÃO pode derrubar as outras linhas: isola a(s) linha(s) com problema (divide o lote ao meio até achar)
+      // e importa o resto. Se o erro for sistemático (mesmo erro na 1ª, do meio e última linha), para logo em vez de repetir.
+      const falhas = new Map<string, number[]>();
+      const marca = (r: BuiltRow, msg: string) => { res.failed++; falhas.set(msg, [...(falhas.get(msg) || []), r.line + off]); };
+      const montar = (c: BuiltRow[]) => c.map((r) => spec.build(r.values, r.extras, optValues));
+      const enviar = async (c: BuiltRow[]): Promise<void> => {
+        const err = await spec.insertBatch(montar(c));
+        if (!err) { res.inserted += c.length; return; }
+        if (c.length === 1) { marca(c[0], err); return; }
+        const meio = Math.ceil(c.length / 2);
+        await enviar(c.slice(0, meio));
+        await enviar(c.slice(meio));
+      };
       const size = spec.batchSize ?? 200;
+      let abortou = false;
       for (let i = 0; i < todo.length; i += size) {
         if (cancelRef.current) { res.errors.push("Importação interrompida por você. O que já entrou foi mantido."); break; }
         const chunk = todo.slice(i, i + size);
         setProgress({ label: "Importando…", done: i, total: todo.length });
-        const err = await spec.insertBatch(chunk.map((r) => spec.build(r.values, r.extras, optValues)));
-        if (err) { res.failed += chunk.length; res.errors.push(`Linhas ${chunk[0].line + 1} a ${chunk[chunk.length - 1].line + 1} da planilha: ${err}`); }
-        else res.inserted += chunk.length;
+        const err = await spec.insertBatch(montar(chunk));
+        if (!err) { res.inserted += chunk.length; continue; }
+        if (chunk.length > 2) {
+          const amostra = [chunk[0], chunk[Math.floor(chunk.length / 2)], chunk[chunk.length - 1]];
+          const msgs = await Promise.all(amostra.map((r) => spec.insertBatch(montar([r]))));
+          if (msgs.every((m) => m === err)) { // erro sistemático: não adianta tentar o resto
+            chunk.forEach((r) => marca(r, err));
+            const restantes = todo.length - (i + chunk.length);
+            if (restantes > 0) res.errors.push(`Parei após o mesmo erro em todas as linhas testadas (${err}). As outras ${restantes.toLocaleString("pt-BR")} linha(s) não foram tentadas — corrija e importe de novo.`);
+            abortou = true;
+            break;
+          }
+          // alguma linha entrou: já está gravada; só falta tratar as que não entraram
+          const ok = amostra.filter((_, k) => !msgs[k]).length;
+          res.inserted += ok;
+          const resto = chunk.filter((r) => !amostra.includes(r));
+          amostra.forEach((r, k) => { if (msgs[k]) marca(r, msgs[k] as string); });
+          const meio = Math.ceil(resto.length / 2);
+          await enviar(resto.slice(0, meio));
+          await enviar(resto.slice(meio));
+        } else {
+          await enviar(chunk);
+        }
       }
+      falhas.forEach((linhas, msg) => res.errors.push(`${linhas.length.toLocaleString("pt-BR")} linha(s) com problema — ${msg}. Ex.: linha(s) ${linhas.slice(0, 6).join(", ")}${linhas.length > 6 ? "…" : ""}`));
+      void abortou;
     } catch (e: any) {
       res.errors.push(friendlyError(e));
     }
@@ -122,6 +160,7 @@ export function ImportadorPlanilha({ spec, open, onClose }: { spec: ImportSpec; 
     if (res.inserted > 0 && res.failed === 0) toast.success(`${res.inserted} importado(s).`);
   };
 
+  const off = table?.headerRow ?? 1; // linha da planilha = linha de dados + off
   const sample = (col: number) => table?.rows.slice(0, 3).map((r) => r[col]).filter(Boolean).join(" · ").slice(0, 60) || "—";
   const pct = progress && progress.total ? Math.round((progress.done / progress.total) * 100) : null;
 
@@ -154,6 +193,7 @@ export function ImportadorPlanilha({ spec, open, onClose }: { spec: ImportSpec; 
             <FileSpreadsheet className="w-4 h-4 text-[var(--color-primary-blue)]" />
             <b className="text-[var(--color-text-primary)] truncate">{table.fileName}</b>
             <span>· {table.rows.length.toLocaleString("pt-BR")} linha(s)</span>
+            {(table.headerRow ?? 1) > 1 && <span className="text-[var(--color-text-faint)]">· cabeçalho na linha {table.headerRow} (título acima ignorado)</span>}
           </div>
 
           {options.filter((o) => o.type === "vendedores").map((o) => (

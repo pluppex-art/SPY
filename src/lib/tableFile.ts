@@ -8,6 +8,8 @@ export const MAX_ROWS = 8000;
 const ALLOWED_EXT = ["csv", "xlsx", "xls"];
 
 export interface ParsedTable {
+  /** Linha da planilha (1 = primeira) onde está o cabeçalho; >1 quando há título/data em cima. */
+  headerRow?: number;
   headers: string[];
   rows: string[][];
   fileName: string;
@@ -56,12 +58,18 @@ export async function readTableFile(file: File, opts: { maxBytes?: number; maxRo
   }
 
   matrix = matrix.filter((r) => r.some((c) => c !== ""));
+  // Relatórios exportados de outros sistemas trazem título/data nas primeiras linhas ("Relatório de Clientes", "Emitido em…")
+  // com UMA célula só. O cabeçalho é a primeira linha com 2+ células; o que vier antes é ignorado.
+  let headerRow = 1;
+  const preenchidas = (r: string[]) => r.filter((c) => c !== "").length;
+  const h = matrix.slice(0, 12).findIndex((r) => preenchidas(r) >= 2);
+  if (h > 0 && matrix.slice(0, h).every((r) => preenchidas(r) <= 1)) { matrix = matrix.slice(h); headerRow = h + 1; }
   if (matrix.length < 2) throw new Error("A planilha precisa de um cabeçalho e ao menos uma linha.");
   const width = Math.max(...matrix.map((r) => r.length));
   const headers = matrix[0].concat(Array(Math.max(0, width - matrix[0].length)).fill("")).map((h, i) => h || `Coluna ${i + 1}`);
   const rows = matrix.slice(1).map((r) => r.concat(Array(Math.max(0, width - r.length)).fill("")));
   if (rows.length > maxRows) throw new Error(`A tabela tem ${rows.length} linhas; o limite é ${maxRows}.`);
-  return { headers, rows, fileName: file.name };
+  return { headers, rows, fileName: file.name, headerRow };
 }
 
 // ─── Mapeamento de colunas ───────────────────────────────────────────────────

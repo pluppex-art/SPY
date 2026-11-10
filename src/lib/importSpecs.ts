@@ -30,10 +30,23 @@ const emailKey = (e: unknown) => { const v = normalizeEmail(e); return v ? `e:${
 const phoneKeyOf = (p: unknown) => { const k = phoneKey(p); return k.length >= 8 ? `t:${k}` : ""; };
 const docKey = (d: unknown) => { const v = String(d ?? "").replace(/\D/g, ""); return v.length >= 11 ? `d:${v}` : ""; };
 
+/** Erro do banco em português, dizendo QUAL campo/valor deu problema quando dá para saber. */
+function describeDbError(error: any): string {
+  const raw = String(error?.message ?? "");
+  const nulo = raw.match(/null value in column "([^"]+)"/i);
+  if (nulo) return `o campo "${nulo[1]}" é obrigatório e veio vazio`;
+  const longo = raw.match(/value too long for type character varying\((\d+)\)/i);
+  if (longo) return `algum texto passou de ${longo[1]} caracteres`;
+  const tipo = raw.match(/invalid input syntax for type (\w+): "([^"]*)"/i);
+  if (tipo) return `valor "${String(tipo[2]).slice(0, 40)}" inválido para ${tipo[1]}`;
+  if (/plan|limite/i.test(raw) && /lead/i.test(raw)) return "limite de leads do plano atingido";
+  return friendlyError(error);
+}
+
 async function insertInto(table: string, rows: Record<string, any>[]): Promise<string | null> {
   if (!supabase) return "Sem conexão com o banco.";
   const { error } = await supabase.from(table).insert(rows);
-  return error ? friendlyError(error) : null;
+  return error ? describeDbError(error) : null;
 }
 
 // ─── Leads ───────────────────────────────────────────────────────────────────
@@ -112,7 +125,7 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
       return {
         name: v.name || v.email || v.phone || "Lead importado",
         company: v.company || null,
-        email: v.email || null,
+        email: v.email || "", // coluna obrigatória (padrão vazio): NULL explícito derrubava o lote inteiro
         phone: v.phone || null,
         document_id: v.document_id || null,
         city: v.city || null,
@@ -297,7 +310,7 @@ export function produtosSpec(ctx: { tenantId: string; filialId?: string | null; 
       cost: typeof v.cost === "number" ? v.cost : null,
       category: v.category || null,
       type: v.type || ctx.defaultType || "Físico",
-      stock: typeof v.stock === "number" ? v.stock : null,
+      stock: typeof v.stock === "number" ? v.stock : 0, // coluna obrigatória (padrão 0)
       description: v.description || null,
       active: true,
       filial_id: ctx.filialId ?? null,
@@ -419,7 +432,7 @@ export function proprietariosSpec(ctx: { tenantId: string; onDone?: () => void }
     needOne: ["nome"],
     rowKeys: (v) => [emailKey(v.email), phoneKeyOf(v.telefone)].filter(Boolean),
     loadExistingKeys: (onProgress) => loadKeys("imobiliario_proprietarios", "email, telefone", ctx.tenantId, (r) => [emailKey(r.email), phoneKeyOf(r.telefone)], onProgress),
-    build: (v) => ({ nome: v.nome, telefone: v.telefone || null, email: v.email || null, tipo: v.tipo || null, status: "Ativo", tenant_id: ctx.tenantId }),
+    build: (v) => ({ nome: v.nome, telefone: v.telefone || null, email: v.email || null, tipo: v.tipo || "Pessoa Física", status: "Ativo", tenant_id: ctx.tenantId }),
     insertBatch: (rows) => insertInto("imobiliario_proprietarios", rows),
     template: [
       ["Nome", "WhatsApp", "E-mail", "Tipo"],
