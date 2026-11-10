@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { formatPhoneBR, whatsappDigits } from "../../../../lib/utils";
 import { Card } from "../../../../components/ui/card";
 import { Badge, type BadgeProps } from "../../../../components/ui/badge";
 import { Pagination } from "../../../../components/ui/Pagination";
@@ -49,6 +50,24 @@ function LeadTags({ tags }: { tags: any }) {
   );
 }
 
+/** Uma linha de contato (telefone ou e-mail): ícone em destaque, rótulo pequeno e valor legível; clique abre WhatsApp/e-mail sem abrir o lead. */
+function ContatoLinha({ icon, rotulo, valor, vazio, href, dica, quebra }: { icon: React.ReactNode; rotulo: string; valor: string; vazio: string; href?: string; dica: string; quebra?: boolean }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <span className={`mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${valor ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-faint)]"}`}>{icon}</span>
+      <span className="min-w-0 flex flex-col leading-tight">
+        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">{rotulo}</span>
+        {valor ? (
+          href ? (
+            <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer" title={dica} onClick={(e) => e.stopPropagation()}
+              className={`text-[13px] font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-primary-blue)] hover:underline ${quebra ? "break-all" : "whitespace-nowrap"}`}>{valor}</a>
+          ) : <span className={`text-[13px] font-semibold text-[var(--color-text-primary)] ${quebra ? "break-all" : ""}`}>{valor}</span>
+        ) : <span className="text-xs italic text-[var(--color-text-faint)]">{vazio}</span>}
+      </span>
+    </div>
+  );
+}
+
 export function PipelineListaView({
   listaLeads, sellers,
   temperatureFilter, sortOrder,
@@ -91,8 +110,12 @@ export function PipelineListaView({
                     <LeadTags tags={lead.tags} />
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-[var(--color-text-muted)] text-xs"><Mail className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" /> {lead.email}</div>
-                    <div className="flex items-center gap-2 text-[var(--color-text-muted)] mt-1 text-xs"><Phone className="w-3 h-3 text-[var(--color-text-faint)] shrink-0" /> {lead.phone}</div>
+                    <div className="flex flex-col gap-2.5 min-w-[220px]">
+                      <ContatoLinha icon={<Phone className="w-3.5 h-3.5" />} rotulo="Telefone" valor={formatPhoneBR(lead.phone)} vazio="Sem telefone"
+                        href={whatsappDigits(lead.phone) ? `https://wa.me/${whatsappDigits(lead.phone)}` : undefined} dica="Abrir no WhatsApp" />
+                      <ContatoLinha icon={<Mail className="w-3.5 h-3.5" />} rotulo="E-mail" valor={String(lead.email ?? "").trim()} vazio="Sem e-mail"
+                        href={String(lead.email ?? "").trim() ? `mailto:${String(lead.email).trim()}` : undefined} dica="Enviar e-mail" quebra />
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1.5">

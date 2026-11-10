@@ -166,6 +166,17 @@ export function whatsappDigits(raw: unknown): string {
   return d.length >= 12 && d.startsWith("55") ? d : `55${d}`;
 }
 
+/** Telefone para EXIBIR: "+55 (63) 99999-8888". Aceita com/sem 55 e com pontuação; número fora do padrão volta como veio. */
+export function formatPhoneBR(raw: unknown): string {
+  const original = String(raw ?? "").trim();
+  let d = original.replace(/\D/g, "");
+  if (!d) return "";
+  if (d.length >= 12 && d.startsWith("55")) d = d.slice(2);
+  if (d.length === 11) return `+55 (${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `+55 (${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return original;
+}
+
 /** Data (YYYY-MM-DD) e hora (YYYY-MM-DDTHH:mm:ss) no fuso LOCAL — toISOString() usa UTC e, à noite no Brasil, vira o dia seguinte. */
 export function dataLocalISO(d: Date = new Date()): string {
   const p = (n: number) => String(n).padStart(2, "0");
