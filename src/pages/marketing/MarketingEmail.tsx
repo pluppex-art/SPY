@@ -26,6 +26,12 @@ export default function MarketingEmail() {
   const [options, setOptions] = useState<Options | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<string | null>(null);
+  const [check, setCheck] = useState<{ kind: string; host?: string; port?: number; encryption?: string; fromDomain?: string; verified: boolean; error?: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const verifySender = async () => {
+    setChecking(true);
+    try { setCheck(await apiFetch("/api/email-campaigns/sender-check").then(json)); } catch (e: any) { toast.error(e.message); } finally { setChecking(false); }
+  };
   const stopRef = useRef(false);
 
   const [open, setOpen] = useState(false);
@@ -118,6 +124,12 @@ export default function MarketingEmail() {
               {options.sender.kind === "tenant"
                 ? <>Os e-mails saem do seu SMTP (<b className="text-[var(--color-text-primary)]">{options.sender.from}</b>).</>
                 : <>Você ainda não configurou o seu SMTP: os e-mails sairiam pelo remetente da <b className="text-[var(--color-text-primary)]">plataforma S.P.Y.</b>. Para listas grandes, o ideal é enviar do domínio da sua empresa — configure em <Link to="/app/configuracoes/integracoes/smtp" className="font-bold text-[var(--color-primary-blue)]">Integrações › SMTP</Link>.</>}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button variant="outline" onClick={() => void verifySender()} disabled={checking} className="h-7 px-2.5 text-[11px] gap-1.5">{checking && <Loader2 className="w-3 h-3 animate-spin" />} Verificar conexão do remetente</Button>
+                {check && (check.verified
+                  ? <span className="font-bold text-[var(--color-success)]">Conexão OK · {check.host}:{check.port} ({check.encryption}) · domínio {check.fromDomain}</span>
+                  : <span className="font-bold text-[var(--color-danger)]">Falhou{check.host ? ` em ${check.host}:${check.port}` : ""}: {check.error}</span>)}
+              </div>
             </div>
           </Card>
         )}

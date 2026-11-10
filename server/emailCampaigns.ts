@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { Express } from "express";
-import { sendTenantEmail } from "./mailer.js";
+import { sendTenantEmail, checkTenantSender } from "./mailer.js";
 
 // Disparo de e-mail em massa por empresa (genérico, qualquer tenant). Regras:
 //  - público = leads DA EMPRESA com e-mail válido, filtrados por origem/status; sem repetidos e sem descadastrados;
@@ -128,6 +128,13 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       const own = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
       res.json({ sources: count("source"), statuses: count("status"), sender: own ? { kind: "tenant", from: String(t.fromEmail) } : { kind: "platform" } });
     } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao ler os leads." }); }
+  });
+
+  // Confere o remetente (login no SMTP, sem enviar e-mail). Só dados não secretos.
+  app.get("/api/email-campaigns/sender-check", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    res.json(await checkTenantSender(supabaseService, tenantId));
   });
 
   app.post("/api/email-campaigns/audience-preview", requireUser, limiter, async (req: any, res: any) => {

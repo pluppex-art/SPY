@@ -77,3 +77,31 @@ export async function sendPlatformEmail(mail: OutgoingEmail): Promise<{ messageI
   const info = await transporter.sendMail({ from: e.SPY_SMTP_FROM, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments });
   return { messageId: String(info.messageId || "") };
 }
+
+/**
+ * Diagnóstico do remetente que SERIA usado pela empresa: confere o login no SMTP (sem enviar e-mail) e devolve
+ * só dados não secretos (servidor, porta, criptografia, domínio do remetente). Nunca devolve usuário nem senha.
+ */
+export async function checkTenantSender(db: any, tenantId: string): Promise<{ kind: "tenant" | "platform" | "none"; host?: string; port?: number; encryption?: string; fromDomain?: string; verified: boolean; error?: string }> {
+  const { data } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
+  const t = data?.value;
+  const own = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
+  const e = process.env;
+  let host: string, port: number, user: string, pass: string, from: string, encryption: string;
+  if (own) {
+    host = t.smtpServer; port = Number(t.smtpPort); user = t.smtpUser; pass = t.smtpPass; from = String(t.fromEmail).trim(); encryption = t.encryption;
+    try { await assertSafeSmtpTarget(host, port); } catch (err: any) { return { kind: "tenant", host, port, verified: false, error: String(err?.message || err).slice(0, 160) }; }
+  } else if (e.SPY_SMTP_HOST && e.SPY_SMTP_USER && e.SPY_SMTP_PASS && e.SPY_SMTP_FROM) {
+    host = e.SPY_SMTP_HOST; port = Number(e.SPY_SMTP_PORT || 587); user = e.SPY_SMTP_USER; pass = e.SPY_SMTP_PASS; from = e.SPY_SMTP_FROM; encryption = e.SPY_SMTP_ENCRYPTION || "StartTLS";
+  } else {
+    return { kind: "none", verified: false, error: "Nenhum SMTP configurado (nem da empresa nem da plataforma)." };
+  }
+  const info = { kind: (own ? "tenant" : "platform") as "tenant" | "platform", host, port, encryption, fromDomain: from.split("@").pop()?.replace(/[>"\s]/g, "") };
+  try {
+    const transporter = nodemailer.createTransport({ host, port, secure: encryption === "SSL/TLS", requireTLS: encryption === "StartTLS", auth: { user, pass }, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000 });
+    await transporter.verify();
+    return { ...info, verified: true };
+  } catch (err: any) {
+    return { ...info, verified: false, error: String(err?.message || err).split(pass).join("***").slice(0, 200) };
+  }
+}
