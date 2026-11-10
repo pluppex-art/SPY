@@ -576,7 +576,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
     if (hydrated || !appSettingsLoaded) return;
     // Defaults por baixo do que está salvo: uma configuração PARCIAL (ex.: gravada
     // de fora pela Implementação) não pode derrubar a tela ao ler campo ausente.
-    if (appSettings.integracoes_meta_ads) setMetaConfig({ ...DEFAULT_META_CONFIG, ...appSettings.integracoes_meta_ads, trackedEvents: { ...DEFAULT_META_CONFIG.trackedEvents, ...(appSettings.integracoes_meta_ads.trackedEvents || {}) } });
+    if (appSettings.integracoes_meta_ads) setMetaConfig({ ...DEFAULT_META_CONFIG, ...appSettings.integracoes_meta_ads, trackedEvents: { ...DEFAULT_META_CONFIG.trackedEvents, ...(appSettings.integracoes_meta_ads.trackedEvents || {}) }, crmSync: { ...DEFAULT_META_CONFIG.crmSync, ...(appSettings.integracoes_meta_ads.crmSync || {}) } });
     if (appSettings.integracoes_google_ads) setGoogleConfig({ ...DEFAULT_GOOGLE_CONFIG, ...appSettings.integracoes_google_ads });
     if (appSettings.integracoes_payments) {
       const saved = appSettings.integracoes_payments;
@@ -1357,9 +1357,10 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
             </Alert>
 
             <Tabs defaultValue="pixel" className="w-full">
-              <TabsList className="w-full grid grid-cols-3">
+              <TabsList className="w-full grid grid-cols-2 sm:grid-cols-4">
                 <TabsTrigger value="pixel">Pixel & CAPI</TabsTrigger>
                 <TabsTrigger value="eventos">Eventos & Tracking</TabsTrigger>
+                <TabsTrigger value="crm">Conversões do CRM</TabsTrigger>
                 <TabsTrigger value="teste">Teste de Ping ao Vivo</TabsTrigger>
               </TabsList>
 
@@ -1464,6 +1465,11 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
               </TabsContent>
 
               {/* TAB 3: Live Test Ping Tool */}
+              {/* TAB: Conversões do CRM (lead qualificado e compra enviados sozinhos à Conversions API) */}
+              <TabsContent value="crm" className="space-y-4 pt-3">
+                <MetaCrmSyncTab metaConfig={metaConfig} setMetaConfig={setMetaConfig} tenantId={activeTenantId} />
+              </TabsContent>
+
               <TabsContent value="teste" className="space-y-4 pt-3">
                 <div className="p-4 rounded-[var(--radius-panel)] border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]/50 space-y-4">
                   <div>
@@ -1879,6 +1885,60 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
           setIsNovaIntegracaoModalOpen(false);
         }}
       />
+    </div>
+  );
+}
+
+
+/** Conversões do CRM -> Meta: quando o lead chega numa etapa qualificada ou fecha, o S.P.Y. avisa a Meta (dados com hash)
+ *  para ela otimizar as campanhas por lead qualificado e por venda. Desligado até a empresa ligar aqui. */
+function MetaCrmSyncTab({ metaConfig, setMetaConfig, tenantId }: { metaConfig: any; setMetaConfig: (fn: (p: any) => any) => void; tenantId: string | null }) {
+  const crm = { ...DEFAULT_META_CONFIG.crmSync, ...(metaConfig.crmSync || {}) };
+  const set = (patch: Partial<typeof crm>) => setMetaConfig((prev: any) => ({ ...prev, crmSync: { ...DEFAULT_META_CONFIG.crmSync, ...(prev.crmSync || {}), ...patch } }));
+  const [log, setLog] = useState<{ sent: number; failed: number; recent: { lead_id: string; event_name: string; status: string; detail: string | null; created_at: string }[] } | null>(null);
+  useEffect(() => {
+    if (!tenantId) return;
+    let off = false;
+    apiFetch(`/api/ads/conversion-log?tenantId=${encodeURIComponent(tenantId)}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (!off && j) setLog(j); }).catch(() => undefined);
+    return () => { off = true; };
+  }, [tenantId]);
+  const pronto = !!(metaConfig.pixelId && metaConfig.capiToken);
+  const box = "flex items-start gap-2.5 p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] text-xs cursor-pointer";
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+        Devolve para a Meta <b>quem virou lead qualificado</b> e <b>quem comprou</b>, para ela otimizar suas campanhas por resultado de verdade (não só por clique ou cadastro). Só vão dados de contato com hash (e-mail, telefone, nome) — nunca em texto aberto. Cada lead envia cada evento uma única vez.
+      </p>
+      {!pronto && <p className="text-xs font-bold text-[var(--color-warning)]">Preencha o ID do Pixel e o Token CAPI na aba "Pixel & CAPI" antes de ligar.</p>}
+      <label className={box}><input type="checkbox" checked={!!crm.enabled} disabled={!pronto} onChange={(e) => set({ enabled: e.target.checked })} className="mt-0.5" /><span><b className="text-[var(--color-text-primary)]">Enviar conversões do CRM para a Meta</b><br />Liga tudo abaixo para esta empresa.</span></label>
+      {crm.enabled && (
+        <>
+          <label className={box}><input type="checkbox" checked={crm.qualificado !== false} onChange={(e) => set({ qualificado: e.target.checked })} className="mt-0.5" /><span><b className="text-[var(--color-text-primary)]">Lead qualificado</b><br />Quando o lead chega numa etapa de qualificação (por padrão: a etapa de entrega do SDR IA, "Qualificado" ou "Reunião agendada").</span></label>
+          <label className={box}><input type="checkbox" checked={crm.venda !== false} onChange={(e) => set({ venda: e.target.checked })} className="mt-0.5" /><span><b className="text-[var(--color-text-primary)]">Compra</b><br />Quando o lead fecha, com o valor da venda em reais.</span></label>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <FormField label="Nome do evento de qualificado" hint="Padrão: QualifiedLead (só letras, números e _)">
+              <Input type="text" value={crm.eventoQualificado} onChange={(e) => set({ eventoQualificado: e.target.value.replace(/[^A-Za-z0-9_]/g, "") })} />
+            </FormField>
+            <FormField label="Código de evento de teste (opcional)" hint="Do Gerenciador de Eventos › Testar eventos. Deixe vazio em produção.">
+              <Input type="text" value={crm.testEventCode} onChange={(e) => set({ testEventCode: e.target.value.trim() })} />
+            </FormField>
+          </div>
+          <FormField label="Etapas que contam como qualificado (opcional)" hint="Nomes separados por vírgula, iguais aos do funil. Vazio = automático.">
+            <Input type="text" value={(crm.etapasQualificadas || []).join(", ")} onChange={(e) => set({ etapasQualificadas: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) })} />
+          </FormField>
+        </>
+      )}
+      {log && (
+        <div className="p-3 rounded-xl border border-[var(--color-border-subtle)] text-xs space-y-1.5">
+          <div className="font-bold text-[var(--color-text-primary)]">Envios: {log.sent} com sucesso · {log.failed} com falha</div>
+          {log.recent.length === 0 ? <div className="text-[var(--color-text-muted)]">Nenhum envio ainda.</div> : (
+            <ul className="space-y-0.5 max-h-32 overflow-auto text-[var(--color-text-muted)]">
+              {log.recent.map((r, i) => <li key={i}>{new Date(r.created_at).toLocaleString("pt-BR")} · <b>{r.event_name}</b> · {r.status}{r.status !== "sent" && r.detail ? ` — ${r.detail}` : ""}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+      <p className="text-[11px] text-[var(--color-text-faint)]">Google Ads: ainda não há envio nativo. Use os webhooks de saída (Integrações › Webhooks) com o n8n para devolver conversões ao Google.</p>
     </div>
   );
 }

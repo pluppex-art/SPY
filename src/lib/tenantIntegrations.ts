@@ -47,6 +47,16 @@ export const DEFAULT_META_CONFIG = {
     PageView: true, Lead: true, Schedule: true, Purchase: true, ViewContent: true, Contact: true, CompleteRegistration: true,
   },
   lastTestPing: null as { event: string; timestamp: string; status: number; latency: number; ok: boolean } | null,
+  /** Conversões do CRM (lead qualificado, compra) enviadas sozinhas à Conversions API. Desligado por padrão. */
+  crmSync: {
+    enabled: false,
+    qualificado: true,
+    venda: true,
+    eventoQualificado: "QualifiedLead",
+    /** Nomes das etapas que contam como "qualificado". Vazio = automático (etapa de entrega do SDR, "Qualificado", "Reunião agendada"). */
+    etapasQualificadas: [] as string[],
+    testEventCode: "",
+  },
 };
 
 export const DEFAULT_GOOGLE_CONFIG = {
