@@ -53,6 +53,7 @@ export default function SettingsLayout() {
       items: [
         { title: "Funis & etapas", path: "/app/configuracoes/crm/funis" },
         { title: "Origens de leads", path: "/app/configuracoes/crm/origens" },
+        { title: "Fidelidade de clientes", path: "/app/configuracoes/crm/fidelidade" },
         { title: "Produtos", path: "/app/configuracoes/crm/produtos" },
         { title: "Campos personalizados", path: "/app/configuracoes/crm/campos" },
         { title: "Prazos de atendimento (SLA)", path: "/app/configuracoes/crm/sla" },

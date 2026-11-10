@@ -23,6 +23,7 @@ import { registerPushRoutes } from "./server/webPush.js";
 import { registerEmailCampaignRoutes } from "./server/emailCampaigns.js";
 import { registerAcquisitionRoutes } from "./server/acquisition.js";
 import { registerAdsConversionRoutes } from "./server/adsConversions.js";
+import { registerLoyaltyRoutes } from "./server/loyalty.js";
 import { registerTenantSocialProofRoutes } from "./server/tenantSocialProof.js";
 import { runNotificationReminders } from "./server/notificationCron.js";
 import { registerDeepHealthRoute } from "./server/healthDeep.js";
@@ -6700,6 +6701,9 @@ registerAcquisitionRoutes(app, { requireUserOrInternalService, resolveRequestedT
 
 // Conversões do CRM para a Meta (lead qualificado e compra), disparadas pelo trigger do banco.
 registerAdsConversionRoutes(app, { supabaseService, requireUser, resolveRequestedTenantId, limiter: emailCampaignLimiter });
+
+// Fidelidade do cliente (Bronze/Prata/Ouro) por empresa.
+registerLoyaltyRoutes(app, { requireUser, resolveRequestedTenantId, limiter: emailCampaignLimiter });
 
 // Prova social das páginas públicas de cada empresa (catálogo e proposta): só responde se a empresa ligou.
 const tenantProofLimiter = rateLimit({ windowMs: 60_000, limit: 40, standardHeaders: true, legacyHeaders: false });

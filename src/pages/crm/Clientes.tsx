@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../components/ui/button";
-import { Plus, Building2, CheckCircle2, FileText } from "lucide-react";
+import { Plus, Building2, CheckCircle2, FileText, Award } from "lucide-react";
+import { useFidelidade } from "../../lib/fidelidade";
 import { NovoClienteModal } from "../../components/ui/modals/crm/NovoClienteModal";
 import { ClienteContatosModal } from "../../components/ui/modals/crm/ClienteContatosModal";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
@@ -25,6 +26,8 @@ const MAX_PAGE_SIZE = 50;
 
 export default function Clientes() {
   const { activeTenantId, isModuleEnabled } = useAuth();
+  const { data: fid } = useFidelidade(activeTenantId);
+  const [nivelFilter, setNivelFilter] = useState("Todos os níveis");
   // `clienteBase` (renomeado aqui pra `clientes`, resto do arquivo não muda)
   // é o mesmo estado compartilhado que Contracts.tsx e o resto do sistema já
   // usam — assinado no canal de realtime único do DataContext (achado real:
@@ -109,9 +112,10 @@ export default function Clientes() {
         responsavel: leadMaisRecente?.seller || null,
         contratoStatus: contratoAtivo?.status || null,
         mrr,
+        fidelidade: fid?.porCliente?.[c.id] ?? null,
       };
     });
-  }, [clientes, leads, contracts]);
+  }, [clientes, leads, contracts, fid]);
 
   const NEUTRO_SETOR = "Todos os setores";
   const NEUTRO_SITUACAO = "Todas as situações";
@@ -130,6 +134,7 @@ export default function Clientes() {
     if (statusFilter !== NEUTRO_SITUACAO && c.status !== statusFilter) return false;
     if (sectorFilter !== NEUTRO_SETOR && c.industry !== sectorFilter) return false;
     if (contratoStatusFilter !== NEUTRO_CONTRATO && contratoStatusLabel(c.contratoStatus) !== contratoStatusFilter) return false;
+    if (nivelFilter !== "Todos os níveis" && (nivelFilter === "Sem nível" ? !!c.fidelidade : c.fidelidade?.nivel !== nivelFilter)) return false;
     if (debouncedSearch) {
       const term = normalizeText(debouncedSearch);
       return normalizeText(c.name).includes(term) ||
@@ -139,7 +144,7 @@ export default function Clientes() {
              normalizeText(c.phone).includes(term);
     }
     return true;
-  }), [clientesEnriquecidos, statusFilter, sectorFilter, contratoStatusFilter, debouncedSearch]);
+  }), [clientesEnriquecidos, statusFilter, sectorFilter, contratoStatusFilter, nivelFilter, debouncedSearch]);
 
   // Origem: no varejo a lista abre MISTURADA (base do CRM + Max Data). A Max Data é lida do servidor
   // página a página (dezenas de milhares de clientes não cabem no carregamento integral do navegador);
@@ -162,8 +167,8 @@ export default function Clientes() {
   const maxRows = useMemo(() => mx.rows.map((c: any) => ({ ...c, responsavel: null, contratoStatus: null, mrr: 0 })), [mx.rows]);
   const idsMax = useMemo(() => new Set(maxRows.map((c: any) => c.id)), [maxRows]);
 
-  const activeCount = (searchQuery ? 1 : 0) + (statusFilter !== NEUTRO_SITUACAO ? 1 : 0) + (sectorFilter !== NEUTRO_SETOR ? 1 : 0) + (contratoStatusFilter !== NEUTRO_CONTRATO ? 1 : 0);
-  const clearFilters = () => { setSearchQuery(""); setStatusFilter(NEUTRO_SITUACAO); setSectorFilter(NEUTRO_SETOR); setContratoStatusFilter(NEUTRO_CONTRATO); };
+  const activeCount = (searchQuery ? 1 : 0) + (statusFilter !== NEUTRO_SITUACAO ? 1 : 0) + (sectorFilter !== NEUTRO_SETOR ? 1 : 0) + (contratoStatusFilter !== NEUTRO_CONTRATO ? 1 : 0) + (nivelFilter !== "Todos os níveis" ? 1 : 0);
+  const clearFilters = () => { setSearchQuery(""); setStatusFilter(NEUTRO_SITUACAO); setSectorFilter(NEUTRO_SETOR); setContratoStatusFilter(NEUTRO_CONTRATO); setNivelFilter("Todos os níveis"); };
 
   // KPIs refletem a lista já filtrada (mesmo comportamento do Pipeline).
   const kpis = useMemo(() => {
@@ -296,6 +301,7 @@ export default function Clientes() {
           {temMax && <FilterSelect icon={Building2} value={origem} onChange={setOrigemEscolhida} options={[{ value: MAXDATA_TODAS, label: "Tudo (CRM + Max Data)" }, { value: "", label: "Só base do CRM" }, ...MAXDATA_ORIGENS.filter((o) => o.value)]} />}
           <FilterSelect icon={Building2} value={sectorFilter} onChange={setSectorFilter} options={setoresDisponiveis} allLabel={NEUTRO_SETOR} allValue={NEUTRO_SETOR} />
           <FilterSelect icon={CheckCircle2} value={statusFilter} onChange={setStatusFilter} options={["Ativo", "Em Implantação", "Inativo"]} allLabel={NEUTRO_SITUACAO} allValue={NEUTRO_SITUACAO} />
+          {fid?.config?.enabled && fid.resumo.length > 0 && <FilterSelect icon={Award} value={nivelFilter} onChange={setNivelFilter} options={[...fid.resumo.map((n) => `${n.nome}`), "Sem nível"]} allLabel="Todos os níveis" allValue="Todos os níveis" />}
           <FilterSelect icon={FileText} value={contratoStatusFilter} onChange={setContratoStatusFilter} options={["Em dia", "Inadimplente", "Cancelado", "Sem contrato"]} allLabel={NEUTRO_CONTRATO} allValue={NEUTRO_CONTRATO} />
         </FilterBar>
       </KpiFilterCard>

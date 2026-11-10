@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { FidelidadeBadge } from "../../../../components/FidelidadeBadge";
 import { Card } from "../../../../components/ui/card";
 import { Badge } from "../../../../components/ui/badge";
 import { EmptyState } from "../../../../components/ui/empty-state";
@@ -55,6 +56,8 @@ interface Cliente {
    * comentário lá. Ausentes num cliente sem lead/contrato correspondente. */
   responsavel?: string | null;
   contratoStatus?: string | null;
+  /** Nível de fidelidade (Bronze/Prata/Ouro...) calculado no servidor; ausente se o cliente não atingiu nenhuma faixa. */
+  fidelidade?: { nivel: string; cor: string; compras: number } | null;
   mrr?: number;
 }
 
@@ -164,7 +167,7 @@ export function ClientesList({
                     <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
                       <Building2 className="w-4 h-4 text-[var(--color-primary-blue)]" />
                     </div>
-                    <span className="font-bold text-[var(--color-text-primary)] text-sm break-words min-w-0">{c.name}</span>
+                    <span className="font-bold text-[var(--color-text-primary)] text-sm break-words min-w-0">{c.name}{c.fidelidade && <> <FidelidadeBadge nivel={c.fidelidade.nivel} cor={c.fidelidade.cor} compras={c.fidelidade.compras} /></>}</span>
                   </div>
                   <Badge variant={statusBadgeVariant(c.status)}>{c.status}</Badge>
                 </div>
@@ -212,7 +215,7 @@ export function ClientesList({
                       <div className="w-7 h-7 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
                         <Building2 className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />
                       </div>
-                      {c.name}
+                      {c.name}{c.fidelidade && <FidelidadeBadge nivel={c.fidelidade.nivel} cor={c.fidelidade.cor} compras={c.fidelidade.compras} />}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -285,7 +288,7 @@ export function ClientesList({
                   <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 flex items-center justify-center shrink-0">
                     <Building2 className="w-4 h-4 text-[var(--color-primary-blue)]" />
                   </div>
-                  <span className="font-bold text-[var(--color-text-primary)] text-sm break-words min-w-0">{c.name}</span>
+                  <span className="font-bold text-[var(--color-text-primary)] text-sm break-words min-w-0">{c.name}{c.fidelidade && <> <FidelidadeBadge nivel={c.fidelidade.nivel} cor={c.fidelidade.cor} compras={c.fidelidade.compras} /></>}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant={statusBadgeVariant(c.status)}>{c.status}</Badge>

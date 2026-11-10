@@ -99,6 +99,7 @@ const ConfigEmpresaPermissoes = lazy(() => import("./pages/settings/SettingsPage
 const ConfigEmpresaCargos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaCargos })));
 const ConfigNichos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigNichos })));
 const ConfigCRMFunis = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMFunis })));
+const ConfigCRMFidelidade = lazy(() => import("./pages/settings/sections/crm/ConfigCRMFidelidade"));
 const ConfigCRMOrigens = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMOrigens })));
 const ConfigCRMProdutos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMProdutos })));
 const ConfigProdutividadeCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigProdutividadeCategorias })));
@@ -526,6 +527,7 @@ function AppContent() {
             <Route path="empresa/cargos" element={<ProtectedRoute requireTenantAdmin><ConfigEmpresaCargos /></ProtectedRoute>} />
 
             <Route path="crm/funis" element={<ProtectedRoute requireTenantAdmin><ConfigCRMFunis /></ProtectedRoute>} />
+            <Route path="crm/fidelidade" element={<ProtectedRoute requireTenantAdmin><ConfigCRMFidelidade /></ProtectedRoute>} />
             <Route path="crm/origens" element={<ProtectedRoute requireTenantAdmin><ConfigCRMOrigens /></ProtectedRoute>} />
             <Route path="crm/produtos" element={<ProtectedRoute requireTenantAdmin><ConfigCRMProdutos /></ProtectedRoute>} />
             <Route path="crm/campos" element={<ProtectedRoute requireTenantAdmin><ConfigCRMCampos /></ProtectedRoute>} />
