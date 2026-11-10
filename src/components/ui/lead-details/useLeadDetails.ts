@@ -12,8 +12,18 @@ import { statusFromStageName } from "../../../lib/leadStatus";
 
 // ─── Stage helpers ────────────────────────────────────────────────────────────
 
-function buildStages(funis: any[], isSDR: boolean) {
-  const funil = funis.find(
+/** Funil a que uma etapa pertence (ids no padrão getStageId). */
+function ownerFunilId(funis: any[], stageId?: string | null): string | null {
+  if (!stageId) return null;
+  for (const f of funis) {
+    const n = Array.isArray(f.etapas) ? f.etapas.length : 0;
+    for (let i = 0; i < n; i++) if (getStageId(f.id, i) === stageId) return f.id;
+  }
+  return null;
+}
+
+function buildStages(funis: any[], isSDR: boolean, preferredFunilId?: string | null) {
+  const funil = funis.find((f: any) => f.id === preferredFunilId && f.ativo !== false) ?? funis.find(
     (f: any) => f.ativo !== false && (isSDR ? f.tipo === "sdr_ia" : f.tipo === "comercial")
   );
   if (!funil) return [];
@@ -155,7 +165,10 @@ export function useLeadDetails(lead: any, onClose: () => void) {
   // Funis vêm do Supabase (crm_funis, via DataContext) — nada de localStorage.
   const isSDR = lead?.pipelineId === "sdr";
   const [currentStageId, setCurrentStageId] = useState<string>(lead?.stageId ?? "");
-  const stagesDef = useMemo(() => buildStages(funis, isSDR), [funis, isSDR]);
+  // Funil escolhido na hora (troca manual); sem escolha, o funil a que a etapa do lead pertence.
+  const [funilSel, setFunilSel] = useState<string | null>(null);
+  const funilDoLead = funilSel ?? ownerFunilId(funis as any[], lead?.stageId);
+  const stagesDef = useMemo(() => buildStages(funis, isSDR, funilDoLead), [funis, isSDR, funilDoLead]);
 
   // Sincroniza campos ao abrir/trocar lead
   useEffect(() => {
@@ -204,6 +217,7 @@ export function useLeadDetails(lead: any, onClose: () => void) {
   // Reseta stageId e modo de edição quando muda de lead
   useEffect(() => {
     setCurrentStageId(lead?.stageId ?? "");
+    setFunilSel(null);
     setIsEditingInline(false);
   }, [lead?.id]);
 
@@ -610,7 +624,7 @@ export function useLeadDetails(lead: any, onClose: () => void) {
     // Logs
     alterationLogs, setAlterationLogs,
     // Stages
-    stagesDef,
+    stagesDef, funis, funilSel, setFunilSel,
     currentStageId, setCurrentStageId,
     // Report
     reportContextOverride, setReportContextOverride,

@@ -11,7 +11,7 @@ import { Phone, Activity, TrendingUp, AlertTriangle } from "lucide-react";
 import { LeadDetailsModalTabs } from "./lead-details/LeadDetailsModal.constants";
 import { LeadDetailsTempCfg } from "./lead-details/LeadDetailsModal.constants";
 import { formatLeadValueBRL, leadInterestEstimate, safeParseTimeIdle, safeParseProbability } from "./lead-details/LeadDetailsModal.helpers";
-import { findWonStage } from "../../lib/funilStages";
+import { findWonStage, getStageId } from "../../lib/funilStages";
 import { statusFromStageName, isLeadLost } from "../../lib/leadStatus";
 import { MotivoModal } from "./MotivoModal";
 import { MOTIVOS_PERDA_LEAD } from "../../lib/motivos";
@@ -88,7 +88,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
     handleConfirmDelete,
     availableProducts,
     handleUpdateScore,
-    stagesDef,
+    stagesDef, funis, setFunilSel,
     currentStageId, setCurrentStageId,
     tempColors,
     customLeadFields,
@@ -143,6 +143,22 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
     ? formatCurrency(interestEstimate)
     : formatLeadValueBRL(liveLead?.value ?? value, formatCurrency);
   const initials = ((companyName || leadName || "LD").substring(0, 2)).toUpperCase();
+
+  // Troca o lead de funil (ex.: de "Base" para o Comercial): vai para a 1ª etapa do funil escolhido.
+  const moveToFunil = (funil: any) => {
+    const nomes: string[] = Array.isArray(funil?.etapas) ? funil.etapas : [];
+    if (!nomes.length) { toast.error("Esse funil ainda não tem etapas."); return; }
+    const firstId = getStageId(funil.id, 0);
+    const pid = funil.tipo === "sdr_ia" ? "sdr" : "comercial";
+    setFunilSel(funil.id);
+    setCurrentStageId(firstId);
+    updateLead(lead.id, { pipelineId: pid, stageId: firstId, status: "Novo", ...(liveLead?.lost_reason ? { lost_reason: null } : {}) });
+    setAlterationLogs((prev: any[]) => [
+      { id: Date.now().toString(), author: seller || "Sistema", desc: `Moveu para o funil '${funil.nome}' (etapa '${nomes[0]}')`, time: "Agora" },
+      ...prev,
+    ]);
+    toast.success(`Lead movido para o funil "${funil.nome}".`);
+  };
 
   const moveToStage = (stg: any) => {
     setCurrentStageId(stg.id);
@@ -219,6 +235,8 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
             setShowCopilot={setShowCopilot}
             onClose={onClose}
             moveToStage={moveToStage}
+            funis={funis as any[]}
+            moveToFunil={moveToFunil}
             onAgendarReuniao={() => setShowAgendarReuniao(true)}
           />
 

@@ -13,6 +13,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useData } from "../../contexts/DataContext";
+import { getStageId } from "../../lib/funilStages";
 import { useOS } from "../os/hooks/useOS";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
@@ -842,7 +843,7 @@ function AcaoCard({ acao, funisOrigem, onRemove, onSaveConfig }: {
       funil_destino_id: novoFunilId,
       etapa_idx: novoEtapaIdx,
       pipeline_id: funil.tipo === "sdr_ia" ? "sdr" : "comercial",
-      etapa_id: `${funil.id}-${novoEtapaIdx}`,
+      etapa_id: getStageId(funil.id, Number(novoEtapaIdx)),
     });
   };
 

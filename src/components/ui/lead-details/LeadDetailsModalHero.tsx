@@ -4,6 +4,7 @@ import { Trophy, ThumbsDown, X, Brain, ChevronRight, User, Check, CalendarPlus }
 import { cn } from "../../../lib/utils";
 import { toast } from "sonner";
 import { findWonStage } from "../../../lib/funilStages";
+import { confirmDialog } from "../confirm-dialog";
 
 interface LeadDetailsModalHeroProps {
   tc: {
@@ -30,6 +31,8 @@ interface LeadDetailsModalHeroProps {
   setShowCopilot: (v: boolean) => void;
   onClose: () => void;
   moveToStage: (stg: any) => void;
+  funis?: any[];
+  moveToFunil?: (funil: any) => void;
   onAgendarReuniao?: () => void;
 }
 
@@ -51,6 +54,8 @@ export function LeadDetailsModalHero({
   setShowCopilot,
   onClose,
   moveToStage,
+  funis = [],
+  moveToFunil,
   onAgendarReuniao,
 }: LeadDetailsModalHeroProps) {
   const TempIcon = tc.icon;
@@ -202,6 +207,30 @@ export function LeadDetailsModalHero({
             </div>
           </div>
         </div>
+
+        {/* Funil do lead: mostra em qual funil ele está e deixa trocar (só se a empresa tem mais de um funil) */}
+        {moveToFunil && (() => {
+          const opcoes = funis.filter((f: any) => f.ativo !== false && (f.tipo === "comercial" || f.tipo === "sdr_ia") && Array.isArray(f.etapas) && f.etapas.length > 0);
+          if (opcoes.length < 2) return null;
+          const atual = stagesDef[0]?.funilId ?? "";
+          return (
+            <div className="px-5 pt-2.5 flex items-center gap-2 border-t border-[var(--color-border-subtle)]">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">Funil</span>
+              <select
+                value={atual}
+                aria-label="Funil do lead"
+                onChange={async (e) => {
+                  const destino = opcoes.find((f: any) => f.id === e.target.value);
+                  if (!destino || destino.id === atual) return;
+                  if (await confirmDialog({ title: "Mudar de funil?", description: `O lead vai para a primeira etapa de "${destino.nome}".`, confirmLabel: "Mover" })) moveToFunil(destino);
+                }}
+                className="h-7 pl-2 pr-6 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[11px] font-bold text-[var(--color-text-primary)] cursor-pointer max-w-[60vw]"
+              >
+                {opcoes.map((f: any) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+              </select>
+            </div>
+          );
+        })()}
 
         {/* Stage stepper */}
         <div className="relative px-5 pb-3.5 overflow-x-auto scrollbar-none border-t border-[var(--color-border-subtle)] pt-2.5">
