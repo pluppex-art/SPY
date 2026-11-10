@@ -1,7 +1,7 @@
 // Definições do que cada tela importa de planilha (campos, duplicados, gravação). O motor é um só
 // (ImportadorPlanilha); aqui só mudam os campos e a tabela. Tudo sempre dentro do tenant da sessão.
 import { supabase } from "./supabase";
-import { extrasToNotes, normalizeEmail, type ImportField, type ImportSpec } from "./importer";
+import { extrasToNotes, normalizeEmail, stripText, type BuiltRow, type ImportField, type ImportSpec } from "./importer";
 import { funilStageNames, getStageId, phoneKey, pipelineIdDoFunil } from "./funnelIds";
 import { friendlyError } from "./friendlyError";
 
@@ -114,10 +114,11 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
 
 // ─── Clientes / Empresas (mesma tabela) ──────────────────────────────────────
 
-export function clientesSpec(ctx: { tenantId: string; onDone?: () => void }, kind: "clientes" | "empresas" = "clientes"): ImportSpec {
+export function clientesSpec(ctx: { tenantId: string; onDone?: () => void }, kind: "clientes" | "empresas" | "financeiro" = "clientes"): ImportSpec {
   return {
     entity: kind,
-    title: kind === "empresas" ? "Importar empresas de uma planilha" : "Importar clientes de uma planilha",
+    title: kind === "empresas" ? "Importar empresas de uma planilha" : kind === "financeiro" ? "Importar contatos financeiros de uma planilha" : "Importar clientes de uma planilha",
+    options: kind === "financeiro" ? () => [{ key: "tipo", label: "Tipo dos contatos", type: "select", choices: [{ value: "CLIENTE", label: "Clientes" }, { value: "FORNECEDOR", label: "Fornecedores" }, { value: "FUNCIONARIO", label: "Funcionários" }], default: "CLIENTE" }] : undefined,
     hint: "Cada linha vira um cadastro. Quem já existe (mesmo CPF/CNPJ, e-mail ou telefone) é pulado.",
     fields: [
       { key: "name", label: kind === "empresas" ? "Razão social / Nome" : "Nome", required: true, aliases: ["razao social", "nome completo", "nome", "empresa", "cliente", "name", "nome fantasia"] },
@@ -134,7 +135,8 @@ export function clientesSpec(ctx: { tenantId: string; onDone?: () => void }, kin
     needOne: ["name"],
     rowKeys: (v) => [docKey(v.documento), emailKey(v.email), phoneKeyOf(v.phone)].filter(Boolean),
     loadExistingKeys: (onProgress) => loadKeys("clientes", "documento, email, phone", ctx.tenantId, (r) => [docKey(r.documento), emailKey(r.email), phoneKeyOf(r.phone)], onProgress),
-    build: (v) => ({
+    build: (v, _x, o) => ({
+      ...(kind === "financeiro" ? { tipos: [o.tipo || "CLIENTE"], tipo_pessoa: String(v.documento || "").length === 14 ? "PJ" : "PF" } : {}),
       name: v.name,
       documento: v.documento || null,
       email: v.email || null,
@@ -237,7 +239,7 @@ export function alunosSpec(ctx: { tenantId: string; turmaId?: string | null; onD
 
 // ─── Produtos / Catálogo (todos os nichos: loja, veículos, imóveis, serviços) ─
 
-export function produtosSpec(ctx: { tenantId: string; filialId?: string | null; onDone?: () => void }): ImportSpec {
+export function produtosSpec(ctx: { tenantId: string; filialId?: string | null; defaultType?: string | null; onDone?: () => void }): ImportSpec {
   return {
     entity: "produtos",
     title: "Importar produtos de uma planilha",
@@ -261,7 +263,7 @@ export function produtosSpec(ctx: { tenantId: string; filialId?: string | null; 
       price: typeof v.price === "number" ? v.price : 0,
       cost: typeof v.cost === "number" ? v.cost : null,
       category: v.category || null,
-      type: v.type || "Físico",
+      type: v.type || ctx.defaultType || "Físico",
       stock: typeof v.stock === "number" ? v.stock : null,
       description: v.description || null,
       active: true,
@@ -273,6 +275,123 @@ export function produtosSpec(ctx: { tenantId: string; filialId?: string | null; 
       ["Nome", "SKU", "Preço", "Custo", "Categoria", "Estoque"],
       ["Camiseta Dry Fit", "CAM-001", "89,90", "35,00", "Vestuário", "40"],
       ["Consultoria mensal", "SRV-010", "1500", "", "Serviços", ""],
+    ],
+    onDone: ctx.onDone,
+  };
+}
+
+// ─── Contatos de empresas (CRM › Contatos): cada contato pertence a um cliente/empresa ───────────
+
+export function contatosSpec(ctx: { tenantId: string; onDone?: () => void }): ImportSpec {
+  return {
+    entity: "contatos",
+    title: "Importar contatos de uma planilha",
+    hint: "Cada contato precisa da empresa a que pertence (coluna com o nome ou o CNPJ da empresa já cadastrada). Importe as empresas antes, se ainda não existirem.",
+    keepExtras: true,
+    fields: [
+      { key: "nome", label: "Nome do contato", required: true, aliases: ["nome do contato", "nome completo", "nome", "contato"] },
+      { key: "empresa", label: "Empresa (nome ou CNPJ)", required: true, aliases: ["empresa", "cliente", "razao social", "cnpj", "organizacao"] },
+      { key: "cargo", label: "Cargo", aliases: ["cargo", "funcao", "posicao"] },
+      F_EMAIL,
+      { key: "telefone", label: "Telefone", kind: "phone", aliases: ["telefone", "fone", "tel"] },
+      { key: "whatsapp", label: "WhatsApp", kind: "phone", aliases: ["whatsapp", "celular"] },
+      { key: "departamento", label: "Departamento", aliases: ["departamento", "setor", "area"] },
+      { key: "observacoes", label: "Observações", aliases: ["observacoes", "observacao", "obs"] },
+    ],
+    needOne: ["nome"],
+    rowKeys: (v) => [emailKey(v.email), phoneKeyOf(v.whatsapp), phoneKeyOf(v.telefone)].filter(Boolean),
+    loadExistingKeys: (onProgress) => loadKeys("cliente_contatos", "email, telefone, whatsapp", ctx.tenantId, (r) => [emailKey(r.email), phoneKeyOf(r.telefone), phoneKeyOf(r.whatsapp)], onProgress),
+    resolve: async (rows: BuiltRow[]) => {
+      const byName = new Map<string, string>(), byDoc = new Map<string, string>();
+      await loadKeys("clientes", "id, name, documento", ctx.tenantId, (r) => {
+        if (r.name) byName.set(stripText(r.name), r.id);
+        const d = String(r.documento ?? "").replace(/\D/g, "");
+        if (d.length >= 11) byDoc.set(d, r.id);
+        return [];
+      }, () => undefined);
+      const ok: BuiltRow[] = [], rejected: { line: number; reason: string }[] = [];
+      for (const r of rows) {
+        const emp = String(r.values.empresa ?? "");
+        const id = byDoc.get(emp.replace(/\D/g, "")) ?? byName.get(stripText(emp));
+        if (id) ok.push({ ...r, values: { ...r.values, cliente_id: id } });
+        else rejected.push({ line: r.line, reason: "Empresa não encontrada no cadastro (confira o nome/CNPJ ou importe as empresas primeiro)" });
+      }
+      return { rows: ok, rejected };
+    },
+    build: (v, extras) => ({
+      cliente_id: v.cliente_id,
+      nome: v.nome,
+      cargo: v.cargo || null,
+      email: v.email || null,
+      telefone: v.telefone || null,
+      whatsapp: v.whatsapp || null,
+      departamento: v.departamento || null,
+      observacoes: [v.observacoes, extrasToNotes(extras, 1500)].filter(Boolean).join("\n") || null,
+      principal: false,
+      tenant_id: ctx.tenantId,
+    }),
+    insertBatch: (rows) => insertInto("cliente_contatos", rows),
+    template: [
+      ["Nome", "Empresa", "Cargo", "E-mail", "WhatsApp"],
+      ["João Silva", "Acme Ltda", "Diretor", "joao@acme.com", "(11) 99999-8888"],
+      ["Maria Santos", "12345678000199", "Compras", "maria@acme.com", ""],
+    ],
+    onDone: ctx.onDone,
+  };
+}
+
+// ─── Fornecedores (Varejo) ───────────────────────────────────────────────────
+
+export function fornecedoresSpec(ctx: { tenantId: string; onDone?: () => void }): ImportSpec {
+  return {
+    entity: "fornecedores",
+    title: "Importar fornecedores de uma planilha",
+    hint: "Quem já existe (mesmo CNPJ, e-mail ou telefone) é pulado.",
+    fields: [
+      { key: "razao_social", label: "Razão social / Nome", required: true, aliases: ["razao social", "nome do fornecedor", "fornecedor", "nome", "empresa"] },
+      { key: "cnpj", label: "CNPJ", kind: "digits", aliases: ["cnpj", "cpf", "documento"] },
+      { key: "contato", label: "Pessoa de contato", aliases: ["contato", "responsavel", "vendedor"] },
+      { key: "telefone", label: "Telefone / WhatsApp", kind: "phone", aliases: ["whatsapp", "telefone", "celular", "fone"] },
+      F_EMAIL,
+      { key: "prazo_entrega", label: "Prazo de entrega", aliases: ["prazo de entrega", "prazo"] },
+      { key: "categorias", label: "Categorias", aliases: ["categorias", "categoria", "linha", "segmento"] },
+    ],
+    needOne: ["razao_social"],
+    rowKeys: (v) => [docKey(v.cnpj), emailKey(v.email), phoneKeyOf(v.telefone)].filter(Boolean),
+    loadExistingKeys: (onProgress) => loadKeys("varejo_fornecedores", "cnpj, email, telefone", ctx.tenantId, (r) => [docKey(r.cnpj), emailKey(r.email), phoneKeyOf(r.telefone)], onProgress),
+    build: (v) => ({ razao_social: v.razao_social, cnpj: v.cnpj || null, contato: v.contato || null, telefone: v.telefone || null, email: v.email || null, prazo_entrega: v.prazo_entrega || null, categorias: v.categorias || null, tenant_id: ctx.tenantId }),
+    insertBatch: (rows) => insertInto("varejo_fornecedores", rows),
+    template: [
+      ["Razão social", "CNPJ", "Contato", "WhatsApp", "E-mail", "Categorias"],
+      ["Distribuidora Alfa Ltda", "12345678000199", "Paulo", "(11) 99999-8888", "vendas@alfa.com", "Bebidas"],
+      ["Beta Atacado", "", "", "21988887777", "", "Higiene"],
+    ],
+    onDone: ctx.onDone,
+  };
+}
+
+// ─── Proprietários (Imobiliário) ─────────────────────────────────────────────
+
+export function proprietariosSpec(ctx: { tenantId: string; onDone?: () => void }): ImportSpec {
+  return {
+    entity: "proprietarios",
+    title: "Importar proprietários de uma planilha",
+    hint: "Quem já existe (mesmo e-mail ou telefone) é pulado.",
+    fields: [
+      { key: "nome", label: "Nome", required: true, aliases: ["nome completo", "nome", "proprietario"] },
+      { key: "telefone", label: "Telefone / WhatsApp", kind: "phone", aliases: ["whatsapp", "telefone", "celular", "fone"] },
+      F_EMAIL,
+      { key: "tipo", label: "Tipo", aliases: ["tipo", "pessoa"] },
+    ],
+    needOne: ["nome"],
+    rowKeys: (v) => [emailKey(v.email), phoneKeyOf(v.telefone)].filter(Boolean),
+    loadExistingKeys: (onProgress) => loadKeys("imobiliario_proprietarios", "email, telefone", ctx.tenantId, (r) => [emailKey(r.email), phoneKeyOf(r.telefone)], onProgress),
+    build: (v) => ({ nome: v.nome, telefone: v.telefone || null, email: v.email || null, tipo: v.tipo || null, status: "Ativo", tenant_id: ctx.tenantId }),
+    insertBatch: (rows) => insertInto("imobiliario_proprietarios", rows),
+    template: [
+      ["Nome", "WhatsApp", "E-mail", "Tipo"],
+      ["Roberto Lima", "(11) 99999-8888", "roberto@email.com", "Pessoa Física"],
+      ["Imobiliária Beta", "21988887777", "", "Pessoa Jurídica"],
     ],
     onDone: ctx.onDone,
   };

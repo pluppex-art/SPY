@@ -160,7 +160,7 @@ export default function Catalog() {
       description="Painel Central de Gestão de Preços, Margem de Lucro, SKU e Comissionamento Comercial."
       actions={
         <div className="flex items-center gap-2 flex-wrap">
-          {activeTenantId && <BotaoImportar spec={produtosSpec({ tenantId: activeTenantId })} />}
+          {activeTenantId && <BotaoImportar spec={produtosSpec({ tenantId: activeTenantId, defaultType: searchParams.get("type") || searchParams.get("tipo") })} />}
           <Button
             variant="outline"
             onClick={exportProductsToCSV}

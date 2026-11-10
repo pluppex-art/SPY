@@ -40,6 +40,8 @@ export interface ImportSpec {
   rowKeys?: (v: Record<string, any>) => string[];
   /** Chaves já cadastradas na empresa (lê do banco, paginado). */
   loadExistingKeys?: (onProgress: (n: number) => void) => Promise<Set<string>>;
+  /** Passo opcional antes de gravar: resolve vínculos (ex.: empresa do contato) e recusa linhas sem vínculo. */
+  resolve?: (rows: BuiltRow[]) => Promise<{ rows: BuiltRow[]; rejected: { line: number; reason: string }[] }>;
   /** Monta a linha do banco. `extras` = colunas do arquivo que não foram mapeadas. */
   build: (v: Record<string, any>, extras: ExtraCell[], opt: Record<string, string>) => Record<string, any>;
   /** Grava um lote. Devolve a mensagem de erro, se houver. */

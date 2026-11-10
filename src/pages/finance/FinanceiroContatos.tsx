@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
+import { BotaoImportar } from "../../components/ImportadorPlanilha";
+import { clientesSpec } from "../../lib/importSpecs";
+import { useAuth } from "../../contexts/AuthContext";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
@@ -58,6 +61,7 @@ const emptyForm = {
 import { useRowOpen } from "./components/useRowOpen";
 
 export default function FinanceiroContatos() {
+  const { activeTenantId } = useAuth();
   const { clienteBase, addClienteBase, updateClienteBase, deleteClienteBase, financeEntries } = useData();
   const { formatCurrency } = useLocalization();
   const { dataInicio, dataFim, label: periodoLabel } = useFinanceiroFiltro();
@@ -267,7 +271,7 @@ export default function FinanceiroContatos() {
       title="Contatos"
       description="Clientes, fornecedores e funcionários — usados em lançamentos, cobranças e relatórios."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Contatos" }]}
-      actions={<div className="flex items-center gap-2"><FinancePeriodFilter /><Button onClick={openNew} className="h-9 px-4 text-xs font-medium gap-1.5"><Plus className="w-3.5 h-3.5" /> Novo Contato</Button></div>}
+      actions={<div className="flex items-center gap-2 flex-wrap"><FinancePeriodFilter />{activeTenantId && <BotaoImportar spec={clientesSpec({ tenantId: activeTenantId }, "financeiro")} />}<Button onClick={openNew} className="h-9 px-4 text-xs font-medium gap-1.5"><Plus className="w-3.5 h-3.5" /> Novo Contato</Button></div>}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <FinanceKpiFilter

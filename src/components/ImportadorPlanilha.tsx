@@ -89,7 +89,16 @@ export function ImportadorPlanilha({ spec, open, onClose }: { spec: ImportSpec; 
       }
       const dups = findDuplicates(built.rows, spec, existing);
       res.duplicates = dups.size;
-      const todo = built.rows.filter((_, i) => !dups.has(i));
+      let todo = built.rows.filter((_, i) => !dups.has(i));
+      if (spec.resolve) {
+        setProgress({ label: "Ligando cada linha ao cadastro certo…", done: 0, total: 0 });
+        const r = await spec.resolve(todo);
+        todo = r.rows;
+        res.failed += r.rejected.length;
+        const byReason = new Map<string, number[]>();
+        r.rejected.forEach((x) => byReason.set(x.reason, [...(byReason.get(x.reason) || []), x.line + 1]));
+        byReason.forEach((lines, reason) => res.errors.push(`${reason} — ${lines.length} linha(s), ex.: ${lines.slice(0, 5).join(", ")}`));
+      }
       const size = spec.batchSize ?? 200;
       for (let i = 0; i < todo.length; i += size) {
         if (cancelRef.current) { res.errors.push("Importação interrompida por você. O que já entrou foi mantido."); break; }

@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
+import { BotaoImportar } from "../../components/ImportadorPlanilha";
+import { fornecedoresSpec } from "../../lib/importSpecs";
+
 import { Button } from "../../components/ui/button";
 import {
   Truck, Plus, Phone, Mail, Package, Trash2, Clock
@@ -37,6 +40,7 @@ function rowToFornecedor(row: any): FornecedorItem {
 
 export default function FornecedoresVarejo() {
   const { activeTenantId } = useAuth();
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [fornecedores, setFornecedores] = useState<FornecedorItem[]>([]);
 
@@ -54,7 +58,7 @@ export default function FornecedoresVarejo() {
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTenantId]);
+  }, [activeTenantId, reloadKey]);
 
   const [search, setSearch] = useState("");
   const [categoriaFiltro, setCategoriaFiltro] = useState("");
@@ -161,9 +165,12 @@ export default function FornecedoresVarejo() {
       title="Fornecedores de Mercadorias"
       description="Cadastro de distribuidoras, condições de pagamento, prazos de entrega e catálogo de produtos."
       actions={
+        <div className="flex items-center gap-2 flex-wrap">
+        {activeTenantId && <BotaoImportar spec={fornecedoresSpec({ tenantId: activeTenantId, onDone: () => setReloadKey((k) => k + 1) })} />}
         <Button onClick={() => setModalOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-3.5 h-3.5" /> Novo Fornecedor
         </Button>
+        </div>
       }
     >
       <KpiFilterCard

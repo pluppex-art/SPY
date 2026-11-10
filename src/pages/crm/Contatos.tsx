@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
+import { BotaoImportar } from "../../components/ImportadorPlanilha";
+import { contatosSpec } from "../../lib/importSpecs";
+
 import { Button } from "../../components/ui/button";
 import {
   Users, Plus, Mail, Phone, Building2, Briefcase,
@@ -190,9 +193,12 @@ export default function Contatos() {
       title="Contatos Comerciais"
       description="Diretório unificado de tomadores de decisão, influenciadores e interlocutores comerciais."
       actions={
+        <div className="flex items-center gap-2 flex-wrap">
+        {activeTenantId && <BotaoImportar spec={contatosSpec({ tenantId: activeTenantId, onDone: fetchContatos })} />}
         <Button onClick={() => setShowModal(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-3.5 h-3.5" /> Novo Contato
         </Button>
+        </div>
       }
     >
       <KpiFilterCard className="mb-4"

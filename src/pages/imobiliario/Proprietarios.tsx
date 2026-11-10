@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
+import { BotaoImportar } from "../../components/ImportadorPlanilha";
+import { proprietariosSpec } from "../../lib/importSpecs";
+
 import { Button } from "../../components/ui/button";
 import {
   Users, Plus, Search, Phone, Mail, Home,
@@ -36,6 +39,7 @@ function rowToProprietario(row: any): ProprietarioItem {
 
 export default function Proprietarios() {
   const { activeTenantId } = useAuth();
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [proprietarios, setProprietarios] = useState<ProprietarioItem[]>([]);
 
@@ -53,7 +57,7 @@ export default function Proprietarios() {
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTenantId]);
+  }, [activeTenantId, reloadKey]);
 
   const [search, setSearch] = useState("");
   const [tipoFilter, setTipoFilter] = useState("");
@@ -131,9 +135,12 @@ export default function Proprietarios() {
       title="Gestão de Proprietários"
       description="Cadastro, documentos de posse e imóveis vinculados a locadores e proprietários vendedores."
       actions={
+        <div className="flex items-center gap-2 flex-wrap">
+        {activeTenantId && <BotaoImportar spec={proprietariosSpec({ tenantId: activeTenantId, onDone: () => setReloadKey((k) => k + 1) })} />}
         <Button onClick={() => setModalOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-3.5 h-3.5" /> Novo Proprietário
         </Button>
+        </div>
       }
     >
       <KpiFilterCard

@@ -18,6 +18,8 @@ import { useData } from "../../contexts/DataContext";
 import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { useAuth } from "../../contexts/AuthContext";
+import { BotaoImportar } from "../../components/ImportadorPlanilha";
+import { produtosSpec } from "../../lib/importSpecs";
 import { supabase } from "../../lib/supabase";
 
 type TipoMov = "entrada" | "saida" | "ajuste" | "venda";
@@ -280,7 +282,8 @@ export default function VarejoEstoque() {
             Entradas, saídas e ajustes de saldo, alertas de estoque baixo e histórico de movimentações. O cadastro de produtos fica em Produtos.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {activeTenantId && <BotaoImportar spec={produtosSpec({ tenantId: activeTenantId })} label="Importar produtos" />}
           <Button
             variant="outline"
             onClick={handleExportCSV}
