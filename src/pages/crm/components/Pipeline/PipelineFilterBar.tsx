@@ -46,9 +46,9 @@ export function PipelineFilterBar({
   sourceFilter, setSourceFilter, sourcesList,
 }: PipelineFilterBarProps) {
   return (
-    <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 shrink-0 max-[479px]:[&>*]:col-span-2">
+    <div className="grid grid-cols-2 sm:flex sm:flex-wrap lg:flex-nowrap items-center gap-2 shrink-0 max-[479px]:[&>*]:col-span-2">
       {(comercialFunis.length > 0 || sdrFunis.length > 0) && (
-        <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 py-1.5 h-[42px] sm:h-[38px] overflow-x-auto scrollbar-none">
+        <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 py-1.5 h-[42px] sm:h-[38px] overflow-x-auto scrollbar-none lg:flex-[1.6] lg:basis-0 lg:min-w-[150px] lg:max-w-[300px]">
           {comercialFunis.length === 1 ? (
             <button
               onClick={() => { setCurrentPipeline("comercial"); setSelectedFunilId(comercialFunis[0].id); }}
@@ -95,7 +95,7 @@ export function PipelineFilterBar({
         </div>
       )}
 
-      <div data-mobile-search className="relative col-span-2 sm:col-span-1 sm:flex-1 sm:min-w-[160px]">
+      <div data-mobile-search className="relative col-span-2 sm:col-span-1 sm:flex-1 sm:min-w-[160px] lg:min-w-[130px]">
         <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
         <input
           type="text"
@@ -106,7 +106,7 @@ export function PipelineFilterBar({
         />
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">
         <MapPin className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -117,7 +117,7 @@ export function PipelineFilterBar({
         </select>
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">
         <Filter className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -130,7 +130,7 @@ export function PipelineFilterBar({
 
       <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">
         <Layers className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -142,7 +142,7 @@ export function PipelineFilterBar({
         </select>
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">
         <Link2 className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"

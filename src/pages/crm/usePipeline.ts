@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -7,6 +7,7 @@ import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
 import { leadCity } from "../../lib/leadLocation";
+import { useSavedFunil } from "../../hooks/useSavedFunil";
 import { parseCurrencyBR, normalizeText } from "../../lib/utils";
 import { supabase } from "../../lib/supabase";
 import { aoGanharNegocio } from "../../lib/implementationAutoStart";
@@ -68,15 +69,22 @@ export function usePipeline() {
   const sdrFunis      = useMemo(() => allActiveFunis.filter((f) => f.tipo === "sdr_ia"),   [allActiveFunis]);
   const isSdrEnabled  = sdrFunis.length > 0;
 
-  // Funil escolhido na sidebar (?funil=<id>) — vale se existir no pool atual.
+  // Funil escolhido: fica salvo neste aparelho (por empresa) e volta igual depois de recarregar a página (ver useSavedFunil).
   const [searchParams] = useSearchParams();
   const funilParam = searchParams.get("funil");
+  // `escolherFunil` (grava a escolha do usuário) usa o `salvarFunil` do useSavedFunil, chamado mais abaixo — de propósito DEPOIS
+  // da correção automática, para a restauração do funil salvo rodar por último e não ser desfeita por ela.
+  const escolherFunil = (id: string) => { salvarFunilRef.current(id); setSelectedFunilId(id); };
+  const salvarFunilRef = useRef<(id: string) => void>(() => {});
+
+
+  // Funil escolhido na sidebar (?funil=<id>) — vale se existir no pool atual.
   useEffect(() => {
     if (!funilParam) return;
     const f = [...comercialFunis, ...sdrFunis].find((x) => x.id === funilParam);
     if (!f) return;
     setCurrentPipeline(f.tipo === "sdr_ia" ? "sdr" : "comercial");
-    setSelectedFunilId(f.id);
+    escolherFunil(f.id);
   }, [funilParam, comercialFunis, sdrFunis]);
 
   // Keep selectedFunilId pointing to a valid funil when the pool changes —
@@ -89,6 +97,21 @@ export function usePipeline() {
       setSelectedFunilId(pool[0].id);
     }
   }, [currentPipeline, sdrFunis, comercialFunis]);
+
+  // Restaura o funil salvo (por empresa, neste aparelho). Fica DEPOIS da correção acima: no mesmo instante em que os funis
+  // reais chegam, a correção pode escolher o 1º funil e a restauração precisa vir por último para valer.
+  const todosFunis = useMemo(() => [...comercialFunis, ...sdrFunis], [comercialFunis, sdrFunis]);
+  const { salvar: salvarFunil } = useSavedFunil(
+    activeTenantId ? `spy_pipeline_funil:${activeTenantId}` : null,
+    todosFunis,
+    !!funilParam, // ?funil= da sidebar tem prioridade sobre o salvo
+    (f) => {
+      if (f === "__todos__") { setSelectedFunilId("__todos__"); return; }
+      setCurrentPipeline(f.tipo === "sdr_ia" ? "sdr" : "comercial");
+      setSelectedFunilId(f.id);
+    },
+  );
+  salvarFunilRef.current = salvarFunil;
 
   // Wrapper that resets filters synchronously when switching pipelines
   const switchPipeline = (pipeline: "comercial" | "sdr") => {
@@ -478,7 +501,7 @@ export function usePipeline() {
     clientFilter, setClientFilter, clientsList,
     dateFrom, setDateFrom, dateTo, setDateTo,
     currentPipeline, setCurrentPipeline, switchPipeline,
-    selectedFunilId, setSelectedFunilId,
+    selectedFunilId, setSelectedFunilId: escolherFunil,
     activeFunil,
     comercialFunis, sdrFunis,
     isSdrEnabled,
