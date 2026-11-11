@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { cityKey, groupCities } from "../../lib/leadLocation";
 import { PageContainer } from "../../components/PageContainer";
 import { BotaoImportar } from "../../components/ImportadorPlanilha";
 import { clientesSpec } from "../../lib/importSpecs";
@@ -85,13 +86,13 @@ export default function Empresas() {
       normalizeText(e.documento).includes(q)) &&
       (!statusFilter || (e.status || "Ativo") === statusFilter) &&
       (!segmentoFilter || e.industry === segmentoFilter) &&
-      (!cidadeFilter || e.city === cidadeFilter)
+      (!cidadeFilter || cityKey(e.city) === cityKey(cidadeFilter))
     );
   }, [empresas, search, statusFilter, segmentoFilter, cidadeFilter]);
 
   const statusList = useMemo(() => Array.from(new Set(empresas.map(e => e.status || "Ativo"))).sort() as string[], [empresas]);
   const segmentosList = useMemo(() => Array.from(new Set(empresas.map(e => e.industry).filter(Boolean))).sort() as string[], [empresas]);
-  const cidadesList = useMemo(() => Array.from(new Set(empresas.map(e => e.city).filter(Boolean))).sort() as string[], [empresas]);
+  const cidadesList = useMemo(() => groupCities(empresas.map(e => e.city)).map((g) => g.label), [empresas]);
   const activeCount = (search ? 1 : 0) + (statusFilter ? 1 : 0) + (segmentoFilter ? 1 : 0) + (cidadeFilter ? 1 : 0);
   const clearFilters = () => { setSearch(""); setStatusFilter(""); setSegmentoFilter(""); setCidadeFilter(""); };
 
@@ -158,7 +159,7 @@ export default function Empresas() {
         kpis={[
           { label: "Empresas", value: filtered.length, icon: Building2, tone: "primary" },
           { label: "Empresas Ativas", value: filtered.filter(e => (e.status || "Ativo") === "Ativo").length, icon: Users, tone: "success" },
-          { label: "Cidades Atendidas", value: new Set(filtered.map(e => e.city).filter(Boolean)).size, icon: MapPin, tone: "warning" },
+          { label: "Cidades Atendidas", value: new Set(filtered.map(e => cityKey(e.city)).filter(Boolean)).size, icon: MapPin, tone: "warning" },
           { label: "Segmentos", value: new Set(filtered.map(e => e.industry).filter(Boolean)).size, icon: TrendingUp, tone: "accent" },
         ]}
       >

@@ -84,9 +84,10 @@ function devePassar(lead: any, alvo: Etapa): boolean {
 export type EntradaLead = {
   name: string; email?: string; phone?: string; company?: string; cnpj?: string; source: string;
   value?: number; nota: string; papel: Papel; priority?: string; scoreIA?: number;
+  city?: string; state?: string;
 };
 
-const COLS = "id,name,email,phone,company,cnpj,status,stageId,pipelineId,notes,value,deleted_at";
+const COLS = "id,name,email,phone,company,cnpj,city,state,status,stageId,pipelineId,notes,value,deleted_at";
 
 /** Acha o lead da empresa pelo telefone (qualquer escrita do numero, inclusive pessoa extra do card) e, se nao, pelo e-mail. */
 export async function acharLead(db: SupabaseClient, tenantId: string, phone?: string, email?: string): Promise<any | null> {
@@ -102,7 +103,7 @@ export async function acharLead(db: SupabaseClient, tenantId: string, phone?: st
   }
   const mail = String(email || "").trim().toLowerCase();
   if (mail) {
-    const { data } = await db.from("leads").select(COLS).eq("tenant_id", tenantId).is("deleted_at", null).ilike("email", mail).order("created_at", { ascending: true }).limit(1);
+    const { data } = await db.from("leads").select(COLS).eq("tenant_id", tenantId).is("deleted_at", null).ilike("email", mail.replace(/[\\%_]/g, "\\$&")).order("created_at", { ascending: true }).limit(1);
     if (data?.[0]) return data[0];
   }
   return null;
@@ -111,29 +112,44 @@ export async function acharLead(db: SupabaseClient, tenantId: string, phone?: st
 /** Cria o lead ou atualiza o que ja existe. Devolve o id e se foi criado agora. */
 export async function upsertLead(db: SupabaseClient, tenantId: string, e: EntradaLead): Promise<{ id: string; criado: boolean }> {
   const etapa = await etapaPorPapel(db, tenantId, e.papel);
-  const existente = await acharLead(db, tenantId, e.phone, e.email);
 
-  if (existente) {
+  // Mesmo telefone OU e-mail (da empresa) = a mesma pessoa: atualiza o lead que já existe, nunca cria outro.
+  const atualizar = async (existente: any) => {
     const upd: Record<string, any> = { notes: comNota(existente.notes, e.nota), updated_at: new Date().toISOString() };
+    const nomeVazio = !String(existente.name ?? "").trim() || /^[\d\s()+-]+$/.test(String(existente.name));
+    if (nomeVazio && e.name) upd.name = e.name.slice(0, 200);
     if (!existente.email && e.email) upd.email = e.email;
     if (!existente.company && e.company) upd.company = e.company;
     if (!existente.cnpj && e.cnpj) upd.cnpj = e.cnpj;
     if (!existente.phone && e.phone) upd.phone = e.phone;
+    if (!existente.city && e.city) upd.city = e.city;
+    if (!existente.state && e.state) upd.state = e.state;
     if (e.value && (!existente.value || e.papel === "ganho")) upd.value = e.value;
     if (etapa && devePassar(existente, etapa)) { upd.stageId = etapa.stageId; upd.pipelineId = etapa.pipelineId; upd.status = etapa.status; }
     else if (!etapa && e.papel === "ganho") upd.status = "Fechado";
     await db.from("leads").update(upd).eq("id", existente.id);
-    return { id: existente.id, criado: false };
-  }
+    return { id: existente.id as string, criado: false };
+  };
+
+  const existente = await acharLead(db, tenantId, e.phone, e.email);
+  if (existente) return atualizar(existente);
 
   const id = randomUUID();
   const { error } = await db.from("leads").insert({
     id, tenant_id: tenantId, name: e.name.slice(0, 200), email: e.email || "", phone: e.phone || "", company: e.company || "", cnpj: e.cnpj || "",
+    city: e.city || null, state: e.state || null,
     source: e.source, status: etapa?.status ?? (e.papel === "ganho" ? "Fechado" : "Novo"), stageId: etapa?.stageId ?? "", pipelineId: etapa?.pipelineId ?? "comercial",
     priority: e.priority ?? "Média", value: e.value ?? 0, scoreIA: e.scoreIA ?? 50,
     notes: comNota("", e.nota), date: new Date().toISOString().split("T")[0],
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Dois envios do mesmo formulário ao mesmo tempo: o outro criou primeiro (índice único de telefone). Atualiza o que ele criou.
+    if ((error as any).code === "23505") {
+      const criado = await acharLead(db, tenantId, e.phone, e.email);
+      if (criado) return atualizar(criado);
+    }
+    throw new Error(error.message);
+  }
   return { id, criado: true };
 }
 

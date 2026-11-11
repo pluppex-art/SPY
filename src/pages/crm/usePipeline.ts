@@ -6,7 +6,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
-import { leadCity } from "../../lib/leadLocation";
+import { leadCity, cityKey, groupCities } from "../../lib/leadLocation";
 import { useSavedFunil } from "../../hooks/useSavedFunil";
 import { parseCurrencyBR, normalizeText } from "../../lib/utils";
 import { supabase } from "../../lib/supabase";
@@ -203,7 +203,7 @@ export function usePipeline() {
   // lista inteira de municípios do Brasil.
   const citiesList = useMemo(() => [
     "Todos",
-    ...Array.from(new Set(pipelineLeads.map((l: any) => leadCity(l)).filter(Boolean))).sort() as string[],
+    ...groupCities(pipelineLeads.map((l: any) => leadCity(l))).map((g) => g.label), // "Palmas", "PALMAS" e "Palmas/TO" viram uma só
   ], [pipelineLeads]);
 
   // Etapa selecionada que não existe mais no funil ativo (trocou de funil) volta pra "Todas".
@@ -225,7 +225,7 @@ export function usePipeline() {
         : !item.pipelineId || item.pipelineId === "comercial";
       const matchesSeller  = sellerFilter  === "Todos" || item.seller  === sellerFilter;
       const matchesCompany = companyFilter === "Todos" || item.company === companyFilter;
-      const matchesCity    = cityFilter    === "Todos" || leadCity(item) === cityFilter;
+      const matchesCity    = cityFilter    === "Todos" || cityKey(leadCity(item)) === cityKey(cityFilter);
       const clientId = clientNameToId[clientFilter];
       // Match by lead's own clientName/clientId OR via any linked product's client
       const matchesClient  = clientFilter  === "Todos"

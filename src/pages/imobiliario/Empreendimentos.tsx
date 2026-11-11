@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { cityKey, groupCities } from "../../lib/leadLocation";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -149,12 +150,12 @@ export default function Empreendimentos() {
       e.construtora.toLowerCase().includes(search.toLowerCase())
     );
     const matchStatus = filterStatus === "Todos" || e.status === filterStatus;
-    const matchCidade = !filterCidade || e.cidade === filterCidade;
+    const matchCidade = !filterCidade || cityKey(e.cidade) === cityKey(filterCidade);
     const matchConstrutora = !filterConstrutora || e.construtora === filterConstrutora;
     return matchSearch && matchStatus && matchCidade && matchConstrutora;
   });
 
-  const cidadesList = Array.from(new Set(empreendimentos.map(e => e.cidade).filter(Boolean))).sort();
+  const cidadesList = groupCities(empreendimentos.map(e => e.cidade)).map((g) => g.label);
   const construtorasList = Array.from(new Set(empreendimentos.map(e => e.construtora).filter(Boolean))).sort();
   const vgvTotalGeral = filtered.reduce((s, e) => s + e.vgvTotal, 0);
   const unidadesTotalDisp = filtered.reduce((s, e) => s + e.unidadesDisponiveis, 0);

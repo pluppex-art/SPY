@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import { distribuir, parseDist, extrasToNotes, normalizeEmail, stripText, type BuiltRow, type ImportField, type ImportSpec } from "./importer";
 import { funilStageNames, getStageId, phoneKey, pipelineIdDoFunil } from "./funnelIds";
 import { friendlyError } from "./friendlyError";
+import { cityLabel, splitCityUf } from "./leadLocation";
 
 const PAGE = 1000;
 
@@ -46,6 +47,12 @@ async function loadRefs(
 }
 
 const emailKey = (e: unknown) => { const v = normalizeEmail(e); return v ? `e:${v}` : ""; };
+/** Cidade e UF limpas: "PALMAS/TO" -> cidade "Palmas", UF "TO"; a sigla da coluna Estado, se vier, vale mais. */
+const localidade = (cidade: unknown, estado: unknown): { city: string | null; state: string | null } => {
+  const loc = splitCityUf(cidade);
+  const uf = String(estado ?? "").trim().toUpperCase().slice(0, 2) || loc.uf;
+  return { city: cityLabel(cidade) || null, state: uf || null };
+};
 const phoneKeyOf = (p: unknown) => { const k = phoneKey(p); return k.length >= 8 ? `t:${k}` : ""; };
 /** Chaves de TODOS os telefones da linha (a célula pode ter mais de um número). */
 const phonesKeys = (v: Record<string, any>, key: string) => [v[key], ...(v[`${key}__todos`] || [])].map(phoneKeyOf).filter(Boolean);
@@ -180,8 +187,8 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
         email: v.email || "", // coluna obrigatória (padrão vazio): NULL explícito derrubava o lote inteiro
         phone: v.phone || null,
         document_id: v.document_id || null,
-        city: v.city || null,
-        state: v.state ? String(v.state).toUpperCase().slice(0, 2) : null,
+        city: localidade(v.city, v.state).city,
+        state: localidade(v.city, v.state).state,
         value: typeof v.value === "number" ? v.value : 0,
         source: v.source || o.origem || "Importação de planilha",
         lead_interesse_cliente: v.lead_interesse_cliente || null,
@@ -197,7 +204,7 @@ export function leadsSpec(ctx: LeadsCtx): ImportSpec {
         scoreIA: 50,
         date: new Date().toISOString().split("T")[0],
         // O formulário do lead e os filtros leem cidade/estado em customFields; grava nos dois lugares.
-        customFields: { ...(v.city ? { cidade: String(v.city).trim() } : {}), ...(v.state ? { estado: String(v.state).trim().toUpperCase().slice(0, 2) } : {}) },
+        customFields: { ...(localidade(v.city, v.state).city ? { cidade: localidade(v.city, v.state).city } : {}), ...(localidade(v.city, v.state).state ? { estado: localidade(v.city, v.state).state } : {}) },
       };
     },
     insertBatch: (rows) => insertInto("leads", rows),
@@ -239,8 +246,8 @@ export function clientesSpec(ctx: { tenantId: string; onDone?: () => void }, kin
       documento: v.documento || null,
       email: v.email || null,
       phone: v.phone || null,
-      city: v.city || null,
-      state: v.state ? String(v.state).toUpperCase().slice(0, 2) : null,
+      city: localidade(v.city, v.state).city,
+      state: localidade(v.city, v.state).state,
       industry: v.industry || null,
       cep: v.cep || null,
       logradouro: v.logradouro || null,

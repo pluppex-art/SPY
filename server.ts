@@ -13,7 +13,7 @@ import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
 import { createGoogleIntegrationsRouter, makeInitialSync } from "./server/googleIntegrations.js";
 import { createSaas, aiContext } from "./server/saas.js";
 import { createCheckoutRouter } from "./server/checkout.js";
-import { upsertLead } from "./server/leadUpsert.js";
+import { upsertLead, acharLead } from "./server/leadUpsert.js";
 import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./server/whatsappProvider.js";
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget, ssrfSafeAgents } from "./server/ssrfGuard.js";
@@ -2492,15 +2492,12 @@ app.post("/api/v1/leads", requireApiKey, async (req, res) => {
   // concatenada — phone/email vêm de fora via x-api-key (sem sessão de usuário), e
   // um .or() interpolado permitiria injetar filtros extra na sintaxe do PostgREST
   // (valor contendo vírgula/parênteses).
+  // A busca é a mesma dos formulários e do checkout (acharLead): telefone em qualquer escrita (com/sem 55, com/sem o 9, ou
+  // telefone extra do card) e e-mail sem diferenciar maiúscula. Encontrou = atualiza esse lead, nunca cria outro.
   let existing: any = null;
-  if (normalizedPhone) {
-    const { data } = await supabaseService.from("leads").select("id, customFields")
-      .eq("tenant_id", tenantId).eq("phone", normalizedPhone).limit(1).maybeSingle();
-    existing = data;
-  }
-  if (!existing && normalizedEmail) {
-    const { data } = await supabaseService.from("leads").select("id, customFields")
-      .eq("tenant_id", tenantId).eq("email", normalizedEmail).limit(1).maybeSingle();
+  const achado = await acharLead(supabaseService, tenantId, normalizedPhone, normalizedEmail);
+  if (achado) {
+    const { data } = await supabaseService.from("leads").select("id, customFields").eq("id", achado.id).maybeSingle();
     existing = data;
   }
 
@@ -2574,6 +2571,15 @@ app.post("/api/v1/leads", requireApiKey, async (req, res) => {
   };
 
   const { data, error } = await supabaseService.from("leads").insert(newLead).select().maybeSingle();
+  if (error && (error as any).code === "23505") {
+    // Duas chamadas ao mesmo tempo para o mesmo contato: a outra criou primeiro (índice único de telefone). Reaproveita o lead dela.
+    const criado = await acharLead(supabaseService, tenantId, normalizedPhone, normalizedEmail);
+    if (criado) {
+      await supabaseService.from("leads").update({ updated_at: new Date().toISOString() }).eq("id", criado.id);
+      logApiKeyUsage(req, 200);
+      return res.status(200).json({ success: true, lead: { id: criado.id }, deduped: true });
+    }
+  }
   if (error) {
     console.error("[API v1] Erro ao criar lead:", error.message);
     logApiKeyUsage(req, 500);

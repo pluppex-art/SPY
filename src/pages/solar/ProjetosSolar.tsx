@@ -1,4 +1,5 @@
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { cityKey, groupCities } from "../../lib/leadLocation";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -187,7 +188,7 @@ export default function ProjetosSolar() {
     toast.success("Relatório de projetos solares exportado com sucesso!");
   };
 
-  const cidadesFiltro = Array.from(new Set(projetos.map(p => p.cidade).filter(Boolean))).sort();
+  const cidadesFiltro = groupCities(projetos.map(p => p.cidade)).map((g) => g.label);
   const filtered = projetos.filter(p => {
     const matchSearch = (
       p.cliente.toLowerCase().includes(search.toLowerCase()) ||
@@ -195,7 +196,7 @@ export default function ProjetosSolar() {
       p.concessionaria.toLowerCase().includes(search.toLowerCase())
     );
     const matchStatus = filterStatus === "Todos" || p.status === filterStatus;
-    const matchCidade = !filterCidade || p.cidade === filterCidade;
+    const matchCidade = !filterCidade || cityKey(p.cidade) === cityKey(filterCidade);
     return matchSearch && matchStatus && matchCidade;
   });
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { findDuplicateLead, fillEmptyLeadFields } from "../lib/leadDedupe";
 import { toast } from 'sonner';
 import { showNotificationPopup, showSalePopup } from '../lib/popups';
 import { sendPushNotification } from "../lib/notifications";
@@ -1739,6 +1740,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const createdLeadIdsRef = React.useRef<Set<string>>(new Set());
 
   const addLead = async (lead: Omit<Lead, 'id'>): Promise<boolean> => {
+    // Mesmo telefone ou e-mail de um lead da empresa: atualiza o que já existe em vez de duplicar.
+    const jaExiste = findDuplicateLead(leads as any[], lead as any);
+    if (jaExiste) {
+      const patch = fillEmptyLeadFields(jaExiste, lead as any);
+      if (Object.keys(patch).length > 0) updateLead(jaExiste.id, patch as any);
+      toast.info(`Já existia o lead "${jaExiste.name}" com esse telefone ou e-mail — atualizei os dados em vez de duplicar.`);
+      return true;
+    }
     const effectiveTenantId = tenantId || user?.tenantId || "default";
     const newId = crypto.randomUUID();
     const newLead = { ...lead, id: newId, scoreIA: 50 };
