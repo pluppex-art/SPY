@@ -8,6 +8,7 @@ import { useAuroraVoice } from "../../hooks/useAuroraVoice";
 import { AuroraTokenMeter } from "./AuroraTokenMeter";
 import { useAuroraTokenUsage } from "../../hooks/useAuroraTokenUsage";
 import { useAuth } from "../../contexts/AuthContext";
+import { useDraggableFab } from "../../hooks/useDraggableFab";
 
 interface AuroraMessage {
   id: string;
@@ -35,6 +36,8 @@ function buildGreeting(userName?: string | null): AuroraMessage {
  */
 export function AuroraWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  // A bolinha pode ser arrastada para qualquer canto (mouse ou dedo); a posição fica salva neste aparelho.
+  const fab = useDraggableFab("spy_aurora_fab");
   const [messages, setMessages] = useState<AuroraMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -135,7 +138,7 @@ export function AuroraWidget() {
     <>
       {/* ── Painel de chat ── */}
       {isOpen && (
-        <div className="fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom))] lg:bottom-24 right-4 md:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 h-[70dvh] lg:h-[560px] max-h-[calc(100dvh-13rem)] lg:max-h-[calc(100dvh-8rem)] flex flex-col bg-[var(--color-surface-elevated)] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div style={fab.panelStyle(384)} className="fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom))] lg:bottom-24 right-4 md:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 h-[70dvh] lg:h-[560px] max-h-[calc(100dvh-13rem)] lg:max-h-[calc(100dvh-8rem)] flex flex-col bg-[var(--color-surface-elevated)] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/[0.07] shrink-0">
@@ -249,14 +252,15 @@ export function AuroraWidget() {
       {/* ── Botão flutuante (o próprio núcleo da Aurora) ── */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        style={bubbleRingColor ? { boxShadow: `0 8px 30px rgba(139,92,246,0.35), 0 0 0 2px ${bubbleRingColor}` } : undefined}
+        {...fab.handlers}
+        style={{ ...(bubbleRingColor ? { boxShadow: `0 8px 30px rgba(139,92,246,0.35), 0 0 0 2px ${bubbleRingColor}` } : {}), ...fab.style }}
         className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] lg:bottom-6 right-3 md:right-6 z-50 w-11 h-11 sm:w-14 sm:h-14 rounded-full max-md:opacity-90 shadow-[0_8px_30px_rgba(139,92,246,0.35)] flex items-center justify-center transition-all hover:scale-105 overflow-hidden bg-black/20 backdrop-blur-sm"
         title={
           tokenUsage?.limitReached
             ? "Limite de tokens do ciclo atingido"
             : (tokenUsage?.percentUsed ?? 0) >= 90
             ? `Uso de tokens perto do limite (${tokenUsage?.percentUsed}%)`
-            : "Falar com a Aurora"
+            : "Falar com a Aurora (arraste para mover)"
         }
       >
         <div className="max-md:scale-[0.8] shrink-0"><AuroraCore mode={coreMode} size={56} /></div>
