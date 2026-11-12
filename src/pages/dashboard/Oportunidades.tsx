@@ -172,7 +172,12 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
                       onClick={() => setSelecionadoId(l.id)}
                       className={`cursor-pointer transition-colors ${selecionadoId === l.id ? "bg-[var(--color-primary-blue)]/5" : "hover:bg-[var(--color-surface-sunken)]"}`}
                     >
-                      <td className="px-4 py-2 font-bold text-[var(--color-text-primary)] truncate max-w-[160px]">{l.company || l.name}</td>
+                      <td className="px-4 py-2 font-bold text-[var(--color-text-primary)] truncate max-w-[160px]">
+                        {l.company || l.name}
+                        {l.company && l.name && l.name !== l.company && (
+                          <div className="text-[10px] font-medium text-[var(--color-text-muted)] truncate">{l.name}</div>
+                        )}
+                      </td>
                       <td className="px-4 py-2 font-mono text-[var(--color-text-primary)]">{formatCurrency(l._val)}</td>
                       <td className="px-4 py-2 text-[var(--color-text-muted)] truncate max-w-[100px]">{stageNames[l.stageId] || "—"}</td>
                       <td className="px-4 py-2 text-[var(--color-text-muted)]">{l.scoreIA ?? 0}%</td>
@@ -199,6 +204,9 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
             <div className="p-4 bg-gradient-to-br from-[var(--color-primary-blue)] to-[var(--color-primary-blue)]/70 text-[#fff] flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-sm font-black truncate">{selecionado.company || selecionado.name}</p>
+                {selecionado.company && selecionado.name && selecionado.name !== selecionado.company && (
+                  <p className="text-[11px] text-[var(--color-text-muted)] truncate">{selecionado.name}</p>
+                )}
                 <p className="text-[10px] text-[#fff]/60 flex items-center gap-1 mt-0.5"><Building2 className="w-3 h-3" /> {stageNames[selecionado.stageId] || "Oportunidade"}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
