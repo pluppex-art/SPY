@@ -66,6 +66,7 @@ export default function Layout() {
     <div className="h-dvh overflow-hidden bg-[var(--color-surface)] text-[var(--color-text-primary)] font-sans flex transition-all">
       <Sidebar
         isSidebarCollapsed={isSidebarCollapsed}
+        setIsSidebarCollapsed={setIsSidebarCollapsed}
         isMobileSidebarOpen={isMobileSidebarOpen}
         setIsMobileSidebarOpen={setIsMobileSidebarOpen}
         setIsSDRWebhookOpen={setIsSDRWebhookOpen}

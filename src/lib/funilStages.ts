@@ -71,11 +71,23 @@ export function buildStagesForFunil(funil: any): FunilStage[] {
       cor: ["cyan", "indigo", "purple", "amber", "emerald", "pink", "rose", "blue", "orange", "slate"][i % 10],
       iniciarMinimizado: false,
     }));
-  return configs.map((s: any, idx: number) => ({
+  const stages: FunilStage[] = configs.map((s: any, idx: number) => ({
     id: getStageId(funil.id, idx),
     name: s.nome,
     color: ETAPA_DOT_COLORS[s.cor] ?? "#64748b",
     iniciarMinimizado: s.iniciarMinimizado ?? false,
     funilId: funil.id,
   }));
+  // Padrão da Central de Vendas: "Novo lead" sempre é a primeira coluna e as
+  // demais seguem na ordem configurada. O id da etapa vem da posição original
+  // (getStageId), então reordenar aqui não muda a que etapa cada lead pertence.
+  const novoLeadIdx = stages.findIndex((s) => isNovoLeadStage(s.name));
+  if (novoLeadIdx > 0) stages.unshift(...stages.splice(novoLeadIdx, 1));
+  return stages;
+}
+
+/** "Novo lead", "Novos Leads", "Novo Lead (entrada)"… — a etapa de entrada do funil. */
+export function isNovoLeadStage(name: string): boolean {
+  const n = String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  return /^novos?\s+leads?\b/.test(n);
 }

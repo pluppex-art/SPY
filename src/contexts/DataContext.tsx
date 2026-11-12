@@ -871,11 +871,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (supabase) {
       let q = supabase.from('crm_funis').update(funilToRow(updates)).eq('id', id);
       if (tenantId) q = q.eq('tenant_id', tenantId); // nunca altera o funil de outra empresa
-      const { error } = await q;
-      if (error) {
-        console.error('[Supabase] update crm_funis error:', error.message);
+      const { data, error } = await q.select('id');
+      // 0 linhas = o funil não existe (ou sem permissão): o Supabase não dá erro nesse caso.
+      if (error || !data || data.length === 0) {
+        console.error('[Supabase] update crm_funis error:', error?.message || 'nenhuma linha atualizada');
         if (anterior) setFunis(prev => prev.map(f => f.id === id ? anterior : f));
-        toast.error(`Erro ao salvar funil: ${friendlyError(error)}`);
+        toast.error(error ? `Erro ao salvar funil: ${friendlyError(error)}` : 'Não foi possível salvar: funil não encontrado. Recarregue a página.');
       }
     }
   };

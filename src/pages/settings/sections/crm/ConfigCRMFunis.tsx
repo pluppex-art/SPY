@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
@@ -24,6 +24,34 @@ export function ConfigCRMFunis() {
   // Tenant sem nenhum funil salvo ainda: mostra os padrões só na tela (não
   // grava nada sozinho — vira registro real assim que o usuário salvar algo).
   const funis: Funil[] = dbFunis.length > 0 ? dbFunis : FUNIS_DEFAULT;
+  // Os padrões da tela não existem no banco. Na primeira alteração eles são
+  // gravados de verdade (ids novos — a chave é global entre tenants) e as
+  // edições seguintes passam a mirar o id real.
+  const materializacao = useRef<Promise<Record<string, string>> | null>(null);
+  useEffect(() => {
+    if (dbFunis.length === 0) materializacao.current = null;
+  }, [dbFunis.length]);
+  const resolverId = async (id: string): Promise<string> => {
+    if (dbFunis.length > 0 && dbFunis.some(f => f.id === id)) return id;
+    if (!FUNIS_DEFAULT.some(f => f.id === id)) return id;
+    if (!materializacao.current) {
+      materializacao.current = (async () => {
+        const mapa: Record<string, string> = {};
+        for (const padrao of FUNIS_DEFAULT) {
+          const novoId = crypto.randomUUID();
+          mapa[padrao.id] = novoId;
+          await addFunil({ ...padrao, id: novoId });
+        }
+        return mapa;
+      })();
+    }
+    const mapa = await materializacao.current;
+    return mapa[id] ?? id;
+  };
+  const atualizar = async (id: string, patch: any) => {
+    const realId = await resolverId(id);
+    await updateFunil(realId, patch);
+  };
   const [editingFunil, setEditingFunil] = useState<Funil | null | "new">(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -44,7 +72,10 @@ export function ConfigCRMFunis() {
     if (faltando.length > 0) {
       toast.info(`Etapas obrigatórias mantidas: ${faltando.map(e => e.nome).join(", ")}.`);
     }
-    if (existing) await updateFunil(f.id, funilWithConfigs);
+    if (existing) {
+      const realId = await resolverId(f.id);
+      await updateFunil(realId, { ...funilWithConfigs, id: realId });
+    }
     else await addFunil(funilWithConfigs);
     toast.success(existing ? `Funil "${f.nome}" atualizado!` : `Funil "${f.nome}" criado!`);
     setEditingFunil(null);
@@ -56,21 +87,21 @@ export function ConfigCRMFunis() {
       title: "Excluir funil",
       description: `Excluir o funil "${funil?.nome || "selecionado"}"? Essa ação também remove as etapas configuradas e não pode ser desfeita.`,
     }))) return;
-    await deleteFunil(id);
+    await deleteFunil(await resolverId(id));
     if (expandedId === id) setExpandedId(null);
     toast.success("Funil removido.");
   };
 
   const handleToggle = async (id: string) => {
     const f = funis.find(x => x.id === id);
-    if (f) await updateFunil(id, { ativo: !f.ativo });
+    if (f) await atualizar(id, { ativo: !f.ativo });
   };
 
   const handleStageUpdate = (funilId: string, idx: number, patch: Partial<{ nome: string; cor: string; iniciarMinimizado: boolean }>) => {
     const f = funis.find(x => x.id === funilId);
     if (!f) return;
     const configs = initStageConfigs(f.etapas, f.etapasConfig);
-    updateFunil(funilId, { etapasConfig: configs.map((c, i) => i === idx ? { ...c, ...patch } : c) });
+    atualizar(funilId, { etapasConfig: configs.map((c, i) => i === idx ? { ...c, ...patch } : c) });
   };
 
   const handleStageRename = (funilId: string, idx: number, newNome: string) => {
@@ -82,7 +113,7 @@ export function ConfigCRMFunis() {
       toast.info(`"${oldNome}" é uma etapa obrigatória e não pode ser renomeada.`);
       return;
     }
-    updateFunil(funilId, {
+    atualizar(funilId, {
       etapas: f.etapas.map((e, i) => i === idx ? newNome : e),
       etapasConfig: configs.map((c, i) => i === idx ? { ...c, nome: newNome } : c),
       sdrEtapaEntrada: f.sdrEtapaEntrada === oldNome ? newNome : f.sdrEtapaEntrada,
@@ -103,7 +134,7 @@ export function ConfigCRMFunis() {
       title: "Excluir etapa",
       description: `Excluir a etapa "${stageName}"? Essa ação não pode ser desfeita.`,
     }))) return;
-    updateFunil(funilId, { etapas: f.etapas.filter((_, i) => i !== idx), etapasConfig: configs.filter((_, i) => i !== idx) });
+    atualizar(funilId, { etapas: f.etapas.filter((_, i) => i !== idx), etapasConfig: configs.filter((_, i) => i !== idx) });
   };
 
   const handleStageAdd = (funilId: string) => {
@@ -112,7 +143,7 @@ export function ConfigCRMFunis() {
     const configs = initStageConfigs(f.etapas, f.etapasConfig);
     const newNome = `Nova Etapa ${configs.length + 1}`;
     const newCor = ["blue", "orange", "cyan", "emerald", "purple", "rose", "amber", "indigo", "pink", "slate"][configs.length % 10];
-    updateFunil(funilId, { etapas: [...f.etapas, newNome], etapasConfig: [...configs, { nome: newNome, cor: newCor, iniciarMinimizado: false }] });
+    atualizar(funilId, { etapas: [...f.etapas, newNome], etapasConfig: [...configs, { nome: newNome, cor: newCor, iniciarMinimizado: false }] });
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -127,7 +158,7 @@ export function ConfigCRMFunis() {
     const [config] = newConfigs.splice(result.source.index, 1);
     newEtapas.splice(result.destination!.index, 0, etapa);
     newConfigs.splice(result.destination!.index, 0, config);
-    updateFunil(funilId, { etapas: newEtapas, etapasConfig: newConfigs });
+    atualizar(funilId, { etapas: newEtapas, etapasConfig: newConfigs });
   };
 
   return (

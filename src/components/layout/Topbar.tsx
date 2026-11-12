@@ -256,7 +256,7 @@ export function Topbar({
         <button
           type="button"
           onClick={() => toggleTheme()}
-          className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-full transition-colors cursor-pointer border-none max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent max-md:shadow-none max-md:border-none"
+          className="lg:hidden p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-full transition-colors cursor-pointer border-none max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent max-md:shadow-none max-md:border-none"
           title={t("Alternar Tema (Light/Dark)")}
         >
           {theme === "dark" ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}

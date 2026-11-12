@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Building2, MapPin, ChevronDown } from "lucide-react";
+import { Building2, MapPin, ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -12,13 +12,18 @@ import { cargoPermiteModulo, modulosDoCargo } from "../../lib/accessControl";
 
 interface SidebarProps {
   isSidebarCollapsed: boolean;
+  setIsSidebarCollapsed: (collapsed: boolean) => void;
   isMobileSidebarOpen: boolean;
   setIsMobileSidebarOpen: (isOpen: boolean) => void;
   setIsSDRWebhookOpen: (isOpen: boolean) => void;
 }
 
+// Seções fixas no rodapé da sidebar (não rolam junto com o resto do menu).
+const PINNED_SECTION_TITLES = ["Equipe & RH", "Configurações", "Administração Master"];
+
 export function Sidebar({
   isSidebarCollapsed,
+  setIsSidebarCollapsed,
   isMobileSidebarOpen,
   setIsMobileSidebarOpen,
   setIsSDRWebhookOpen,
@@ -57,11 +62,13 @@ export function Sidebar({
 
   useEffect(() => {
     const active = sectionForPath(location.pathname);
-    if (active) setOpenSections((prev) => (prev[active] ? prev : { ...prev, [active]: true }));
+    // Sanfona: ao navegar, só a seção da rota atual fica aberta.
+    if (active) setOpenSections((prev) => (prev[active] ? prev : { [active]: true }));
   }, [location.pathname]);
 
   const toggleSection = (title: string) => {
-    setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
+    // Sanfona: abrir uma seção fecha a que estava aberta.
+    setOpenSections((prev) => (prev[title] ? {} : { [title]: true }));
   };
 
   // Master vê e troca de cliente (tenant); usuário de organização parceira (partnerId
@@ -166,8 +173,8 @@ export function Sidebar({
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-thin">
-          {navSections
+        {(() => {
+          const visibleSections: any[] = navSections
             .map((section) => {
               if (section.reqModule && !canAccessModule(section.reqModule)) {
                 return null;
@@ -185,8 +192,8 @@ export function Sidebar({
 
               return { ...section, items: visibleItems };
             })
-            .filter(Boolean)
-            .map((section: any, idx) => {
+            .filter(Boolean);
+          const renderSection = (section: any, idx: number) => {
               const isOpen = isSidebarCollapsed || !!openSections[section.title];
 
               return (
@@ -291,7 +298,35 @@ export function Sidebar({
                 })}
               </div>
               );
-            })}
+          };
+          const scrollSections = visibleSections.filter((sec) => !PINNED_SECTION_TITLES.includes(sec.title));
+          const pinnedSections = visibleSections.filter((sec) => PINNED_SECTION_TITLES.includes(sec.title));
+          return (
+            <>
+              <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-thin">
+                {scrollSections.map((sec, i) => renderSection(sec, i))}
+              </div>
+              {pinnedSections.length > 0 && (
+                <div className="shrink-0 max-h-[45%] overflow-y-auto scrollbar-thin px-3 py-3 space-y-3 border-t border-[var(--color-border-subtle)]">
+                  {pinnedSections.map((sec, i) => renderSection(sec, 1000 + i))}
+                </div>
+              )}
+            </>
+          );
+        })()}
+
+        {/* Botão de recolher/expandir dentro da sidebar (desktop). */}
+        <div className="hidden lg:flex shrink-0 border-t border-[var(--color-border-subtle)] p-2">
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            title={isSidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            aria-label={isSidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            className={`flex items-center ${isSidebarCollapsed ? "justify-center w-full" : "gap-2.5 px-3 w-full"} py-2 text-xs font-bold rounded-[var(--radius-control)] cursor-pointer border-none bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors`}
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4 shrink-0" /> : <PanelLeftClose className="w-4 h-4 shrink-0" />}
+            {!isSidebarCollapsed && <span>Recolher menu</span>}
+          </button>
         </div>
 
       </aside>
