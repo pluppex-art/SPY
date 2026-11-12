@@ -55,9 +55,9 @@ export function Sidebar({
   const sectionForPath = (pathname: string) =>
     navSections.find((section) => section.items.some((item) => pathname.startsWith(item.path)))?.title;
 
-  // Até 2 seções abertas ao mesmo tempo: abrir uma terceira fecha a que foi
-  // aberta primeiro (a lista guarda a ordem de abertura).
-  const MAX_OPEN_SECTIONS = 2;
+  // Uma seção aberta por vez: abrir outra fecha a que estava aberta. A lista
+  // guarda a ordem de abertura; o limite é MAX_OPEN_SECTIONS.
+  const MAX_OPEN_SECTIONS = 1;
   const [openList, setOpenList] = useState<string[]>(() => {
     const active = sectionForPath(location.pathname);
     return active ? [active] : [];
