@@ -83,7 +83,10 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
     else if (filtro === "recuperaveis") base = recuperaveis;
     if (busca.trim()) {
       const q = busca.trim().toLowerCase();
-      base = base.filter((l) => (l.company || l.name || "").toLowerCase().includes(q));
+      const dig = q.replace(/\D/g, "");
+      base = base.filter((l) =>
+        `${l.company || ""} ${l.name || ""}`.toLowerCase().includes(q) ||
+        (dig.length >= 4 && String(l.phone || "").replace(/\D/g, "").includes(dig)));
     }
     return [...base].sort((a, b) => b._val * (b.scoreIA ?? 0) - a._val * (a.scoreIA ?? 0));
   }, [filtro, classificados, prioritarias, emRisco, semContato, recuperaveis, busca]);
@@ -172,11 +175,10 @@ export default function Oportunidades({ dashboard }: { dashboard: DashboardData 
                       onClick={() => setSelecionadoId(l.id)}
                       className={`cursor-pointer transition-colors ${selecionadoId === l.id ? "bg-[var(--color-primary-blue)]/5" : "hover:bg-[var(--color-surface-sunken)]"}`}
                     >
-                      <td className="px-4 py-2 font-bold text-[var(--color-text-primary)] truncate max-w-[160px]">
-                        {l.company || l.name}
-                        {l.company && l.name && l.name !== l.company && (
-                          <div className="text-[10px] font-medium text-[var(--color-text-muted)] truncate">{l.name}</div>
-                        )}
+                      <td className="px-4 py-2 max-w-[180px]">
+                        <p className="font-bold text-[var(--color-text-primary)] truncate">{l.company || l.name}</p>
+                        {/* Linhas com o mesmo nome (várias pessoas da mesma empresa, "Lead WhatsApp"…) ficam distinguíveis */}
+                        {(() => { const sub = l.company && l.name && l.name !== l.company ? l.name : (l.phone || ""); return sub ? <p className="text-[10px] font-medium text-[var(--color-text-faint)] truncate">{sub}</p> : null; })()}
                       </td>
                       <td className="px-4 py-2 font-mono text-[var(--color-text-primary)]">{formatCurrency(l._val)}</td>
                       <td className="px-4 py-2 text-[var(--color-text-muted)] truncate max-w-[100px]">{stageNames[l.stageId] || "—"}</td>
