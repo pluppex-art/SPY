@@ -112,6 +112,19 @@ export function Sidebar({
         transition-all duration-300 ease-in-out border-r border-[var(--color-border-default)] bg-[var(--color-surface)] flex flex-col shrink-0 select-none
       `}
       >
+        {/* Botão de recolher/expandir no topo da sidebar (desktop), só o ícone. */}
+        <div className={`hidden lg:flex shrink-0 px-2 pt-2 ${isSidebarCollapsed ? "justify-center" : "justify-end"}`}>
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            title={isSidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            aria-label={isSidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            className="p-1.5 rounded-[var(--radius-control)] cursor-pointer border-none bg-transparent text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          </button>
+        </div>
+
         <div className="h-20 flex items-center justify-center px-3 py-2.5 shrink-0 border-b border-[var(--color-border-subtle)]">
           <Link
             to="/app"
@@ -317,20 +330,6 @@ export function Sidebar({
             </>
           );
         })()}
-
-        {/* Botão de recolher/expandir dentro da sidebar (desktop). */}
-        <div className="hidden lg:flex shrink-0 border-t border-[var(--color-border-subtle)] p-2">
-          <button
-            type="button"
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            title={isSidebarCollapsed ? "Expandir menu" : "Recolher menu"}
-            aria-label={isSidebarCollapsed ? "Expandir menu" : "Recolher menu"}
-            className={`flex items-center ${isSidebarCollapsed ? "justify-center w-full" : "gap-2.5 px-3 w-full"} py-2 text-xs font-bold rounded-[var(--radius-control)] cursor-pointer border-none bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors`}
-          >
-            {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4 shrink-0" /> : <PanelLeftClose className="w-4 h-4 shrink-0" />}
-            {!isSidebarCollapsed && <span>Recolher menu</span>}
-          </button>
-        </div>
 
       </aside>
     </>
