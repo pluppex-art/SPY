@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { findDuplicateLead, fillEmptyLeadFields } from "../lib/leadDedupe";
 import { toast } from 'sonner';
-import { showNotificationPopup, showSalePopup } from '../lib/popups';
+import { showNotificationPopup, showSalePopup, showNewLeadPopup } from '../lib/popups';
+import { shouldPopupNewLead, shouldPopupNotification } from '../lib/notificationRules';
 import { sendPushNotification } from "../lib/notifications";
 import { isSupabaseReachable, supabase, fetchTenantPrimaryColor, updateTenantTheme } from '../lib/supabase';
 import { DEFAULT_BRAND_COLOR, applyThemeColor } from '../lib/theme';
@@ -310,6 +311,9 @@ const normalizeFinanceEntry = (r: any): FinanceEntry => ({
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { user, authLoading, updatePreferences, activeTenantId, activeFilialId } = useAuth();
+  // Os pop-ups em tempo real rodam em callbacks de longa vida: leem o usuário atual por ref (preferências e vendedor).
+  const userRef = React.useRef(user);
+  userRef.current = user;
   const { formatCurrency } = useLocalization();
   const tenantId = activeTenantId;
 
@@ -1001,7 +1005,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           // Patch incremental em vez de refetch da tabela inteira — ver
           // applyRealtimeUpsert acima. INSERT ainda mostra o toast de aviso.
           if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId && !createdLeadIdsRef.current.has((payload.new as any).id)) {
-            showNotificationPopup({ title: `Novo lead: ${payload.new.name}`, description: 'Recebido agora', type: 'info', link_url: `/app/crm/pipeline?leadId=${encodeURIComponent((payload.new as any).id)}` });
+            if (shouldPopupNewLead(userRef.current as any, payload.new as any)) showNewLeadPopup({ id: (payload.new as any).id, name: (payload.new as any).name });
           }
           // Venda fechada por QUALQUER pessoa do tenant aparece pra equipe toda. Quem fechou aqui já tem o
           // status otimista em leadsRef (a transição não existe mais quando o eco do banco chega), então
@@ -1085,7 +1089,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
           if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId) {
             const n = payload.new as any;
-            showNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
+            if (shouldPopupNotification(userRef.current as any, n)) showNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
           }
           applyRealtimeUpsert(setNotifications, payload, (r) => r as Notification, tenantId);
         })

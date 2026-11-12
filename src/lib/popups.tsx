@@ -92,6 +92,41 @@ export function showNotificationPopup(n: { title: string; description?: string |
   );
 }
 
+// Leads novos em sequência (IA, webhook, sincronização) viram UM aviso: o primeiro sai na hora; os que chegarem
+// nos 5 s seguintes são somados e saem juntos ("N novos leads"), em vez de uma fila de pop-ups.
+const LEAD_BATCH_MS = 5000;
+let leadBatch: { names: string[]; lastId: string; timer: ReturnType<typeof setTimeout> } | null = null;
+let leadBatchOpenedAt = 0;
+
+const leadLink = (id: string) => `/app/crm/pipeline?leadId=${encodeURIComponent(id)}`;
+
+function flushLeadBatch() {
+  const b = leadBatch;
+  leadBatch = null;
+  if (!b || b.names.length === 0) return;
+  showNotificationPopup({
+    title: b.names.length === 1 ? `Novo lead: ${b.names[0]}` : `${b.names.length} novos leads`,
+    description: b.names.length === 1 ? "Recebido agora" : b.names.slice(0, 3).join(", ") + (b.names.length > 3 ? "…" : ""),
+    type: "info",
+    link_url: b.names.length === 1 ? leadLink(b.lastId) : "/app/crm/pipeline",
+  });
+}
+
+export function showNewLeadPopup(lead: { id: string; name?: string | null }) {
+  if (popupsSuppressed()) return;
+  const label = lead.name || "Sem nome";
+  if (leadBatch) { leadBatch.names.push(label); leadBatch.lastId = lead.id; return; }
+  const now = Date.now();
+  if (now - leadBatchOpenedAt > LEAD_BATCH_MS * 2) {
+    // Primeiro da rajada: avisa na hora.
+    showNotificationPopup({ title: `Novo lead: ${label}`, description: "Recebido agora", type: "info", link_url: leadLink(lead.id) });
+    leadBatch = { names: [], lastId: lead.id, timer: setTimeout(flushLeadBatch, LEAD_BATCH_MS) };
+  } else {
+    leadBatch = { names: [label], lastId: lead.id, timer: setTimeout(flushLeadBatch, LEAD_BATCH_MS) };
+  }
+  leadBatchOpenedAt = now;
+}
+
 /** "R$ 1.500,00" a partir de número ou texto livre do campo `value` do lead (que não é padronizado). */
 export function formatLeadValue(value: unknown): string | undefined {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {

@@ -154,7 +154,7 @@ const iconMap: Record<string, any> = {
 };
 
 export function ConfigNotificacoesPreferencias() {
-  const { appSettings, saveAppSetting, addNotification } = useData();
+  const { appSettings, addNotification } = useData();
   const { user, updatePreferences } = useAuth();
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -197,12 +197,8 @@ export function ConfigNotificacoesPreferencias() {
     // Persist in user preferences
     updatePreferences({ [SETTING_KEY]: newPrefs });
 
-    // Persist in app_settings table
-    try {
-      await saveAppSetting(SETTING_KEY, newPrefs);
-    } catch (e) {
-      console.warn("Falha ao salvar em appSettings:", e);
-    }
+    // Preferência é pessoal: só em user.preferences. Gravar também em app_settings (da empresa inteira)
+    // fazia a escolha de uma pessoa virar o padrão de todo mundo que nunca mexeu.
   };
 
   const handleToggle = (id: string, channel: "inApp" | "email" | "whatsapp") => {
