@@ -55,20 +55,23 @@ export function Sidebar({
   const sectionForPath = (pathname: string) =>
     navSections.find((section) => section.items.some((item) => pathname.startsWith(item.path)))?.title;
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+  // Até 2 seções abertas ao mesmo tempo: abrir uma terceira fecha a que foi
+  // aberta primeiro (a lista guarda a ordem de abertura).
+  const MAX_OPEN_SECTIONS = 2;
+  const [openList, setOpenList] = useState<string[]>(() => {
     const active = sectionForPath(location.pathname);
-    return active ? { [active]: true } : {};
+    return active ? [active] : [];
   });
+  const openSections: Record<string, boolean> = Object.fromEntries(openList.map((t) => [t, true]));
+  const addOpen = (list: string[], title: string) => [...list.filter((x) => x !== title), title].slice(-MAX_OPEN_SECTIONS);
 
   useEffect(() => {
     const active = sectionForPath(location.pathname);
-    // Sanfona: ao navegar, só a seção da rota atual fica aberta.
-    if (active) setOpenSections((prev) => (prev[active] ? prev : { [active]: true }));
+    if (active) setOpenList((prev) => (prev.includes(active) ? prev : addOpen(prev, active)));
   }, [location.pathname]);
 
   const toggleSection = (title: string) => {
-    // Sanfona: abrir uma seção fecha a que estava aberta.
-    setOpenSections((prev) => (prev[title] ? {} : { [title]: true }));
+    setOpenList((prev) => (prev.includes(title) ? prev.filter((x) => x !== title) : addOpen(prev, title)));
   };
 
   // Master vê e troca de cliente (tenant); usuário de organização parceira (partnerId

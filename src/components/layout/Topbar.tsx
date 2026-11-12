@@ -12,7 +12,6 @@ import { EmptyState } from "../ui/empty-state";
 import { CommandPalette } from "../CommandPalette";
 import { Logo } from "../ui/Logo";
 import {
-  Menu,
   Sun,
   Moon,
   Bell,
@@ -224,19 +223,6 @@ export function Topbar({
   return (
     <header className="h-16 max-md:h-14 border-b border-[var(--color-border-default)] bg-[var(--color-surface)]/80 max-md:bg-[var(--color-surface-elevated)] backdrop-blur-xl max-md:backdrop-blur-none flex items-center justify-between px-6 max-md:px-4 z-40 shrink-0 select-none">
       <div className="flex items-center gap-4 max-md:gap-2.5 flex-1 min-w-0">
-        <button
-          type="button"
-          onClick={() => {
-            if (window.innerWidth < 1024) {
-              setIsMobileSidebarOpen(!isMobileSidebarOpen);
-            } else {
-              setIsSidebarCollapsed(!isSidebarCollapsed);
-            }
-          }}
-          className="hidden lg:block p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl transition-colors mr-2 cursor-pointer border-none">
-          <Menu className="w-5 h-5" />
-        </button>
-
         {/* Marca no mobile: só o logo (o nome da empresa fica no menu) — evita
             quebra de linha/reticências na barra. */}
         <div className="flex sm:hidden items-center h-10 pl-1 min-w-0">
@@ -256,7 +242,7 @@ export function Topbar({
         <button
           type="button"
           onClick={() => toggleTheme()}
-          className="lg:hidden p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-full transition-colors cursor-pointer border-none max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent max-md:shadow-none max-md:border-none"
+          className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-full transition-colors cursor-pointer border-none max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent max-md:shadow-none max-md:border-none"
           title={t("Alternar Tema (Light/Dark)")}
         >
           {theme === "dark" ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
