@@ -3,8 +3,8 @@
  * Usa os tipos/opções do MESMO formulário de CRM > Implementações (implementationForm.ts), então
  * campo novo lá vale aqui sem mudar nada.
  */
-import { coerceFieldValue, type ImplField } from "../implementationForm";
-import { isValidCnpj, onlyDigits } from "../brLookup";
+import { coerceFieldValue, type ImplField } from "../implementationForm.js";
+import { isValidCnpj, onlyDigits } from "../brLookup.js";
 
 export const norm = (s: unknown) =>
   String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();

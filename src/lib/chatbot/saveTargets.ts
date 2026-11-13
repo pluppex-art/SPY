@@ -3,8 +3,8 @@
  * conversa e grava num registro do SPY. Para ligar um destino novo basta (1) listar aqui o que dá
  * pra preencher e (2) escrever o gravador correspondente em server/chatbotSave.ts.
  */
-import { allFields } from "../implementationForm";
-import type { SaveTargetId } from "./types";
+import { allFields } from "../implementationForm.js";
+import type { SaveTargetId } from "./types.js";
 
 export interface SaveTargetDef {
   label: string;
