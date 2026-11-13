@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Bot, Workflow, Zap, Settings2, ChevronRight, Clock, Power, Activity, BookOpen, Lightbulb, AlertTriangle, Gauge } from "lucide-react";
+import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { useData } from "../../contexts/DataContext";
 import { buildStagesForFunil } from "../../lib/funilStages";
@@ -68,17 +69,15 @@ export default function VisaoGeralIA() {
   const Titulo = ({ children }: { children: ReactNode }) => <h2 className="text-sm font-black uppercase tracking-wider text-[var(--color-text-faint)]">{children}</h2>;
 
   return (
-    <div className="max-w-5xl space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Inteligência Artificial</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Tudo da Aurora num lugar só: consumo, atividade, funil, agentes e conhecimento.</p>
-        </div>
-        <span className={`self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${ativos > 0 ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>
+    <PageContainer
+      title="Inteligência Artificial"
+      description="Tudo da Aurora num lugar só: consumo, atividade, funil, agentes e conhecimento."
+      actions={
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${ativos > 0 ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>
           <Power className="w-3 h-3" /> {ativos > 0 ? `${ativos} agente${ativos > 1 ? "s" : ""} ativo${ativos > 1 ? "s" : ""}` : "Nenhum agente ativo"}
         </span>
-      </div>
-
+      }
+    >
       <div className="flex gap-1 overflow-x-auto border-b border-[var(--color-border-default)] -mx-1 px-1" role="tablist">
         {ABAS.map((a) => (
           <button key={a.id} role="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}
@@ -266,6 +265,6 @@ export default function VisaoGeralIA() {
           <p className="text-xs text-[var(--color-text-muted)]">{((leadScoreTriggers as any[]) || []).length} regra(s) de pontuação de lead configurada(s). <Link to="/app/configuracoes/crm/gatilhos-ia" className="text-[var(--color-primary-blue)] font-bold">Editar gatilhos</Link></p>
         </section>
       )}
-    </div>
+    </PageContainer>
   );
 }
