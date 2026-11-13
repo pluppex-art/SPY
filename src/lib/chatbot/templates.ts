@@ -101,6 +101,7 @@ const PERGUNTAS_IMPLANTACAO: [string, ValidationKind, string][] = [
   ["razao_social", "text", "Qual é a razão social da empresa?"],
   ["nome_fantasia", "text", "E o nome fantasia?"],
   ["cnpj", "text", "Qual é o CNPJ?"],
+  ["endereco", "text", "Qual o endereço da empresa (rua, número, bairro e cidade)?"],
   ["segmento", "text", "Em que segmento a empresa atua?"],
   ["operacao_descricao", "text", "Como a operação funciona hoje, do primeiro contato do cliente até a entrega ou cobrança?"],
   ["resp_nome", "text", "Quem é o responsável principal pela implantação?"],
@@ -122,7 +123,7 @@ function implantacao(): ChatbotFlow {
     const next = i + 1 < PERGUNTAS_IMPLANTACAO.length ? PERGUNTAS_IMPLANTACAO[i + 1][0] : "salvar";
     nodes[variable] = { id: variable, type: "question", text, variable, validation, next };
   });
-  nodes.salvar = { id: "salvar", type: "save_data", target: "implementation", map: PERGUNTAS_IMPLANTACAO.map(([v]) => ({ field: v, variable: v })), next: "fim" };
+  nodes.salvar = { id: "salvar", type: "save_data", target: "implementation", map: PERGUNTAS_IMPLANTACAO.map(([v]) => ({ field: v, variable: v })), provision: true, next: "fim" };
   nodes.fim = { id: "fim", type: "end", text: "Perfeito, recebi tudo! Nossa equipe já continua a implementação com esses dados." };
   return { start: "boas_vindas", nodes };
 }

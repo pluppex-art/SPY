@@ -17,6 +17,7 @@ import type { Express, RequestHandler } from "express";
 import { allFields, applyPatch, type ImplData } from "../src/lib/implementationForm.js";
 import { isEmpty, validateField } from "../src/lib/chatbot/validateValue.js";
 import { phoneKey } from "../src/lib/funnelIds.js";
+import type { ProvisionResult } from "./implementationProvision.js";
 
 type Sb = any;
 interface MapEntry { field: string; variable: string }
@@ -86,7 +87,14 @@ const SAVERS: Record<string, (sb: Sb, a: SaveInput) => Promise<SaveResult>> = {
   implementation: saveToImplementation,
 };
 
-export function registerChatbotSaveRoutes(app: Express, { limiter, supabaseService }: { limiter: RequestHandler; supabaseService: Sb }) {
+export interface ChatbotSaveDeps {
+  limiter: RequestHandler;
+  supabaseService: Sb;
+  /** Cria o ambiente do cliente e aciona o agente (server/implementationProvision.ts). Opcional: sem ele o nó só grava. */
+  provision?: (implementationId: string, ownerTenantId: string) => Promise<ProvisionResult>;
+}
+
+export function registerChatbotSaveRoutes(app: Express, { limiter, supabaseService, provision }: ChatbotSaveDeps) {
   app.post("/api/chatbot/save-data", limiter, async (req: any, res) => {
     try {
       if (!supabaseService) return res.status(503).json({ error: "Serviço indisponível." });
@@ -107,8 +115,16 @@ export function registerChatbotSaveRoutes(app: Express, { limiter, supabaseServi
 
       const result = await saver(supabaseService, { tenantId: inst.tenant_id, session, phone: String(phone || cleanVars.telefone || ""), map: cleanMap, vars: cleanVars });
       if (!result.ok) console.warn("[chatbot/save-data]", session, result.reason);
+      // Fim da coleta: se o nó pede e há dados suficientes, cria o ambiente e aciona o agente (uma única vez).
+      let provisioned: ProvisionResult | undefined;
+      if (result.ok && result.implementationId && target === "implementation" && req.body?.provision === true && provision) {
+        try { provisioned = await provision(result.implementationId, inst.tenant_id); } catch (e: any) {
+          console.error("[chatbot/save-data] provision:", e?.message);
+          provisioned = { status: "failed", reason: "erro_interno" };
+        }
+      }
       // 200 mesmo quando não gravou: o fluxo do bot segue; o motivo vai no corpo (n8n não precisa repetir).
-      res.json(result);
+      res.json(provisioned ? { ...result, provisioned } : result);
     } catch (err: any) {
       console.error("[chatbot/save-data]", err?.message);
       res.status(500).json({ ok: false, reason: "erro_interno" });

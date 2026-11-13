@@ -188,6 +188,12 @@ export function NodeInspector({ flow, node, issues, readOnly, onChange, onDelete
             ))}
             {!readOnly && <Button size="xs" variant="outline" onClick={() => onChange({ ...node, map: [...node.map, { field: "", variable: "" }] })}><Plus className="w-3 h-3" /> Campo</Button>}
           </div>
+          {node.target === "implementation" && (
+            <label className="flex items-start gap-2 text-xs text-[var(--color-text-secondary)] leading-relaxed">
+              <input type="checkbox" disabled={readOnly} checked={!!node.provision} onChange={(e) => onChange({ ...node, provision: e.target.checked })} className="mt-0.5" />
+              <span><b>Criar o ambiente do cliente ao concluir</b> — quando os dados bastam (razão social, nome fantasia, CNPJ, endereço, responsável, e-mail e WhatsApp), cria o ambiente, envia ao responsável um link para definir a senha e aciona o agente de implementação. Só acontece uma vez por cliente.</span>
+            </label>
+          )}
           <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">Roda uma vez por conversa. Se o número não for de nenhuma implementação, nada é gravado e a conversa segue normalmente.</p>
         </>
       )}

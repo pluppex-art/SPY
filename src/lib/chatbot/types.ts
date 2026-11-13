@@ -69,6 +69,8 @@ export interface SaveDataNode extends NodeBase {
   target: SaveTargetId;
   /** Campo do destino ← variável coletada. */
   map: { field: string; variable: string }[];
+  /** Destino "implementation": ao gravar, se os dados já bastam, cria o ambiente do cliente e aciona o agente de implementação. */
+  provision?: boolean;
   next?: string | null;
 }
 
@@ -136,7 +138,7 @@ export type ChatbotAction =
   | { kind: "send_text"; text: string }
   | { kind: "send_media"; media_kind: "image" | "document"; url: string; caption?: string; filename?: string }
   | { kind: "create_lead"; vars: Record<string, string> }
-  | { kind: "save_data"; target: SaveTargetId; map: { field: string; variable: string }[]; vars: Record<string, string> }
+  | { kind: "save_data"; target: SaveTargetId; map: { field: string; variable: string }[]; vars: Record<string, string>; provision?: boolean }
   | { kind: "handoff"; reason: "node" | "keyword"; vars: Record<string, string> };
 
 export interface EngineResult {

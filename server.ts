@@ -29,7 +29,7 @@ import { runNotificationReminders } from "./server/notificationCron.js";
 import { registerDeepHealthRoute } from "./server/healthDeep.js";
 import { registerClientErrorRoute, registrarErro, urlSegura } from "./server/errorLog.js";
 import { getTenantBrand, getBrandForEmail } from "./server/emailBrand.js";
-import { testEmail, passwordResetEmail, passwordChangedEmail } from "./server/emailTemplates.js";
+import { testEmail, passwordResetEmail, passwordChangedEmail, notificationEmail } from "./server/emailTemplates.js";
 import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { registerKommoRoutes } from "./server/kommoSync.js";
@@ -42,6 +42,7 @@ import { registerFinancialReportRoutes, isValidInternalKey } from "./server/fina
 import { registerMessageTriggerRoutes } from "./server/messageTriggers.js";
 import { registerChatbotRoutes } from "./server/chatbot.js";
 import { registerChatbotSaveRoutes } from "./server/chatbotSave.js";
+import { provisionTenantForImplementation } from "./server/implementationProvision.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
 import { runSyncChunk, promoteMaxdataProducts, SYNC_ENTITIES, type SyncEntity } from "./server/maxdataSync.js";
@@ -520,7 +521,23 @@ registerFinancialReportRoutes(app, { supabaseService, hasSupabaseService: Boolea
 registerMessageTriggerRoutes(app, { requireUser });
 // Chatbot por regras (sem IA): conexão de WhatsApp dedicada por bot — ver server/chatbot.ts.
 registerChatbotRoutes(app, { requireUser, limiter: whatsappLimiter, supabaseService });
-registerChatbotSaveRoutes(app, { limiter: whatsappLimiter, supabaseService });
+registerChatbotSaveRoutes(app, {
+  limiter: whatsappLimiter, supabaseService,
+  // Fim da coleta do chatbot de implementação: cria o ambiente do cliente e aciona o agente (só se o nó pedir).
+  provision: (implementationId, ownerTenantId) => provisionTenantForImplementation({
+    db: supabaseService,
+    planIdFromLead: (leadId) => saas.planIdFromLead(leadId),
+    provisionPlan: (tenantId, planId, by) => saas.provisionPlan(tenantId, planId, by),
+    publicAppUrl: () => PUBLIC_APP_URL,
+    buildAccessMail: ({ name, company, url, appHost }) => notificationEmail({
+      kind: "success", title: "Seu acesso ao S.P.Y. está pronto",
+      description: `O ambiente de ${company} foi criado. Defina sua senha para entrar.`,
+      details: [{ label: "Empresa", value: company }, { label: "Validade do link", value: `limitada (cerca de 1 hora). Se expirar, use “Esqueci a senha” em ${appHost}/login` }],
+      primaryButton: { label: "Definir minha senha e entrar", url }, name,
+    }),
+    sendEmail: (mail) => sendPlatformEmail(mail),
+  }, implementationId, ownerTenantId),
+});
 // "Ver fluxo" ao vivo — busca o workflow real na instância n8n (n8n Public API) sob demanda,
 // com fallback automático pro snapshot estático no frontend. Ver server/agentFlow.ts.
 registerAgentFlowRoutes(app, { requireUser });

@@ -243,7 +243,7 @@ function advance(nodes: ChatbotFlow["nodes"], entry: string | null, state: Sessi
         break;
       case "save_data":
         if (!(state.saved_nodes ?? []).includes(node.id)) {
-          actions.push({ kind: "save_data", target: node.target, map: node.map.map((m) => ({ ...m })), vars: { ...state.vars } });
+          actions.push({ kind: "save_data", target: node.target, map: node.map.map((m) => ({ ...m })), vars: { ...state.vars }, ...(node.provision ? { provision: true } : {}) });
           state.saved_nodes = [...(state.saved_nodes ?? []), node.id];
         }
         id = node.next ?? null;
