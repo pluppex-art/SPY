@@ -44,17 +44,19 @@ export async function provisionTenantForImplementation(deps: ProvisionDeps, impl
   if (!impl) return { status: "failed", reason: "implementacao_nao_encontrada" };
   if (impl.linked_tenant_id) return { status: "skipped", reason: "ja_vinculada" };
   const data = impl.data || {};
-  const ready = tenantReadiness(data);
-  if (!ready.ready) return { status: "skipped", reason: "dados_incompletos", missing: ready.missing };
-
-  const email = String(data.resp_email).trim().toLowerCase();
-  const company = String(data.nome_fantasia).trim();
   const note = async (line: string) => {
     const stamp = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
     const prev = String(impl.internal_notes || "");
     await db.from("implementations").update({ internal_notes: `${prev}${prev ? "\n" : ""}[${stamp}] ${line}` }).eq("id", impl.id).eq("tenant_id", ownerTenantId);
   };
+  const ready = tenantReadiness(data);
+  if (!ready.ready) {
+    await note(`Chatbot: ambiente ainda não criado — faltam: ${ready.missing.join(", ")}.`);
+    return { status: "skipped", reason: "dados_incompletos", missing: ready.missing };
+  }
 
+  const email = String(data.resp_email).trim().toLowerCase();
+  const company = String(data.nome_fantasia).trim();
   const { data: existing } = await db.from("users").select("id").ilike("email", email).limit(1).maybeSingle();
   if (existing) { await note("Chatbot: ambiente NÃO criado — o e-mail do responsável já tem acesso no sistema. Crie manualmente com outro e-mail."); return { status: "failed", reason: "email_ja_cadastrado" }; }
 

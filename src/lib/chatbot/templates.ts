@@ -96,35 +96,45 @@ const vazio: ChatbotFlow = {
 };
 
 
-/** Coleta dos dados de implantação: cada variável tem o MESMO nome do campo do formulário de Implementações. */
+/**
+ * Coleta dos dados de implantação — modelo inicial, para a equipe reorganizar no editor.
+ * Cada variável tem o MESMO nome do campo do formulário de Implementações. O bot se apresenta pelo próprio
+ * nome ({{bot_nome}} = nome do chatbot = responsável pela implementação), pula o que o SPY já sabe do cliente
+ * e aceita "não sei" nas perguntas. O WhatsApp do responsável é o próprio número da conversa ({{telefone}}).
+ */
 const PERGUNTAS_IMPLANTACAO: [string, ValidationKind, string][] = [
-  ["razao_social", "text", "Qual é a razão social da empresa?"],
-  ["nome_fantasia", "text", "E o nome fantasia?"],
+  ["nome_fantasia", "text", "Como se chama a empresa?"],
+  ["razao_social", "text", "E a razão social?"],
   ["cnpj", "text", "Qual é o CNPJ?"],
   ["endereco", "text", "Qual o endereço da empresa (rua, número, bairro e cidade)?"],
+  ["resp_nome", "text", "E com quem eu falo? Me diz seu nome completo."],
+  ["resp_email", "email", "Qual o seu melhor e-mail?"],
   ["segmento", "text", "Em que segmento a empresa atua?"],
-  ["operacao_descricao", "text", "Como a operação funciona hoje, do primeiro contato do cliente até a entrega ou cobrança?"],
-  ["resp_nome", "text", "Quem é o responsável principal pela implantação?"],
-  ["resp_cargo", "text", "Qual o cargo dessa pessoa?"],
-  ["resp_whatsapp", "phone", "Qual o WhatsApp do responsável? (com DDD)"],
-  ["resp_email", "email", "Qual o e-mail do responsável?"],
   ["qtd_usuarios", "number", "Quantas pessoas vão usar o sistema?"],
-  ["usuarios_lista", "text", "Me passe os usuários: nome, e-mail e perfil. Ex.: Maria — maria@empresa.com — Vendedora"],
-  ["etapas_funil", "text", "Quais são as etapas do funil de vendas? Ex.: Novo lead → Qualificado → Proposta → Fechado"],
-  ["origens_leads", "text", "De onde vêm os leads hoje?"],
+  ["etapas_funil", "text", "Quais as etapas do seu funil de vendas? Ex.: Novo lead → Proposta → Fechado"],
+  ["origens_leads", "text", "De onde vêm os leads hoje? (Instagram, indicação, anúncios…)"],
   ["meta_mensal", "text", "Qual a meta mensal de vendas?"],
 ];
 
 function implantacao(): ChatbotFlow {
   const nodes: ChatbotFlow["nodes"] = {
-    boas_vindas: { id: "boas_vindas", type: "message", text: "Olá! Sou o assistente de implementação do SPY. Vou fazer algumas perguntas rápidas, uma de cada vez, para deixar tudo pronto para você.", next: PERGUNTAS_IMPLANTACAO[0][0] },
+    boas_vindas: {
+      id: "boas_vindas", type: "message", next: PERGUNTAS_IMPLANTACAO[0][0],
+      text: "Oi! Aqui é {{bot_nome}}, responsável pela implementação de vocês no SPY. 🙂 Vou te fazer algumas perguntas rápidas — leva uns 3 minutos. Se não souber alguma, é só dizer \"não sei\" que a gente segue.",
+    },
   };
   PERGUNTAS_IMPLANTACAO.forEach(([variable, validation, text], i) => {
-    const next = i + 1 < PERGUNTAS_IMPLANTACAO.length ? PERGUNTAS_IMPLANTACAO[i + 1][0] : "salvar";
-    nodes[variable] = { id: variable, type: "question", text, variable, validation, next };
+    const next = i + 1 < PERGUNTAS_IMPLANTACAO.length ? PERGUNTAS_IMPLANTACAO[i + 1][0] : "whats_usa";
+    nodes[variable] = { id: variable, type: "question", text, variable, validation, skip_if_known: true, allow_unknown: true, next };
   });
-  nodes.salvar = { id: "salvar", type: "save_data", target: "implementation", map: PERGUNTAS_IMPLANTACAO.map(([v]) => ({ field: v, variable: v })), provision: true, next: "fim" };
-  nodes.fim = { id: "fim", type: "end", text: "Perfeito, recebi tudo! Nossa equipe já continua a implementação com esses dados." };
+  // Parte técnica: só pergunta os detalhes de quem vai usar.
+  nodes.whats_usa = { id: "whats_usa", type: "menu", text: "Vocês vão usar o WhatsApp no sistema?", variable: "whats_usa", skip_if_known: true, options: [{ id: "whats_sim", label: "Sim", next: "whats_numero" }, { id: "whats_nao", label: "Não", next: "meta_usa" }] };
+  nodes.whats_numero = { id: "whats_numero", type: "question", text: "Qual número vai ser conectado? (com DDD)", variable: "whats_numero", validation: "phone", skip_if_known: true, allow_unknown: true, next: "meta_usa" };
+  nodes.meta_usa = { id: "meta_usa", type: "menu", text: "Vocês investem em anúncios no Facebook/Instagram (Meta Ads)?", variable: "meta_usa", skip_if_known: true, options: [{ id: "meta_sim", label: "Sim", next: "meta_conta_id" }, { id: "meta_nao", label: "Não", next: "salvar" }] };
+  nodes.meta_conta_id = { id: "meta_conta_id", type: "question", text: "Se souber, qual o ID da conta de anúncios? (é só o número — se não souber, tudo bem)", variable: "meta_conta_id", validation: "text", skip_if_known: true, allow_unknown: true, next: "salvar" };
+  const map = [...PERGUNTAS_IMPLANTACAO.map(([v]) => ({ field: v, variable: v })), { field: "resp_whatsapp", variable: "telefone" }, ...["whats_usa", "whats_numero", "meta_usa", "meta_conta_id"].map((v) => ({ field: v, variable: v }))];
+  nodes.salvar = { id: "salvar", type: "save_data", target: "implementation", map, provision: true, next: "fim" };
+  nodes.fim = { id: "fim", type: "end", text: "Pronto, recebi tudo! 🎉 Já deixei sua implementação encaminhada. Se os dados estiverem completos, você recebe por e-mail o link para criar sua senha e acessar o sistema. Qualquer dúvida é só chamar por aqui." };
   return { start: "boas_vindas", nodes };
 }
 

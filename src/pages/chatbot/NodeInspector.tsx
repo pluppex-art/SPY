@@ -167,6 +167,21 @@ export function NodeInspector({ flow, node, issues, readOnly, onChange, onDelete
         </p>
       )}
 
+      {(node.type === "question" || node.type === "menu") && (
+        <div className="space-y-1.5">
+          <label className="flex items-start gap-2 text-xs text-[var(--color-text-secondary)] leading-relaxed">
+            <input type="checkbox" disabled={readOnly} checked={!!node.skip_if_known} onChange={(e) => onChange({ ...node, skip_if_known: e.target.checked })} className="mt-0.5" />
+            <span><b>Pular se já souber</b> — não pergunta de novo o que já está cadastrado do cliente no SPY (variável já preenchida).</span>
+          </label>
+          {node.type === "question" && (
+            <label className="flex items-start gap-2 text-xs text-[var(--color-text-secondary)] leading-relaxed">
+              <input type="checkbox" disabled={readOnly} checked={!!node.allow_unknown} onChange={(e) => onChange({ ...node, allow_unknown: e.target.checked })} className="mt-0.5" />
+              <span><b>Aceitar "não sei"</b> — se o contato disser que não sabe/não tem, o bot responde com tranquilidade e segue sem gravar.</span>
+            </label>
+          )}
+        </div>
+      )}
+
       {node.type === "save_data" && (
         <>
           <Field label="Gravar em" hint={SAVE_TARGETS[node.target]?.hint}>

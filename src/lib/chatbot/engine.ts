@@ -96,6 +96,18 @@ export function validateAnswer(kind: ValidationKind, input: string): string | nu
   }
 }
 
+const UNKNOWN_ANSWER = /^(nao sei|n sei|nao tenho|nao lembro|nao faco ideia|nao sabemos|nao temos|pular|depois)\b/;
+const DEFAULT_UNKNOWN_TEXT = "Tudo bem! A gente segue e vê isso depois. 🙂";
+const isKnown = (v: string | undefined) => typeof v === "string" && v.trim() !== "";
+
+/** Variáveis iniciais da conversa: o que já se sabe (`seed`) + o telefone do contato (que nunca é sobrescrito). */
+function initialVars(phone: string, seed?: Record<string, string> | null): Record<string, string> {
+  const vars: Record<string, string> = {};
+  for (const [k, v] of Object.entries(seed ?? {})) setVar(vars, k, String(v ?? ""));
+  vars.telefone = phone;
+  return vars;
+}
+
 function setVar(vars: Record<string, string>, name: string | undefined, value: string) {
   const key = String(name ?? "").toLowerCase();
   if (VAR_NAME.test(key) && key !== "telefone") vars[key] = value.slice(0, MAX_VAR_LENGTH);
@@ -112,6 +124,8 @@ export interface EngineInput {
   phone: string;
   /** Epoch ms — injetado para o motor continuar puro e testável. */
   now: number;
+  /** Variáveis já conhecidas ao começar uma conversa (ex.: dados do cliente e `bot_nome`, vindos do SPY). */
+  seed?: Record<string, string> | null;
 }
 
 export function runChatbot(input: EngineInput): EngineResult {
@@ -124,7 +138,7 @@ export function runChatbot(input: EngineInput): EngineResult {
   const touch = (s: SessionState): SessionState => ({ ...s, vars: { ...s.vars }, last_input_at: nowIso });
 
   if (!flow?.start || !nodes[flow.start]) {
-    return { actions: [], session: touch(session ?? { status: "finished", current_node: null, vars: { telefone: phone } }), note: "fluxo_vazio" };
+    return { actions: [], session: touch(session ?? { status: "finished", current_node: null, vars: initialVars(phone, input.seed) }), note: "fluxo_vazio" };
   }
 
   const lastInput = session?.last_input_at ? Date.parse(session.last_input_at) : NaN;
@@ -144,7 +158,7 @@ export function runChatbot(input: EngineInput): EngineResult {
   let entry: string | null;
 
   if (mustRestart) {
-    state = { status: "active", current_node: null, vars: { telefone: phone }, lead_created: false, last_input_at: nowIso };
+    state = { status: "active", current_node: null, vars: initialVars(phone, input.seed), lead_created: false, last_input_at: nowIso };
     entry = flow.start;
   } else {
     state = touch(session!);
@@ -161,7 +175,7 @@ export function runChatbot(input: EngineInput): EngineResult {
     const current: FlowNode | undefined = state.current_node ? nodes[state.current_node] : undefined;
     if (!current || (current.type !== "menu" && current.type !== "question")) {
       // Estado inconsistente (nó removido no editor): recomeça do início em vez de travar o contato.
-      state = { status: "active", current_node: null, vars: { telefone: phone }, lead_created: false, last_input_at: nowIso };
+      state = { status: "active", current_node: null, vars: initialVars(phone, input.seed), lead_created: false, last_input_at: nowIso };
       entry = flow.start;
     } else if (current.type === "menu") {
       const idx = matchOption(current, text);
@@ -177,6 +191,10 @@ export function runChatbot(input: EngineInput): EngineResult {
       entry = option.next ?? null;
     } else {
       const q: QuestionNode = current;
+      if (q.allow_unknown && UNKNOWN_ANSWER.test(norm)) {
+        actions.push({ kind: "send_text", text: interpolate(q.unknown_text?.trim() || DEFAULT_UNKNOWN_TEXT, state.vars) });
+        return advance(nodes, q.next ?? null, state, actions);
+      }
       const value = validateAnswer(q.validation, text);
       if (value === null) {
         actions.push({ kind: "send_text", text: interpolate(q.error_text || settings.invalid_input_text, state.vars) });
@@ -224,12 +242,19 @@ function advance(nodes: ChatbotFlow["nodes"], entry: string | null, state: Sessi
         }
         id = node.next ?? null;
         break;
-      case "menu":
+      case "menu": {
+        if (node.skip_if_known && node.variable && isKnown(state.vars[node.variable.toLowerCase()])) {
+          const known = normalizeText(state.vars[node.variable.toLowerCase()]);
+          const opt = node.options.find((o) => normalizeText(o.label) === known);
+          if (opt) { id = opt.next ?? null; break; }
+        }
         actions.push({ kind: "send_text", text: menuText(node, state.vars) });
         state.status = "active";
         state.current_node = node.id;
         return { actions, session: state };
+      }
       case "question":
+        if (node.skip_if_known && isKnown(state.vars[node.variable.toLowerCase()])) { id = node.next ?? null; break; }
         actions.push({ kind: "send_text", text: interpolate(node.text, state.vars) });
         state.status = "active";
         state.current_node = node.id;

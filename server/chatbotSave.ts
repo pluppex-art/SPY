@@ -21,7 +21,7 @@ import type { ProvisionResult } from "./implementationProvision.js";
 
 type Sb = any;
 interface MapEntry { field: string; variable: string }
-interface SaveInput { tenantId: string; session: string; phone: string; map: MapEntry[]; vars: Record<string, string> }
+interface SaveInput { tenantId: string; session: string; phone: string; map: MapEntry[]; vars: Record<string, string>; botName?: string }
 interface SaveResult { ok: boolean; reason?: string; implementationId?: string; saved?: string[]; skipped?: string[]; rejected?: { field: string; reason: string }[] }
 
 const safeEqual = (a: string, b: string) => {
@@ -30,15 +30,16 @@ const safeEqual = (a: string, b: string) => {
   return crypto.timingSafeEqual(ha, hb);
 };
 
-async function saveToImplementation(sb: Sb, a: SaveInput): Promise<SaveResult> {
-  const key = phoneKey(a.phone);
-  if (key.length < 8) return { ok: false, reason: "telefone_invalido" };
+type Found = { ok: true; id: string } | { ok: false; reason: string };
 
-  // Implementações do tenant cujo cliente/contato/formulário usa esse número.
+/** Implementação do tenant cujo cliente/contato/formulário usa esse número (a ainda aberta tem preferência). */
+async function findImplementation(sb: Sb, tenantId: string, phone: string): Promise<Found> {
+  const key = phoneKey(phone);
+  if (key.length < 8) return { ok: false, reason: "telefone_invalido" };
   const [{ data: impls }, { data: clientes }, { data: contatos }] = await Promise.all([
-    sb.from("implementations").select("id, cliente_id, status, data").eq("tenant_id", a.tenantId).limit(5000),
-    sb.from("clientes").select("id, phone").eq("tenant_id", a.tenantId).limit(5000),
-    sb.from("cliente_contatos").select("cliente_id, telefone, whatsapp").eq("tenant_id", a.tenantId).limit(5000),
+    sb.from("implementations").select("id, cliente_id, status, data").eq("tenant_id", tenantId).limit(5000),
+    sb.from("clientes").select("id, phone").eq("tenant_id", tenantId).limit(5000),
+    sb.from("cliente_contatos").select("cliente_id, telefone, whatsapp").eq("tenant_id", tenantId).limit(5000),
   ]);
   const clienteIds = new Set<string>();
   for (const c of clientes || []) if (c.phone && phoneKey(c.phone) === key) clienteIds.add(c.id);
@@ -48,7 +49,15 @@ async function saveToImplementation(sb: Sb, a: SaveInput): Promise<SaveResult> {
   const pool = open.length ? open : matches;
   if (pool.length === 0) return { ok: false, reason: "implementacao_nao_encontrada" };
   if (pool.length > 1) return { ok: false, reason: "mais_de_uma_implementacao" };
-  const implId = pool[0].id as string;
+  return { ok: true, id: pool[0].id as string };
+}
+
+async function saveToImplementation(sb: Sb, a: SaveInput): Promise<SaveResult> {
+  const found = await findImplementation(sb, a.tenantId, a.phone);
+  if (found.ok === false) return { ok: false, reason: found.reason };
+  const implId = found.id;
+  // Quem conduz a conversa é o responsável pela implementação: o nome do chatbot (só se ainda não há responsável).
+  if (a.botName) await sb.from("implementations").update({ responsavel: a.botName }).eq("id", implId).eq("tenant_id", a.tenantId).is("responsavel", null);
 
   const fields = new Map(allFields().map((f) => [f.id, f]));
   const saved: string[] = [], skipped: string[] = [], rejected: { field: string; reason: string }[] = [];
@@ -95,16 +104,49 @@ export interface ChatbotSaveDeps {
 }
 
 export function registerChatbotSaveRoutes(app: Express, { limiter, supabaseService, provision }: ChatbotSaveDeps) {
+  /** Autentica a chamada do n8n pelo segredo da sessão; o tenant sai da sessão, nunca do corpo. */
+  const authSession = async (req: any, res: any): Promise<{ tenantId: string; session: string; botName: string } | null> => {
+    if (!supabaseService) { res.status(503).json({ error: "Serviço indisponível." }); return null; }
+    const headerSecret = req.headers["x-webhook-secret"];
+    const secret = typeof headerSecret === "string" ? headerSecret : "";
+    const session = req.body?.session;
+    if (!secret || typeof session !== "string" || !session) { res.status(403).json({ error: "Não autorizado." }); return null; }
+    const { data: inst } = await supabaseService.from("whatsapp_instances").select("tenant_id, webhook_secret").eq("name", session).maybeSingle();
+    if (!inst?.webhook_secret || !safeEqual(secret, inst.webhook_secret)) { res.status(403).json({ error: "Não autorizado." }); return null; }
+    const { data: bot } = await supabaseService.from("chatbots").select("name").eq("tenant_id", inst.tenant_id).eq("whatsapp_session", session).maybeSingle();
+    return { tenantId: inst.tenant_id, session, botName: String(bot?.name || "") };
+  };
+
+  // Variáveis que o bot já "sabe" ao começar a conversa: o próprio nome (bot_nome) e o que o SPY tem do cliente
+  // (formulário da implementação, achado pelo número). O n8n passa isso ao motor como `seed` na 1ª mensagem.
+  app.post("/api/chatbot/context", limiter, async (req: any, res) => {
+    try {
+      const auth = await authSession(req, res);
+      if (!auth) return;
+      const vars: Record<string, string> = {};
+      if (auth.botName) vars.bot_nome = auth.botName;
+      const found = await findImplementation(supabaseService, auth.tenantId, String(req.body?.phone ?? ""));
+      if (found.ok) {
+        const { data: impl } = await supabaseService.from("implementations").select("data").eq("id", found.id).eq("tenant_id", auth.tenantId).maybeSingle();
+        for (const f of allFields()) {
+          const v = impl?.data?.[f.id];
+          if (isEmpty(v)) continue;
+          vars[f.id] = typeof v === "boolean" ? (v ? "Sim" : "Não") : String(v).slice(0, 500);
+        }
+      }
+      res.json({ vars });
+    } catch (err: any) {
+      console.error("[chatbot/context]", err?.message);
+      res.json({ vars: {} }); // sem contexto o bot só pergunta tudo: nunca trava a conversa
+    }
+  });
+
   app.post("/api/chatbot/save-data", limiter, async (req: any, res) => {
     try {
-      if (!supabaseService) return res.status(503).json({ error: "Serviço indisponível." });
-      const headerSecret = req.headers["x-webhook-secret"];
-      const secret = typeof headerSecret === "string" ? headerSecret : "";
+      const auth = await authSession(req, res);
+      if (!auth) return;
       const { session, target, map, vars, phone } = req.body ?? {};
-      if (!secret || typeof session !== "string" || !session) return res.status(403).json({ error: "Não autorizado." });
-
-      const { data: inst } = await supabaseService.from("whatsapp_instances").select("tenant_id, webhook_secret").eq("name", session).maybeSingle();
-      if (!inst?.webhook_secret || !safeEqual(secret, inst.webhook_secret)) return res.status(403).json({ error: "Não autorizado." });
+      const inst = { tenant_id: auth.tenantId };
 
       const saver = typeof target === "string" ? SAVERS[target] : undefined;
       if (!saver) return res.status(400).json({ error: "Destino desconhecido." });
@@ -113,7 +155,7 @@ export function registerChatbotSaveRoutes(app: Express, { limiter, supabaseServi
       for (const [k, v] of Object.entries(vars && typeof vars === "object" ? vars : {})) if (typeof v === "string") cleanVars[k] = v.slice(0, 2000);
       const cleanMap: MapEntry[] = map.filter((m: any) => m && typeof m.field === "string" && typeof m.variable === "string").map((m: any) => ({ field: m.field, variable: m.variable }));
 
-      const result = await saver(supabaseService, { tenantId: inst.tenant_id, session, phone: String(phone || cleanVars.telefone || ""), map: cleanMap, vars: cleanVars });
+      const result = await saver(supabaseService, { tenantId: inst.tenant_id, session, phone: String(phone || cleanVars.telefone || ""), map: cleanMap, vars: cleanVars, botName: auth.botName });
       if (!result.ok) console.warn("[chatbot/save-data]", session, result.reason);
       // Fim da coleta: se o nó pede e há dados suficientes, cria o ambiente e aciona o agente (uma única vez).
       let provisioned: ProvisionResult | undefined;

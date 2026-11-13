@@ -26,7 +26,7 @@ function fakeDb(seed: Record<string, Row[]>) {
     };
     const q: any = {
       select: () => q, insert: (v: any) => { op = "insert"; ins = Array.isArray(v) ? v : [v]; return q; }, update: (p: any) => { op = "update"; patch = p; return q; },
-      eq: (c: string, v: any) => { f.push((r) => r[c] === v); return q; }, limit: () => q,
+      eq: (c: string, v: any) => { f.push((r) => r[c] === v); return q; }, is: (c: string, v: any) => { f.push((r) => (r[c] ?? null) === v); return q; }, limit: () => q,
       maybeSingle: () => { single = true; return Promise.resolve(run()); }, then: (a: any, b: any) => Promise.resolve(run()).then(a, b),
     };
     return q;
@@ -34,17 +34,18 @@ function fakeDb(seed: Record<string, Row[]>) {
   return { from, t };
 }
 function setup(seed: Record<string, Row[]>) {
-  const db = fakeDb(seed); let handler: any;
-  registerChatbotSaveRoutes({ post: (_: string, ...h: any[]) => (handler = h[h.length - 1]) } as any, { limiter: (_: any, __: any, nx: any) => nx(), supabaseService: db });
-  const call = async (body: any, secret = "seg") => {
+  const db = fakeDb(seed); const handlers: Record<string, any> = {}; let handler: any;
+  registerChatbotSaveRoutes({ post: (path: string, ...h: any[]) => { handlers[path] = h[h.length - 1]; handler = handlers["/api/chatbot/save-data"]; } } as any, { limiter: (_: any, __: any, nx: any) => nx(), supabaseService: db });
+  const call = async (body: any, secret = "seg", path = "/api/chatbot/save-data") => {
     let status = 200, out: any; const res: any = { status: (s: number) => ((status = s), res), json: (b: any) => ((out = b), res) };
-    await handler({ headers: { "x-webhook-secret": secret }, body }, res);
+    await handlers[path]({ headers: { "x-webhook-secret": secret }, body }, res);
     return { status, body: out };
   };
   return { db, call };
 }
 const seed = () => ({
   whatsapp_instances: [{ name: "chatbot-abc", tenant_id: "T1", webhook_secret: "seg" }],
+  chatbots: [{ name: "Gustavo Oliveira", tenant_id: "T1", whatsapp_session: "chatbot-abc" }],
   clientes: [{ id: "c1", tenant_id: "T1", phone: "(63) 99999-8888" }, { id: "c2", tenant_id: "T2", phone: "(11) 98888-7777" }],
   cliente_contatos: [],
   implementations: [
@@ -138,4 +139,64 @@ test("validação do fluxo e template de implantação", () => {
   assert.equal(validateFlow(t.flow).filter((i) => i.level === "error").length, 0);
   const ids = new Set(allFields().map((f) => f.id));
   for (const n of Object.values(t.flow.nodes)) if (n.type === "save_data") for (const m of n.map) assert.ok(ids.has(m.field), m.field);
+});
+
+// ── Conversa mais rápida: contexto do cliente, nome do bot, "não sei" ──
+const CTX = "/api/chatbot/context";
+
+test("contexto: devolve o nome do bot e o que o SPY já sabe do cliente (só do próprio número/tenant)", async () => {
+  const sd = seed();
+  sd.implementations[0].data = { razao_social: "Acme Ltda", whats_usa: true, qtd_usuarios: "5" } as any;
+  const { call } = setup(sd);
+  const r = await call({ session: "chatbot-abc", phone: "5563999998888" }, "seg", CTX);
+  assert.equal(r.body.vars.bot_nome, "Gustavo Oliveira");
+  assert.equal(r.body.vars.razao_social, "Acme Ltda");
+  assert.equal(r.body.vars.whats_usa, "Sim");
+  const other = await call({ session: "chatbot-abc", phone: "11988887777" }, "seg", CTX); // número do outro tenant
+  assert.deepEqual(other.body.vars, { bot_nome: "Gustavo Oliveira" });
+  assert.equal((await call({ session: "chatbot-abc", phone: "5563999998888" }, "errado", CTX)).status, 403);
+});
+
+test("o nome do chatbot vira o responsável pela implementação (só se estiver vazio)", async () => {
+  const { call, db } = setup(seed());
+  await call(body());
+  assert.equal(db.t.implementations[0].responsavel, "Gustavo Oliveira");
+  db.t.implementations[0].responsavel = "Maria";
+  await call(body());
+  assert.equal(db.t.implementations[0].responsavel, "Maria");
+});
+
+test("engine: seed pula o que já se sabe, 'não sei' tranquiliza e segue, {{bot_nome}} aparece", () => {
+  const flow: ChatbotFlow = { start: "oi", nodes: {
+    oi: { id: "oi", type: "message", text: "Aqui é {{bot_nome}}.", next: "a" },
+    a: { id: "a", type: "question", text: "Empresa?", variable: "nome_fantasia", validation: "text", skip_if_known: true, next: "b" },
+    b: { id: "b", type: "question", text: "ID do pixel?", variable: "meta_pixel_id", validation: "text", skip_if_known: true, allow_unknown: true, unknown_text: "Sem problema!", next: "c" },
+    c: { id: "c", type: "question", text: "Meta?", variable: "meta_mensal", validation: "text", next: null } } };
+  const first = runChatbot({ flow, settings: DEFAULT_SETTINGS, session: null, text: "oi", phone: "5563999998888", now: 1, seed: { bot_nome: "Gustavo Oliveira", nome_fantasia: "Acme", telefone: "hack" } });
+  const texts = first.actions.filter((a) => a.kind === "send_text").map((a: any) => a.text);
+  assert.deepEqual(texts, ["Aqui é Gustavo Oliveira.", "ID do pixel?"]); // "Empresa?" foi pulada
+  assert.equal(first.session.vars.telefone, "5563999998888"); // seed não sobrescreve o telefone
+  const r = runChatbot({ flow, settings: DEFAULT_SETTINGS, session: first.session, text: "Não sei.", phone: "5563999998888", now: 2 });
+  assert.deepEqual(r.actions.filter((a) => a.kind === "send_text").map((a: any) => a.text), ["Sem problema!", "Meta?"]);
+  assert.equal(r.session.vars.meta_pixel_id, undefined); // nada gravado
+  // sem allow_unknown "não sei" continua sendo resposta comum (comportamento antigo)
+  const r2 = runChatbot({ flow, settings: DEFAULT_SETTINGS, session: r.session, text: "não sei", phone: "5563999998888", now: 3 });
+  assert.equal(r2.session.vars.meta_mensal, "não sei");
+});
+
+test("modelo de implantação: cliente conhecido responde só o que falta; WhatsApp do responsável = número da conversa", () => {
+  const t = CHATBOT_TEMPLATES.find((x) => x.id === "implantacao")!;
+  const seedVars = { bot_nome: "Gustavo Oliveira", nome_fantasia: "Acme", razao_social: "Acme Ltda", cnpj: "11.222.333/0001-81", endereco: "Rua A, 1", resp_nome: "Ana", resp_email: "ana@acme.com", whats_usa: "Sim", whats_numero: "5563999998888", meta_usa: "Não" };
+  const run = (session: SessionState | null, text: string) => runChatbot({ flow: t.flow, settings: DEFAULT_SETTINGS, session, text, phone: "5563999998888", now: 1, seed: seedVars });
+  let r = run(null, "oi");
+  const said = r.actions.filter((a) => a.kind === "send_text").map((a: any) => a.text);
+  assert.match(said[0], /Aqui é Gustavo Oliveira/);
+  assert.equal(said[1], "Em que segmento a empresa atua?"); // 1ª pergunta que o SPY ainda não sabe
+  for (const ans of ["Varejo", "8", "Novo → Fechado", "Instagram", "não sei"]) r = run(r.session, ans);
+  const save = r.actions.find((a) => a.kind === "save_data");
+  assert.ok(save && save.kind === "save_data" && save.provision === true);
+  assert.deepEqual(save.map.find((m) => m.field === "resp_whatsapp"), { field: "resp_whatsapp", variable: "telefone" });
+  assert.equal(save.vars.segmento, "Varejo");
+  assert.equal(save.vars.meta_mensal, undefined); // "não sei": não grava
+  assert.equal(r.session.status, "finished");
 });

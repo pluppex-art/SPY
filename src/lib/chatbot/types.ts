@@ -31,6 +31,8 @@ export interface MenuNode extends NodeBase {
   text: string;
   /** Se informado, guarda o texto da opção escolhida nesta variável. */
   variable?: string;
+  /** Pula o menu se a variável já tem o valor de uma das opções. */
+  skip_if_known?: boolean;
   options: MenuOption[];
   invalid_text?: string;
 }
@@ -42,6 +44,11 @@ export interface QuestionNode extends NodeBase {
   variable: string;
   validation: ValidationKind;
   error_text?: string;
+  /** Pula a pergunta se a variável já tem valor (ex.: vindo do cadastro do cliente no SPY). */
+  skip_if_known?: boolean;
+  /** Aceita "não sei / não tenho": responde com `unknown_text`, não grava nada e segue. */
+  allow_unknown?: boolean;
+  unknown_text?: string;
   next?: string | null;
 }
 
