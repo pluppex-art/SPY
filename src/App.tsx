@@ -52,6 +52,7 @@ const Implementacoes = lazy(() => import("./pages/crm/Implementacoes"));
 const ImplementacaoDetalhe = lazy(() => import("./pages/crm/ImplementacaoDetalhe"));
 const ImplementacaoRelatorio = lazy(() => import("./pages/crm/ImplementacaoRelatorio"));
 const Messaging = lazy(() => import("./pages/crm/Messaging"));
+const Chatbot = lazy(() => import("./pages/chatbot/Chatbot"));
 const Automations = lazy(() => import("./pages/marketing/Automations"));
 const AdminSaaS = lazy(() => import("./pages/admin/AdminSaaS"));
 const PartnersOverview = lazy(() => import("./pages/partners/PartnersOverview"));
@@ -320,6 +321,7 @@ function AppContent() {
 
           {/* Comunicação & Marketing */}
           <Route path="mensageria" element={<Messaging />} />
+          <Route path="chatbot" element={<Chatbot />} />
           <Route path="automacoes" element={<MarketingAutomacoes />} />
           <Route path="marketing" element={<ProtectedRoute requireModule="marketing"><Outlet /></ProtectedRoute>}>
             <Route index element={<Navigate to="conteudo" replace />} />

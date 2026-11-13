@@ -6,6 +6,7 @@ import {
   CheckSquare,
   Settings,
   Mail,
+  Bot,
   Zap,
   BarChart2,
   PieChart,
@@ -102,6 +103,7 @@ export const navSections = [
     title: "Mensageria",
     items: [
       { name: "Mensageria Omnichannel", path: "/app/mensageria", icon: Mail, reqModule: "engajamento" },
+      { name: "Chatbot", path: "/app/chatbot", icon: Bot, reqModule: "engajamento" },
     ],
   },
   {
