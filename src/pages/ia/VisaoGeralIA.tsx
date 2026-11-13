@@ -78,6 +78,7 @@ export default function VisaoGeralIA() {
         </span>
       }
     >
+     <div className="space-y-5">
       <div className="flex gap-1 overflow-x-auto border-b border-[var(--color-border-default)] -mx-1 px-1" role="tablist">
         {ABAS.map((a) => (
           <button key={a.id} role="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}
@@ -265,6 +266,7 @@ export default function VisaoGeralIA() {
           <p className="text-xs text-[var(--color-text-muted)]">{((leadScoreTriggers as any[]) || []).length} regra(s) de pontuação de lead configurada(s). <Link to="/app/configuracoes/crm/gatilhos-ia" className="text-[var(--color-primary-blue)] font-bold">Editar gatilhos</Link></p>
         </section>
       )}
+     </div>
     </PageContainer>
   );
 }
