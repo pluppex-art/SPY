@@ -4,6 +4,7 @@ import { Input } from "../../components/ui/input";
 import type { ChatbotFlow, FlowNode, ValidationKind } from "../../lib/chatbot/types";
 import type { FlowIssue } from "../../lib/chatbot/validate";
 import { NODE_LABEL } from "../../lib/chatbot/templates";
+import { SAVE_TARGETS } from "../../lib/chatbot/saveTargets";
 
 const TEXTAREA =
   "w-full min-h-[84px] rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-blue)] disabled:opacity-60";
@@ -164,6 +165,31 @@ export function NodeInspector({ flow, node, issues, readOnly, onChange, onDelete
           Cria o contato no CRM com tudo que foi coletado até aqui: <b>nome</b>, <b>e-mail</b> e o telefone do WhatsApp. As demais respostas vão para as observações e campos do lead.
           O funil e a etapa de entrada são escolhidos em <b>Configurações</b>. Se o telefone já estiver cadastrado, o lead existente é atualizado — nunca duplicado nem sobrescrito.
         </p>
+      )}
+
+      {node.type === "save_data" && (
+        <>
+          <Field label="Gravar em" hint={SAVE_TARGETS[node.target]?.hint}>
+            <select disabled={readOnly} className={SELECT} value={node.target} onChange={(e) => onChange({ ...node, target: e.target.value as typeof node.target, map: [] })}>
+              {Object.entries(SAVE_TARGETS).map(([id, t]) => <option key={id} value={id}>{t.label}</option>)}
+            </select>
+          </Field>
+          <div className="space-y-2">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">Campo ← pergunta (variável)</span>
+            {node.map.map((m, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <select disabled={readOnly} className={SELECT} value={m.field} onChange={(e) => onChange({ ...node, map: node.map.map((x, j) => (j === i ? { ...x, field: e.target.value } : x)) })}>
+                  <option value="">Campo…</option>
+                  {SAVE_TARGETS[node.target]?.fields.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                </select>
+                <Input disabled={readOnly} className="w-32" placeholder="variavel" value={m.variable} onChange={(e) => onChange({ ...node, map: node.map.map((x, j) => (j === i ? { ...x, variable: e.target.value } : x)) })} />
+                {!readOnly && <Button size="xs" variant="ghost" onClick={() => onChange({ ...node, map: node.map.filter((_, j) => j !== i) })}><Trash2 className="w-3 h-3" /></Button>}
+              </div>
+            ))}
+            {!readOnly && <Button size="xs" variant="outline" onClick={() => onChange({ ...node, map: [...node.map, { field: "", variable: "" }] })}><Plus className="w-3 h-3" /> Campo</Button>}
+          </div>
+          <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">Roda uma vez por conversa. Se o número não for de nenhuma implementação, nada é gravado e a conversa segue normalmente.</p>
+        </>
       )}
 
       {node.type === "handoff" && (

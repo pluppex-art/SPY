@@ -61,6 +61,17 @@ export interface CreateLeadNode extends NodeBase {
   next?: string | null;
 }
 
+export type SaveTargetId = "implementation";
+
+/** Grava variáveis coletadas num registro do SPY (destino escolhido). Cada nó roda uma vez por conversa. */
+export interface SaveDataNode extends NodeBase {
+  type: "save_data";
+  target: SaveTargetId;
+  /** Campo do destino ← variável coletada. */
+  map: { field: string; variable: string }[];
+  next?: string | null;
+}
+
 /** Passa a conversa para um humano: o bot fica em silêncio nesta conversa. */
 export interface HandoffNode extends NodeBase {
   type: "handoff";
@@ -73,7 +84,7 @@ export interface EndNode extends NodeBase {
   text?: string;
 }
 
-export type FlowNode = MessageNode | MenuNode | QuestionNode | MediaNode | CreateLeadNode | HandoffNode | EndNode;
+export type FlowNode = MessageNode | MenuNode | QuestionNode | MediaNode | CreateLeadNode | SaveDataNode | HandoffNode | EndNode;
 export type FlowNodeType = FlowNode["type"];
 
 export interface ChatbotFlow {
@@ -115,6 +126,8 @@ export interface SessionState {
   current_node: string | null;
   vars: Record<string, string>;
   lead_created?: boolean;
+  /** Nós "Salvar dados" já executados nesta conversa. */
+  saved_nodes?: string[];
   /** ISO — quando o contato mandou a última mensagem. */
   last_input_at?: string | null;
 }
@@ -123,6 +136,7 @@ export type ChatbotAction =
   | { kind: "send_text"; text: string }
   | { kind: "send_media"; media_kind: "image" | "document"; url: string; caption?: string; filename?: string }
   | { kind: "create_lead"; vars: Record<string, string> }
+  | { kind: "save_data"; target: SaveTargetId; map: { field: string; variable: string }[]; vars: Record<string, string> }
   | { kind: "handoff"; reason: "node" | "keyword"; vars: Record<string, string> };
 
 export interface EngineResult {

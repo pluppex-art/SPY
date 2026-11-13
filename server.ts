@@ -41,6 +41,7 @@ import { makeN8nAiJson } from "./server/tableComparisonN8n.js";
 import { registerFinancialReportRoutes, isValidInternalKey } from "./server/financialReportPdf.js";
 import { registerMessageTriggerRoutes } from "./server/messageTriggers.js";
 import { registerChatbotRoutes } from "./server/chatbot.js";
+import { registerChatbotSaveRoutes } from "./server/chatbotSave.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
 import { runSyncChunk, promoteMaxdataProducts, SYNC_ENTITIES, type SyncEntity } from "./server/maxdataSync.js";
@@ -519,6 +520,7 @@ registerFinancialReportRoutes(app, { supabaseService, hasSupabaseService: Boolea
 registerMessageTriggerRoutes(app, { requireUser });
 // Chatbot por regras (sem IA): conexão de WhatsApp dedicada por bot — ver server/chatbot.ts.
 registerChatbotRoutes(app, { requireUser, limiter: whatsappLimiter, supabaseService });
+registerChatbotSaveRoutes(app, { limiter: whatsappLimiter, supabaseService });
 // "Ver fluxo" ao vivo — busca o workflow real na instância n8n (n8n Public API) sob demanda,
 // com fallback automático pro snapshot estático no frontend. Ver server/agentFlow.ts.
 registerAgentFlowRoutes(app, { requireUser });

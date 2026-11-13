@@ -23,6 +23,8 @@ function actionLines(actions: ChatbotAction[]): Line[] {
         const v = a.vars;
         return [{ from: "system", text: `Lead seria criado no CRM — nome: ${v.nome || "(não coletado)"}, e-mail: ${v.email || "(não coletado)"}` }];
       }
+      case "save_data":
+        return [{ from: "system", text: `Seriam gravados em "${a.target}": ${a.map.map((m) => `${m.field}=${a.vars[m.variable] ?? "(não coletado)"}`).join(", ")}` }];
       case "handoff":
         return [{ from: "system", text: a.reason === "keyword" ? "Contato pediu um atendente — o bot para de responder." : "Conversa passada para um atendente — o bot para de responder." }];
     }

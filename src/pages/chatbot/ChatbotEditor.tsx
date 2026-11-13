@@ -15,7 +15,7 @@ import { ChatbotSimulator } from "./ChatbotSimulator";
 import { ChatbotSettingsPanel } from "./ChatbotSettingsPanel";
 import { ChatbotConversations } from "./ChatbotConversations";
 
-const ADD_ORDER: FlowNodeType[] = ["message", "menu", "question", "media", "create_lead", "handoff", "end"];
+const ADD_ORDER: FlowNodeType[] = ["message", "menu", "question", "media", "create_lead", "save_data", "handoff", "end"];
 
 /** Remove o passo e limpa todo "próximo" que apontava para ele. */
 function removeNode(flow: ChatbotFlow, id: string): ChatbotFlow {

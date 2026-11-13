@@ -241,6 +241,13 @@ function advance(nodes: ChatbotFlow["nodes"], entry: string | null, state: Sessi
         }
         id = node.next ?? null;
         break;
+      case "save_data":
+        if (!(state.saved_nodes ?? []).includes(node.id)) {
+          actions.push({ kind: "save_data", target: node.target, map: node.map.map((m) => ({ ...m })), vars: { ...state.vars } });
+          state.saved_nodes = [...(state.saved_nodes ?? []), node.id];
+        }
+        id = node.next ?? null;
+        break;
       case "handoff":
         if (node.text?.trim()) actions.push({ kind: "send_text", text: interpolate(node.text, state.vars) });
         actions.push({ kind: "handoff", reason: "node", vars: { ...state.vars } });

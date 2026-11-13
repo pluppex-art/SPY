@@ -47,7 +47,6 @@ import {
   Wrench,
   Truck,
   GitCompare,
-  Bot,
   Workflow,
 } from "lucide-react";
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../lib/featureFlags";

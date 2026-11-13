@@ -16,6 +16,7 @@ function targets(node: FlowNode): (string | null | undefined)[] {
     case "media":
     case "question":
     case "create_lead":
+    case "save_data":
       return [node.next];
     default:
       return [];
@@ -53,13 +54,24 @@ export function validateFlow(flow: ChatbotFlow): FlowIssue[] {
           issues.push({ level: "error", nodeId: label, message: "Nome de variável inválido ou reservado (use letras minúsculas, números e _; 'telefone' é reservado)." });
         }
         break;
+      case "save_data": {
+        if (node.map.length === 0) issues.push({ level: "error", nodeId: label, message: "Escolha pelo menos um campo para gravar." });
+        const used = new Set<string>();
+        for (const m of node.map) {
+          if (!m.field) issues.push({ level: "error", nodeId: label, message: "Há linha sem campo de destino." });
+          else if (used.has(m.field)) issues.push({ level: "error", nodeId: label, message: "O mesmo campo de destino aparece duas vezes." });
+          used.add(m.field);
+          if (!VAR_NAME.test(m.variable ?? "") && m.variable !== "telefone") issues.push({ level: "error", nodeId: label, message: "Nome de variável inválido no mapeamento." });
+        }
+        break;
+      }
       case "media":
         if (!/^https?:\/\//i.test(node.url ?? "")) issues.push({ level: "error", nodeId: label, message: "A mídia precisa de uma URL pública (http/https)." });
         break;
       default:
         break;
     }
-    if (node.type === "message" || node.type === "media" || node.type === "question" || node.type === "create_lead") {
+    if (node.type === "message" || node.type === "media" || node.type === "question" || node.type === "create_lead" || node.type === "save_data") {
       if (!node.next) issues.push({ level: "warning", nodeId: label, message: "Sem próximo passo — a conversa termina aqui." });
     }
     for (const t of targets(node)) {
@@ -80,13 +92,13 @@ export function validateFlow(flow: ChatbotFlow): FlowIssue[] {
     for (const id of ids) {
       if (!seen.has(id)) issues.push({ level: "warning", nodeId: id, message: "Passo solto: nenhum caminho do início chega até ele." });
     }
-    // Ciclo sem espera (só message/media/create_lead) trava o bot — o motor corta em 50 passos.
+    // Ciclo sem espera (só message/media/create_lead/save_data) trava o bot — o motor corta em 50 passos.
     const inReportedCycle = new Set<string>();
     for (const id of seen) {
       if (inReportedCycle.has(id)) continue;
       const walk = new Set<string>();
       let cur: string | null | undefined = id;
-      while (cur && nodes[cur] && ["message", "media", "create_lead"].includes(nodes[cur].type)) {
+      while (cur && nodes[cur] && ["message", "media", "create_lead", "save_data"].includes(nodes[cur].type)) {
         if (walk.has(cur)) {
           issues.push({ level: "error", nodeId: cur, message: "Ciclo de mensagens sem pergunta no meio: o bot ficaria repetindo sem esperar resposta." });
           walk.forEach((w) => inReportedCycle.add(w));

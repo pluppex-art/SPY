@@ -4,11 +4,12 @@ import {
   applyNodeChanges, type Node, type Edge, type NodeProps, type NodeChange, type Connection, type EdgeChange,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { MessageSquare, ListChecks, HelpCircle, Paperclip, UserPlus, UserRound, Flag, Play } from "lucide-react";
+import { MessageSquare, ListChecks, HelpCircle, Paperclip, UserPlus, UserRound, Flag, Play, DatabaseZap } from "lucide-react";
 import type { ChatbotFlow, FlowNode, FlowNodeType } from "../../lib/chatbot/types";
 import type { FlowIssue } from "../../lib/chatbot/validate";
 import { NODE_WIDTH } from "../../lib/chatbot/layout";
 import { NODE_LABEL } from "../../lib/chatbot/templates";
+import { SAVE_TARGETS } from "../../lib/chatbot/saveTargets";
 import { cn } from "../../lib/utils";
 
 const ICON: Record<FlowNodeType, typeof MessageSquare> = {
@@ -17,6 +18,7 @@ const ICON: Record<FlowNodeType, typeof MessageSquare> = {
   question: HelpCircle,
   media: Paperclip,
   create_lead: UserPlus,
+  save_data: DatabaseZap,
   handoff: UserRound,
   end: Flag,
 };
@@ -28,6 +30,7 @@ const TONE: Record<FlowNodeType, string> = {
   question: "text-amber-500 bg-amber-500/10",
   media: "text-cyan-500 bg-cyan-500/10",
   create_lead: "text-emerald-500 bg-emerald-500/10",
+  save_data: "text-indigo-500 bg-indigo-500/10",
   handoff: "text-rose-500 bg-rose-500/10",
   end: "text-slate-500 bg-slate-500/10",
 };
@@ -51,6 +54,8 @@ function preview(step: FlowNode): string {
       return step.filename || step.url || "(sem arquivo)";
     case "create_lead":
       return "Registra o contato no funil do CRM";
+    case "save_data":
+      return `Grava ${step.map.length} campo(s) em ${SAVE_TARGETS[step.target]?.label ?? step.target}`;
   }
 }
 
