@@ -88,6 +88,7 @@ const Eventos = lazy(() => import("./pages/agenda/Eventos"));
 const Disponibilidade = lazy(() => import("./pages/agenda/Disponibilidade"));
 const AgendaConfiguracoes = lazy(() => import("./pages/agenda/AgendaConfiguracoes"));
 
+const VisaoGeralIA = lazy(() => import("./pages/ia/VisaoGeralIA"));
 const SettingsLayout = lazy(() => import("./pages/settings/SettingsLayout"));
 const ConfigEmpresaDados = lazy(() => import("./pages/settings/ConfigEmpresaDados"));
 const ConfigPlanoUso = lazy(() => import("./pages/settings/sections/ConfigPlanoUso"));
@@ -270,6 +271,7 @@ function AppContent() {
           <Route path="propostas" element={<Navigate to="/app/crm/propostas" replace />} />
           <Route path="documentos" element={<Contracts />} />
           <Route path="performance-ia" element={AI_OUTSIDE_AURORA_ENABLED ? <PerformanceIA /> : <Navigate to="/app/dashboard" replace />} />
+          <Route path="ia" element={<ProtectedRoute requireModule="aurora"><VisaoGeralIA /></ProtectedRoute>} />
           <Route path="conhecimento" element={<ConhecimentoSurfSense />} />
 
           {/* Módulo CRM (Núcleo Central do S.P.Y.) */}

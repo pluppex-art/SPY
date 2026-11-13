@@ -46,6 +46,8 @@ import {
   Wrench,
   Truck,
   GitCompare,
+  Bot,
+  Workflow,
 } from "lucide-react";
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../lib/featureFlags";
 
@@ -53,7 +55,7 @@ import { AI_OUTSIDE_AURORA_ENABLED } from "../../lib/featureFlags";
  * Condições de visibilidade que dependem do usuário logado (não dá pra
  * resolver estaticamente aqui).
  */
-export type NavReqCondition = "master-only" | "master-or-partner";
+export type NavReqCondition = "master-only" | "master-or-partner" | "tenant-admin";
 
 export const conditionCheckers: Record<NavReqCondition, (user: any) => boolean> = {
   // Antes também liberava por `tenantName === "g-tech master"` — resquício do
@@ -61,6 +63,7 @@ export const conditionCheckers: Record<NavReqCondition, (user: any) => boolean> 
   // a condição correta e suficiente.
   "master-only": (user) => !!user?.isMaster,
   "master-or-partner": (user) => !!user?.isMaster || !!user?.partnerId,
+  "tenant-admin": (user) => !!user?.isMaster || !!user?.isTenantAdmin,
 };
 
 export const navSections = [
@@ -111,6 +114,16 @@ export const navSections = [
       { name: "E-mail em massa", path: "/app/marketing/email", icon: Mail, reqModule: "marketing" },
       { name: "Conteúdo & Social", path: "/app/marketing/conteudo", icon: Edit3, reqModule: "marketing" },
       { name: "Analytics de Mkt", path: "/app/marketing/analytics", icon: BarChart2, reqModule: "marketing" },
+    ],
+  },
+  {
+    title: "Inteligência Artificial",
+    reqModule: "aurora",
+    items: [
+      { name: "Visão Geral da IA", path: "/app/ia", icon: Bot },
+      { name: "Funil & Etapas da IA", path: "/app/configuracoes/crm/funis", icon: Workflow, reqCondition: "tenant-admin" as NavReqCondition },
+      { name: "Agentes & Consumo", path: "/app/configuracoes/sistema/aurora", icon: Brain, reqCondition: "tenant-admin" as NavReqCondition },
+      { name: "Gatilhos da IA", path: "/app/configuracoes/crm/gatilhos-ia", icon: Zap, reqCondition: "tenant-admin" as NavReqCondition },
     ],
   },
   {
