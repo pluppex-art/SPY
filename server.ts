@@ -44,6 +44,7 @@ import { registerChatbotRoutes } from "./server/chatbot.js";
 import { registerChatbotSaveRoutes } from "./server/chatbotSave.js";
 import { provisionTenantForImplementation } from "./server/implementationProvision.js";
 import { friendlyAuthCreateError } from "./server/authErrors.js";
+import { sessoesModelo } from "./server/agenteSecretoModelo.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
 import { runSyncChunk, promoteMaxdataProducts, SYNC_ENTITIES, type SyncEntity } from "./server/maxdataSync.js";
@@ -5670,8 +5671,10 @@ app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req
     const { data: existing } = await req.supabase.from("whatsapp_instances").select("id, name").eq("colaborador_id", colab.id).limit(1);
     if (existing?.[0]) return res.json({ created: false, name: existing[0].name });
 
-    const { data: modelos } = await req.supabase.from("whatsapp_instances")
-      .select("name, webhook_url").eq("tenant_id", colab.tenant_id).not("colaborador_id", "is", null).limit(5);
+    // Modelo do webhook: sessão pessoal de outro colaborador; empresa nova (sem nenhuma) usa a sessão do Agente Secreto da empresa.
+    const { data: sessoesDaEmpresa } = await req.supabase.from("whatsapp_instances")
+      .select("name, webhook_url, colaborador_id").eq("tenant_id", colab.tenant_id).limit(60);
+    const modelos = sessoesModelo(sessoesDaEmpresa || []);
     let webhooks: any[] | null = null;
     let webhookUrl: string | null = null;
     for (const m of modelos || []) {
@@ -5684,7 +5687,7 @@ app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req
         }
       } catch { /* tenta o próximo modelo */ }
     }
-    if (!webhooks) return res.status(409).json({ error: "Esta empresa ainda não tem uma sessão modelo do Agente Secreto para copiar o webhook." });
+    if (!webhooks) return res.status(409).json({ error: "Não encontrei uma sessão do Agente Secreto com webhook configurado nesta empresa para copiar. Confira se o agente de implementação já terminou de criar os agentes dela." });
 
     const primeiroNome = String(colab.nome || "Colaborador").trim().split(/\s+/)[0]
       .normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]/g, "") || "Colaborador";
