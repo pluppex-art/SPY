@@ -197,7 +197,12 @@ export function MembrosSection({
                           : <><Phone className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Conectar meu WhatsApp</>}
                         </button>
                       )}
-                      {canManageSessions && onCriarSessao && (
+                      {canManageSessions && onCriarSessao && agenteStatus?.[colab.id] !== undefined && (
+                        <div aria-disabled="true" title="Este colaborador já tem uma sessão do Agente Secreto." className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-faint)] rounded-lg text-left cursor-default select-none">
+                          <Phone className="w-3.5 h-3.5 text-emerald-500/60" /> Sessão do Agente Secreto já criada
+                        </div>
+                      )}
+                      {canManageSessions && onCriarSessao && agenteStatus?.[colab.id] === undefined && (
                         <button onClick={() => onCriarSessao(colab)} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
                           <Phone className="w-3.5 h-3.5 text-emerald-500" /> Criar sessão do Agente Secreto
                         </button>

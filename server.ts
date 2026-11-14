@@ -5656,9 +5656,12 @@ const isTenantAdminReq = async (req: any): Promise<boolean> => {
 // Cria a sessão do Agente Secreto de um colaborador no MESMO padrão das outras sessões pessoais da empresa:
 // copia o webhook (n8n, com o segredo) de uma sessão-modelo do tenant, só com o evento message.any.
 // Sem sessão-modelo na empresa não inventa webhook: pede para configurar a primeira.
+const criandoSessaoAgente = new Set<string>(); // evita duas sessões do mesmo colaborador por clique duplo/requisições simultâneas
 app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req: any, res) => {
   const colaboradorId = String(req.body?.colaboradorId || "");
   if (!/^[\w-]{1,64}$/.test(colaboradorId)) return res.status(400).json({ error: "colaboradorId inválido." });
+  if (criandoSessaoAgente.has(colaboradorId)) return res.status(409).json({ error: "A sessão deste colaborador já está sendo criada. Aguarde alguns segundos." });
+  criandoSessaoAgente.add(colaboradorId);
   try {
     if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores podem criar sessões do Agente Secreto." });
     const provider = getWhatsAppProvider();
@@ -5714,6 +5717,8 @@ app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req
   } catch (err: any) {
     console.error("[agente-secreto/sessoes]", err?.message);
     res.status(502).json({ error: "Não foi possível criar a sessão agora." });
+  } finally {
+    criandoSessaoAgente.delete(colaboradorId);
   }
 });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { friendlyError } from "../../lib/friendlyError";
 import { PageContainer } from "../../components/PageContainer";
 import { UserPlus, PlusCircle, Users } from "lucide-react";
@@ -82,8 +82,25 @@ export default function RHColaboradores() {
   }, []);
 
   // Só cria a sessão de WhatsApp (Agente Secreto) depois que o admin confirma; falha aqui não desfaz o cadastro.
+  const criandoSessaoRef = useRef(new Set<string>());
   const handleCriarSessaoAgenteSecreto = async (colab: { nome: string; id: string }) => {
     setMenuOpenId(null);
+    // Já tem sessão: avisa e não cria outra (nem pergunta). O servidor também confere — este é só o caminho rápido.
+    if (agenteStatus[colab.id] !== undefined) {
+      toast.info(`${colab.nome} já tem uma sessão do Agente Secreto.`, { description: "Não é preciso criar outra. Se estiver desconectada, ele reconecta pelo aviso no topo da tela." });
+      window.dispatchEvent(new Event(AGENTE_SECRETO_STATUS_EVENT));
+      return;
+    }
+    if (criandoSessaoRef.current.has(colab.id)) return; // clique duplo
+    criandoSessaoRef.current.add(colab.id);
+    try {
+      await criarSessaoAgenteSecreto(colab);
+    } finally {
+      criandoSessaoRef.current.delete(colab.id);
+    }
+  };
+
+  const criarSessaoAgenteSecreto = async (colab: { nome: string; id: string }) => {
     if (!(await confirmDialog({
       title: "Criar sessão do Agente Secreto",
       description: `Criar a sessão de WhatsApp do Agente Secreto para ${colab.nome}? Depois, ${colab.nome} lê o QR code para conectar o número dele.`,
@@ -105,7 +122,14 @@ export default function RHColaboradores() {
       if (res.status === 404) { await new Promise((r) => setTimeout(r, 1500)); res = await criar(); }
       const wa = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast.success(wa.created === false ? `${colab.nome} já tinha uma sessão.` : `Sessão criada para ${colab.nome}.`, { description: "Quando ele entrar no S.P.Y., o aviso Reconectar mostra o QR code para conectar o WhatsApp." });
+        if (wa.created === false) {
+          // O servidor achou uma sessão que a tela ainda não conhecia: nada foi criado, só atualiza o status.
+          toast.info(`${colab.nome} já tinha uma sessão do Agente Secreto.`, { description: "Nenhuma sessão nova foi criada." });
+          window.dispatchEvent(new Event(AGENTE_SECRETO_STATUS_EVENT));
+        } else {
+          toast.success(`Sessão criada para ${colab.nome}.`, { description: "Quando ele entrar no S.P.Y., o aviso Reconectar mostra o QR code para conectar o WhatsApp." });
+          window.dispatchEvent(new Event(AGENTE_SECRETO_STATUS_EVENT));
+        }
       } else {
         toast.warning(`A sessão de ${colab.nome} não foi criada${wa.error ? `: ${wa.error}` : "."}`, { description: "Tente de novo pelo menu do colaborador." });
       }
