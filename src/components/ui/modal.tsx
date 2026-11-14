@@ -20,6 +20,8 @@ interface ModalProps {
    * o contexto principal (ver LeadDetailsModal.tsx). Puramente visual, não
    * muda nenhum comportamento (ESC/clique-fora ainda fecham do mesmo jeito). */
   overlay?: "dark" | "light";
+  /** false = clicar fora do painel NÃO fecha (decisões que exigem escolha explícita). ESC continua fechando. Padrão: true. */
+  closeOnBackdrop?: boolean;
 }
 
 export function Modal({
@@ -34,6 +36,7 @@ export function Modal({
   position = "center",
   noPadding = false,
   overlay = "dark",
+  closeOnBackdrop = true,
 }: ModalProps) {
   useEffect(() => {
     if (!isOpen) return;
@@ -81,7 +84,7 @@ export function Modal({
           overlay === "light" ? "bg-black/20" : "bg-black/60 backdrop-blur-sm"
         )}
         onMouseDown={(e) => {
-          if (e.target === e.currentTarget) onClose();
+          if (closeOnBackdrop && e.target === e.currentTarget) onClose();
         }}
       />
 

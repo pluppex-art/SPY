@@ -88,7 +88,12 @@ export default function RHColaboradores() {
       title: "Criar sessão do Agente Secreto",
       description: `Criar a sessão de WhatsApp do Agente Secreto para ${colab.nome}? Depois, ${colab.nome} lê o QR code para conectar o número dele.`,
       confirmText: "Criar sessão",
-    }))) return;
+      cancelText: "Agora não",
+      variant: "success",
+    }))) {
+      toast.info(`A sessão do Agente Secreto de ${colab.nome} não foi criada.`, { description: "Você pode criar depois pelo menu do colaborador › Criar sessão do Agente Secreto." });
+      return;
+    }
     const criar = () => apiFetch("/api/agente-secreto/sessoes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

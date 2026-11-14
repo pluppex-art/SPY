@@ -9,7 +9,8 @@ interface ConfirmOptions {
   confirmText?: string;
   confirmLabel?: string;
   cancelText?: string;
-  variant?: string;
+  /** "success" = ação positiva (verde). Padrão: "danger" (vermelho, exclusão). */
+  variant?: "danger" | "success";
 }
 
 type ConfirmState = ConfirmOptions & { resolve: (value: boolean) => void };
@@ -57,6 +58,7 @@ export function ConfirmDialogHost() {
       message={state?.description || t("Essa ação não pode ser desfeita.")}
       confirmText={state?.confirmText}
       cancelText={state?.cancelText}
+      variant={state?.variant}
     />
   );
 }
