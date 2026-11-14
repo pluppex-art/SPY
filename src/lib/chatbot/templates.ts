@@ -116,16 +116,19 @@ const PERGUNTAS_IMPLANTACAO: [string, ValidationKind, string][] = [
   ["meta_mensal", "text", "Qual a meta mensal de vendas?"],
 ];
 
+/** Exigidas para criar o ambiente do cliente (tenantReadiness): nessas o bot insiste, não aceita "não sei". */
+const OBRIGATORIAS_IMPLANTACAO = new Set(["nome_fantasia", "razao_social", "cnpj", "endereco", "resp_nome", "resp_email"]);
+
 function implantacao(): ChatbotFlow {
   const nodes: ChatbotFlow["nodes"] = {
     boas_vindas: {
       id: "boas_vindas", type: "message", next: PERGUNTAS_IMPLANTACAO[0][0],
-      text: "Oi! Aqui é {{bot_nome}}, responsável pela implementação de vocês no SPY. 🙂 Vou te fazer algumas perguntas rápidas — leva uns 3 minutos. Se não souber alguma, é só dizer \"não sei\" que a gente segue.",
+      text: "Oi! Aqui é {{bot_nome}}, responsável pela implementação de vocês no SPY. 🙂 Vou te fazer algumas perguntas rápidas — leva uns 3 minutos. Se não souber alguma das opcionais, é só dizer \"não sei\" que a gente segue.",
     },
   };
   PERGUNTAS_IMPLANTACAO.forEach(([variable, validation, text], i) => {
     const next = i + 1 < PERGUNTAS_IMPLANTACAO.length ? PERGUNTAS_IMPLANTACAO[i + 1][0] : "whats_usa";
-    nodes[variable] = { id: variable, type: "question", text, variable, validation, skip_if_known: true, allow_unknown: true, next };
+    nodes[variable] = { id: variable, type: "question", text, variable, validation, skip_if_known: true, allow_unknown: !OBRIGATORIAS_IMPLANTACAO.has(variable), next };
   });
   // Parte técnica: só pergunta os detalhes de quem vai usar.
   nodes.whats_usa = { id: "whats_usa", type: "menu", text: "Vocês vão usar o WhatsApp no sistema?", variable: "whats_usa", skip_if_known: true, options: [{ id: "whats_sim", label: "Sim", next: "whats_numero" }, { id: "whats_nao", label: "Não", next: "meta_usa" }] };

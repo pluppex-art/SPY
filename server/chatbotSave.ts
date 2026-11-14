@@ -33,7 +33,7 @@ const safeEqual = (a: string, b: string) => {
 type Found = { ok: true; id: string } | { ok: false; reason: string };
 
 /** Implementação do tenant cujo cliente/contato/formulário usa esse número (a ainda aberta tem preferência). */
-async function findImplementation(sb: Sb, tenantId: string, phone: string): Promise<Found> {
+export async function findImplementation(sb: Sb, tenantId: string, phone: string): Promise<Found> {
   const key = phoneKey(phone);
   if (key.length < 8) return { ok: false, reason: "telefone_invalido" };
   const [{ data: impls }, { data: clientes }, { data: contatos }] = await Promise.all([
@@ -50,6 +50,22 @@ async function findImplementation(sb: Sb, tenantId: string, phone: string): Prom
   if (pool.length === 0) return { ok: false, reason: "implementacao_nao_encontrada" };
   if (pool.length > 1) return { ok: false, reason: "mais_de_uma_implementacao" };
   return { ok: true, id: pool[0].id as string };
+}
+
+/** O que o bot já "sabe" ao começar a conversa: o próprio nome (bot_nome) e o formulário da implementação do número. */
+export async function buildContextVars(sb: Sb, tenantId: string, botName: string, phone: string): Promise<Record<string, string>> {
+  const vars: Record<string, string> = {};
+  if (botName) vars.bot_nome = botName;
+  const found = await findImplementation(sb, tenantId, phone);
+  if (found.ok) {
+    const { data: impl } = await sb.from("implementations").select("data").eq("id", found.id).eq("tenant_id", tenantId).maybeSingle();
+    for (const f of allFields()) {
+      const v = impl?.data?.[f.id];
+      if (isEmpty(v)) continue;
+      vars[f.id] = typeof v === "boolean" ? (v ? "Sim" : "Não") : String(v).slice(0, 500);
+    }
+  }
+  return vars;
 }
 
 async function saveToImplementation(sb: Sb, a: SaveInput): Promise<SaveResult> {
@@ -123,17 +139,7 @@ export function registerChatbotSaveRoutes(app: Express, { limiter, supabaseServi
     try {
       const auth = await authSession(req, res);
       if (!auth) return;
-      const vars: Record<string, string> = {};
-      if (auth.botName) vars.bot_nome = auth.botName;
-      const found = await findImplementation(supabaseService, auth.tenantId, String(req.body?.phone ?? ""));
-      if (found.ok) {
-        const { data: impl } = await supabaseService.from("implementations").select("data").eq("id", found.id).eq("tenant_id", auth.tenantId).maybeSingle();
-        for (const f of allFields()) {
-          const v = impl?.data?.[f.id];
-          if (isEmpty(v)) continue;
-          vars[f.id] = typeof v === "boolean" ? (v ? "Sim" : "Não") : String(v).slice(0, 500);
-        }
-      }
+      const vars = await buildContextVars(supabaseService, auth.tenantId, auth.botName, String(req.body?.phone ?? ""));
       res.json({ vars });
     } catch (err: any) {
       console.error("[chatbot/context]", err?.message);

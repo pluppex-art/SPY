@@ -42,6 +42,7 @@ import { registerFinancialReportRoutes, isValidInternalKey } from "./server/fina
 import { registerMessageTriggerRoutes } from "./server/messageTriggers.js";
 import { registerChatbotRoutes } from "./server/chatbot.js";
 import { registerChatbotSaveRoutes } from "./server/chatbotSave.js";
+import { registerChatbotImplementationStart } from "./server/chatbotImplementacao.js";
 import { provisionTenantForImplementation } from "./server/implementationProvision.js";
 import { friendlyAuthCreateError } from "./server/authErrors.js";
 import { ensureAdminColaborador } from "./server/tenantAdminColaborador.js";
@@ -524,6 +525,7 @@ registerFinancialReportRoutes(app, { supabaseService, hasSupabaseService: Boolea
 registerMessageTriggerRoutes(app, { requireUser });
 // Chatbot por regras (sem IA): conexão de WhatsApp dedicada por bot — ver server/chatbot.ts.
 registerChatbotRoutes(app, { requireUser, limiter: whatsappLimiter, supabaseService });
+registerChatbotImplementationStart(app, { requireUser, limiter: whatsappLimiter, supabaseService, wahaConfigured: isWahaConfigured, getProvider: getWhatsAppProvider });
 registerChatbotSaveRoutes(app, {
   limiter: whatsappLimiter, supabaseService,
   // Fim da coleta do chatbot de implementação: cria o ambiente do cliente e aciona o agente (só se o nó pedir).

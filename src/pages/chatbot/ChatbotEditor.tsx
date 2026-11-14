@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Save, Power, LayoutGrid, MousePointerClick, MessageCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Power, LayoutGrid, MousePointerClick, MessageCircle, Rocket } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -10,6 +10,7 @@ import { hasBlockingIssues, validateFlow } from "../../lib/chatbot/validate";
 import { withAutoLayout, NODE_WIDTH } from "../../lib/chatbot/layout";
 import { createNode, NODE_LABEL } from "../../lib/chatbot/templates";
 import { FlowCanvas } from "./FlowCanvas";
+import { IniciarImplementacaoModal } from "./IniciarImplementacaoModal";
 import { NodeInspector } from "./NodeInspector";
 import { ChatbotSimulator } from "./ChatbotSimulator";
 import { ChatbotSettingsPanel } from "./ChatbotSettingsPanel";
@@ -53,6 +54,7 @@ interface Props {
 }
 
 export function ChatbotEditor({ bot, readOnly, onBack, onSave, onRefresh }: Props) {
+  const [iniciarAberto, setIniciarAberto] = useState(false);
   const [name, setName] = useState(bot.name);
   const [description, setDescription] = useState(bot.description);
   const [flow, setFlow] = useState<ChatbotFlow>(() => withAutoLayout(bot.flow));
@@ -133,9 +135,12 @@ export function ChatbotEditor({ bot, readOnly, onBack, onSave, onRefresh }: Prop
   ) : null;
 
   const globalIssues = issues.filter((i) => !i.nodeId);
+  // O botão só existe em chatbots que gravam na implementação (têm o passo "Salvar dados" desse destino).
+  const temImplementacao = Object.values(flow.nodes).some((n) => n.type === "save_data" && n.target === "implementation");
 
   return (
     <div className="space-y-4">
+      <IniciarImplementacaoModal botId={bot.id} botName={bot.name} isOpen={iniciarAberto} onClose={() => setIniciarAberto(false)} />
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         <Button variant="outline" size="sm" onClick={onBack} className="self-start">
           <ArrowLeft className="w-4 h-4" /> Chatbots
@@ -149,6 +154,11 @@ export function ChatbotEditor({ bot, readOnly, onBack, onSave, onRefresh }: Prop
         </div>
         {!readOnly && (
           <div className="flex gap-2">
+            {temImplementacao && (
+              <Button variant="outline" size="sm" onClick={() => setIniciarAberto(true)} disabled={!bot.active || dirty} title={!bot.active ? "Ative o chatbot para iniciar" : dirty ? "Salve as alterações antes de iniciar" : "Abrir a conversa com um cliente"}>
+                <Rocket className="w-4 h-4" /> Iniciar implementação
+              </Button>
+            )}
             <Button variant={bot.active ? "outline" : "success"} size="sm" onClick={toggleActive} disabled={saving}>
               <Power className="w-4 h-4" /> {bot.active ? "Desativar" : "Ativar"}
             </Button>
