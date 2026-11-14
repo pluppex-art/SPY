@@ -53,6 +53,12 @@ test("dados completos: cria ambiente + admin, link de senha por e-mail (sem senh
   assert.equal(db.t.users[0].email, "ana@acme.com"); assert.equal(db.t.users[0].is_tenant_admin, true); assert.equal(db.t.users[0].tenant_id, db.t.tenants[0].id);
   assert.equal(db.t.implementations[0].linked_tenant_id, db.t.tenants[0].id);
   assert.equal(db.t.app_settings[0].key, "empresa_dados");
+  // O gestor também entra no RH como Administrador, na empresa dele, e continua sem acesso a outras (não é master).
+  const rh = db.t.colaboradores[0];
+  assert.equal(db.t.colaboradores.length, 1);
+  assert.equal(rh.tenant_id, db.t.tenants[0].id); assert.equal(rh.user_id, "auth1");
+  assert.equal(rh.cargo, "Administrador"); assert.deepEqual(rh.cargos, ["Administrador"]); assert.equal(rh.nome, "Ana"); assert.equal(rh.email, "ana@acme.com");
+  assert.equal(db.t.users[0].is_master, false); assert.equal(db.t.users[0].partner_id, undefined);
   assert.equal(sent.length, 1); assert.match(sent[0].html, /reset\?t=abc/); assert.ok(!JSON.stringify(sent).includes(db.t.auth_users[0].pw)); // a senha nunca vai no e-mail
   assert.equal(hooks.length, 1); assert.equal(hooks[0].init.headers["X-Webhook-Secret"], "s3");
   const body = JSON.parse(hooks[0].init.body); assert.equal(body.tenant_id, db.t.tenants[0].id); assert.equal(body.implementation_id, "i1");
@@ -105,4 +111,14 @@ test("rota save-data: só provisiona quando o nó pede (provision: true) e a gra
   // Sem implementação para o número → saver devolve ok:false → não provisiona.
   const r = await call({ session: "s", target: "implementation", phone: "5563999998888", provision: true, map: [{ field: "cnpj", variable: "cnpj" }], vars: { cnpj: "x" } });
   assert.equal(r.ok, false); assert.equal(calls.length, 0);
+});
+
+test("gestor no RH é idempotente: não cria colaborador repetido para o mesmo login/empresa", async () => {
+  const { ensureAdminColaborador } = await import("../../server/tenantAdminColaborador");
+  const db = fakeDb({ colaboradores: [] });
+  const a = { tenantId: "T", userId: "U", nome: "Ana", email: "Ana@X.com", phone: "5563999998888" };
+  assert.equal(await ensureAdminColaborador(db, a), true);
+  assert.equal(await ensureAdminColaborador(db, a), true);
+  assert.equal(db.t.colaboradores.length, 1);
+  assert.equal(db.t.colaboradores[0].email, "ana@x.com");
 });

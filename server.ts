@@ -44,6 +44,7 @@ import { registerChatbotRoutes } from "./server/chatbot.js";
 import { registerChatbotSaveRoutes } from "./server/chatbotSave.js";
 import { provisionTenantForImplementation } from "./server/implementationProvision.js";
 import { friendlyAuthCreateError } from "./server/authErrors.js";
+import { ensureAdminColaborador } from "./server/tenantAdminColaborador.js";
 import { sessoesModelo } from "./server/agenteSecretoModelo.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
@@ -5271,10 +5272,12 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
       return res.status(friendlyTenant.status).json({ error: friendlyTenant.code === "outro" ? `Erro ao criar conta de acesso do administrador${created.error?.message ? `: ${created.error.message}` : "."}` : friendlyTenant.message });
     }
 
+    // Nome do gestor: o responsável da implementação, quando vem dela; senão "Admin <empresa>".
+    const adminDisplayName = String(impl?.data?.resp_nome || "").trim() || `Admin ${tenantName.trim()}`;
     const { error: profileError } = await supabaseService.from("users").insert({
       id: authData.user.id,
       tenant_id: tenantData.id,
-      name: `Admin ${tenantName.trim()}`,
+      name: adminDisplayName,
       email: adminEmail.trim(),
       role: "Admin",
       is_master: false,
@@ -5287,6 +5290,12 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
       if (!authReused) await supabaseService.auth.admin.deleteUser(authData.user.id);
       return res.status(500).json({ error: "Erro ao criar o perfil do administrador." });
     }
+
+    // O gestor também entra no RH da empresa como Administrador (falha aqui não desfaz o ambiente).
+    const gestorNoRh = await ensureAdminColaborador(supabaseService, {
+      tenantId: tenantData.id, userId: authData.user.id, nome: adminDisplayName, email: adminEmail.trim(), phone: impl?.data?.resp_whatsapp,
+    });
+    if (!gestorNoRh) console.error("[tenant-create] gestor não foi criado no RH:", tenantData.id);
 
     // Implementação: grava o cadastro da empresa (Configurações › Dados da Empresa) e vincula.
     let empresaDadosSalvos: boolean | undefined;

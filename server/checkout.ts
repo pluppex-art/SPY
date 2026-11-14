@@ -13,6 +13,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import rateLimit from "express-rate-limit";
 import { sendPlatformEmail } from "./mailer.js";
+import { ensureAdminColaborador } from "./tenantAdminColaborador.js";
 import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
 import { notificationEmail, type NotificationKind } from "./emailTemplates.js";
 import { whatsappUrl, formatPhoneBR } from "./emailNotify.js";
@@ -298,6 +299,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
           });
           if (uErr) throw new FulfillError("Erro ao criar o perfil de acesso.");
           criado.userRow = true;
+          await ensureAdminColaborador(db!, { tenantId, userId: authId, nome: o.nome, email: o.email, phone: o.telefone }); // gestor também no RH (falha só gera log)
         }
         const { data: emp } = await db!.from("app_settings").select("tenant_id").eq("tenant_id", tenantId).eq("key", "empresa_dados").maybeSingle();
         if (!emp) await db!.from("app_settings").insert({ tenant_id: tenantId, key: "empresa_dados", value: { nome: o.empresa, cnpj: o.documento, email: o.email, telefone: o.telefone } });

@@ -13,6 +13,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { tenantReadiness, buildEmpresaDados } from "../src/lib/implementationTenant.js";
+import { ensureAdminColaborador } from "./tenantAdminColaborador.js";
 
 type Db = any;
 export interface ProvisionDeps {
@@ -86,9 +87,13 @@ export async function provisionTenantForImplementation(deps: ProvisionDeps, impl
   });
   if (uErr) { await undo(authId); await note("Chatbot: ambiente NÃO criado — erro ao criar o perfil do administrador."); return { status: "failed", reason: "erro_ao_criar_perfil" }; }
 
+  // O gestor também entra no RH como Administrador (só vê a própria empresa; nada de troca de tenant).
+  const gestorNoRh = await ensureAdminColaborador(db, { tenantId: tenant.id, userId: authId, nome: String(data.resp_nome).trim() || `Admin ${company}`, email, phone: data.resp_whatsapp });
+
   const { error: eErr } = await db.from("app_settings").insert({ tenant_id: tenant.id, key: "empresa_dados", value: buildEmpresaDados(data) });
   const problems: string[] = [];
   if (eErr) problems.push("Dados da Empresa não foram gravados no novo ambiente");
+  if (!gestorNoRh) problems.push("o gestor não foi criado no RH (Equipe & Squads)");
 
   try {
     const planId = await deps.planIdFromLead(impl.lead_id);
