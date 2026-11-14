@@ -102,6 +102,8 @@ export function NovoMembroModal({
   const emailOk = /^\S+@\S+\.\S+$/.test(email.trim());
   const senhaFraca = modoAcesso === "senha" && senha.length > 0 && (senha.length < 8 || !/[A-Za-z]/.test(senha) || !/\d/.test(senha));
   const senhaDiverge = modoAcesso === "senha" && senha.length > 0 && senha !== confirmaSenha;
+  // Palavra + números ("luminar123", "empresa2026"): o Auth costuma recusar por constar em listas de senhas vazadas. Só um aviso — não bloqueia.
+  const senhaProvavelmenteComum = modoAcesso === "senha" && !senhaFraca && /^[A-Za-z]+\d{1,6}$/.test(senha);
   const erros = {
     nome: !nome.trim() ? "Informe o nome." : "",
     email: !email.trim() ? "Informe o e-mail." : !emailOk ? "E-mail inválido." : "",
@@ -274,8 +276,18 @@ export function NovoMembroModal({
                 </div>
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-[var(--color-primary-blue)]/8 border border-[var(--color-primary-blue)]/20 text-[11px] text-[var(--color-primary-blue)]">
                   <Info className="w-4 h-4 shrink-0 mt-px" />
-                  <span>A senha deve conter no mínimo 8 caracteres, incluindo letras e números. Deixando em branco, geramos uma senha temporária forte e mostramos para você compartilhar.</span>
+                  <div className="space-y-1">
+                    <p>A senha deve ter no mínimo 8 caracteres, com letras e números.</p>
+                    <p>Evite senhas comuns (ex.: <b>empresa123</b>, <b>senha1234</b>, <b>12345678</b>): o sistema recusa as que aparecem em listas de vazamento. Uma boa forma é duas palavras + número + símbolo, como <b>Sol&amp;Praia#482</b>.</p>
+                    <p>Deixando em branco, geramos uma senha temporária forte e mostramos para você compartilhar.</p>
+                  </div>
                 </div>
+                {senhaProvavelmenteComum && (
+                  <p role="status" className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-600">
+                    <Info className="w-4 h-4 shrink-0 mt-px" />
+                    <span>Essa senha parece comum (palavra + números) e pode ser recusada. Misture maiúsculas e minúsculas e acrescente um símbolo, ou deixe em branco para gerar uma senha forte.</span>
+                  </p>
+                )}
               </>
             ) : (
               <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-[var(--color-primary-blue)]/8 border border-[var(--color-primary-blue)]/20 text-[11px] text-[var(--color-primary-blue)]">
