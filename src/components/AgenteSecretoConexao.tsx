@@ -48,16 +48,16 @@ export function AgenteSecretoConexao() {
 
   return (
     <>
+      {/* Fica na barra do topo, ao lado do nome do usuário (antes era um aviso flutuando no canto da tela). */}
       <div
         role="alert"
-        className="fixed bottom-4 left-4 z-[60] flex items-center gap-3 rounded-xl border border-rose-500/40 bg-[var(--color-surface-elevated)] px-4 py-3 shadow-xl"
+        title="O Agente Secreto parou de acompanhar suas conversas no WhatsApp."
+        className="flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 pl-2.5 pr-1 py-1 shrink-0"
       >
-        <WifiOff className="w-4 h-4 text-rose-500 shrink-0" />
-        <div className="text-xs">
-          <p className="font-bold text-[var(--color-text-primary)]">Agente Secreto desconectado</p>
-          <p className="text-[var(--color-text-muted)]">Ele parou de acompanhar suas conversas no WhatsApp.</p>
-        </div>
-        <Button size="sm" onClick={() => setOpen(true)}>Reconectar</Button>
+        <WifiOff className="w-4 h-4 text-rose-500 shrink-0" aria-hidden />
+        <p className="hidden lg:block text-[11px] font-bold leading-tight text-[var(--color-text-primary)] whitespace-nowrap">Agente Secreto desconectado</p>
+        <span className="sr-only lg:hidden">Agente Secreto desconectado.</span>
+        <Button size="sm" onClick={() => setOpen(true)} className="h-7 px-3 text-[11px]">Reconectar</Button>
       </div>
 
       <AgenteSecretoQrModal

@@ -11,6 +11,7 @@ import { Badge } from "../ui/badge";
 import { EmptyState } from "../ui/empty-state";
 import { CommandPalette } from "../CommandPalette";
 import { Logo } from "../ui/Logo";
+import { AgenteSecretoConexao } from "../AgenteSecretoConexao";
 import {
   Sun,
   Moon,
@@ -451,6 +452,9 @@ export function Topbar({
               </Card>
           )}
         </div>
+
+        {/* Aviso do Agente Secreto do próprio usuário: só aparece quando a sessão dele caiu. */}
+        <AgenteSecretoConexao />
 
         <div className="flex items-center gap-3 pl-4 sm:pl-6 border-l border-[var(--color-border-default)] max-md:border-none max-md:pl-0">
           <div className="text-right hidden sm:block">

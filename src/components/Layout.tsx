@@ -13,7 +13,6 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { AuroraWidget } from "./ui/AuroraWidget";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { WhatsAppPairingModal } from "./WhatsAppPairingModal";
-import { AgenteSecretoConexao } from "./AgenteSecretoConexao";
 import { SDRWebhookModal } from "./ui/modals/crm/SDRWebhookModal";
 import { useData } from "../contexts/DataContextTypes";
 import { BillingBanner, SuspendedScreen, useIsBlocked } from "./BillingGate";
@@ -111,7 +110,6 @@ export default function Layout() {
       {isModuleEnabled("aurora") && <AuroraWidget />}
       <OnboardingWizard />
       <WhatsAppPairingModal />
-      <AgenteSecretoConexao />
 
       <Toaster
         theme={theme}
