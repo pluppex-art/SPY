@@ -1,6 +1,6 @@
 import { CargosMultiSelect } from "../../CargosMultiSelect";
 import React, { useEffect, useMemo, useState } from "react";
-import { UserPlus, ShieldCheck, Eye, EyeOff, User, Mail, Phone, Briefcase, Building2, Users, Lock, Link2, Info, MapPin, Loader2 } from "lucide-react";
+import { UserPlus, ShieldCheck, Eye, EyeOff, User, Mail, Phone, Briefcase, Building2, Users, Lock, Link2, Info, MapPin, Loader2, Check, Circle } from "lucide-react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
 import { useData } from "../../../../contexts/DataContext";
@@ -104,6 +104,14 @@ export function NovoMembroModal({
   const senhaDiverge = modoAcesso === "senha" && senha.length > 0 && senha !== confirmaSenha;
   // Palavra + números ("luminar123", "empresa2026"): o Auth costuma recusar por constar em listas de senhas vazadas. Só um aviso — não bloqueia.
   const senhaProvavelmenteComum = modoAcesso === "senha" && !senhaFraca && /^[A-Za-z]+\d{1,6}$/.test(senha);
+  // Checklist da senha: cada requisito fica verde conforme é atendido (orientação; quem bloqueia o cadastro é só senhaFraca).
+  const requisitosSenha = [
+    { ok: /[a-z]/.test(senha), label: "Letra minúscula" },
+    { ok: /[A-Z]/.test(senha), label: "Letra MAIÚSCULA" },
+    { ok: /\d/.test(senha), label: "Número" },
+    { ok: /[^A-Za-z0-9]/.test(senha), label: "Caractere especial" },
+    { ok: senha.length >= 8, label: "Mínimo 8 caracteres" },
+  ];
   const erros = {
     nome: !nome.trim() ? "Informe o nome." : "",
     email: !email.trim() ? "Informe o e-mail." : !emailOk ? "E-mail inválido." : "",
@@ -274,10 +282,17 @@ export function NovoMembroModal({
                     </div>
                   </Field>
                 </div>
+                <ul aria-label="Requisitos da senha" className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 px-3 py-2.5 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)]">
+                  {requisitosSenha.map((r) => (
+                    <li key={r.label} className={`flex items-center gap-1.5 text-[11px] font-medium transition-colors ${r.ok ? "text-emerald-500" : "text-[var(--color-text-muted)]"}`}>
+                      {r.ok ? <Check className="w-3.5 h-3.5 shrink-0" aria-hidden /> : <Circle className="w-3 h-3 shrink-0 opacity-50" aria-hidden />}
+                      <span>{r.label}<span className="sr-only">{r.ok ? " — atendido" : " — pendente"}</span></span>
+                    </li>
+                  ))}
+                </ul>
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-[var(--color-primary-blue)]/8 border border-[var(--color-primary-blue)]/20 text-[11px] text-[var(--color-primary-blue)]">
                   <Info className="w-4 h-4 shrink-0 mt-px" />
                   <div className="space-y-1">
-                    <p>A senha deve ter no mínimo 8 caracteres, com letras e números.</p>
                     <p>Evite senhas comuns (ex.: <b>empresa123</b>, <b>senha1234</b>, <b>12345678</b>): o sistema recusa as que aparecem em listas de vazamento. Uma boa forma é duas palavras + número + símbolo, como <b>Sol&amp;Praia#482</b>.</p>
                     <p>Deixando em branco, geramos uma senha temporária forte e mostramos para você compartilhar.</p>
                   </div>
