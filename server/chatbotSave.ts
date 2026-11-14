@@ -18,6 +18,8 @@ import { allFields, applyPatch, type ImplData } from "../src/lib/implementationF
 import { isEmpty, validateField } from "../src/lib/chatbot/validateValue.js";
 import { phoneKey } from "../src/lib/funnelIds.js";
 import type { ProvisionResult } from "./implementationProvision.js";
+import { webhookPermitido, registrarWebhookDoChatbot } from "./chatbotWebhook.js";
+import { tenantTemChatbot } from "./chatbotModulo.js";
 
 type Sb = any;
 interface MapEntry { field: string; variable: string }
@@ -144,6 +146,26 @@ export function registerChatbotSaveRoutes(app: Express, { limiter, supabaseServi
     } catch (err: any) {
       console.error("[chatbot/context]", err?.message);
       res.json({ vars: {} }); // sem contexto o bot só pergunta tudo: nunca trava a conversa
+    }
+  });
+
+  // O agente de implementação (n8n) termina de criar o chatbot na pasta do cliente e registra o endereço dele aqui.
+  // Autenticação: o MESMO segredo que o SPY já usa para chamar esse agente (SPY_IMPLEMENTACAO_WEBHOOK_SECRET).
+  app.post("/api/chatbot/registrar-agente", limiter, async (req: any, res) => {
+    try {
+      const esperado = process.env.SPY_IMPLEMENTACAO_WEBHOOK_SECRET;
+      const recebido = typeof req.headers["x-webhook-secret"] === "string" ? req.headers["x-webhook-secret"] : "";
+      if (!supabaseService || !esperado || !recebido || !safeEqual(recebido, esperado)) return res.status(403).json({ error: "Não autorizado." });
+      const tenantId = String(req.body?.tenant_id ?? "");
+      const url = webhookPermitido(req.body?.webhook_url);
+      if (!/^[0-9a-f-]{36}$/i.test(tenantId)) return res.status(400).json({ error: "tenant_id inválido." });
+      if (!url) return res.status(400).json({ error: "webhook_url inválido: precisa ser https no servidor n8n do SPY." });
+      if (!(await tenantTemChatbot(supabaseService, tenantId))) return res.status(409).json({ error: "Este cliente não contratou o chatbot." });
+      if (!(await registrarWebhookDoChatbot(supabaseService, tenantId, url))) return res.status(500).json({ error: "Não foi possível registrar." });
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[chatbot/registrar-agente]", err?.message);
+      res.status(500).json({ error: "Erro ao registrar o chatbot do cliente." });
     }
   });
 

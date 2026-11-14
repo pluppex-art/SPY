@@ -31,6 +31,7 @@ function fakeDb(seed: Record<string, Row[]>) {
 const BOT = "11111111-1111-4111-8111-111111111111";
 const flow = CHATBOT_TEMPLATES.find((x) => x.id === "implantacao")!.flow;
 const seed = (over: Row = {}) => ({
+  tenants: [{ id: "T1", modules: { chatbot: true } }],
   users: [{ id: "u1", is_master: false, is_tenant_admin: true }],
   chatbots: [{ id: BOT, tenant_id: "T1", name: "Gustavo Oliveira", active: true, whatsapp_session: "chatbot-abc", flow, settings: {}, ...over }],
   clientes: [], cliente_contatos: [], implementations: [], chatbot_sessions: [],
@@ -84,6 +85,12 @@ test("não duplica: conversa em andamento bloqueia; implementação existente é
 
   (sd as any).implementations[0].linked_tenant_id = "T9";
   assert.equal((await setup(sd).call({ whatsapp: "63999998888" })).status, 409);
+});
+
+test("sem o módulo chatbot contratado, não inicia", async () => {
+  const sd = seed(); (sd as any).tenants = [{ id: "T1", modules: { chatbot: false } }];
+  const r = await setup(sd).call({ whatsapp: "63999998888", empresa: "X Y" });
+  assert.equal(r.status, 403); assert.match(r.body.error, /não está contratado/);
 });
 
 test("proteções: só admin, bot ativo e conectado, telefone válido, empresa para número novo, falha de envio", async () => {

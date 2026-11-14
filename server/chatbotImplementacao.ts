@@ -14,6 +14,7 @@ import type { Express, RequestHandler } from "express";
 import { runChatbot } from "../src/lib/chatbot/engine.js";
 import { normalizePhone } from "../src/lib/chatbot/validateValue.js";
 import { findImplementation, buildContextVars } from "./chatbotSave.js";
+import { tenantTemChatbot, MSG_SEM_CHATBOT } from "./chatbotModulo.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -41,6 +42,7 @@ export function registerChatbotImplementationStart(app: Express, deps: StartDeps
 
       const { data: bot } = await req.supabase.from("chatbots").select("id, tenant_id, name, active, whatsapp_session, flow, settings").eq("id", req.params.id).maybeSingle();
       if (!bot) return res.status(404).json({ error: "Chatbot não encontrado." });
+      if (!(await tenantTemChatbot(supabaseService, bot.tenant_id))) return res.status(403).json({ error: MSG_SEM_CHATBOT });
       const temSalvar = Object.values<any>(bot.flow?.nodes ?? {}).some((n) => n?.type === "save_data" && n?.target === "implementation");
       if (!temSalvar) return res.status(400).json({ error: "Este chatbot não tem o passo \"Salvar dados\" da implementação." });
       if (!bot.whatsapp_session) return res.status(409).json({ error: "Conecte o WhatsApp deste chatbot antes de iniciar." });

@@ -18,7 +18,7 @@ import { ChatbotEditor } from "./ChatbotEditor";
  * de todas as empresas — ver src/lib/chatbot/engine.ts e server/chatbot.ts.
  */
 export default function Chatbot() {
-  const { user } = useAuth();
+  const { user, isModuleEnabled } = useAuth();
   const { bots, loading, error, create, update, remove, refresh } = useChatbots();
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -28,6 +28,15 @@ export default function Chatbot() {
 
   const canEdit = !!(user?.isMaster || user?.isTenantAdmin);
   const open = bots.find((b) => b.id === openId) ?? null;
+
+  // O chatbot é um agente vendido à parte: sem o módulo contratado, nem a página abre pelo endereço direto.
+  if (!isModuleEnabled("chatbot")) {
+    return (
+      <PageContainer title="Chatbot" description="Agente de chatbot do seu WhatsApp.">
+        <EmptyState icon={Bot} title="Chatbot não contratado" description="O chatbot é um agente à parte. Fale com a equipe do SPY para contratar e ativar na sua empresa." />
+      </PageContainer>
+    );
+  }
 
   if (open) {
     return (

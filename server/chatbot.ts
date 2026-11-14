@@ -17,6 +17,8 @@
 import crypto from "node:crypto";
 import type { Express, RequestHandler } from "express";
 import { getWhatsAppProvider, isWahaConfigured } from "./whatsappProvider.js";
+import { tenantTemChatbot, MSG_SEM_CHATBOT } from "./chatbotModulo.js";
+import { webhookDoChatbot } from "./chatbotWebhook.js";
 
 interface Deps {
   requireUser: RequestHandler;
@@ -24,7 +26,6 @@ interface Deps {
   supabaseService: any;
 }
 
-const CHATBOT_WEBHOOK_URL = process.env.N8N_CHATBOT_WEBHOOK_URL || "https://n8n.spycrm.com.br/webhook/spy-chatbot";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function loadVisibleBot(req: any, id: string) {
@@ -59,10 +60,13 @@ export function registerChatbotRoutes(app: Express, { requireUser, limiter, supa
       const bot = await loadVisibleBot(req, req.params.id);
       if (!bot) return res.status(404).json({ error: "Chatbot não encontrado." });
       if (bot.whatsapp_session) return res.json({ session: bot.whatsapp_session, created: false });
+      if (!(await tenantTemChatbot(supabaseService, bot.tenant_id))) return res.status(403).json({ error: MSG_SEM_CHATBOT });
 
       const provider = getWhatsAppProvider();
       if (!provider.createSessionWithConfig) return res.status(501).json({ error: "O provedor de WhatsApp atual não suporta sessões dedicadas." });
 
+      // Endereço do chatbot DESTE cliente (criado pelo agente de implementação); sem registro, o motor compartilhado.
+      const CHATBOT_WEBHOOK_URL = await webhookDoChatbot(supabaseService, bot.tenant_id);
       const session = `chatbot-${bot.id.replace(/-/g, "").slice(0, 12)}`;
       const secret = crypto.randomBytes(32).toString("hex");
 

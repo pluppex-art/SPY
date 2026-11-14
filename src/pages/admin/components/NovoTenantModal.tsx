@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Building2, ShieldCheck, KeyRound, Palette, Blocks, Eye, EyeOff, RefreshCw, Check,
   Target, Sparkles, Clock, DollarSign, Package, Megaphone, MessageSquare, Award,
-  Activity, Users, Columns3, Home, Car, Sun, ShoppingCart, Code2, type LucideIcon,
+  Activity, Users, Columns3, Home, Car, Sun, ShoppingCart, Code2, Bot, type LucideIcon,
 } from "lucide-react";
 import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
@@ -40,6 +40,7 @@ export const MODULES: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "catalogo", label: "Catálogo de Produtos", icon: Package },
   { id: "marketing", label: "Marketing & Campanhas", icon: Megaphone },
   { id: "engajamento", label: "Engajamento & WhatsApp", icon: MessageSquare },
+  { id: "chatbot", label: "Chatbot (agente do cliente)", icon: Bot },
   { id: "educacao", label: "Educação & Acadêmico", icon: Award },
   { id: "clinica", label: "Clínica Médica & Saúde", icon: Activity },
   { id: "rh", label: "RH & Colaboradores", icon: Users },

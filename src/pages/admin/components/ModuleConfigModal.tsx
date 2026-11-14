@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Cpu, X, Check, Sparkles, Target, Clock, DollarSign,
   Package, Megaphone, MessageSquare, Award, Activity,
-  Users, Columns3, Home, Car, Sun, ShoppingCart, Code2,
+  Users, Columns3, Home, Car, Sun, ShoppingCart, Code2, Bot,
   ShieldCheck
 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
@@ -23,6 +23,7 @@ const MODULES_LIST = [
   { id: "catalogo", title: "Catálogo & Produtos", desc: "Estoque de produtos e tabela de preços", icon: Package, color: "text-purple-500" },
   { id: "marketing", title: "Marketing & Campanhas", desc: "Automações, landing pages e formulários", icon: Megaphone, color: "text-amber-500" },
   { id: "engajamento", title: "WhatsApp & Engajamento", desc: "Disparos automáticos e mensageria", icon: MessageSquare, color: "text-rose-500" },
+  { id: "chatbot", title: "Chatbot", desc: "Agente de chatbot do cliente (vendido à parte)", icon: Bot, color: "text-violet-500" },
   { id: "educacao", title: "Educação & Acadêmico", desc: "Turmas, matrículas e certificados", icon: Award, color: "text-purple-500" },
   { id: "clinica", title: "Clínica & Saúde", desc: "Prontuários EHR e telemedicina", icon: Activity, color: "text-teal-500" },
   { id: "rh", title: "RH & Equipe", desc: "Colaboradores, organograma e comissões", icon: Users, color: "text-blue-500" },

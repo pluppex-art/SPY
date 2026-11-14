@@ -14,6 +14,7 @@
 import { randomBytes } from "node:crypto";
 import { tenantReadiness, buildEmpresaDados } from "../src/lib/implementationTenant.js";
 import { ensureAdminColaborador } from "./tenantAdminColaborador.js";
+import { agentesDoTenant } from "./agentesDoCliente.js";
 
 type Db = any;
 export interface ProvisionDeps {
@@ -124,7 +125,7 @@ export async function provisionTenantForImplementation(deps: ProvisionDeps, impl
     try {
       const r = await (deps.fetchImpl ?? fetch)(process.env.SPY_IMPLEMENTACAO_WEBHOOK_URL || WEBHOOK_DEFAULT, {
         method: "POST", headers: { "Content-Type": "application/json", "X-Webhook-Secret": secret }, signal: ac.signal,
-        body: JSON.stringify({ tenant_id: tenant.id, company, email, phone: String(data.resp_whatsapp || ""), implementation_id: impl.id }),
+        body: JSON.stringify({ tenant_id: tenant.id, company, email, phone: String(data.resp_whatsapp || ""), implementation_id: impl.id, agentes: await agentesDoTenant(db, tenant.id) }),
       });
       agentTriggered = r.ok;
       if (!r.ok) problems.push(`o agente de implementação respondeu HTTP ${r.status}`);

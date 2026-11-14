@@ -23,6 +23,7 @@ const DEFAULT_MODULES: Record<string, boolean> = {
   catalogo: true,
   marketing: true,
   engajamento: true,
+  chatbot: false, // vendido à parte: só liga para quem contratou
   rh: true,
   bi: true,
   clinica: true,

@@ -14,6 +14,7 @@ import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import rateLimit from "express-rate-limit";
 import { sendPlatformEmail } from "./mailer.js";
 import { ensureAdminColaborador } from "./tenantAdminColaborador.js";
+import { agentesDoTenant } from "./agentesDoCliente.js";
 import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
 import { notificationEmail, type NotificationKind } from "./emailTemplates.js";
 import { whatsappUrl, formatPhoneBR } from "./emailNotify.js";
@@ -195,7 +196,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     try {
       const r = await fetch(url, {
         method: "POST", headers: { "Content-Type": "application/json", "X-Webhook-Secret": secret }, signal: ac.signal,
-        body: JSON.stringify({ tenant_id: tenantId, company: o.empresa, email: o.email, phone: o.telefone, implementation_id: process.env.SPY_IMPLEMENTACAO_ID || "" }),
+        body: JSON.stringify({ tenant_id: tenantId, company: o.empresa, email: o.email, phone: o.telefone, implementation_id: process.env.SPY_IMPLEMENTACAO_ID || "", agentes: await agentesDoTenant(db!, tenantId) }),
       });
       if (!r.ok) return { ok: false, erro: `n8n respondeu HTTP ${r.status}` };
       return { ok: true, erro: null };

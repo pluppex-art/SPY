@@ -46,6 +46,7 @@ import { registerChatbotImplementationStart } from "./server/chatbotImplementaca
 import { provisionTenantForImplementation } from "./server/implementationProvision.js";
 import { friendlyAuthCreateError } from "./server/authErrors.js";
 import { ensureAdminColaborador } from "./server/tenantAdminColaborador.js";
+import { agentesDoTenant } from "./server/agentesDoCliente.js";
 import { sessoesModelo } from "./server/agenteSecretoModelo.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
@@ -5331,7 +5332,8 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
     if (!implWebhookSecret) {
       console.error("[tenant-create] SPY_IMPLEMENTACAO_WEBHOOK_SECRET nao configurada — agente de implementacao NAO foi acionado.");
     } else {
-      fetch("https://n8n.spycrm.com.br/webhook/spy-agente-implementacao-tenant-criado", {
+      // `agentes`: o que criar na pasta do cliente (os 4 de sempre + "chatbot" se o módulo foi contratado).
+      agentesDoTenant(supabaseService, tenantData.id).then((agentes) => fetch("https://n8n.spycrm.com.br/webhook/spy-agente-implementacao-tenant-criado", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Webhook-Secret": implWebhookSecret },
         body: JSON.stringify({
@@ -5340,8 +5342,9 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
           email: adminEmail.trim(),
           phone: impl?.data?.resp_whatsapp || "",
           implementation_id: impl?.id || "",
+          agentes,
         }),
-      }).catch((e: any) => console.error("[tenant-create] Falha ao notificar agente de implementacao:", e?.message));
+      })).catch((e: any) => console.error("[tenant-create] Falha ao notificar agente de implementacao:", e?.message));
     }
 
     res.json({ success: true, tenantId: tenantData.id, ...(planoAplicado ? { plano: planoAplicado } : {}), ...(impl ? { empresaDadosSalvos, vinculada } : {}) });
