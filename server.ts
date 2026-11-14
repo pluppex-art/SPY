@@ -43,6 +43,7 @@ import { registerMessageTriggerRoutes } from "./server/messageTriggers.js";
 import { registerChatbotRoutes } from "./server/chatbot.js";
 import { registerChatbotSaveRoutes } from "./server/chatbotSave.js";
 import { provisionTenantForImplementation } from "./server/implementationProvision.js";
+import { friendlyAuthCreateError } from "./server/authErrors.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
 import { runSyncChunk, promoteMaxdataProducts, SYNC_ENTITIES, type SyncEntity } from "./server/maxdataSync.js";
@@ -5073,6 +5074,9 @@ app.post("/api/admin/team-user", requireUser, async (req: any, res) => {
       userId = authData.user.id;
       createdNow = true;
     } else {
+      // Senha recusada pelo Auth (comum/vazada): explica na hora, sem varrer usuários à toa.
+      const friendly = friendlyAuthCreateError(authError);
+      if (friendly.code === "senha_fraca") return res.status(friendly.status).json({ error: friendly.message });
       // Sobra de uma tentativa anterior que criou o login mas não chegou a criar o perfil: reaproveita.
       let orphanId: string | null = null;
       for (let page = 1; page <= 20 && !orphanId; page++) {
@@ -5083,7 +5087,7 @@ app.post("/api/admin/team-user", requireUser, async (req: any, res) => {
       }
       if (!orphanId) {
         console.error("[team-user] Falha ao criar login:", authError?.message);
-        return res.status(500).json({ error: "Erro ao criar a conta de acesso." });
+        return res.status(friendly.status).json({ error: friendly.message });
       }
       const { error: updError } = await supabaseService.auth.admin.updateUserById(orphanId, { password, email_confirm: true });
       if (updError) return res.status(500).json({ error: "Erro ao reativar a conta de acesso." });
@@ -5262,10 +5266,8 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
     if (!authData.user) {
       console.error("[tenant-create] Falha ao criar conta de acesso:", created.error?.message);
       await supabaseService.from("tenants").delete().eq("id", tenantData.id);
-      if ((created.error as any)?.code === "email_exists") {
-        return res.status(409).json({ error: "Este e-mail já possui um login no sistema. Use outro e-mail para o administrador." });
-      }
-      return res.status(500).json({ error: `Erro ao criar conta de acesso do administrador${created.error?.message ? `: ${created.error.message}` : "."}` });
+      const friendlyTenant = friendlyAuthCreateError(created.error);
+      return res.status(friendlyTenant.status).json({ error: friendlyTenant.code === "outro" ? `Erro ao criar conta de acesso do administrador${created.error?.message ? `: ${created.error.message}` : "."}` : friendlyTenant.message });
     }
 
     const { error: profileError } = await supabaseService.from("users").insert({
