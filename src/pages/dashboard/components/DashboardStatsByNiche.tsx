@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useMaxdataStats, MAXDATA_TODAS } from '../../../lib/useMaxdataPage';
 import { DollarSign, Users, Target, TrendingDown, Sun } from 'lucide-react';
 import { useLocalization } from '../../../contexts/LocalizationContext';
 import { leadDrillColumns, contractDrillColumns, isContractAtivo } from '../../../components/ui/drillColumns';
@@ -96,6 +98,10 @@ export function DashboardStatsByNiche({
   contracts?: any[];
 }) {
   const { formatCurrency } = useLocalization();
+  const { activeTenantId } = useAuth();
+  // Base completa da Max Data (não depende do período): totais de clientes e produtos.
+  const mxClientes = useMaxdataStats('maxdata_clientes', vendasGanhas ? MAXDATA_TODAS : '', activeTenantId);
+  const mxProdutos = useMaxdataStats('maxdata_produtos', vendasGanhas ? MAXDATA_TODAS : '', activeTenantId);
 
   const leadColumns = useMemo(() => leadDrillColumns(formatCurrency), [formatCurrency]);
   const contractColumnsTotal = useMemo(() => contractDrillColumns(formatCurrency, "totalValue"), [formatCurrency]);
@@ -420,11 +426,19 @@ export function DashboardStatsByNiche({
       leadsAtivosCard,
       conversaoCard,
       {
+        label: 'Clientes (base)', value: (mxClientes.stats?.total ?? 0).toLocaleString('pt-BR'), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: Users, forecast: '--',
+        tooltip: `Total de clientes cadastrados na Max Data (${(mxClientes.stats?.ativos ?? 0).toLocaleString('pt-BR')} ativos) — não depende do período.`,
+      },
+      {
+        label: 'Produtos (base)', value: (mxProdutos.stats?.total ?? 0).toLocaleString('pt-BR'), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: Target, forecast: '--',
+        tooltip: `Total de produtos na Max Data (${(mxProdutos.stats?.comEstoque ?? 0).toLocaleString('pt-BR')} com estoque) — não depende do período.`,
+      },
+      {
         label: 'Vendas Perdidas', value: vendasGanhas.perdidas.toLocaleString('pt-BR'), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: TrendingDown, forecast: '--',
         tooltip: `Negócios Perdidos (ex.: vendas canceladas) no período — ${formatCurrency(vendasGanhas.valorPerdidas)}.`,
       },
     ];
-  }, [vendasGanhas, tenantNiche, totalRevenue, faturamento, leadsLength, conversionRate, churnRate, churnValue, formatCurrency, revenueSeries, faturamentoSeries, leadsSeries, conversionSeries, drillLeadsAtivos, drillConversao, drillFaturamento, drillMrr, drillChurn]);
+  }, [vendasGanhas, mxClientes.stats, mxProdutos.stats, tenantNiche, totalRevenue, faturamento, leadsLength, conversionRate, churnRate, churnValue, formatCurrency, revenueSeries, faturamentoSeries, leadsSeries, conversionSeries, drillLeadsAtivos, drillConversao, drillFaturamento, drillMrr, drillChurn]);
 
   return stats;
 }
