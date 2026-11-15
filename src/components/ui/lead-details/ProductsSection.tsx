@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../../lib/supabase";
+import { useAuth } from "../../../contexts/AuthContext";
 import { Card } from "../card";
 import { Button } from "../button";
 import { Badge } from "../badge";
@@ -23,6 +25,50 @@ interface ProductsSectionProps {
   leadName?: string;
   companyName?: string;
   leadId?: string;
+}
+
+/** Itens da venda que veio da Max Data (lead criado pela API): lidos de maxdata_venda_itens. */
+function ItensVendaMaxdata({ vendaExternoId }: { vendaExternoId: string }) {
+  const { activeTenantId } = useAuth();
+  const { formatCurrency } = useLocalization();
+  const [itens, setItens] = useState<any[] | null>(null);
+  useEffect(() => {
+    if (!supabase || !activeTenantId) return;
+    let off = false;
+    (async () => {
+      const { data: v } = await supabase!.from("maxdata_vendas").select("id").eq("tenant_id", activeTenantId).eq("externo_id", vendaExternoId).limit(1).maybeSingle();
+      if (!v) { if (!off) setItens([]); return; }
+      const { data } = await supabase!.from("maxdata_venda_itens").select("id,product_name,codigo,quantidade,preco_unitario,valor_desconto").eq("tenant_id", activeTenantId).eq("venda_id", v.id);
+      if (!off) setItens(data ?? []);
+    })().catch(() => { if (!off) setItens([]); });
+    return () => { off = true; };
+  }, [vendaExternoId, activeTenantId]);
+  if (itens === null) return <Card className="p-4 text-xs text-[var(--color-text-muted)]">Carregando produtos da venda…</Card>;
+  const total = itens.reduce((t, i) => t + (Number(i.preco_unitario) || 0) * (Number(i.quantidade) || 1), 0);
+  return (
+    <Card className="p-4 bg-[var(--color-surface-elevated)] shadow-sm space-y-3 border border-[var(--color-border-default)]">
+      <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-2.5">
+        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)] flex items-center gap-2"><Package className="w-3.5 h-3.5" /> Produtos da venda (Max Data)</span>
+        <Badge variant="secondary">{itens.length} item{itens.length === 1 ? "" : "s"}</Badge>
+      </div>
+      {itens.length === 0 ? (
+        <p className="text-xs text-[var(--color-text-muted)]">Esta venda não tem itens sincronizados da Max Data.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {itens.map((i) => (
+            <div key={i.id} className="flex items-center justify-between gap-3 text-xs">
+              <div className="min-w-0">
+                <p className="font-bold text-[var(--color-text-primary)] truncate">{i.product_name || "Produto"}</p>
+                <p className="text-[10px] text-[var(--color-text-muted)]">{i.codigo ? `${i.codigo} · ` : ""}{Number(i.quantidade) || 1}x {formatCurrency(Number(i.preco_unitario) || 0)}{Number(i.valor_desconto) > 0 ? ` · desc. ${formatCurrency(Number(i.valor_desconto))}` : ""}</p>
+              </div>
+              <span className="font-mono font-bold text-[var(--color-text-primary)] shrink-0">{formatCurrency((Number(i.preco_unitario) || 0) * (Number(i.quantidade) || 1))}</span>
+            </div>
+          ))}
+          <div className="flex justify-between pt-2 border-t border-[var(--color-border-subtle)] text-xs font-black"><span>Total dos itens</span><span className="font-mono">{formatCurrency(total)}</span></div>
+        </div>
+      )}
+    </Card>
+  );
 }
 
 /**
@@ -216,6 +262,7 @@ export function ProductsSection({
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
+      {currentLead?.customFields?.maxdata_venda_id && <ItensVendaMaxdata vendaExternoId={String(currentLead.customFields.maxdata_venda_id)} />}
       {existingProposal && (
         <Card className={cn(
           "p-4 bg-[var(--color-surface-elevated)] shadow-sm space-y-3",
