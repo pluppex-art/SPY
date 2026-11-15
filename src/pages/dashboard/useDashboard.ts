@@ -66,6 +66,18 @@ export function useDashboard() {
   const [dateFrom, setDateFrom] = useState<string | null>(() => thisMonthRange().from);
   const [dateTo, setDateTo] = useState<string | null>(() => thisMonthRange().to);
 
+  // Loja com base migrada (Max Data): as vendas são de anos, "Este mês" mostrava
+  // só as do mês corrente (ex.: 37 de 5.651). Uma vez, ao carregar, abre em "Tudo".
+  const [periodoAuto, setPeriodoAuto] = useState(false);
+  useEffect(() => {
+    if (periodoAuto) return;
+    if ((allLeads as any[]).some((l) => l.source === 'Max Data')) {
+      setPeriodoAuto(true);
+      setDateFrom(null);
+      setDateTo(null);
+    }
+  }, [allLeads, periodoAuto]);
+
   const leads = useMemo(() => {
     if (!dateFrom && !dateTo) return allLeads;
     return (allLeads as any[]).filter((l) => {
