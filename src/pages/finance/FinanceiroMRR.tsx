@@ -19,8 +19,14 @@ import {
   getRevenueProjection,
 } from "../../lib/revenueMetrics";
 
+import { useMaxdataStats, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
+import { useAuth } from "../../contexts/AuthContext";
+
 export default function FinanceiroMRR() {
   const { contracts } = useData();
+  const { activeTenantId } = useAuth();
+  const virtual = (contracts as any[]).some((c) => String(c.id).startsWith("venda-"));
+  const mxClientes = useMaxdataStats("maxdata_clientes", virtual ? MAXDATA_TODAS : "", activeTenantId);
   const { formatCurrency } = useLocalization();
 
   const { mrr, arr, lostMrr, clientesAtivos, contratosAtivos, churnRate, ticketMedio, ativos } = useMemo(() => {
@@ -50,7 +56,7 @@ export default function FinanceiroMRR() {
   const kpis: KpiItem[] = [
     { label: "MRR Ativo", value: formatCurrency(mrr), icon: Repeat2, tone: "primary", hint: `Ticket médio: ${formatCurrency(ticketMedio)}` },
     { label: "ARR (12m no ritmo atual)", value: formatCurrency(arr), icon: Layers, tone: "info", hint: "Projetado a 12m no ritmo atual" },
-    { label: "Clientes Ativos", value: clientesAtivos, icon: Users, tone: "success", hint: `${contratosAtivos} contrato(s) ativo(s)` },
+    { label: "Clientes Ativos", value: virtual && mxClientes.stats ? (mxClientes.stats.ativos || mxClientes.stats.total) : clientesAtivos, icon: Users, tone: "success", hint: `${contratosAtivos} contrato(s) ativo(s)` },
     { label: "MRR Perdido", value: formatCurrency(lostMrr), icon: TrendingDown, tone: lostMrr > 0 ? "danger" : "neutral", hint: "Contratos cancelados" },
     { label: "Taxa de Churn", value: `${churnRate.toFixed(1)}%`, icon: Percent, tone: churnRate > 0 ? "warning" : "neutral", hint: "Churn geral" },
   ];

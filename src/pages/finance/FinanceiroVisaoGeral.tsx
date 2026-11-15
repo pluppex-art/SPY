@@ -21,6 +21,7 @@ import { parseEntryDate } from "./lib/financeDates";
 import { saldoDaConta, transferenciasDaConta, previstoRealizado, comparativoMesAnterior, categoriesById, type FinanceEntryLike, type FinanceCategoryLike } from "./lib/financeEngine";
 import { apiFetch } from "../../lib/apiClient";
 import { useAuth } from "../../contexts/AuthContext";
+import { useMaxdataStats, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 
 interface VisaoGeralServerSummary {
   kpis: {
@@ -67,6 +68,7 @@ export default function FinanceiroVisaoGeral() {
   const { financeEntries: allEntries, contracts: allContracts, leads, financeBankAccounts, financeTransfers, financeCategories, financeAttachments } = useData();
   const { formatCurrency } = useLocalization();
   const { activeTenantId } = useAuth();
+  const mxClientes = useMaxdataStats("maxdata_clientes", (allContracts as any[]).some((c) => String(c.id).startsWith("venda-")) ? MAXDATA_TODAS : "", activeTenantId);
 
   // Mês de referência do painel (padrão: o atual) e filtro por cliente.
   const [refMonth, setRefMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); });
@@ -436,7 +438,7 @@ export default function FinanceiroVisaoGeral() {
             totalBytes={(financeAttachments as any[]).reduce((s, a) => s + (a.tamanho_bytes || 0), 0)}
           />
         </div>
-        <FinanceiroProjecaoReceita mrr={mrr} receitaAvulsa={receitaAvulsa} clientesAtivos={clientesAtivos} churnRate={churnRate} projection={revenueProjection} mrrRows={mrrRows} receitaAvulsaRows={receitaAvulsaRows} clientesAtivosRows={clientesAtivosRows} />
+        <FinanceiroProjecaoReceita mrr={mrr} receitaAvulsa={receitaAvulsa} clientesAtivos={mxClientes.stats ? (mxClientes.stats.ativos || mxClientes.stats.total) : clientesAtivos} churnRate={churnRate} projection={revenueProjection} mrrRows={mrrRows} receitaAvulsaRows={receitaAvulsaRows} clientesAtivosRows={clientesAtivosRows} />
         <FinanceiroBottomPanels upcomingEntries={upcomingEntries} {...operationalInsights} />
       </div>
     </PageContainer>
