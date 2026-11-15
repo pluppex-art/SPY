@@ -5,8 +5,10 @@
 --   cancelada  -> etapa "Perdido"    (status Perdido, motivo "Venda cancelada")
 -- Só entra o período pedido (padrão 90 dias) e vendas abertas; valores > R$ 1 milhão são erro de origem e ficam de fora.
 -- Idempotente: rodar de novo atualiza os mesmos negócios (chave = id da venda), sem duplicar.
--- Importante: os gatilhos de leads (webhooks, eventos de conversão para anúncios, round-robin) ficam DESLIGADOS durante a
--- carga — são vendas passadas, não leads novos chegando; sem isso, milhares de "Lead criado" iriam para Meta/n8n.
+-- Importante: os gatilhos de leads que disparam coisas para FORA (webhooks, eventos de conversão para anúncios, automações,
+-- round-robin, log) ficam DESLIGADOS só durante a carga e voltam no fim, na mesma transação (se algo falhar, voltam sozinhos).
+-- São vendas passadas, não leads novos chegando; sem isso, milhares de "Lead criado" iriam para Meta/n8n.
+-- (Não usa session_replication_role: o Supabase não permite esse parâmetro ao papel do editor SQL.)
 
 create unique index if not exists leads_maxdata_venda_uq
   on public.leads (tenant_id, (("customFields" ->> 'maxdata_venda_id')))
@@ -20,7 +22,11 @@ as $$
 declare
   funil text := 'maxdata-vendas-' || left(p_tenant::text, 8);
   ini timestamptz := now() - make_interval(days => greatest(1, least(p_dias, 3650)));
-  n_ins int; n_total int;
+  n_ins int; n_total int; t text;
+  gatilhos constant text[] := array[
+    'trg_ads_conversion', 'trg_assign_lead_round_robin', 'trg_automacao_lead_etapa', 'trg_external_lead_created',
+    'trg_external_lead_status_changed', 'trg_lead_entrou_implementacao', 'trg_permission_log_crm',
+    'trg_spy_log_lead_data_history', 'webhook_lead_created', 'webhook_lead_status_changed'];
 begin
   if coalesce(auth.role(), '') <> 'service_role'
      and session_user not in ('postgres', 'supabase_admin')
@@ -40,7 +46,11 @@ begin
     true, p_tenant)
   on conflict (id) do nothing;
 
-  perform set_config('session_replication_role', 'replica', true); -- só nesta transação
+  foreach t in array gatilhos loop
+    if exists (select 1 from pg_trigger where tgrelid = 'public.leads'::regclass and tgname = t and not tgisinternal) then
+      execute format('alter table public.leads disable trigger %I', t);
+    end if;
+  end loop;
 
   with fonte as (
     select v.*,
@@ -81,6 +91,12 @@ begin
     returning 1
   )
   select count(*) into n_ins from ins;
+
+  foreach t in array gatilhos loop
+    if exists (select 1 from pg_trigger where tgrelid = 'public.leads'::regclass and tgname = t and not tgisinternal) then
+      execute format('alter table public.leads enable trigger %I', t);
+    end if;
+  end loop;
 
   select count(*) into n_total from public.leads where tenant_id = p_tenant and "customFields" ? 'maxdata_venda_id';
   return jsonb_build_object('funil', funil, 'gravados', n_ins, 'total_no_funil', n_total, 'dias', p_dias);
