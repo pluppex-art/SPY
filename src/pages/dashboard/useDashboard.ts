@@ -5,6 +5,7 @@ import { parseCurrencyBR } from '../../lib/utils';
 import { getMRR, getFaturamentoContratado, getConversionRate, getActiveLeadsCount, getChurnRate } from '../../lib/revenueMetrics';
 import { FUNIS_DEFAULT } from '../settings/sections/crm/funisTypes';
 import { apiFetch } from '../../lib/apiClient';
+import { supabase } from '../../lib/supabase';
 import { leadDateIso } from '../../lib/leadDate';
 import { thisMonthRange } from '../../components/ui/DateRangeFilter';
 
@@ -203,16 +204,28 @@ export function useDashboard() {
     return parseFloat(((churnedPatients / totalPatients) * 100).toFixed(1));
   }, [isClinicaNiche, appointments, contracts, churnPeriodMonths]);
 
+  // Loja Max Data: o navegador só tem as vendas recentes (de 490 mil+); os totais do período vêm agregados do banco.
+  const temVendasVirtuais = (contracts as any[]).some((c) => String(c.id).startsWith('venda-'));
+  const [panorama, setPanorama] = useState<any | null>(null);
+  useEffect(() => {
+    if (!temVendasVirtuais || !activeTenantId || !supabase) { setPanorama(null); return; }
+    let off = false;
+    supabase.rpc('maxdata_panorama', { p_tenant: activeTenantId, p_de: dateFrom || null, p_ate: dateTo || null })
+      .then(({ data, error }: any) => { if (!off) setPanorama(error ? null : data); });
+    return () => { off = true; };
+  }, [temVendasVirtuais, activeTenantId, dateFrom, dateTo]);
+
   // Empresa sem contratos (loja/varejo): a receita é o valor dos negócios Ganhos no período, não MRR de contrato.
   const vendasGanhas = useMemo(() => {
     if ((contracts as any[]).some((c) => !String(c.id).startsWith('venda-'))) return undefined;
     const comerciais = (leads as any[]).filter((l) => !l.pipelineId || l.pipelineId === 'comercial');
     const ganhos = comerciais.filter((l) => l.status === 'Fechado');
     const perdidos = comerciais.filter((l) => l.status === 'Perdido');
+    if (panorama) return { valor: Number(panorama.faturamento) || 0, qtd: Number(panorama.vendas) || 0, perdidas: Number(panorama.canceladas) || 0, valorPerdidas: Number(panorama.canceladas_valor) || 0 };
     if (ganhos.length === 0 && perdidos.length === 0) return undefined;
     const soma = (arr: any[]) => arr.reduce((t, l) => t + (Number(l.value) || 0), 0);
     return { valor: soma(ganhos), qtd: ganhos.length, perdidas: perdidos.length, valorPerdidas: soma(perdidos) };
-  }, [contracts, leads]);
+  }, [contracts, leads, panorama]);
 
   const totalRevenue = serverSummary?.totalRevenue ?? totalRevenueClient;
   const conversionRate = (serverSummary?.conversionRate ?? Number(conversionRateClient)).toFixed(1);
