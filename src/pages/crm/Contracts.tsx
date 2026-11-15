@@ -31,7 +31,7 @@ export default function Contracts() {
   // (campo real, editável na modal agora) — só cai pro vendedor da proposta
   // de origem como fallback pra contratos antigos sem responsável definido.
   const contractsEnriquecidos = useMemo(() => {
-    return (contracts as any[]).map((c: any) => {
+    return (contracts as any[]).filter((c: any) => !String(c.id).startsWith('venda-')).map((c: any) => {
       const colaborador = (colaboradores as any[]).find((col: any) => col.id === c.responsavelId);
       return {
         ...c,

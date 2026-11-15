@@ -541,7 +541,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return won.reduce((s, l) => s + parseCurrencyBR(l.value), 0) / won.length;
   }, [leads]);
   const tasks = useMemo(() => filterByFilial(tasksRaw), [tasksRaw, activeFilialId]);
-  const contracts = useMemo(() => filterByFilial(contractsRaw), [contractsRaw, activeFilialId]);
+  // Empresa de varejo (ex.: Max Data) não tem contratos: as vendas ganhas do
+  // funil fazem o papel deles, pra que TODOS os painéis (receita, ranking de
+  // vendedores/produtos/canais, mapa da receita…) tenham dados. São linhas
+  // virtuais (id "venda-…"), só em memória — nunca gravadas nem listadas na
+  // tela de Contratos. Só entra quando a carga real terminou e não há nenhum
+  // contrato de verdade.
+  const contracts = useMemo(() => {
+    const reais = filterByFilial(contractsRaw);
+    if (!contractsLoaded || reais.length > 0) return reais;
+    const virtuais: Contract[] = [];
+    for (const l of leads as any[]) {
+      if (l.status !== 'Fechado' || l.source !== 'Max Data') continue;
+      const v = parseCurrencyBR(l.value);
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(l.date || '');
+      virtuais.push({
+        id: `venda-${l.id}`,
+        client: l.clientName || l.name || 'Consumidor final',
+        plan: 'Venda',
+        mrr: v,
+        totalValue: v,
+        status: 'Ativo',
+        date: m ? `${m[3]}/${m[2]}/${m[1]}` : '',
+        progress: 100,
+        proposalId: null,
+        cancelledAt: null,
+        seller: l.seller,
+      } as Contract);
+    }
+    return virtuais.length ? virtuais : reais;
+  }, [contractsRaw, contractsLoaded, leads, activeFilialId]);
   const appointments = useMemo(() => filterByFilial(appointmentsRaw), [appointmentsRaw, activeFilialId]);
 
   const [squads, setSquads] = useState<Squad[]>(defaultSquads);

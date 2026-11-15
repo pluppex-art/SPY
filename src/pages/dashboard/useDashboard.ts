@@ -193,7 +193,7 @@ export function useDashboard() {
 
   // Empresa sem contratos (loja/varejo): a receita é o valor dos negócios Ganhos no período, não MRR de contrato.
   const vendasGanhas = useMemo(() => {
-    if ((contracts as any[]).length > 0) return undefined;
+    if ((contracts as any[]).some((c) => !String(c.id).startsWith('venda-'))) return undefined;
     const comerciais = (leads as any[]).filter((l) => !l.pipelineId || l.pipelineId === 'comercial');
     const ganhos = comerciais.filter((l) => l.status === 'Fechado');
     const perdidos = comerciais.filter((l) => l.status === 'Perdido');
