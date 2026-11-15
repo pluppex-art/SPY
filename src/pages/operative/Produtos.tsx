@@ -143,6 +143,8 @@ export default function Catalog() {
   }, [origem, activeTenantId, maxReload]);
   useEffect(() => { setPage(0); }, [f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy, origem]);
   const viewTotal = mx.ativo ? mx.total : filteredProducts.length;
+  // Mais de 10 produtos: abre em lista (mais legível), a menos que o usuário já tenha escolhido uma visualização.
+  const visualizacao: "grid" | "list" = !(user as any)?.preferences?.produtosViewMode && viewTotal > 10 ? "list" : f.viewMode;
   const totalPages = Math.max(1, Math.ceil(viewTotal / PAGE_SIZE));
   // A Max Data guarda o saldo em stock/stock_min; as telas leem currentStock/stockMin.
   const pageProducts = mx.ativo ? mx.rows.map((r: any) => ({ ...r, currentStock: r.stock ?? r.currentStock ?? 0, stockMin: r.stock_min ?? r.stockMin ?? 0, stockMax: r.stock_max ?? r.stockMax ?? 0 })) : filteredProducts.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
@@ -239,7 +241,7 @@ export default function Catalog() {
           onTypeToggle={(tp) => f.setSelectedTypes(prev => prev.includes(tp) ? prev.filter(t => t !== tp) : [...prev, tp])}
           selectedStatus={f.selectedStatus} onStatusChange={f.setSelectedStatus}
           sortBy={f.sortBy} onSortByChange={f.setSortBy}
-          viewMode={f.viewMode} onViewModeChange={f.setViewMode}
+          viewMode={visualizacao} onViewModeChange={f.setViewMode}
           selectedIds={f.selectedIds} filteredCount={filteredProducts.length}
           onBulkActivate={() => f.executeBulkStatus(true)}
           onBulkDeactivate={() => f.executeBulkStatus(false)}
@@ -260,7 +262,7 @@ export default function Catalog() {
           </Card>
         ) : (
           <>
-            {f.viewMode === "grid" ? (
+            {visualizacao === "grid" ? (
               <ProdutosGrid
                 filteredProducts={pageProducts}
                 selectedIds={f.selectedIds}

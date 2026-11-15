@@ -90,7 +90,7 @@ export function ProductsSection({
   companyName,
   leadId,
 }: ProductsSectionProps) {
-  const { updateProposal, deleteProposal, proposals, proposalItems, contracts, appSettings, leads, updateLead } = useData();
+  const { updateProposal, deleteProposal, proposals, proposalItems, contracts, appSettings, leads, updateLead, setProducts } = useData() as any;
   const empresaDadosBranding = appSettings?.empresa_dados || {};
   const { formatCurrency } = useLocalization();
 
@@ -131,7 +131,7 @@ export function ProductsSection({
   const interesseIds: string[] = Array.isArray(currentLead?.customFields?.produtosInteresseIds)
     ? currentLead.customFields.produtosInteresseIds
     : [];
-  const toggleInteresse = (productId: string) => {
+  const toggleInteresse = (productId: string, precoExtra?: number) => {
     if (!leadId) return;
     const next = interesseIds.includes(productId)
       ? interesseIds.filter((id) => id !== productId)
@@ -141,11 +141,30 @@ export function ProductsSection({
     // por createProposalWithItems/updateProposal), então aqui não mexe.
     const hasProposal = (proposals || []).some((p: any) => p.lead_id === leadId);
     const interestValue = next.reduce(
-      (sum, id) => sum + (Number(availableProducts.find((p) => p.id === id)?.price) || 0), 0);
+      (sum, id) => sum + (Number(availableProducts.find((p) => p.id === id)?.price ?? (id === productId ? precoExtra : 0)) || 0), 0);
     updateLead(leadId, {
       customFields: { ...(currentLead?.customFields || {}), produtosInteresseIds: next },
       ...(hasProposal ? {} : { value: interestValue }),
     });
+  };
+  // Produto da Max Data (tabela própria, 150 mil linhas): ao marcar como interesse, ele é "promovido" uma única vez
+  // para o catálogo do sistema (mesma regra das notas) e entra na lista de interesse normalmente.
+  const [marcandoMax, setMarcandoMax] = useState<string | null>(null);
+  const marcarMax = async (row: any) => {
+    if (!leadId || !supabase || !activeTenantId) return;
+    const existente = availableProducts.find((p: any) => p.externo_sistema === row.externo_sistema && String(p.externo_id) === String(row.externo_id));
+    if (existente) { toggleInteresse(existente.id); return; }
+    setMarcandoMax(row.id);
+    try {
+      const novo = {
+        tenant_id: activeTenantId, externo_sistema: row.externo_sistema, externo_id: row.externo_id, name: row.name, sku: row.sku, price: row.price, cost: row.cost, margin: row.margin,
+        category: row.category, provider: row.provider, active: row.active, type: row.type, stock: row.stock, stock_min: row.stock_min, weight: row.weight, dimensions: row.dimensions, externo_dados: row.externo_dados,
+      };
+      const { data, error } = await supabase.from("products").upsert(novo, { onConflict: "tenant_id,externo_sistema,externo_id" }).select("*").single();
+      if (error || !data) { toast.error(`Não foi possível marcar o produto: ${error?.message || "erro"}`); return; }
+      setProducts((prev: any[]) => (prev.some((p) => p.id === data.id) ? prev : [{ ...data, currentStock: data.stock, stockMin: data.stock_min, attachments: [], typeAttributes: data.type_attributes || {} }, ...prev]));
+      toggleInteresse(data.id, Number(data.price) || 0);
+    } finally { setMarcandoMax(null); }
   };
   const produtosInteresse = interesseIds
     .map((id) => availableProducts.find((p) => p.id === id))
@@ -497,14 +516,36 @@ export function ProductsSection({
         )}
 
         {usandoMax ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[360px] overflow-y-auto scrollbar-thin pr-1">
+          <div className={cn("grid grid-cols-1 gap-2 max-h-[360px] overflow-y-auto scrollbar-thin pr-1", (termoMax ? listaMax.total : totalMax) <= 10 && "sm:grid-cols-2")}>
             {listaMax.rows.map((p: any) => (
-              <div key={p.id} className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-between gap-2">
+              <div
+                key={p.id}
+                onDoubleClick={() => marcarMax(p)}
+                title="Duplo clique (ou no +): marcar como produto de interesse"
+                className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] hover:border-[var(--color-primary-blue)]/50 hover:bg-[var(--color-primary-blue)]/5 transition-all flex items-center justify-between gap-2 cursor-pointer select-none"
+              >
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{p.name}</p>
                   <span className="text-[9px] text-[var(--color-text-faint)] uppercase font-semibold">{[p.sku, p.category, `estoque ${Number(p.stock) || 0}${Number(p.stock) > 0 && Number(p.cost) > 0 ? ` (${formatCurrency(Number(p.stock) * Number(p.cost))})` : ""}`].filter(Boolean).join(" • ")}</span>
                 </div>
-                <span className="text-xs font-mono font-black text-[var(--color-primary-blue)] shrink-0">{formatCurrency(Number(p.price) || 0)}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-xs font-mono font-black text-[var(--color-primary-blue)]">{formatCurrency(Number(p.price) || 0)}</span>
+                  {(() => {
+                    const ja = availableProducts.find((x: any) => x.externo_sistema === p.externo_sistema && String(x.externo_id) === String(p.externo_id));
+                    const marcado = !!ja && interesseIds.includes(ja.id);
+                    return (
+                      <button
+                        type="button"
+                        disabled={marcandoMax === p.id}
+                        onClick={(e) => { e.stopPropagation(); marcarMax(p); }}
+                        title={marcado ? "Remover marcação de interesse" : "Marcar como produto de interesse (sem criar proposta)"}
+                        className={cn("w-5 h-5 rounded flex items-center justify-center transition-colors cursor-pointer", marcado ? "bg-[var(--color-primary-blue)]/20 text-[var(--color-primary-blue)]" : "bg-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)]")}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    );
+                  })()}
+                </div>
               </div>
             ))}
             {listaMax.loading && <p className="col-span-full text-[10px] text-center text-[var(--color-text-muted)]">Carregando…</p>}
@@ -516,7 +557,7 @@ export function ProductsSection({
             )}
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[360px] overflow-y-auto scrollbar-thin pr-1">
+          <div className={cn("grid grid-cols-1 gap-2 max-h-[360px] overflow-y-auto scrollbar-thin pr-1", filteredProducts.length <= 10 && "sm:grid-cols-2")}>
             {filteredProducts.map((prod) => {
               const isMarked = interesseIds.includes(prod.id);
               return (
