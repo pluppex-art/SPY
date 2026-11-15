@@ -33,6 +33,7 @@ export default function Dashboard() {
     dateTo,
     setDateTo,
     serverSummary,
+    vendasGanhas,
   } = useDashboard();
 
   return (
@@ -76,6 +77,7 @@ export default function Dashboard() {
           performanceData={performanceData}
           leads={leads}
           contracts={contracts}
+          vendasGanhas={vendasGanhas}
         />
 
 

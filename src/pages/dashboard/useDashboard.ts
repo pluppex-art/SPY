@@ -191,6 +191,17 @@ export function useDashboard() {
     return parseFloat(((churnedPatients / totalPatients) * 100).toFixed(1));
   }, [isClinicaNiche, appointments, contracts, churnPeriodMonths]);
 
+  // Empresa sem contratos (loja/varejo): a receita é o valor dos negócios Ganhos no período, não MRR de contrato.
+  const vendasGanhas = useMemo(() => {
+    if ((contracts as any[]).length > 0) return undefined;
+    const comerciais = (leads as any[]).filter((l) => !l.pipelineId || l.pipelineId === 'comercial');
+    const ganhos = comerciais.filter((l) => l.status === 'Fechado');
+    const perdidos = comerciais.filter((l) => l.status === 'Perdido');
+    if (ganhos.length === 0 && perdidos.length === 0) return undefined;
+    const soma = (arr: any[]) => arr.reduce((t, l) => t + (Number(l.value) || 0), 0);
+    return { valor: soma(ganhos), qtd: ganhos.length, perdidas: perdidos.length, valorPerdidas: soma(perdidos) };
+  }, [contracts, leads]);
+
   const totalRevenue = serverSummary?.totalRevenue ?? totalRevenueClient;
   const conversionRate = (serverSummary?.conversionRate ?? Number(conversionRateClient)).toFixed(1);
   const activeLeadsCount = serverSummary?.activeLeadsCount ?? activeLeadsCountClient;
@@ -453,6 +464,7 @@ export function useDashboard() {
     leadActivities,
     activeLeadsCount,
     serverSummary,
+    vendasGanhas,
     isModuleEnabled,
     user,
     activeTab,

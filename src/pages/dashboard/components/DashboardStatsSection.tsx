@@ -14,6 +14,7 @@ export function DashboardStatsSection({
   performanceData,
   leads,
   contracts,
+  vendasGanhas,
 }: {
   tenantNiche: string | undefined;
   totalRevenue: number;
@@ -36,6 +37,7 @@ export function DashboardStatsSection({
   /** Arrays reais por trás dos números — ver mesma prop em DashboardStatsByNiche.tsx. */
   leads?: any[];
   contracts?: any[];
+  vendasGanhas?: { valor: number; qtd: number; perdidas: number; valorPerdidas: number };
 }) {
   const stats = DashboardStatsByNiche({
     tenantNiche,
@@ -48,6 +50,7 @@ export function DashboardStatsSection({
     performanceData,
     leads,
     contracts,
+    vendasGanhas,
   });
 
   const periodoLabel = !dateFrom && !dateTo

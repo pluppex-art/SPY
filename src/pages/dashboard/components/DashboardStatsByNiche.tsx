@@ -59,6 +59,7 @@ export function DashboardStatsByNiche({
   performanceData,
   leads,
   contracts,
+  vendasGanhas,
 }: {
   tenantNiche: string | undefined;
   /** MRR — só a parcela recorrente (ver revenueMetrics.getMRR). Usado
@@ -82,6 +83,9 @@ export function DashboardStatsByNiche({
    * uma segunda fonte de dado só pra esses cards. Opcional: telas que ainda
    * não passam essa prop continuam funcionando, só sem tendência/sparkline. */
   performanceData?: PerformancePoint[];
+  /** Empresa sem contratos (varejo/loja): a receita vem das vendas ganhas no funil, não de contrato.
+   * Quando presente, substitui os cards "Receita"/"Receita (MRR)"/"Taxa Churn", que sem contrato ficariam zerados. */
+  vendasGanhas?: { valor: number; qtd: number; perdidas: number; valorPerdidas: number };
   /** Leads do período selecionado (mesmo array de useDashboard.ts) — fonte do
    * drill-down dos cards baseados em `leadsLength`/`conversionRate`. Opcional:
    * sem essa prop os cards continuam funcionando, só sem ficarem clicáveis. */
@@ -331,7 +335,7 @@ export function DashboardStatsByNiche({
     }
 
     // Default fallback
-    return [
+    const generico = [
       {
         // Achado real (2026-09-29): o card único "Receita (MRR)" somava
         // `mrr_value`, mas por causa de contratos legados com esse campo
@@ -401,7 +405,26 @@ export function DashboardStatsByNiche({
         drill: drillChurn,
       },
     ];
-  }, [tenantNiche, totalRevenue, faturamento, leadsLength, conversionRate, churnRate, churnValue, formatCurrency, revenueSeries, faturamentoSeries, leadsSeries, conversionSeries, drillLeadsAtivos, drillConversao, drillFaturamento, drillMrr, drillChurn]);
+    if (!vendasGanhas) return generico;
+    const [, , leadsAtivosCard, conversaoCard] = generico;
+    const ticket = vendasGanhas.qtd > 0 ? vendasGanhas.valor / vendasGanhas.qtd : 0;
+    return [
+      {
+        label: 'Vendas Ganhas', value: formatCurrency(vendasGanhas.valor), trend: computeTrend(revenueSeries), color: 'text-slate-400', bg: 'bg-white/5', icon: DollarSign, forecast: '--',
+        tooltip: `Soma do valor dos negócios Ganhos no período selecionado (${vendasGanhas.qtd.toLocaleString('pt-BR')} vendas).`, sparkline: revenueSeries,
+      },
+      {
+        label: 'Ticket Médio', value: formatCurrency(ticket), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: TrendingDown, forecast: '--',
+        tooltip: 'Valor das vendas ganhas ÷ quantidade de vendas ganhas, no período selecionado.',
+      },
+      leadsAtivosCard,
+      conversaoCard,
+      {
+        label: 'Vendas Perdidas', value: vendasGanhas.perdidas.toLocaleString('pt-BR'), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: TrendingDown, forecast: '--',
+        tooltip: `Negócios Perdidos (ex.: vendas canceladas) no período — ${formatCurrency(vendasGanhas.valorPerdidas)}.`,
+      },
+    ];
+  }, [vendasGanhas, tenantNiche, totalRevenue, faturamento, leadsLength, conversionRate, churnRate, churnValue, formatCurrency, revenueSeries, faturamentoSeries, leadsSeries, conversionSeries, drillLeadsAtivos, drillConversao, drillFaturamento, drillMrr, drillChurn]);
 
   return stats;
 }
