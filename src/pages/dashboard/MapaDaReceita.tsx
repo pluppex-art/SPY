@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -55,7 +57,31 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
 
   const [drillKey, setDrillKey] = useState<DrillKey | null>(null);
 
+  // Loja Max Data: o navegador só tem parte das vendas (de 490 mil+); os totais do fluxo vêm agregados do banco.
+  const { activeTenantId } = useAuth();
+  const virtual = (contracts as any[]).some((c) => String(c.id).startsWith("venda-"));
+  const [pan, setPan] = useState<any | null>(null);
+  useEffect(() => {
+    if (!virtual || !activeTenantId || !supabase) { setPan(null); return; }
+    let off = false;
+    supabase.rpc("maxdata_panorama", { p_tenant: activeTenantId, p_de: dashboard.dateFrom || null, p_ate: dashboard.dateTo || null })
+      .then(({ data, error }: any) => { if (!off) setPan(error ? null : data); });
+    return () => { off = true; };
+  }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo]);
+
   const fluxo = useMemo(() => {
+    if (pan) {
+      const n = (v: number) => Number(v || 0).toLocaleString("pt-BR");
+      const tot = pan.registros || 1;
+      return [
+        { key: "leads" as DrillKey, icon: Users, label: "Leads", value: n(pan.registros), sub: "Todas as vendas registradas" as string | null },
+        { key: "oportunidades" as DrillKey, icon: Target, label: "Oportunidades", value: n(pan.vendas + pan.em_aberto), sub: `${Math.round(((pan.vendas + pan.em_aberto) / tot) * 1000) / 10}% dos leads` },
+        { key: "vendas" as DrillKey, icon: ShoppingCart, label: "Vendas", value: n(pan.vendas), sub: `${Math.round((pan.vendas / tot) * 1000) / 10}% dos leads` },
+        { key: "receita" as DrillKey, icon: DollarSign, label: "Receita", value: formatCurrency(pan.faturamento), sub: pan.vendas > 0 ? `Ticket médio ${formatCurrency(pan.faturamento / pan.vendas)}` : "Sem vendas ainda" },
+        { key: "retencao" as DrillKey, icon: RefreshCw, label: "Clientes que compraram", value: n(pan.clientes), sub: "Clientes distintos no período" },
+        { key: "emRisco" as DrillKey, icon: AlertTriangle, label: "Canceladas", value: formatCurrency(pan.canceladas_valor), sub: `${n(pan.canceladas)} venda${pan.canceladas === 1 ? "" : "s"} cancelada${pan.canceladas === 1 ? "" : "s"}` },
+      ].map((f, i) => ({ ...f, color: FLUXO_COLORS[i % FLUXO_COLORS.length] }));
+    }
     const totalLeads = leads.length || 1;
     return [
       { key: "leads" as DrillKey, icon: Users, label: "Leads", value: String(leads.length), sub: `100% do funil` as string | null },
@@ -65,7 +91,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       { key: "retencao" as DrillKey, icon: RefreshCw, label: "Retenção (MRR)", value: formatCurrency(totalRevenue), sub: faturamentoContratado > 0 ? `${Math.round((totalRevenue / faturamentoContratado) * 1000) / 10}% da receita` : "Sem receita ainda" },
       { key: "emRisco" as DrillKey, icon: AlertTriangle, label: "Em Risco", value: formatCurrency(valorEmRisco), sub: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"} · ${faturamentoContratado > 0 ? Math.round((valorEmRisco / faturamentoContratado) * 1000) / 10 : 0}% da receita` },
     ].map((f, i) => ({ ...f, color: FLUXO_COLORS[i % FLUXO_COLORS.length] }));
-  }, [leads.length, oportunidades.length, vendas.length, faturamentoContratado, totalRevenue, valorEmRisco, contratosEmRisco.length, formatCurrency]);
+  }, [pan, leads.length, oportunidades.length, vendas.length, faturamentoContratado, totalRevenue, valorEmRisco, contratosEmRisco.length, formatCurrency]);
 
   const leadColumns = leadDrillColumns(formatCurrency);
   const contractColumnsTotal = contractDrillColumns(formatCurrency, "totalValue");
