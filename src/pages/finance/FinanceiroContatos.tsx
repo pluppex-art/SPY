@@ -59,6 +59,7 @@ const emptyForm = {
   cep: "", logradouro: "", numero: "", bairro: "", complemento: "", city: "", state: "",
 };
 import { useRowOpen } from "./components/useRowOpen";
+import { useMaxdataStats, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 
 export default function FinanceiroContatos() {
   const { activeTenantId } = useAuth();
@@ -66,6 +67,10 @@ export default function FinanceiroContatos() {
   const { formatCurrency } = useLocalization();
   const { dataInicio, dataFim, label: periodoLabel } = useFinanceiroFiltro();
   const contatos = clienteBase as Contato[];
+  // Base da Max Data fica em tabela própria (75 mil linhas, paginada na tela de Clientes):
+  // aqui entra nos totais, que antes ignoravam esses clientes.
+  const mx = useMaxdataStats("maxdata_clientes", MAXDATA_TODAS, activeTenantId).stats;
+  const mxTotal = mx?.total ?? 0;
 
   const [aba, setAba] = useState<"todos" | Tipo>("todos");
   const [busca, setBusca] = useState("");
@@ -279,8 +284,8 @@ export default function FinanceiroContatos() {
           kpis={[
             { label: `Recebido de Clientes (${periodoLabel})`, value: formatCurrency(financeiroKpis.totalRecebido), icon: TrendingUp, tone: "success", hint: "Lançamentos pagos, vinculados a um cliente" },
             { label: `Pago a Fornecedores (${periodoLabel})`, value: formatCurrency(financeiroKpis.totalPago), icon: TrendingDown, tone: financeiroKpis.totalPago > 0 ? "danger" : "neutral", hint: "Lançamentos pagos, vinculados a um fornecedor" },
-            { label: "Contatos", value: contatos.length, icon: Users, tone: "primary" },
-            { label: "Clientes", value: contatos.filter(c => c.tipos?.includes("CLIENTE")).length, icon: Users, tone: "info" },
+            { label: "Contatos", value: contatos.length + mxTotal, icon: Users, tone: "primary" },
+            { label: "Clientes", value: contatos.filter(c => c.tipos?.includes("CLIENTE")).length + mxTotal, icon: Users, tone: "info" },
             { label: "Fornecedores", value: contatos.filter(c => c.tipos?.includes("FORNECEDOR")).length, icon: Users, tone: "accent" },
           ]}
           activeCount={(busca ? 1 : 0) + (aba !== "todos" ? 1 : 0)}
@@ -292,9 +297,9 @@ export default function FinanceiroContatos() {
               value={aba}
               onChange={v => setAba(v as "todos" | Tipo)}
               allValue="todos"
-              allLabel={`Todos (${contatos.length})`}
+              allLabel={`Todos (${contatos.length + mxTotal})`}
               options={[
-                { value: "CLIENTE", label: `Clientes (${contatos.filter(c => c.tipos?.includes("CLIENTE")).length})` },
+                { value: "CLIENTE", label: `Clientes (${contatos.filter(c => c.tipos?.includes("CLIENTE")).length + mxTotal})` },
                 { value: "FORNECEDOR", label: `Fornecedores (${contatos.filter(c => c.tipos?.includes("FORNECEDOR")).length})` },
                 { value: "FUNCIONARIO", label: `Funcionários (${contatos.filter(c => c.tipos?.includes("FUNCIONARIO")).length})` },
               ]}
