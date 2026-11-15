@@ -1,6 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Package, DollarSign, Layers, Info } from "lucide-react";
+import { X, Package, DollarSign, Layers, Info, Pencil } from "lucide-react";
+import { toast } from "sonner";
+import { apiFetch } from "../../../lib/apiClient";
 
 const brl = (n: any) => (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const num = (n: any) => (Number(n) || 0).toLocaleString("pt-BR");
@@ -25,7 +27,34 @@ function Secao({ icon: Icon, titulo, children }: { icon: any; titulo: string; ch
 }
 
 /** Visualização somente leitura de um produto da Max Data (as linhas vêm de maxdata_produtos, já com o saldo mapeado). */
-export function ProdutoVisualizarModal({ produto, onClose }: { produto: any | null; onClose: () => void }) {
+export function ProdutoVisualizarModal({ produto, onClose, podeEditar, tenantId, onSalvo }: { produto: any | null; onClose: () => void; podeEditar?: boolean; tenantId?: string | null; onSalvo?: () => void }) {
+  const [editando, setEditando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [f, setF] = useState({ descricao: "", valorVenda: "", valorCusto: "", ativo: true });
+  useEffect(() => {
+    setEditando(false);
+    if (produto) setF({ descricao: produto.name || "", valorVenda: String(produto.price ?? ""), valorCusto: String(produto.cost ?? ""), ativo: !!produto.active });
+  }, [produto?.id]);
+  const num2 = (v: string) => Number(String(v).replace(/\./g, "").replace(",", ".")) ;
+  const salvar = async () => {
+    if (!produto || !tenantId) return;
+    const venda = String(f.valorVenda).includes(",") ? num2(f.valorVenda) : Number(f.valorVenda);
+    const custo = String(f.valorCusto).includes(",") ? num2(f.valorCusto) : Number(f.valorCusto);
+    if (!f.descricao.trim()) return toast.error("A descrição é obrigatória.");
+    if (!Number.isFinite(venda) || venda < 0 || !Number.isFinite(custo) || custo < 0) return toast.error("Preço e custo precisam ser números válidos.");
+    setSalvando(true);
+    try {
+      const r = await apiFetch(`/api/integrations/maxdata/produtos/${encodeURIComponent(produto.externo_id)}?tenantId=${encodeURIComponent(tenantId)}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ which: String(produto.externo_sistema || "").endsWith("notas") ? "notas" : "estoque", produto: { descricao: f.descricao, valorVenda: venda, valorCusto: custo, desativado: !f.ativo } }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { toast.error(j.error || "A Max Data não aceitou a gravação."); return; }
+      toast.success("Produto atualizado na Max Data.");
+      onSalvo?.(); onClose();
+    } catch { toast.error("Não foi possível falar com o servidor."); }
+    finally { setSalvando(false); }
+  };
   useEffect(() => {
     if (!produto) return;
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -47,9 +76,32 @@ export function ProdutoVisualizarModal({ produto, onClose }: { produto: any | nu
             <h2 className="text-base font-bold text-[var(--color-text-primary)] break-words">{p.name}</h2>
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">SKU {p.sku || "—"} · {p.active ? <span className="text-success font-semibold">Ativo</span> : <span className="text-danger font-semibold">Inativo</span>}</p>
           </div>
+          {podeEditar && !editando && <button onClick={() => setEditando(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[var(--color-border-default)] text-xs font-semibold text-[var(--color-text-primary)] hover:bg-white/5 shrink-0"><Pencil className="w-3.5 h-3.5" />Editar</button>}
           <button onClick={onClose} aria-label="Fechar" className="p-1.5 rounded-lg hover:bg-white/5 text-[var(--color-text-muted)]"><X className="w-4 h-4" /></button>
         </header>
         <div className="p-5 space-y-6">
+          {editando && (
+            <section className="space-y-3 rounded-xl border border-[var(--color-primary-blue)]/40 p-4">
+              <h3 className="text-xs font-bold text-[var(--color-text-primary)]">Editar na Max Data</h3>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Descrição
+                <input value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} className="mt-1 w-full h-9 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-transparent px-3 text-sm normal-case tracking-normal font-normal text-[var(--color-text-primary)]" />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Preço de venda (R$)
+                  <input inputMode="decimal" value={f.valorVenda} onChange={(e) => setF({ ...f, valorVenda: e.target.value })} className="mt-1 w-full h-9 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-transparent px-3 text-sm normal-case tracking-normal font-normal text-[var(--color-text-primary)]" />
+                </label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Custo (R$)
+                  <input inputMode="decimal" value={f.valorCusto} onChange={(e) => setF({ ...f, valorCusto: e.target.value })} className="mt-1 w-full h-9 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-transparent px-3 text-sm normal-case tracking-normal font-normal text-[var(--color-text-primary)]" />
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-[var(--color-text-primary)]"><input type="checkbox" checked={f.ativo} onChange={(e) => setF({ ...f, ativo: e.target.checked })} /> Produto ativo</label>
+              <p className="text-[11px] text-[var(--color-text-faint)]">O saldo de estoque não é alterado aqui. Para acertar saldo, use um ajuste de estoque.</p>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setEditando(false)} disabled={salvando} className="h-9 px-4 rounded-lg border border-[var(--color-border-default)] text-xs font-semibold">Cancelar</button>
+                <button onClick={salvar} disabled={salvando} className="h-9 px-4 rounded-lg bg-[var(--color-primary-blue)] text-white text-xs font-bold disabled:opacity-60">{salvando ? "Gravando…" : "Gravar na Max Data"}</button>
+              </div>
+            </section>
+          )}
           <Secao icon={Package} titulo="Cadastro">
             <Campo label="Categoria">{p.category}</Campo>
             <Campo label="Fabricante">{p.provider}</Campo>
@@ -78,7 +130,7 @@ export function ProdutoVisualizarModal({ produto, onClose }: { produto: any | nu
             <Campo label="Atualizado em">{p.updated_at ? new Date(p.updated_at).toLocaleString("pt-BR") : ""}</Campo>
           </Secao>
           {p.description && <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">{p.description}</p>}
-          <p className="text-[11px] text-[var(--color-text-faint)]">Produto importado da Max Data: somente consulta. Para alterar, edite no sistema de origem.</p>
+          <p className="text-[11px] text-[var(--color-text-faint)]">{podeEditar ? "Alterações são gravadas na Max Data e depois refletidas aqui." : "Produto importado da Max Data: somente consulta. Para ligar a edição, ative \"Gravar na Max Data\" nas integrações (administrador)."}</p>
         </div>
       </div>
     </div>,

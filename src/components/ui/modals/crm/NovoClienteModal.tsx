@@ -25,6 +25,8 @@ interface ClienteParaEdicao {
   phone?: string;
   city?: string;
   state?: string;
+  /** Preenchido nos clientes importados da Max Data. */
+  externo_sistema?: string | null;
 }
 
 interface NovoClienteModalProps {
@@ -35,6 +37,8 @@ interface NovoClienteModalProps {
    * cliente (nada de reabrir em branco e o usuário ter que redigitar tudo
    * de novo só pra corrigir um telefone). */
   cliente?: ClienteParaEdicao | null;
+  /** Mostra a opção de cadastrar o cliente novo na Max Data (gravação ligada e usuário administrador). */
+  permitirEnviarMax?: boolean;
 }
 
 const DEFAULT: NovoClienteForm = {
@@ -83,8 +87,9 @@ function formatDocumento(raw: string): string {
 
 type CnpjStatus = "idle" | "checking" | "active" | "inactive" | "invalid";
 
-export function NovoClienteModal({ isOpen, onClose, onAction, cliente }: NovoClienteModalProps) {
+export function NovoClienteModal({ isOpen, onClose, onAction, cliente, permitirEnviarMax }: NovoClienteModalProps) {
   const isEditMode = !!cliente;
+  const [enviarMax, setEnviarMax] = useState(false);
   const [form, setForm] = useState<NovoClienteForm>(DEFAULT);
   const [loading, setLoading] = useState(false);
   const [cnpjStatus, setCnpjStatus] = useState<{ status: CnpjStatus; message?: string }>({ status: "idle" });
@@ -152,14 +157,16 @@ export function NovoClienteModal({ isOpen, onClose, onAction, cliente }: NovoCli
     }
   };
 
-  const canSubmit = form.nome.trim() && form.email.trim() && form.telefone.trim();
+  // Cliente vindo da Max Data muitas vezes não tem e-mail/telefone: para ele só o nome é obrigatório.
+  const canSubmit = cliente?.externo_sistema ? !!form.nome.trim() : form.nome.trim() && form.email.trim() && form.telefone.trim();
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!canSubmit) return;
     setLoading(true);
     await new Promise((r) => setTimeout(r, 300));
-    onAction({ ...form });
+    onAction({ ...form, enviarMax: !isEditMode && enviarMax ? "sim" : "" });
+    setEnviarMax(false);
     setLoading(false);
     onClose();
   };
@@ -361,6 +368,12 @@ export function NovoClienteModal({ isOpen, onClose, onAction, cliente }: NovoCli
               )}
             </div>
           </div>
+          {!isEditMode && permitirEnviarMax && (
+            <label className="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" checked={enviarMax} onChange={(e) => setEnviarMax(e.target.checked)} className="mt-0.5 rounded" />
+              <span><strong>Cadastrar na Max Data</strong> — o cliente é criado no sistema da loja e passa a aparecer na lista Max Data (não entra na base do CRM).</span>
+            </label>
+          )}
         </form>
       </div>
     </Modal>

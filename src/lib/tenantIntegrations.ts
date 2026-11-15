@@ -90,6 +90,8 @@ export const DEFAULT_MAXDATA_CONFIG = {
   empId: "",
   idUser: "0",
   environment: "production" as "sandbox" | "production",
+  /** "Sim" libera o S.P.Y. a cadastrar/alterar na Max Data (clientes, produtos, ajuste de estoque). Padrão: só leitura. */
+  escritaHabilitada: "Não",
   notes: "",
 };
 
@@ -113,6 +115,7 @@ const MAXDATA_FIELDS: IntegrationField[] = [
   { prop: "empId", label: "ID da empresa no Max (empId)", kind: "text", required: true, numeric: true },
   { prop: "idUser", label: "ID do usuário no Max (idUser)", kind: "text", numeric: true, help: "Deixe 0 se não houver." },
   { prop: "environment", label: "Ambiente", kind: "select", options: ENV },
+  { prop: "escritaHabilitada", label: "Gravar na Max Data", kind: "select", options: ["Não", "Sim"], help: "Não = o S.P.Y. só lê. Sim = permite cadastrar/alterar clientes, alterar produtos e criar ajustes de estoque na Max Data (a chave da aplicação precisa ter permissão de escrita)." },
 ];
 
 export const INTEGRATION_DEFS: IntegrationDef[] = [

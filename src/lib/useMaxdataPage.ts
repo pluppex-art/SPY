@@ -9,14 +9,14 @@ export const MAXDATA_ORIGENS = [
   { value: "maxdata:notas", label: "Max Data · Notas fiscais" },
 ];
 
-type Opts = { table: "maxdata_clientes" | "maxdata_produtos"; origem: string; tenantId: string | null | undefined; term: string; page: number; pageSize: number; from?: number; count?: number; searchCols: string[]; orderBy: string };
+type Opts = { table: "maxdata_clientes" | "maxdata_produtos"; origem: string; tenantId: string | null | undefined; term: string; page: number; pageSize: number; from?: number; count?: number; searchCols: string[]; orderBy: string; refresh?: number };
 
 /**
  * Lê UMA página dos dados da Max Data direto do servidor (busca e paginação no banco).
  * As telas carregam clientes/produtos inteiros no navegador, o que não escala para dezenas de
  * milhares de linhas — por isso a Max Data fica em tabelas próprias e entra aqui, página a página.
  */
-export function useMaxdataPage({ table, origem, tenantId, term, page, pageSize, from, count: limit, searchCols, orderBy }: Opts) {
+export function useMaxdataPage({ table, origem, tenantId, term, page, pageSize, from, count: limit, searchCols, orderBy, refresh }: Opts) {
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ export function useMaxdataPage({ table, origem, tenantId, term, page, pageSize, 
       setLoading(false);
     }, 300);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [ativo, table, origem, tenantId, term, page, pageSize, from, limit, orderBy, searchCols.join(",")]);
+  }, [ativo, table, origem, tenantId, term, page, pageSize, from, limit, orderBy, refresh, searchCols.join(",")]);
 
   return { ativo, rows, total, loading, error };
 }

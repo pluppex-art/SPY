@@ -7,6 +7,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { BotaoImportar } from "../../components/ImportadorPlanilha";
 import { produtosSpec } from "../../lib/importSpecs";
 
+import { apiFetch } from "../../lib/apiClient";
 import { ProdutoVisualizarModal } from "./produtos/ProdutoVisualizarModal";
 import { Pagination } from "../../components/ui/Pagination";
 import { useProdutoForm } from "./produtos/useProdutoForm";
@@ -128,13 +129,21 @@ export default function Catalog() {
   const maxDisp = useMaxdataDisponivel(activeTenantId);
   // Sem produtos próprios e com dados da Max Data, a tela já abre mostrando a Max Data (senão parece vazia).
   const origem = origemEscolhida ?? (maxDisp.disponivel && f.products.length === 0 ? MAXDATA_TODAS : "");
-  const mx = useMaxdataPage({ table: "maxdata_produtos", origem, tenantId: activeTenantId, term: f.searchTerm, page, pageSize: PAGE_SIZE, searchCols: ["name", "sku"], orderBy: "name" });
+  const [maxReload, setMaxReload] = useState(0);
+  const mx = useMaxdataPage({ refresh: maxReload, table: "maxdata_produtos", origem, tenantId: activeTenantId, term: f.searchTerm, page, pageSize: PAGE_SIZE, searchCols: ["name", "sku"], orderBy: "name" });
   const mxStats = useMaxdataStats("maxdata_produtos", origem, activeTenantId);
   useEffect(() => { setPage(0); }, [f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy, origem]);
   const viewTotal = mx.ativo ? mx.total : filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(viewTotal / PAGE_SIZE));
   // A Max Data guarda o saldo em stock/stock_min; as telas leem currentStock/stockMin.
   const pageProducts = mx.ativo ? mx.rows.map((r: any) => ({ ...r, currentStock: r.stock ?? r.currentStock ?? 0, stockMin: r.stock_min ?? r.stockMin ?? 0, stockMax: r.stock_max ?? r.stockMax ?? 0 })) : filteredProducts.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  const [escritaMax, setEscritaMax] = useState(false);
+  useEffect(() => {
+    if (!activeTenantId || !maxDisp.disponivel) return;
+    let off = false;
+    apiFetch(`/api/integrations/maxdata/escrita?tenantId=${encodeURIComponent(activeTenantId)}`).then((r) => r.ok ? r.json() : { habilitada: false }).then((j) => { if (!off) setEscritaMax(!!j.habilitada); }).catch(() => {});
+    return () => { off = true; };
+  }, [activeTenantId, maxDisp.disponivel]);
   const [verProduto, setVerProduto] = useState<any | null>(null);
   const somenteConsulta = () => { toast.info("Produto vindo da Max Data: somente consulta."); };
 
@@ -367,7 +376,7 @@ export default function Catalog() {
           handleSaveProduct={f.handleSaveProduct}
         />
       </div>
-    <ProdutoVisualizarModal produto={verProduto} onClose={() => setVerProduto(null)} />
+    <ProdutoVisualizarModal produto={verProduto} onClose={() => setVerProduto(null)} podeEditar={escritaMax} tenantId={activeTenantId} onSalvo={() => setMaxReload((n) => n + 1)} />
     </PageContainer>
   );
 }

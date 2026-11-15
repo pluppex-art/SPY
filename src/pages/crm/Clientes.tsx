@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../components/ui/button";
 import { Plus, Building2, CheckCircle2, FileText, Award, Users, AlertCircle, Phone } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { apiFetch } from "../../lib/apiClient";
 import { useFidelidade } from "../../lib/fidelidade";
 import { NovoClienteModal } from "../../components/ui/modals/crm/NovoClienteModal";
 import { ClienteContatosModal } from "../../components/ui/modals/crm/ClienteContatosModal";
@@ -159,11 +160,20 @@ export default function Clientes() {
   const crmLen = clientesFiltrados.length;
   const inicioPagina = maxPage * MAX_PAGE_SIZE;
   const crmFatia = misto ? clientesFiltrados.slice(inicioPagina, inicioPagina + MAX_PAGE_SIZE) : [];
+  const [maxReload, setMaxReload] = useState(0);
   const mx = useMaxdataPage({
     table: "maxdata_clientes", origem, tenantId: activeTenantId, term: debouncedSearch, page: maxPage, pageSize: MAX_PAGE_SIZE,
     from: misto ? Math.max(0, inicioPagina - crmLen) : undefined, count: misto ? MAX_PAGE_SIZE - crmFatia.length : undefined,
-    searchCols: ["name", "documento", "email", "phone"], orderBy: "name",
+    searchCols: ["name", "documento", "email", "phone"], orderBy: "name", refresh: maxReload,
   });
+  // Gravação na Max Data: só aparece se estiver ligada nas integrações e o usuário for administrador.
+  const [escritaMax, setEscritaMax] = useState(false);
+  useEffect(() => {
+    if (!temMax || !activeTenantId) return;
+    let off = false;
+    apiFetch(`/api/integrations/maxdata/escrita?tenantId=${encodeURIComponent(activeTenantId)}`).then((r) => r.ok ? r.json() : { habilitada: false }).then((j) => { if (!off) setEscritaMax(!!j.habilitada); }).catch(() => {});
+    return () => { off = true; };
+  }, [temMax, activeTenantId]);
   const mxStats = useMaxdataStats("maxdata_clientes", origem, activeTenantId);
   useEffect(() => { setMaxPage(0); }, [debouncedSearch, origem]);
   const maxRows = useMemo(() => mx.rows.map((c: any) => ({ ...c, responsavel: null, contratoStatus: null, mrr: 0 })), [mx.rows]);
@@ -189,8 +199,25 @@ export default function Clientes() {
     };
   }, [clientesFiltrados]);
 
+  // Grava direto na Max Data (cadastro novo ou alteração) e recarrega a lista dela.
+  const salvarNaMax = async (data: any, externoId?: string) => {
+    if (!activeTenantId) return;
+    const cliente = { nome: data.nome, documento: data.documento, email: data.email, telefone: data.telefone, cidade: data.cidade, estado: data.estado };
+    const url = `/api/integrations/maxdata/clientes${externoId ? `/${encodeURIComponent(externoId)}` : ""}?tenantId=${encodeURIComponent(activeTenantId)}`;
+    try {
+      const r = await apiFetch(url, { method: externoId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cliente, which: (editingCliente?.externo_sistema || "").endsWith("notas") ? "notas" : "estoque" }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { toast.error(j.error || "A Max Data não aceitou a gravação."); return; }
+      toast.success(externoId ? "Cliente atualizado na Max Data." : j.aviso || "Cliente cadastrado na Max Data.");
+      setMaxReload((n) => n + 1);
+      if (!externoId && origem === "") setOrigemEscolhida(MAXDATA_TODAS);
+    } catch { toast.error("Não foi possível falar com o servidor."); }
+  };
+
   const handleSaveCliente = async (data: any) => {
     if (!data.nome) { toast.error("Nome da empresa é obrigatório."); return; }
+    if (editingCliente && idsMax.has(editingCliente.id)) { await salvarNaMax(data, editingCliente.externo_id); setEditingCliente(null); return; }
+    if (!editingCliente && data.enviarMax === "sim") { await salvarNaMax(data); return; }
     if (!supabase) { toast.error("Não foi possível conectar ao servidor."); return; }
     if (!activeTenantId) { toast.error("Tenant não identificado."); return; }
 
@@ -355,7 +382,7 @@ export default function Clientes() {
             decisorPorCliente={decisorPorCliente}
             onDelete={(id: any) => (idsMax.has(id) ? somenteConsulta() : handleDeleteCliente(id))}
             onEdit={(c: any) => {
-              if (idsMax.has(c.id)) return somenteConsulta();
+              if (idsMax.has(c.id)) return escritaMax ? setEditingCliente(c) : somenteConsulta();
               openClienteOrLead(c.id);
             }}
             onManageContatos={(id: any) => (idsMax.has(id) ? somenteConsulta() : setContatosClienteId(id))}
@@ -370,6 +397,7 @@ export default function Clientes() {
         onClose={() => { setIsModalOpen(false); setEditingCliente(null); }}
         onAction={handleSaveCliente}
         cliente={editingCliente}
+        permitirEnviarMax={escritaMax}
       />
 
       <ClienteContatosModal

@@ -124,4 +124,29 @@ export async function maxdataGet<T = any>(conn: MaxDataConn, path: string): Prom
   throw new MaxDataError("A Max Data recusou o token.", 401);
 }
 
+/**
+ * Escrita (POST/PUT) autenticada. Diferente do GET: NUNCA repete depois de erro de rede/tempo esgotado
+ * (a Max Data pode ter gravado mesmo sem responder — repetir duplicaria cadastro ou ajuste). Só refaz o login
+ * em 401 e espera/repete em 429, que é recusa antes de processar.
+ */
+export async function maxdataSend<T = any>(conn: MaxDataConn, method: "POST" | "PUT", path: string, payload: unknown): Promise<T> {
+  let limitados = 0;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const token = await getToken(conn, attempt === 1);
+    const res = await request(`${conn.baseUrl}${path}`, {
+      method,
+      headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    if (res.status === 401 && attempt === 0) continue;
+    if (res.status === 429 && limitados < 8) { limitados++; attempt = Math.max(0, attempt - 1); await new Promise((r) => setTimeout(r, 300 * limitados + Math.random() * 300)); continue; }
+    const text = await res.text();
+    let body: any = null;
+    try { body = text ? JSON.parse(text) : null; } catch { body = text ? { message: text.slice(0, 300) } : null; }
+    if (!res.ok) throw new MaxDataError(body?.message || body?.error || `A Max Data recusou a gravação (HTTP ${res.status}) em ${path}.`, res.status);
+    return body as T;
+  }
+  throw new MaxDataError("A Max Data recusou o token.", 401);
+}
+
 export const _resetTokenCacheForTests = () => tokenCache.clear();

@@ -49,6 +49,7 @@ import { ensureAdminColaborador } from "./server/tenantAdminColaborador.js";
 import { agentesDoTenant } from "./server/agentesDoCliente.js";
 import { sessoesModelo } from "./server/agenteSecretoModelo.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
+import { registerMaxdataWriteRoutes } from "./server/maxdataWrite.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
 import { runSyncChunk, promoteMaxdataProducts, SYNC_ENTITIES, type SyncEntity } from "./server/maxdataSync.js";
 import { extractDocs as maxExtractDocs, mapMaxEntryToNota, type MaxEntry, type MaxEntryItem } from "./src/lib/maxdataEntry.js";
@@ -3340,6 +3341,12 @@ app.get("/api/integrations/maxdata/sync", requireUser, async (req: any, res) => 
   const which = req.query?.which === "estoque" ? "estoque" : "notas";
   const { data } = await req.supabase.from("integracao_sync_state").select("entidade,status,total,sincronizados,erro,atualizado_em").eq("tenant_id", tenantId).eq("fonte", `maxdata:${which}`);
   return res.json({ estados: data ?? [] });
+});
+
+// Escrita na Max Data (cliente, produto, ajuste de estoque): desligada por padrão por tenant e só para administradores.
+registerMaxdataWriteRoutes(app, {
+  requireUser, resolveRequestedTenantId, supabaseService, assertSafeHttpUrl,
+  limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }),
 });
 
 const kommoLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
