@@ -52,7 +52,7 @@ export default function Clientes() {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 250);
     return () => clearTimeout(t);
   }, [searchQuery]);
-  const somenteConsulta = () => { toast.info("Cliente vindo da Max Data: somente consulta."); };
+  const somenteConsulta = () => { toast.info("Cliente da Max Data: para editar, ative \"Gravar na Max Data\" em Configurações › Integrações › Max Data (precisa de admin e do relay liberado para escrita)."); };
 
   // Decisor por cliente, pra mostrar na tabela junto com o Documento — vem do
   // contato marcado como "principal" em cliente_contatos (a mesma tabela do
