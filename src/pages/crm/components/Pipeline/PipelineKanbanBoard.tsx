@@ -12,6 +12,46 @@ import { statusFromStageName, isLeadLost } from "../../../../lib/leadStatus";
 import { MotivoModal } from "../../../../components/ui/MotivoModal";
 import { MOTIVOS_PERDA_LEAD } from "../../../../lib/motivos";
 import { useFillViewportHeight } from "../../../../hooks/useFillViewportHeight";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { useMaxdataPage, useMaxdataStats, MAXDATA_TODAS } from "../../../../lib/useMaxdataPage";
+
+/** Coluna só de consulta com TODA a base de clientes da Max Data (dezenas de milhares): busca do servidor, 40 por vez. */
+function BaseClientesColuna() {
+  const { activeTenantId } = useAuth();
+  const [limite, setLimite] = useState(40);
+  const stats = useMaxdataStats("maxdata_clientes", MAXDATA_TODAS, activeTenantId).stats;
+  const lista = useMaxdataPage({ table: "maxdata_clientes", origem: MAXDATA_TODAS, tenantId: activeTenantId, term: "", page: 0, pageSize: limite, searchCols: ["name"], orderBy: "name" });
+  const total = stats?.total ?? lista.total;
+  if (!total) return null;
+  return (
+    <div className="shrink-0 snap-start flex flex-col bg-[var(--color-surface)]/40 border-2 border-t-4 border-[var(--color-border-default)] rounded-3xl h-full w-[84vw] max-w-[320px] sm:w-[280px] p-3" style={{ borderTopColor: "#64748b" }}>
+      <div className="mb-3 shrink-0 pb-2.5 border-b border-[var(--color-border-default)]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-2 h-2 rounded-full shrink-0 bg-slate-500" />
+            <h3 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider truncate">Base de clientes</h3>
+          </div>
+          <span className="text-[10px] font-bold text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-2 py-0.5 rounded-full shrink-0">{total.toLocaleString("pt-BR")}</span>
+        </div>
+        <p className="text-[10px] text-[var(--color-text-muted)] mt-1.5">Todos os clientes da Max Data (consulta)</p>
+      </div>
+      <div className="flex-1 overflow-y-auto space-y-2 min-h-0 pb-3 scrollbar-none">
+        {lista.rows.map((c: any) => (
+          <div key={c.id} className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface)] p-2.5">
+            <p className="text-xs font-semibold text-[var(--color-text-primary)] truncate">{c.name}</p>
+            <p className="text-[10px] text-[var(--color-text-muted)] truncate">{[c.phone, c.email, c.city].filter(Boolean).join(" · ") || "Sem contato"}</p>
+          </div>
+        ))}
+        {lista.loading && <p className="text-[10px] text-center text-[var(--color-text-muted)]">Carregando…</p>}
+        {total > lista.rows.length && !lista.loading && (
+          <button type="button" onClick={() => setLimite((n) => n + 100)} className="w-full py-2 border border-dashed border-[var(--color-border-default)] rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] text-xs font-bold cursor-pointer bg-transparent">
+            Carregar mais ({(total - lista.rows.length).toLocaleString("pt-BR")})
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface PipelineKanbanBoardProps {
   activePipelineStages: any[];
@@ -299,6 +339,7 @@ export function PipelineKanbanBoard({
           </div>
         );
       })}
+      {(currentPipeline?.tipo === 'comercial' || currentPipeline?.id === 'comercial') && <BaseClientesColuna />}
       <MotivoModal
         isOpen={motivoLeadId !== null}
         title="Por que o lead foi perdido?"
