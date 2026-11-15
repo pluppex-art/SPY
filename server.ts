@@ -3332,6 +3332,11 @@ app.post("/api/integrations/maxdata/sync", requireUser, async (req: any, res) =>
   const conn = await loadMaxdataConn(req, res, tenantId, which);
   if (!conn) return;
   const state = await runSyncChunk({ svc: supabaseService, conn, tenantId, fonte: `maxdata:${which}`, entity, restart: req.body?.restart === true });
+  // Vendas sincronizadas viram negócios no funil da Central de Vendas (idempotente; não dispara webhooks de lead novo).
+  if (entity === "vendas" && state.status === "concluida") {
+    const { error: funilErr } = await supabaseService.rpc("maxdata_vendas_para_funil", { p_tenant: tenantId, p_dias: 90 });
+    if (funilErr) console.error("[maxdata] funil de vendas:", funilErr.message);
+  }
   return res.status(state.status === "erro" ? 502 : 200).json(state);
 });
 

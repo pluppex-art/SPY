@@ -20,7 +20,6 @@ import { WebhookModal } from "./components/Pipeline/WebhookModal";
 import { PipelineListaView } from "./components/Pipeline/PipelineListaView";
 import { PipelineFilterBar } from "./components/Pipeline/PipelineFilterBar";
 import { PipelineKanbanBoard } from "./components/Pipeline/PipelineKanbanBoard";
-import { MaxdataVendasPainel, useTemVendasMax } from "./components/Pipeline/MaxdataVendasPainel";
 import { PipelineDefaultState } from "./components/Pipeline/PipelineDefaultState";
 import { PipelineEmptySelection } from "./components/Pipeline/PipelineEmptySelection";
 import { isLeadOpen } from "../../lib/leadStatus";
@@ -186,16 +185,6 @@ export default function Pipeline() {
       .filter((l: any) => temperatureFilter === "Todas" || l.temperature === temperatureFilter)
       .sort((a: any, b: any) => sortOrder === "desc" ? (tempOrder[b.temperature] || 0) - (tempOrder[a.temperature] || 0) : (tempOrder[a.temperature] || 0) - (tempOrder[b.temperature] || 0)),
     [filteredItemsList, searchQuery, temperatureFilter, sortOrder]);
-
-  // Loja com vendas importadas da Max Data e nenhum lead: a Central mostra o painel de vendas em vez de um funil vazio.
-  const temVendasMax = useTemVendasMax(activeTenantId);
-  if (temVendasMax && (leads || []).length === 0 && activeTenantId) {
-    return (
-      <PageContainer title="Central de Vendas" description="Resumo das vendas da loja.">
-        <MaxdataVendasPainel tenantId={activeTenantId} />
-      </PageContainer>
-    );
-  }
 
   return (
     <PageContainer
