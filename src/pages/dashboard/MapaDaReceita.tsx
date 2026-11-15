@@ -68,6 +68,16 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       .then(({ data, error }: any) => { if (!off) setPan(error ? null : data); });
     return () => { off = true; };
   }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo]);
+  const [det, setDet] = useState<{ canais?: any[]; produtos?: any[]; segmentos?: any[] }>({});
+  useEffect(() => {
+    if (!virtual || !activeTenantId || !supabase) { setDet({}); return; }
+    let off = false;
+    (["canais", "produtos", "segmentos"] as const).forEach((tipo) => {
+      supabase!.rpc("maxdata_panorama_detalhe", { p_tenant: activeTenantId, p_tipo: tipo, p_de: dashboard.dateFrom || null, p_ate: dashboard.dateTo || null })
+        .then(({ data, error }: any) => { if (!off && !error && Array.isArray(data)) setDet((d) => ({ ...d, [tipo]: data })); });
+    });
+    return () => { off = true; };
+  }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo]);
 
   const fluxo = useMemo(() => {
     if (pan) {
@@ -106,12 +116,20 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
     emRisco: { title: "Em Risco", subtitle: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"} inadimplente${contratosEmRisco.length === 1 ? "" : "s"}`, rows: contratosEmRisco, columns: contractColumnsMrr },
   };
 
-  const canais = useMemo(() => computeChannelRevenue(leads), [leads]);
-  const produtos = useMemo(() => computeProductRevenue(proposals, proposalItems, products), [proposals, proposalItems, products]);
-  const segmentos = useMemo(
-    () => computeSegmentRevenue(contracts, clienteBase).map((s, i) => ({ ...s, color: SEGMENT_PALETTE[i % SEGMENT_PALETTE.length] })),
-    [contracts, clienteBase]
-  );
+  const canais = useMemo(() => det.canais
+    ? det.canais.map((c: any) => ({ origem: c.origem, leads: 0, fechados: 1, conversao: Number(c.conversao) || 0, receita: Number(c.receita) || 0, ticketMedio: 0 }))
+    : computeChannelRevenue(leads), [leads, det.canais]);
+  const produtos = useMemo(() => {
+    if (!det.produtos) return computeProductRevenue(proposals, proposalItems, products);
+    const tot = det.produtos.reduce((t: number, p: any) => t + (Number(p.receita) || 0), 0) || 1;
+    return det.produtos.map((p: any) => ({ produto: p.produto, receita: Number(p.receita) || 0, margem: p.margem === null || p.margem === undefined ? null : Number(p.margem), pct: Math.round(((Number(p.receita) || 0) / tot) * 1000) / 10 }));
+  }, [proposals, proposalItems, products, det.produtos]);
+  const segmentos = useMemo(() => {
+    const base = det.segmentos
+      ? (() => { const tot = det.segmentos.reduce((t: number, x: any) => t + (Number(x.receita) || 0), 0) || 1; return det.segmentos.map((x: any) => ({ segmento: x.segmento, receita: Number(x.receita) || 0, pct: Math.round(((Number(x.receita) || 0) / tot) * 1000) / 10 })); })()
+      : computeSegmentRevenue(contracts, clienteBase);
+    return base.map((s, i) => ({ ...s, color: SEGMENT_PALETTE[i % SEGMENT_PALETTE.length] }));
+  }, [contracts, clienteBase, det.segmentos]);
   const segmentoTotal = segmentos.reduce((s, v) => s + v.receita, 0);
 
   const insights = useMemo(() => {
