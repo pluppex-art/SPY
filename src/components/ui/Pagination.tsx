@@ -50,53 +50,60 @@ export function Pagination({ page, totalPages, total, pageSize, loading, onPageC
     irPara(n - 1);
   };
 
+  const btn = "h-8 min-w-8 px-2 text-xs font-semibold tabular-nums";
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 mt-4 text-xs text-[var(--color-text-muted)]">
-      <span>
-        {from.toLocaleString("pt-BR")}–{to.toLocaleString("pt-BR")} de {total.toLocaleString("pt-BR")} {itemLabel}{plural}
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 mt-4 text-xs text-[var(--color-text-muted)]">
+      <span className="tabular-nums">
+        <strong className="text-[var(--color-text-primary)] font-semibold">{from.toLocaleString("pt-BR")}–{to.toLocaleString("pt-BR")}</strong>
+        {" "}de {total.toLocaleString("pt-BR")} {itemLabel}{plural}
       </span>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Button variant="outline" size="sm" title="Primeira página" disabled={page === 0 || loading} onClick={() => irPara(0)}>
-          <ChevronsLeft className="w-3.5 h-3.5" />
-        </Button>
-        <Button variant="outline" size="sm" title="Página anterior" disabled={page === 0 || loading} onClick={() => irPara(page - 1)}>
-          <ChevronLeft className="w-3.5 h-3.5" />
-        </Button>
-        {janela(page, totalPages).map((n, i) =>
-          n === "…" ? (
-            <span key={`e${i}`} className="px-1">…</span>
-          ) : (
-            <Button
-              key={n}
-              variant={n === page ? "default" : "outline"}
-              size="sm"
-              disabled={loading}
-              onClick={() => n !== page && irPara(n)}
-              className="min-w-8 font-bold"
-            >
-              {(n + 1).toLocaleString("pt-BR")}
-            </Button>
-          )
-        )}
-        <Button variant="outline" size="sm" title="Próxima página" disabled={page >= ultima || loading} onClick={() => irPara(page + 1)}>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </Button>
-        <Button variant="outline" size="sm" title="Última página" disabled={page >= ultima || loading} onClick={() => irPara(ultima)}>
-          <ChevronsRight className="w-3.5 h-3.5" />
-        </Button>
-        <span className="ml-2 hidden sm:inline">Ir para</span>
-        <input
-          type="number"
-          min={1}
-          max={totalPages}
-          value={alvo}
-          onChange={(e) => setAlvo(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") confirmarAlvo(); }}
-          onBlur={confirmarAlvo}
-          className="w-16 h-8 rounded-md border border-[var(--color-border)] bg-transparent px-2 text-center font-bold"
-          aria-label="Ir para a página"
-        />
-        <span>de {totalPages.toLocaleString("pt-BR")}</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <nav className="flex items-center gap-1" aria-label="Paginação">
+          <Button variant="outline" size="sm" title="Primeira página" className={btn} disabled={page === 0 || loading} onClick={() => irPara(0)}>
+            <ChevronsLeft className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant="outline" size="sm" title="Página anterior" className={btn} disabled={page === 0 || loading} onClick={() => irPara(page - 1)}>
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </Button>
+          {janela(page, totalPages).map((n, i) =>
+            n === "…" ? (
+              <span key={`e${i}`} className="w-6 text-center select-none">…</span>
+            ) : (
+              <Button
+                key={n}
+                variant={n === page ? "default" : "outline"}
+                size="sm"
+                disabled={loading}
+                aria-current={n === page ? "page" : undefined}
+                onClick={() => n !== page && irPara(n)}
+                className={btn}
+              >
+                {(n + 1).toLocaleString("pt-BR")}
+              </Button>
+            )
+          )}
+          <Button variant="outline" size="sm" title="Próxima página" className={btn} disabled={page >= ultima || loading} onClick={() => irPara(page + 1)}>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant="outline" size="sm" title="Última página" className={btn} disabled={page >= ultima || loading} onClick={() => irPara(ultima)}>
+            <ChevronsRight className="w-3.5 h-3.5" />
+          </Button>
+        </nav>
+        <label className="flex items-center gap-2 pl-4 border-l border-[var(--color-border-subtle)]">
+          <span>Ir para</span>
+          <input
+            type="number"
+            min={1}
+            max={totalPages}
+            value={alvo}
+            onChange={(e) => setAlvo(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { confirmarAlvo(); (e.target as HTMLInputElement).blur(); } }}
+            onBlur={confirmarAlvo}
+            className="h-8 w-16 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-transparent px-2 text-center text-xs font-semibold tabular-nums text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)] focus:ring-2 focus:ring-[var(--color-primary-blue)]/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            aria-label="Ir para a página"
+          />
+          <span className="tabular-nums">de {totalPages.toLocaleString("pt-BR")}</span>
+        </label>
       </div>
     </div>
   );
