@@ -23,7 +23,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 import type { Product } from "../../types";
 import { downloadCsv } from "../../lib/csvExport";
-import { PLUPPEX_TENANT_ID } from "../../lib/supabase";
+import { PLUPPEX_TENANT_ID, supabase } from "../../lib/supabase";
 import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 
 const PAGE_SIZE = 60;
@@ -132,6 +132,15 @@ export default function Catalog() {
   const [maxReload, setMaxReload] = useState(0);
   const mx = useMaxdataPage({ refresh: maxReload, table: "maxdata_produtos", origem, tenantId: activeTenantId, term: f.searchTerm, page, pageSize: PAGE_SIZE, searchCols: ["name", "sku"], orderBy: "name" });
   const mxStats = useMaxdataStats("maxdata_produtos", origem, activeTenantId, maxReload);
+  // Valor total em estoque da Max Data (saldo × custo / × venda), somado no banco.
+  const [mxValor, setMxValor] = useState<{ custo: number; venda: number } | null>(null);
+  useEffect(() => {
+    if (!origem || !activeTenantId || !supabase) { setMxValor(null); return; }
+    let off = false;
+    supabase.rpc("maxdata_estoque_valor", { p_tenant: activeTenantId, p_origem: origem === MAXDATA_TODAS ? null : origem })
+      .then(({ data, error }: any) => { if (!off) setMxValor(error || !data ? null : { custo: Number(data.custo) || 0, venda: Number(data.venda) || 0 }); });
+    return () => { off = true; };
+  }, [origem, activeTenantId, maxReload]);
   useEffect(() => { setPage(0); }, [f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy, origem]);
   const viewTotal = mx.ativo ? mx.total : filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(viewTotal / PAGE_SIZE));
@@ -208,6 +217,10 @@ export default function Catalog() {
             { label: "SKUs em Operação", value: (mxStats.stats?.ativos ?? 0).toLocaleString("pt-BR"), icon: Activity, tone: "success" },
             { label: "Inativos", value: (mxStats.stats?.inativos ?? 0).toLocaleString("pt-BR"), icon: TrendingUp, tone: "warning" },
             { label: "Com saldo em estoque", value: (mxStats.stats?.comEstoque ?? 0).toLocaleString("pt-BR"), icon: Sparkles, tone: "info" },
+            ...(mxValor ? [
+              { label: "Valor em estoque (custo)", value: mxValor.custo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }), icon: Package, tone: "primary" as const },
+              { label: "Valor em estoque (venda)", value: mxValor.venda.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }), icon: TrendingUp, tone: "success" as const },
+            ] : []),
           ] : [
             { label: "Total de SKUs", value: totalSkuCount, icon: Package, tone: "primary" },
             { label: "SKUs em Operação", value: activeSkuCount, icon: Activity, tone: "success" },

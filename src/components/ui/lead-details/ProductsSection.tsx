@@ -502,7 +502,7 @@ export function ProductsSection({
               <div key={p.id} className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{p.name}</p>
-                  <span className="text-[9px] text-[var(--color-text-faint)] uppercase font-semibold">{[p.sku, p.category, `estoque ${Number(p.stock) || 0}`].filter(Boolean).join(" • ")}</span>
+                  <span className="text-[9px] text-[var(--color-text-faint)] uppercase font-semibold">{[p.sku, p.category, `estoque ${Number(p.stock) || 0}${Number(p.stock) > 0 && Number(p.cost) > 0 ? ` (${formatCurrency(Number(p.stock) * Number(p.cost))})` : ""}`].filter(Boolean).join(" • ")}</span>
                 </div>
                 <span className="text-xs font-mono font-black text-[var(--color-primary-blue)] shrink-0">{formatCurrency(Number(p.price) || 0)}</span>
               </div>

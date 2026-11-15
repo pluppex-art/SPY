@@ -137,6 +137,10 @@ export function ProdutosGrid({
                 </span>
               </div>
               <div>
+                <span className="text-[var(--color-text-muted)] block text-[9px] uppercase font-black">Valor em estoque</span>
+                <span className="font-mono font-black text-slate-300 block">R$ {(Math.max(Number(p.currentStock) || 0, 0) * (Number(p.cost) || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div>
                 <span className="text-[var(--color-text-muted)] block text-[9px] uppercase font-black">Margem Líquida</span>
                 <span className={`font-mono font-black ${p.margin > 60 ? "text-emerald-400" : "text-amber-400"}`}>
                   {p.margin}%

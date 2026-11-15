@@ -121,6 +121,8 @@ export function ProdutoVisualizarModal({ produto, onClose, podeEditar, tenantId,
           </Secao>
           <Secao icon={Layers} titulo="Estoque">
             <Campo label="Saldo atual"><span className="font-bold tabular-nums">{num(saldo)}</span> <span className={`text-xs font-semibold ${situacao.c}`}>· {situacao.t}</span></Campo>
+            <Campo label="Valor em estoque (custo)">{brl(Math.max(saldo, 0) * (Number(p.cost) || 0))}</Campo>
+            <Campo label="Valor em estoque (venda)">{brl(Math.max(saldo, 0) * (Number(p.price) || 0))}</Campo>
             <Campo label="Estoque mínimo">{num(min)}</Campo>
             <Campo label="Estoque máximo">{Number(p.stockMax) ? num(p.stockMax) : ""}</Campo>
           </Secao>

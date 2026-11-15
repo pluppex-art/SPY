@@ -47,6 +47,8 @@ export function ProdutosTable({
               <th className="py-3 px-4">Tipo</th>
               <th className="py-3 px-4 text-right">Preço de Venda</th>
               <th className="py-3 px-4 text-right">Custo Origem</th>
+              <th className="py-3 px-4 text-right">Estoque</th>
+              <th className="py-3 px-4 text-right">Valor em estoque</th>
               <th className="py-3 px-4 text-center">Margem</th>
               <th className="py-3 px-4 text-center">Comissão</th>
               <th className="py-3 px-4">Fornecedor</th>
@@ -99,6 +101,8 @@ export function ProdutosTable({
                   <td className="py-4 px-4 text-right font-mono text-slate-400">
                     R$ {p.cost ? p.cost.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0,00"}
                   </td>
+                  <td className="py-4 px-4 text-right font-mono text-slate-300">{(Number(p.currentStock) || 0).toLocaleString("pt-BR")}</td>
+                  <td className="py-4 px-4 text-right font-mono text-slate-300">R$ {(Math.max(Number(p.currentStock) || 0, 0) * (Number(p.cost) || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="py-4 px-4 text-center font-mono">
                     <span className={`px-2 py-0.5 rounded font-bold ${p.margin > 60 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
                       {p.margin}%
