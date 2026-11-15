@@ -3360,6 +3360,28 @@ app.post("/api/integrations/maxdata/vendas/reverificar", requireUser, async (req
   }
 });
 
+// Saldo ao vivo de um produto na Max Data (confere o que o sincronismo trouxe). Só leitura; atualiza o saldo gravado se diferir.
+app.get("/api/integrations/maxdata/produtos/:externoId/saldo", requireUser, async (req: any, res) => {
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+  if (!supabaseService) return res.status(503).json({ error: "Indisponível (service key ausente)." });
+  const which = req.query?.which === "estoque" ? "estoque" : "notas";
+  const conn = await loadMaxdataConn(req, res, tenantId, which);
+  if (!conn) return;
+  try {
+    const body: any = await maxdataGet(conn, `/product/${encodeURIComponent(String(req.params.externoId))}`);
+    const doc = Array.isArray(body) ? body[0] : body?.docs?.[0] ?? body;
+    if (!doc || doc.id == null) return res.status(404).json({ error: "Produto não encontrado na Max Data." });
+    const campos: Record<string, any> = {};
+    for (const [k, v] of Object.entries(doc)) if (/estoq|saldo|qtd|qtde|quant/i.test(k) && (typeof v === "number" || typeof v === "string" || v === null)) campos[k] = v;
+    const saldo = Math.round(Number(doc.estoque) || 0);
+    await supabaseService.from("maxdata_produtos").update({ stock: saldo, stock_min: Math.round(Number(doc.estoqueMinimo) || 0) }).eq("tenant_id", tenantId).eq("externo_sistema", `maxdata:${which}`).eq("externo_id", String(doc.id));
+    return res.json({ saldo, minimo: Math.round(Number(doc.estoqueMinimo) || 0), campos });
+  } catch (e: any) {
+    return res.status(maxErrorStatus(e)).json({ error: e?.message || "Falha ao consultar o produto na Max Data." });
+  }
+});
+
 app.get("/api/integrations/maxdata/sync", requireUser, async (req: any, res) => {
   const tenantId = await resolveRequestedTenantId(req, res);
   if (!tenantId) return;

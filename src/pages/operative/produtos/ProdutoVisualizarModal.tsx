@@ -35,6 +35,19 @@ export function ProdutoVisualizarModal({ produto, onClose, podeEditar, tenantId,
     setEditando(false);
     if (produto) setF({ descricao: produto.name || "", valorVenda: String(produto.price ?? ""), valorCusto: String(produto.cost ?? ""), ativo: !!produto.active });
   }, [produto?.id]);
+  // Confere o saldo AO VIVO na Max Data ao abrir (o sincronismo pode estar atrasado) e mostra os campos de estoque que ela devolve.
+  const [vivo, setVivo] = useState<{ saldo: number; minimo: number; campos: Record<string, any> } | "erro" | "carregando" | null>(null);
+  useEffect(() => {
+    setVivo(null);
+    if (!produto || !tenantId || !String(produto.externo_sistema || "").startsWith("maxdata")) return;
+    let off = false;
+    setVivo("carregando");
+    const which = String(produto.externo_sistema).endsWith("notas") ? "notas" : "estoque";
+    apiFetch(`/api/integrations/maxdata/produtos/${encodeURIComponent(String(produto.externo_id))}/saldo?which=${which}&tenantId=${encodeURIComponent(tenantId)}`)
+      .then(async (r) => { const j = await r.json().catch(() => ({})); if (off) return; if (!r.ok) { setVivo("erro"); return; } setVivo(j); if (Number(j.saldo) !== Number(produto.currentStock)) onSalvo?.(); })
+      .catch(() => { if (!off) setVivo("erro"); });
+    return () => { off = true; };
+  }, [produto?.id, tenantId]);
   const num2 = (v: string) => Number(String(v).replace(/\./g, "").replace(",", ".")) ;
   const salvar = async () => {
     if (!produto || !tenantId) return;
@@ -64,7 +77,8 @@ export function ProdutoVisualizarModal({ produto, onClose, podeEditar, tenantId,
   if (!produto) return null;
 
   const p = produto, d = p.externo_dados || {};
-  const saldo = Number(p.currentStock) || 0, min = Number(p.stockMin) || 0;
+  const ao = typeof vivo === "object" && vivo ? vivo : null;
+  const saldo = ao ? ao.saldo : Number(p.currentStock) || 0, min = ao ? ao.minimo : Number(p.stockMin) || 0;
   const situacao = saldo <= 0 ? { t: "Sem saldo", c: "text-danger" } : saldo <= min ? { t: "Abaixo do mínimo", c: "text-warning" } : { t: "Em estoque", c: "text-success" };
   const margem = p.price > 0 ? ((p.price - p.cost) / p.price) * 100 : null;
 
@@ -121,6 +135,7 @@ export function ProdutoVisualizarModal({ produto, onClose, podeEditar, tenantId,
           </Secao>
           <Secao icon={Layers} titulo="Estoque">
             <Campo label="Saldo atual"><span className="font-bold tabular-nums">{num(saldo)}</span> <span className={`text-xs font-semibold ${situacao.c}`}>· {situacao.t}</span></Campo>
+            <Campo label="Conferência na Max Data">{vivo === "carregando" ? "Consultando…" : vivo === "erro" ? "Não foi possível consultar agora" : ao ? `Saldo ao vivo: ${num(ao.saldo)} (campos: ${Object.entries(ao.campos).map(([k, v]) => `${k}=${v}`).join(", ") || "nenhum"})` : ""}</Campo>
             <Campo label="Valor em estoque (custo)">{brl(Math.max(saldo, 0) * (Number(p.cost) || 0))}</Campo>
             <Campo label="Valor em estoque (venda)">{brl(Math.max(saldo, 0) * (Number(p.price) || 0))}</Campo>
             <Campo label="Estoque mínimo">{num(min)}</Campo>
