@@ -104,7 +104,11 @@ export async function reverificarVendasAbertas(opts: { svc: any; conn: MaxDataCo
   });
   if (docs.length) await syncVendasPage(svc, conn, tenantId, fonte, docs, condicoes);
   const { count: restantes } = await svc.from("maxdata_vendas").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("status", ["aberta", "em_espera"]);
+  const { data: porSt } = await svc.from("maxdata_vendas").select("externo_dados").eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("status", ["aberta", "em_espera"]).limit(5000);
+  const porStatus: Record<string, number> = {};
+  for (const r of porSt ?? []) { const k = String(r.externo_dados?.status ?? "sem status"); porStatus[k] = (porStatus[k] || 0) + 1; }
   return {
+    porStatus,
     verificadas: lista.length, viraramPagas, viraramCanceladas, naoEncontradas, falhas, restantes: restantes ?? 0,
     cursor: lista.length >= (opts.limite ?? 120) ? lista[lista.length - 1].id : null,
   };

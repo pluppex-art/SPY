@@ -118,6 +118,7 @@ function MaxDataSyncPanel({ which, tenantId }: { which: "notas" | "estoque"; ten
   const reverificar = async () => {
     stopRef.current = false;
     setRunning(true);
+    let porStatus: Record<string, number> = {};
     let cursor: string | null = null, pagas = 0, canceladas = 0, falhas = 0, verificadas = 0, restantes = 0;
     try {
       do {
@@ -126,11 +127,11 @@ function MaxDataSyncPanel({ which, tenantId }: { which: "notas" | "estoque"; ten
         });
         const d = await res.json().catch(() => ({}));
         if (!res.ok) { setMsg(d?.error || "Falha ao reverificar as vendas em aberto."); return; }
-        pagas += d.viraramPagas || 0; canceladas += d.viraramCanceladas || 0; falhas += d.falhas || 0; verificadas += d.verificadas || 0; restantes = d.restantes || 0;
+        pagas += d.viraramPagas || 0; canceladas += d.viraramCanceladas || 0; falhas += d.falhas || 0; verificadas += d.verificadas || 0; restantes = d.restantes || 0; porStatus = d.porStatus || {};
         cursor = d.cursor || null;
         setMsg(`Reverificando vendas em aberto… ${verificadas.toLocaleString("pt-BR")} conferidas · ${pagas} já pagas · ${canceladas} canceladas`);
       } while (cursor && !stopRef.current);
-      setMsg(`Reverificação ${stopRef.current ? "pausada" : "concluída"}: ${verificadas.toLocaleString("pt-BR")} conferidas, ${pagas} estavam pagas, ${canceladas} canceladas${falhas ? `, ${falhas} falharam (tente de novo)` : ""}. Ainda em aberto: ${restantes.toLocaleString("pt-BR")}.`);
+      setMsg(`Reverificação ${stopRef.current ? "pausada" : "concluída"}: ${verificadas.toLocaleString("pt-BR")} conferidas, ${pagas} estavam pagas, ${canceladas} canceladas${falhas ? `, ${falhas} falharam (tente de novo)` : ""}. Ainda em aberto: ${restantes.toLocaleString("pt-BR")}${Object.keys(porStatus).length ? ` (${Object.entries(porStatus).map(([k, n]) => `${k.replace(/_/g, " ")}: ${n}`).join(" · ")})` : ""}.`);
     } finally { setRunning(false); }
   };
 

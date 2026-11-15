@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useMaxdataPage, useMaxdataStats, MAXDATA_TODAS } from "../../../lib/useMaxdataPage";
 import { Card } from "../card";
 import { Button } from "../button";
 import { Badge } from "../badge";
@@ -69,6 +70,49 @@ function ItensVendaMaxdata({ vendaExternoId, fonte }: { vendaExternoId: string; 
           <div className="flex justify-between pt-2 border-t border-[var(--color-border-subtle)] text-xs font-black"><span>Total dos itens</span><span className="font-mono">{formatCurrency(total)}</span></div>
         </div>
       )}
+    </Card>
+  );
+}
+
+/** Catálogo da Max Data (dezenas de milhares de produtos): busca e paginação no servidor, 30 por vez. */
+function CatalogoMaxdata() {
+  const { activeTenantId } = useAuth();
+  const { formatCurrency } = useLocalization();
+  const [busca, setBusca] = useState("");
+  const [termo, setTermo] = useState("");
+  const [limite, setLimite] = useState(30);
+  useEffect(() => { const t = setTimeout(() => { setTermo(busca); setLimite(30); }, 350); return () => clearTimeout(t); }, [busca]);
+  const total = useMaxdataStats("maxdata_produtos", MAXDATA_TODAS, activeTenantId).stats?.total ?? 0;
+  const lista = useMaxdataPage({ table: "maxdata_produtos", origem: MAXDATA_TODAS, tenantId: activeTenantId, term: termo, page: 0, pageSize: limite, searchCols: ["name", "sku", "category"], orderBy: "name" });
+  if (!total) return null;
+  return (
+    <Card className="p-4 bg-[var(--color-surface-elevated)] shadow-sm space-y-3 border border-[var(--color-border-default)]">
+      <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-2.5">
+        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-faint)] flex items-center gap-2"><Package className="w-3.5 h-3.5" /> Catálogo da Max Data</span>
+        <Badge variant="secondary">{(termo ? lista.total : total).toLocaleString("pt-BR")} produto{(termo ? lista.total : total) === 1 ? "" : "s"}</Badge>
+      </div>
+      <div className="relative">
+        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, código ou categoria…" className="w-full h-9 pl-9 pr-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-transparent text-xs outline-none focus:border-[var(--color-primary-blue)]" />
+      </div>
+      <div className="space-y-1.5 max-h-72 overflow-y-auto">
+        {lista.rows.map((p: any) => (
+          <div key={p.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]">
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{p.name}</p>
+              <p className="text-[10px] text-[var(--color-text-muted)] truncate">{[p.sku, p.category, `estoque ${Number(p.stock) || 0}`].filter(Boolean).join(" · ")}</p>
+            </div>
+            <span className="text-xs font-mono font-bold text-[var(--color-text-primary)] shrink-0">{formatCurrency(Number(p.price) || 0)}</span>
+          </div>
+        ))}
+        {lista.loading && <p className="text-[10px] text-center text-[var(--color-text-muted)]">Carregando…</p>}
+        {!lista.loading && lista.rows.length === 0 && <p className="text-xs text-center text-[var(--color-text-muted)] py-3">Nenhum produto encontrado.</p>}
+        {!lista.loading && lista.total > lista.rows.length && (
+          <button type="button" onClick={() => setLimite((n) => n + 60)} className="w-full py-2 border border-dashed border-[var(--color-border-default)] rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)] text-xs font-bold cursor-pointer bg-transparent">
+            Carregar mais ({(lista.total - lista.rows.length).toLocaleString("pt-BR")})
+          </button>
+        )}
+      </div>
     </Card>
   );
 }
@@ -265,6 +309,7 @@ export function ProductsSection({
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
       {currentLead?.customFields?.maxdata_venda_id && <ItensVendaMaxdata vendaExternoId={String(currentLead.customFields.maxdata_venda_id)} fonte={currentLead.customFields.fonte} />}
+      <CatalogoMaxdata />
       {existingProposal && (
         <Card className={cn(
           "p-4 bg-[var(--color-surface-elevated)] shadow-sm space-y-3",
