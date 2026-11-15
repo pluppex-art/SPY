@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import type { Product } from "../../types";
 import { downloadCsv } from "../../lib/csvExport";
 import { PLUPPEX_TENANT_ID } from "../../lib/supabase";
-import { useMaxdataPage, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
+import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 
 const PAGE_SIZE = 60;
 
@@ -128,6 +128,7 @@ export default function Catalog() {
   // Sem produtos próprios e com dados da Max Data, a tela já abre mostrando a Max Data (senão parece vazia).
   const origem = origemEscolhida ?? (maxDisp.disponivel && f.products.length === 0 ? MAXDATA_TODAS : "");
   const mx = useMaxdataPage({ table: "maxdata_produtos", origem, tenantId: activeTenantId, term: f.searchTerm, page, pageSize: PAGE_SIZE, searchCols: ["name", "sku"], orderBy: "name" });
+  const mxStats = useMaxdataStats("maxdata_produtos", origem, activeTenantId);
   useEffect(() => { setPage(0); }, [f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy, origem]);
   const viewTotal = mx.ativo ? mx.total : filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(viewTotal / PAGE_SIZE));
@@ -190,7 +191,12 @@ export default function Catalog() {
         )}
         <KpiFilterCard
           id="opsProdutos"
-          kpis={[
+          kpis={mx.ativo ? [
+            { label: "Total de SKUs", value: (mxStats.stats?.total ?? 0).toLocaleString("pt-BR"), icon: Package, tone: "primary" },
+            { label: "SKUs em Operação", value: (mxStats.stats?.ativos ?? 0).toLocaleString("pt-BR"), icon: Activity, tone: "success" },
+            { label: "Inativos", value: (mxStats.stats?.inativos ?? 0).toLocaleString("pt-BR"), icon: TrendingUp, tone: "warning" },
+            { label: "Com saldo em estoque", value: (mxStats.stats?.comEstoque ?? 0).toLocaleString("pt-BR"), icon: Sparkles, tone: "info" },
+          ] : [
             { label: "Total de SKUs", value: totalSkuCount, icon: Package, tone: "primary" },
             { label: "SKUs em Operação", value: activeSkuCount, icon: Activity, tone: "success" },
             { label: "Margem Ativa Média", value: `${averageMarginVal}%`, icon: TrendingUp, tone: "info" },
@@ -255,7 +261,7 @@ export default function Catalog() {
                 handleVender={mx.ativo ? (_p: Product, e: React.MouseEvent) => { e.stopPropagation(); somenteConsulta(); } : handleVender}
               />
             )}
-            <Pagination page={page} totalPages={totalPages} total={viewTotal} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="produto" />
+            <Pagination page={page} totalPages={totalPages} total={viewTotal} pageSize={PAGE_SIZE} loading={mx.loading} onPageChange={setPage} itemLabel="produto" />
           </>
         )}
 

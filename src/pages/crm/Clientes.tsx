@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../components/ui/button";
-import { Plus, Building2, CheckCircle2, FileText, Award } from "lucide-react";
+import { Plus, Building2, CheckCircle2, FileText, Award, Users, AlertCircle, Phone } from "lucide-react";
+import { Card } from "../../components/ui/card";
 import { useFidelidade } from "../../lib/fidelidade";
 import { NovoClienteModal } from "../../components/ui/modals/crm/NovoClienteModal";
 import { ClienteContatosModal } from "../../components/ui/modals/crm/ClienteContatosModal";
@@ -20,7 +21,7 @@ import { ClientesResumo } from "./components/Clientes/ClientesResumo";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { normalizeText } from "../../lib/utils";
 import { Pagination } from "../../components/ui/Pagination";
-import { useMaxdataPage, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
+import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 
 const MAX_PAGE_SIZE = 50;
 
@@ -163,6 +164,7 @@ export default function Clientes() {
     from: misto ? Math.max(0, inicioPagina - crmLen) : undefined, count: misto ? MAX_PAGE_SIZE - crmFatia.length : undefined,
     searchCols: ["name", "documento", "email", "phone"], orderBy: "name",
   });
+  const mxStats = useMaxdataStats("maxdata_clientes", origem, activeTenantId);
   useEffect(() => { setMaxPage(0); }, [debouncedSearch, origem]);
   const maxRows = useMemo(() => mx.rows.map((c: any) => ({ ...c, responsavel: null, contratoStatus: null, mrr: 0 })), [mx.rows]);
   const idsMax = useMemo(() => new Set(maxRows.map((c: any) => c.id)), [maxRows]);
@@ -295,7 +297,27 @@ export default function Clientes() {
       {/* Card "KPIs & Filtros" compartilhado. Os KPIs de Clientes mantêm drill-down e sparkline
           (ClientesKPIs), agora dentro do card e calculados sobre a lista filtrada. */}
       <KpiFilterCard className="mb-4" id="crmClientes" activeCount={activeCount} onClear={clearFilters}>
-        {(origem === "" || misto) && <ClientesKPIs {...kpis} clientes={clientesFiltrados} />}
+        {origem === "" && <ClientesKPIs {...kpis} clientes={clientesFiltrados} />}
+        {origem !== "" && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: "Total de Clientes", value: (misto ? crmLen : 0) + (mxStats.stats?.total ?? 0), icon: Users, color: "text-[var(--color-primary-blue)]" },
+              { label: "Clientes Ativos", value: (misto ? kpis.ativos : 0) + (mxStats.stats?.ativos ?? 0), icon: CheckCircle2, color: "text-success" },
+              { label: "Inativos", value: (misto ? kpis.inativos : 0) + (mxStats.stats?.inativos ?? 0), icon: AlertCircle, color: "text-danger" },
+              { label: "Max Data com contato", value: mxStats.stats?.comContato ?? 0, icon: Phone, color: "text-warning" },
+            ].map(({ label, value, icon: Icon, color }) => (
+              <Card key={label} className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon className={`w-4 h-4 ${color}`} />
+                  <span className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest">{label}</span>
+                </div>
+                <div className="text-2xl font-display font-black text-[var(--color-text-primary)]">
+                  {mxStats.loading && !mxStats.stats ? "…" : value.toLocaleString("pt-BR")}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
         <FilterBar>
           <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por cliente, documento, responsável, e-mail ou telefone..." />
           {temMax && <FilterSelect icon={Building2} value={origem} onChange={setOrigemEscolhida} options={[{ value: MAXDATA_TODAS, label: "Tudo (CRM + Max Data)" }, { value: "", label: "Só base do CRM" }, ...MAXDATA_ORIGENS.filter((o) => o.value)]} />}
@@ -329,6 +351,7 @@ export default function Clientes() {
         <>
           <ClientesList
             clientes={[...crmFatia, ...maxRows]}
+            paginar={false}
             decisorPorCliente={decisorPorCliente}
             onDelete={(id: any) => (idsMax.has(id) ? somenteConsulta() : handleDeleteCliente(id))}
             onEdit={(c: any) => {
@@ -338,7 +361,7 @@ export default function Clientes() {
             onManageContatos={(id: any) => (idsMax.has(id) ? somenteConsulta() : setContatosClienteId(id))}
             onOpenDetalhes={(id: any) => (idsMax.has(id) ? somenteConsulta() : openClienteOrLead(id))}
           />
-          <Pagination page={maxPage} totalPages={Math.max(1, Math.ceil(((misto ? crmLen : 0) + mx.total) / MAX_PAGE_SIZE))} total={(misto ? crmLen : 0) + mx.total} pageSize={MAX_PAGE_SIZE} onPageChange={setMaxPage} itemLabel="cliente" />
+          <Pagination page={maxPage} totalPages={Math.max(1, Math.ceil(((misto ? crmLen : 0) + mx.total) / MAX_PAGE_SIZE))} total={(misto ? crmLen : 0) + mx.total} pageSize={MAX_PAGE_SIZE} loading={mx.loading} onPageChange={setMaxPage} itemLabel="cliente" />
         </>
       )}
 

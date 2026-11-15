@@ -72,6 +72,8 @@ interface ClientesListProps {
   onEdit: (cliente: Cliente) => void;
   onManageContatos: (clienteId: string) => void;
   onOpenDetalhes: (clienteId: string) => void;
+  /** false quando a página já vem fatiada de fora (Max Data, paginação no servidor): a lista mostra tudo o que recebe. */
+  paginar?: boolean;
 }
 
 function statusBadgeVariant(status?: string): "success" | "warning" | "secondary" {
@@ -89,7 +91,7 @@ function contratoStatusMeta(status?: string | null): { label: string; dot: strin
 
 export function ClientesList({
   clientes, decisorPorCliente = {},
-  onDelete, onEdit, onManageContatos, onOpenDetalhes,
+  onDelete, onEdit, onManageContatos, onOpenDetalhes, paginar = true,
 }: ClientesListProps) {
   const { formatCurrency } = useLocalization();
   const [view, setView] = useState<"list" | "grid">("list");
@@ -101,7 +103,7 @@ export function ClientesList({
   const [page, setPage] = useState(0);
   useEffect(() => { setPage(0); }, [clientes]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  const pageItems = paginar ? filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE) : filtered;
 
   const actionButtons = (c: Cliente) => (
     <>
@@ -316,9 +318,11 @@ export function ClientesList({
         </>
       )}
 
-      <div className="p-4 border-t border-[var(--color-border-subtle)]">
-        <Pagination page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="cliente" />
-      </div>
+      {paginar && (
+        <div className="p-4 border-t border-[var(--color-border-subtle)]">
+          <Pagination page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="cliente" />
+        </div>
+      )}
     </Card>
   );
 }

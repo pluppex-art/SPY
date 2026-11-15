@@ -37,7 +37,7 @@ export function useMaxdataPage({ table, origem, tenantId, term, page, pageSize, 
       if (s) q = q.or(searchCols.map((c) => `${c}.ilike.%${s}%`).join(","));
       const { data, count, error: err } = await q.order(orderBy, { ascending: true }).range(inicio, Math.max(inicio, fim));
       if (cancelled) return;
-      if (vazio) { setRows([]); setTotal(count ?? 0); setLoading(false); return; }
+      if (vazio) { setRows([]); if (!err && count !== null) setTotal(count); setLoading(false); return; }
       if (err) { setError(err.message); setRows([]); setTotal(0); } else { setRows(data ?? []); setTotal(count ?? 0); }
       setLoading(false);
     }, 300);
@@ -68,4 +68,51 @@ export function useMaxdataDisponivel(tenantId: string | null | undefined) {
     return () => { cancelled = true; };
   }, [tenantId]);
   return estado;
+}
+
+export type MaxdataStats = { total: number; [k: string]: number };
+
+/**
+ * Totais (contagens exatas no servidor) sobre TODA a Max Data do tenant — os cards de indicadores das telas
+ * não podem depender da página aberta nem do que está em memória. Uma contagem leve por indicador.
+ */
+export function useMaxdataStats(table: "maxdata_clientes" | "maxdata_produtos", origem: string, tenantId: string | null | undefined) {
+  const [stats, setStats] = useState<MaxdataStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const ativo = !!origem && !!tenantId && !!supabase;
+
+  useEffect(() => {
+    if (!ativo) { setStats(null); return; }
+    let cancelled = false;
+    setLoading(true);
+    const base = () => {
+      let q: any = supabase!.from(table).select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!);
+      return origem === MAXDATA_TODAS ? q.in("externo_sistema", ["maxdata:estoque", "maxdata:notas"]) : q.eq("externo_sistema", origem);
+    };
+    const filtros: Record<string, (q: any) => any> = table === "maxdata_clientes"
+      ? {
+          total: (q) => q,
+          ativos: (q) => q.eq("status", "Ativo"),
+          inativos: (q) => q.eq("status", "Inativo"),
+          comContato: (q) => q.or("email.not.is.null,phone.not.is.null"),
+        }
+      : {
+          total: (q) => q,
+          ativos: (q) => q.eq("active", true),
+          inativos: (q) => q.eq("active", false),
+          comEstoque: (q) => q.gt("stock", 0),
+        };
+    (async () => {
+      const chaves = Object.keys(filtros);
+      const res = await Promise.all(chaves.map((k) => filtros[k](base())));
+      if (cancelled) return;
+      const out: MaxdataStats = { total: 0 };
+      chaves.forEach((k, i) => { out[k] = res[i].count ?? 0; });
+      setStats(out);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [ativo, table, origem, tenantId]);
+
+  return { stats, loading };
 }
