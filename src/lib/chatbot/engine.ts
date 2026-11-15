@@ -18,7 +18,7 @@ import {
   type QuestionNode,
   type SessionState,
   type ValidationKind,
-} from "./types";
+} from "./types.js";
 
 const MAX_STEPS = 50; // trava contra ciclos message → message sem espera
 const MAX_VAR_LENGTH = 500;
