@@ -20,7 +20,7 @@ export function QuickStatsGrid({ stats, periodoLabel }: QuickStatsGridProps) {
   // ver DashboardStatsByNiche.tsx) — em lg:grid-cols-4 isso deixava o 5º card
   // sozinho numa linha nova, esticado. Classe literal (Tailwind JIT não
   // aceita `lg:grid-cols-${n}` dinâmico) — outros nichos continuam com 4.
-  const gridColsClass = stats.length >= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4';
+  const gridColsClass = stats.length === 8 ? 'lg:grid-cols-4' : stats.length >= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4';
   return (
     <>
     <motion.div

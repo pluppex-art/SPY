@@ -416,10 +416,6 @@ export function DashboardStatsByNiche({
     const ticket = vendasGanhas.qtd > 0 ? vendasGanhas.valor / vendasGanhas.qtd : 0;
     return [
       {
-        label: 'Clientes', value: (mxClientes.stats?.total ?? 0).toLocaleString('pt-BR'), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: Users, forecast: '--',
-        tooltip: `Total de clientes cadastrados na Max Data (${(mxClientes.stats?.ativos ?? 0).toLocaleString('pt-BR')} ativos) — não depende do período.`,
-      },
-      {
         label: 'Vendas Ganhas', value: formatCurrency(vendasGanhas.valor), trend: computeTrend(revenueSeries), color: 'text-slate-400', bg: 'bg-white/5', icon: DollarSign, forecast: '--',
         tooltip: `Soma do valor dos negócios Ganhos no período selecionado (${vendasGanhas.qtd.toLocaleString('pt-BR')} vendas).`, sparkline: revenueSeries,
       },
@@ -427,15 +423,23 @@ export function DashboardStatsByNiche({
         label: 'Ticket Médio', value: formatCurrency(ticket), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: TrendingDown, forecast: '--',
         tooltip: 'Valor das vendas ganhas ÷ quantidade de vendas ganhas, no período selecionado.',
       },
-      leadsAtivosCard,
-      conversaoCard,
-      {
-        label: 'Produtos (base)', value: (mxProdutos.stats?.total ?? 0).toLocaleString('pt-BR'), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: Target, forecast: '--',
-        tooltip: `Total de produtos na Max Data (${(mxProdutos.stats?.comEstoque ?? 0).toLocaleString('pt-BR')} com estoque) — não depende do período.`,
-      },
       {
         label: 'Vendas Perdidas', value: vendasGanhas.perdidas.toLocaleString('pt-BR'), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: TrendingDown, forecast: '--',
         tooltip: `Negócios Perdidos (ex.: vendas canceladas) no período — ${formatCurrency(vendasGanhas.valorPerdidas)}.`,
+      },
+      conversaoCard,
+      leadsAtivosCard,
+      {
+        label: 'Clientes', value: (mxClientes.stats?.total ?? 0).toLocaleString('pt-BR'), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: Users, forecast: '--',
+        tooltip: `Total de clientes cadastrados na Max Data (${(mxClientes.stats?.ativos ?? 0).toLocaleString('pt-BR')} ativos) — não depende do período.`,
+      },
+      {
+        label: 'Produtos', value: (mxProdutos.stats?.total ?? 0).toLocaleString('pt-BR'), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: Target, forecast: '--',
+        tooltip: `Total de produtos na Max Data (${(mxProdutos.stats?.comEstoque ?? 0).toLocaleString('pt-BR')} com estoque) — não depende do período.`,
+      },
+      {
+        label: 'Produtos com estoque', value: (mxProdutos.stats?.comEstoque ?? 0).toLocaleString('pt-BR'), trend: '--', color: 'text-slate-400', bg: 'bg-white/5', icon: Target, forecast: '--',
+        tooltip: 'Produtos da Max Data com saldo de estoque maior que zero — não depende do período.',
       },
     ];
   }, [vendasGanhas, mxClientes.stats, mxProdutos.stats, tenantNiche, totalRevenue, faturamento, leadsLength, conversionRate, churnRate, churnValue, formatCurrency, revenueSeries, faturamentoSeries, leadsSeries, conversionSeries, drillLeadsAtivos, drillConversao, drillFaturamento, drillMrr, drillChurn]);
