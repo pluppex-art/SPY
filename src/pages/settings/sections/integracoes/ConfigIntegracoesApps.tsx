@@ -154,6 +154,24 @@ function MaxDataConnectionModal({
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Usa a configuração já SALVA (o servidor lê do banco — a chave nunca sai do navegador pra essa chamada).
+  const [testingWrite, setTestingWrite] = useState(false);
+  // Prova a gravação sem mudar nada: lê um cliente e o reenvia idêntico (valida repasse de IP + permissão da chave).
+  const handleTestWrite = async () => {
+    setTestingWrite(true);
+    setResult(null);
+    try {
+      const res = await apiFetch(`/api/integrations/maxdata/escrita/testar${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ which }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setResult(res.ok && data.ok ? { ok: true, text: data.mensagem || "Gravação aceita pela Max Data." } : { ok: false, text: data?.error || "A Max Data não aceitou a gravação." });
+    } catch {
+      setResult({ ok: false, text: "Falha ao contatar o servidor." });
+    } finally {
+      setTestingWrite(false);
+    }
+  };
+
   const handleTest = async () => {
     setTesting(true);
     setResult(null);
@@ -205,8 +223,8 @@ function MaxDataConnectionModal({
       <div className="space-y-4">
         <Alert variant="info" title="Conexão pronta, comportamento a definir">
           Login da MaxAPI: nome, chave e descrição da aplicação, mais terminal e empresa. Os campos são salvos
-          automaticamente. Nesta etapa o SPY só LÊ dados do Max (entradas de nota fiscal); enviar vendas ou emitir
-          NF-e não está ligado.
+          automaticamente. Por padrão o SPY só LÊ dados do Max. Para cadastrar/alterar clientes e produtos pelo SPY, ative
+          "Gravar na Max Data" abaixo e use "Testar gravação". Vendas e NF-e não estão ligadas.
         </Alert>
         <FormField label="URL base da API" required hint="Servidor da MaxAPI deste cliente com /v2 (ex.: http://IP:porta/v2) — pedir à Max Data. Não é o link da documentação">
           <Input type="text" name={`maxdata-${which}-url`} autoComplete="off" value={config.apiUrl} onChange={(e) => setConfig((p) => ({ ...p, apiUrl: e.target.value }))} placeholder="http://IP:porta/v2" />
@@ -241,12 +259,27 @@ function MaxDataConnectionModal({
             <option value="sandbox">Sandbox / testes</option>
           </select>
         </FormField>
+        <FormField label="Gravar na Max Data" hint="Não = só leitura. Sim = administradores podem cadastrar/alterar clientes e produtos pelo S.P.Y. A chave precisa ter permissão de escrita.">
+          <select
+            value={config.escritaHabilitada || "Não"}
+            onChange={(e) => setConfig((p) => ({ ...p, escritaHabilitada: e.target.value }))}
+            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs cursor-pointer"
+          >
+            <option value="Não">Não — somente leitura</option>
+            <option value="Sim">Sim — permitir cadastrar e alterar</option>
+          </select>
+        </FormField>
         <FormField label="Observações">
           <Input type="text" value={config.notes} onChange={(e) => setConfig((p) => ({ ...p, notes: e.target.value }))} />
         </FormField>
         <Button variant="outline" onClick={handleTest} disabled={testing} className="w-full text-xs font-bold gap-2">
           <Activity className="w-3.5 h-3.5 text-cyan-500" /> {testing ? "Testando…" : "Testar conexão (usa a configuração salva)"}
         </Button>
+        {config.escritaHabilitada === "Sim" && (
+          <Button variant="outline" onClick={handleTestWrite} disabled={testingWrite} className="w-full text-xs font-bold gap-2">
+            <Activity className="w-3.5 h-3.5 text-amber-500" /> {testingWrite ? "Testando gravação…" : "Testar gravação (reenvia um cliente sem alterar nada)"}
+          </Button>
+        )}
         {result && (
           <div className={`p-3 rounded-[var(--radius-control)] border text-xs ${result.ok ? "border-success/30 bg-success/10 text-success" : "border-danger/30 bg-danger/10 text-danger"}`}>
             {result.text}

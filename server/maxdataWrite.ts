@@ -68,6 +68,29 @@ export function registerMaxdataWriteRoutes(app: Express, d: Deps) {
     return res.json({ habilitada: pode && ligada });
   });
 
+  // ── Teste de gravação SEM efeito: lê um cliente e reenvia exatamente o mesmo registro ──
+  app.post("/api/integrations/maxdata/escrita/testar", ...guard, async (req: any, res: any) => {
+    const tenantId = await d.resolveRequestedTenantId(req, res);
+    if (!tenantId) return;
+    const conn = await carregar(req, res, tenantId, whichDe(req.body?.which));
+    if (!conn) return;
+    try {
+      const lista = await maxdataGet<any>(conn, "/client?limit=1&page=1");
+      const primeiro = um(lista);
+      if (!primeiro?.id) return res.status(409).json({ error: "Não há nenhum cliente na Max Data para usar no teste." });
+      const atual = um(await maxdataGet<any>(conn, `/client/${primeiro.id}`));
+      await maxdataSend(conn, "PUT", `/client/${primeiro.id}`, pick(atual, CAMPOS_CLIENTE));
+      log("teste_gravacao", tenantId, { user: req.user.id });
+      return res.json({ ok: true, mensagem: "Gravação aceita: a Max Data recebeu a alteração (idêntica ao que já existia, nada mudou)." });
+    } catch (e: any) {
+      const m = e?.message || "";
+      const dica = e instanceof MaxDataError && (e.status === 403 || e.status === 405)
+        ? " A chave provavelmente não tem permissão de escrita, ou o repasse de IP está bloqueando POST/PUT."
+        : e instanceof MaxDataError && !e.status ? " Se a leitura funciona, o repasse de IP pode estar bloqueando POST/PUT." : "";
+      return res.status(erroHttp(e)).json({ error: `${m}${dica}` });
+    }
+  });
+
   // ── Cliente: cadastrar ──
   app.post("/api/integrations/maxdata/clientes", ...guard, async (req: any, res: any) => {
     const tenantId = await d.resolveRequestedTenantId(req, res);
