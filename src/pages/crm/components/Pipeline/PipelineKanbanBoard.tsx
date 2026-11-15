@@ -73,7 +73,7 @@ export function PipelineKanbanBoard({
   // totais/contadores de cada coluna continuam somando TODOS os leads da
   // etapa — só a quantidade de cards desenhados é limitada, com "carregar
   // mais" por coluna.
-  const CARDS_PAGE_SIZE = 40;
+  const CARDS_PAGE_SIZE = 100;
   const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({});
   const showMore = (stageId: string) =>
     setVisibleCounts((prev) => ({ ...prev, [stageId]: (prev[stageId] ?? CARDS_PAGE_SIZE) + CARDS_PAGE_SIZE }));
