@@ -132,7 +132,8 @@ export default function Catalog() {
   useEffect(() => { setPage(0); }, [f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy, origem]);
   const viewTotal = mx.ativo ? mx.total : filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(viewTotal / PAGE_SIZE));
-  const pageProducts = mx.ativo ? mx.rows : filteredProducts.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  // A Max Data guarda o saldo em stock/stock_min; as telas leem currentStock/stockMin.
+  const pageProducts = mx.ativo ? mx.rows.map((r: any) => ({ ...r, currentStock: r.stock ?? r.currentStock ?? 0, stockMin: r.stock_min ?? r.stockMin ?? 0, stockMax: r.stock_max ?? r.stockMax ?? 0 })) : filteredProducts.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   const somenteConsulta = () => { toast.info("Produto vindo da Max Data: somente consulta."); };
 
   const totalSkuCount = viewTotal;
