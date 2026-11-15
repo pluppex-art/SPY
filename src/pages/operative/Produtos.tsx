@@ -131,7 +131,7 @@ export default function Catalog() {
   const origem = origemEscolhida ?? (maxDisp.disponivel && f.products.length === 0 ? MAXDATA_TODAS : "");
   const [maxReload, setMaxReload] = useState(0);
   const mx = useMaxdataPage({ refresh: maxReload, table: "maxdata_produtos", origem, tenantId: activeTenantId, term: f.searchTerm, page, pageSize: PAGE_SIZE, searchCols: ["name", "sku"], orderBy: "name" });
-  const mxStats = useMaxdataStats("maxdata_produtos", origem, activeTenantId);
+  const mxStats = useMaxdataStats("maxdata_produtos", origem, activeTenantId, maxReload);
   useEffect(() => { setPage(0); }, [f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy, origem]);
   const viewTotal = mx.ativo ? mx.total : filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(viewTotal / PAGE_SIZE));

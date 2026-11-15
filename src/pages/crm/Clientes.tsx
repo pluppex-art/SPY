@@ -174,7 +174,7 @@ export default function Clientes() {
     apiFetch(`/api/integrations/maxdata/escrita?tenantId=${encodeURIComponent(activeTenantId)}`).then((r) => r.ok ? r.json() : { habilitada: false }).then((j) => { if (!off) setEscritaMax(!!j.habilitada); }).catch(() => {});
     return () => { off = true; };
   }, [temMax, activeTenantId]);
-  const mxStats = useMaxdataStats("maxdata_clientes", origem, activeTenantId);
+  const mxStats = useMaxdataStats("maxdata_clientes", origem, activeTenantId, maxReload);
   useEffect(() => { setMaxPage(0); }, [debouncedSearch, origem]);
   const maxRows = useMemo(() => mx.rows.map((c: any) => ({ ...c, responsavel: null, contratoStatus: null, mrr: 0 })), [mx.rows]);
   const idsMax = useMemo(() => new Set(maxRows.map((c: any) => c.id)), [maxRows]);

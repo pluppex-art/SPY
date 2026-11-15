@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
+/**
+ * Cache em memória (vale enquanto a aba estiver aberta): voltar para uma tela já aberta mostra na hora o que já
+ * foi carregado em vez de buscar tudo de novo. 5 min de validade; qualquer gravação muda `refresh` e passa por cima.
+ */
+const TTL_MS = 5 * 60 * 1000;
+const cache = new Map<string, { ts: number; val: any }>();
+const cacheGet = <T,>(k: string): T | undefined => { const e = cache.get(k); return e && Date.now() - e.ts < TTL_MS ? (e.val as T) : undefined; };
+const cacheSet = (k: string, val: any) => { cache.set(k, { ts: Date.now(), val }); if (cache.size > 300) cache.delete(cache.keys().next().value as string); };
+
 /** Origem dos registros nas telas existentes: "" = catálogo normal do sistema; senão, a conexão da Max Data. */
 export const MAXDATA_TODAS = "__maxdata_todas__";
 export const MAXDATA_ORIGENS = [
@@ -17,15 +26,19 @@ type Opts = { table: "maxdata_clientes" | "maxdata_produtos"; origem: string; te
  * milhares de linhas — por isso a Max Data fica em tabelas próprias e entra aqui, página a página.
  */
 export function useMaxdataPage({ table, origem, tenantId, term, page, pageSize, from, count: limit, searchCols, orderBy, refresh }: Opts) {
-  const [rows, setRows] = useState<any[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const vazio = limit !== undefined && limit <= 0; // lista mista: esta página inteira cai na parte do CRM
   const ativo = !!origem && !!tenantId && !!supabase;
+  const chave = `page|${table}|${tenantId}|${origem}|${term}|${page}|${pageSize}|${from ?? ""}|${limit ?? ""}|${orderBy}|${refresh ?? 0}|${searchCols.join(",")}`;
+  const guardado = ativo ? cacheGet<{ rows: any[]; total: number }>(chave) : undefined;
+  const [rows, setRows] = useState<any[]>(guardado?.rows ?? []);
+  const [total, setTotal] = useState(guardado?.total ?? 0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ativo) return;
+    const hit = cacheGet<{ rows: any[]; total: number }>(chave);
+    if (hit) { setRows(hit.rows); setTotal(hit.total); setError(null); setLoading(false); return; } // já carregado: não busca de novo
     let cancelled = false;
     const inicio = from ?? page * pageSize;
     const fim = inicio + (limit ?? pageSize) - 1;
@@ -37,12 +50,12 @@ export function useMaxdataPage({ table, origem, tenantId, term, page, pageSize, 
       if (s) q = q.or(searchCols.map((c) => `${c}.ilike.%${s}%`).join(","));
       const { data, count, error: err } = await q.order(orderBy, { ascending: true }).range(inicio, Math.max(inicio, fim));
       if (cancelled) return;
-      if (vazio) { setRows([]); if (!err && count !== null) setTotal(count); setLoading(false); return; }
-      if (err) { setError(err.message); setRows([]); setTotal(0); } else { setRows(data ?? []); setTotal(count ?? 0); }
+      if (vazio) { setRows([]); if (!err && count !== null) { setTotal(count); cacheSet(chave, { rows: [], total: count }); } setLoading(false); return; }
+      if (err) { setError(err.message); setRows([]); setTotal(0); } else { setRows(data ?? []); setTotal(count ?? 0); cacheSet(chave, { rows: data ?? [], total: count ?? 0 }); }
       setLoading(false);
     }, 300);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [ativo, table, origem, tenantId, term, page, pageSize, from, limit, orderBy, refresh, searchCols.join(",")]);
+  }, [chave]);
 
   return { ativo, rows, total, loading, error };
 }
@@ -52,9 +65,12 @@ export function useMaxdataPage({ table, origem, tenantId, term, page, pageSize, 
  * que varia conforme quem está logado) e expõe o erro de leitura, para não ficar "sem nada" sem explicação.
  */
 export function useMaxdataDisponivel(tenantId: string | null | undefined) {
-  const [estado, setEstado] = useState<{ disponivel: boolean; erro: string | null; pronto: boolean }>({ disponivel: false, erro: null, pronto: false });
+  const chaveD = `disp|${tenantId}`;
+  const [estado, setEstado] = useState<{ disponivel: boolean; erro: string | null; pronto: boolean }>(() => (tenantId ? cacheGet<any>(chaveD) : undefined) ?? { disponivel: false, erro: null, pronto: false });
   useEffect(() => {
     if (!tenantId || !supabase) return;
+    const hit = cacheGet<any>(chaveD);
+    if (hit) { setEstado(hit); return; }
     let cancelled = false;
     (async () => {
       const [c, p] = await Promise.all([
@@ -63,7 +79,9 @@ export function useMaxdataDisponivel(tenantId: string | null | undefined) {
       ]);
       if (cancelled) return;
       const erro = c.error?.message || p.error?.message || null;
-      setEstado({ disponivel: (c.data?.length ?? 0) + (p.data?.length ?? 0) > 0, erro, pronto: true });
+      const novo = { disponivel: (c.data?.length ?? 0) + (p.data?.length ?? 0) > 0, erro, pronto: true };
+      if (!erro) cacheSet(chaveD, novo);
+      setEstado(novo);
     })();
     return () => { cancelled = true; };
   }, [tenantId]);
@@ -76,13 +94,16 @@ export type MaxdataStats = { total: number; [k: string]: number };
  * Totais (contagens exatas no servidor) sobre TODA a Max Data do tenant — os cards de indicadores das telas
  * não podem depender da página aberta nem do que está em memória. Uma contagem leve por indicador.
  */
-export function useMaxdataStats(table: "maxdata_clientes" | "maxdata_produtos", origem: string, tenantId: string | null | undefined) {
-  const [stats, setStats] = useState<MaxdataStats | null>(null);
+export function useMaxdataStats(table: "maxdata_clientes" | "maxdata_produtos", origem: string, tenantId: string | null | undefined, refresh = 0) {
+  const chaveS = `stats|${table}|${tenantId}|${origem}|${refresh}`;
+  const [stats, setStats] = useState<MaxdataStats | null>(() => cacheGet<MaxdataStats>(chaveS) ?? null);
   const [loading, setLoading] = useState(false);
   const ativo = !!origem && !!tenantId && !!supabase;
 
   useEffect(() => {
     if (!ativo) { setStats(null); return; }
+    const hit = cacheGet<MaxdataStats>(chaveS);
+    if (hit) { setStats(hit); setLoading(false); return; } // já calculado: não conta tudo de novo
     let cancelled = false;
     setLoading(true);
     const base = () => {
@@ -108,11 +129,12 @@ export function useMaxdataStats(table: "maxdata_clientes" | "maxdata_produtos", 
       if (cancelled) return;
       const out: MaxdataStats = { total: 0 };
       chaves.forEach((k, i) => { out[k] = res[i].count ?? 0; });
+      cacheSet(chaveS, out);
       setStats(out);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [ativo, table, origem, tenantId]);
+  }, [ativo, chaveS]);
 
   return { stats, loading };
 }
