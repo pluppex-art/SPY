@@ -28,7 +28,7 @@ interface ProductsSectionProps {
 }
 
 /** Itens da venda que veio da Max Data (lead criado pela API): lidos de maxdata_venda_itens. */
-function ItensVendaMaxdata({ vendaExternoId }: { vendaExternoId: string }) {
+function ItensVendaMaxdata({ vendaExternoId, fonte }: { vendaExternoId: string; fonte?: string }) {
   const { activeTenantId } = useAuth();
   const { formatCurrency } = useLocalization();
   const [itens, setItens] = useState<any[] | null>(null);
@@ -36,13 +36,15 @@ function ItensVendaMaxdata({ vendaExternoId }: { vendaExternoId: string }) {
     if (!supabase || !activeTenantId) return;
     let off = false;
     (async () => {
-      const { data: v } = await supabase!.from("maxdata_vendas").select("id").eq("tenant_id", activeTenantId).eq("externo_id", vendaExternoId).limit(1).maybeSingle();
+      let q: any = supabase!.from("maxdata_vendas").select("id").eq("tenant_id", activeTenantId);
+      if (fonte) q = q.eq("externo_sistema", fonte);
+      const { data: v } = await q.eq("externo_id", vendaExternoId).limit(1).maybeSingle();
       if (!v) { if (!off) setItens([]); return; }
       const { data } = await supabase!.from("maxdata_venda_itens").select("id,product_name,codigo,quantidade,preco_unitario,valor_desconto").eq("tenant_id", activeTenantId).eq("venda_id", v.id);
       if (!off) setItens(data ?? []);
     })().catch(() => { if (!off) setItens([]); });
     return () => { off = true; };
-  }, [vendaExternoId, activeTenantId]);
+  }, [vendaExternoId, fonte, activeTenantId]);
   if (itens === null) return <Card className="p-4 text-xs text-[var(--color-text-muted)]">Carregando produtos da venda…</Card>;
   const total = itens.reduce((t, i) => t + (Number(i.preco_unitario) || 0) * (Number(i.quantidade) || 1), 0);
   return (
@@ -262,7 +264,7 @@ export function ProductsSection({
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
-      {currentLead?.customFields?.maxdata_venda_id && <ItensVendaMaxdata vendaExternoId={String(currentLead.customFields.maxdata_venda_id)} />}
+      {currentLead?.customFields?.maxdata_venda_id && <ItensVendaMaxdata vendaExternoId={String(currentLead.customFields.maxdata_venda_id)} fonte={currentLead.customFields.fonte} />}
       {existingProposal && (
         <Card className={cn(
           "p-4 bg-[var(--color-surface-elevated)] shadow-sm space-y-3",
