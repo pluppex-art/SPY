@@ -51,7 +51,7 @@ import { sessoesModelo } from "./server/agenteSecretoModelo.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { registerMaxdataWriteRoutes } from "./server/maxdataWrite.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
-import { runSyncChunk, promoteMaxdataProducts, SYNC_ENTITIES, type SyncEntity } from "./server/maxdataSync.js";
+import { runSyncChunk, reverificarVendasAbertas, promoteMaxdataProducts, SYNC_ENTITIES, type SyncEntity } from "./server/maxdataSync.js";
 import { extractDocs as maxExtractDocs, mapMaxEntryToNota, type MaxEntry, type MaxEntryItem } from "./src/lib/maxdataEntry.js";
 import { findProductForItem, defaultQtdEstoque } from "./src/lib/notaEntrada.js";
 import { isLeadOpen, isLeadLost } from "./src/lib/leadStatus.js";
@@ -3338,6 +3338,26 @@ app.post("/api/integrations/maxdata/sync", requireUser, async (req: any, res) =>
     if (funilErr) console.error("[maxdata] funil de vendas:", funilErr.message);
   }
   return res.status(state.status === "erro" ? 502 : 200).json(state);
+});
+
+app.post("/api/integrations/maxdata/vendas/reverificar", requireUser, async (req: any, res) => {
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+  if (!supabaseService) return res.status(503).json({ error: "Indisponível (service key ausente)." });
+  const which = req.body?.which === "estoque" ? "estoque" : "notas";
+  const conn = await loadMaxdataConn(req, res, tenantId, which);
+  if (!conn) return;
+  try {
+    const r = await reverificarVendasAbertas({ svc: supabaseService, conn, tenantId, fonte: `maxdata:${which}`, cursor: typeof req.body?.cursor === "string" ? req.body.cursor : null });
+    // O status das vendas mudou: atualiza os negócios do funil (idempotente).
+    if (r.viraramPagas || r.viraramCanceladas) {
+      const { error: funilErr } = await supabaseService.rpc("maxdata_vendas_para_funil", { p_tenant: tenantId, p_dias: 90 });
+      if (funilErr) console.error("[maxdata] funil após reverificar:", funilErr.message);
+    }
+    return res.json(r);
+  } catch (e: any) {
+    return res.status(maxErrorStatus(e)).json({ error: e?.message || "Falha ao reverificar as vendas em aberto." });
+  }
 });
 
 app.get("/api/integrations/maxdata/sync", requireUser, async (req: any, res) => {

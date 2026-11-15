@@ -114,6 +114,26 @@ function MaxDataSyncPanel({ which, tenantId }: { which: "notas" | "estoque"; ten
     } finally { setRunning(false); }
   };
 
+  // Vendas "em aberto" aqui podem já ter sido pagas/canceladas na Max Data: reconfere uma a uma, em lotes.
+  const reverificar = async () => {
+    stopRef.current = false;
+    setRunning(true);
+    let cursor: string | null = null, pagas = 0, canceladas = 0, falhas = 0, verificadas = 0, restantes = 0;
+    try {
+      do {
+        const res = await apiFetch(`/api/integrations/maxdata/vendas/reverificar${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ which, cursor }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { setMsg(d?.error || "Falha ao reverificar as vendas em aberto."); return; }
+        pagas += d.viraramPagas || 0; canceladas += d.viraramCanceladas || 0; falhas += d.falhas || 0; verificadas += d.verificadas || 0; restantes = d.restantes || 0;
+        cursor = d.cursor || null;
+        setMsg(`Reverificando vendas em aberto… ${verificadas.toLocaleString("pt-BR")} conferidas · ${pagas} já pagas · ${canceladas} canceladas`);
+      } while (cursor && !stopRef.current);
+      setMsg(`Reverificação ${stopRef.current ? "pausada" : "concluída"}: ${verificadas.toLocaleString("pt-BR")} conferidas, ${pagas} estavam pagas, ${canceladas} canceladas${falhas ? `, ${falhas} falharam (tente de novo)` : ""}. Ainda em aberto: ${restantes.toLocaleString("pt-BR")}.`);
+    } finally { setRunning(false); }
+  };
+
   return (
     <div className="space-y-2 rounded-[var(--radius-control)] border border-[var(--color-border-default)] p-3">
       <p className="text-xs font-bold text-[var(--color-text-primary)]">Sincronizar dados para o S.P.Y.</p>
@@ -131,6 +151,7 @@ function MaxDataSyncPanel({ which, tenantId }: { which: "notas" | "estoque"; ten
       {msg && <p className="text-[11px] text-[var(--color-text-secondary)]">{msg}</p>}
       <div className="flex gap-2">
         <Button variant="outline" onClick={run} disabled={running} className="flex-1 text-xs font-bold">{running ? "Sincronizando…" : "Sincronizar tudo"}</Button>
+        <Button variant="outline" onClick={reverificar} disabled={running} className="flex-1 text-xs font-bold">Reverificar vendas em aberto</Button>
         {running && <Button variant="outline" onClick={() => { stopRef.current = true; }} className="text-xs">Pausar</Button>}
       </div>
     </div>

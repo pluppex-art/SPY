@@ -76,6 +76,40 @@ async function syncVendasPage(svc: any, conn: MaxDataConn, tenantId: string, fon
   await upsert(svc, "maxdata_vendas", vendaRows, "tenant_id,externo_sistema,externo_id");
 }
 
+/**
+ * Reconfere na Max Data as vendas que estão "em aberto" aqui: a venda pode ter sido paga/cancelada lá depois.
+ * Processa um lote por chamada (cursor = último id); a cada venda re-lê o cabeçalho e regrava com o status atual.
+ */
+export async function reverificarVendasAbertas(opts: { svc: any; conn: MaxDataConn; tenantId: string; fonte: string; cursor?: string | null; limite?: number }) {
+  const { svc, conn, tenantId, fonte } = opts;
+  let q = svc.from("maxdata_vendas").select("id, externo_id, status").eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("status", ["aberta", "em_espera"]).order("id").limit(opts.limite ?? 120);
+  if (opts.cursor) q = q.gt("id", opts.cursor);
+  const { data: abertas, error } = await q;
+  if (error) throw new Error(error.message);
+  const lista: { id: string; externo_id: string; status: string }[] = abertas ?? [];
+  const condicoes = await carregarCondicoes(conn);
+  let viraramPagas = 0, viraramCanceladas = 0, naoEncontradas = 0, falhas = 0;
+  const docs: any[] = [];
+  await pool(lista, ITEM_CONCURRENCY, async (v) => {
+    try {
+      const body = await maxdataGet<any>(conn, `/sale/${v.externo_id}`);
+      const doc = Array.isArray(body) ? body[0] : body?.docs?.[0] ?? body;
+      if (!doc || doc.id == null) { naoEncontradas++; return; }
+      const novo = statusVenda(doc.status || "");
+      if (novo === "paga") viraramPagas++; else if (novo === "cancelada") viraramCanceladas++;
+      docs.push(doc);
+    } catch (e: any) {
+      if (/404/.test(String(e?.status ?? e?.message))) naoEncontradas++; else falhas++;
+    }
+  });
+  if (docs.length) await syncVendasPage(svc, conn, tenantId, fonte, docs, condicoes);
+  const { count: restantes } = await svc.from("maxdata_vendas").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("externo_sistema", fonte).in("status", ["aberta", "em_espera"]);
+  return {
+    verificadas: lista.length, viraramPagas, viraramCanceladas, naoEncontradas, falhas, restantes: restantes ?? 0,
+    cursor: lista.length >= (opts.limite ?? 120) ? lista[lista.length - 1].id : null,
+  };
+}
+
 async function carregarCondicoes(conn: MaxDataConn): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   try {
