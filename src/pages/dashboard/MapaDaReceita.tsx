@@ -44,7 +44,7 @@ const SUB_ABAS: { id: SubAba; label: string }[] = [
 
 export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData }) {
   const { contracts, proposals, proposalItems, products, clienteBase } = useData();
-  const { leads, totalRevenue, faturamentoContratado, salesRanking, funnelData } = dashboard;
+  const { leads, totalRevenue, faturamentoContratado, salesRanking: salesRankingLocal, funnelData } = dashboard;
   const { formatCurrency } = useLocalization();
   const periodo = periodoCaption(dashboard.dateFrom, dashboard.dateTo);
   const [subAba, setSubAba] = useState<SubAba>("visaoGeral");
@@ -68,6 +68,17 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       .then(({ data, error }: any) => { if (!off) setPan(error ? null : data); });
     return () => { off = true; };
   }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo]);
+  const [vend, setVend] = useState<any[] | null>(null);
+  useEffect(() => {
+    if (!virtual || !activeTenantId || !supabase) { setVend(null); return; }
+    let off = false;
+    supabase.rpc("maxdata_vendedores", { p_tenant: activeTenantId, p_de: dashboard.dateFrom || null, p_ate: dashboard.dateTo || null })
+      .then(({ data, error }: any) => { if (!off && !error && Array.isArray(data)) setVend(data); });
+    return () => { off = true; };
+  }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo]);
+  const salesRanking = useMemo(() => vend
+    ? vend.map((v: any) => ({ name: v.codigo === "sem código" ? "Sem atendente" : `Atendente ${v.codigo}`, total: Number(v.total) || 0, deals: Number(v.deals) || 0, rate: Number(v.rate) || 0 }))
+    : salesRankingLocal, [vend, salesRankingLocal]) as any[];
   const [det, setDet] = useState<{ canais?: any[]; produtos?: any[]; segmentos?: any[] }>({});
   useEffect(() => {
     if (!virtual || !activeTenantId || !supabase) { setDet({}); return; }
