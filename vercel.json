@@ -103,6 +103,10 @@
     {
       "path": "/api/radar/cron/retrato",
       "schedule": "45 6 * * *"
+    },
+    {
+      "path": "/api/agendamento/cron/expirar",
+      "schedule": "30 7 * * *"
     }
   ]
 }

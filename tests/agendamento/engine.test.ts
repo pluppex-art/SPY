@@ -143,7 +143,7 @@ test("validação: caminho feliz e recusas por regra", () => {
   const c = cfg();
   const o = { agora: agora() };
   assert.deepEqual(validarReserva(entrada(), c, [], o), { ok: true });
-  const cod = (e: any, rs: ReservaLite[] = [], op: any = o) => { const r = validarReserva(e, c, rs, op); return r.ok ? "ok" : r.codigo; };
+  const cod = (e: any, rs: ReservaLite[] = [], op: any = o) => { const r = validarReserva(e, c, rs, op); return r.ok === false ? r.codigo : "ok"; };
   assert.equal(cod(entrada({ data: "2026-11-23" })), "fechado"); // próxima segunda
   assert.equal(cod(entrada({ data: "2026-11-10" })), "data_passada");
   assert.equal(cod(entrada({ data: "x" })), "data_invalida");
@@ -186,7 +186,7 @@ test("validação: hoje não reserva horário que já começou", () => {
 test("validação: mesas do restaurante — lugares e limite por dia", () => {
   const c = cfg({ mesasMaxPorDia: 2, cadeirasMax: 10 });
   const o = { agora: agora() };
-  const cod = (e: any, rs: ReservaLite[] = []) => { const r = validarReserva(e, c, rs, o); return r.ok ? "ok" : r.codigo; };
+  const cod = (e: any, rs: ReservaLite[] = []) => { const r = validarReserva(e, c, rs, o); return r.ok === false ? r.codigo : "ok"; };
   assert.equal(cod(entrada({ mesa: true, mesaCadeiras: 8 })), "ok");
   assert.equal(cod(entrada({ mesa: true, mesaCadeiras: 0 })), "mesa_sem_lugares");
   assert.equal(cod(entrada({ mesa: true, mesaCadeiras: 11 })), "mesa_lugares_demais");

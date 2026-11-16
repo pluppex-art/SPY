@@ -50,6 +50,7 @@ import { agentesDoTenant } from "./server/agentesDoCliente.js";
 import { sessoesModelo } from "./server/agenteSecretoModelo.js";
 import { validarMidiaSaida, rotuloHistorico } from "./server/chatMediaSaida.js";
 import { gravarRetratosRadar } from "./server/radarSnapshots.js";
+import { registerAgendamentoRoutes } from "./server/agendamento.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { registerMaxdataWriteRoutes } from "./server/maxdataWrite.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
@@ -501,6 +502,7 @@ const googleCalendarLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardH
 // Mais restritivo que os demais — endpoint sem autenticação nenhuma (formulário
 // público do site de marketing), maior risco de abuso/spam automatizado.
 const publicLeadLimiter = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: true, legacyHeaders: false });
+const publicLeadLimiterAgendamento = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
 // Endpoints públicos sem auth: enumeração de tenant e aceite de proposta.
 const publicProposalLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
 const tenantThemeLimiter = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false });
@@ -528,6 +530,11 @@ registerFinancialReportRoutes(app, { supabaseService, hasSupabaseService: Boolea
 // Gatilhos de mensagem em linguagem natural (interpretação + execução rodam no n8n/Júlia) — ver server/messageTriggers.ts.
 registerMessageTriggerRoutes(app, { requireUser });
 // Chatbot por regras (sem IA): conexão de WhatsApp dedicada por bot — ver server/chatbot.ts.
+// Módulo Agendamento (reservas por hora, página pública e pagamento online). Ver server/agendamento.ts.
+registerAgendamentoRoutes(app, {
+  requireUser, resolveTenant: resolveRequestedTenantId, supabaseService, limiterPublico: publicLeadLimiterAgendamento,
+  segredo: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.CRON_SECRET || "", appUrl: (process.env.PUBLIC_APP_URL || "http://localhost:3002").replace(/\/+$/, ""), cronSecret: process.env.CRON_SECRET,
+});
 registerChatbotRoutes(app, { requireUser, limiter: whatsappLimiter, supabaseService });
 registerChatbotImplementationStart(app, { requireUser, limiter: whatsappLimiter, supabaseService, wahaConfigured: isWahaConfigured, getProvider: getWhatsAppProvider });
 registerChatbotSaveRoutes(app, {
