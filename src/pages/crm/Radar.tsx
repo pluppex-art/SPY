@@ -157,6 +157,33 @@ export default function Radar() {
       .then(({ error }) => { if (error) console.error("[Radar] snapshot upsert:", error.message); });
   }, [activeTenantId, sellerRestricted, counts.critico, counts.alto, counts.atencao, totalEmRisco, valorEmRisco]);
 
+  // O lado bom: o que está esquentando e o que já fechou (regra em lib/radarBoas.ts).
+  const boas = useMemo(() => calcularBoas(leads as any[], parseCurrencyBR), [leads]);
+  const totalBoas = boas.todos.length;
+
+  // Retrato diário do lado BOM (oportunidades). Gravado separado do lado ruim: se a migração das colunas novas
+  // ainda não foi aplicada, falha em silêncio e o lado ruim continua como sempre.
+  useEffect(() => {
+    if (!supabase || !activeTenantId || sellerRestricted) return;
+    const hoje = new Date().toISOString().slice(0, 10);
+    supabase
+      .from("lead_risk_snapshots")
+      .upsert(
+        {
+          tenant_id: activeTenantId,
+          snapshot_date: hoje,
+          chamas_count: boas.chamas.length,
+          quente_count: boas.quentes.length,
+          esquentando_count: boas.esquentando.length,
+          total_boas_count: boas.todos.length,
+          valor_oportunidades: boas.valorOportunidades,
+          fechados_count: boas.fechados.length,
+        },
+        { onConflict: "tenant_id,snapshot_date" },
+      )
+      .then(({ error }) => { if (error) console.warn("[Radar] retrato das oportunidades:", error.message); });
+  }, [activeTenantId, sellerRestricted, boas.chamas.length, boas.quentes.length, boas.esquentando.length, boas.todos.length, boas.valorOportunidades, boas.fechados.length]);
+
   useEffect(() => {
     // O histórico é da empresa toda; o vendedor restrito só vê os números dos próprios leads, ao vivo.
     if (!supabase || !activeTenantId || sellerRestricted) { setHistorico([]); return; }
@@ -164,7 +191,7 @@ export default function Radar() {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - janela);
     supabase
       .from("lead_risk_snapshots")
-      .select("snapshot_date,critico_count,alto_count,atencao_count,total_count,valor_em_risco")
+      .select("*")
       .eq("tenant_id", activeTenantId)
       .gte("snapshot_date", cutoff.toISOString().slice(0, 10))
       .order("snapshot_date", { ascending: true })
@@ -244,9 +271,6 @@ export default function Radar() {
     );
   };
 
-  const boas = useMemo(() => calcularBoas(leads as any[], parseCurrencyBR), [leads]);
-  const totalBoas = boas.quentes.length + boas.esquentando.length;
-
   const donutData = (["critico", "alto", "atencao"] as Risk[]).map((k) => ({ name: RISK_META[k].label, value: counts[k], color: RISK_META[k].color }));
 
   return (
@@ -281,6 +305,11 @@ export default function Radar() {
           funilNomeByTipo={funilNomeByTipo}
           formatCurrency={formatCurrency}
           onAbrir={(id) => navigate(`/app/crm/pipeline?lead=${id}`)}
+          historico={historico}
+          janela={janela}
+          janelas={JANELAS}
+          setJanela={setJanela}
+          addTask={addTask}
         />
       ) : (
       <>
