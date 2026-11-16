@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useLayoutEffect } from "react";
+import React, { useRef, useEffect, useLayoutEffect, useState } from "react";
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { 
   ArrowLeft, Phone, MoreVertical, Sparkles, MessageCircle, 
@@ -6,6 +6,9 @@ import {
   Calendar, Info, Mail, CheckCircle2, ChevronRight, Search
 } from "lucide-react";
 import { Contact, Message, RightPanelState } from "./useMessaging";
+import { toast } from "sonner";
+import { Trash2, X, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
+import { prepararArquivo, formatarTamanho, formatarDuracao, formatoDeGravacao, gravacaoDisponivel, LIMITE_BYTES, type MidiaParaEnviar } from "../../../lib/chatMedia";
 
 import { ConversasSection } from "../../../components/ui/lead-details/ConversasSection";
 const SmileIcon = ({className}: {className?: string}) => (
@@ -36,6 +39,7 @@ interface ActiveChatAreaProps {
   inputText: string;
   setInputText: (text: string) => void;
   handleSendMessage: () => void;
+  handleSendMedia: (m: MidiaParaEnviar, caption: string) => Promise<boolean>;
 }
 
 export function ActiveChatArea({
@@ -59,11 +63,114 @@ export function ActiveChatArea({
   parseActivityDateToTimestamp,
   inputText,
   setInputText,
-  handleSendMessage
+  handleSendMessage,
+  handleSendMedia
 }: ActiveChatAreaProps) {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   // Só acompanha o fim da conversa enquanto a pessoa está lá embaixo: se ela subiu para ler, não puxa de volta.
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // ── Anexos e áudio ────────────────────────────────────────────────────────
+  const [anexo, setAnexo] = useState<MidiaParaEnviar | null>(null);
+  const [menuAnexo, setMenuAnexo] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [gravando, setGravando] = useState(false);
+  const [segundos, setSegundos] = useState(0);
+  const arquivoImagem = useRef<HTMLInputElement>(null);
+  const arquivoDoc = useRef<HTMLInputElement>(null);
+  const gravador = useRef<MediaRecorder | null>(null);
+  const trechos = useRef<Blob[]>([]);
+  const fluxo = useRef<MediaStream | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const limparAnexo = () => {
+    setAnexo((a) => { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); return null; });
+  };
+  const pararFluxo = () => { fluxo.current?.getTracks().forEach((t) => t.stop()); fluxo.current = null; };
+
+  // Trocou de conversa ou saiu da tela: descarta anexo e gravação em andamento.
+  useEffect(() => {
+    limparAnexo();
+    setMenuAnexo(false);
+    if (gravador.current && gravador.current.state !== "inactive") { gravador.current.onstop = null; gravador.current.stop(); }
+    pararFluxo();
+    setGravando(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChat]);
+  useEffect(() => () => { pararFluxo(); }, []);
+
+  // Fecha o menu de anexo ao clicar fora.
+  useEffect(() => {
+    if (!menuAnexo) return;
+    const fora = (e: Event) => { if (!menuRef.current?.contains(e.target as Node)) setMenuAnexo(false); };
+    document.addEventListener("pointerdown", fora);
+    return () => document.removeEventListener("pointerdown", fora);
+  }, [menuAnexo]);
+
+  // Relógio da gravação (para sozinho em 3 minutos).
+  useEffect(() => {
+    if (!gravando) return;
+    const t = setInterval(() => setSegundos((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [gravando]);
+  useEffect(() => { if (gravando && segundos >= 180) void terminarGravacao(true); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [segundos, gravando]);
+
+  const escolherArquivo = async (file: File | undefined, forcar?: "image") => {
+    setMenuAnexo(false);
+    if (!file) return;
+    const r = await prepararArquivo(file, forcar);
+    if (r.ok === false) { toast.error(r.erro); return; }
+    limparAnexo();
+    setAnexo(r.midia);
+    inputRef.current?.focus();
+  };
+
+  const iniciarGravacao = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const formato = formatoDeGravacao();
+      const rec = new MediaRecorder(stream, formato ? { mimeType: formato, audioBitsPerSecond: 32000 } : undefined);
+      trechos.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size) trechos.current.push(e.data); };
+      rec.start(250);
+      gravador.current = rec;
+      fluxo.current = stream;
+      setSegundos(0);
+      setGravando(true);
+    } catch {
+      toast.error("Não foi possível usar o microfone. Permita o acesso ao microfone no navegador.");
+    }
+  };
+
+  const terminarGravacao = async (enviar: boolean) => {
+    const rec = gravador.current;
+    if (!rec) { setGravando(false); return; }
+    const blob = await new Promise<Blob | null>((ok) => {
+      rec.onstop = () => ok(trechos.current.length ? new Blob(trechos.current, { type: rec.mimeType || "audio/webm" }) : null);
+      if (rec.state !== "inactive") rec.stop(); else ok(null);
+    });
+    pararFluxo();
+    gravador.current = null;
+    setGravando(false);
+    if (!enviar || !blob) return;
+    if (blob.size > LIMITE_BYTES) { toast.error(`O áudio ficou com ${formatarTamanho(blob.size)}. O máximo é ${formatarTamanho(LIMITE_BYTES)}.`); return; }
+    const ext = /ogg/.test(blob.type) ? "ogg" : /mp4/.test(blob.type) ? "m4a" : "webm";
+    setEnviando(true);
+    await handleSendMedia({ kind: "audio", blob, mimetype: blob.type, filename: `audio.${ext}` }, "");
+    setEnviando(false);
+  };
+
+  const enviarAnexo = async () => {
+    if (!anexo || enviando) return;
+    setEnviando(true);
+    const ok = await handleSendMedia(anexo, inputText);
+    setEnviando(false);
+    if (ok) { limparAnexo(); setInputText(""); }
+  };
+
+  const podeEnviar = !!anexo || !!inputText.trim();
+  const enviar = () => (anexo ? void enviarAnexo() : handleSendMessage());
+
   const noFim = useRef(true);
   const ultimoId = useRef<string | null>(null);
   const aoRolar = () => {
@@ -397,59 +504,109 @@ export function ActiveChatArea({
         )}
       </div>
 
-      {/* Chat Input */}
+      {/* Caixa de mensagem: texto, anexo (foto/documento) e áudio */}
       <div className="p-3 sm:p-4 shrink-0 relative bg-[var(--color-surface-elevated)] border-t border-[var(--color-border-subtle)] z-10 w-full box-border">
-        <div className="flex items-end gap-2 sm:gap-3 mx-auto w-full max-w-4xl">
-          <div className="flex-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl flex items-end min-h-[50px] shadow-inner transition-colors focus-within:border-blue-500/50 min-w-0">
-            {/* Emoji escondido: sem seletor de emojis implementado. */}
-            {false && <button className="p-3 sm:p-3.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shrink-0 cursor-pointer transition-colors">
-               <SmileIcon className="w-5 h-5" />
-            </button>}
-            
-            <textarea 
-              ref={inputRef}
-              value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              placeholder="Mensagem..."
-              className="flex-1 min-w-0 w-full max-h-[120px] bg-transparent text-[var(--color-text-primary)] border-0 focus:ring-0 resize-none py-[14px] px-3 text-[15px] outline-none placeholder:text-[var(--color-text-faint)] overflow-y-auto block"
-              rows={1}
-            />
-            
-            {AI_OUTSIDE_AURORA_ENABLED && (<button 
-              onClick={() => setRightPanel(p => p === "ai" ? "none" : "ai")}
-              className="p-3.5 text-blue-400 hover:text-blue-300 shrink-0 cursor-pointer transition-colors hidden sm:block"
-              title="Sugestão com IA"
-            >
-               <Sparkles className="w-5 h-5" />
-            </button>)}
+        <input ref={arquivoImagem} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(e) => { void escolherArquivo(e.target.files?.[0], "image"); e.target.value = ""; }} />
+        <input ref={arquivoDoc} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" className="hidden" onChange={(e) => { void escolherArquivo(e.target.files?.[0]); e.target.value = ""; }} />
 
-            {/* Anexo e câmera escondidos: sem upload de mídia implementado no envio. */}
-            {false && <button className="p-3 sm:p-3.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shrink-0 cursor-pointer transition-colors">
-               <Paperclip className="w-5 h-5 -rotate-45" />
-            </button>}
-            {false && !inputText && (
-              <button className="p-3 sm:p-3.5 pl-1 pr-3 sm:pr-4 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shrink-0 cursor-pointer transition-colors">
-                 <Camera className="w-5 h-5" />
+        {anexo && (
+          <div className="mx-auto w-full max-w-4xl mb-2 flex items-center gap-3 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] p-2.5">
+            {anexo.previewUrl ? (
+              <img src={anexo.previewUrl} alt="Prévia da imagem" className="w-14 h-14 rounded-xl object-cover shrink-0" />
+            ) : (
+              <span className="w-14 h-14 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] grid place-items-center shrink-0"><FileText className="w-6 h-6 text-[var(--color-primary-blue)]" /></span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{anexo.filename}</p>
+              <p className="text-[11px] text-[var(--color-text-muted)]">{formatarTamanho(anexo.blob.size)} · escreva uma legenda abaixo, se quiser</p>
+            </div>
+            <button type="button" onClick={limparAnexo} aria-label="Remover anexo" title="Remover anexo" className="p-2 rounded-full text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-[var(--color-surface-elevated)] cursor-pointer border-none bg-transparent">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {gravando ? (
+          <div className="flex items-center gap-3 mx-auto w-full max-w-4xl">
+            <div className="flex-1 flex items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 px-4 min-h-[50px]">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+              <span className="text-sm font-bold text-rose-600 tabular-nums">{formatarDuracao(segundos)}</span>
+              <span className="text-xs text-[var(--color-text-muted)] truncate">Gravando áudio…</span>
+            </div>
+            <button type="button" onClick={() => void terminarGravacao(false)} aria-label="Cancelar gravação" title="Cancelar" className="w-[46px] h-[46px] sm:w-[50px] sm:h-[50px] rounded-2xl border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-rose-500 grid place-items-center shrink-0 cursor-pointer bg-transparent">
+              <Trash2 className="w-5 h-5" />
+            </button>
+            <button type="button" onClick={() => void terminarGravacao(true)} aria-label="Enviar áudio" title="Enviar áudio" className="w-[46px] h-[46px] sm:w-[50px] sm:h-[50px] rounded-2xl bg-blue-600 hover:bg-blue-500 grid place-items-center shrink-0 cursor-pointer border-none shadow-md active:scale-95 transition-all">
+              <Send className="w-5 h-5 translate-x-[2px] translate-y-[-1px] text-white" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-end gap-2 sm:gap-3 mx-auto w-full max-w-4xl">
+            <div className="flex-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl flex items-end min-h-[50px] transition-colors focus-within:border-blue-500/50 min-w-0 relative">
+              <div ref={menuRef} className="relative shrink-0">
+                <button type="button" onClick={() => setMenuAnexo((v) => !v)} aria-label="Anexar arquivo" aria-expanded={menuAnexo} title="Anexar foto ou documento" className="p-3 sm:p-3.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer transition-colors border-none bg-transparent">
+                  <Paperclip className="w-5 h-5 -rotate-45" />
+                </button>
+                {menuAnexo && (
+                  <div className="absolute bottom-full left-0 mb-2 w-52 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] shadow-xl p-1 z-30">
+                    <button type="button" onClick={() => arquivoImagem.current?.click()} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] cursor-pointer border-none bg-transparent text-left">
+                      <ImageIcon className="w-4 h-4 text-pink-500" /> Foto ou imagem
+                    </button>
+                    <button type="button" onClick={() => arquivoDoc.current?.click()} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] cursor-pointer border-none bg-transparent text-left">
+                      <FileText className="w-4 h-4 text-blue-500" /> Documento
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <textarea
+                ref={inputRef}
+                value={inputText}
+                onChange={e => setInputText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (podeEnviar) enviar();
+                  }
+                }}
+                placeholder={anexo ? "Legenda (opcional)…" : "Mensagem..."}
+                className="flex-1 min-w-0 w-full max-h-[120px] bg-transparent text-[var(--color-text-primary)] border-0 focus:ring-0 resize-none py-[14px] px-1 text-[15px] outline-none placeholder:text-[var(--color-text-faint)] overflow-y-auto block"
+                rows={1}
+              />
+
+              {AI_OUTSIDE_AURORA_ENABLED && (<button
+                onClick={() => setRightPanel(p => p === "ai" ? "none" : "ai")}
+                className="p-3.5 text-blue-400 hover:text-blue-300 shrink-0 cursor-pointer transition-colors hidden sm:block border-none bg-transparent"
+                title="Sugestão com IA"
+              >
+                <Sparkles className="w-5 h-5" />
+              </button>)}
+            </div>
+
+            {podeEnviar || !gravacaoDisponivel() ? (
+              <button
+                onClick={enviar}
+                disabled={!podeEnviar || enviando}
+                aria-label="Enviar mensagem"
+                title="Enviar (Enter)"
+                className="w-[46px] h-[46px] sm:w-[50px] sm:h-[50px] rounded-2xl bg-blue-600 flex items-center justify-center shrink-0 hover:bg-blue-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 transition-all shadow-md shadow-blue-900/30 cursor-pointer border-none"
+              >
+                {enviando ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Send className="w-5 h-5 translate-x-[2px] translate-y-[-1px] text-white" />}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void iniciarGravacao()}
+                disabled={enviando}
+                aria-label="Gravar áudio"
+                title="Gravar áudio"
+                className="w-[46px] h-[46px] sm:w-[50px] sm:h-[50px] rounded-2xl bg-blue-600 flex items-center justify-center shrink-0 hover:bg-blue-500 active:scale-95 disabled:opacity-40 transition-all shadow-md shadow-blue-900/30 cursor-pointer border-none"
+              >
+                {enviando ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Mic className="w-5 h-5 text-white" />}
               </button>
             )}
           </div>
-          
-          <button 
-            onClick={handleSendMessage}
-            disabled={!inputText.trim()}
-            aria-label="Enviar mensagem"
-            title="Enviar (Enter)"
-            className="w-[46px] h-[46px] sm:w-[50px] sm:h-[50px] rounded-2xl bg-blue-600 flex items-center justify-center shrink-0 hover:bg-blue-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 transition-all shadow-md shadow-blue-900/30 cursor-pointer"
-          >
-            <Send className="w-5 h-5 sm:w-5 sm:h-5 translate-x-[2px] translate-y-[-1px] text-white" />
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

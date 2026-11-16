@@ -88,6 +88,7 @@ export default function Messaging() {
     handleManualRetry,
     handleAiAsk,
     handleSendMessage,
+    handleSendMedia,
     handleCreateActivity,
     handleChatSelect
   } = useMessaging();
@@ -239,6 +240,7 @@ export default function Messaging() {
               inputText={inputText}
               setInputText={setInputText}
               handleSendMessage={handleSendMessage}
+              handleSendMedia={handleSendMedia}
             />
 
             {currentContact && rightPanel !== "none" && (

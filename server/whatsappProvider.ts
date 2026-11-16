@@ -75,6 +75,8 @@ export interface WhatsAppProvider {
   /** Estado de todas as sessões numa chamada só (nome → status). Usado para mostrar quem está conectado na lista da equipe. */
   listSessionStates?(): Promise<Record<string, ProviderConnectResult["status"]>>;
   sendTextMessage(providerInstanceId: string, phone: string, text: string): Promise<{ id: string }>;
+  /** Envia imagem, áudio (nota de voz), vídeo ou documento (arquivo em base64, já validado por server/chatMediaSaida.ts). */
+  sendMediaMessage(providerInstanceId: string, phone: string, media: { kind: "image" | "audio" | "video" | "document"; mimetype: string; filename: string; data: string; caption?: string }): Promise<{ id: string }>;
   /** Backfill: conversas já existentes na sessão antes de conectar ao SPY (o
    * webhook só vê mensagens que chegam DEPOIS de conectado). Provider que não
    * suporta (ex.: Simulador) devolve lista vazia — nunca lança. */
@@ -139,6 +141,10 @@ export class SimulatorProvider implements WhatsAppProvider {
 
   async sendTextMessage(_providerInstanceId: string, _phone: string, _text: string): Promise<{ id: string }> {
     return { id: "sim_msg_" + Math.random().toString(36).substring(2, 9) };
+  }
+
+  async sendMediaMessage(): Promise<{ id: string }> {
+    return { id: "sim_media_" + Math.random().toString(36).substring(2, 9) };
   }
 
   async listChats(): Promise<ProviderChat[]> {
@@ -257,6 +263,24 @@ export class WAHAProvider implements WhatsAppProvider {
       { headers: this.headers(), timeout: 20000 }
     );
     return { id: data?.id?._serialized || data?.id || "waha_msg_" + Date.now() };
+  }
+
+  /**
+   * Mídia pelo WAHA (endpoints sendImage / sendVoice / sendVideo / sendFile; arquivo em base64 no campo `file`).
+   * Não testado contra servidor WAHA real — a nota de voz depende da versão do WAHA converter o áudio (`convert: true`).
+   */
+  async sendMediaMessage(providerInstanceId: string, phone: string, media: { kind: "image" | "audio" | "video" | "document"; mimetype: string; filename: string; data: string; caption?: string }): Promise<{ id: string }> {
+    const number = phone.replace(/\D/g, "");
+    const endpoint = { image: "sendImage", audio: "sendVoice", video: "sendVideo", document: "sendFile" }[media.kind];
+    const body: Record<string, any> = {
+      session: providerInstanceId,
+      chatId: `${number}@c.us`,
+      file: { mimetype: media.mimetype, filename: media.filename, data: media.data },
+    };
+    if (media.kind === "audio") body.convert = true;
+    else if (media.caption) body.caption = media.caption;
+    const { data } = await axios.post(`${WAHA_API_URL}/api/${endpoint}`, body, { headers: this.headers(), timeout: 60000, maxBodyLength: 6 * 1024 * 1024 });
+    return { id: data?.id?._serialized || data?.id || "waha_media_" + Date.now() };
   }
 
   // Backfill — não testado contra servidor real (mesmo aviso do topo do

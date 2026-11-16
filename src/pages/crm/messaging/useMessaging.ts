@@ -4,6 +4,7 @@ import { useData } from "../../../contexts/DataContext";
 import { useAuth } from "../../../contexts/AuthContext";
 import { toast } from "sonner";
 import { apiFetch } from "../../../lib/apiClient";
+import { blobParaBase64, type MidiaParaEnviar } from "../../../lib/chatMedia";
 
 export type Channel = "WhatsApp" | "Instagram" | "Email";
 
@@ -66,8 +67,12 @@ const playIncomingMessageSound = (soundEnabled: boolean) => {
 
 /** Mensagens da conversa: o que o servidor devolveu + as que acabei de enviar e ainda não chegaram (otimistas). */
 function mesclarMensagens(atuais: Message[] | undefined, servidor: Message[]): Message[] {
+  const agora = Date.now();
   const pendentes = (atuais || []).filter(
-    (m) => m.id.startsWith("opt-") && !servidor.some((x) => x.sender === "me" && x.text === m.text),
+    (m) =>
+      m.id.startsWith("opt-") &&
+      agora - Number(m.id.slice(4)) < 20000 &&
+      !servidor.some((x) => x.sender === "me" && x.text === m.text),
   );
   const proxima = pendentes.length ? [...servidor, ...pendentes] : servidor;
   // Nada mudou (mesmo tamanho, mesmo último id e texto): devolve o mesmo array e a tela não é redesenhada.
@@ -428,6 +433,52 @@ export function useMessaging() {
     });
   };
 
+  /** Envia imagem, áudio, vídeo ou documento para a conversa aberta. Devolve true quando o servidor aceitou. */
+  const handleSendMedia = async (m: MidiaParaEnviar, caption: string): Promise<boolean> => {
+    if (!activeChat) return false;
+    const chatId = activeChat;
+    const legenda = caption.trim();
+    const rotulo = { image: "📷 Imagem", audio: "🎤 Áudio", video: "🎬 Vídeo", document: `📎 ${m.filename}` }[m.kind];
+    const optMessage: Message = {
+      id: "opt-" + Date.now().toString(),
+      text: legenda ? `${rotulo}\n${legenda}` : rotulo,
+      sender: "me",
+      status: "sent",
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+    setMessages(prev => ({ ...prev, [chatId]: [...(prev[chatId] || []), optMessage] }));
+    const desfazer = () => setMessages(prev => ({ ...prev, [chatId]: (prev[chatId] || []).filter(x => x.id !== optMessage.id) }));
+    try {
+      const data = await blobParaBase64(m.blob);
+      const res = await apiFetch(`/api/whatsapp/messages/send-media${q}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactId: chatId, kind: m.kind, mimetype: m.mimetype, filename: m.filename, data, caption: legenda }),
+      });
+      if (!res.ok) {
+        let msg = "Não foi possível enviar o arquivo";
+        try { const body = await res.json(); if (typeof body?.error === "string" && body.error.trim()) msg = body.error; } catch { /* corpo não-JSON */ }
+        throw new Error(msg);
+      }
+      apiFetch(`/api/whatsapp/messages/${chatId}${q}`)
+        .then(r => r.json())
+        .then(lista => {
+          if (!Array.isArray(lista)) return;
+          setMessages(prev => {
+            const proxima = mesclarMensagens(prev[chatId], lista);
+            return proxima === prev[chatId] ? prev : { ...prev, [chatId]: proxima };
+          });
+        })
+        .catch(() => {});
+      fetchContacts();
+      return true;
+    } catch (err) {
+      desfazer();
+      toast.error(err instanceof Error && err.message ? err.message : "Não foi possível enviar o arquivo");
+      return false;
+    }
+  };
+
   const handleCreateActivity = (matchingLeadId: string) => {
     if (!newActivityTitle.trim() || !newActivityDesc.trim()) {
       toast.error("Preencha o título e a descrição do evento.");
@@ -484,6 +535,7 @@ export function useMessaging() {
     handleManualRetry,
     handleAiAsk,
     handleSendMessage,
+    handleSendMedia,
     handleCreateActivity,
     handleChatSelect
   };
