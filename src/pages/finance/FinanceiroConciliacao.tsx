@@ -17,7 +17,6 @@ import { supabase } from "../../lib/supabase";
 import { friendlyError } from "../../lib/friendlyError";
 
 import { HelpTip } from "../../components/ui/help-tip";
-import { HelpTip } from "../../components/ui/help-tip";
 type ExtratoItem = {
   id: string;
   data: string;
