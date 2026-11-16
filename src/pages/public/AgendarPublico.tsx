@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { CalendarCheck, CheckCircle2, Clock, Loader2, MapPin, MessageCircle, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, MapPin, MessageCircle, Minus, Plus, XCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { agruparBlocos, maxPessoas, totalPadrao, type ConfigAgenda, type HorarioDia } from "../../lib/agendamento/engine";
+import { agruparBlocos, diaDaSemana, faixaDoDia, maxPessoas, somarDias, totalPadrao, type ConfigAgenda, type HorarioDia } from "../../lib/agendamento/engine";
 import { DIAS_SEMANA, dataBR, reaisBR } from "../../lib/agendamento/cliente";
 
 interface Pub {
@@ -12,8 +12,6 @@ interface Pub {
 }
 interface SlotPub { hora: string; rotulo: string; disponivel: boolean; livres: number }
 
-const campo = "w-full h-12 px-4 rounded-xl text-base border border-slate-300 bg-white text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20";
-const rot = "block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5";
 
 async function api(caminho: string, init?: RequestInit) {
   const r = await fetch(caminho, init);
@@ -38,6 +36,11 @@ export default function AgendarPublico() {
   const [pedido, setPedido] = useState<{ situacao: string; total: number } | null>(null);
 
   useEffect(() => { api(`/api/agendar/${encodeURIComponent(slug)}/config`).then((c: Pub) => { setCfg(c); setData(c.hoje); setTipo(c.tiposEvento[0] ?? ""); }).catch((e) => setFalha(e.message)); }, [slug]);
+  useEffect(() => {
+    if (document.getElementById("agendar-fontes")) return;
+    const l = document.createElement("link"); l.id = "agendar-fontes"; l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Barlow:wght@400;500;600;700&display=swap"; document.head.appendChild(l);
+  }, []);
   useEffect(() => { if (cfg) document.title = `Reservar — ${cfg.nome ?? "Agendamento"}`; }, [cfg]);
 
   // Volta do Mercado Pago: confere a situação do pedido até confirmar (o aviso do Mercado Pago pode demorar alguns segundos).
@@ -84,80 +87,129 @@ export default function AgendarPublico() {
     setEnviando(false);
   };
 
+  const dias = Array.from({ length: 14 }, (_, i) => somarDias(cfg.hoje, i));
+  const diaFechado = (d: string) => !faixaDoDia(d, eng);
+  const foraDaTira = !!data && !dias.includes(data);
+
   const cabecalho = (
-    <div className="text-center mb-6">
+    <header className="text-center pt-2 pb-7">
       {cfg.logoUrl && <img src={cfg.logoUrl} alt="" className="h-16 mx-auto mb-3 object-contain" />}
-      <h1 className="text-2xl font-black text-slate-900">{cfg.nome ?? "Reserve seu horário"}</h1>
-      {cfg.endereco && <p className="text-sm text-slate-500 mt-1 flex items-center justify-center gap-1"><MapPin className="w-4 h-4" />{cfg.endereco}</p>}
-    </div>
+      <p className="text-[11px] font-bold tracking-[0.22em] uppercase text-[#D6303B]">Reserva online</p>
+      <h1 style={{ fontFamily: DISPLAY }} className="text-[44px] leading-[0.95] font-extrabold uppercase text-[#14162B] mt-1">{cfg.nome ?? "Reserve seu horário"}</h1>
+      {cfg.endereco && <p className="text-sm text-[#5B5E73] mt-3 inline-flex items-start gap-1.5 max-w-sm"><MapPin className="w-4 h-4 mt-0.5 shrink-0" />{cfg.endereco}</p>}
+    </header>
   );
 
   if (grupoRetorno && tokenRetorno) {
-    return (<Tela>{cabecalho}<div className="rounded-2xl bg-white border border-slate-200 p-6 text-center">
-      {!pedido || pedido.situacao === "aguardando" ? <><Loader2 className="w-10 h-10 mx-auto animate-spin text-blue-600 mb-3" /><p className="font-bold text-slate-800">Confirmando seu pagamento…</p><p className="text-sm text-slate-500 mt-1">Isso leva alguns segundos. Não feche esta página.</p></>
-        : pedido.situacao === "pago" ? <><CheckCircle2 className="w-12 h-12 mx-auto text-emerald-600 mb-3" /><p className="text-lg font-black text-slate-900">Reserva confirmada!</p><p className="text-sm text-slate-600 mt-1">Pagamento de {reaisBR(pedido.total)} recebido. Esperamos você!</p></>
-        : pedido.situacao === "estornado" ? <><XCircle className="w-12 h-12 mx-auto text-amber-600 mb-3" /><p className="text-lg font-black text-slate-900">O horário foi ocupado antes do pagamento</p><p className="text-sm text-slate-600 mt-1">Devolvemos o valor automaticamente. Escolha outro horário.</p></>
-        : <><XCircle className="w-12 h-12 mx-auto text-rose-600 mb-3" /><p className="text-lg font-black text-slate-900">Pedido não concluído</p><p className="text-sm text-slate-600 mt-1">O prazo para pagar acabou e o horário foi liberado. Você pode reservar de novo.</p></>}
-      <a href={`/agendar/${slug}`} className="inline-block mt-5 text-sm font-bold text-blue-600 hover:underline">Fazer nova reserva</a></div></Tela>);
+    const aguardando = !pedido || pedido.situacao === "aguardando"; const pago = pedido?.situacao === "pago"; const estornado = pedido?.situacao === "estornado";
+    return (<Tela>{cabecalho}<Cartao className="text-center py-9">
+      {aguardando ? <><Loader2 className="w-10 h-10 mx-auto animate-spin text-[#D6303B] mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-2xl font-extrabold uppercase">Confirmando seu pagamento</p><p className="text-sm text-[#5B5E73] mt-1">Leva alguns segundos. Não feche esta página.</p></>
+        : pago ? <><CheckCircle2 className="w-12 h-12 mx-auto text-emerald-600 mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-3xl font-extrabold uppercase">Reserva confirmada</p><p className="text-sm text-[#5B5E73] mt-1">Recebemos {reaisBR(pedido!.total)}. Esperamos você!</p></>
+        : estornado ? <><XCircle className="w-12 h-12 mx-auto text-amber-600 mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-3xl font-extrabold uppercase">Horário ocupado</p><p className="text-sm text-[#5B5E73] mt-1 px-4">Outra pessoa pegou o horário antes do pagamento. Devolvemos o valor automaticamente. Escolha outro horário.</p></>
+        : <><XCircle className="w-12 h-12 mx-auto text-[#D6303B] mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-3xl font-extrabold uppercase">Pedido não concluído</p><p className="text-sm text-[#5B5E73] mt-1 px-4">O prazo para pagar acabou e o horário foi liberado. Você pode reservar de novo.</p></>}
+      <a href={`/agendar/${slug}`} className="inline-block mt-6 text-sm font-bold text-[#D6303B] underline underline-offset-4">Fazer nova reserva</a></Cartao></Tela>);
   }
 
-  if (!cfg.ativo) return <Tela>{cabecalho}<div className="rounded-2xl bg-white border border-slate-200 p-6 text-center"><p className="font-bold text-slate-800">As reservas online estão pausadas.</p>{zapLocal && <a className="inline-flex items-center gap-2 mt-3 text-emerald-700 font-bold" href={`https://wa.me/${zapLocal.startsWith("55") ? zapLocal : "55" + zapLocal}`}><MessageCircle className="w-5 h-5" />Falar pelo WhatsApp</a>}</div></Tela>;
+  const linkZap = (texto: string) => `https://wa.me/${zapLocal.startsWith("55") ? zapLocal : "55" + zapLocal}?text=${encodeURIComponent(texto)}`;
+  if (!cfg.ativo) return <Tela>{cabecalho}<Cartao className="text-center py-9"><p style={{ fontFamily: DISPLAY }} className="text-2xl font-extrabold uppercase">Reservas online pausadas</p><p className="text-sm text-[#5B5E73] mt-1">Fale com a gente para reservar.</p>{zapLocal && <a className="inline-flex items-center gap-2 mt-4 px-5 h-12 rounded-xl bg-emerald-600 text-white font-bold" href={linkZap("Olá! Quero fazer uma reserva.")}><MessageCircle className="w-5 h-5" />Chamar no WhatsApp</a>}</Cartao></Tela>;
 
-  if (feito) return (<Tela>{cabecalho}<div className="rounded-2xl bg-white border border-slate-200 p-6 text-center"><CheckCircle2 className="w-12 h-12 mx-auto text-emerald-600 mb-3" /><p className="text-lg font-black text-slate-900">Reserva recebida!</p>
-    <p className="text-sm text-slate-600 mt-2">{dataBR(data)} · {horas.join(", ")} · {recursos} {rotuloUn(recursos)}</p><p className="text-sm text-slate-600">Total {reaisBR(feito.total)} — o pagamento é feito no local.</p>
-    <p className="text-xs text-slate-500 mt-3">Guardamos seu horário por {cfg.expiracaoMin} minutos. Para confirmar, fale com a gente{zapLocal ? "" : " ou chegue com antecedência"}.</p>
-    {zapLocal && <a className="inline-flex items-center gap-2 mt-4 px-4 h-11 rounded-xl bg-emerald-600 text-white font-bold" href={`https://wa.me/${zapLocal.startsWith("55") ? zapLocal : "55" + zapLocal}?text=${encodeURIComponent(`Olá! Fiz uma reserva para ${dataBR(data)} às ${horas[0]} em nome de ${nome}.`)}`}><MessageCircle className="w-5 h-5" />Confirmar pelo WhatsApp</a>}</div></Tela>);
+  if (feito) return (<Tela>{cabecalho}<Cartao className="text-center py-9"><CheckCircle2 className="w-12 h-12 mx-auto text-emerald-600 mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-3xl font-extrabold uppercase">Reserva recebida</p>
+    <p className="text-[15px] font-semibold text-[#14162B] mt-3">{dataBR(data)} · {horas.join(" · ")}</p><p className="text-sm text-[#5B5E73]">{recursos} {rotuloUn(recursos)} · {pessoas} pessoa{pessoas === 1 ? "" : "s"}</p>
+    <p className="text-sm text-[#5B5E73] mt-2">Total {reaisBR(feito.total)}, pago no local.</p>
+    <p className="text-xs text-[#5B5E73] mt-4 px-6">Seguramos seu horário por {cfg.expiracaoMin} minutos. Para garantir, confirme com a gente{zapLocal ? "" : " ou chegue com antecedência"}.</p>
+    {zapLocal && <a className="inline-flex items-center gap-2 mt-5 px-5 h-12 rounded-xl bg-emerald-600 text-white font-bold" href={linkZap(`Olá! Fiz uma reserva para ${dataBR(data)} às ${horas[0]} em nome de ${nome}.`)}><MessageCircle className="w-5 h-5" />Confirmar pelo WhatsApp</a>}</Cartao></Tela>);
 
   return (
     <Tela>
       {cabecalho}
-      <div className="space-y-6">
-        <Bloco n={1} t="Escolha o dia">
-          <input type="date" min={cfg.hoje} value={data} onChange={(e) => e.target.value && setData(e.target.value)} className={campo} />
-          <p className="text-xs text-slate-500 mt-1.5">{data && `${DIAS_SEMANA[new Date(data + "T12:00:00").getDay()]}, ${dataBR(data)}`}</p>
-        </Bloco>
+      <div className="space-y-5 pb-36">
+        <Passo t="Quando">
+          <div className="-mx-1 flex gap-2 overflow-x-auto pb-2 snap-x">
+            {dias.map((d) => { const fech = diaFechado(d); const on = d === data; return (
+              <button key={d} type="button" disabled={fech} onClick={() => setData(d)} aria-pressed={on} className={`snap-start shrink-0 w-[58px] rounded-xl border py-2 text-center transition-colors ${on ? "bg-[#14162B] border-[#14162B] text-white" : fech ? "border-[#E4E2DC] text-[#B5B6C2] bg-transparent" : "border-[#E4E2DC] bg-white text-[#14162B] hover:border-[#14162B]"}`}>
+                <span className="block text-[10px] font-bold uppercase tracking-wider opacity-70">{d === cfg.hoje ? "Hoje" : DIAS_SEMANA[diaDaSemana(d)].slice(0, 3)}</span>
+                <span style={{ fontFamily: DISPLAY }} className="block text-[28px] leading-none font-extrabold">{d.slice(8)}</span>
+                <span className="block text-[10px] opacity-60">{fech ? "fechado" : ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][Number(d.slice(5, 7)) - 1]}</span>
+              </button>); })}
+          </div>
+          <label className="flex items-center gap-2 text-xs text-[#5B5E73] mt-1">Outra data
+            <input type="date" min={cfg.hoje} value={data} onChange={(e) => e.target.value && setData(e.target.value)} className={cn("h-9 px-2 rounded-lg border bg-white text-sm text-[#14162B]", foraDaTira ? "border-[#14162B]" : "border-[#E4E2DC]")} /></label>
+        </Passo>
 
-        <Bloco n={2} t="Escolha os horários">
-          {carregandoSlots ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : slots.length === 0 ? <p className="text-sm text-slate-500">Fechado neste dia. Escolha outra data.</p> : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {slots.map((s) => { const sel = horas.includes(s.hora); const off = !s.disponivel || s.livres < recursos; return (
-                <button key={s.hora} type="button" disabled={off && !sel} onClick={() => setHoras((a) => (a.includes(s.hora) ? a.filter((x) => x !== s.hora) : [...a, s.hora].sort()))}
-                  className={cn("h-14 rounded-xl text-base font-black border transition-colors", sel ? "bg-blue-600 text-white border-transparent" : off ? "bg-slate-100 text-slate-400 line-through border-slate-200" : "bg-white text-slate-900 border-slate-300 hover:border-blue-600")}>
-                  {s.rotulo}<span className="block text-[10px] font-semibold opacity-70">{s.disponivel ? `${s.livres} livre${s.livres === 1 ? "" : "s"}` : "esgotado"}</span></button>); })}
+        <Passo t="Horários" dica="Cada bolinha é uma pista: cheia = ocupada, vazia = livre.">
+          {carregandoSlots ? <Loader2 className="w-5 h-5 animate-spin text-[#8A8CA0]" /> : slots.length === 0 ? <p className="text-sm text-[#5B5E73]">Fechado neste dia. Escolha outra data.</p> : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {slots.map((sl) => { const on = horas.includes(sl.hora); const off = !sl.disponivel || sl.livres < recursos; const ocupadas = cfg.qtdRecursos - sl.livres; return (
+                <button key={sl.hora} type="button" disabled={off && !on} aria-pressed={on} onClick={() => setHoras((a) => (a.includes(sl.hora) ? a.filter((x) => x !== sl.hora) : [...a, sl.hora].sort()))}
+                  className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${on ? "bg-[#D6303B] border-[#D6303B] text-white" : off ? "bg-[#F3F2EE] border-[#E4E2DC] text-[#A9AABA]" : "bg-white border-[#E4E2DC] text-[#14162B] hover:border-[#14162B]"}`}>
+                  <span style={{ fontFamily: DISPLAY }} className={`block text-[26px] leading-none font-extrabold ${off && !on ? "line-through" : ""}`}>{sl.rotulo}</span>
+                  <span className="flex flex-wrap gap-[3px] mt-2" aria-hidden="true">{Array.from({ length: Math.min(cfg.qtdRecursos, 12) }, (_, i) => <i key={i} className={`w-2 h-2 rounded-full border ${i < Math.min(ocupadas, 12) ? (on ? "bg-white/90 border-white/90" : "bg-[#14162B] border-[#14162B]") : (on ? "border-white/70" : "border-[#14162B]/40")}`} />)}</span>
+                  <span className="block text-[11px] font-semibold mt-1.5 opacity-80">{sl.disponivel ? `${sl.livres} ${sl.livres === 1 ? "pista livre" : "pistas livres"}` : "Esgotado"}</span>
+                </button>); })}
             </div>)}
-          {horasHora > 1 && <p className="text-xs text-slate-500 mt-2 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{horasHora} horas selecionadas</p>}
-        </Bloco>
+          {horasHora > 1 && <p className="text-xs text-[#5B5E73] mt-2">{horasHora} horas seguidas ou separadas — você escolhe.</p>}
+        </Passo>
 
-        <Bloco n={3} t="Quantos vão?">
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={rot}>{cfg.recursoPlural}</label><input type="number" min={1} max={cfg.qtdRecursos} value={recursos} onChange={(e) => setRecursos(Math.max(1, Math.min(cfg.qtdRecursos, Number(e.target.value) || 1)))} className={campo} /></div>
-            <div><label className={rot}>Pessoas (até {limite})</label><input type="number" min={1} max={limite} value={pessoas} onChange={(e) => setPessoas(Number(e.target.value) || 1)} className={cn(campo, pessoas > limite && "border-rose-500")} /></div>
+        <Passo t="Quantos vão jogar">
+          <Contador rotulo={cfg.recursoPlural} valor={recursos} min={1} max={cfg.qtdRecursos} onChange={(v) => { setRecursos(v); setPessoas((p) => Math.min(p, maxPessoas(v, cfg.pessoasPorRecurso))); }} />
+          <Contador rotulo="Pessoas" sub={`até ${limite} no total`} valor={pessoas} min={1} max={limite} onChange={setPessoas} />
+          {cfg.tiposEvento.length > 1 && <div className="pt-1"><p className={ROTULO}>Ocasião</p><div className="flex flex-wrap gap-1.5 mt-1.5">{cfg.tiposEvento.map((t) => <button key={t} type="button" onClick={() => setTipo(t)} aria-pressed={tipo === t} className={`px-3.5 h-9 rounded-full text-sm font-semibold border ${tipo === t ? "bg-[#14162B] border-[#14162B] text-white" : "bg-white border-[#E4E2DC] text-[#14162B]"}`}>{t}</button>)}</div></div>}
+          {cfg.mesasAtivo && mesasLivres > 0 && <label className="flex items-center gap-2.5 text-sm text-[#14162B] pt-1"><input type="checkbox" checked={mesa} onChange={(e) => setMesa(e.target.checked)} className="w-5 h-5 accent-[#D6303B]" />Quero também uma mesa no restaurante</label>}
+          {mesa && <Contador rotulo="Lugares na mesa" valor={cadeiras} min={1} max={cfg.cadeirasMax} onChange={setCadeiras} />}
+        </Passo>
+
+        <Passo t="Seus dados" dica="Só precisamos disso para confirmar sua reserva.">
+          <Campo rotulo="Nome"><input value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" maxLength={120} className={INPUT} /></Campo>
+          <Campo rotulo="WhatsApp"><input value={telefone} onChange={(e) => setTelefone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="(00) 00000-0000" className={INPUT} /></Campo>
+          <Campo rotulo="E-mail (opcional)"><input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" className={INPUT} /></Campo>
+          <input tabIndex={-1} autoComplete="off" aria-hidden="true" value={isca} onChange={(e) => setIsca(e.target.value)} name="website" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }} />
+        </Passo>
+      </div>
+
+      <div className="fixed bottom-0 inset-x-0 z-30 bg-[#14162B] text-white border-t-4 border-[#D6303B]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="max-w-xl mx-auto px-4 py-3">
+          {erro && <p className="text-sm text-[#FFB4BA] mb-2" role="alert">{erro}</p>}
+          <div className="flex items-center gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-white/60 truncate">{horasHora ? `${dataBR(data)} · ${horasHora}h · ${recursos} ${rotuloUn(recursos)}` : "Escolha ao menos um horário"}</p>
+              <p style={{ fontFamily: DISPLAY }} className="text-[34px] leading-none font-extrabold tabular-nums">{reaisBR(total)}</p>
+            </div>
+            <button onClick={enviar} disabled={!pronto || enviando} className="ml-auto h-12 px-6 rounded-xl bg-[#D6303B] text-white font-extrabold uppercase tracking-wide text-sm disabled:opacity-40 flex items-center gap-2 shrink-0">
+              {enviando && <Loader2 className="w-4 h-4 animate-spin" />}{cfg.pagamentoOnline ? "Reservar e pagar" : "Reservar"}</button>
           </div>
-          {cfg.tiposEvento.length > 1 && <div className="mt-3"><label className={rot}>Tipo de evento</label><select value={tipo} onChange={(e) => setTipo(e.target.value)} className={campo}>{cfg.tiposEvento.map((t) => <option key={t}>{t}</option>)}</select></div>}
-          {cfg.mesasAtivo && mesasLivres > 0 && <label className="flex items-center gap-2 mt-3 text-sm text-slate-700"><input type="checkbox" checked={mesa} onChange={(e) => setMesa(e.target.checked)} className="w-5 h-5" />Quero também reservar uma mesa no restaurante</label>}
-          {mesa && <div className="mt-2"><label className={rot}>Lugares na mesa (até {cfg.cadeirasMax})</label><input type="number" min={1} max={cfg.cadeirasMax} value={cadeiras} onChange={(e) => setCadeiras(Math.min(cfg.cadeirasMax, Number(e.target.value) || 1))} className={campo} /></div>}
-        </Bloco>
-
-        <Bloco n={4} t="Seus dados">
-          <div className="space-y-3">
-            <div><label className={rot}>Nome</label><input value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" maxLength={120} className={campo} /></div>
-            <div><label className={rot}>WhatsApp</label><input value={telefone} onChange={(e) => setTelefone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="(00) 00000-0000" className={campo} /></div>
-            <div><label className={rot}>E-mail (opcional)</label><input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" className={campo} /></div>
-            <input tabIndex={-1} autoComplete="off" aria-hidden="true" value={isca} onChange={(e) => setIsca(e.target.value)} name="website" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }} />
-          </div>
-        </Bloco>
-
-        <div className="rounded-2xl bg-white border border-slate-200 p-4 sticky bottom-3 shadow-lg">
-          <div className="flex items-center justify-between"><span className="text-sm text-slate-600">{horasHora ? `${horasHora}h · ${recursos} ${rotuloUn(recursos)}` : "Escolha os horários"}</span><span className="text-xl font-black text-slate-900">{reaisBR(total)}</span></div>
-          {erro && <p className="text-sm text-rose-600 mt-2" role="alert">{erro}</p>}
-          <button onClick={enviar} disabled={!pronto || enviando} className="w-full h-12 mt-3 rounded-xl bg-blue-600 text-white font-black text-base disabled:opacity-40 flex items-center justify-center gap-2">
-            {enviando ? <Loader2 className="w-5 h-5 animate-spin" /> : <CalendarCheck className="w-5 h-5" />}{cfg.pagamentoOnline ? "Reservar e pagar" : "Reservar"}</button>
-          <p className="text-[11px] text-slate-500 text-center mt-2">{cfg.pagamentoOnline ? `Você tem ${cfg.expiracaoMin} minutos para pagar; depois o horário é liberado.` : "O pagamento é feito no local."}</p>
+          <p className="text-[11px] text-white/55 mt-1.5">{cfg.pagamentoOnline ? `Você tem ${cfg.expiracaoMin} minutos para pagar; depois o horário é liberado.` : "O pagamento é feito no local."}</p>
         </div>
       </div>
     </Tela>
   );
 }
 
-const Tela = ({ children }: { children: React.ReactNode }) => (<div className="min-h-dvh bg-slate-50 text-slate-900"><div className="max-w-xl mx-auto px-4 py-8" style={{ colorScheme: "light" }}>{children}</div></div>);
-const Bloco = ({ n, t, children }: { n: number; t: string; children: React.ReactNode }) => (<section><h2 className="flex items-center gap-2 text-base font-black text-slate-900 mb-3"><span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">{n}</span>{t}</h2>{children}</section>);
+const DISPLAY = "'Barlow Condensed', 'Arial Narrow', sans-serif";
+const ROTULO = "text-[11px] font-bold uppercase tracking-[0.14em] text-[#5B5E73]";
+const INPUT = "w-full h-12 px-4 rounded-xl text-base border border-[#E4E2DC] bg-white text-[#14162B] outline-none focus:border-[#14162B] focus:ring-2 focus:ring-[#14162B]/10";
+
+const Tela = ({ children }: { children: React.ReactNode }) => (
+  <div className="min-h-dvh text-[#14162B]" style={{ background: "#FBFAF7", fontFamily: "'Barlow', system-ui, sans-serif", colorScheme: "light" }}>
+    {/* as duas listras vermelhas do pino de boliche */}
+    <div aria-hidden="true" className="pt-2 space-y-[3px]"><div className="h-[5px] bg-[#D6303B]" /><div className="h-[5px] bg-[#D6303B]" /></div>
+    <div className="max-w-xl mx-auto px-4 pt-7">{children}</div>
+  </div>
+);
+const Cartao = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn("rounded-2xl bg-white border border-[#E4E2DC] px-5", className)}>{children}</div>;
+const Passo = ({ t, dica, children }: { t: string; dica?: string; children: React.ReactNode }) => (
+  <section className="rounded-2xl bg-white border border-[#E4E2DC] p-4 space-y-3">
+    <div><h2 style={{ fontFamily: DISPLAY }} className="text-[26px] leading-none font-extrabold uppercase text-[#14162B]">{t}</h2>{dica && <p className="text-xs text-[#5B5E73] mt-1">{dica}</p>}</div>
+    {children}
+  </section>
+);
+const Campo = ({ rotulo, children }: { rotulo: string; children: React.ReactNode }) => <label className="block"><span className={ROTULO}>{rotulo}</span><span className="block mt-1.5">{children}</span></label>;
+const Contador = ({ rotulo, sub, valor, min, max, onChange }: { rotulo: string; sub?: string; valor: number; min: number; max: number; onChange: (v: number) => void }) => (
+  <div className="flex items-center justify-between gap-3">
+    <div><p className="text-[15px] font-bold text-[#14162B]">{rotulo}</p>{sub && <p className="text-xs text-[#5B5E73]">{sub}</p>}</div>
+    <div className="flex items-center gap-1">
+      <button type="button" aria-label={`Diminuir ${rotulo}`} disabled={valor <= min} onClick={() => onChange(Math.max(min, valor - 1))} className="w-11 h-11 rounded-xl border border-[#E4E2DC] flex items-center justify-center disabled:opacity-30"><Minus className="w-4 h-4" /></button>
+      <span style={{ fontFamily: DISPLAY }} className="w-12 text-center text-[32px] leading-none font-extrabold tabular-nums">{valor}</span>
+      <button type="button" aria-label={`Aumentar ${rotulo}`} disabled={valor >= max} onClick={() => onChange(Math.min(max, valor + 1))} className="w-11 h-11 rounded-xl border border-[#E4E2DC] flex items-center justify-center disabled:opacity-30"><Plus className="w-4 h-4" /></button>
+    </div>
+  </div>
+);
