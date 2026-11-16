@@ -1,3 +1,4 @@
+import { setFilialMaxdata } from "../../../../lib/useMaxdataPage";
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../../../../components/ui/card";
@@ -248,6 +249,9 @@ function MaxDataConnectionModal({
           automaticamente. Por padrão o SPY só LÊ dados do Max. Para cadastrar/alterar clientes e produtos pelo SPY, ative
           "Gravar na Max Data" abaixo e use "Testar gravação". Vendas e NF-e não estão ligadas.
         </Alert>
+        <FormField label="Filial desta conexão" hint={which === "estoque" ? "Loja principal — o nome aparece nos produtos, clientes e vendas que vierem desta conexão (ex.: Casa São Paulo)" : "Filial — cada conexão pertence a UMA unidade; o nome aparece nos dados que vierem dela (ex.: SR)"}>
+          <Input type="text" name={`maxdata-${which}-filial`} autoComplete="off" value={config.filial || ""} onChange={(e) => setConfig((p) => ({ ...p, filial: e.target.value }))} placeholder={which === "estoque" ? "Casa São Paulo" : "SR"} />
+        </FormField>
         <FormField label="URL base da API" required hint="Servidor da MaxAPI deste cliente com /v2 (ex.: http://IP:porta/v2) — pedir à Max Data. Não é o link da documentação">
           <Input type="text" name={`maxdata-${which}-url`} autoComplete="off" value={config.apiUrl} onChange={(e) => setConfig((p) => ({ ...p, apiUrl: e.target.value }))} placeholder="http://IP:porta/v2" />
         </FormField>
@@ -674,10 +678,12 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
   }, [customIntegrations, hydrated]);
 
   useEffect(() => {
+    setFilialMaxdata("maxdata:notas", maxdataConfig.filial || "SR", false);
     if (hydrated) saveAppSetting("integracoes_maxdata", maxdataConfig);
   }, [maxdataConfig, hydrated]);
 
   useEffect(() => {
+    setFilialMaxdata("maxdata:estoque", maxdataEstoqueConfig.filial || "Casa São Paulo", true);
     if (hydrated) saveAppSetting("integracoes_maxdata_estoque", maxdataEstoqueConfig);
   }, [maxdataEstoqueConfig, hydrated]);
 

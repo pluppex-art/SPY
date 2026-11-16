@@ -18,6 +18,13 @@ export const MAXDATA_ORIGENS = [
   { value: "maxdata:notas", label: "SR (filial)" },
 ];
 
+/** Nome da filial de cada conexão (configurado em Integrações › Max Data); troca o rótulo na hora. */
+export function setFilialMaxdata(origem: "maxdata:estoque" | "maxdata:notas", nome: string, principal: boolean) {
+  const o = MAXDATA_ORIGENS.find((x) => x.value === origem);
+  const n = nome.trim();
+  if (o && n) o.label = principal ? `${n} (principal)` : `${n} (filial)`;
+}
+
 type Opts = { table: "maxdata_clientes" | "maxdata_produtos"; origem: string; tenantId: string | null | undefined; term: string; page: number; pageSize: number; from?: number; count?: number; searchCols: string[]; orderBy: string; refresh?: number };
 
 /**
