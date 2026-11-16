@@ -321,9 +321,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Tabelas com segregação por filial: com uma filial ativa, a lista mostra SÓ o que pertence a ela
   // (filial nova = tudo zerado, como um tenant novo). Os dados sem filial (da empresa toda) só
   // aparecem em "Todas as filiais".
+  const [empresaFiliais, setEmpresaFiliais] = useState<any[]>([]);
+  const filialAtivaEhPrincipal = !!activeFilialId && empresaFiliais.some((f: any) => f.id === activeFilialId && f.status === 'Principal');
+  // A filial "Principal" (a loja-mãe) também inclui o que foi criado antes de existirem filiais (sem filial).
   function filterByFilial<T>(list: T[]): T[] {
     if (!activeFilialId) return list;
-    return list.filter((item: any) => item.filial_id === activeFilialId);
+    return list.filter((item: any) => item.filial_id === activeFilialId || (filialAtivaEhPrincipal && !item.filial_id));
   }
   // Equipe: pessoas sem filial definida continuam visíveis (não some quem a empresa já cadastrou).
   function filterEquipeByFilial<T>(list: T[]): T[] {
@@ -382,7 +385,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const [financeEntriesRaw, setFinanceEntries] = useState<FinanceEntry[]>(defaultFinanceEntries as FinanceEntry[]);
-  const financeEntries = useMemo(() => filterByFilial(financeEntriesRaw), [financeEntriesRaw, activeFilialId]);
+  const financeEntries = useMemo(() => filterByFilial(financeEntriesRaw), [financeEntriesRaw, activeFilialId, filialAtivaEhPrincipal]);
 
   // Mapa genérico key -> value de app_settings, para telas de configuração
   // que não precisam de um campo dedicado no contexto (ver saveAppSetting).
@@ -545,8 +548,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { setUnidadeMax(unidadeFilial); }, [unidadeFilial]);
   const leads = useMemo(() => {
     if (!activeFilialId) return leadsRaw;
-    return leadsRaw.filter((l: any) => l.customFields?.origin === 'maxdata' ? l.customFields?.fonte === unidadeFilial : l.filial_id === activeFilialId);
-  }, [leadsRaw, activeFilialId, unidadeFilial]);
+    return leadsRaw.filter((l: any) => l.customFields?.origin === 'maxdata' ? l.customFields?.fonte === unidadeFilial : (l.filial_id === activeFilialId || (filialAtivaEhPrincipal && !l.filial_id)));
+  }, [leadsRaw, activeFilialId, unidadeFilial, filialAtivaEhPrincipal]);
   // Ticket médio dos leads Fechado do tenant — usado só como ESTIMATIVA de
   // exibição pra leads "Novo" sem valor/produto ainda (ex.: cliente cadastrado
   // que nunca reservou/comprou). Nunca escreve em leads.value nem entra em
@@ -558,7 +561,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (won.length === 0) return 0;
     return won.reduce((s, l) => s + parseCurrencyBR(l.value), 0) / won.length;
   }, [leads]);
-  const tasks = useMemo(() => filterByFilial(tasksRaw), [tasksRaw, activeFilialId]);
+  const tasks = useMemo(() => filterByFilial(tasksRaw), [tasksRaw, activeFilialId, filialAtivaEhPrincipal]);
   // Empresa de varejo (ex.: Max Data) não tem contratos: as vendas ganhas do
   // funil fazem o papel deles, pra que TODOS os painéis (receita, ranking de
   // vendedores/produtos/canais, mapa da receita…) tenham dados. São linhas
@@ -589,7 +592,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
     return virtuais.length ? virtuais : reais;
   }, [contractsRaw, contractsLoaded, leads, activeFilialId]);
-  const appointments = useMemo(() => filterByFilial(appointmentsRaw), [appointmentsRaw, activeFilialId]);
+  const appointments = useMemo(() => filterByFilial(appointmentsRaw), [appointmentsRaw, activeFilialId, filialAtivaEhPrincipal]);
 
   const [squads, setSquads] = useState<Squad[]>(defaultSquads);
 
@@ -966,7 +969,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [squadMetas, setSquadMetas] = useState<any[]>([]);
   const [financialGoals, setFinancialGoals] = useState<any[]>([]);
   const [cargos, setCargos] = useState<any[]>([]);
-  const [empresaFiliais, setEmpresaFiliais] = useState<any[]>([]);
   const [nichos, setNichos] = useState<any[]>([]);
   const [financeCategories, setFinanceCategories] = useState<any[]>([]);
   const [financeBudgets, setFinanceBudgets] = useState<any[]>([]);
@@ -984,8 +986,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [indicacoes, setIndicacoes] = useState<Indicacao[]>([]);
   const [auroraAgents, setAuroraAgents] = useState<AuroraAgent[]>([]);
 
-  const products = useMemo(() => filterByFilial(productsRaw), [productsRaw, activeFilialId]);
-  const proposals = useMemo(() => filterByFilial(proposalsRaw), [proposalsRaw, activeFilialId]);
+  const products = useMemo(() => filterByFilial(productsRaw), [productsRaw, activeFilialId, filialAtivaEhPrincipal]);
+  const proposals = useMemo(() => filterByFilial(proposalsRaw), [proposalsRaw, activeFilialId, filialAtivaEhPrincipal]);
   const colaboradores = useMemo(() => filterEquipeByFilial(colaboradoresRaw), [colaboradoresRaw, activeFilialId]);
 
   // Espelho síncrono de `proposalsRaw` (sem filtro de filial — soma de valor de um
