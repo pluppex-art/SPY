@@ -7,6 +7,7 @@ export interface KanbanColConfig {
 
 export const KANBAN_KEYS = {
   marketing: 'axis_kanban_marketing',
+  trafego: 'axis_kanban_trafego',
   educacao: 'axis_kanban_educacao',
   tarefas: 'axis_kanban_tarefas',
   sprint: 'axis_kanban_sprint',
@@ -19,6 +20,14 @@ export const KANBAN_DEFAULTS: Record<string, KanbanColConfig[]> = {
     { id: 'revisao', nome: 'Em Revisão', cor: 'amber', iniciarMinimizado: false },
     { id: 'agendado', nome: 'Agendado', cor: 'purple', iniciarMinimizado: false },
     { id: 'publicado', nome: 'Publicado', cor: 'emerald', iniciarMinimizado: false },
+  ],
+  [KANBAN_KEYS.trafego]: [
+    { id: 'planejamento', nome: 'Planejamento', cor: 'slate', iniciarMinimizado: false },
+    { id: 'criativos', nome: 'Criativos', cor: 'blue', iniciarMinimizado: false },
+    { id: 'revisao', nome: 'Em Revisão', cor: 'amber', iniciarMinimizado: false },
+    { id: 'no_ar', nome: 'No Ar', cor: 'emerald', iniciarMinimizado: false },
+    { id: 'otimizacao', nome: 'Otimização', cor: 'purple', iniciarMinimizado: false },
+    { id: 'encerrada', nome: 'Encerrada', cor: 'rose', iniciarMinimizado: false },
   ],
   [KANBAN_KEYS.educacao]: [
     { id: 'Rascunho', nome: 'Rascunho', cor: 'slate', iniciarMinimizado: false },

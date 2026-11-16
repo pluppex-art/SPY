@@ -1,4 +1,5 @@
 import {
+  Rocket,
   LayoutDashboard,
   Users,
   Columns3,
@@ -112,6 +113,7 @@ export const navSections = [
       { name: "Formulários", path: "/app/marketing/formularios", icon: FileText, reqModule: "marketing" },
       { name: "E-mail em massa", path: "/app/marketing/email", icon: Mail, reqModule: "marketing" },
       { name: "Conteúdo & Social", path: "/app/marketing/conteudo", icon: Edit3, reqModule: "marketing" },
+      { name: "Tráfego Pago", path: "/app/marketing/trafego", icon: Rocket, reqModule: "marketing" },
       { name: "Analytics de Mkt", path: "/app/marketing/analytics", icon: BarChart2, reqModule: "marketing" },
     ],
   },

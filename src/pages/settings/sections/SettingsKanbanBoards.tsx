@@ -126,7 +126,7 @@ function ColCard({
 
 // ─── Board Configs ────────────────────────────────────────────────────────────
 
-type BoardKey = 'marketing' | 'educacao' | 'tarefas' | 'sprint';
+type BoardKey = 'marketing' | 'trafego' | 'educacao' | 'tarefas' | 'sprint';
 
 interface BoardDef {
   key: BoardKey;
@@ -146,6 +146,15 @@ const BOARDS: BoardDef[] = [
     description: 'Etapas de produção e publicação de campanhas e criativos.',
     storageKey: KANBAN_KEYS.marketing,
     defaults: KANBAN_DEFAULTS[KANBAN_KEYS.marketing],
+    canAddRemove: true,
+  },
+  {
+    key: 'trafego',
+    label: 'Tráfego Pago',
+    icon: <Zap className="w-4 h-4" />,
+    description: 'Etapas das campanhas de anúncios, do planejamento até o encerramento.',
+    storageKey: KANBAN_KEYS.trafego,
+    defaults: KANBAN_DEFAULTS[KANBAN_KEYS.trafego],
     canAddRemove: true,
   },
   {
@@ -181,7 +190,7 @@ const BOARDS: BoardDef[] = [
 
 function BoardEditor({ boardKey, canAddRemove }: { boardKey: BoardKey; canAddRemove: boolean }) {
   const { appSettings, saveAppSetting } = useData();
-  const [cols, setCols] = useState<KanbanColConfig[]>(() => readKanbanConfig(appSettings, boardKey));
+  const [cols, setCols] = useState<KanbanColConfig[]>(() => readKanbanConfig(appSettings, KANBAN_KEYS[boardKey]));
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 

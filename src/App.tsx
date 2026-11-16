@@ -146,6 +146,7 @@ const Propostas = lazy(() => import("./pages/crm/Propostas"));
 const CommercialDashboard = lazy(() => import("./pages/crm/Dashboard"));
 const MarketingAutomacoes = lazy(() => import("./pages/marketing/MarketingAutomacoes"));
 const MarketingConteudo = lazy(() => import("./pages/marketing/MarketingConteudo"));
+const MarketingTrafego = lazy(() => import("./pages/marketing/MarketingTrafego"));
 const MarketingCampanhas = lazy(() => import("./pages/marketing/MarketingCampanhas"));
 const MarketingAnalytics = lazy(() => import("./pages/marketing/MarketingAnalytics"));
 const MarketingSocial = lazy(() => import("./pages/marketing/MarketingSocial"));
@@ -324,6 +325,7 @@ function AppContent() {
           <Route path="marketing" element={<ProtectedRoute requireModule="marketing"><Outlet /></ProtectedRoute>}>
             <Route index element={<Navigate to="conteudo" replace />} />
             <Route path="conteudo" element={<MarketingConteudo />} />
+            <Route path="trafego" element={<MarketingTrafego />} />
             <Route path="campanhas" element={<MarketingCampanhas />} />
             <Route path="analytics" element={<MarketingAnalytics />} />
             <Route path="social" element={<MarketingSocial />} />

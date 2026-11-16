@@ -12,6 +12,8 @@ interface Props {
   onOpenTask: (task: any) => void;
   /** Cria uma pauta já com a data do dia clicado (AAAA-MM-DD). */
   onNovaPauta: (dataISO: string) => void;
+  /** Como chamar cada item (padrão: pauta). Ex.: "campanha". */
+  rotulo?: { singular: string; plural: string };
 }
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -22,7 +24,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const iso = (ano: number, mes: number, dia: number) => `${ano}-${pad(mes + 1)}-${pad(dia)}`;
 
 /** Calendário mensal das pautas de conteúdo: cada pauta aparece no dia da publicação. */
-export function ConteudoCalendario({ tasks, colunas, onOpenTask, onNovaPauta }: Props) {
+export function ConteudoCalendario({ tasks, colunas, onOpenTask, onNovaPauta, rotulo = { singular: "pauta", plural: "pautas" } }: Props) {
   const hoje = new Date();
   const [ref, setRef] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   const [diaAberto, setDiaAberto] = useState<string | null>(null);
@@ -83,7 +85,7 @@ export function ConteudoCalendario({ tasks, colunas, onOpenTask, onNovaPauta }: 
           <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => setRef(new Date(ano, mes + 1, 1))} aria-label="Próximo mês"><ChevronRight className="w-4 h-4" /></Button>
           <Button variant="ghost" size="sm" className="h-9 text-[11px] font-bold" onClick={() => setRef(new Date(hoje.getFullYear(), hoje.getMonth(), 1))}>Hoje</Button>
         </div>
-        <span className="text-[11px] font-bold text-[var(--color-text-muted)]">{totalNoMes} pauta{totalNoMes === 1 ? "" : "s"} com publicação neste mês</span>
+        <span className="text-[11px] font-bold text-[var(--color-text-muted)]">{totalNoMes} {totalNoMes === 1 ? rotulo.singular : rotulo.plural} neste mês</span>
       </div>
 
       <div className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface)] overflow-hidden">
@@ -113,7 +115,7 @@ export function ConteudoCalendario({ tasks, colunas, onOpenTask, onNovaPauta }: 
                     c.dataISO === hojeISO ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)]",
                   )}>{c.dia}</span>
                   {c.doMes && (
-                    <span className="opacity-0 group-hover:opacity-100 text-[var(--color-text-faint)] transition-opacity" title="Nova pauta neste dia"><Plus className="w-3.5 h-3.5" /></span>
+                    <span className="opacity-0 group-hover:opacity-100 text-[var(--color-text-faint)] transition-opacity" title={`Nova ${rotulo.singular} neste dia`}><Plus className="w-3.5 h-3.5" /></span>
                   )}
                 </div>
                 {visiveis.map(chip)}
@@ -144,9 +146,9 @@ export function ConteudoCalendario({ tasks, colunas, onOpenTask, onNovaPauta }: 
       {semData.length > 0 && (
         <div className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface)] p-4 space-y-2">
           <h4 className="text-[11px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">
-            Sem data de publicação ({semData.length})
+            Sem data ({semData.length})
           </h4>
-          <p className="text-[11px] text-[var(--color-text-faint)]">Abra a pauta e defina a data para ela aparecer no calendário.</p>
+          <p className="text-[11px] text-[var(--color-text-faint)]">Abra a {rotulo.singular} e defina a data para ela aparecer no calendário.</p>
           <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">{semData.map(chip)}</div>
         </div>
       )}
