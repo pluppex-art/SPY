@@ -11,7 +11,6 @@ const ROUTES: Array<() => Promise<unknown>> = [
   () => import("../pages/dashboard/CentralReceita"),
   () => import("../pages/crm/Propostas"),
   () => import("../pages/crm/AgendaCRM"),
-  () => import("../pages/reunioes/index"),
   () => import("../components/ui/LeadDetailsModal"),
 ];
 

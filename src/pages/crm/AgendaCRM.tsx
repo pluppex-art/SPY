@@ -32,7 +32,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   LogOut,
-} from "lucide-react";
+ Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Reuniao } from "../../contexts/DataContextTypes";
 import { connectGoogleCalendar, consumeGoogleCalendarRedirectResult, disconnectGoogleCalendar, formatGoogleCalendarError, syncGoogleCalendar } from "../../lib/google-auth";
@@ -99,6 +99,7 @@ export default function AgendaCRM() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDayDate, setSelectedDayDate] = useState<Date>(() => new Date());
   const [showNovaReuniao, setShowNovaReuniao] = useState(false);
+  const [reuniaoToEdit, setReuniaoToEdit] = useState<Reuniao | null>(null);
   const [reuniaoToDelete, setReuniaoToDelete] = useState<string | null>(null);
 
   // Google Calendar Integration State
@@ -991,6 +992,19 @@ export default function AgendaCRM() {
                               </Button>
                             )}
 
+                            {!isGoogleSourced(r) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setReuniaoToEdit(r)}
+                                title="Editar reunião"
+                                aria-label="Editar reunião"
+                                className="h-8 w-8 p-0"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+
                             {isMeet && r.meetLink ? (
                               <Button
                                 size="sm"
@@ -1133,6 +1147,19 @@ export default function AgendaCRM() {
                           </Button>
                         )}
 
+                        {!isGoogleSourced(r) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setReuniaoToEdit(r)}
+                            title="Editar reunião"
+                            aria-label="Editar reunião"
+                            className="h-8 w-8 p-0 text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)]"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1185,6 +1212,7 @@ export default function AgendaCRM() {
         isOpen={showNovaReuniao}
         onClose={() => setShowNovaReuniao(false)}
       />
+      <NovaReuniaoModal isOpen={reuniaoToEdit !== null} reuniao={reuniaoToEdit} onClose={() => setReuniaoToEdit(null)} />
 
       <ConfirmModal
         isOpen={!!reuniaoToDelete}

@@ -155,7 +155,6 @@ const EEmpreendaEditor = lazy(() => import("./pages/marketing/EEmpreendaEditor")
 const MarketingFormularios = lazy(() => import("./pages/marketing/MarketingFormularios"));
 const MarketingEmail = lazy(() => import("./pages/marketing/MarketingEmail"));
 const RHColaboradores = lazy(() => import("./pages/hr/RHColaboradores"));
-const ReunioesList = lazy(() => import("./pages/reunioes/index"));
 const ReuniaoRoom = lazy(() => import("./pages/reunioes/ReuniaoRoom"));
 
 const ImobiliarioPainel = lazy(() => import("./pages/imobiliario/PainelGeral"));
@@ -304,7 +303,7 @@ function AppContent() {
             <Route path="eventos" element={<Eventos />} />
             <Route path="disponibilidade" element={<Disponibilidade />} />
             <Route path="configuracoes" element={<AgendaConfiguracoes />} />
-            <Route path="reunioes" element={<ReunioesList />} />
+            <Route path="reunioes" element={<Navigate to="/app/agenda/calendario" replace />} />
             <Route path="reunioes/:id" element={<ReuniaoRoom />} />
           </Route>
 
@@ -593,7 +592,7 @@ function AppContent() {
           </Route>
 
           <Route path="reunioes">
-            <Route index element={<ReunioesList />} />
+            <Route index element={<Navigate to="/app/agenda/calendario" replace />} />
             <Route path=":id" element={<ReuniaoRoom />} />
           </Route>
 

@@ -87,7 +87,6 @@ export const navSections = [
     title: "Agenda & Reuniões",
     items: [
       { name: "Calendário Geral", path: "/app/agenda/calendario", icon: CalendarDays, reqModule: "agenda" },
-      { name: "Salas de Reunião", path: "/app/agenda/reunioes", icon: Video, reqModule: "agenda" },
       { name: "Tarefas & Projetos", path: "/app/tarefas", icon: CheckSquare, reqModule: "produtividade" },
     ],
   },
