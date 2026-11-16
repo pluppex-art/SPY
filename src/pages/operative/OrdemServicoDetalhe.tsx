@@ -1,7 +1,7 @@
 import { OsPassosPanel } from "../os/components/OsPassosPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Plus, Printer, Save, Trash2, Package } from "lucide-react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Loader2, Plus, Printer, Save, Trash2, Package, UserRound, Wrench, ListChecks, FileText, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
@@ -39,6 +39,7 @@ export default function OrdemServicoDetalhe() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [params, setParams] = useSearchParams();
 
   const carregar = useCallback(async () => {
     if (!supabase || !activeTenantId || !id) return;
@@ -176,6 +177,18 @@ export default function OrdemServicoDetalhe() {
   // lugar que levaria a "Faturada" é o Kanban por status, que já bloqueia isso (useOS.ts
   // moverStatus: "Para faturar, abra a OS e use 'Gerar cobrança'"), então tirar o botão
   // daqui desliga a função por completo, sem precisar mexer na máquina de estados.
+  // Abas da tela (a escolhida fica na URL, para poder compartilhar o link já na seção certa).
+  const temPassos = !!os.departamento_id;
+  const abas = [
+    { id: "resumo", label: "Resumo", icon: UserRound },
+    { id: "itens", label: "Itens", icon: Wrench, badge: items.filter((i) => i.descricao.trim()).length },
+    ...(temPassos ? [{ id: "passos", label: "Passo a passo", icon: ListChecks }] : []),
+    { id: "condicoes", label: "Condições", icon: FileText },
+  ] as { id: "resumo" | "itens" | "passos" | "condicoes"; label: string; icon: any; badge?: number }[];
+  const abaUrl = params.get("aba");
+  const aba = abas.find((t) => t.id === abaUrl)?.id ?? "resumo";
+  const setAba = (id: string) => setParams((prev) => { const n = new URLSearchParams(prev); if (id === "resumo") n.delete("aba"); else n.set("aba", id); return n; }, { replace: true });
+
   const proximos = (OS_NEXT[os.status as OsStatus] || []).filter(s => s !== "Faturada");
 
   return (
@@ -220,111 +233,136 @@ export default function OrdemServicoDetalhe() {
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Cliente */}
-          <Card className="p-5 space-y-3">
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Cliente</h3>
-            <div>
-              <label className={labelCls}>Escolher da Base de Clientes</label>
-              <ClientePicker
-                clienteId={os.campos?.cliente_id}
-                disabled={locked}
-                mostrarDados={false}
-                placeholder="Buscar cliente para preencher os dados…"
-                onSelect={(c) => {
-                  // Preenche nome, CPF/CNPJ, telefone, e-mail, endereço e local de execução com o cadastro do cliente.
-                  if (c) Object.entries(dadosDoCliente(c)).forEach(([k, v]) => setField(k, v ?? ""));
-                  const { cliente_id: _anterior, ...resto } = os.campos ?? {};
-                  setField("campos", c ? { ...resto, cliente_id: c.id } : resto);
-                }}
-              />
-            </div>
-            <div><label className={labelCls}>Nome / Razão social</label><input className={inputCls} disabled={locked} value={os.cliente_nome || ""} onChange={(e) => setField("cliente_nome", e.target.value)} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className={labelCls}>CPF / CNPJ</label><input className={inputCls} disabled={locked} value={os.cliente_documento || ""} onChange={(e) => setField("cliente_documento", e.target.value)} /></div>
-              <div><label className={labelCls}>Telefone</label><input className={inputCls} disabled={locked} value={os.cliente_telefone || ""} onChange={(e) => setField("cliente_telefone", e.target.value)} /></div>
-            </div>
-            <div><label className={labelCls}>E-mail</label><input className={inputCls} disabled={locked} value={os.cliente_email || ""} onChange={(e) => setField("cliente_email", e.target.value)} /></div>
-            <div><label className={labelCls}>Endereço</label><input className={inputCls} disabled={locked} value={os.cliente_endereco || ""} onChange={(e) => setField("cliente_endereco", e.target.value)} /></div>
-          </Card>
+        {/* Abas: cada assunto da OS em um lugar */}
+        <nav aria-label="Seções da ordem de serviço" className="flex items-end gap-1 overflow-x-auto scrollbar-none border-b border-[var(--color-border-default)]">
+          {abas.map((t) => {
+            const ativa = aba === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setAba(t.id)}
+                aria-current={ativa ? "page" : undefined}
+                className={cn(
+                  "shrink-0 flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px cursor-pointer transition-colors bg-transparent",
+                  ativa ? "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]" : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]",
+                )}
+              >
+                <t.icon className="w-3.5 h-3.5" /> {t.label}
+                {t.badge !== undefined && <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-black", ativa ? "bg-[var(--color-primary-blue)]/10" : "bg-[var(--color-surface-sunken)]")}>{t.badge}</span>}
+              </button>
+            );
+          })}
+        </nav>
 
-          {/* Serviço */}
-          <Card className="p-5 space-y-3">
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Serviço</h3>
-            <div><label className={labelCls}>Título do serviço</label><input className={inputCls} disabled={locked} value={os.titulo || ""} onChange={(e) => setField("titulo", e.target.value)} placeholder="Ex.: Instalação de ar-condicionado" /></div>
-            <div><label className={labelCls}>Descrição / escopo</label><textarea rows={3} className={inputCls} disabled={locked} value={os.descricao || ""} onChange={(e) => setField("descricao", e.target.value)} /></div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <div><label className={labelCls}>Abertura</label><input type="date" className={inputCls} disabled={locked} value={os.data_abertura || ""} onChange={(e) => setField("data_abertura", e.target.value)} /></div>
-              <div><label className={labelCls}>Previsão</label><input type="date" className={inputCls} disabled={locked} value={os.data_prevista || ""} onChange={(e) => setField("data_prevista", e.target.value)} /></div>
-              <div><label className={labelCls}>Prioridade</label>
-                <select className={inputCls} disabled={locked} value={os.prioridade} onChange={(e) => setField("prioridade", e.target.value)}>
-                  {OS_PRIORIDADES.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
+        {aba === "resumo" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Cliente */}
+            <Card className="p-5 space-y-3">
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Cliente</h3>
+              <div>
+                <label className={labelCls}>Escolher da Base de Clientes</label>
+                <ClientePicker
+                  clienteId={os.campos?.cliente_id}
+                  disabled={locked}
+                  mostrarDados={false}
+                  placeholder="Buscar cliente para preencher os dados…"
+                  onSelect={(c) => {
+                    // Preenche nome, CPF/CNPJ, telefone, e-mail, endereço e local de execução com o cadastro do cliente.
+                    if (c) Object.entries(dadosDoCliente(c)).forEach(([k, v]) => setField(k, v ?? ""));
+                    const { cliente_id: _anterior, ...resto } = os.campos ?? {};
+                    setField("campos", c ? { ...resto, cliente_id: c.id } : resto);
+                  }}
+                />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className={labelCls}>Responsável</label><input className={inputCls} disabled={locked} value={os.responsavel || ""} onChange={(e) => setField("responsavel", e.target.value)} /></div>
-              <div><label className={labelCls}>Local de execução</label><input className={inputCls} disabled={locked} value={os.local_execucao || ""} onChange={(e) => setField("local_execucao", e.target.value)} /></div>
-            </div>
-          </Card>
-        </div>
+              <div><label className={labelCls}>Nome / Razão social</label><input className={inputCls} disabled={locked} value={os.cliente_nome || ""} onChange={(e) => setField("cliente_nome", e.target.value)} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className={labelCls}>CPF / CNPJ</label><input className={inputCls} disabled={locked} value={os.cliente_documento || ""} onChange={(e) => setField("cliente_documento", e.target.value)} /></div>
+                <div><label className={labelCls}>Telefone</label><input className={inputCls} disabled={locked} value={os.cliente_telefone || ""} onChange={(e) => setField("cliente_telefone", e.target.value)} /></div>
+              </div>
+              <div><label className={labelCls}>E-mail</label><input className={inputCls} disabled={locked} value={os.cliente_email || ""} onChange={(e) => setField("cliente_email", e.target.value)} /></div>
+              <div><label className={labelCls}>Endereço</label><input className={inputCls} disabled={locked} value={os.cliente_endereco || ""} onChange={(e) => setField("cliente_endereco", e.target.value)} /></div>
+            </Card>
 
-        {/* Itens */}
-        <Card className="p-5 space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Itens da ordem</h3>
-            {!locked && (
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => addItem("Serviço")} className="h-8 px-3 text-xs gap-1.5"><Plus className="w-3.5 h-3.5" /> Serviço</Button>
-                <Button variant="outline" onClick={() => addItem("Material")} className="h-8 px-3 text-xs gap-1.5"><Plus className="w-3.5 h-3.5" /> Material</Button>
+            {/* Serviço */}
+            <Card className="p-5 space-y-3">
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Serviço</h3>
+              <div><label className={labelCls}>Título do serviço</label><input className={inputCls} disabled={locked} value={os.titulo || ""} onChange={(e) => setField("titulo", e.target.value)} placeholder="Ex.: Instalação de ar-condicionado" /></div>
+              <div><label className={labelCls}>Descrição / escopo</label><textarea rows={3} className={inputCls} disabled={locked} value={os.descricao || ""} onChange={(e) => setField("descricao", e.target.value)} /></div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div><label className={labelCls}>Abertura</label><input type="date" className={inputCls} disabled={locked} value={os.data_abertura || ""} onChange={(e) => setField("data_abertura", e.target.value)} /></div>
+                <div><label className={labelCls}>Previsão</label><input type="date" className={inputCls} disabled={locked} value={os.data_prevista || ""} onChange={(e) => setField("data_prevista", e.target.value)} /></div>
+                <div><label className={labelCls}>Prioridade</label>
+                  <select className={inputCls} disabled={locked} value={os.prioridade} onChange={(e) => setField("prioridade", e.target.value)}>
+                    {OS_PRIORIDADES.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className={labelCls}>Responsável</label><input className={inputCls} disabled={locked} value={os.responsavel || ""} onChange={(e) => setField("responsavel", e.target.value)} /></div>
+                <div><label className={labelCls}>Local de execução</label><input className={inputCls} disabled={locked} value={os.local_execucao || ""} onChange={(e) => setField("local_execucao", e.target.value)} /></div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {aba === "itens" && (
+          <Card className="p-5 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Itens da ordem</h3>
+              {!locked && (
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => addItem("Serviço")} className="h-8 px-3 text-xs gap-1.5"><Plus className="w-3.5 h-3.5" /> Serviço</Button>
+                  <Button variant="outline" onClick={() => addItem("Material")} className="h-8 px-3 text-xs gap-1.5"><Plus className="w-3.5 h-3.5" /> Material</Button>
+                </div>
+              )}
+            </div>
+            {items.length === 0 ? (
+              <p className="text-xs text-[var(--color-text-faint)] py-4 text-center">Nenhum item. Adicione os serviços e materiais que compõem esta ordem.</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="hidden md:grid grid-cols-[90px_1.6fr_60px_80px_32px] gap-2 text-[10px] font-bold uppercase text-[var(--color-text-muted)] px-1">
+                  <span>Tipo</span><span>Descrição</span><span>Un.</span><span className="text-right">Qtd</span><span />
+                </div>
+                {items.map((it, idx) => (
+                  <div key={idx} className="grid grid-cols-2 md:grid-cols-[90px_1.6fr_60px_80px_32px] gap-2 items-center bg-[var(--color-surface-sunken)]/60 rounded-lg p-2">
+                    <select className={inputCls} disabled={locked} value={it.tipo} onChange={(e) => setItem(idx, { tipo: e.target.value as OsItem["tipo"] })}>
+                      <option>Serviço</option><option>Material</option>
+                    </select>
+                    <div className="col-span-2 md:col-span-1 space-y-1">
+                      <input className={inputCls} disabled={locked} placeholder="Descrição" value={it.descricao} onChange={(e) => setItem(idx, { descricao: e.target.value })} />
+                      {!locked && (products as any[]).length > 0 && (
+                        <select className={cn(inputCls, "!py-1 !text-[10px]")} value={it.product_id || ""} onChange={(e) => pickProduct(idx, e.target.value)}>
+                          <option value="">Preencher a partir do catálogo…</option>
+                          {(products as any[]).filter((p) => p.active !== false).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      )}
+                    </div>
+                    <input className={inputCls} disabled={locked} value={it.unidade} onChange={(e) => setItem(idx, { unidade: e.target.value })} />
+                    <input type="number" min={0} step="any" className={cn(inputCls, "text-right")} disabled={locked} value={it.quantidade} onChange={(e) => setItem(idx, { quantidade: num(e.target.value) })} />
+                    {!locked ? (
+                      <button type="button" onClick={() => removeItem(idx)} title="Remover item" className="p-1.5 text-[var(--color-text-faint)] hover:text-rose-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    ) : <span />}
+                  </div>
+                ))}
               </div>
             )}
-          </div>
-          {items.length === 0 ? (
-            <p className="text-xs text-[var(--color-text-faint)] py-4 text-center">Nenhum item. Adicione os serviços e materiais que compõem esta ordem.</p>
-          ) : (
-            <div className="space-y-2">
-              <div className="hidden md:grid grid-cols-[90px_1.6fr_60px_80px_32px] gap-2 text-[10px] font-bold uppercase text-[var(--color-text-muted)] px-1">
-                <span>Tipo</span><span>Descrição</span><span>Un.</span><span className="text-right">Qtd</span><span />
-              </div>
-              {items.map((it, idx) => (
-                <div key={idx} className="grid grid-cols-2 md:grid-cols-[90px_1.6fr_60px_80px_32px] gap-2 items-center bg-[var(--color-surface-sunken)]/60 rounded-lg p-2">
-                  <select className={inputCls} disabled={locked} value={it.tipo} onChange={(e) => setItem(idx, { tipo: e.target.value as OsItem["tipo"] })}>
-                    <option>Serviço</option><option>Material</option>
-                  </select>
-                  <div className="col-span-2 md:col-span-1 space-y-1">
-                    <input className={inputCls} disabled={locked} placeholder="Descrição" value={it.descricao} onChange={(e) => setItem(idx, { descricao: e.target.value })} />
-                    {!locked && (products as any[]).length > 0 && (
-                      <select className={cn(inputCls, "!py-1 !text-[10px]")} value={it.product_id || ""} onChange={(e) => pickProduct(idx, e.target.value)}>
-                        <option value="">Preencher a partir do catálogo…</option>
-                        {(products as any[]).filter((p) => p.active !== false).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    )}
-                  </div>
-                  <input className={inputCls} disabled={locked} value={it.unidade} onChange={(e) => setItem(idx, { unidade: e.target.value })} />
-                  <input type="number" min={0} step="any" className={cn(inputCls, "text-right")} disabled={locked} value={it.quantidade} onChange={(e) => setItem(idx, { quantidade: num(e.target.value) })} />
-                  {!locked ? (
-                    <button type="button" onClick={() => removeItem(idx)} title="Remover item" className="p-1.5 text-[var(--color-text-faint)] hover:text-rose-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                  ) : <span />}
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+          </Card>
+        )}
 
-        {/* Passo a passo do departamento (cada passo com responsável; salva na hora, sem o botão Salvar) */}
-        {os.departamento_id && (
+        {aba === "passos" && os.departamento_id && (
           <Card className="p-5">
             <OsPassosPanel ordemId={os.id} departamentoId={os.departamento_id} desabilitado={locked} />
           </Card>
         )}
 
-        {/* Condições */}
-        <Card className="p-5 space-y-3">
-          <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Condições</h3>
-          <div><label className={labelCls}>Garantia</label><input className={inputCls} disabled={locked} value={os.garantia || ""} onChange={(e) => setField("garantia", e.target.value)} placeholder="Ex.: 90 dias sobre o serviço" /></div>
-          <div><label className={labelCls}>Observações</label><textarea rows={3} className={inputCls} disabled={locked} value={os.observacoes || ""} onChange={(e) => setField("observacoes", e.target.value)} /></div>
-        </Card>
+        {aba === "condicoes" && (
+          <Card className="p-5 space-y-3">
+            <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Condições</h3>
+            <div><label className={labelCls}>Garantia</label><input className={inputCls} disabled={locked} value={os.garantia || ""} onChange={(e) => setField("garantia", e.target.value)} placeholder="Ex.: 90 dias sobre o serviço" /></div>
+            <div><label className={labelCls}>Observações</label><textarea rows={3} className={inputCls} disabled={locked} value={os.observacoes || ""} onChange={(e) => setField("observacoes", e.target.value)} /></div>
+          </Card>
+        )}
       </div>
     </PageContainer>
   );

@@ -17,7 +17,7 @@ const NAV_ACTIONS = [
   { name: "Propostas", icon: FileText, path: "/app/crm/propostas", category: "Navegação" },
   { name: "Contratos", icon: FileSignature, path: "/app/crm/contratos", category: "Navegação" },
   { name: "Produtos", icon: Package, path: "/app/produtos", category: "Navegação" },
-  { name: "Automações de Marketing", icon: Zap, path: "/app/automacoes", category: "Navegação" },
+  { name: "Automações (Configurações)", icon: Zap, path: "/app/configuracoes/engajamento/automacoes", category: "Navegação" },
   { name: "Gestão de Turmas", icon: GraduationCap, path: "/app/educacao/turmas", category: "Navegação" },
   { name: "Configurações do Sistema", icon: Settings, path: "/app/configuracoes", category: "Navegação" },
 ];

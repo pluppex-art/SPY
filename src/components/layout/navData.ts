@@ -107,7 +107,6 @@ export const navSections = [
   {
     title: "Comunicação & Mkt",
     items: [
-      { name: "Automações", path: "/app/automacoes", icon: Zap, reqModule: "engajamento" },
       { name: "Campanhas de Mkt", path: "/app/marketing/campanhas", icon: Megaphone, reqModule: "marketing" },
       { name: "Landing Pages", path: "/app/marketing/landing-pages", icon: Globe, reqModule: "marketing" },
       { name: "Formulários", path: "/app/marketing/formularios", icon: FileText, reqModule: "marketing" },

@@ -106,7 +106,6 @@ const ConfigCRMProdutos = lazy(() => import("./pages/settings/SettingsPages").th
 const ConfigProdutividadeCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigProdutividadeCategorias })));
 const ConfigFinanceiroCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroCategorias })));
 const ConfigEngajamentoModelos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEngajamentoModelos })));
-const ConfigEngajamentoAutomacoes = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEngajamentoAutomacoes })));
 const ModuleSettingsPage = lazy(() => import("./pages/settings/sections/modules/ModuleSettingsPage").then(m => ({ default: m.ModuleSettingsPage })));
 const ConfigVarejoPDV = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoPaginas").then(m => ({ default: m.ConfigVarejoPDV })));
 const ConfigVarejoPagamentos = lazy(() => import("./pages/settings/sections/varejo/ConfigVarejoPaginas").then(m => ({ default: m.ConfigVarejoPagamentos })));
@@ -321,7 +320,7 @@ function AppContent() {
           {/* Comunicação & Marketing */}
           <Route path="mensageria" element={<Messaging />} />
           <Route path="chatbot" element={<Navigate to="/app/mensageria?aba=chatbot" replace />} />
-          <Route path="automacoes" element={<MarketingAutomacoes />} />
+          <Route path="automacoes" element={<Navigate to="/app/configuracoes/engajamento/automacoes" replace />} />
           <Route path="marketing" element={<ProtectedRoute requireModule="marketing"><Outlet /></ProtectedRoute>}>
             <Route index element={<Navigate to="conteudo" replace />} />
             <Route path="conteudo" element={<MarketingConteudo />} />
@@ -549,7 +548,7 @@ function AppContent() {
             <Route path="financeiro/auditoria" element={<ProtectedRoute requireTenantAdmin><ConfigFinanceiroAuditoria /></ProtectedRoute>} />
 
             <Route path="engajamento/modelos" element={<ConfigEngajamentoModelos />} />
-            <Route path="engajamento/automacoes" element={<ConfigEngajamentoAutomacoes />} />
+            <Route path="engajamento/automacoes" element={<MarketingAutomacoes />} />
 
             <Route path="modulos/:moduleId/:sectionId" element={<ModuleSettingsPage />} />
             <Route path="varejo/pdv" element={<ProtectedRoute requireModule="varejo"><ConfigVarejoPDV /></ProtectedRoute>} />

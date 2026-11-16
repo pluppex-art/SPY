@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
-import { Plus, MessageSquare, ExternalLink, Bell } from "lucide-react";
+import { Plus, MessageSquare, Bell } from "lucide-react";
 import { NovoModeloModal } from "../../../components/ui/modals/marketing/NovoModeloModal";
 import { Reorder } from "motion/react";
 import { toast } from "sonner";
@@ -98,34 +98,6 @@ export function ConfigEngajamentoModelos() {
         submitText={editingTemplate ? "Salvar Alterações" : "Salvar"}
         onSave={handleSave}
       />
-    </div>
-  );
-}
-
-export function ConfigEngajamentoAutomacoes() {
-  return (
-    <div className="max-w-4xl space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Regras de Automação <HelpTip label="Sobre Regras de Automação">Regras que fazem o sistema agir sozinho quando algo acontece no funil, por exemplo um lead mudar de etapa. Escolha o gatilho e o que deve acontecer.</HelpTip></h1>
-        </div>
-        <Button onClick={() => window.location.href = '/app/automacoes'} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
-          <Plus className="w-4 h-4 mr-1" /> Nova Automação
-        </Button>
-      </div>
-
-      <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-        <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
-          O construtor central de automações agora possui uma tela dedicada em tela cheia.
-        </p>
-        <Button 
-          onClick={() => window.location.href = '/app/automacoes'} 
-          variant="outline"
-          className="mt-4 h-9 px-4 text-xs font-bold gap-2 text-[var(--color-text-primary)] border-[var(--color-border-default)] hover:bg-[var(--color-surface-sunken)]"
-        >
-          Abrir Motor de Automação <ExternalLink className="w-3.5 h-3.5" />
-        </Button>
-      </Card>
     </div>
   );
 }

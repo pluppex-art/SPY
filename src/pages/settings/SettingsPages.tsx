@@ -4,7 +4,7 @@ export { ConfigCRMSLA } from "./sections/SettingsCRMSLA";
 export { ConfigCRMGatilhosIA } from "./sections/SettingsCRMGatilhosIA";
 export { ConfigProdutividadeCategorias, ConfigFinanceiroCategorias, ConfigFinanceiroSquads } from "./sections/SettingsProdutividade";
 export { ConfigFinanceiroBloqueioPeriodo, ConfigFinanceiroAuditoria } from "./sections/SettingsFinanceiroGovernanca";
-export { ConfigEngajamentoModelos, ConfigEngajamentoAutomacoes, ConfigBusinessDashboard } from "./sections/SettingsEngajamento";
+export { ConfigEngajamentoModelos, ConfigBusinessDashboard } from "./sections/SettingsEngajamento";
 export { ConfigIntegracoesApps, ConfigIntegracoesSMTP, ConfigIntegracoesSDR } from "./sections/SettingsIntegracoes";
 export { ConfigNotificacoesPreferencias } from "./sections/SettingsNotificacoes";
 export { ConfigPerfilUsuario } from "./sections/usuario/ConfigPerfilUsuario";export { ConfigPreferenciasSistema } from "./sections/usuario/ConfigPreferenciasSistema";

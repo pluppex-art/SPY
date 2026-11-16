@@ -36,7 +36,7 @@ const AJUDA: Record<string, string> = {
   "/app/configuracoes/financeiro/bloqueio-periodo": "Ao bloquear um período (por exemplo, um mês já fechado), lançamentos pagos naquele período não podem mais ser criados, editados nem excluídos. Lançamentos pendentes continuam livres.",
   "/app/configuracoes/financeiro/auditoria": "Todo lançamento criado, editado ou excluído fica registrado aqui, com quem fez, quando fez e o que mudou.",
   "/app/configuracoes/engajamento/modelos": "Textos prontos que a empresa usa nas comunicações automáticas. Edite aqui para manter o tom e as informações sempre certos.",
-  "/app/configuracoes/engajamento/automacoes": "Regras que fazem o sistema agir sozinho quando algo acontece no funil, por exemplo um lead mudar de etapa. Escolha o gatilho e o que deve acontecer.",
+  "/app/configuracoes/engajamento/automacoes": "A Central de Automações: gatilhos de mensagem criados por texto (a IA monta e você aprova) e conexões que levam uma etapa do funil ou um produto vendido para um departamento, gerando a ordem de serviço sozinha.",
   "/app/configuracoes/integracoes/conexoes": "Conecte as contas da sua empresa. O que for sincronizado fica disponível para a Aurora responder com informações reais, sempre apenas do seu usuário.",
   "/app/configuracoes/integracoes/apps": "A central para ligar o SPY aos seus aplicativos e anúncios, como Meta Ads e Google Ads, e acompanhar as conversões.",
   "/app/configuracoes/integracoes/smtp": "Configure o servidor de e-mail da empresa para os e-mails do sistema saírem com o seu remetente.",

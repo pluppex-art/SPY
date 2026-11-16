@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, ClipboardList, Clock, Hammer, LayoutGrid, List, Loader2, Plus, Settings2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
@@ -7,6 +7,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../../components/ui/dropdown-menu";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -149,12 +150,28 @@ export default function OrdensServico() {
       breadcrumb={[{ label: "Operações" }, { label: "Ordens de Serviço" }]}
       actions={
         <div className="flex items-center gap-2">
-          <Link
-            to="/app/configuracoes/os/funis"
-            className="flex items-center gap-1.5 h-9 px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all"
-          >
-            <Settings2 className="w-3.5 h-3.5" /> Departamentos e funis
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                title="Configurar as ordens de serviço"
+                aria-label="Configurar as ordens de serviço"
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer bg-transparent"
+              >
+                <Settings2 className="w-4 h-4" /> Configurar
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[17rem]">
+              <DropdownMenuItem onSelect={() => navigate("/app/configuracoes/os/funis")} className="flex flex-col items-start gap-0.5 cursor-pointer">
+                <span className="text-xs font-bold">Departamentos e funis</span>
+                <span className="text-[11px] text-[var(--color-text-muted)]">Áreas, etapas e passo a passo de cada ordem</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate("/app/configuracoes/engajamento/automacoes")} className="flex flex-col items-start gap-0.5 cursor-pointer">
+                <span className="text-xs font-bold">Automações</span>
+                <span className="text-[11px] text-[var(--color-text-muted)]">Gerar ordens de serviço a partir do funil ou de vendas</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={nova} disabled={criando} className="h-9 px-4 text-xs font-medium gap-1.5">
             {criando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Nova ordem de serviço
           </Button>
@@ -162,6 +179,33 @@ export default function OrdensServico() {
       }
     >
       <div className="space-y-5 max-w-[1700px] mx-auto pb-12">
+        {/* Nível 1 — em qual departamento você está olhando */}
+        {depsAtivos.length > 0 && (
+          <nav aria-label="Departamentos" className="flex items-end gap-1 overflow-x-auto scrollbar-none border-b border-[var(--color-border-default)]">
+            {[{ id: TODOS, nome: "Todos", total: os.ordens.filter(o => osEmAberto(o, os.etapaDaOrdem(o))).length }, ...depsAtivos.map(d => ({ id: d.id, nome: d.nome, total: contagem.get(d.id) ?? 0 }))].map(t => {
+              const ativa = t.id === TODOS ? !depAtual : depAtual?.id === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => irParaDep(t.id === TODOS ? null : t.id)}
+                  aria-current={ativa ? "page" : undefined}
+                  className={cn(
+                    "shrink-0 flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px cursor-pointer transition-colors bg-transparent",
+                    ativa
+                      ? "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]"
+                      : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]",
+                  )}
+                >
+                  {t.nome}
+                  <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-black", ativa ? "bg-[var(--color-primary-blue)]/10" : "bg-[var(--color-surface-sunken)]")}>{t.total}</span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
+
+        {/* Nível 2 — números e filtros */}
         <KpiFilterCard
           id="opsOrdensServico"
           kpis={[
@@ -170,59 +214,54 @@ export default function OrdensServico() {
             { label: "A faturar", value: formatCurrency(kpis.aFaturar), icon: CheckCircle2, tone: kpis.aFaturar > 0 ? "warning" : "neutral", hint: "Concluídas sem cobrança" },
             { label: "Faturado (mês)", value: formatCurrency(kpis.faturadoMes), icon: Wallet, tone: "success" },
           ]}
-          activeCount={(busca.trim() ? 1 : 0) + (filtroStatus !== "Todas" ? 1 : 0) + (depAtual ? 1 : 0)}
-          onClear={() => { setBusca(""); setFiltroStatus("Todas"); irParaDep(null); }}
+          activeCount={(busca.trim() ? 1 : 0) + (filtroStatus !== "Todas" ? 1 : 0)}
+          onClear={() => { setBusca(""); setFiltroStatus("Todas"); }}
         >
           <FilterBar>
-          {depsAtivos.length > 0 && (
-            <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] overflow-x-auto max-w-full">
-              {[{ id: TODOS, nome: "Todos", total: os.ordens.filter(o => osEmAberto(o, os.etapaDaOrdem(o))).length }, ...depsAtivos.map(d => ({ id: d.id, nome: d.nome, total: contagem.get(d.id) ?? 0 }))].map(t => {
-                const ativa = t.id === TODOS ? !depAtual : depAtual?.id === t.id;
-                return (
-                  <button
-                    key={t.id} type="button" onClick={() => irParaDep(t.id === TODOS ? null : t.id)}
-                    className={cn("shrink-0 flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all", ativa ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
-                  >
-                    {t.nome}
-                    <span className={cn("px-1.5 rounded text-[10px]", ativa ? "bg-white/20" : "bg-[var(--color-border-subtle)]")}>{t.total}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
             <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar cliente, serviço, responsável ou número…" />
             {vista === "lista" && (
               <FilterChips value={filtroStatus === "Todas" ? "" : filtroStatus} onChange={v => setFiltroStatus((v || "Todas") as (typeof FILTROS)[number])} options={[...OS_STATUSES]} allLabel="Todas" />
             )}
-          <div className="ml-auto flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-            {([["kanban", "Kanban", LayoutGrid], ["lista", "Lista", List]] as const).map(([v, label, Icon]) => (
+          </FilterBar>
+        </KpiFilterCard>
+
+        {/* Nível 3 — como ver: funil (se o departamento tiver mais de um) e Quadro ou Lista */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 min-h-[36px]">
+            {vista === "kanban" && funisDoDep.length > 1 && (
+              <>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Funil</span>
+                {funisDoDep.map(f => {
+                  const ativo = funilAtual?.id === f.id;
+                  const total = os.ordens.filter(o => o.funilId === f.id && osEmAberto(o, os.etapaDaOrdem(o))).length;
+                  return (
+                    <button
+                      key={f.id} type="button" onClick={() => setParam("funil", f.id)}
+                      className={cn("flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border cursor-pointer transition-all", ativo ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]" : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
+                    >
+                      {f.nome}{f.padrao ? " ★" : ""}
+                      <span className="text-[10px] opacity-70">{total}</span>
+                    </button>
+                  );
+                })}
+              </>
+            )}
+            {!(vista === "kanban" && funisDoDep.length > 1) && (
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {vista === "kanban" ? `${cartoes.length} ordem(ns) no quadro` : `${linhas.length} ordem(ns) na lista`}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
+            {([["kanban", "Quadro", LayoutGrid], ["lista", "Lista", List]] as const).map(([v, label, Icon]) => (
               <button
                 key={v} type="button" onClick={() => setParam("vista", v === "kanban" ? null : v)}
+                aria-pressed={vista === v}
                 className={cn("flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded cursor-pointer transition-all", vista === v ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
               ><Icon className="w-3.5 h-3.5" /> {label}</button>
             ))}
           </div>
-          </FilterBar>
-        </KpiFilterCard>
-
-        {vista === "kanban" && funisDoDep.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Funil</span>
-            {funisDoDep.map(f => {
-              const ativo = funilAtual?.id === f.id;
-              const total = os.ordens.filter(o => o.funilId === f.id && osEmAberto(o, os.etapaDaOrdem(o))).length;
-              return (
-                <button
-                  key={f.id} type="button" onClick={() => setParam("funil", f.id)}
-                  className={cn("flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border cursor-pointer transition-all", ativo ? "bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/30 text-[var(--color-primary-blue)]" : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]")}
-                >
-                  {f.nome}{f.padrao ? " ★" : ""}
-                  <span className="text-[10px] opacity-70">{total}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+        </div>
 
         {depAtual && ehDepartamentoImplementacao(depAtual.nome) && <IniciarImplementacao onIniciada={os.reload} />}
 
