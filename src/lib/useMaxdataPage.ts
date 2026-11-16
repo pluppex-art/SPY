@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { useUnidadeMax } from "./unidadeMaxdata";
 
 /**
  * Cache em memória (vale enquanto a aba estiver aberta): voltar para uma tela já aberta mostra na hora o que já
@@ -32,7 +33,9 @@ type Opts = { table: "maxdata_clientes" | "maxdata_produtos"; origem: string; te
  * As telas carregam clientes/produtos inteiros no navegador, o que não escala para dezenas de
  * milhares de linhas — por isso a Max Data fica em tabelas próprias e entra aqui, página a página.
  */
-export function useMaxdataPage({ table, origem, tenantId, term, page, pageSize, from, count: limit, searchCols, orderBy, refresh }: Opts) {
+export function useMaxdataPage({ table, origem: origemPedida, tenantId, term, page, pageSize, from, count: limit, searchCols, orderBy, refresh }: Opts) {
+  const [unidade] = useUnidadeMax();
+  const origem = origemPedida === MAXDATA_TODAS && unidade ? unidade : origemPedida;
   const vazio = limit !== undefined && limit <= 0; // lista mista: esta página inteira cai na parte do CRM
   const ativo = !!origem && !!tenantId && !!supabase;
   const chave = `page|${table}|${tenantId}|${origem}|${term}|${page}|${pageSize}|${from ?? ""}|${limit ?? ""}|${orderBy}|${refresh ?? 0}|${searchCols.join(",")}`;
@@ -101,7 +104,9 @@ export type MaxdataStats = { total: number; [k: string]: number };
  * Totais (contagens exatas no servidor) sobre TODA a Max Data do tenant — os cards de indicadores das telas
  * não podem depender da página aberta nem do que está em memória. Uma contagem leve por indicador.
  */
-export function useMaxdataStats(table: "maxdata_clientes" | "maxdata_produtos", origem: string, tenantId: string | null | undefined, refresh = 0) {
+export function useMaxdataStats(table: "maxdata_clientes" | "maxdata_produtos", origemPedida: string, tenantId: string | null | undefined, refresh = 0) {
+  const [unidade] = useUnidadeMax();
+  const origem = origemPedida === MAXDATA_TODAS && unidade ? unidade : origemPedida;
   const chaveS = `stats|${table}|${tenantId}|${origem}|${refresh}`;
   const [stats, setStats] = useState<MaxdataStats | null>(() => cacheGet<MaxdataStats>(chaveS) ?? null);
   const [loading, setLoading] = useState(false);

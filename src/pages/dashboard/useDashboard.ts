@@ -1,3 +1,4 @@
+import { useUnidadeMax } from "../../lib/unidadeMaxdata";
 import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -205,15 +206,16 @@ export function useDashboard() {
   }, [isClinicaNiche, appointments, contracts, churnPeriodMonths]);
 
   // Loja Max Data: o navegador só tem as vendas recentes (de 490 mil+); os totais do período vêm agregados do banco.
+  const [unidade] = useUnidadeMax();
   const temVendasVirtuais = (contracts as any[]).some((c) => String(c.id).startsWith('venda-'));
   const [panorama, setPanorama] = useState<any | null>(null);
   useEffect(() => {
     if (!temVendasVirtuais || !activeTenantId || !supabase) { setPanorama(null); return; }
     let off = false;
-    supabase.rpc('maxdata_panorama', { p_tenant: activeTenantId, p_de: dateFrom || null, p_ate: dateTo || null })
+    supabase.rpc('maxdata_panorama', { p_tenant: activeTenantId, p_de: dateFrom || null, p_ate: dateTo || null, p_origem: unidade || null })
       .then(({ data, error }: any) => { if (!off) setPanorama(error ? null : data); });
     return () => { off = true; };
-  }, [temVendasVirtuais, activeTenantId, dateFrom, dateTo]);
+  }, [temVendasVirtuais, activeTenantId, dateFrom, dateTo, unidade]);
 
   // Empresa sem contratos (loja/varejo): a receita é o valor dos negócios Ganhos no período, não MRR de contrato.
   const vendasGanhas = useMemo(() => {

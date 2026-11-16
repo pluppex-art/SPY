@@ -1,3 +1,5 @@
+import UnidadeMaxSelect from "../../components/UnidadeMaxSelect";
+import { useUnidadeMax } from "../../lib/unidadeMaxdata";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
@@ -59,23 +61,24 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
 
   // Loja Max Data: o navegador só tem parte das vendas (de 490 mil+); os totais do fluxo vêm agregados do banco.
   const { activeTenantId } = useAuth();
+  const [unidade] = useUnidadeMax();
   const virtual = (contracts as any[]).some((c) => String(c.id).startsWith("venda-"));
   const [pan, setPan] = useState<any | null>(null);
   useEffect(() => {
     if (!virtual || !activeTenantId || !supabase) { setPan(null); return; }
     let off = false;
-    supabase.rpc("maxdata_panorama", { p_tenant: activeTenantId, p_de: dashboard.dateFrom || null, p_ate: dashboard.dateTo || null })
+    supabase.rpc("maxdata_panorama", { p_tenant: activeTenantId, p_de: dashboard.dateFrom || null, p_ate: dashboard.dateTo || null, p_origem: unidade || null })
       .then(({ data, error }: any) => { if (!off) setPan(error ? null : data); });
     return () => { off = true; };
-  }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo]);
+  }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo, unidade]);
   const [vend, setVend] = useState<any[] | null>(null);
   useEffect(() => {
     if (!virtual || !activeTenantId || !supabase) { setVend(null); return; }
     let off = false;
-    supabase.rpc("maxdata_vendedores", { p_tenant: activeTenantId, p_de: dashboard.dateFrom || null, p_ate: dashboard.dateTo || null })
+    supabase.rpc("maxdata_vendedores", { p_tenant: activeTenantId, p_de: dashboard.dateFrom || null, p_ate: dashboard.dateTo || null, p_origem: unidade || null })
       .then(({ data, error }: any) => { if (!off && !error && Array.isArray(data)) setVend(data); });
     return () => { off = true; };
-  }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo]);
+  }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo, unidade]);
   const salesRanking = useMemo(() => vend
     ? vend.map((v: any) => ({ name: v.codigo === "sem código" ? "Sem atendente" : `Atendente ${v.codigo}`, total: Number(v.total) || 0, deals: Number(v.deals) || 0, rate: Number(v.rate) || 0 }))
     : salesRankingLocal, [vend, salesRankingLocal]) as any[];
@@ -84,11 +87,11 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
     if (!virtual || !activeTenantId || !supabase) { setDet({}); return; }
     let off = false;
     (["canais", "produtos", "segmentos"] as const).forEach((tipo) => {
-      supabase!.rpc("maxdata_panorama_detalhe", { p_tenant: activeTenantId, p_tipo: tipo, p_de: dashboard.dateFrom || null, p_ate: dashboard.dateTo || null })
+      supabase!.rpc("maxdata_panorama_detalhe", { p_tenant: activeTenantId, p_tipo: tipo, p_de: dashboard.dateFrom || null, p_ate: dashboard.dateTo || null, p_origem: unidade || null })
         .then(({ data, error }: any) => { if (!off && !error && Array.isArray(data)) setDet((d) => ({ ...d, [tipo]: data })); });
     });
     return () => { off = true; };
-  }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo]);
+  }, [virtual, activeTenantId, dashboard.dateFrom, dashboard.dateTo, unidade]);
 
   const fluxo = useMemo(() => {
     if (pan) {
@@ -179,6 +182,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
             </button>
           ))}
         </div>
+        <UnidadeMaxSelect />
         <DateRangeFilter dateFrom={dashboard.dateFrom} setDateFrom={dashboard.setDateFrom} dateTo={dashboard.dateTo} setDateTo={dashboard.setDateTo} />
       </div>
 
