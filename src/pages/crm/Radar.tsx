@@ -25,6 +25,8 @@ import { supabase } from "../../lib/supabase";
 import { toast } from "sonner";
 
 import { HelpTip } from "../../components/ui/help-tip";
+import { calcularBoas } from "../../lib/radarBoas";
+import { RadarBoasPainel } from "./components/Radar/RadarBoas";
 type Risk = "critico" | "alto" | "atencao";
 const RISK_META: Record<Risk, { label: string; variant: "destructive" | "warning" | "info"; color: string }> = {
   critico: { label: "Crítico", variant: "destructive", color: "var(--color-danger)" },
@@ -72,6 +74,7 @@ export default function Radar() {
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
 
+  const [lado, setLado] = useState<"ruim" | "bom">("ruim");
   const [days, setDays] = useState(3);
   const [vendedor, setVendedor] = useState("todos");
   const [funilFiltro, setFunilFiltro] = useState("todos");
@@ -241,10 +244,46 @@ export default function Radar() {
     );
   };
 
+  const boas = useMemo(() => calcularBoas(leads as any[], parseCurrencyBR), [leads]);
+  const totalBoas = boas.quentes.length + boas.esquentando.length;
+
   const donutData = (["critico", "alto", "atencao"] as Risk[]).map((k) => ({ name: RISK_META[k].label, value: counts[k], color: RISK_META[k].color }));
 
   return (
-    <PageContainer breadcrumb={[{ label: "Radar" }]} title="Radar" subtitle="Negócios em aberto que esfriaram — retome antes de perder.">
+    <PageContainer breadcrumb={[{ label: "Radar" }]} title="Radar" subtitle="O que está esquentando e o que esfriou nos seus negócios: aproveite as boas oportunidades e retome os que estão parados antes de perder.">
+      <nav aria-label="Radar" className="flex items-end gap-1 mb-4 border-b border-[var(--color-border-default)]">
+        {([
+          { id: "ruim" as const, label: "Esfriando", sub: "para cuidar", total: totalEmRisco, cor: "text-danger" },
+          { id: "bom" as const, label: "Esquentando", sub: "boas notícias", total: totalBoas, cor: "text-emerald-600" },
+        ]).map((t) => {
+          const ativa = lado === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setLado(t.id)}
+              aria-current={ativa ? "page" : undefined}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px cursor-pointer transition-colors bg-transparent ${ativa ? "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]" : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+            >
+              {t.id === "ruim" ? <Clock className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
+              {t.label}
+              <span className="font-medium text-[var(--color-text-faint)] hidden sm:inline">· {t.sub}</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black bg-[var(--color-surface-sunken)] ${ativa ? t.cor : ""}`}>{t.total}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {lado === "bom" ? (
+        <RadarBoasPainel
+          boas={boas}
+          stageNames={stageNames}
+          funilNomeByTipo={funilNomeByTipo}
+          formatCurrency={formatCurrency}
+          onAbrir={(id) => navigate(`/app/crm/pipeline?lead=${id}`)}
+        />
+      ) : (
+      <>
       <KpiFilterCard className="mb-4" id="crmRadar" activeCount={activeCount} onClear={limparFiltros}>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {(["critico", "alto", "atencao"] as Risk[]).map((k) => (
@@ -467,6 +506,8 @@ export default function Radar() {
           </div>
         )}
       </Card>
+      </>
+      )}
     </PageContainer>
   );
 }
