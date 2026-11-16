@@ -343,6 +343,14 @@ export const NOTIFICATION_COPY: Record<string, Copy> = {
     headerLine2: "Agente Secreto desconectado",
     info: { title: "Como reconectar", text: "Abra o S.P.Y., clique em Reconectar no aviso vermelho e leia o QR code em WhatsApp › Aparelhos conectados." },
   },
+  // Mesmo aviso, escrito para o gestor (quem administra a equipe, não quem usa o WhatsApp).
+  agente_secreto_desconectado_gestor: {
+    crm: true,
+    pill: "Agente Secreto desconectado", title1: "Agente Secreto da equipe", title2: "desconectou do WhatsApp", icon: "icon-bell",
+    intro: "O Agente Secreto de um colaborador da sua equipe desconectou do WhatsApp e parou de registrar as conversas dele no CRM. Peça que ele reconecte, ou reconecte você mesmo pelo RH.",
+    headerLine2: "Agente Secreto desconectado",
+    info: { title: "Como reconectar pelo RH", text: "Abra Colaboradores & RH, no menu do colaborador escolha “Conectar WhatsApp do colaborador” e leia o QR code no celular dele." },
+  },
   novo_lead: {
     crm: true,
     pill: "Novo lead recebido", title1: "Novo Lead", title2: "adicionado no S.P.Y.", icon: "icon-user",

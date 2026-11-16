@@ -176,7 +176,7 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
         const r = await emailNotifyTenant(db, c.tenant_id, baseUrl, { ...base, linkPath: "/app", description: `A sua sessão de WhatsApp caiu e o Agente Secreto parou de acompanhar suas conversas. Reconecte lendo o QR code no S.P.Y.`, userIds: [c.user_id], dedupeKey: `agente_secreto_caiu:${c.id}:${desde}` });
         out.sessoesCaidas += r.sent;
       }
-      const a = await emailNotifyTenant(db, c.tenant_id, baseUrl, { ...base, description: `O Agente Secreto de ${c.nome} desconectou do WhatsApp. Você pode reconectar pelo RH (menu do colaborador › Conectar WhatsApp do colaborador) ou pedir que ele leia o QR code.`, adminsOnly: true, dedupeKey: `agente_secreto_caiu_admin:${c.id}:${desde}` });
+      const a = await emailNotifyTenant(db, c.tenant_id, baseUrl, { ...base, copyKey: "agente_secreto_desconectado_gestor", description: `O Agente Secreto de ${c.nome} desconectou do WhatsApp. Você pode reconectar pelo RH (menu do colaborador › Conectar WhatsApp do colaborador) ou pedir que ele leia o QR code.`, adminsOnly: true, dedupeKey: `agente_secreto_caiu_admin:${c.id}:${desde}` });
       out.sessoesCaidas += a.sent;
     });
   }
