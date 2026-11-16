@@ -86,7 +86,7 @@ export function NovaIssueDevModal({ isOpen, onClose, onSave }: Props) {
             <Bug className="w-4 h-4 text-red-400" />
           </div>
           <div className="leading-tight">
-            <div className="text-base font-black text-white">Novo Issue / Bug</div>
+            <div className="text-base font-black text-white">Nova pendência / erro</div>
             <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">Rastreamento de problemas</div>
           </div>
         </div>

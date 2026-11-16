@@ -98,9 +98,9 @@ export default function FinanceiroPerformanceMensal() {
 
   return (
     <PageContainer
-      title="Performance Mensal"
+      title="Desempenho Mensal"
       description={`Receitas, despesas e resultado realizados nos últimos ${janela} meses.`}
-      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Relatórios", path: "/app/financeiro/relatorios" }, { label: "Performance Mensal" }]}
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Relatórios", path: "/app/financeiro/relatorios" }, { label: "Desempenho Mensal" }]}
       actions={
         <div className="flex items-center gap-2 print:hidden">
           <Button variant="outline" onClick={() => window.print()} className="h-9 px-3 text-xs font-medium"><Printer className="w-3.5 h-3.5" /></Button>

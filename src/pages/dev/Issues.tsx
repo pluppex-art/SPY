@@ -56,7 +56,7 @@ export default function Issues() {
 
   return (
     <PageContainer
-      title="Issues & Bugs"
+      title="Pendências & Erros"
       description="Lista central de bugs, erros e pendências (issues) de todos os projetos."
       breadcrumb={[{ label: "Dev & Tecnologia", path: "/app/dev/painel" }, { label: "Issues" }]}
       actions={

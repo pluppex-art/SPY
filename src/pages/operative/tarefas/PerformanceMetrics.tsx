@@ -42,7 +42,7 @@ export function PerformanceMetrics({
           <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Atrasadas / Pendentes</div>
         </div>
         <div className="mt-4 text-[10px] text-slate-500 font-medium">
-          Exige atenção imediata de follow-up.
+          Exige atenção imediata de retomada.
         </div>
       </Card>
 

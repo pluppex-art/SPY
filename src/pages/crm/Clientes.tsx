@@ -323,7 +323,7 @@ export default function Clientes() {
         </div>
       }
     >
-      {/* Card "KPIs & Filtros" compartilhado. Os KPIs de Clientes mantêm drill-down e sparkline
+      {/* Card "Indicadores & Filtros" compartilhado. Os KPIs de Clientes mantêm drill-down e sparkline
           (ClientesKPIs), agora dentro do card e calculados sobre a lista filtrada. */}
       <KpiFilterCard className="mb-4" id="crmClientes" activeCount={activeCount} onClear={clearFilters}>
         {origem === "" && <ClientesKPIs {...kpis} clientes={clientesFiltrados} />}

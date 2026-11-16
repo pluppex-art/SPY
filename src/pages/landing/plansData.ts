@@ -53,7 +53,7 @@ export const PLANS: PlanData[] = [
     features: [
       "Agentes de IA",
       "Qualificação automática",
-      "Follow-up automático",
+      "Retomada automática",
       "Recuperação de oportunidades",
       "Agendamento automático",
       "Distribuição de leads",

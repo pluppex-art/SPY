@@ -99,7 +99,7 @@ export function RevenueIntelligenceModal({ lead, stageName, pipelineName, onClos
               <Brain className="w-4 h-4 text-blue-400" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-white uppercase tracking-wider">Revenue Intelligence</h2>
+              <h2 className="text-sm font-black text-white uppercase tracking-wider">Inteligência de Receita</h2>
               <p className="text-[10px] text-slate-500">{lead.name} · {lead.company}</p>
             </div>
           </div>

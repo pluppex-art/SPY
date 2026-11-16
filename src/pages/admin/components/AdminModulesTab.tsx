@@ -40,7 +40,7 @@ const DEFAULT_MODULES: Record<string, boolean> = {
 const MODULE_DEFINITIONS = [
   { id: "crm", title: "CRM & Funil de Vendas", desc: "Leads, funil comercial, rodízio de closers e SDR IA", icon: Target, category: "Comercial", color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
   { id: "aurora", title: "Aurora Diretoria IA", desc: "Assistente executiva com inteligência e comandos por voz", icon: Sparkles, category: "Inteligência", color: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20" },
-  { id: "produtividade", title: "Tarefas & Produtividade", desc: "Quadro Kanban de operações e gestão de follow-ups", icon: Clock, category: "Operações", color: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20" },
+  { id: "produtividade", title: "Tarefas & Produtividade", desc: "Quadro Kanban de operações e gestão de retomadas", icon: Clock, category: "Operações", color: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20" },
   { id: "financeiro", title: "Cofre & Financeiro", desc: "Contas a pagar/receber, DRE, conciliação e metas", icon: DollarSign, category: "Finanças", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
   { id: "catalogo", title: "Catálogo de Produtos & SKUs", desc: "Produtos, serviços, controle de estoque e precificação", icon: Package, category: "Vendas", color: "text-purple-500 bg-purple-500/10 border-purple-500/20" },
   { id: "marketing", title: "Marketing & Campanhas", desc: "Automações, landing pages, formulários e tracking de conversão", icon: Megaphone, category: "Marketing", color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },

@@ -297,7 +297,7 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
         </Card>
 
         <Card className="lg:col-span-4 p-5 shadow-sm">
-          <SectionTitle className="mb-4">Metas e Performance</SectionTitle>
+          <SectionTitle className="mb-4">Metas e Desempenho</SectionTitle>
           {squadsComMeta.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] italic">Nenhuma meta de squad configurada.</p>
           ) : (

@@ -251,7 +251,7 @@ export function StrategicalView({
             <div>
               <SectionTitle>
                 <BarChart3 className="w-5 h-5 text-[var(--color-primary-blue)]" /> Fluxo de Performance
-               <HelpTip label="Sobre Fluxo de Performance">Compara quantos leads você prospectou com o faturamento recorrente. Se os dois sobem juntos, a prospecção está virando receita.</HelpTip></SectionTitle>
+               <HelpTip label="Sobre Fluxo de Desempenho">Compara quantos leads você prospectou com o faturamento recorrente. Se os dois sobem juntos, a prospecção está virando receita.</HelpTip></SectionTitle>
             </div>
           </div>
 
@@ -431,7 +431,7 @@ export function StrategicalView({
                   <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-0.5">Oportunidade Mapeada</p>
                   <p className="text-[11px] text-[var(--color-text-muted)]">
                     {leadsQuentes > 0
-                      ? `${leadsQuentes} lead(s) quente(s) com Score IA > 80 aguardando follow-up.`
+                      ? `${leadsQuentes} lead(s) quente(s) com Score IA > 80 aguardando retomada.`
                       : "Nenhum lead com Score IA > 80 em aberto no momento."}
                   </p>
                 </div>

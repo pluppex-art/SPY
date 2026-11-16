@@ -11,7 +11,7 @@ import { useData } from "../contexts/DataContext";
 import { normalizeText } from "../lib/utils";
 
 const NAV_ACTIONS = [
-  { name: "Dashboard Principal", icon: LayoutDashboard, path: "/app/dashboard", category: "Navegação" },
+  { name: "Painel Principal", icon: LayoutDashboard, path: "/app/dashboard", category: "Navegação" },
   { name: "Central de Vendas", icon: Briefcase, path: "/app/crm/pipeline", category: "Navegação" },
   { name: "Base de Clientes", icon: Users, path: "/app/crm/clientes", category: "Navegação" },
   { name: "Propostas", icon: FileText, path: "/app/crm/propostas", category: "Navegação" },

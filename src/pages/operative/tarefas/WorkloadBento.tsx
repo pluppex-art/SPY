@@ -159,7 +159,7 @@ export function WorkloadBento({ tasks, onExpandTask, googleConnected }: Workload
 
       {/* Workload da equipe */}
       <Card className={`${cardCls} flex flex-col gap-4`}>
-        <h4 className={label}>Workload da equipe</h4>
+        <h4 className={label}>Carga de trabalho da equipe</h4>
         <div className="flex items-center gap-4">
           <div className="relative w-36 h-36 shrink-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -208,7 +208,7 @@ export function WorkloadBento({ tasks, onExpandTask, googleConnected }: Workload
       {/* Performance engine */}
       <Card className={`${cardCls} flex flex-col gap-4`}>
         <div className="flex items-center justify-between gap-2">
-          <h4 className={label}>Performance engine</h4>
+          <h4 className={label}>Desempenho engine</h4>
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}

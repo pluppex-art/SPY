@@ -152,7 +152,7 @@ const BOARDS: BoardDef[] = [
     key: 'tarefas',
     label: 'Tarefas / Produtividade',
     icon: <CheckSquare className="w-4 h-4" />,
-    description: 'Fluxo operacional de tarefas internas e follow-ups.',
+    description: 'Fluxo operacional de tarefas internas e retomadas.',
     storageKey: KANBAN_KEYS.tarefas,
     defaults: KANBAN_DEFAULTS[KANBAN_KEYS.tarefas],
     canAddRemove: true,

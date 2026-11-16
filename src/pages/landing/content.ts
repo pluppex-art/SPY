@@ -120,7 +120,7 @@ export const FINANCE_GROUPS: { title: string; items: string[] }[] = [
   { title: "Caixa e visão", items: ["Fluxo de caixa", "Projeção", "DRE", "MRR", "Orçamentos"] },
   { title: "Bancos", items: ["Contas bancárias e transferências", "Conciliação de extrato OFX e QFX", "Importação por CSV"] },
   { title: "Organização", items: ["Centros de custo", "Tags", "Rateio", "Anexos nos lançamentos"] },
-  { title: "Relatórios", items: ["Extrato", "Performance mensal e anual", "Relatórios agrupados"] },
+  { title: "Relatórios", items: ["Extrato", "Desempenho mensal e anual", "Relatórios agrupados"] },
   { title: "Controle", items: ["Bloqueio de período", "Trilha de auditoria financeira"] },
 ];
 
@@ -242,11 +242,11 @@ export const SECURITY = [
 ];
 
 export const PROBLEM_PAINS = ["WhatsApp separado", "Planilhas soltas", "CRM isolado", "Leads esquecidos", "Equipe sem contexto", "Gestor sem visão da operação", "Decisões no achismo"];
-export const PROBLEM_WITHOUT = ["O lead chega pelo WhatsApp", "Alguém responde e o interesse aparece", "A conversa para e o follow-up não acontece", "O lead esfria e some do radar"];
+export const PROBLEM_WITHOUT = ["O lead chega pelo WhatsApp", "Alguém responde e o interesse aparece", "A conversa para e a retomada não acontece", "O lead esfria e some do radar"];
 export const PROBLEM_WITH = [
   "O lead entra no pipeline, com score e temperatura",
   "O rodízio entrega o lead a um vendedor",
-  "O follow-up vira tarefa e compromisso na agenda",
+  "A retomada vira tarefa e compromisso na agenda",
   "A Aurora aponta os leads sem contato",
   "A proposta segue por link, com aceite online",
 ];
@@ -258,7 +258,7 @@ export const AURORA_AGENTS: { name: string; role: string; text: string }[] = [
   { name: "Diretoria", role: "Executivo", text: "Resumos e recomendações para a liderança." },
   { name: "Financeiro", role: "Financeiro", text: "Resumos de fluxo de caixa, contas e inadimplência." },
   { name: "Marketing", role: "Marketing", text: "Leitura de campanhas, landing pages e origem dos leads." },
-  { name: "Organização", role: "Operações", text: "Tarefas pendentes, agenda e follow-ups do dia." },
+  { name: "Organização", role: "Operações", text: "Tarefas pendentes, agenda e retomadas do dia." },
   { name: "Atendimento", role: "Suporte", text: "Acompanhamento de clientes ativos e chamados." },
   { name: "Pesquisa", role: "Pesquisa", text: "Levantamento de dados de mercado e concorrência." },
   { name: "Briefing Diário", role: "Briefing", text: "Resumo do dia com as prioridades de cada pessoa." },

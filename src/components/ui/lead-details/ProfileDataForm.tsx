@@ -287,7 +287,7 @@ export function ProfileDataForm({
             {leadMRR && (
               <span
                 className="flex items-center gap-1 text-[10px] font-mono font-bold text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 rounded-full pl-2 pr-2.5 py-1"
-                title="Mesma métrica do Financeiro/Dashboard (MRR de contratos ativos) — calculada a partir das propostas deste lead que já viraram contrato."
+                title="Mesma métrica do Financeiro/Painel (MRR de contratos ativos) — calculada a partir das propostas deste lead que já viraram contrato."
               >
                 <Repeat className="w-2.5 h-2.5" /> MRR: {leadMRR}/mês
               </span>

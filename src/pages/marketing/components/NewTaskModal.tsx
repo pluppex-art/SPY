@@ -58,7 +58,7 @@ export function NewTaskModal({
                  type="text" 
                  value={newTitle}
                  onChange={(e) => setNewTitle(e.target.value)}
-                 placeholder="Ex: Tutorial Dashboard Financeiro" 
+                 placeholder="Ex: Tutorial Painel Financeiro" 
                  className="w-full bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none" 
                />
             </div>
@@ -125,7 +125,7 @@ export function NewTaskModal({
                </div>
             </div>
             <div className="space-y-1.5">
-               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Breve Briefing</label>
+               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Resumo breve</label>
                <textarea 
                  rows={3} 
                  value={newDesc}

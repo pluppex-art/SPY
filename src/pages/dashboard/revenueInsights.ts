@@ -36,7 +36,7 @@ export function recomendacaoDe(situacaoLabel: string): string {
     case "Estagnada": return "Intervenção imediata";
     case "Em risco": return "Retomar contato";
     case "Quente": return "Acelerar fechamento";
-    default: return "Novo follow-up";
+    default: return "Nova retomada";
   }
 }
 
@@ -122,7 +122,7 @@ export function computeVazamentos(params: {
   const paradasValue = oportunidadesParadas.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0);
   const quentesValue = leadsQuentesParados.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0);
   return [
-    { motivo: "Propostas sem follow-up", valor: propostasSemFollowUpValue, qtd: propostasSemFollowUp.length },
+    { motivo: "Propostas sem retomada", valor: propostasSemFollowUpValue, qtd: propostasSemFollowUp.length },
     { motivo: "Leads quentes sem contato", valor: quentesValue, qtd: leadsQuentesParados.length },
     { motivo: "Oportunidades paradas (+30d)", valor: paradasValue, qtd: oportunidadesParadas.length },
     { motivo: "Clientes com risco de churn", valor: churnValue, qtd: contratosEmRisco.length },
@@ -165,7 +165,7 @@ export function buildAuroraAcoes(params: {
   }
   if (propostasSemFollowUp.length > 0) {
     acoes.push({
-      icon: "filewarning", titulo: `${propostasSemFollowUp.length} proposta${propostasSemFollowUp.length > 1 ? "s" : ""} sem follow-up`,
+      icon: "filewarning", titulo: `${propostasSemFollowUp.length} proposta${propostasSemFollowUp.length > 1 ? "s" : ""} sem retomada`,
       subtitulo: "Enviadas há mais de 5 dias", valor: propostasSemFollowUpValue, target: "/app/crm/propostas",
     });
   }

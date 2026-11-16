@@ -272,7 +272,7 @@ export function ResultsView({ result, onCreateTask, onReset }: ResultsViewProps)
       )}
 
       {/* WhatsApp follow-up */}
-      <SectionCard title="Follow-up WhatsApp" icon={MessageSquare}>
+      <SectionCard title="Retomada WhatsApp" icon={MessageSquare}>
         <div className="space-y-3">
           <button
             onClick={() => setShowWhatsapp(v => !v)}

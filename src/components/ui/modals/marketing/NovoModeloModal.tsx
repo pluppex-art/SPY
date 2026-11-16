@@ -138,7 +138,7 @@ export function NovoModeloModal({
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 className={inputBaseClass}
-                placeholder="Ex.: Follow-up 1 / Reativação"
+                placeholder="Ex.: Retomada 1 / Reativação"
                 required
               />
               {touched && !nomeTrim && (

@@ -70,7 +70,7 @@ export const navSections = [
   {
     title: "Visão Geral",
     items: [
-      { name: "Dashboard Geral", path: "/app/dashboard", icon: LayoutDashboard },
+      { name: "Painel Geral", path: "/app/dashboard", icon: LayoutDashboard },
     ],
   },
   {
@@ -138,7 +138,7 @@ export const navSections = [
     title: "Inteligência & BI",
     reqModule: "bi",
     items: [
-      ...(AI_OUTSIDE_AURORA_ENABLED ? [{ name: "Performance SDR / IA", path: "/app/performance-ia", icon: Brain }] : []),
+      ...(AI_OUTSIDE_AURORA_ENABLED ? [{ name: "Desempenho SDR / IA", path: "/app/performance-ia", icon: Brain }] : []),
       { name: "CPM & Indicadores", path: "/app/indicadores", icon: BarChart2 },
       { name: "Relatórios Executivos", path: "/app/relatorios", icon: PieChart },
     ],
@@ -232,7 +232,7 @@ export const navSections = [
       { name: "Painel Dev", path: "/app/dev/painel", icon: Code2 },
       { name: "Projetos", path: "/app/dev/projetos", icon: FolderCode },
       { name: "Sprints", path: "/app/dev/sprints", icon: Kanban },
-      { name: "Issues & Bugs", path: "/app/dev/issues", icon: Bug },
+      { name: "Pendências & Erros", path: "/app/dev/issues", icon: Bug },
       { name: "Repositórios", path: "/app/dev/repositorios", icon: GitBranch },
       { name: "Ambientes", path: "/app/dev/ambientes", icon: MonitorCheck },
     ],

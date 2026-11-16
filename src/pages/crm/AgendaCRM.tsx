@@ -437,7 +437,7 @@ export default function AgendaCRM() {
   return (
     <PageContainer
       title="Agenda Comercial CRM"
-      description="Controle os compromissos comerciais: reuniões de fechamento, follow-ups (retomadas de contato) e demonstrações."
+      description="Controle os compromissos comerciais: reuniões de fechamento, retomadas de contato e demonstrações."
       actions={
         <div className="flex items-center gap-3 flex-wrap">
           {/* Botão de Conexão / Sincronização do Google */}

@@ -515,7 +515,7 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
                   </div>
                   <div className="flex-1">
                     <h3 className="text-[11px] font-black text-white uppercase tracking-widest">SDRs no Rodízio</h3>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Round-robin entre os SDRs ativos abaixo.</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Revezamento entre os SDRs ativos abaixo.</p>
                   </div>
                   {saving && <RefreshCw className="w-4 h-4 text-slate-500 animate-spin" />}
                 </div>

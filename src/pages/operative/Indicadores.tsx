@@ -17,7 +17,7 @@ export default function Indicadores() {
   return (
     <PageContainer
       title="BI & Analytics S.P.Y."
-      description="Aprofunde-se nos indicadores (KPIs) da empresa, na projeção de faturamento e na governança dos dados."
+      description="Aprofunde-se nos indicadores da empresa, na projeção de faturamento e na governança dos dados."
       actions={
         <div className="flex gap-2">
           <Button onClick={() => window.print()} variant="outline" className="border-white/10 bg-[var(--color-surface-elevated)] text-slate-300 h-11 px-6 rounded-xl font-bold uppercase tracking-widest text-[10px]">

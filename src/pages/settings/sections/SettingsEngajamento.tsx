@@ -145,7 +145,7 @@ export function ConfigBusinessDashboard() {
   const handleSaveDashboard = async () => {
     setHydrated(true);
     await saveAppSetting(BUSINESS_DASHBOARD_KPIS_KEY, selectedKPIs);
-    toast.success("Configuração de Dashboard salva com sucesso!");
+    toast.success("Configuração de Painel salva com sucesso!");
   };
 
   const toggleKPI = (kpiName: string) => {
@@ -169,14 +169,14 @@ export function ConfigBusinessDashboard() {
     link.setAttribute("download", "relatorio_kpis.csv");
     document.body.appendChild(link);
     link.click();
-    toast.success("Relatório de KPIs exportado com sucesso!");
+    toast.success("Relatório de indicadores exportado com sucesso!");
   };
 
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Dashboard de Negócios <HelpTip label="Sobre Dashboard de Negócios">Escolha quais indicadores (KPIs) e alertas aparecem na tela inicial, para ver logo de cara o que importa para o seu negócio.</HelpTip></h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Painel de Negócios <HelpTip label="Sobre Painel de Negócios">Escolha quais indicadores e alertas aparecem na tela inicial, para ver logo de cara o que importa para o seu negócio.</HelpTip></h1>
         </div>
         <Button onClick={handleExport} variant="outline" className="h-9 px-4 text-xs font-bold border-[var(--color-border-default)]">
           Exportar Relatório

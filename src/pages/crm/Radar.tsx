@@ -229,7 +229,7 @@ export default function Radar() {
       priority: "Alta",
       due_date: new Date().toISOString(),
     })));
-    toast.success(`${alvo.length} tarefa${alvo.length === 1 ? "" : "s"} de follow-up criada${alvo.length === 1 ? "" : "s"}.`);
+    toast.success(`${alvo.length} tarefa${alvo.length === 1 ? "" : "s"} de retomada criada${alvo.length === 1 ? "" : "s"}.`);
     setSelecionados(new Set());
   };
 

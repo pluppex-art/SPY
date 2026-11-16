@@ -94,7 +94,7 @@ export function ChatSection({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {[
             { title: "Apresentação Comercial", text: "Olá {client}! Vi seu interesse na Consultoria Enterprise. Sou consultor principal S.P.Y.. Podemos agendar uma chamada rápida de 10 min amanhã?" },
-            { title: "SLA Follow-up", text: "Oi {client}, tudo bom? Estou reavaliando nosso cronograma de implantação. Conseguiram analisar nossa proposta?" },
+            { title: "SLA Retomada", text: "Oi {client}, tudo bom? Estou reavaliando nosso cronograma de implantação. Conseguiram analisar nossa proposta?" },
             { title: "Proposta Comercial", text: "Prezado {client}, segue em anexo a proposta oficial do escopo de serviços contratado." },
             { title: "Link de Calendário", text: "Para facilitar nosso alinhamento, {client}, segue meu link de agendamento online." }
           ].map((tpl, i) => (

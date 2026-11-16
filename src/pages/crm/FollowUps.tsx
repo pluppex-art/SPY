@@ -64,7 +64,7 @@ export default function FollowUps() {
 
   return (
     <PageContainer
-      title="Central de Follow-ups"
+      title="Central de Retomadas"
       description="Encontre oportunidades paradas, agende a retomada do contato e garanta que nenhum lead fique sem resposta."
     >
       <KpiFilterCard className="mb-4"
@@ -72,7 +72,7 @@ export default function FollowUps() {
         activeCount={activeCount}
         onClear={clearFilters}
         kpis={[
-          { label: "Total em Follow-up", value: filtered.length, icon: Clock, tone: "primary" },
+          { label: "Total em Retomada", value: filtered.length, icon: Clock, tone: "primary" },
           { label: "Atenção / Urgentes", value: urgentCount, icon: AlertCircle, tone: "danger" },
           { label: "Parados > 3 Dias", value: filtered.filter(l => l.daysInactive >= 3).length, icon: Calendar, tone: "warning" },
           { label: "Leads Quentes", value: filtered.filter(l => l.temperature === "quente").length, icon: CheckCircle2, tone: "success" },
@@ -152,7 +152,7 @@ export default function FollowUps() {
           <div className="py-16 text-center text-[var(--color-text-muted)]">
             <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-500 opacity-60" />
             <p className="font-bold text-[var(--color-text-primary)]">Tudo em dia!</p>
-            <p className="text-xs mt-0.5">Nenhum follow-up pendente para os filtros selecionados.</p>
+            <p className="text-xs mt-0.5">Nenhuma retomada pendente para os filtros selecionados.</p>
           </div>
         )}
       </div>

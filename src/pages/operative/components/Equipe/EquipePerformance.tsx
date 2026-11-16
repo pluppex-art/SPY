@@ -22,7 +22,7 @@ export function EquipePerformance({ team, squads }: EquipePerformanceProps) {
     >
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-black text-white tracking-tighter">Ranking & Performance</h2>
+          <h2 className="text-3xl font-black text-white tracking-tighter">Ranking & Desempenho</h2>
           <p className="text-sm text-slate-400 mt-1">Análise volumétrica de conversão e receita por células.</p>
         </div>
         <div className="flex gap-2 p-1 bg-white/5 border border-white/5 rounded-xl">

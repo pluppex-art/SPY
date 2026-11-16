@@ -101,7 +101,7 @@ export function MessagingSection({ leadName, companyName, seller }: MessagingSec
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {[
             { title: "Apresentação Comercial", text: "Olá {client}! Vi seu interesse em nossa solução. Sou o(a) {seller}. Podemos agendar uma chamada rápida de 10 min amanhã?" },
-            { title: "Follow-up de Proposta", text: "Oi {client}, tudo bem? Estou revisando o planejamento da {company}. Conseguiram analisar a proposta que enviamos?" },
+            { title: "Retomada de Proposta", text: "Oi {client}, tudo bem? Estou revisando o planejamento da {company}. Conseguiram analisar a proposta que enviamos?" },
             { title: "Envio de Minuta / Escopo", text: "Prezado {client}, segue o escopo dos serviços discutidos para a {company}." },
             { title: "Link de Agendamento", text: "Para facilitar nosso alinhamento, {client}, segue meu calendário: calendly.com/{seller}-axis" }
           ].map((tpl, i) => (

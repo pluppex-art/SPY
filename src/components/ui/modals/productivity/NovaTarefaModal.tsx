@@ -653,7 +653,7 @@ export function NovaTarefaModal({
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               className={fieldClass}
-              placeholder="Ex: prioridade alta, follow-up"
+              placeholder="Ex: prioridade alta, retomada"
             />
           </div>
         </div>

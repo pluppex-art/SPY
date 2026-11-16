@@ -201,7 +201,7 @@ export default function Pipeline() {
       }
     >
       <div className="flex flex-col space-y-4 flex-1 min-h-0">
-        {/* Card "KPIs & Filtros" compartilhado (components/ui/kpi-filter-card) — o mesmo das demais páginas.
+        {/* Card "Indicadores & Filtros" compartilhado (components/ui/kpi-filter-card) — o mesmo das demais páginas.
             Estado aberto/fechado salvo em users.preferences (pipelineFiltersOpen). */}
         <KpiFilterCard
           id="pipeline"

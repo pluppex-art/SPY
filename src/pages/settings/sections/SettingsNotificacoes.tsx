@@ -89,7 +89,7 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationTrigger[] = [
   {
     id: "tarefa_vencida",
     category: "Produtividade & Agenda",
-    title: "Tarefa ou Follow-up Vencido",
+    title: "Tarefa ou Retomada Vencida",
     description: "Alerta de atraso em atividades comerciais pendentes ou reuniões sem conclusão",
     inApp: true,
     email: true,

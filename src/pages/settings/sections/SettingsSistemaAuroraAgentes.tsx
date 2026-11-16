@@ -59,7 +59,7 @@ export const AURORA_AGENTS_DEFAULT: Array<Pick<AuroraAgent, "name" | "role" | "d
   { name: "Atendimento", role: "Suporte", description: "Acompanhamento de clientes ativos e chamados de suporte." },
   { name: "Financeiro", role: "Financeiro", description: "Resumos de fluxo de caixa, contas e inadimplência." },
   { name: "Marketing", role: "Marketing", description: "Leitura de campanhas, landing pages e origem dos leads." },
-  { name: "Organização", role: "Operações", description: "Tarefas pendentes, agenda e follow-ups do dia a dia." },
+  { name: "Organização", role: "Operações", description: "Tarefas pendentes, agenda e retomadas do dia a dia." },
   { name: "Briefing Diário", role: "Briefing", description: "Resumo executivo enviado por WhatsApp às 8h, com prioridades do dia personalizadas por pessoa." },
 ];
 

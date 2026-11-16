@@ -17,7 +17,7 @@ interface EquipeSidebarProps {
 
 const NAV_ITEMS = [
   { label: "Visão Geral", id: "visao-geral", icon: LayoutDashboard },
-  { label: "Performance", id: "performance", icon: TrendingUp },
+  { label: "Desempenho", id: "performance", icon: TrendingUp },
   { label: "Squads", id: "squads", icon: Users2 },
   { label: "Membros", id: "membros", icon: Users },
   { label: "Audit Logs", id: "logs", icon: History },

@@ -106,7 +106,7 @@ interface KpiFilterCardProps {
   search?: ReactNode;
 }
 
-export function KpiFilterCard({ id, title = "KPIs & Filtros", kpis = [], children, activeCount = 0, onClear, defaultOpen = true, className, search }: KpiFilterCardProps) {
+export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], children, activeCount = 0, onClear, defaultOpen = true, className, search }: KpiFilterCardProps) {
   const { user, updatePreferences } = useAuth();
   // No celular o card ocupa a tela inteira quando aberto, então começa fechado e guarda a
   // preferência separada da do desktop (uma não sobrescreve a outra).

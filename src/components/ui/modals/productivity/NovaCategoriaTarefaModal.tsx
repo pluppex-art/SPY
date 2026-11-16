@@ -157,7 +157,7 @@ export function NovaCategoriaTarefaModal({
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 className={inputBaseClass}
-                placeholder="Ex.: Prospecting, Follow-up, Suporte"
+                placeholder="Ex.: Prospecting, Retomada, Suporte"
                 required
               />
               {touched && !nome.trim() && (

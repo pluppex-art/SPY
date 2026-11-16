@@ -15,7 +15,7 @@ export const GATILHO_TEMPLATES: GatilhoTemplate[] = [
   { id: "parados", label: "Leads parados", texto: "Quero mandar mensagem pra quem ficou parado há mais de 30 dias" },
   { id: "novos", label: "Novos leads", texto: "Quero mandar mensagem de boas-vindas pros leads que chegaram essa semana" },
   { id: "reativacao", label: "Reativação", texto: "Quero reativar clientes que não compram há mais de 90 dias" },
-  { id: "followup", label: "Follow-up", texto: "Quero fazer follow-up de quem recebeu proposta e não respondeu" },
+  { id: "followup", label: "Follow-up", texto: "Quero fazer a retomada de quem recebeu proposta e não respondeu" },
   { id: "personalizado", label: "Personalizado", texto: "" },
 ];
 
@@ -58,9 +58,9 @@ export function buildJuliaSuggestions(params: {
   if (propostasSemFollowUp.length > 0) {
     out.push({
       id: "propostas-sem-followup",
-      titulo: "Propostas sem follow-up",
+      titulo: "Propostas sem retomada",
       subtitulo: `${propostasSemFollowUp.length} proposta${propostasSemFollowUp.length === 1 ? "" : "s"} enviada${propostasSemFollowUp.length === 1 ? "" : "s"}, aguardando resposta.`,
-      texto: "Quero fazer follow-up de quem recebeu proposta e ainda não respondeu",
+      texto: "Quero fazer a retomada de quem recebeu proposta e ainda não respondeu",
     });
   }
 

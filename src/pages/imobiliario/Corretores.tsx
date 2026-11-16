@@ -224,7 +224,7 @@ function CorretorDetailDrawer({ c, idx, onClose, onEdit, onDelete }: {
         <div className="flex-1 overflow-y-auto">
           {/* KPIs */}
           <div className="px-6 py-4 border-b border-white/5">
-            <p className={LABEL}>Performance</p>
+            <p className={LABEL}>Desempenho</p>
             <div className="grid grid-cols-3 gap-2 mt-2">
               <div className="bg-white/5 rounded-xl p-3 text-center">
                 <p className="text-xl font-black text-white">{c.imovisAtivos}</p>

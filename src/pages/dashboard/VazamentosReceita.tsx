@@ -14,7 +14,7 @@ import { diasDesde, computeVazamentos, type DashboardData } from "./revenueInsig
 import { isLeadOpen } from "../../lib/leadStatus";
 
 const MOTIVO_PALETTE: Record<string, string> = {
-  "Propostas sem follow-up": "#ef4444",
+  "Propostas sem retomada": "#ef4444",
   "Leads quentes sem contato": "#f59e0b",
   "Oportunidades paradas (+30d)": "var(--color-primary-blue)",
   "Clientes com risco de churn": "#14b8a6",
@@ -50,7 +50,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
   const totalVazamento = vazamentos.reduce((s, v) => s + v.valor, 0);
 
   const tabs: { id: Aba; label: string; count: number }[] = [
-    { id: "propostas", label: "Propostas sem follow-up", count: propostasSemFollowUp.length },
+    { id: "propostas", label: "Propostas sem retomada", count: propostasSemFollowUp.length },
     { id: "leads", label: "Leads quentes sem contato", count: leadsQuentesParados.length },
     { id: "paradas", label: "Oportunidades paradas", count: oportunidadesParadas.length },
     { id: "churn", label: "Clientes em risco", count: contratosEmRisco.length },
@@ -68,7 +68,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
         {[
-          { aba: "propostas" as const, icon: FileWarning, label: "Propostas sem Follow-up", val: propostasSemFollowUpValue, n: propostasSemFollowUp.length, un: "proposta" },
+          { aba: "propostas" as const, icon: FileWarning, label: "Propostas sem Retomada", val: propostasSemFollowUpValue, n: propostasSemFollowUp.length, un: "proposta" },
           { aba: "leads" as const, icon: Flame, label: "Leads Quentes sem Contato", val: leadsQuentesParados.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0), n: leadsQuentesParados.length, un: "lead" },
           { aba: "paradas" as const, icon: Workflow, label: "Oportunidades Paradas", val: oportunidadesParadas.reduce((s: number, l: any) => s + parseCurrencyBR(l.value), 0), n: oportunidadesParadas.length, un: "oportunidade" },
           { aba: "churn" as const, icon: UserX, label: "Clientes com Risco de Churn", val: contratosEmRisco.reduce((s, c) => s + parseCurrencyBR(c.mrr), 0), n: contratosEmRisco.length, un: "cliente" },

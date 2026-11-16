@@ -377,7 +377,7 @@ export default function FinanceiroCentrosCusto() {
               <input
                 value={nome}
                 onChange={e => setNome(e.target.value)}
-                placeholder="Ex: Marketing Digital & Performance"
+                placeholder="Ex: Marketing Digital & Desempenho"
                 autoFocus
                 className={cn(ctl, tentou && nomeErro && "border-danger")}
               />

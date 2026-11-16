@@ -377,7 +377,7 @@ export default function FinanceiroConciliacao() {
                 <th className="px-5 py-3">Data</th>
                 <th className="px-4 py-3">Banco</th>
                 <th className="px-5 py-3">Descrição do Lançamento</th>
-                <th className="px-4 py-3">Match Sugerido (Sistema)</th>
+                <th className="px-4 py-3">Correspondência Sugerida (Sistema)</th>
                 <th className="px-4 py-3 text-right">Valor</th>
                 <th className="px-5 py-3 text-right">Ação</th>
               </tr>

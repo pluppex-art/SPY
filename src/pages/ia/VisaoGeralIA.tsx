@@ -110,7 +110,7 @@ export default function VisaoGeralIA() {
             ))}
           </section>
           <section className="space-y-3">
-            <Titulo>Insights recentes</Titulo>
+            <Titulo>Análises recentes</Titulo>
             {!ia || ia.insights.length === 0 ? aviso("Nenhum insight gerado ainda.") : (
               <Card className="divide-y divide-[var(--color-border-subtle)]">
                 {ia.insights.map((i) => (

@@ -137,7 +137,7 @@ export function NovoProjetoDevModal({ isOpen, onClose, onSave }: Props) {
         </div>
 
         <div className="space-y-2">
-          <label className={label}>Stack Tecnológica</label>
+          <label className={label}>Tecnologias usadas</label>
           <div className="flex flex-wrap gap-2 p-3 bg-[var(--color-surface)] border border-white/10 rounded-xl min-h-[48px]">
             {STACKS.map(tech => (
               <button key={tech} type="button" onClick={() => toggleStack(tech)}

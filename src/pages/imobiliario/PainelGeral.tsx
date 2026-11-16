@@ -389,7 +389,7 @@ export default function ImobiliarioPainel() {
           {/* Ranking Corretores */}
           <div className="bg-[var(--color-surface-elevated)]/80 border border-white/5 rounded-2xl p-5">
             <h3 className="text-xs font-black text-white uppercase tracking-widest mb-1">Ranking Corretores</h3>
-            <p className="text-[10px] text-slate-500 mb-5">Performance acumulada no mês</p>
+            <p className="text-[10px] text-slate-500 mb-5">Desempenho acumulada no mês</p>
             {corretores.length === 0 ? (
               <div className="flex items-center justify-center h-40 text-slate-600 text-sm">Nenhum corretor cadastrado</div>
             ) : (

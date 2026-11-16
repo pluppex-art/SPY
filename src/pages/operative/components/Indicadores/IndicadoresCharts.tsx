@@ -28,7 +28,7 @@ export function IndicadoresCharts({ monthlyData, pieData }: IndicadoresChartsPro
           <h3 className="font-bold text-xl text-white">Evolução de MRR vs Meta</h3>
           <div className="flex gap-4">
             <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-[#2563EB]" /><span className="text-[10px] uppercase font-bold text-slate-500">Real</span></div>
-            <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-white/10" /><span className="text-[10px] uppercase font-bold text-slate-500">Benchmark</span></div>
+            <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-white/10" /><span className="text-[10px] uppercase font-bold text-slate-500">Comparativo</span></div>
           </div>
         </div>
         {monthlyData.length === 0 ? (
@@ -66,7 +66,7 @@ export function IndicadoresCharts({ monthlyData, pieData }: IndicadoresChartsPro
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-4xl font-black text-white">0%</span>
-            <span className="text-[10px] text-emerald-500 uppercase tracking-widest font-bold">Health Score</span>
+            <span className="text-[10px] text-emerald-500 uppercase tracking-widest font-bold">Nota de saúde</span>
           </div>
         </div>
         <div className="mt-8 grid grid-cols-1 gap-2">

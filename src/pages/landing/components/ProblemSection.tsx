@@ -10,7 +10,7 @@ export function ProblemSection() {
           Sua empresa já recebe oportunidades. O problema é o que acontece depois.
         </h2>
         <p className="sp-lede" {...rv(1)}>
-          Um lead chega pelo WhatsApp, alguém responde, o cliente demonstra interesse e a conversa para. O follow-up não acontece e a oportunidade que poderia virar receita desaparece. O problema não é necessariamente a falta de leads: é a falta de operação sobre eles.
+          Um lead chega pelo WhatsApp, alguém responde, o cliente demonstra interesse e a conversa para. A retomada não acontece e a oportunidade que poderia virar receita desaparece. O problema não é necessariamente a falta de leads: é a falta de operação sobre eles.
         </p>
 
         <div className="sp-prob">

@@ -329,7 +329,7 @@ export default function RelatoriosExecutivos() {
                 />
               </div>
               <p className="text-xs text-slate-500">
-                Índice de entrega das demandas operacionais e follow-ups comerciais.
+                Índice de entrega das demandas operacionais e retomadas comerciais.
               </p>
             </div>
           </Card>
