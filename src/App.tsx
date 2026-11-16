@@ -198,6 +198,9 @@ const PropostaPublica = lazy(() => import("./pages/public/PropostaPublica"));
 const ImplementacaoPublica = lazy(() => import("./pages/public/ImplementacaoPublica"));
 const Checkout = lazy(() => import("./pages/public/Checkout"));
 const CatalogoPublico = lazy(() => import("./pages/public/CatalogoPublico"));
+const AgendarPublico = lazy(() => import("./pages/public/AgendarPublico"));
+const AgendamentoAgenda = lazy(() => import("./pages/agendamento/AgendamentoAgenda"));
+const AgendamentoConfig = lazy(() => import("./pages/agendamento/AgendamentoConfig"));
 const VarejoVendas = lazy(() => import("./pages/varejo/Vendas"));
 const VarejoEstoque = lazy(() => import("./pages/varejo/Estoque"));
 const PainelDev = lazy(() => import("./pages/dev/PainelDev"));
@@ -311,6 +314,8 @@ function AppContent() {
           <Route path="produtos" element={<Produtos />} />
           <Route path="ordens-servico" element={<OrdensServico />} />
           <Route path="ordens-servico/:id" element={<OrdemServicoDetalhe />} />
+          <Route path="agendamento" element={<AgendamentoAgenda />} />
+          <Route path="agendamento/configuracoes" element={<AgendamentoConfig />} />
 
           {/* Inteligência & BI */}
           <Route path="indicadores" element={<Indicadores />} />
@@ -608,6 +613,7 @@ function AppContent() {
 
         {/* Catálogo público de produtos (Varejo) — sem autenticação */}
         <Route path="/catalogo/:tenantId" element={<CatalogoPublico />} />
+        <Route path="/agendar/:slug" element={<AgendarPublico />} />
 
         {/* Proposta pública com tracking — sem autenticação, acesso só via token */}
         <Route path="/proposta/:token" element={<PropostaPublica />} />

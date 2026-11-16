@@ -40,6 +40,7 @@ import {
   Server,
   Handshake,
   CalendarDays,
+  CalendarCheck,
   TrendingUp,
   SlidersHorizontal,
   ShoppingCart,
@@ -121,6 +122,13 @@ export const navSections = [
     items: [
       { name: "Catálogo de Produtos", path: "/app/produtos", icon: FolderOpen, reqModule: "catalogo-produtos" },
       { name: "Ordens de Serviço", path: "/app/ordens-servico", icon: Wrench, reqModule: "catalogo" },
+    ],
+  },
+  {
+    title: "Agendamento",
+    reqModule: "agendamento",
+    items: [
+      { name: "Agenda de Reservas", path: "/app/agendamento", icon: CalendarCheck },
     ],
   },
   {

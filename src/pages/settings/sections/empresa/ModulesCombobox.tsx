@@ -11,6 +11,7 @@ export const ALL_MODULES: { id: string; label: string; desc: string }[] = [
   { id: "rh",           label: "RH & Colaboradores",     desc: "Equipe interna e comissões" },
   { id: "bi",           label: "BI & Indicadores",       desc: "Relatórios e estatísticas" },
   { id: "produtividade",label: "Tarefas & Kanban",       desc: "Afazeres e produtividade" },
+  { id: "agendamento", label: "Agendamento & Reservas", desc: "Agenda de reservas, página pública e pagamento online" },
   { id: "catalogo",     label: "Catálogo de Produtos",   desc: "Estoque, SKUs e iPhones" },
   { id: "dev",          label: "Dev & Tecnologia",       desc: "Projetos, sprints e repositórios" },
   // Módulos de nicho (só aparecem para empresas que os têm ativos — ver PermissaoModal).

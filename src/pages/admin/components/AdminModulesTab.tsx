@@ -4,7 +4,7 @@ import {
   Cpu, Layers, Target, Clock, DollarSign, Package,
   Megaphone, MessageSquare, Award, Activity, Users,
   Columns3, Home, Car, Sun, ShoppingCart, Code2,
-  Sparkles, ShieldCheck, UserCheck, Check, Building2
+  Sparkles, ShieldCheck, UserCheck, Check, Building2, CalendarCheck
 } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useData } from "../../../contexts/DataContext";
@@ -41,6 +41,7 @@ const MODULE_DEFINITIONS = [
   { id: "crm", title: "CRM & Funil de Vendas", desc: "Leads, funil comercial, rodízio de closers e SDR IA", icon: Target, category: "Comercial", color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
   { id: "aurora", title: "Aurora Diretoria IA", desc: "Assistente executiva com inteligência e comandos por voz", icon: Sparkles, category: "Inteligência", color: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20" },
   { id: "produtividade", title: "Tarefas & Produtividade", desc: "Quadro Kanban de operações e gestão de retomadas", icon: Clock, category: "Operações", color: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20" },
+  { id: "agendamento", title: "Agendamento & Reservas", desc: "Agenda de reservas por horário, página pública de reserva e pagamento online (Mercado Pago)", icon: CalendarCheck, category: "Operações", color: "text-orange-500 bg-orange-500/10 border-orange-500/20" },
   { id: "financeiro", title: "Cofre & Financeiro", desc: "Contas a pagar/receber, DRE, conciliação e metas", icon: DollarSign, category: "Finanças", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
   { id: "catalogo", title: "Catálogo de Produtos & SKUs", desc: "Produtos, serviços, controle de estoque e precificação", icon: Package, category: "Vendas", color: "text-purple-500 bg-purple-500/10 border-purple-500/20" },
   { id: "marketing", title: "Marketing & Campanhas", desc: "Automações, landing pages, formulários e tracking de conversão", icon: Megaphone, category: "Marketing", color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },

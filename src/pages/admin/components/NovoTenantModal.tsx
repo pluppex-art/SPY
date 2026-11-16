@@ -10,7 +10,7 @@ import { createTenantAdmin } from "../../../lib/supabase";
 import { saasApi, brl, type Plan } from "../../../lib/saasApi";
 import { BRAND_COLORS } from "../../../lib/theme";
 import { toast } from "sonner";
-import { Copy } from "lucide-react";
+import { Copy, CalendarCheck } from "lucide-react";
 
 interface NovoTenantModalProps {
   isOpen: boolean;
@@ -36,6 +36,7 @@ export const MODULES: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "crm", label: "CRM & Funil de Vendas", icon: Target },
   { id: "aurora", label: "Aurora Diretoria IA", icon: Sparkles },
   { id: "produtividade", label: "Tarefas & Produtividade", icon: Clock },
+  { id: "agendamento", label: "Agendamento & Reservas", icon: CalendarCheck },
   { id: "financeiro", label: "Cofre & Financeiro", icon: DollarSign },
   { id: "catalogo", label: "Catálogo de Produtos", icon: Package },
   { id: "marketing", label: "Marketing & Campanhas", icon: Megaphone },
