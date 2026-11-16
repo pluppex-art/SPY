@@ -107,23 +107,13 @@ export const navSections = [
   {
     title: "Comunicação & Mkt",
     items: [
+      { name: "Análises de Marketing", path: "/app/marketing/analytics", icon: BarChart2, reqModule: "marketing" },
       { name: "Campanhas de Mkt", path: "/app/marketing/campanhas", icon: Megaphone, reqModule: "marketing" },
       { name: "Landing Pages", path: "/app/marketing/landing-pages", icon: Globe, reqModule: "marketing" },
       { name: "Formulários", path: "/app/marketing/formularios", icon: FileText, reqModule: "marketing" },
       { name: "E-mail em massa", path: "/app/marketing/email", icon: Mail, reqModule: "marketing" },
       { name: "Conteúdo & Social", path: "/app/marketing/conteudo", icon: Edit3, reqModule: "marketing" },
       { name: "Tráfego Pago", path: "/app/marketing/trafego", icon: Rocket, reqModule: "marketing" },
-      { name: "Analytics de Mkt", path: "/app/marketing/analytics", icon: BarChart2, reqModule: "marketing" },
-    ],
-  },
-  {
-    title: "Inteligência Artificial",
-    reqModule: "aurora",
-    items: [
-      { name: "Visão Geral da IA", path: "/app/ia", icon: Bot },
-      { name: "Funil & Etapas da IA", path: "/app/configuracoes/crm/funis", icon: Workflow, reqCondition: "tenant-admin" as NavReqCondition },
-      { name: "Agentes & Consumo", path: "/app/configuracoes/sistema/aurora", icon: Brain, reqCondition: "tenant-admin" as NavReqCondition },
-      { name: "Gatilhos da IA", path: "/app/configuracoes/crm/gatilhos-ia", icon: Zap, reqCondition: "tenant-admin" as NavReqCondition },
     ],
   },
   {

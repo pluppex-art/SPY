@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { Building, Plug, Columns3, Briefcase, Zap, Wallet, Bell, HardDrive } from "lucide-react";
+import { Building, Plug, Columns3, Briefcase, Zap, Wallet, HardDrive, UserRound, Users, Brain } from "lucide-react";
 import { MODULE_SETTINGS } from "./moduleSettings";
 import { MODULE_SETTINGS_REGISTRY, moduleSettingsPath } from "./moduleSettingsRegistry";
 import { SectionSidebar, type SectionNavGroup } from "../../components/layout/SectionSidebar";
@@ -44,6 +44,7 @@ const AJUDA: Record<string, string> = {
   "/app/configuracoes/integracoes/sdr-webhooks": "Cadastre os endereços de integração das automações de pré-vendas e teste a conexão com o botão Disparar Teste.",
   "/app/configuracoes/integracoes/conectores-externos": "Ligue o sistema que a sua empresa já usa (um ERP, um CRM próprio ou outro) ao SPY, de forma segura e autenticada. Depois, ative os eventos que devem ser enviados automaticamente para ele.",
   "/app/configuracoes/integracoes/links-dinamicos": "Cadastre os links reais que a sua empresa já usa (pagamento, agendamento, checkout, contrato). A Aurora e a IA consultam esta lista na hora de responder, e a mudança vale imediatamente.",
+  "/app/ia": "Tudo da Aurora num lugar só: consumo, atividade, funil, agentes e conhecimento.",
   "/app/configuracoes/sistema/aurora": "Controle da Aurora: o consumo de IA do mês, os agentes ligados a ela, e quais estão ativos para a sua empresa.",
   "/app/configuracoes/sistema/treinamento": "Cada agente tem uma instrução-base igual para todas as empresas, que se edita aqui. Os outros 20%, específicos de cada empresa, vêm de Empresa → Dados e de Produtos.",
   "/app/configuracoes/sistema/backups": "Como os backups do banco de dados são feitos. Eles são automáticos e gerenciados pelo Supabase, de acordo com o plano contratado do projeto.",
@@ -66,50 +67,57 @@ export default function SettingsLayout() {
     return () => window.removeEventListener("spy_modules_changed", handleChanged);
   }, []);
 
+  const aurora = isModuleEnabled("aurora");
   const grupos: SectionNavGroup[] = [
     {
-      title: "Preferências & Usuário",
-      icon: Bell,
+      title: "Minha conta",
+      icon: UserRound,
       items: [
         { title: "Meu Perfil & Conta", path: "/app/configuracoes/usuario/perfil" },
         { title: "Preferências do Sistema", path: "/app/configuracoes/usuario/preferencias" },
-        { title: "Preferências de Notificação", path: "/app/configuracoes/usuario/notificacoes" },      ],
+        { title: "Preferências de Notificação", path: "/app/configuracoes/usuario/notificacoes" },
+      ],
     },
     {
       title: "Empresa",
       icon: Building,
       items: [
         { title: "Dados da empresa", path: "/app/configuracoes/empresa/dados" },
+        { title: "Filiais / Unidades", path: "/app/configuracoes/empresa/filiais" },
+        { title: "Nichos", path: "/app/configuracoes/empresa/nichos" },
         { title: "Plano & Uso", path: "/app/configuracoes/empresa/plano" },
         { title: "LGPD", path: "/app/configuracoes/empresa/lgpd" },
         ...(user?.isMaster ? [{ title: "Módulos & SaaS (Admin)", path: "/app/admin?tab=modules" }] : []),
-        { title: "Filiais / Unidades", path: "/app/configuracoes/empresa/filiais" },
-        { title: "Nichos", path: "/app/configuracoes/empresa/nichos" },
+      ],
+    },
+    {
+      title: "Equipe & Acessos",
+      icon: Users,
+      items: [
         { title: "Equipe & convites", path: "/app/configuracoes/empresa/equipe" },
         { title: "Cargos", path: "/app/configuracoes/empresa/cargos" },
         { title: "Perfis & permissões", path: "/app/configuracoes/empresa/permissoes" },
       ],
     },
     ...(activeModules.crm ? [{
-      title: "CRM",
+      title: "Vendas (CRM)",
       icon: Columns3,
       items: [
         { title: "Funis & etapas", path: "/app/configuracoes/crm/funis" },
         { title: "Origens de leads", path: "/app/configuracoes/crm/origens" },
-        { title: "Fidelidade de clientes", path: "/app/configuracoes/crm/fidelidade" },
-        { title: "Produtos", path: "/app/configuracoes/crm/produtos" },
         { title: "Campos personalizados", path: "/app/configuracoes/crm/campos" },
-        { title: "Prazos de atendimento (SLA)", path: "/app/configuracoes/crm/sla" },
-        { title: "Gatilhos IA", path: "/app/configuracoes/crm/gatilhos-ia" },
+        { title: "Produtos", path: "/app/configuracoes/crm/produtos" },
         { title: "Rodízio de Leads", path: "/app/configuracoes/crm/rodizio" },
+        { title: "Prazos de atendimento (SLA)", path: "/app/configuracoes/crm/sla" },
+        { title: "Fidelidade de clientes", path: "/app/configuracoes/crm/fidelidade" },
       ],
     }] : []),
     ...(activeModules.produtividade ? [{
-      title: "Produtividade",
+      title: "Operações & Tarefas",
       icon: Briefcase,
       items: [
         { title: "Categorias de tarefas", path: "/app/configuracoes/produtividade/categorias" },
-        { title: "Funis & Kanbans", path: "/app/configuracoes/kanbans" },
+        { title: "Funis & Quadros (Kanban)", path: "/app/configuracoes/kanbans" },
         { title: "Departamentos da OS", path: "/app/configuracoes/os/funis" },
       ],
     }] : []),
@@ -125,7 +133,7 @@ export default function SettingsLayout() {
       ],
     }] : []),
     ...(activeModules.marketing || activeModules.engajamento ? [{
-      title: "Engajamento",
+      title: "Comunicação & Automações",
       icon: Zap,
       items: [
         { title: "Modelos de mensagem", path: "/app/configuracoes/engajamento/modelos" },
@@ -138,6 +146,18 @@ export default function SettingsLayout() {
       title: m.title, icon: m.icon, items: m.sections.map((sec) => ({ title: sec.title, path: moduleSettingsPath(m.moduleId, sec.id), help: sec.subtitle })),
     })),
     {
+      title: "Inteligência Artificial",
+      icon: Brain,
+      items: [
+        ...(aurora ? [{ title: "Visão geral da IA", path: "/app/ia" }] : []),
+        // Página única de Aurora (controle, prompts, consumo e agentes).
+        ...(aurora ? [{ title: "Aurora (Controle, Consumo & Agentes)", path: "/app/configuracoes/sistema/aurora" }] : []),
+        ...(activeModules.crm ? [{ title: "Gatilhos IA", path: "/app/configuracoes/crm/gatilhos-ia" }] : []),
+        { title: "Links para os assistentes de IA (Aurora e IA de vendas)", path: "/app/configuracoes/integracoes/links-dinamicos" },
+        ...(user?.isMaster && aurora ? [{ title: "Treinamento dos agentes (interno)", path: "/app/configuracoes/sistema/treinamento" }] : []),
+      ],
+    },
+    {
       title: "Integrações",
       icon: Plug,
       items: [
@@ -147,17 +167,12 @@ export default function SettingsLayout() {
         { title: "Integrações automáticas & Logs (Webhooks)", path: "/app/configuracoes/integracoes/webhooks" },
         { title: "Automações de Pré-Vendas (Webhooks de SDR)", path: "/app/configuracoes/integracoes/sdr-webhooks" },
         { title: "Conectar outros sistemas (ERP/CRM)", path: "/app/configuracoes/integracoes/conectores-externos" },
-        { title: "Links para os assistentes de IA (Aurora e IA de vendas)", path: "/app/configuracoes/integracoes/links-dinamicos" },
       ],
     },
     {
       title: "Sistema",
       icon: HardDrive,
       items: [
-        // Página única de Aurora (controle, prompts, consumo e agentes) — era duas
-        // páginas separadas ("Aurora" em Inteligência Artificial + esta), unificadas.
-        ...(isModuleEnabled("aurora") ? [{ title: "Aurora (Controle, Consumo & Agentes)", path: "/app/configuracoes/sistema/aurora" }] : []),
-        ...(user?.isMaster && isModuleEnabled("aurora") ? [{ title: "Treinamento dos agentes (interno)", path: "/app/configuracoes/sistema/treinamento" }] : []),
         { title: "Backups automáticos", path: "/app/configuracoes/sistema/backups" },
       ],
     },
