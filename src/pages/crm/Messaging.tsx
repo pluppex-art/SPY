@@ -160,7 +160,7 @@ export default function Messaging() {
     : [];
 
   return (
-    <div className={`flex flex-col bg-[var(--color-surface)] overflow-hidden ${isMobile ? "min-h-[100dvh] justify-center relative" : "h-full w-full"}`}>
+    <div className={`flex flex-col bg-[var(--color-surface)] overflow-clip min-w-0 ${isMobile ? "min-h-[100dvh] justify-center relative" : "h-full w-full"}`}>
 
       {/* Seções do Chat: tudo numa tela só — conversas (WhatsApp, Instagram, e-mail e as IAs), equipe e chatbot. */}
       <div className="shrink-0 flex items-center gap-1 p-2 border-b border-[var(--color-border-default)] bg-[var(--color-surface)] overflow-x-auto scrollbar-none">
@@ -184,10 +184,10 @@ export default function Messaging() {
       </div>
 
       {/* Views */}
-      <div className={`flex-1 min-h-0 overflow-hidden ${isMobile ? "w-full max-w-[768px] self-center" : "w-full"}`}>
+      <div className={`flex-1 min-h-0 min-w-0 overflow-clip ${isMobile ? "w-full max-w-[768px] self-center" : "w-full"}`}>
 
         {mode === "equipe" ? (
-          <div className="h-full w-full flex border border-[var(--color-border-default)] rounded-b-2xl bg-[var(--color-surface)] shadow-2xl backdrop-blur-xl overflow-hidden">
+          <div className="h-full w-full flex border border-[var(--color-border-default)] rounded-b-2xl bg-[var(--color-surface)] shadow-2xl backdrop-blur-xl overflow-clip min-w-0">
             <InternalChatView />
           </div>
         ) : mode === "chatbot" ? (
@@ -197,7 +197,7 @@ export default function Messaging() {
             </Suspense>
           </div>
         ) : (
-          <div className={`${isMobile ? "h-[calc(100dvh-56px)] flex flex-col relative bg-[var(--color-surface)] overflow-hidden" : "h-full rounded-b-2xl flex border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-2xl backdrop-blur-xl overflow-hidden relative"}`}>
+          <div className={`${isMobile ? "h-[calc(100dvh-56px)] flex flex-col relative bg-[var(--color-surface)] overflow-clip" : "h-full min-w-0 rounded-b-2xl flex border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-2xl backdrop-blur-xl overflow-clip relative"}`}>
 
             <ChatListSidebar
               isMobile={isMobile}

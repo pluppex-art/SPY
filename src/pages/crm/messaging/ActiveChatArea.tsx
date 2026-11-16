@@ -235,7 +235,7 @@ export function ActiveChatArea({
     <div className={`${
         isMobile
           ? `absolute inset-0 flex flex-col bg-[var(--color-surface)] transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] z-20 shadow-[0_0_40px_rgba(0,0,0,0.8)] ${activeChat ? 'translate-x-[0%]' : 'translate-x-[100%]'}`
-          : 'flex-1 h-full flex flex-col bg-[var(--color-surface)] z-0 relative'
+          : 'flex-1 min-w-0 h-full flex flex-col bg-[var(--color-surface)] z-0 relative overflow-x-clip'
       }`}>
       {/* Chat Header */}
       <div className="shrink-0 h-[64px] px-2 md:px-6 flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] z-10 w-full shadow-sm">
@@ -319,7 +319,7 @@ export function ActiveChatArea({
       </div>
 
       {/* View Mode Switcher and Binding Status header */}
-      <div className="shrink-0 bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)] py-2 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+      <div className="shrink-0 bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)] py-2 px-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5">
         <div className="flex bg-[var(--color-surface)] rounded-xl p-0.5 border border-[var(--color-border-default)] w-fit">
           <button 
             type="button"
@@ -365,7 +365,7 @@ export function ActiveChatArea({
       <div 
         ref={chatContainerRef}
         onScroll={aoRolar}
-        className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-[var(--color-surface)] scrollbar-thin scrollbar-thumb-white/10"
+        className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-5 bg-[var(--color-surface)] scrollbar-thin scrollbar-thumb-white/10"
       >
         {viewMode === "chat" && matchingLead ? (
           /* Contato ligado a um lead: a conversa aparece igual ao detalhe do lead (imagem, áudio com

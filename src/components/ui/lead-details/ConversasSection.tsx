@@ -9,6 +9,13 @@ import { useData } from "../../../contexts/DataContext";
 import { apiFetch } from "../../../lib/apiClient";
 import { cn } from "../../../lib/utils";
 
+/** Leva a área rolável mais próxima até o fim, só na vertical (scrollIntoView também rola os lados e desloca o Chat inteiro). */
+function rolarAoFim(fim: HTMLElement | null, suave = false) {
+  let el: HTMLElement | null = fim?.parentElement ?? null;
+  while (el && !(el.scrollHeight > el.clientHeight && /(auto|scroll)/.test(getComputedStyle(el).overflowY))) el = el.parentElement;
+  if (el) el.scrollTo({ top: el.scrollHeight, behavior: suave ? "smooth" : "auto" });
+}
+
 interface ConversasSectionProps {
   lead: any;
   /** Dentro do Chat: sem margens e sem altura própria — a área da conversa é quem rola. */
@@ -298,13 +305,13 @@ export function ConversasSection({ lead, embed = false, sinal }: ConversasSectio
   const totalAnterior = useRef(0);
   useEffect(() => {
     if (primeiraCarga.current && msgs.length > 0) {
-      fimRef.current?.scrollIntoView();
+      rolarAoFim(fimRef.current);
       primeiraCarga.current = false;
     } else if (embed && msgs.length > totalAnterior.current && totalAnterior.current > 0) {
       // Mensagem nova: acompanha o fim só se a pessoa estava perto dele.
       let el: HTMLElement | null = fimRef.current?.parentElement ?? null;
       while (el && !(el.scrollHeight > el.clientHeight && /(auto|scroll)/.test(getComputedStyle(el).overflowY))) el = el.parentElement;
-      if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 360) fimRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 360) rolarAoFim(fimRef.current, true);
     }
     totalAnterior.current = msgs.length;
   }, [msgs]);
