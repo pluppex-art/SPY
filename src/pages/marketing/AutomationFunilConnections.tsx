@@ -6,11 +6,12 @@ import {
 import "@xyflow/react/dist/style.css";
 import {
   Workflow, Zap, Plus, Tag, Building2, X, Loader2, LayoutGrid, Info, Search, Trash2, Power,
-  Users, Briefcase, Gauge, Grid2x2, Package,
+  Package,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import { HelpTip } from "../../components/ui/help-tip";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useData } from "../../contexts/DataContext";
 import { getStageId } from "../../lib/funilStages";
@@ -19,7 +20,6 @@ import { useOS } from "../os/hooks/useOS";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
-import { isLeadOpen } from "../../lib/leadStatus";
 import {
   PALETA, CATEGORIAS_ORDEM, ACAO_LABEL, ACAO_ICON, resumoAcao,
   CONDICAO_CAMPOS, CONDICAO_OPERADORES_NUMERO, CONDICAO_OPERADORES_TEXTO,
@@ -227,7 +227,7 @@ const edgeTypes = { conexao: ConnectionEdge };
 export function AutomationFunilConnections() {
   const { activeTenantId } = useAuth();
   const { leads, funis, products } = useData();
-  const { departamentos: osDepartamentos, ordens: ordensOS, funilPadraoDe } = useOS();
+  const { departamentos: osDepartamentos, funilPadraoDe } = useOS();
 
   const [rows, setRows] = useState<ConnectionRow[]>([]);
   const [acoes, setAcoes] = useState<AcaoRow[]>([]);
@@ -288,25 +288,7 @@ export function AutomationFunilConnections() {
   }, [activeTenantId]);
   useEffect(() => { setRows([]); setAcoes([]); setExecucoes([]); setSelectedId(null); setLoading(true); fetchRows(); }, [fetchRows]);
 
-  // ─── KPIs (todos reais: dado já carregado no app, ou contado nas tabelas
-  // novas da migration automation_connection_multistep) ───────────────────
-  const leadsNoFunil = useMemo(() => (leads as any[]).filter((l) => isLeadOpen(l.status)).length, [leads]);
-  const osCriadasPorAutomacao = useMemo(
-    () => (ordensOS as any[]).filter((o) => o.origemTipo === "lead_stage" || o.origemTipo === "proposal_categoria").length,
-    [ordensOS]
-  );
-  const conexoesAtivasCount = rows.filter((r) => r.ativo).length;
   const departamentosAtivosIds = useMemo(() => new Set((osDepartamentos as any[]).filter((d) => d.ativo).map((d) => d.id)), [osDepartamentos]);
-  const departamentosCobertosPct = useMemo(() => {
-    if (departamentosAtivosIds.size === 0) return null;
-    const cobertos = new Set(rows.filter((r) => r.ativo).map((r) => r.os_departamento_id));
-    const cobertosNosAtivos = [...cobertos].filter((id) => departamentosAtivosIds.has(id)).length;
-    return Math.round((cobertosNosAtivos / departamentosAtivosIds.size) * 1000) / 10;
-  }, [rows, departamentosAtivosIds]);
-  const taxaSucessoExecucoes = useMemo(() => {
-    if (execucoes.length === 0) return null;
-    return Math.round((execucoes.filter((e) => e.status === "sucesso").length / execucoes.length) * 1000) / 10;
-  }, [execucoes]);
 
   // Leads reais pro "Testar Fluxo" — prioriza quem já está na etapa que dispara a
   // conexão selecionada (caso mais útil de testar), senão qualquer lead por nome.
@@ -691,35 +673,12 @@ export function AutomationFunilConnections() {
         )}
       </Card>
 
-      {/* KPIs — tudo real: leads/pipeline já carregados no app, OS/execuções contadas nas
-          tabelas da automação (ver migration automation_connection_multistep). */}
-      <div className="grid grid-cols-2 xl:grid-cols-5 gap-2.5 md:gap-3 [&>*:last-child:nth-child(odd)]:col-span-2 xl:[&>*:last-child:nth-child(odd)]:col-span-1">
-        <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Users className="w-3.5 h-3.5" /><span className="text-[11px] font-black uppercase tracking-wider">Leads no funil</span></div>
-          <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{leadsNoFunil}</p>
-        </Card>
-        <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Briefcase className="w-3.5 h-3.5" /><span className="text-[11px] font-black uppercase tracking-wider">OS criadas por automação</span></div>
-          <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{osCriadasPorAutomacao}</p>
-        </Card>
-        <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Power className="w-3.5 h-3.5" /><span className="text-[11px] font-black uppercase tracking-wider">Conexões ativas</span></div>
-          <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{conexoesAtivasCount}</p>
-        </Card>
-        <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Grid2x2 className="w-3.5 h-3.5" /><span className="text-[11px] font-black uppercase tracking-wider">Departamentos cobertos</span></div>
-          <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{departamentosCobertosPct !== null ? `${departamentosCobertosPct}%` : "—"}</p>
-        </Card>
-        <Card className="p-3 md:p-4 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-faint)]"><Gauge className="w-3.5 h-3.5" /><span className="text-[11px] font-black uppercase tracking-wider">Taxa de sucesso</span></div>
-          <p className="text-xl font-black text-[var(--color-text-primary)] font-mono mt-1.5">{taxaSucessoExecucoes !== null ? `${taxaSucessoExecucoes}%` : "—"}</p>
-          {execucoes.length === 0 && <p className="text-[11px] text-[var(--color-text-faint)] mt-0.5">Ainda sem execuções registradas</p>}
-        </Card>
+      <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--color-text-muted)]">
+        Como montar uma automação
+        <HelpTip label="Como montar uma automação">
+          Arraste uma linha de uma etapa, categoria ou produto até um departamento para criar a conexão. Depois, arraste um componente da lateral (uma ação ou uma condição) para cima de uma linha para adicioná-lo a ela. Clique na linha para configurar e use o “×” para remover.
+        </HelpTip>
       </div>
-
-      <p className="text-[11px] text-[var(--color-text-muted)]">
-        Arraste uma linha de uma etapa, categoria ou produto até um departamento pra criar a conexão. Arraste um componente da lateral (ação ou condição) em cima de uma linha pra adicioná-lo a ela; clique na linha pra configurar e no "×" pra remover.
-      </p>
 
       <div className="flex flex-col lg:flex-row gap-3 lg:h-[68dvh]">
         {/* Sidebar: Componentes / Propriedades */}
