@@ -27,6 +27,7 @@ function toLocalISODate(d: Date): string {
 }
 import { useRowOpen } from "./components/useRowOpen";
 
+import { HelpTip } from "../../components/ui/help-tip";
 export default function FinanceiroTransferencias() {
   const { financeTransfers, addFinanceTransfer, updateFinanceTransfer, deleteFinanceTransfer, financeBankAccounts, financeEntries } = useData();
   const { formatCurrency } = useLocalization();
@@ -245,7 +246,7 @@ export default function FinanceiroTransferencias() {
                   <th className="px-6 py-3">Descrição</th>
                   <th className="px-6 py-3 text-right">Valor</th>
                   <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3 text-right">Ações</th>
+                  <th className="px-6 py-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Olho: vê os detalhes da transferência. Lápis: edita. Lixeira: exclui.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">

@@ -61,6 +61,7 @@ const emptyForm = {
 import { useRowOpen } from "./components/useRowOpen";
 import { useMaxdataStats, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 
+import { HelpTip } from "../../components/ui/help-tip";
 export default function FinanceiroContatos() {
   const { activeTenantId } = useAuth();
   const { clienteBase, addClienteBase, updateClienteBase, deleteClienteBase, financeEntries } = useData();
@@ -340,7 +341,7 @@ export default function FinanceiroContatos() {
           ) : (
             <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
               <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
-                <tr><th className="px-6 py-3">Nome</th><th className="px-6 py-3">Tipo</th><th className="px-6 py-3">Documento</th><th className="px-6 py-3">Contato</th><th className="px-6 py-3 text-right">Ações</th></tr>
+                <tr><th className="px-6 py-3">Nome</th><th className="px-6 py-3">Tipo</th><th className="px-6 py-3">Documento</th><th className="px-6 py-3">Contato</th><th className="px-6 py-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Olho: vê os dados do contato. Lápis: edita o contato. Lixeira: exclui o contato.</HelpTip></span></th></tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
                 {filtrados.map(c => (

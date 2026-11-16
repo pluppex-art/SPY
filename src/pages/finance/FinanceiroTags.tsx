@@ -15,6 +15,7 @@ import { Field, FormSection, ModalFooter, ModalTitle, inputCls, textareaCls } fr
 import { useRowOpen } from "./components/useRowOpen";
 import { useFinanceTags, fetchFinanceTagUsage, DEFAULT_TAG_COLOR, MAIN_FINANCE_TAGS, type FinanceTag } from "./hooks/useFinanceTags";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const PALETTE = ["#6366f1", "#3b82f6", "#06b6d4", "#10b981", "#84cc16", "#eab308", "#f97316", "#ef4444", "#ec4899", "#a855f7", "#64748b", "#78350f"];
 const norm = (s: string) => s.trim().toLowerCase();
 
@@ -237,7 +238,7 @@ export default function FinanceiroTags() {
                 <th className="px-4 py-2.5 font-bold">Descrição</th>
                 <th className="px-4 py-2.5 font-bold text-right">Lançamentos</th>
                 <th className="px-4 py-2.5 font-bold">Status</th>
-                <th className="px-4 py-2.5 font-bold text-right">Ações</th>
+                <th className="px-4 py-2.5 font-bold text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Olho: vê a tag. Lápis: edita nome, cor e situação. Lixeira: exclui a tag.</HelpTip></span></th>
               </tr>
             </thead>
             <tbody>

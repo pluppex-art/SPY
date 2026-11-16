@@ -249,7 +249,7 @@ export default function ImobiliarioComissoes() {
                 <th className="px-4 py-3">Líquido Imobiliária</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Previsão</th>
-                <th className="px-5 py-3 text-right">Ações</th>
+                <th className="px-5 py-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Lixeira: exclui a comissão.</HelpTip></span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">

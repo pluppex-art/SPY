@@ -36,6 +36,7 @@ import { isInMonth, pctDelta, getMonthlyRealizedSeries } from "./lib/financeEngi
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
+import { HelpTip } from "../../components/ui/help-tip";
 type RepeatMode = "none" | "recorrente" | "parcelado";
 
 // Converte "dd/mm/aaaa" ou "aaaa-mm-dd" (ou Date) em "aaaa-mm-dd" (coluna competencia_date é do tipo date).
@@ -959,7 +960,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 </th>
                 <th className="px-3 py-3">Status</th>
                 <th className="px-3 py-3 text-right">Valor</th>
-                <th className="px-3 py-3 text-right">Ações</th>
+                <th className="px-3 py-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Olho: vê o lançamento. Lápis: edita (inclusive o status). Duplicar: cria uma cópia para você ajustar. Lixeira: exclui o lançamento.</HelpTip></span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">

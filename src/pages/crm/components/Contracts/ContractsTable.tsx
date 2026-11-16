@@ -14,6 +14,7 @@ import {
 import { FileText, Edit2, Trash2, Download } from "lucide-react";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 interface Contract {
   id: string;
   client: string;
@@ -94,7 +95,7 @@ export function ContractsTable({
               <TableHead>Assinatura</TableHead>
               <TableHead>Término</TableHead>
               <TableHead>Responsável</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
+              <TableHead className="text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Lápis: edita o contrato. Seta para baixo: baixa o contrato em PDF. Lixeira: exclui o contrato.</HelpTip></span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

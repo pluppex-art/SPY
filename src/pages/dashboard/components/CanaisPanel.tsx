@@ -178,7 +178,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
                   <th className="hidden md:table-cell whitespace-nowrap px-3 py-2.5 text-right">Conversão</th>
                   <th className="hidden md:table-cell whitespace-nowrap px-3 py-2.5 text-right">Ticket médio</th>
                   <th className="whitespace-nowrap px-3 py-2.5">Tendência</th>
-                  <th className="whitespace-nowrap px-3 py-2.5 text-right">Ações</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Ver detalhes: abre os números daquele canal de origem.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">

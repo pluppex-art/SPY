@@ -17,6 +17,7 @@ import { supabase } from "../../lib/supabase";
 import { friendlyError } from "../../lib/friendlyError";
 
 import { HelpTip } from "../../components/ui/help-tip";
+import { HelpTip } from "../../components/ui/help-tip";
 type ExtratoItem = {
   id: string;
   data: string;
@@ -379,7 +380,7 @@ export default function FinanceiroConciliacao() {
                 <th className="px-5 py-3">Descrição do Lançamento</th>
                 <th className="px-4 py-3">Correspondência Sugerida (Sistema)</th>
                 <th className="px-4 py-3 text-right">Valor</th>
-                <th className="px-5 py-3 text-right">Ação</th>
+                <th className="px-5 py-3 text-right"><span className="inline-flex items-center gap-1">Ação<HelpTip label="O que o botão faz">Aprovar Match: confirma a correspondência sugerida entre a linha do extrato e o lançamento do sistema e marca como conciliado.</HelpTip></span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">

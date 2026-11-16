@@ -17,6 +17,7 @@ import { apiFetch } from "../../lib/apiClient";
 import { useMensalidadesList, type Mensalidade } from "./useMensalidadesList";
 import { friendlyError } from "../../lib/friendlyError";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const statusColor = (s: string) => {
   if (s === "Pago") return "success" as const;
   if (s === "Atrasado") return "destructive" as const;
@@ -182,7 +183,7 @@ export default function Mensalidades() {
                       <th className="p-3.5 text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">Vencimento</th>
                       <th className="p-3.5 text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">Valor</th>
                       <th className="p-3.5 text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">Status</th>
-                      <th className="p-3.5 text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider text-right">Ações</th>
+                      <th className="p-3.5 text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Marcar Pago: registra que a mensalidade foi paga. O botão só aparece enquanto ela não estiver paga nem cancelada.</HelpTip></span></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">

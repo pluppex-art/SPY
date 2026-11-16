@@ -55,6 +55,7 @@ interface ContaBancaria {
 }
 import { useRowOpen } from "./components/useRowOpen";
 
+import { HelpTip } from "../../components/ui/help-tip";
 export default function FinanceiroContasBancarias() {
   const { financeBankAccounts, addFinanceBankAccount, updateFinanceBankAccount, deleteFinanceBankAccount, setContaPrincipal, financeEntries, financeTransfers } = useData();
   const { formatCurrency } = useLocalization();
@@ -292,7 +293,7 @@ export default function FinanceiroContasBancarias() {
                   <th className="px-6 py-3">Tipo</th>
                   <th className="px-6 py-3 text-right">Saldo Inicial</th>
                   <th className="px-6 py-3 text-right">Saldo Atual</th>
-                  <th className="px-6 py-3 text-right">Ações</th>
+                  <th className="px-6 py-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Estrela: define esta como a conta principal. Olho: vê os detalhes. Lápis: edita. Arquivar ou Reativar: tira a conta de uso sem apagar o histórico, ou a coloca de volta. Lixeira: exclui a conta.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">

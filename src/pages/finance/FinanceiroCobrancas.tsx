@@ -25,6 +25,7 @@ import { formatPhone } from "../../lib/utils";
 import { useRowOpen } from "./components/useRowOpen";
 import { ClienteSelect } from "./components/ClienteSelect";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const PAYMENT_METHODS = ["Pix", "Boleto", "Cartão de Crédito", "Cartão de Débito", "Transferência/TED", "Dinheiro", "Cheque", "Outro"];
 const todayIso = () => new Date().toISOString().split("T")[0];
 const emptyCobranca = () => ({
@@ -337,7 +338,7 @@ export default function FinanceiroCobrancas() {
                 <th className="px-4 py-3">Vencimento</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Valor</th>
-                <th className="px-5 py-3 text-right">Ações</th>
+                <th className="px-5 py-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Ver detalhes: abre a cobrança completa. Enviar: manda a cobrança por WhatsApp ou e-mail. Excluir: remove a cobrança.</HelpTip></span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">

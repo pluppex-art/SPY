@@ -52,6 +52,7 @@ function statusIcon(status: string) {
 }
 import { useRowOpen } from "./components/useRowOpen";
 
+import { HelpTip } from "../../components/ui/help-tip";
 export default function Indicacoes() {
   const {
     indicacoes, addIndicacao, updateIndicacao, deleteIndicacao,
@@ -554,7 +555,7 @@ export default function Indicacoes() {
                   <th className="p-3">Comissão</th>
                   <th className="p-3">Data</th>
                   <th className="p-3">Status</th>
-                  <th className="p-3 text-right">Ações</th>
+                  <th className="p-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Olho: vê os dados do afiliado. Lápis: edita e vê os detalhes. Lixeira: remove o afiliado.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)] text-[var(--color-text-primary)] font-medium">

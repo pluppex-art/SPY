@@ -17,6 +17,7 @@ interface ProdutosTableProps {
 
 import { getProductSubtitle } from "./typeSchemas";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 export function ProdutosTable({
   filteredProducts,
   selectedIds,
@@ -53,7 +54,7 @@ export function ProdutosTable({
               <th className="py-3 px-4 text-center">Comissão</th>
               <th className="py-3 px-4">Fornecedor</th>
               <th className="py-3 px-4 text-center">Status</th>
-              <th className="py-3 px-4 text-right">Ações</th>
+              <th className="py-3 px-4 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Vender: registra uma venda deste produto, criando uma proposta para o cliente. Editar: altera os dados do produto. Duplicar: cria uma cópia para você ajustar. Remover: exclui o produto.</HelpTip></span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--color-border-subtle)]">

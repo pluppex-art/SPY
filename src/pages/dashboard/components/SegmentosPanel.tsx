@@ -232,7 +232,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
                     <th className="whitespace-nowrap px-3 py-2.5 text-right">Conversão</th>
                     <th className="whitespace-nowrap px-3 py-2.5 text-right">Participação</th>
                     <th className="whitespace-nowrap px-3 py-2.5">Tendência</th>
-                    <th className="whitespace-nowrap px-3 py-2.5 text-right">Ações</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Ver detalhes: abre os contratos daquele segmento.</HelpTip></span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border-subtle)]">

@@ -16,6 +16,7 @@ import { friendlyError } from "../../lib/friendlyError";
 import { normalizeText, whatsappDigits } from "../../lib/utils";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
+import { HelpTip } from "../../components/ui/help-tip";
 type Contato = {
   id: string;
   nome: string;
@@ -232,7 +233,7 @@ export default function Contatos() {
                 <th className="px-4 py-3">Cargo / Perfil</th>
                 <th className="px-4 py-3">Empresa</th>
                 <th className="px-4 py-3">Canais de Contato</th>
-                <th className="px-4 py-3 text-right">Ações</th>
+                <th className="px-4 py-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">WhatsApp: abre uma conversa com o contato. E-mail: abre um e-mail para ele. Lixeira: exclui o contato.</HelpTip></span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">

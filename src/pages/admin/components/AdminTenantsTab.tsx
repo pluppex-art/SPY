@@ -18,6 +18,7 @@ import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
 import { toast } from "sonner";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 interface TenantItem {
   id: string;
   name: string;
@@ -491,7 +492,7 @@ export function AdminTenantsTab({
                   <th className="py-3 px-4">Módulos Ativos</th>
                   <th className="py-3 px-4">Segurança & RLS</th>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Ações</th>
+                  <th className="py-3 px-4 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Editar Dados: altera o cadastro e as credenciais administrativas da empresa. Desativar: suspende os acessos da empresa, mantendo os dados guardados.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">

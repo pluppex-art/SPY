@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { exportToCSV } from '../../lib/exportCsv';
 
+import { HelpTip } from "../../components/ui/help-tip";
 export default function Exames() {
   const { exames: examList, addExame, updateExame } = useExames();
   const [searchTerm, setSearchTerm] = useState('');
@@ -138,7 +139,7 @@ export default function Exames() {
                     <th className="p-3.5 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Exame</th>
                     <th className="p-3.5 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Data</th>
                     <th className="p-3.5 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Status</th>
-                    <th className="p-3.5 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider text-right">Ações</th>
+                    <th className="p-3.5 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Ver resultado: mostra o resultado do exame. Atualizar status: muda a situação do pedido e lança o resultado.</HelpTip></span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border-subtle)]">

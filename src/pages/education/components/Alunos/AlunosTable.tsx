@@ -3,6 +3,7 @@ import { Button } from "../../../../components/ui/button";
 import { Card } from "../../../../components/ui/card";
 import { Users, Trash2, GraduationCap } from "lucide-react";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 interface Student {
   id: string;
   name: string;
@@ -33,7 +34,7 @@ export function AlunosTable({ students, onManage, onDelete }: AlunosTableProps) 
               <th className="px-6 py-3.5">Curso</th>
               <th className="px-6 py-3.5">Progresso</th>
               <th className="px-6 py-3.5">Status</th>
-              <th className="px-6 py-3.5 text-right">Ações</th>
+              <th className="px-6 py-3.5 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Notas: abre as notas do aluno para você lançar e consultar. Lixeira: remove o aluno.</HelpTip></span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--color-border-subtle)]">

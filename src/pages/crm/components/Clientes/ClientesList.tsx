@@ -15,6 +15,7 @@ import {
 import { Building2, MapPin, Phone, Mail, Trash2, FileText, Users, Pencil, Eye, List, LayoutGrid } from "lucide-react";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 const PAGE_SIZE = 50;
 
 // `{city}, {state}` direto no JSX virava uma "," sozinha quando os dois eram
@@ -204,7 +205,7 @@ export function ClientesList({
                 <TableHead>Status</TableHead>
                 <TableHead>Valor MRR</TableHead>
                 <TableHead>Início</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Olho: vê os detalhes do cliente. Lápis: edita o cliente. Pessoas: gerencia os contatos e decisores. Lixeira: remove o cliente.</HelpTip></span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

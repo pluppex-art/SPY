@@ -325,7 +325,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
                   <th className="whitespace-nowrap px-3 py-2.5 text-right">Conversão</th>
                   <th className="whitespace-nowrap px-3 py-2.5">Meta</th>
                   <th className="whitespace-nowrap px-3 py-2.5">vs. anterior</th>
-                  <th className="whitespace-nowrap pl-3 pr-5 py-2.5 text-right">Ações</th>
+                  <th className="whitespace-nowrap pl-3 pr-5 py-2.5 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Ver detalhes: abre os leads e os números daquele vendedor.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">

@@ -16,6 +16,7 @@ import { apiFetch } from "../../lib/apiClient";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface InadimplenciaServerSummary {
   vencidosCount: number; totalVencido: number; clientesUnicos: number; atrasoMedio: number;
   buckets: { id: string; label: string; count: number; value: number }[];
@@ -176,7 +177,7 @@ export default function FinanceiroInadimplencia() {
                   <th className="px-6 py-3 text-right">Títulos</th>
                   <th className="px-6 py-3 text-right">Valor Vencido</th>
                   <th className="px-6 py-3 text-right">Maior Atraso</th>
-                  <th className="px-6 py-3 text-right">Ações</th>
+                  <th className="px-6 py-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Ver cobranças: abre a tela de Cobranças para acompanhar e cobrar os títulos vencidos deste cliente.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">

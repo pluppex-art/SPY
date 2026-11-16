@@ -27,6 +27,7 @@ import {
 } from "../../../../components/ui/modals/crm/PropostaEditorWordModal";
 import { NovaPropostaWizard } from "../../../../components/ui/modals/crm/NovaPropostaWizard";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 interface Proposta {
   id: string;
   cliente: string;
@@ -148,7 +149,7 @@ export function PropostasTable({ propostas, proposalItems, onUpdateStatus, onDel
               <TableHead>Etapa atual</TableHead>
               <TableHead>Datas</TableHead>
               <TableHead>Vendedor</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
+              <TableHead className="text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Ver como cliente: mostra a proposta exatamente como o cliente a recebe. Editar proposta: altera a proposta. Deletar: exclui a proposta.</HelpTip></span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

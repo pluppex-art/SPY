@@ -61,7 +61,7 @@ export function ConfigFinanceiroBloqueioPeriodo() {
         <Card className="overflow-hidden">
           <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
             <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
-              <tr><th className="px-5 py-3">Período Bloqueado</th><th className="px-5 py-3 text-right">Ações</th></tr>
+              <tr><th className="px-5 py-3">Período Bloqueado</th><th className="px-5 py-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Remover bloqueio (lixeira): libera o período de novo. Os lançamentos pagos dele voltam a poder ser criados, editados e excluídos.</HelpTip></span></th></tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">
               {locks.map(l => (

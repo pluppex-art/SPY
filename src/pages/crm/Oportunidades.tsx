@@ -15,6 +15,7 @@ import { isLeadOpen } from "../../lib/leadStatus";
 import { normalizeText } from "../../lib/utils";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const PAGE_SIZE = 50;
 
 export default function Oportunidades() {
@@ -124,7 +125,7 @@ export default function Oportunidades() {
                 <th className="px-4 py-3">Temperatura / Score</th>
                 <th className="px-4 py-3">Responsável</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Ação</th>
+                <th className="px-4 py-3 text-right"><span className="inline-flex items-center gap-1">Ação<HelpTip label="O que o botão faz">Detalhes: abre a ficha completa da oportunidade.</HelpTip></span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">

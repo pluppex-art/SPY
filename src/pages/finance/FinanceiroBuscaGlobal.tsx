@@ -20,6 +20,7 @@ import { parseEntryDate } from "./lib/financeDates";
 import { cn } from "../../lib/utils";
 import { toast } from "sonner";
 
+import { HelpTip } from "../../components/ui/help-tip";
 type Aba = "movimentacoes" | "contatos" | "centros";
 type Ordem = "data_desc" | "data_asc" | "valor_desc" | "valor_asc" | "descricao";
 
@@ -345,7 +346,7 @@ export default function FinanceiroBuscaGlobal() {
                     <th className="px-3 py-3">Categoria</th>
                     <th className="px-3 py-3 text-right">Valor</th>
                     <th className="px-3 py-3">Status</th>
-                    <th className="px-3 py-3 text-right w-14">Ações</th>
+                    <th className="px-3 py-3 text-right w-14"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Três pontinhos: copiar a descrição do lançamento ou abrir a tela de receitas ou despesas.</HelpTip></span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border-subtle)]">

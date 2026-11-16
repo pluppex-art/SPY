@@ -419,7 +419,7 @@ export default function Radar() {
                   <th className="px-3 py-2 text-right">Dias sem contato</th>
                   <th className="px-3 py-2">Risco</th>
                   <th className="px-3 py-2">Responsável</th>
-                  <th className="px-3 py-2 text-right">Ações</th>
+                  <th className="px-3 py-2 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Telefone: liga para o contato. WhatsApp: abre uma conversa. Seta para fora: abre o negócio na Central de Vendas.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">

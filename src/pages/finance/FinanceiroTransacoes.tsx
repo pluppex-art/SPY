@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useFinanceTransacoesList, type TransacoesTab, type TransacoesOrdem, type TransacaoLeve } from "./useFinanceTransacoesList";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const STATUS_STYLE: Record<string, { icon: typeof CheckCircle2; className: string; label: string }> = {
   Pago: { icon: CheckCircle2, className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", label: "Pago" },
   Atrasado: { icon: AlertTriangle, className: "bg-rose-500/10 text-rose-600 dark:text-rose-400", label: "Atrasado" },
@@ -342,7 +343,7 @@ export default function FinanceiroTransacoes() {
                     <th className="px-3 py-3">Data</th>
                     <th className="px-3 py-3">Status</th>
                     <th className="px-3 py-3 text-right">Valor</th>
-                    <th className="px-3 py-3 text-right w-28">Ações</th>
+                    <th className="px-3 py-3 text-right w-28"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Olho: vê os detalhes do lançamento. Lixeira: exclui o lançamento. Três pontinhos: copiar a descrição ou abrir a tela de receitas ou despesas.</HelpTip></span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border-subtle)]">

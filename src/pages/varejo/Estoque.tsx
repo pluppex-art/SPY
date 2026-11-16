@@ -378,7 +378,7 @@ export default function VarejoEstoque() {
                       <th className="py-3 px-3">Margem</th>
                       <th className="py-3 px-4">Nível de Saldo</th>
                       <th className="py-3 px-3">Estoque Mín.</th>
-                      <th className="py-3 px-4 text-right">Ações</th>
+                      <th className="py-3 px-4 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Ajustar Saldo: corrige a quantidade em estoque do produto com uma entrada, saída ou ajuste. Editar: abre o cadastro do produto em Produtos.</HelpTip></span></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">
