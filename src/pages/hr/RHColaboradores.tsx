@@ -145,6 +145,23 @@ export default function RHColaboradores() {
     return r.ok ? await r.json().catch(() => null) : null;
   };
 
+  // Administrador conecta/reconecta o Agente Secreto de um colaborador: o QR aparece na tela do admin e é lido no celular dele.
+  const [qrColab, setQrColab] = useState<{ id: string; nome: string } | null>(null);
+  const consultarSessaoColab = async (id: string) => {
+    const r = await apiFetch(`/api/agente-secreto/sessoes/${encodeURIComponent(id)}/status`);
+    return r.ok ? await r.json().catch(() => null) : null;
+  };
+  const handleConectarColaborador = async (colab: { id: string; nome: string }) => {
+    try {
+      const s = await consultarSessaoColab(colab.id);
+      if (!s?.session) toast.info(`${colab.nome} ainda não tem sessão do Agente Secreto.`, { description: "Crie a sessão primeiro (menu do colaborador › Criar sessão do Agente Secreto)." });
+      else if (s.status === "CONNECTED") toast.success(`O Agente Secreto de ${colab.nome} já está conectado.`, { description: s.phone ? `WhatsApp +${String(s.phone).replace(/\D/g, "")}` : undefined });
+      else setQrColab({ id: colab.id, nome: colab.nome });
+    } catch {
+      toast.error("Não foi possível consultar o Agente Secreto agora.");
+    }
+  };
+
   const handleConectarMeuWhatsApp = async () => {
     try {
       const s = await consultarMinhaSessao();
@@ -368,6 +385,7 @@ export default function RHColaboradores() {
             onCriarSessao={handleCriarSessaoAgenteSecreto}
             currentUserId={user?.id ?? null}
             onConectarAgente={handleConectarMeuWhatsApp}
+            onConectarColaborador={handleConectarColaborador}
             agenteStatus={agenteStatus}
           />
         ) : (
@@ -414,6 +432,20 @@ export default function RHColaboradores() {
         canGrantTenantAccess={!!user?.isMaster} filiais={filiaisOptions}
       />
       <ColaboradorPerfilModal colab={perfilColab} onClose={() => setPerfilColab(null)} />
+      <AgenteSecretoQrModal
+        open={!!qrColab}
+        onClose={() => setQrColab(null)}
+        title={`Conectar o WhatsApp de ${qrColab?.nome ?? ""}`}
+        colaboradorId={qrColab?.id}
+        colaboradorNome={qrColab?.nome}
+        checkConnected={async () => (qrColab ? (await consultarSessaoColab(qrColab.id))?.status === "CONNECTED" : false)}
+        onConnected={() => {
+          const nome = qrColab?.nome;
+          setQrColab(null);
+          window.dispatchEvent(new Event(AGENTE_SECRETO_STATUS_EVENT));
+          toast.success(`WhatsApp de ${nome ?? "o colaborador"} conectado! O Agente Secreto já está acompanhando as conversas dele.`);
+        }}
+      />
       <AgenteSecretoQrModal
         open={qrAberto}
         onClose={() => setQrAberto(false)}

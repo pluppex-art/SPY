@@ -27,6 +27,8 @@ interface MembrosSectionProps {
   /** Login do usuário atual: só o próprio colaborador conecta o WhatsApp dele (o QR é lido no celular dele). */
   currentUserId?: string | null;
   onConectarAgente?: () => void;
+  /** Administrador conecta/reconecta o WhatsApp do Agente Secreto de um colaborador (QR lido no celular dele). */
+  onConectarColaborador?: (colab: any) => void;
   /** Status do Agente Secreto por colaborador (só quem tem sessão aparece). */
   agenteStatus?: Record<string, string>;
 }
@@ -53,7 +55,7 @@ function AgenteSecretoBadge({ colab, status }: { colab: any; status?: string }) 
 export function MembrosSection({
   filtered: filteredBySearch, search, onSearchChange,
   menuOpenId, setMenuOpenId, onVerPerfil, onEditColab,
-  onChangeStatus, onDesligar, canManageSessions, podeGerenciar = true, onCriarSessao, currentUserId, onConectarAgente, agenteStatus,
+  onChangeStatus, onDesligar, canManageSessions, podeGerenciar = true, onCriarSessao, currentUserId, onConectarAgente, onConectarColaborador, agenteStatus,
 }: MembrosSectionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [depto, setDepto] = useState("");
@@ -195,6 +197,11 @@ export function MembrosSection({
                           {agenteStatus?.[colab.id] === "CONNECTED"
                           ? <><Logo variant="icon" color={AGENTE_COR.ativo} size={14} className="inline-flex shrink-0" /> Agente Secreto conectado</>
                           : <><Phone className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Conectar meu WhatsApp</>}
+                        </button>
+                      )}
+                      {canManageSessions && onConectarColaborador && agenteStatus?.[colab.id] !== undefined && agenteStatus[colab.id] !== "CONNECTED" && !(currentUserId && colab.user_id === currentUserId) && (
+                        <button onClick={() => { setMenuOpenId(null); onConectarColaborador(colab); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
+                          <Phone className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Conectar WhatsApp do colaborador
                         </button>
                       )}
                       {canManageSessions && onCriarSessao && agenteStatus?.[colab.id] !== undefined && (

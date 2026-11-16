@@ -5799,6 +5799,56 @@ app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req
   }
 });
 
+// Administrador conecta/reconecta o Agente Secreto de UM colaborador da empresa (a sessão vem do colaborador, nunca
+// do nome enviado pelo navegador; a RLS limita à empresa do admin). O QR é lido no celular do colaborador.
+async function sessaoDoColaborador(req: any, colaboradorId: string): Promise<{ nome: string; session: string; instanceId: string } | null> {
+  const { data: colab } = await req.supabase.from("colaboradores").select("id, nome").eq("id", colaboradorId).maybeSingle();
+  if (!colab) return null;
+  const { data: inst } = await req.supabase.from("whatsapp_instances").select("id, name").eq("colaborador_id", colab.id).limit(1);
+  const row = inst?.[0];
+  return row ? { nome: colab.nome || "", session: row.name, instanceId: row.id } : null;
+}
+
+app.get("/api/agente-secreto/sessoes/:colaboradorId/status", requireUser, whatsappLimiter, async (req: any, res) => {
+  const colaboradorId = String(req.params.colaboradorId || "");
+  if (!/^[\w-]{1,64}$/.test(colaboradorId)) return res.status(400).json({ error: "colaboradorId inválido." });
+  try {
+    if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores." });
+    if (!isWahaConfigured()) return res.status(503).json({ error: "WhatsApp (WAHA) não está configurado neste ambiente." });
+    const sess = await sessaoDoColaborador(req, colaboradorId);
+    if (!sess) return res.json({ session: null });
+    const state = await getWhatsAppProvider().getConnectionState(sess.session);
+    await syncInstanceStatus(sess.instanceId, state.status, state.phone);
+    res.json({ session: sess.session, nome: sess.nome, status: state.status, phone: state.phone || null });
+  } catch (err: any) {
+    console.error("[agente-secreto/sessoes/status]", err?.message);
+    res.status(502).json({ error: "Não foi possível consultar a sessão agora." });
+  }
+});
+
+app.post("/api/agente-secreto/sessoes/:colaboradorId/qr", requireUser, whatsappLimiter, async (req: any, res) => {
+  const colaboradorId = String(req.params.colaboradorId || "");
+  if (!/^[\w-]{1,64}$/.test(colaboradorId)) return res.status(400).json({ error: "colaboradorId inválido." });
+  try {
+    if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores." });
+    if (!isWahaConfigured()) return res.status(503).json({ error: "WhatsApp (WAHA) não está configurado neste ambiente." });
+    const sess = await sessaoDoColaborador(req, colaboradorId);
+    if (!sess) return res.status(404).json({ error: "Este colaborador não tem sessão do Agente Secreto. Crie a sessão primeiro." });
+    const provider = getWhatsAppProvider();
+    const state = await provider.getConnectionState(sess.session);
+    await syncInstanceStatus(sess.instanceId, state.status, state.phone);
+    if (state.status === "CONNECTED") return res.json({ status: "CONNECTED", qrcode: "" });
+    if (state.status === "DISCONNECTED" && provider.restartSession) {
+      await provider.restartSession(sess.session);
+      return res.status(202).json({ status: "CONNECTING", qrcode: "", retry: true });
+    }
+    res.json(await provider.getQrCode(sess.session));
+  } catch (err: any) {
+    console.error("[agente-secreto/sessoes/qr]", err?.message);
+    res.status(502).json({ error: "Não foi possível gerar o QR code agora. Tente de novo em alguns segundos." });
+  }
+});
+
 // Pausa (férias/afastado/inativo) ou retoma (ativo) a sessão do colaborador no WAHA, sem apagar o login:
 // pausada, o WAHA não entrega mensagens ao n8n e o Agente Secreto dele para de agir; ao voltar, é só religar.
 app.post("/api/agente-secreto/sessoes/:colaboradorId/pausa", requireUser, whatsappLimiter, async (req: any, res) => {

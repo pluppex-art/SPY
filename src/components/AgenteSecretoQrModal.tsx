@@ -15,11 +15,14 @@ interface Props {
   /** Consulta o status atual; devolve true quando já está conectado. */
   checkConnected: () => Promise<boolean>;
   title?: string;
+  /** Administrador conectando o WhatsApp de um colaborador (o QR é lido no celular dele). Sem isso: o próprio usuário. */
+  colaboradorId?: string;
+  colaboradorNome?: string;
 }
 
 // QR code do Agente Secreto do próprio usuário (sessão resolvida no servidor, nunca enviada pelo navegador).
 // Renova o QR sozinho, religa a sessão se ela caiu e fecha quando o WhatsApp conectar.
-export function AgenteSecretoQrModal({ open, onClose, onConnected, checkConnected, title = "Conectar o Agente Secreto" }: Props) {
+export function AgenteSecretoQrModal({ open, onClose, onConnected, checkConnected, title = "Conectar o Agente Secreto", colaboradorId, colaboradorNome }: Props) {
   const [qr, setQr] = useState("");
   const [error, setError] = useState("");
   const closedRef = useRef(false);
@@ -34,7 +37,7 @@ export function AgenteSecretoQrModal({ open, onClose, onConnected, checkConnecte
     const refreshQr = async () => {
       let next = QR_REFRESH_MS;
       try {
-        const r = await apiFetch("/api/agente-secreto/minha-sessao/qr", { method: "POST" });
+        const r = await apiFetch(colaboradorId ? `/api/agente-secreto/sessoes/${encodeURIComponent(colaboradorId)}/qr` : "/api/agente-secreto/minha-sessao/qr", { method: "POST" });
         const data = await r.json().catch(() => ({}));
         if (closedRef.current) return;
         if (data.status === "CONNECTED") { onConnected(); return; }
@@ -61,18 +64,18 @@ export function AgenteSecretoQrModal({ open, onClose, onConnected, checkConnecte
     };
     // onConnected/checkConnected mudam a cada render do pai; o ciclo só reinicia ao abrir/fechar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, colaboradorId]);
 
   return (
     <Modal
       isOpen={open}
       onClose={onClose}
       title={title}
-      description="Leia o QR code com o WhatsApp do seu celular."
+      description={colaboradorId ? `Leia o QR code com o WhatsApp do celular de ${colaboradorNome || "o colaborador"}.` : "Leia o QR code com o WhatsApp do seu celular."}
       footer={<Button variant="ghost" onClick={onClose}>Fechar</Button>}
     >
       <ol className="text-sm text-[var(--color-text-muted)] list-decimal pl-5 space-y-1 mb-4">
-        <li>Abra o WhatsApp no celular.</li>
+        <li>{colaboradorId ? "No celular do colaborador, abra o WhatsApp." : "Abra o WhatsApp no celular."}</li>
         <li>Vá em Aparelhos conectados › Conectar um aparelho.</li>
         <li>Aponte a câmera para o QR code abaixo.</li>
       </ol>
