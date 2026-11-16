@@ -20,6 +20,10 @@ interface ChatListSidebarProps {
   iaOptions?: { id: string; label: string; count: number }[];
   iaFiltro?: string;
   setIaFiltro?: (id: string) => void;
+  /** Vendedores com conversa (nome + quantidade) e o filtro escolhido ("todos" | "sem" | nome). */
+  vendedorOptions?: { nome: string; count: number }[];
+  vendedorFiltro?: string;
+  setVendedorFiltro?: (v: string) => void;
 }
 
 const getChannelIcon = (channel: Channel, className = "w-4 h-4") => {
@@ -44,9 +48,12 @@ export function ChatListSidebar({
   iaOptions = [],
   iaFiltro = "todas",
   setIaFiltro,
+  vendedorOptions = [],
+  vendedorFiltro = "todos",
+  setVendedorFiltro,
 }: ChatListSidebarProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery, activeTab, iaFiltro]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery, activeTab, iaFiltro, vendedorFiltro]);
   const visibleContacts = filteredContacts.slice(0, visibleCount);
 
   return (
@@ -56,33 +63,20 @@ export function ChatListSidebar({
           : 'w-[320px] lg:w-[380px] h-full flex flex-col shrink-0 border-r border-[var(--color-border-default)] z-10'
       } bg-[var(--color-surface-elevated)]`}>
       
-      {/* Header */}
-      <div className="shrink-0 h-[64px] px-5 flex items-center justify-between border-b border-[var(--color-border-subtle)]">
-        <h1 className="text-base font-bold text-[var(--color-text-primary)] tracking-tight">Mensagens</h1>
-        <div className="flex items-center gap-1 text-[var(--color-text-muted)]">
-          {/* Busca e menu "mais" escondidos: sem implementação. */}
-          {false && (<>
-          <button className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] rounded-lg transition-colors cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"><Search className="w-4 h-4" /></button>
-          <button className="p-2 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-default)] rounded-lg transition-colors cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"><MoreVertical className="w-4 h-4" /></button>
-          </>)}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="shrink-0 flex overflow-x-auto scrollbar-none border-b border-[var(--color-border-subtle)] px-3 py-2.5 gap-1.5 bg-[var(--color-surface-sunken)]">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`whitespace-nowrap px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              activeTab === tab 
-                ? 'bg-[var(--color-primary-blue)] !text-white shadow-xs' 
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]'
-            }`}
+      {/* Cabeçalho: título e, ao lado, o canal (Todas, Não lidas, WhatsApp, Instagram, E-mail) */}
+      <div className="shrink-0 h-[64px] px-5 flex items-center justify-between gap-3 border-b border-[var(--color-border-subtle)]">
+        <h1 className="text-base font-bold text-[var(--color-text-primary)] tracking-tight shrink-0">Mensagens</h1>
+        <label className="flex items-center gap-2 min-w-0">
+          <span className="sr-only">Canal</span>
+          <select
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value)}
+            aria-label="Filtrar conversas por canal"
+            className="h-9 max-w-[170px] rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40 cursor-pointer"
           >
-            {tab}
-          </button>
-        ))}
+            {tabs.map((tab) => <option key={tab} value={tab}>{tab}</option>)}
+          </select>
+        </label>
       </div>
 
       {/* Filtro por IA (cada IA tem o próprio WhatsApp): só aparece para quem pode ver alguma IA */}
@@ -108,8 +102,23 @@ export function ChatListSidebar({
         </div>
       )}
 
-      {/* Quick Search */}
-      <div className="shrink-0 px-4 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]">
+      {/* Busca e filtro de vendedor */}
+      <div className="shrink-0 px-4 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] space-y-2">
+        {setVendedorFiltro && (
+          <label className="flex items-center gap-2">
+            <span className="shrink-0 text-[11px] font-black uppercase tracking-wider text-[var(--color-text-faint)]">Vendedor</span>
+            <select
+              value={vendedorFiltro}
+              onChange={(e) => setVendedorFiltro(e.target.value)}
+              aria-label="Filtrar conversas por vendedor"
+              className="h-9 flex-1 min-w-0 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40 cursor-pointer"
+            >
+              <option value="todos">Todos os vendedores</option>
+              {vendedorOptions.map((v) => <option key={v.nome} value={v.nome}>{v.nome} ({v.count})</option>)}
+              <option value="sem">Sem vendedor</option>
+            </select>
+          </label>
+        )}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
           <input

@@ -228,39 +228,33 @@ export function ActiveChatArea({
         {viewMode === "chat" && matchingLead ? (
           /* Contato ligado a um lead: a conversa aparece igual ao detalhe do lead (imagem, áudio com
              transcrição, vendedor de cada mensagem e histórico completo). Recarrega quando chega mensagem. */
-          <ConversasSection key={`${matchingLead.id}-${currentMessages.length}`} lead={matchingLead} />
+          <ConversasSection embed key={`${matchingLead.id}-${currentMessages.length}`} lead={matchingLead} />
         ) : viewMode === "chat" ? (
           /* Simple Chat History Flow */
           currentMessages.length > 0 ? (
             <>
-              <div className="flex justify-center mb-6">
-                <span className="text-[11px] font-medium text-slate-400 bg-white/5 px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-sm">
-                  Hoje
-                </span>
-              </div>
-              
-              {currentMessages.map((msg) => {
-                const isMe = msg.sender === "me";
-                return (
-                  <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] sm:max-w-[70%] px-4 py-2.5 relative shadow-sm ${
-                        isMe 
-                          ? 'bg-blue-600 text-white rounded-2xl rounded-tr-sm' 
-                          : 'bg-white/5 text-slate-100 rounded-2xl rounded-tl-sm border border-white/5'
-                      }`}>
-                       <p className="text-[14.5px] leading-relaxed break-words whitespace-pre-wrap pb-2">
-                         {msg.text}
-                       </p>
-                       <span className={`text-[10px] font-medium absolute bottom-1.5 right-3 flex items-center gap-1 ${isMe ? 'text-blue-200/80' : 'text-slate-500'}`}>
-                         {msg.time}
-                         {isMe && (
-                           <CheckCheck className="w-3.5 h-3.5 text-emerald-400" strokeWidth={2.5}/>
-                         )}
-                       </span>
+              <div className="bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3.5 space-y-2">
+                {currentMessages.map((msg) => {
+                  const isMe = msg.sender === "me";
+                  return (
+                    <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                      <div
+                        className={`px-3 py-2 rounded-2xl text-xs max-w-[82%] leading-relaxed ${
+                          isMe
+                            ? "bg-[var(--color-primary-blue)] text-white rounded-tr-none"
+                            : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] rounded-tl-none shadow-sm"
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap break-words">{msg.text || <em className="opacity-60">[mensagem sem texto]</em>}</p>
+                        <span className="text-[9px] opacity-60 flex items-center justify-end gap-1 mt-1">
+                          {msg.time}
+                          {isMe && <CheckCheck className="w-3 h-3" />}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </>
           ) : (
             <div className="flex items-center justify-center h-full opacity-50 flex-col gap-4">

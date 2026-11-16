@@ -11,6 +11,8 @@ import { cn } from "../../../lib/utils";
 
 interface ConversasSectionProps {
   lead: any;
+  /** Dentro do Chat: sem margens e sem altura própria — a área da conversa é quem rola. */
+  embed?: boolean;
 }
 
 interface Msg {
@@ -167,7 +169,7 @@ function MidiaMensagem({ leadId, m, doVendedor }: { leadId: string; m: Msg; doVe
  * contam, porque o número é guardado com formatos diferentes ("+55639294-0613",
  * "5561995215212"). A visibilidade é a mesma do resto do sistema (RLS por tenant).
  */
-export function ConversasSection({ lead }: ConversasSectionProps) {
+export function ConversasSection({ lead, embed = false }: ConversasSectionProps) {
   const { colaboradores } = useData() as any;
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [instancias, setInstancias] = useState<Record<string, { name: string; colaboradorId: string | null }>>({});
@@ -327,7 +329,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
 
   let diaAtual = "";
   return (
-    <div className="px-5 py-4 space-y-3 animate-in fade-in duration-200">
+    <div className={cn("space-y-3 animate-in fade-in duration-200", !embed && "px-5 py-4")}>
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--color-primary-blue)]">Conversas · WhatsApp</h4>
@@ -391,7 +393,7 @@ export function ConversasSection({ lead }: ConversasSectionProps) {
       ) : visiveis.length === 0 ? (
         <EmptyState icon={MessageSquareOff} title="Sem mensagens nesta seleção" description={pessoaFiltro !== "todas" ? `Não há conversa de WhatsApp com ${pessoaFiltro}. Escolha outra pessoa ou "Todas as pessoas".` : "Nenhuma mensagem para este filtro."} className="h-60" />
       ) : (
-        <div className="max-h-[60dvh] overflow-y-auto overscroll-contain bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3.5 space-y-2">
+        <div className={cn(!embed && "max-h-[60dvh] overflow-y-auto overscroll-contain", "bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)] p-3.5 space-y-2")}>
           {temMais && (
             <div className="flex justify-center">
               <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold" disabled={loading} onClick={() => carregar(msgs[0]?.created_at)}>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { MessageCircle, Users, Bot, Loader2 } from "lucide-react";
 import { useMessaging } from "./messaging/useMessaging";
@@ -94,6 +94,20 @@ export default function Messaging() {
 
   const tabs = ["Todas", "Não lidas", "WhatsApp", "Instagram", "E-mail"];
 
+  // ── Filtro por vendedor ───────────────────────────────────────────────────
+  // O vendedor da conversa é o responsável do lead com o mesmo telefone (compara os 8 últimos dígitos).
+  const [vendedorFiltro, setVendedorFiltro] = useState("todos");
+  const chaveTel = (v?: string | null) => String(v ?? "").replace(/\D/g, "").slice(-8);
+  const vendedorPorTel = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of leads as any[]) {
+      const k = chaveTel(l.phone);
+      if (k.length >= 8 && l.seller && !m.has(k)) m.set(k, String(l.seller));
+    }
+    return m;
+  }, [leads]);
+  const vendedorDoContato = (c: { phone?: string }) => vendedorPorTel.get(chaveTel(c.phone)) ?? "";
+
   const iaDoContato = (c: { instanceId?: string | null }): IaAgentId | null => (c.instanceId ? iaPorInstancia[c.instanceId] ?? null : null);
   // Conversas de uma IA que o perfil não pode ver ficam fora de qualquer visão.
   const contatosVisiveis = contacts.filter((c) => {
@@ -102,8 +116,14 @@ export default function Messaging() {
   });
   const iaOptions = iasPermitidas.map((a) => ({ id: a.id, label: a.label, count: contatosVisiveis.filter((c) => iaDoContato(c) === a.id).length }));
 
+  const vendedorOptions = Array.from(
+    contatosVisiveis.reduce((m, c) => { const v = vendedorDoContato(c); if (v) m.set(v, (m.get(v) ?? 0) + 1); return m; }, new Map<string, number>()),
+  ).map(([nome, count]) => ({ nome, count })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
   const filteredContacts = contatosVisiveis.filter(c => {
     if (iaFiltro !== "todas" && iaDoContato(c) !== iaFiltro) return false;
+    if (vendedorFiltro === "sem" && vendedorDoContato(c)) return false;
+    if (vendedorFiltro !== "todos" && vendedorFiltro !== "sem" && vendedorDoContato(c) !== vendedorFiltro) return false;
     if (activeTab === "Não lidas" && c.unread === 0) return false;
     if (activeTab === "WhatsApp" && c.channel !== "WhatsApp") return false;
     if (activeTab === "Instagram" && c.channel !== "Instagram") return false;
@@ -192,6 +212,9 @@ export default function Messaging() {
               iaOptions={iaOptions}
               iaFiltro={iaFiltro}
               setIaFiltro={setIaFiltro}
+              vendedorOptions={vendedorOptions}
+              vendedorFiltro={vendedorFiltro}
+              setVendedorFiltro={setVendedorFiltro}
             />
 
             <ActiveChatArea
