@@ -11,7 +11,7 @@ const SIDE = [
   { icon: Columns3, label: "Leads & Pipeline", current: true },
   { icon: CalendarDays, label: "Agenda & Reuniões" },
   { icon: Wallet, label: "Gestão Financeira" },
-  { icon: Mail, label: "Mensageria" },
+  { icon: Mail, label: "Chat" },
   { icon: BarChart3, label: "Inteligência & BI" },
 ];
 const STATIC = [

@@ -4,9 +4,9 @@ import { modulosDoCargo } from "./cargosUsuario";
 export type IaAgentId = "sdr" | "cs" | "chatbot";
 
 export const IA_AGENTS: { id: IaAgentId; label: string; /** id gravado em cargos.modulos para liberar a IA ao perfil */ modulo: string; desc: string }[] = [
-  { id: "sdr", label: "SDR IA", modulo: "ia_sdr", desc: "Ver as conversas do WhatsApp do SDR IA na Mensageria" },
-  { id: "cs", label: "CS IA", modulo: "ia_cs", desc: "Ver as conversas do WhatsApp do CS IA na Mensageria" },
-  { id: "chatbot", label: "Chatbot", modulo: "ia_chatbot", desc: "Ver as conversas do WhatsApp do Chatbot na Mensageria" },
+  { id: "sdr", label: "SDR IA", modulo: "ia_sdr", desc: "Ver as conversas do WhatsApp do SDR IA no Chat" },
+  { id: "cs", label: "CS IA", modulo: "ia_cs", desc: "Ver as conversas do WhatsApp do CS IA no Chat" },
+  { id: "chatbot", label: "Chatbot", modulo: "ia_chatbot", desc: "Ver as conversas do WhatsApp do Chatbot no Chat" },
 ];
 
 export const iaLabel = (id: string | null | undefined) => IA_AGENTS.find((a) => a.id === id)?.label ?? null;

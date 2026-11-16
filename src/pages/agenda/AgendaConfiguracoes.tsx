@@ -215,7 +215,7 @@ export default function AgendaConfiguracoes() {
         {/* Lembretes e WhatsApp */}
         <div className="p-6 bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl space-y-4 shadow-xs">
           <h4 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-emerald-500" /> Mensageria & Notificações aos Clientes
+            <MessageSquare className="w-4 h-4 text-emerald-500" /> Chat & Notificações aos Clientes
           </h4>
 
           <div className="space-y-3">

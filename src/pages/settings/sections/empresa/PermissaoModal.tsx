@@ -191,7 +191,7 @@ export function PermissaoModal({ isOpen, onClose, onSave, editing, cargos }: Per
 
         <div className="space-y-2.5 pt-1">
           <div>
-            <h4 className="text-sm font-black text-[var(--color-text-primary)] flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> Mensageria · IAs liberadas <HelpTip label="Sobre Mensageria · IAs liberadas">Escolha quais IAs (cada uma com o próprio WhatsApp) este cargo pode ver na Mensageria. Se nenhuma estiver marcada, o cargo não vê as conversas das IAs.</HelpTip></h4>
+            <h4 className="text-sm font-black text-[var(--color-text-primary)] flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> Chat · IAs liberadas <HelpTip label="Sobre Chat · IAs liberadas">Escolha quais IAs (cada uma com o próprio WhatsApp) este cargo pode ver no Chat. Se nenhuma estiver marcada, o cargo não vê as conversas das IAs.</HelpTip></h4>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {IA_AGENTS.map((a) => {

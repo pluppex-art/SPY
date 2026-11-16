@@ -1184,7 +1184,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
             <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)] animate-pulse hidden sm:inline-block"></span>
           </h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            {scope?.subtitle ?? "Conecte canais de anúncios, mensageria, gateways de pagamento, APIs e webhooks para potencializar o S.P.Y.."}
+            {scope?.subtitle ?? "Conecte canais de anúncios, chat, gateways de pagamento, APIs e webhooks para potencializar o S.P.Y.."}
           </p>
         </div>
         {!scope && <div className="flex items-center gap-2.5">
@@ -1222,7 +1222,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
           {[
             { id: "todas", label: "Todas" },
             { id: "anuncios", label: "Tráfego & Anúncios" },
-            { id: "mensageria", label: "Mensageria & WhatsApp" },
+            { id: "mensageria", label: "Chat & WhatsApp" },
             { id: "pagamentos", label: "Pagamentos & Checkout" },
             { id: "automacoes", label: "Automações & Webhooks" },
             { id: "email", label: "E-mail & SMTP" },
@@ -1753,7 +1753,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
               </div>
               <div>
                 <h3 className="text-base font-black text-[var(--color-text-primary)]">
-                  Mensageria WhatsApp
+                  Chat WhatsApp
                 </h3>
                 <p className="text-xs text-[var(--color-text-muted)]">
                   {whatsappProviderStatus?.provider === "waha"

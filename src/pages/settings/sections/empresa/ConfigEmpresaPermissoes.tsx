@@ -179,7 +179,7 @@ export function ConfigEmpresaPermissoes() {
                     </dd>
                   </div>
                   <div className="space-y-1.5">
-                    <dt className="font-black uppercase tracking-wider text-[var(--color-text-faint)] text-[11px]">IAs na Mensageria</dt>
+                    <dt className="font-black uppercase tracking-wider text-[var(--color-text-faint)] text-[11px]">IAs no Chat</dt>
                     <dd className="flex flex-wrap gap-1.5">
                       {irrestrito ? (
                         <span className={`${chip} text-emerald-600 bg-emerald-500/10 border-emerald-500/20`}><Sparkles className="w-3 h-3" /> Todas as IAs</span>

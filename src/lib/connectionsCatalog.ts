@@ -43,7 +43,7 @@ export const CONNECTION_GROUPS: ConnectionGroup[] = [
     id: "comunicacao",
     title: "Comunicação",
     services: [
-      { id: "whatsapp", name: "WhatsApp", description: "Conversas com clientes (hoje configurado em Mensageria).", live: false },
+      { id: "whatsapp", name: "WhatsApp", description: "Conversas com clientes (hoje configurado em Chat).", live: false },
     ],
   },
 ];

@@ -328,7 +328,7 @@ export function ColaboradorPerfilCompleto({ colab, onClose }: { colab: any; onCl
                 {cargosPessoa.length === 0 && <p className="text-[var(--color-text-muted)]">Cargo em texto livre, sem vínculo com Cargos: a pessoa não tem restrição de páginas.</p>}
               </div>
               <div className="space-y-1.5">
-                <div className="font-black uppercase tracking-wider text-[11px] text-[var(--color-text-faint)]">IAs na Mensageria</div>
+                <div className="font-black uppercase tracking-wider text-[11px] text-[var(--color-text-faint)]">IAs no Chat</div>
                 <div className="flex flex-wrap gap-1.5">
                   {ias.length === 0 ? <span className="text-[var(--color-text-muted)]">Nenhuma IA</span> : ias.map((a) => (
                     <span key={a.id} className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-600 border border-violet-500/20">{a.label}</span>

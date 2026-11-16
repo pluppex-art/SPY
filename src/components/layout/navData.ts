@@ -98,9 +98,9 @@ export const navSections = [
     ],
   },
   {
-    title: "Mensageria",
+    title: "Chat",
     items: [
-      { name: "Mensageria Omnichannel", path: "/app/mensageria", icon: Mail, reqModule: "engajamento" },
+      { name: "Chat Omnicanal", path: "/app/mensageria", icon: Mail, reqModule: "engajamento" },
       { name: "Chatbot", path: "/app/chatbot", icon: Bot, reqModule: "chatbot" },
     ],
   },

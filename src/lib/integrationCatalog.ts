@@ -43,7 +43,7 @@ const url = (prop: string, label: string, required = true, help?: string, placeh
 
 export const CATALOG_CATEGORY_LABELS: Record<CatalogCategory, string> = {
   anuncios: "Tráfego & Anúncios",
-  mensageria: "Mensageria & WhatsApp",
+  mensageria: "Chat & WhatsApp",
   pagamentos: "Pagamentos & Checkout",
   email: "E-mail & SMTP",
   crm: "CRM & Marketing",
@@ -63,7 +63,7 @@ export const INTEGRATION_CATALOG: CatalogIntegration[] = [
   // ── Mensageria
   { id: "telegram", name: "Telegram Bot", category: "mensageria", description: d("bot do Telegram"), fields: [sec("botToken", "Bot Token"), t("chatId", "Chat / canal padrão (ID)")] },
   { id: "twilio", name: "Twilio (SMS / WhatsApp)", category: "mensageria", description: d("Twilio"), fields: [t("accountSid", "Account SID", true), sec("authToken", "Auth Token"), t("fromNumber", "Número remetente", false, "No formato internacional, ex.: +5511999999999")] },
-  { id: "zenvia", name: "Zenvia", category: "mensageria", description: d("Zenvia", "SMS e mensageria."), fields: [sec("apiToken", "API Token"), t("sender", "Remetente / canal")] },
+  { id: "zenvia", name: "Zenvia", category: "mensageria", description: d("Zenvia", "SMS e chat."), fields: [sec("apiToken", "API Token"), t("sender", "Remetente / canal")] },
   { id: "slack", name: "Slack", category: "mensageria", description: d("Slack", "Avisos em canais."), fields: [url("webhookUrl", "Incoming Webhook URL", true, undefined, "https://hooks.slack.com/…"), t("channel", "Canal padrão")] },
 
   // ── Pagamentos

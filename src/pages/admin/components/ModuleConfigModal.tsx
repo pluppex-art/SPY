@@ -22,7 +22,7 @@ const MODULES_LIST = [
   { id: "financeiro", title: "Cofre & Financeiro", desc: "Receitas, despesas, DRE e conciliação", icon: DollarSign, color: "text-emerald-500" },
   { id: "catalogo", title: "Catálogo & Produtos", desc: "Estoque de produtos e tabela de preços", icon: Package, color: "text-purple-500" },
   { id: "marketing", title: "Marketing & Campanhas", desc: "Automações, landing pages e formulários", icon: Megaphone, color: "text-amber-500" },
-  { id: "engajamento", title: "WhatsApp & Engajamento", desc: "Disparos automáticos e mensageria", icon: MessageSquare, color: "text-rose-500" },
+  { id: "engajamento", title: "WhatsApp & Engajamento", desc: "Disparos automáticos e chat", icon: MessageSquare, color: "text-rose-500" },
   { id: "chatbot", title: "Chatbot", desc: "Agente de chatbot do cliente (vendido à parte)", icon: Bot, color: "text-violet-500" },
   { id: "educacao", title: "Educação & Acadêmico", desc: "Turmas, matrículas e certificados", icon: Award, color: "text-purple-500" },
   { id: "clinica", title: "Clínica & Saúde", desc: "Prontuários EHR e telemedicina", icon: Activity, color: "text-teal-500" },
