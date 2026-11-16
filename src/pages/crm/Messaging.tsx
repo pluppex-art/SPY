@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { MessageCircle, Building2 } from "lucide-react";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { MessageCircle, Users, Bot, Loader2 } from "lucide-react";
 import { useMessaging } from "./messaging/useMessaging";
 import { ChatListSidebar } from "./messaging/ChatListSidebar";
 import { ActiveChatArea } from "./messaging/ActiveChatArea";
@@ -12,10 +13,23 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { IA_AGENTS, podeVerIa, type IaAgentId } from "../../lib/iaAgents";
 
-type MessagingMode = "whatsapp" | "interno";
+// O Chatbot é um agente vendido à parte: a aba só existe para quem contratou o módulo.
+const ChatbotPage = lazy(() => import("../chatbot/Chatbot"));
+
+type MessagingMode = "conversas" | "equipe" | "chatbot";
 
 export default function Messaging() {
-  const [mode, setMode] = useState<MessagingMode>("whatsapp");
+  const { isModuleEnabled } = useAuth();
+  const temChatbot = isModuleEnabled("chatbot");
+  const [params, setParams] = useSearchParams();
+  const abaUrl = params.get("aba");
+  const [mode, setModeState] = useState<MessagingMode>(abaUrl === "equipe" ? "equipe" : abaUrl === "chatbot" && temChatbot ? "chatbot" : "conversas");
+  const setMode = (m: MessagingMode) => {
+    setModeState(m);
+    const next = new URLSearchParams(params);
+    if (m === "conversas") next.delete("aba"); else next.set("aba", m);
+    setParams(next, { replace: true });
+  };
 
   // ── Filtro por IA (SDR / CS / Chatbot) ────────────────────────────────────
   // Cada IA tem o próprio número de WhatsApp (instância); a conversa herda a IA da instância.
@@ -127,38 +141,39 @@ export default function Messaging() {
   return (
     <div className={`flex flex-col bg-[var(--color-surface)] overflow-hidden ${isMobile ? "min-h-[100dvh] justify-center relative" : "h-full w-full"}`}>
 
-      {/* Mode Toggle */}
-      <div className="shrink-0 flex items-center gap-1 p-2 border-b border-white/5 bg-[var(--color-surface)]">
-        <button
-          onClick={() => setMode("whatsapp")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
-            mode === "whatsapp"
-              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
-              : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
-          }`}
-        >
-          <MessageCircle className="w-3.5 h-3.5" />
-          WhatsApp / IA
-        </button>
-        <button
-          onClick={() => setMode("interno")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
-            mode === "interno"
-              ? "bg-blue-500/15 text-blue-400 border border-blue-500/25"
-              : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
-          }`}
-        >
-          <Building2 className="w-3.5 h-3.5" />
-          Chat Interno
-        </button>
+      {/* Seções do Chat: tudo numa tela só — conversas (WhatsApp, Instagram, e-mail e as IAs), equipe e chatbot. */}
+      <div className="shrink-0 flex items-center gap-1 p-2 border-b border-white/5 bg-[var(--color-surface)] overflow-x-auto scrollbar-none">
+        {([
+          { id: "conversas" as const, label: "Conversas", icon: MessageCircle, on: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" },
+          { id: "equipe" as const, label: "Equipe", icon: Users, on: "bg-blue-500/15 text-blue-400 border border-blue-500/25" },
+          ...(temChatbot ? [{ id: "chatbot" as const, label: "Chatbot", icon: Bot, on: "bg-violet-500/15 text-violet-400 border border-violet-500/25" }] : []),
+        ]).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setMode(t.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shrink-0 ${
+              mode === t.id ? t.on : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
+            }`}
+          >
+            <t.icon className="w-3.5 h-3.5" />
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* Views */}
       <div className={`flex-1 min-h-0 overflow-hidden ${isMobile ? "w-full max-w-[768px] self-center" : "w-full"}`}>
 
-        {mode === "interno" ? (
+        {mode === "equipe" ? (
           <div className="h-full w-full flex border border-white/10 rounded-b-2xl bg-[#0F172A]/85 shadow-2xl backdrop-blur-xl overflow-hidden">
             <InternalChatView />
+          </div>
+        ) : mode === "chatbot" ? (
+          <div className="h-full w-full overflow-y-auto p-4 md:p-6 bg-[var(--color-surface)]">
+            <Suspense fallback={<div className="grid place-items-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[var(--color-text-faint)]" /></div>}>
+              <ChatbotPage />
+            </Suspense>
           </div>
         ) : (
           <div className={`${isMobile ? "h-[calc(100dvh-56px)] flex flex-col relative bg-[var(--color-surface)] overflow-hidden" : "h-full rounded-b-2xl flex border border-white/10 bg-[#0F172A]/85 shadow-2xl backdrop-blur-xl overflow-hidden relative"}`}>

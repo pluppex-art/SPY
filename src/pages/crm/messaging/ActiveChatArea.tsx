@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Contact, Message, RightPanelState } from "./useMessaging";
 
+import { ConversasSection } from "../../../components/ui/lead-details/ConversasSection";
 const SmileIcon = ({className}: {className?: string}) => (
   <svg viewBox="0 0 24 24" width="24" height="24" className={className} fill="currentColor">
     <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zm-2-9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm4 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-2 5c2.327 0 4.316-1.42 5.092-3.411a.999.999 0 0 0-.916-1.391H7.824a1 1 0 0 0-.916 1.391C7.684 14.58 9.673 16 12 16z"></path>
@@ -224,7 +225,11 @@ export function ActiveChatArea({
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-[var(--color-surface)] scrollbar-thin scrollbar-thumb-white/10"
       >
-        {viewMode === "chat" ? (
+        {viewMode === "chat" && matchingLead ? (
+          /* Contato ligado a um lead: a conversa aparece igual ao detalhe do lead (imagem, áudio com
+             transcrição, vendedor de cada mensagem e histórico completo). Recarrega quando chega mensagem. */
+          <ConversasSection key={`${matchingLead.id}-${currentMessages.length}`} lead={matchingLead} />
+        ) : viewMode === "chat" ? (
           /* Simple Chat History Flow */
           currentMessages.length > 0 ? (
             <>

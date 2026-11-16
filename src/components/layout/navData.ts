@@ -101,7 +101,6 @@ export const navSections = [
     title: "Chat",
     items: [
       { name: "Chat Omnicanal", path: "/app/mensageria", icon: Mail, reqModule: "engajamento" },
-      { name: "Chatbot", path: "/app/chatbot", icon: Bot, reqModule: "chatbot" },
     ],
   },
   {
