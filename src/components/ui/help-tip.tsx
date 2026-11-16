@@ -49,9 +49,9 @@ export function HelpTip({ children, label = "Ajuda", className }: HelpTipProps) 
         aria-expanded={open}
         aria-controls={id}
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="grid place-items-center w-5 h-5 rounded-full text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] focus-visible:text-[var(--color-primary-blue)] transition-colors"
+        className="grid place-items-center w-6 h-6 rounded-full bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)] hover:text-white focus-visible:bg-[var(--color-primary-blue)] focus-visible:text-white transition-colors"
       >
-        <HelpCircle className="w-4 h-4" />
+        <HelpCircle className="w-4 h-4" strokeWidth={2.5} />
       </button>
       {open && (
         <span
