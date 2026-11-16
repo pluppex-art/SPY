@@ -35,7 +35,7 @@ export default function AgendarPublico() {
   const [feito, setFeito] = useState<{ total: number; tipo: "local" | "online" } | null>(null);
   const [pedido, setPedido] = useState<{ situacao: string; total: number } | null>(null);
 
-  useEffect(() => { api(`/api/agendar/${encodeURIComponent(slug)}/config`).then((c: Pub) => { setCfg(c); setData(c.hoje); setTipo(c.tiposEvento[0] ?? ""); }).catch((e) => setFalha(e.message)); }, [slug]);
+  useEffect(() => { api(`/api/agendar/${encodeURIComponent(slug)}/config`).then((c: Pub) => { setCfg(c); setData(primeiroAberto(c)); setTipo(c.tiposEvento[0] ?? ""); }).catch((e) => setFalha(e.message)); }, [slug]);
   useEffect(() => {
     if (document.getElementById("agendar-fontes")) return;
     const l = document.createElement("link"); l.id = "agendar-fontes"; l.rel = "stylesheet";
@@ -111,13 +111,13 @@ export default function AgendarPublico() {
   }
 
   const linkZap = (texto: string) => `https://wa.me/${zapLocal.startsWith("55") ? zapLocal : "55" + zapLocal}?text=${encodeURIComponent(texto)}`;
-  if (!cfg.ativo) return <Tela>{cabecalho}<Cartao className="text-center py-9"><p style={{ fontFamily: DISPLAY }} className="text-2xl font-extrabold uppercase">Reservas online pausadas</p><p className="text-sm text-[#5B5E73] mt-1">Fale com a gente para reservar.</p>{zapLocal && <a className="inline-flex items-center gap-2 mt-4 px-5 h-12 rounded-xl bg-emerald-600 text-white font-bold" href={linkZap("Olá! Quero fazer uma reserva.")}><MessageCircle className="w-5 h-5" />Chamar no WhatsApp</a>}</Cartao></Tela>;
+  if (!cfg.ativo) return <Tela>{cabecalho}<Cartao className="text-center py-9"><p style={{ fontFamily: DISPLAY }} className="text-2xl font-extrabold uppercase">Reservas online pausadas</p><p className="text-sm text-[#5B5E73] mt-1">Fale com a gente para reservar.</p>{zapLocal && <a className="inline-flex items-center gap-2 mt-4 px-5 h-12 rounded-xl bg-emerald-600 text-[#ffffff] font-bold" href={linkZap("Olá! Quero fazer uma reserva.")}><MessageCircle className="w-5 h-5" />Chamar no WhatsApp</a>}</Cartao></Tela>;
 
   if (feito) return (<Tela>{cabecalho}<Cartao className="text-center py-9"><CheckCircle2 className="w-12 h-12 mx-auto text-emerald-600 mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-3xl font-extrabold uppercase">Reserva recebida</p>
     <p className="text-[15px] font-semibold text-[#14162B] mt-3">{dataBR(data)} · {horas.join(" · ")}</p><p className="text-sm text-[#5B5E73]">{recursos} {rotuloUn(recursos)} · {pessoas} pessoa{pessoas === 1 ? "" : "s"}</p>
     <p className="text-sm text-[#5B5E73] mt-2">Total {reaisBR(feito.total)}, pago no local.</p>
     <p className="text-xs text-[#5B5E73] mt-4 px-6">Seguramos seu horário por {cfg.expiracaoMin} minutos. Para garantir, confirme com a gente{zapLocal ? "" : " ou chegue com antecedência"}.</p>
-    {zapLocal && <a className="inline-flex items-center gap-2 mt-5 px-5 h-12 rounded-xl bg-emerald-600 text-white font-bold" href={linkZap(`Olá! Fiz uma reserva para ${dataBR(data)} às ${horas[0]} em nome de ${nome}.`)}><MessageCircle className="w-5 h-5" />Confirmar pelo WhatsApp</a>}</Cartao></Tela>);
+    {zapLocal && <a className="inline-flex items-center gap-2 mt-5 px-5 h-12 rounded-xl bg-emerald-600 text-[#ffffff] font-bold" href={linkZap(`Olá! Fiz uma reserva para ${dataBR(data)} às ${horas[0]} em nome de ${nome}.`)}><MessageCircle className="w-5 h-5" />Confirmar pelo WhatsApp</a>}</Cartao></Tela>);
 
   return (
     <Tela>
@@ -126,14 +126,14 @@ export default function AgendarPublico() {
         <Passo t="Quando">
           <div className="-mx-1 flex gap-2 overflow-x-auto pb-2 snap-x">
             {dias.map((d) => { const fech = diaFechado(d); const on = d === data; return (
-              <button key={d} type="button" disabled={fech} onClick={() => setData(d)} aria-pressed={on} className={`snap-start shrink-0 w-[58px] rounded-xl border py-2 text-center transition-colors ${on ? "bg-[#14162B] border-[#14162B] text-white" : fech ? "border-[#E4E2DC] text-[#B5B6C2] bg-transparent" : "border-[#E4E2DC] bg-white text-[#14162B] hover:border-[#14162B]"}`}>
+              <button key={d} type="button" disabled={fech} onClick={() => setData(d)} aria-pressed={on} className={`snap-start shrink-0 w-[58px] rounded-xl border py-2 text-center transition-colors ${on ? "bg-[#14162B] border-[#14162B] text-[#ffffff]" : fech ? "border-[#E4E2DC] text-[#B5B6C2] bg-transparent" : "border-[#E4E2DC] bg-[#ffffff] text-[#14162B] hover:border-[#14162B]"}`}>
                 <span className="block text-[10px] font-bold uppercase tracking-wider opacity-70">{d === cfg.hoje ? "Hoje" : DIAS_SEMANA[diaDaSemana(d)].slice(0, 3)}</span>
                 <span style={{ fontFamily: DISPLAY }} className="block text-[28px] leading-none font-extrabold">{d.slice(8)}</span>
                 <span className="block text-[10px] opacity-60">{fech ? "fechado" : ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][Number(d.slice(5, 7)) - 1]}</span>
               </button>); })}
           </div>
           <label className="flex items-center gap-2 text-xs text-[#5B5E73] mt-1">Outra data
-            <input type="date" min={cfg.hoje} value={data} onChange={(e) => e.target.value && setData(e.target.value)} className={cn("h-9 px-2 rounded-lg border bg-white text-sm text-[#14162B]", foraDaTira ? "border-[#14162B]" : "border-[#E4E2DC]")} /></label>
+            <input type="date" min={cfg.hoje} value={data} onChange={(e) => e.target.value && setData(e.target.value)} className={cn("h-9 px-2 rounded-lg border bg-[#ffffff] text-sm text-[#14162B]", foraDaTira ? "border-[#14162B]" : "border-[#E4E2DC]")} /></label>
         </Passo>
 
         <Passo t="Horários" dica="Cada bolinha é uma pista: cheia = ocupada, vazia = livre.">
@@ -141,9 +141,9 @@ export default function AgendarPublico() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {slots.map((sl) => { const on = horas.includes(sl.hora); const off = !sl.disponivel || sl.livres < recursos; const ocupadas = cfg.qtdRecursos - sl.livres; return (
                 <button key={sl.hora} type="button" disabled={off && !on} aria-pressed={on} onClick={() => setHoras((a) => (a.includes(sl.hora) ? a.filter((x) => x !== sl.hora) : [...a, sl.hora].sort()))}
-                  className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${on ? "bg-[#D6303B] border-[#D6303B] text-white" : off ? "bg-[#F3F2EE] border-[#E4E2DC] text-[#A9AABA]" : "bg-white border-[#E4E2DC] text-[#14162B] hover:border-[#14162B]"}`}>
+                  className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${on ? "bg-[#D6303B] border-[#D6303B] text-[#ffffff]" : off ? "bg-[#F3F2EE] border-[#E4E2DC] text-[#A9AABA]" : "bg-[#ffffff] border-[#E4E2DC] text-[#14162B] hover:border-[#14162B]"}`}>
                   <span style={{ fontFamily: DISPLAY }} className={`block text-[26px] leading-none font-extrabold ${off && !on ? "line-through" : ""}`}>{sl.rotulo}</span>
-                  <span className="flex flex-wrap gap-[3px] mt-2" aria-hidden="true">{Array.from({ length: Math.min(cfg.qtdRecursos, 12) }, (_, i) => <i key={i} className={`w-2 h-2 rounded-full border ${i < Math.min(ocupadas, 12) ? (on ? "bg-white/90 border-white/90" : "bg-[#14162B] border-[#14162B]") : (on ? "border-white/70" : "border-[#14162B]/40")}`} />)}</span>
+                  <span className="flex flex-wrap gap-[3px] mt-2" aria-hidden="true">{Array.from({ length: Math.min(cfg.qtdRecursos, 12) }, (_, i) => <i key={i} className={`w-2 h-2 rounded-full border ${i < Math.min(ocupadas, 12) ? (on ? "bg-[#ffffff]/90 border-[#ffffff]/90" : "bg-[#14162B] border-[#14162B]") : (on ? "border-[#ffffff]/70" : "border-[#14162B]/40")}`} />)}</span>
                   <span className="block text-[11px] font-semibold mt-1.5 opacity-80">{sl.disponivel ? `${sl.livres} ${sl.livres === 1 ? "pista livre" : "pistas livres"}` : "Esgotado"}</span>
                 </button>); })}
             </div>)}
@@ -153,7 +153,7 @@ export default function AgendarPublico() {
         <Passo t="Quantos vão jogar">
           <Contador rotulo={cfg.recursoPlural} valor={recursos} min={1} max={cfg.qtdRecursos} onChange={(v) => { setRecursos(v); setPessoas((p) => Math.min(p, maxPessoas(v, cfg.pessoasPorRecurso))); }} />
           <Contador rotulo="Pessoas" sub={`até ${limite} no total`} valor={pessoas} min={1} max={limite} onChange={setPessoas} />
-          {cfg.tiposEvento.length > 1 && <div className="pt-1"><p className={ROTULO}>Ocasião</p><div className="flex flex-wrap gap-1.5 mt-1.5">{cfg.tiposEvento.map((t) => <button key={t} type="button" onClick={() => setTipo(t)} aria-pressed={tipo === t} className={`px-3.5 h-9 rounded-full text-sm font-semibold border ${tipo === t ? "bg-[#14162B] border-[#14162B] text-white" : "bg-white border-[#E4E2DC] text-[#14162B]"}`}>{t}</button>)}</div></div>}
+          {cfg.tiposEvento.length > 1 && <div className="pt-1"><p className={ROTULO}>Ocasião</p><div className="flex flex-wrap gap-1.5 mt-1.5">{cfg.tiposEvento.map((t) => <button key={t} type="button" onClick={() => setTipo(t)} aria-pressed={tipo === t} className={`px-3.5 h-9 rounded-full text-sm font-semibold border ${tipo === t ? "bg-[#14162B] border-[#14162B] text-[#ffffff]" : "bg-[#ffffff] border-[#E4E2DC] text-[#14162B]"}`}>{t}</button>)}</div></div>}
           {cfg.mesasAtivo && mesasLivres > 0 && <label className="flex items-center gap-2.5 text-sm text-[#14162B] pt-1"><input type="checkbox" checked={mesa} onChange={(e) => setMesa(e.target.checked)} className="w-5 h-5 accent-[#D6303B]" />Quero também uma mesa no restaurante</label>}
           {mesa && <Contador rotulo="Lugares na mesa" valor={cadeiras} min={1} max={cfg.cadeirasMax} onChange={setCadeiras} />}
         </Passo>
@@ -166,27 +166,32 @@ export default function AgendarPublico() {
         </Passo>
       </div>
 
-      <div className="fixed bottom-0 inset-x-0 z-30 bg-[#14162B] text-white border-t-4 border-[#D6303B]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <div className="fixed bottom-0 inset-x-0 z-30 bg-[#14162B] text-[#ffffff] border-t-4 border-[#D6303B]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="max-w-xl mx-auto px-4 py-3">
           {erro && <p className="text-sm text-[#FFB4BA] mb-2" role="alert">{erro}</p>}
           <div className="flex items-center gap-4">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-white/60 truncate">{horasHora ? `${dataBR(data)} · ${horasHora}h · ${recursos} ${rotuloUn(recursos)}` : "Escolha ao menos um horário"}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#ffffff]/60 truncate">{horasHora ? `${dataBR(data)} · ${horasHora}h · ${recursos} ${rotuloUn(recursos)}` : "Escolha ao menos um horário"}</p>
               <p style={{ fontFamily: DISPLAY }} className="text-[34px] leading-none font-extrabold tabular-nums">{reaisBR(total)}</p>
             </div>
-            <button onClick={enviar} disabled={!pronto || enviando} className="ml-auto h-12 px-6 rounded-xl bg-[#D6303B] text-white font-extrabold uppercase tracking-wide text-sm disabled:opacity-40 flex items-center gap-2 shrink-0">
+            <button onClick={enviar} disabled={!pronto || enviando} className="ml-auto h-12 px-6 rounded-xl bg-[#D6303B] text-[#ffffff] font-extrabold uppercase tracking-wide text-sm disabled:opacity-40 flex items-center gap-2 shrink-0">
               {enviando && <Loader2 className="w-4 h-4 animate-spin" />}{cfg.pagamentoOnline ? "Reservar e pagar" : "Reservar"}</button>
           </div>
-          <p className="text-[11px] text-white/55 mt-1.5">{cfg.pagamentoOnline ? `Você tem ${cfg.expiracaoMin} minutos para pagar; depois o horário é liberado.` : "O pagamento é feito no local."}</p>
+          <p className="text-[11px] text-[#ffffff]/55 mt-1.5">{cfg.pagamentoOnline ? `Você tem ${cfg.expiracaoMin} minutos para pagar; depois o horário é liberado.` : "O pagamento é feito no local."}</p>
         </div>
       </div>
     </Tela>
   );
 }
 
+const primeiroAberto = (c: Pub) => {
+  const e = { horarios: c.horarios, datasBloqueadas: c.datasBloqueadas };
+  for (let i = 0; i < 60; i++) { const d = somarDias(c.hoje, i); if (faixaDoDia(d, e)) return d; }
+  return c.hoje;
+};
 const DISPLAY = "'Barlow Condensed', 'Arial Narrow', sans-serif";
 const ROTULO = "text-[11px] font-bold uppercase tracking-[0.14em] text-[#5B5E73]";
-const INPUT = "w-full h-12 px-4 rounded-xl text-base border border-[#E4E2DC] bg-white text-[#14162B] outline-none focus:border-[#14162B] focus:ring-2 focus:ring-[#14162B]/10";
+const INPUT = "w-full h-12 px-4 rounded-xl text-base border border-[#E4E2DC] bg-[#ffffff] text-[#14162B] outline-none focus:border-[#14162B] focus:ring-2 focus:ring-[#14162B]/10";
 
 const Tela = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-dvh text-[#14162B]" style={{ background: "#FBFAF7", fontFamily: "'Barlow', system-ui, sans-serif", colorScheme: "light" }}>
@@ -195,9 +200,9 @@ const Tela = ({ children }: { children: React.ReactNode }) => (
     <div className="max-w-xl mx-auto px-4 pt-7">{children}</div>
   </div>
 );
-const Cartao = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn("rounded-2xl bg-white border border-[#E4E2DC] px-5", className)}>{children}</div>;
+const Cartao = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn("rounded-2xl bg-[#ffffff] border border-[#E4E2DC] px-5", className)}>{children}</div>;
 const Passo = ({ t, dica, children }: { t: string; dica?: string; children: React.ReactNode }) => (
-  <section className="rounded-2xl bg-white border border-[#E4E2DC] p-4 space-y-3">
+  <section className="rounded-2xl bg-[#ffffff] border border-[#E4E2DC] p-4 space-y-3">
     <div><h2 style={{ fontFamily: DISPLAY }} className="text-[26px] leading-none font-extrabold uppercase text-[#14162B]">{t}</h2>{dica && <p className="text-xs text-[#5B5E73] mt-1">{dica}</p>}</div>
     {children}
   </section>
