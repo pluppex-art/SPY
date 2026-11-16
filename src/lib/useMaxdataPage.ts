@@ -14,8 +14,8 @@ const cacheSet = (k: string, val: any) => { cache.set(k, { ts: Date.now(), val }
 export const MAXDATA_TODAS = "__maxdata_todas__";
 export const MAXDATA_ORIGENS = [
   { value: "", label: "Catálogo do sistema" },
-  { value: "maxdata:estoque", label: "Max Data · Estoque" },
-  { value: "maxdata:notas", label: "Max Data · Notas fiscais" },
+  { value: "maxdata:estoque", label: "Casa São Paulo (principal)" },
+  { value: "maxdata:notas", label: "SR (filial)" },
 ];
 
 type Opts = { table: "maxdata_clientes" | "maxdata_produtos"; origem: string; tenantId: string | null | undefined; term: string; page: number; pageSize: number; from?: number; count?: number; searchCols: string[]; orderBy: string; refresh?: number };

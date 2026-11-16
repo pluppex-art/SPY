@@ -6,7 +6,7 @@ import { apiFetch } from "../../../lib/apiClient";
 
 const brl = (n: any) => (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const num = (n: any) => (Number(n) || 0).toLocaleString("pt-BR");
-const ORIGEM: Record<string, string> = { "maxdata:estoque": "Max Data · Estoque", "maxdata:notas": "Max Data · Notas fiscais" };
+const ORIGEM: Record<string, string> = { "maxdata:estoque": "Casa São Paulo (principal)", "maxdata:notas": "SR (filial)" };
 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
