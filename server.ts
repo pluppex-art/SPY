@@ -48,6 +48,7 @@ import { friendlyAuthCreateError } from "./server/authErrors.js";
 import { ensureAdminColaborador } from "./server/tenantAdminColaborador.js";
 import { agentesDoTenant } from "./server/agentesDoCliente.js";
 import { sessoesModelo } from "./server/agenteSecretoModelo.js";
+import { validarMidiaSaida, rotuloHistorico } from "./server/chatMediaSaida.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { registerMaxdataWriteRoutes } from "./server/maxdataWrite.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
@@ -6335,6 +6336,49 @@ app.post("/api/whatsapp/messages/send", requireUser, async (req: any, res) => {
     return res.status(500).json({ error: "Mensagem enviada mas falhou ao registrar no histórico." });
   }
   await req.supabase.from("chat_contacts").update({ last_message: text, last_message_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", contactId);
+  res.json({ success: true, message: mapChatMessageRow(inserted) });
+});
+
+// Envio de mídia (imagem, áudio, vídeo, documento) pelo Chat. O arquivo vem em base64 no corpo (até 3 MB: cabe
+// no limite de requisição da hospedagem) e é validado por tipo e tamanho antes de falar com o WhatsApp.
+app.post("/api/whatsapp/messages/send-media", requireUser, async (req: any, res) => {
+  const { contactId } = req.body || {};
+  if (!contactId) return res.status(400).json({ error: "ID do contato é obrigatório" });
+  const v = validarMidiaSaida(req.body);
+  if (v.ok === false) return res.status(400).json({ error: v.erro });
+  const midia = v.midia;
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+
+  const { data: contact } = await req.supabase.from("chat_contacts").select("*").eq("tenant_id", tenantId).eq("id", contactId).maybeSingle();
+  if (!contact) return res.status(404).json({ error: "Contato não encontrado" });
+
+  const provider = getWhatsAppProvider();
+  let instanceIdForSend = contact.whatsapp_instance_id;
+  if (provider.name === "waha") {
+    if (!contact.phone) return res.status(400).json({ error: "Contato sem telefone cadastrado — não é possível enviar via WhatsApp." });
+    if (!instanceIdForSend) {
+      const { data: inst } = await req.supabase.from("whatsapp_instances").select("id").eq("tenant_id", tenantId).eq("status", "CONNECTED").limit(1).maybeSingle();
+      if (!inst) return res.status(409).json({ error: "Nenhuma instância WhatsApp conectada. Conecte uma instância antes de enviar mensagens." });
+      instanceIdForSend = inst.id;
+    }
+    try {
+      await provider.sendMediaMessage(instanceIdForSend, contact.phone, { kind: midia.kind, mimetype: midia.mimetype, filename: midia.filename, data: midia.data, caption: midia.caption });
+    } catch (err: any) {
+      console.error("[whatsapp/messages/send-media] waha", err?.message);
+      return res.status(502).json({ error: `Falha ao enviar o arquivo via WAHA: ${err?.message || "erro desconhecido"}` });
+    }
+  }
+
+  const texto = rotuloHistorico(midia);
+  const { data: inserted, error } = await req.supabase.from("chat_messages")
+    .insert({ tenant_id: tenantId, contact_id: contactId, whatsapp_instance_id: instanceIdForSend, text: texto, sender: "human", status: "sent" })
+    .select().maybeSingle();
+  if (error || !inserted) {
+    console.error("[whatsapp/messages/send-media] insert", error?.message);
+    return res.status(500).json({ error: "Arquivo enviado mas falhou ao registrar no histórico." });
+  }
+  await req.supabase.from("chat_contacts").update({ last_message: texto.split("\n")[0], last_message_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", contactId);
   res.json({ success: true, message: mapChatMessageRow(inserted) });
 });
 
