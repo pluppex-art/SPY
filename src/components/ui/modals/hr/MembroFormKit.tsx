@@ -1,4 +1,5 @@
 import React from "react";
+import { HelpTip } from "../../help-tip";
 
 /** Peças visuais compartilhadas pelos modais de colaborador (novo/editar). */
 export const labelClass = "text-[11px] font-bold text-[var(--color-text-primary)] mb-1.5 block";
@@ -10,9 +11,9 @@ export const fieldClass = "flex-1 min-w-0 bg-transparent h-10 px-3 text-xs text-
 export function Field({ label, required, error, hint, children, className }: { label: string; required?: boolean; error?: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <label className={labelClass}>{label}{required && <span className="text-[var(--color-danger)]"> *</span>}</label>
+      <label className={labelClass}>{label}{required && <span className="text-[var(--color-danger)]"> *</span>}{hint && !error && <HelpTip label={`Ajuda sobre ${label}`} className="ml-1 normal-case">{hint}</HelpTip>}</label>
       {children}
-      {error ? <p className="text-[10px] text-[var(--color-danger)] mt-1">{error}</p> : hint ? <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{hint}</p> : null}
+      {error ? <p className="text-[10px] text-[var(--color-danger)] mt-1">{error}</p> : null}
     </div>
   );
 }

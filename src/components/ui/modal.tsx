@@ -1,3 +1,4 @@
+import { HelpTip } from "./help-tip";
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -111,24 +112,16 @@ export function Modal({
               <div>
                 <h3
                   id={titleId}
-                  className="text-base font-black text-[var(--color-text-primary)] tracking-tight"
+                  className="flex items-center gap-1.5 text-base font-black text-[var(--color-text-primary)] tracking-tight"
                 >
                   {title}
+                  {description && <HelpTip label={`Sobre ${title}`}>{description}</HelpTip>}
                 </h3>
-                {description && (
-                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5 font-medium">
-                    {description}
-                  </p>
-                )}
               </div>
             ) : (
               <div className="flex-1 min-w-0">
                 {title}
-                {description && (
-                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5 font-medium">
-                    {description}
-                  </p>
-                )}
+                {description && <HelpTip label="Ajuda" className="mt-0.5">{description}</HelpTip>}
               </div>
             )}
             <button

@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "../../lib/utils"
+import { HelpTip } from "./help-tip"
 
 export interface FormFieldProps extends React.HTMLAttributes<HTMLDivElement> {
   label?: string
@@ -21,13 +22,12 @@ function FormField({ label, htmlFor, required, hint, error, className, children,
         <label htmlFor={htmlFor} className="flex items-center gap-1 text-sm font-medium text-[var(--color-text-primary)]">
           {label}
           {required && <span className="text-danger">*</span>}
+          {hint && !error && <HelpTip label={`Ajuda sobre ${label}`}>{hint}</HelpTip>}
         </label>
       )}
       {children}
       {error ? (
         <p className="text-xs text-danger">{error}</p>
-      ) : hint ? (
-        <p className="text-xs text-[var(--color-text-muted)]">{hint}</p>
       ) : null}
     </div>
   )

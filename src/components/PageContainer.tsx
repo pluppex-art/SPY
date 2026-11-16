@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { ChevronRight, Home } from "lucide-react";
 import { Link } from "react-router-dom";
+import { HelpTip } from "./ui/help-tip";
 
 interface PageContainerProps {
   children: ReactNode;
@@ -51,11 +52,9 @@ export function PageContainer({
 
           <h1 className="text-2xl md:text-3xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-3 break-words">
             {title}
+            {displayDescription && <HelpTip label={`Sobre ${title}`}>{displayDescription}</HelpTip>}
             <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)] animate-pulse hidden md:inline-block"></span>
           </h1>
-          {displayDescription && (
-            <p className="max-md:hidden text-[var(--color-text-muted)] text-sm mt-1 max-w-2xl font-medium leading-relaxed">{displayDescription}</p>
-          )}
         </div>
         
         {actions && (

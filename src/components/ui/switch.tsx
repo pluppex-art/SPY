@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "../../lib/utils"
+import { HelpTip } from "./help-tip"
 
 export interface SwitchProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "size"> {
   checked?: boolean
@@ -78,20 +79,14 @@ const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
             />
           </div>
         </label>
-        {(label || description) && (
-          <label htmlFor={switchId} className="cursor-pointer select-none space-y-0.5">
-            {label && (
-              <span className="text-xs font-semibold text-[var(--color-text-primary)] block">
-                {label}
-              </span>
-            )}
-            {description && (
-              <span className="text-[11px] text-[var(--color-text-muted)] block leading-tight">
-                {description}
-              </span>
-            )}
+        {label && (
+          <label htmlFor={switchId} className="cursor-pointer select-none">
+            <span className="text-xs font-semibold text-[var(--color-text-primary)] block">
+              {label}
+            </span>
           </label>
         )}
+        {description && <HelpTip label={typeof label === "string" ? `Ajuda sobre ${label}` : "Ajuda"}>{description}</HelpTip>}
       </div>
     )
   }
