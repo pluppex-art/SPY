@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Copy, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +22,10 @@ const PERMISSOES: { id: keyof ConfigLinha["permissoes_equipe"]; titulo: string; 
   { id: "sem_contato", titulo: "Reservar sem telefone/e-mail", ajuda: "Por padrão toda reserva precisa de um contato do cliente." },
 ];
 
-const Secao = ({ titulo, ajuda, children }: { titulo: string; ajuda?: string; children: React.ReactNode }) => (
+const ABAS = [{ id: "geral", nome: "Página e eventos" }, { id: "precos", nome: "Preços e horários" }, { id: "pagamento", nome: "Pagamento e mesas" }, { id: "equipe", nome: "Equipe" }] as const;
+type AbaId = (typeof ABAS)[number]["id"];
+const AbaCtx = createContext<AbaId>("geral");
+const Secao = ({ aba, titulo, ajuda, children }: { aba: AbaId; titulo: string; ajuda?: string; children: React.ReactNode }) => useContext(AbaCtx) !== aba ? null : (
   <Card className="p-5 space-y-4"><div className="flex items-center gap-1.5"><h3 className="text-sm font-black text-[var(--color-text-primary)]">{titulo}</h3>{ajuda && <HelpTip label={titulo}>{ajuda}</HelpTip>}</div>{children}</Card>
 );
 const Campo = ({ t, children, className }: { t: string; children: React.ReactNode; className?: string }) => (<div className={`space-y-1.5 ${className ?? ""}`}><label className={rotulo}>{t}</label>{children}</div>);
@@ -37,6 +40,7 @@ export default function AgendamentoConfig() {
   const [link, setLink] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [aba, setAba] = useState<AbaId>("geral");
   const [novoTipo, setNovoTipo] = useState(""); const [novaData, setNovaData] = useState("");
 
   const carregar = async () => {
@@ -72,8 +76,12 @@ export default function AgendamentoConfig() {
     <PageContainer title="Configurações do Agendamento" subtitle="Defina o que os clientes podem reservar, quanto custa, quando abre e como o pagamento funciona."
       breadcrumb={[{ label: "Agendamento", path: "/app/agendamento" }, { label: "Configurações" }]}
       actions={<div className="flex gap-2"><Link to="/app/agendamento"><Button variant="outline" size="sm"><ArrowLeft className="w-4 h-4 mr-1.5" />Voltar à agenda</Button></Link><Button size="sm" disabled={!sujo || salvando} onClick={salvar}>{salvando && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Salvar alterações</Button></div>}>
-      <div className="space-y-4 max-w-4xl">
-        <Secao titulo="Página pública" ajuda="É o endereço que você divulga para o cliente reservar sozinho, só com nome e WhatsApp. Se desligar, a página sai do ar mas a agenda interna continua funcionando.">
+      <AbaCtx.Provider value={aba}>
+      <div className="flex gap-1 mb-4 overflow-x-auto border-b border-[var(--color-border-default)]">
+        {ABAS.map((x) => <button key={x.id} onClick={() => setAba(x.id)} className={`px-4 h-10 text-sm font-bold whitespace-nowrap border-b-2 -mb-px ${aba === x.id ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>{x.nome}</button>)}
+      </div>
+      <div className="space-y-4 max-w-4xl pb-20">
+        <Secao aba="geral" titulo="Página pública" ajuda="É o endereço que você divulga para o cliente reservar sozinho, só com nome e WhatsApp. Se desligar, a página sai do ar mas a agenda interna continua funcionando.">
           <label className="flex items-center justify-between text-sm font-semibold">Aceitar reservas pela página pública<Switch checked={c.ativo} onCheckedChange={(v) => set("ativo", v)} /></label>
           <div className="grid sm:grid-cols-2 gap-3">
             <Campo t="Nome do estabelecimento"><Input value={c.nome_estabelecimento ?? ""} onChange={(e) => set("nome_estabelecimento", e.target.value)} maxLength={120} /></Campo>
@@ -87,7 +95,7 @@ export default function AgendamentoConfig() {
           {sujo && c.slug !== JSON.parse(orig).slug && <p className="text-xs text-amber-600">Ao mudar o endereço, o link antigo deixa de funcionar.</p>}
         </Secao>
 
-        <Secao titulo="O que é reservado e preços" ajuda="Pense em “Pista” como a unidade que o cliente reserva (pista, quadra, sala, mesa…). Os nomes aparecem para o cliente. O preço é por unidade, por hora.">
+        <Secao aba="precos" titulo="O que é reservado e preços" ajuda="Pense em “Pista” como a unidade que o cliente reserva (pista, quadra, sala, mesa…). Os nomes aparecem para o cliente. O preço é por unidade, por hora.">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Campo t="Nome (singular)"><Input value={c.recurso_singular} onChange={(e) => set("recurso_singular", e.target.value)} maxLength={30} /></Campo>
             <Campo t="Nome (plural)"><Input value={c.recurso_plural} onChange={(e) => set("recurso_plural", e.target.value)} maxLength={30} /></Campo>
@@ -101,7 +109,7 @@ export default function AgendamentoConfig() {
           </div></div>
         </Secao>
 
-        <Secao titulo="Horário de funcionamento" ajuda="Use horas cheias. Fechar às 00 é meia-noite; se o fechamento for menor que a abertura (ex.: abre 18, fecha 2), vale até de madrugada.">
+        <Secao aba="precos" titulo="Horário de funcionamento" ajuda="Use horas cheias. Fechar às 00 é meia-noite; se o fechamento for menor que a abertura (ex.: abre 18, fecha 2), vale até de madrugada.">
           <div className="space-y-2">
             {c.horarios.map((h, i) => (
               <div key={i} className="flex items-center gap-3 flex-wrap">
@@ -121,25 +129,33 @@ export default function AgendamentoConfig() {
           </div>
         </Secao>
 
-        <Secao titulo="Tipos de evento" ajuda="Opções que aparecem para o cliente ao reservar (ex.: Aniversário, Confraternização).">
+        <Secao aba="geral" titulo="Tipos de evento" ajuda="Opções que aparecem para o cliente ao reservar (ex.: Aniversário, Confraternização).">
           <div className="flex flex-wrap gap-1.5">{c.tipos_evento.map((t) => <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--color-surface-hover)] text-xs font-semibold">{t}{c.tipos_evento.length > 1 && <button onClick={() => set("tipos_evento", c.tipos_evento.filter((x) => x !== t))} aria-label={`Remover ${t}`}><X className="w-3 h-3" /></button>}</span>)}</div>
           <div className="flex gap-2"><Input value={novoTipo} onChange={(e) => setNovoTipo(e.target.value)} placeholder="Novo tipo" maxLength={40} className="max-w-xs" /><Button variant="outline" size="sm" disabled={!novoTipo.trim() || c.tipos_evento.length >= 20} onClick={() => { set("tipos_evento", Array.from(new Set([...c.tipos_evento, novoTipo.trim()]))); setNovoTipo(""); }}><Plus className="w-4 h-4 mr-1" />Adicionar</Button></div>
         </Secao>
 
-        <Secao titulo="Pagamento" ajuda="Com o pagamento online ligado, o cliente paga pelo Mercado Pago ao reservar e a reserva é confirmada sozinha. Se ele não pagar no prazo, a vaga é liberada. Se pagar atrasado e a vaga já foi ocupada, o valor é devolvido automaticamente. Precisa do Mercado Pago conectado em Configurações → Integrações.">
+        <Secao aba="pagamento" titulo="Pagamento" ajuda="Com o pagamento online ligado, o cliente paga pelo Mercado Pago ao reservar e a reserva é confirmada sozinha. Se ele não pagar no prazo, a vaga é liberada. Se pagar atrasado e a vaga já foi ocupada, o valor é devolvido automaticamente. Precisa do Mercado Pago conectado em Configurações → Integrações.">
           <label className="flex items-center justify-between text-sm font-semibold">Cobrar online pelo Mercado Pago<Switch checked={c.pagamento_online} onCheckedChange={(v) => set("pagamento_online", v)} /></label>
           <Campo t="Prazo para pagar (minutos)" className="max-w-xs"><input type="number" min={5} max={240} value={c.expiracao_pendente_min} onChange={(e) => set("expiracao_pendente_min", num(e.target.value, 5))} className={campo} /></Campo>
         </Secao>
 
-        <Secao titulo="Mesas do restaurante" ajuda="Permite que o cliente peça também uma mesa junto com a reserva, respeitando o limite por dia.">
+        <Secao aba="pagamento" titulo="Mesas do restaurante" ajuda="Permite que o cliente peça também uma mesa junto com a reserva, respeitando o limite por dia.">
           <label className="flex items-center justify-between text-sm font-semibold">Oferecer reserva de mesa<Switch checked={c.mesas_ativo} onCheckedChange={(v) => set("mesas_ativo", v)} /></label>
           {c.mesas_ativo && <div className="grid grid-cols-2 gap-3 max-w-md"><Campo t="Mesas por dia"><input type="number" min={0} value={c.mesas_max_por_dia} onChange={(e) => set("mesas_max_por_dia", num(e.target.value))} className={campo} /></Campo><Campo t="Lugares por mesa (máx.)"><input type="number" min={1} max={36} value={c.cadeiras_max} onChange={(e) => set("cadeiras_max", Math.min(36, num(e.target.value, 1)))} className={campo} /></Campo></div>}
         </Secao>
 
-        <Secao titulo="O que a equipe pode fazer" ajuda="Vale para quem não é administrador. Administradores podem tudo, inclusive cortesia e alterar valores.">
+        <Secao aba="equipe" titulo="O que a equipe pode fazer" ajuda="Vale para quem não é administrador. Administradores podem tudo, inclusive cortesia e alterar valores.">
           <div className="space-y-3">{PERMISSOES.map((p) => <label key={p.id} className="flex items-center justify-between gap-4 text-sm"><span><b>{p.titulo}</b><span className="block text-xs text-[var(--color-text-muted)]">{p.ajuda}</span></span><Switch checked={c.permissoes_equipe[p.id]} onCheckedChange={(v) => set("permissoes_equipe", { ...c.permissoes_equipe, [p.id]: v })} /></label>)}</div>
         </Secao>
       </div>
+      </AbaCtx.Provider>
+      {sujo && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-xl px-4 py-2.5">
+          <span className="text-sm font-semibold text-[var(--color-text-primary)]">Você tem alterações não salvas</span>
+          <Button variant="ghost" size="sm" onClick={() => setC(JSON.parse(orig))}>Descartar</Button>
+          <Button size="sm" disabled={salvando} onClick={salvar}>{salvando && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Salvar</Button>
+        </div>
+      )}
     </PageContainer>
   );
 }

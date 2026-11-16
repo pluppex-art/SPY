@@ -8,7 +8,7 @@ import { chamar, definirTenantAtivo, configParaEngine, linhaParaReserva, ErroApi
 type Permissoes = Record<"criar" | "editar" | "cancelar" | "receber" | "sem_contato", boolean>;
 
 /** Agenda do dia: configuração, reservas (com tempo real) e as ações da equipe. */
-export function useAgendamento(data: string) {
+export function useAgendamento(de: string, ate: string) {
   const { activeTenantId } = useAuth();
   definirTenantAtivo(activeTenantId);
   const [config, setConfig] = useState<ConfigLinha | null>(null);
@@ -35,13 +35,13 @@ export function useAgendamento(data: string) {
     if (!supabase || !activeTenantId) return;
     const hoje = agoraNoFuso(Date.now(), fuso).data;
     const [dia, pend] = await Promise.all([
-      supabase.from("agendamento_reservas").select("*").eq("tenant_id", activeTenantId).eq("data", data).order("inicio_min", { ascending: true }),
+      supabase.from("agendamento_reservas").select("*").eq("tenant_id", activeTenantId).gte("data", de).lte("data", ate).order("data", { ascending: true }).order("inicio_min", { ascending: true }).limit(2000),
       supabase.from("agendamento_reservas").select("*").eq("tenant_id", activeTenantId).lte("data", hoje).eq("status_pagamento", "Pendente").neq("status", "Cancelada").order("data", { ascending: false }).limit(100),
     ]);
     if (dia.error) { setErro(/agendamento_reservas/.test(dia.error.message) ? "tabela" : dia.error.message); return; }
     setReservas((dia.data || []).map(linhaParaReserva));
     setPendencias((pend.data || []).map(linhaParaReserva));
-  }, [activeTenantId, data, fuso]);
+  }, [activeTenantId, de, ate, fuso]);
 
   useEffect(() => { setCarregando(true); carregarConfig().finally(() => setCarregando(false)); }, [carregarConfig, activeTenantId]);
   useEffect(() => { if (config) carregarReservas(); }, [config, carregarReservas]);

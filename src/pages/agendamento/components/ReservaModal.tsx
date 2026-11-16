@@ -17,6 +17,7 @@ interface Props {
   executar: (fn: () => Promise<unknown>, sucesso?: string) => Promise<boolean>;
 }
 
+const horaHHMM = (h: string) => { const [a, b] = h.split(":"); return `${a.padStart(2, "0")}:${b ?? "00"}`; };
 const Info = ({ t, v }: { t: string; v: React.ReactNode }) => (<div><p className={rotulo}>{t}</p><p className="text-sm font-semibold text-[var(--color-text-primary)] break-words">{v || "—"}</p></div>);
 
 /** Tudo de uma reserva: dados, check-in por unidade, escolha de pistas, recebimento, edição e cancelamento. */
@@ -26,7 +27,8 @@ export function ReservaModal({ reserva: r, config, admin, permissoes, onClose, e
   const [grupo, setGrupo] = useState(false);
   const [pedido, setPedido] = useState<PedidoPagamento | null>(null); const [erroPag, setErroPag] = useState<string | null>(null);
   const [receber, setReceber] = useState(false); const [cancelar, setCancelar] = useState(false); const [motivo, setMotivo] = useState("");
-  const [obs, setObs] = useState(""); const [pessoas, setPessoas] = useState(1); const [valor, setValor] = useState("");
+  const [editar, setEditar] = useState(false);
+  const [f, setF] = useState<Record<string, any>>({});
   const [pistas, setPistas] = useState<number[]>([]); const [ocupado, setOcupado] = useState(false);
   const [historico, setHistorico] = useState<any[] | null>(null);
   const pode = (k: string) => admin || !!permissoes[k];
@@ -34,7 +36,9 @@ export function ReservaModal({ reserva: r, config, admin, permissoes, onClose, e
   useEffect(() => {
     setIrmas([]); setGrupo(false); setReceber(false); setCancelar(false); setMotivo(""); setHistorico(null); setPedido(null);
     if (!r) return;
-    setObs(r.observacoes ?? ""); setPessoas(r.qtdPessoas); setValor(String(r.valorTotal)); setPistas(r.recursosAtribuidos);
+    setEditar(false); setPistas(r.recursosAtribuidos);
+    setF({ contatoNome: r.contatoNome, contatoTelefone: r.contatoTelefone ?? "", contatoEmail: r.contatoEmail ?? "", data: r.data, hora: horaHHMM(r.hora), duracao: String(r.duracao), qtdRecursos: r.qtdRecursos, qtdPessoas: r.qtdPessoas,
+      tipoEvento: r.tipoEvento ?? "", observacoes: r.observacoes ?? "", comanda: r.comanda ?? "", valorTotal: String(r.valorTotal), mesa: r.mesa, mesaCadeiras: r.mesaCadeiras ?? 4, aniversariante: r.aniversariante ?? "" });
     if (!supabase || !activeTenantId) return;
     supabase.from("agendamento_reservas").select("*").eq("tenant_id", activeTenantId).eq("grupo_id", r.grupoId).neq("id", r.id).neq("status", "Cancelada")
       .then(async ({ data }) => { const { linhaParaReserva } = await import("../../../lib/agendamento/cliente"); setIrmas((data || []).map(linhaParaReserva)); });
@@ -51,6 +55,20 @@ export function ReservaModal({ reserva: r, config, admin, permissoes, onClose, e
   const api = (caminho: string, corpo: unknown, metodo: "POST" | "PATCH" = "POST") => chamar(metodo, `/api/agendamento/reservas/${r.id}${caminho}`, corpo);
   const rodar = async (fn: () => Promise<unknown>, ok?: string, fechar = false) => { setOcupado(true); const deu = await executar(fn, ok); setOcupado(false); if (deu && fechar) onClose(); return deu; };
   const zap = (r.contatoTelefone ?? "").replace(/\D/g, "");
+
+  const set = (k: string, v: any) => setF((x) => ({ ...x, [k]: v }));
+  const salvarEdicao = async () => {
+    const corpo: Record<string, any> = {};
+    const comp = (k: string, atual: any, novo: any) => { if (String(atual ?? "") !== String(novo ?? "")) corpo[k] = novo; };
+    comp("contatoNome", r.contatoNome, f.contatoNome); comp("contatoTelefone", r.contatoTelefone, f.contatoTelefone); comp("contatoEmail", r.contatoEmail, f.contatoEmail);
+    comp("data", r.data, f.data); comp("hora", horaHHMM(r.hora), f.hora); comp("duracao", r.duracao, Number(f.duracao)); comp("qtdRecursos", r.qtdRecursos, f.qtdRecursos); comp("qtdPessoas", r.qtdPessoas, f.qtdPessoas);
+    comp("tipoEvento", r.tipoEvento, f.tipoEvento); comp("observacoes", r.observacoes, f.observacoes); comp("comanda", r.comanda, f.comanda);
+    if (admin) comp("valorTotal", r.valorTotal, Number(String(f.valorTotal).replace(",", ".")) || 0);
+    if (!!f.mesa !== r.mesa) corpo.mesa = !!f.mesa;
+    if (f.mesa) { comp("mesaCadeiras", r.mesaCadeiras, f.mesaCadeiras); comp("aniversariante", r.aniversariante, f.aniversariante); }
+    if (Object.keys(corpo).length === 0) { setEditar(false); return; }
+    if (await rodar(() => api("", corpo, "PATCH"), "Reserva atualizada.")) setEditar(false);
+  };
 
   const carregarHistorico = async () => { try { const j = await chamar<{ itens: any[] }>("GET", `/api/agendamento/reservas/${r.id}/auditoria`); setHistorico(j.itens); } catch { setHistorico([]); } };
 
@@ -121,14 +139,27 @@ export function ReservaModal({ reserva: r, config, admin, permissoes, onClose, e
         )}
 
         {ativa && pode("editar") && (
-          <section className="space-y-2">
-            <span className={rotulo}>Ajustes</span>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5"><label className={rotulo}>Pessoas</label><input type="number" min={1} value={pessoas} onChange={(e) => setPessoas(Number(e.target.value) || 1)} className={campo} /></div>
-              {admin && <div className="space-y-1.5"><label className={rotulo}>Valor (R$)</label><input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} className={campo} /></div>}
-              <div className="space-y-1.5 col-span-3 sm:col-span-1"><label className={rotulo}>Observações</label><Input value={obs} onChange={(e) => setObs(e.target.value)} maxLength={800} /></div>
-            </div>
-            <Button size="sm" variant="outline" disabled={ocupado} onClick={() => rodar(() => api("", { qtdPessoas: pessoas, observacoes: obs, ...(admin ? { valorTotal: Number(valor.replace(",", ".")) || 0 } : {}) }, "PATCH"), "Reserva atualizada.")}>Salvar ajustes</Button>
+          <section className="space-y-3 rounded-xl border border-[var(--color-border-default)] p-3">
+            {!editar ? <div className="flex items-center justify-between gap-2"><span className="text-sm text-[var(--color-text-secondary)]">Mudar dia, horário, quantidade, contato, mesa e observações.</span><Button size="sm" variant="outline" onClick={() => setEditar(true)}>Editar reserva</Button></div> : (<>
+              <span className={rotulo}>Editar reserva</span>
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5"><label className={rotulo}>Nome</label><Input value={f.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} maxLength={120} /></div>
+                <div className="space-y-1.5"><label className={rotulo}>Telefone</label><Input value={f.contatoTelefone} onChange={(e) => set("contatoTelefone", e.target.value)} inputMode="tel" /></div>
+                <div className="space-y-1.5"><label className={rotulo}>E-mail</label><Input value={f.contatoEmail} onChange={(e) => set("contatoEmail", e.target.value)} type="email" /></div>
+                <div className="space-y-1.5"><label className={rotulo}>Data</label><input type="date" value={f.data} onChange={(e) => set("data", e.target.value)} className={campo} /></div>
+                <div className="space-y-1.5"><label className={rotulo}>Início</label><input type="time" value={f.hora} onChange={(e) => set("hora", e.target.value)} className={campo} /></div>
+                <div className="space-y-1.5"><label className={rotulo}>Duração (h)</label><input type="number" min={0.5} step={0.5} value={f.duracao} onChange={(e) => set("duracao", e.target.value)} className={campo} /></div>
+                <div className="space-y-1.5"><label className={rotulo}>{config.recurso_plural}</label><input type="number" min={1} max={config.qtd_recursos} value={f.qtdRecursos} onChange={(e) => set("qtdRecursos", Number(e.target.value) || 1)} className={campo} /></div>
+                <div className="space-y-1.5"><label className={rotulo}>Pessoas</label><input type="number" min={1} value={f.qtdPessoas} onChange={(e) => set("qtdPessoas", Number(e.target.value) || 1)} className={campo} /></div>
+                <div className="space-y-1.5"><label className={rotulo}>Tipo de evento</label><select value={f.tipoEvento} onChange={(e) => set("tipoEvento", e.target.value)} className={campo}><option value="">—</option>{Array.from(new Set([...(config.tipos_evento ?? []), ...(r.tipoEvento ? [r.tipoEvento] : [])])).map((t) => <option key={t}>{t}</option>)}</select></div>
+                {admin && <div className="space-y-1.5"><label className={rotulo}>Valor (R$)</label><input inputMode="decimal" value={f.valorTotal} onChange={(e) => set("valorTotal", e.target.value)} className={campo} /></div>}
+                <div className="space-y-1.5"><label className={rotulo}>Comanda</label><Input value={f.comanda} onChange={(e) => set("comanda", e.target.value)} maxLength={40} /></div>
+                <div className="space-y-1.5 sm:col-span-3"><label className={rotulo}>Observações</label><Input value={f.observacoes} onChange={(e) => set("observacoes", e.target.value)} maxLength={1000} /></div>
+              </div>
+              {config.mesas_ativo && <div className="space-y-2"><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!f.mesa} onChange={(e) => set("mesa", e.target.checked)} />Mesa no restaurante</label>
+                {f.mesa && <div className="grid grid-cols-2 gap-3"><div className="space-y-1.5"><label className={rotulo}>Lugares</label><input type="number" min={1} max={config.cadeiras_max} value={f.mesaCadeiras} onChange={(e) => set("mesaCadeiras", Number(e.target.value) || 1)} className={campo} /></div><div className="space-y-1.5"><label className={rotulo}>Aniversariante</label><Input value={f.aniversariante} onChange={(e) => set("aniversariante", e.target.value)} maxLength={80} /></div></div>}</div>}
+              <div className="flex justify-end gap-2"><Button variant="ghost" size="sm" onClick={() => setEditar(false)}>Cancelar</Button><Button size="sm" disabled={ocupado} onClick={salvarEdicao}>Salvar alterações</Button></div>
+            </>)}
           </section>
         )}
 
