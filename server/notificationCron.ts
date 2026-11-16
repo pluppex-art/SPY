@@ -150,24 +150,33 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
         .filter((s: any) => estados[s.name] && estados[s.name] !== s.status)
         .map((s: any) => db.from("whatsapp_instances").update({ status: estados[s.name], updated_at: new Date().toISOString() }).eq("id", s.id)));
     } catch { /* WAHA fora do ar: não mexe no status */ }
-    const dia =new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+    // Um e-mail por QUEDA (não mais um por dia): a "queda" é identificada pelo momento em que a sessão passou a não
+    // conectada (whatsapp_instances.updated_at só muda quando o status muda). Se reconectar e cair de novo, sai outro
+    // e-mail. Se a sessão oscilar entre estados desconectados, no máximo um e-mail a cada 6 h por colaborador.
+    const { data: atuais } = await db.from("whatsapp_instances").select("colaborador_id, updated_at").not("colaborador_id", "is", null).limit(200);
+    const quedaDesde = new Map<string, string>((atuais || []).map((s: any) => [s.colaborador_id, s.updated_at]));
+    const seisHoras = new Date(Date.now() - 6 * 60 * MIN).toISOString();
     await forEachBudgeted((agentes || []) as any[], deadline, async (c) => {
       let status: string;
       try { status = (await provider.getConnectionState(c.waha_session)).status; } catch { return; }
       if (status === "CONNECTED") return;
+      const desde = quedaDesde.get(c.id) || new Date().toISOString();
+      const { data: recente } = await db.from("notification_email_log").select("dedupe_key").eq("tenant_id", c.tenant_id)
+        .like("dedupe_key", `agente_secreto_caiu%:${c.id}:%`).gte("sent_at", seisHoras).limit(1);
+      if (recente?.length) return;
+      const detalhes = [{ label: "Colaborador", value: c.nome }, { label: "Desconectou em", value: fmtWhen(desde) }];
       const base = {
         triggerId: "agente_secreto_desconectado",
         title: "Agente Secreto desconectado",
-        description: `A sessão de WhatsApp de ${c.nome} caiu. Reconecte lendo o QR code no S.P.Y.`,
         kind: "error" as const,
-        linkPath: "/app",
-        details: [{ label: "Colaborador", value: c.nome }],
+        linkPath: "/app/equipe",
+        details: detalhes,
       };
       if (c.user_id) {
-        const r = await emailNotifyTenant(db, c.tenant_id, baseUrl, { ...base, userIds: [c.user_id], dedupeKey: `agente_secreto_caiu:${c.id}:${dia}` });
+        const r = await emailNotifyTenant(db, c.tenant_id, baseUrl, { ...base, linkPath: "/app", description: `A sua sessão de WhatsApp caiu e o Agente Secreto parou de acompanhar suas conversas. Reconecte lendo o QR code no S.P.Y.`, userIds: [c.user_id], dedupeKey: `agente_secreto_caiu:${c.id}:${desde}` });
         out.sessoesCaidas += r.sent;
       }
-      const a = await emailNotifyTenant(db, c.tenant_id, baseUrl, { ...base, adminsOnly: true, dedupeKey: `agente_secreto_caiu_admin:${c.id}:${dia}` });
+      const a = await emailNotifyTenant(db, c.tenant_id, baseUrl, { ...base, description: `O Agente Secreto de ${c.nome} desconectou do WhatsApp. Você pode reconectar pelo RH (menu do colaborador › Conectar WhatsApp do colaborador) ou pedir que ele leia o QR code.`, adminsOnly: true, dedupeKey: `agente_secreto_caiu_admin:${c.id}:${desde}` });
       out.sessoesCaidas += a.sent;
     });
   }

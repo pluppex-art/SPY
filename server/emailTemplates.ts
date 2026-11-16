@@ -337,6 +337,7 @@ interface Copy { crm?: boolean; pill: string; title1: string; title2: string; in
  */
 export const NOTIFICATION_COPY: Record<string, Copy> = {
   agente_secreto_desconectado: {
+    crm: true,
     pill: "Agente Secreto desconectado", title1: "Agente Secreto", title2: "desconectou do WhatsApp", icon: "icon-bell",
     intro: "A sessão do Agente Secreto no WhatsApp caiu e ele parou de acompanhar suas conversas. Reconecte lendo o QR code no S.P.Y. — leva menos de um minuto.",
     headerLine2: "Agente Secreto desconectado",
