@@ -26,6 +26,9 @@ export function setFilialMaxdata(origem: "maxdata:estoque" | "maxdata:notas", no
   if (o && n) o.label = principal ? `${n} (principal)` : `${n} (filial)`;
 }
 
+/** Origens visíveis nos filtros: com uma filial ativa, só a conexão dela. */
+export function origensVisiveis(unidade: string) { return unidade ? MAXDATA_ORIGENS.filter((o) => !o.value || o.value === unidade) : MAXDATA_ORIGENS; }
+
 type Opts = { table: "maxdata_clientes" | "maxdata_produtos"; origem: string; tenantId: string | null | undefined; term: string; page: number; pageSize: number; from?: number; count?: number; searchCols: string[]; orderBy: string; refresh?: number };
 
 /**
@@ -35,7 +38,7 @@ type Opts = { table: "maxdata_clientes" | "maxdata_produtos"; origem: string; te
  */
 export function useMaxdataPage({ table, origem: origemPedida, tenantId, term, page, pageSize, from, count: limit, searchCols, orderBy, refresh }: Opts) {
   const [unidade] = useUnidadeMax();
-  const origem = origemPedida === MAXDATA_TODAS && unidade ? unidade : origemPedida;
+  const origem = origemPedida && unidade ? unidade : origemPedida; // com uma filial ativa, só a conexão dela
   const vazio = limit !== undefined && limit <= 0; // lista mista: esta página inteira cai na parte do CRM
   const ativo = !!origem && !!tenantId && !!supabase;
   const chave = `page|${table}|${tenantId}|${origem}|${term}|${page}|${pageSize}|${from ?? ""}|${limit ?? ""}|${orderBy}|${refresh ?? 0}|${searchCols.join(",")}`;
@@ -106,7 +109,7 @@ export type MaxdataStats = { total: number; [k: string]: number };
  */
 export function useMaxdataStats(table: "maxdata_clientes" | "maxdata_produtos", origemPedida: string, tenantId: string | null | undefined, refresh = 0) {
   const [unidade] = useUnidadeMax();
-  const origem = origemPedida === MAXDATA_TODAS && unidade ? unidade : origemPedida;
+  const origem = origemPedida && unidade ? unidade : origemPedida; // com uma filial ativa, só a conexão dela
   const chaveS = `stats|${table}|${tenantId}|${origem}|${refresh}`;
   const [stats, setStats] = useState<MaxdataStats | null>(() => cacheGet<MaxdataStats>(chaveS) ?? null);
   const [loading, setLoading] = useState(false);

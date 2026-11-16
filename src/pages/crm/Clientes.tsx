@@ -1,3 +1,4 @@
+import { useUnidadeMax } from "../../lib/unidadeMaxdata";
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../components/ui/button";
 import { Plus, Building2, CheckCircle2, FileText, Award, Users, AlertCircle, Phone } from "lucide-react";
@@ -22,7 +23,7 @@ import { ClientesResumo } from "./components/Clientes/ClientesResumo";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { normalizeText } from "../../lib/utils";
 import { Pagination } from "../../components/ui/Pagination";
-import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
+import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS, origensVisiveis } from "../../lib/useMaxdataPage";
 
 const MAX_PAGE_SIZE = 50;
 
@@ -174,6 +175,7 @@ export default function Clientes() {
     apiFetch(`/api/integrations/maxdata/escrita?tenantId=${encodeURIComponent(activeTenantId)}`).then((r) => r.ok ? r.json() : { habilitada: false }).then((j) => { if (!off) setEscritaMax(!!j.habilitada); }).catch(() => {});
     return () => { off = true; };
   }, [temMax, activeTenantId]);
+  const [unidadeAtiva] = useUnidadeMax();
   const mxStats = useMaxdataStats("maxdata_clientes", origem, activeTenantId, maxReload);
   useEffect(() => { setMaxPage(0); }, [debouncedSearch, origem]);
   const maxRows = useMemo(() => mx.rows.map((c: any) => ({ ...c, responsavel: null, contratoStatus: null, mrr: 0 })), [mx.rows]);
@@ -347,7 +349,7 @@ export default function Clientes() {
         )}
         <FilterBar>
           <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por cliente, documento, responsável, e-mail ou telefone..." />
-          {temMax && <FilterSelect icon={Building2} value={origem} onChange={setOrigemEscolhida} options={[{ value: MAXDATA_TODAS, label: "Tudo (CRM + Max Data)" }, { value: "", label: "Só base do CRM" }, ...MAXDATA_ORIGENS.filter((o) => o.value)]} />}
+          {temMax && <FilterSelect icon={Building2} value={origem} onChange={setOrigemEscolhida} options={[{ value: MAXDATA_TODAS, label: "Tudo (CRM + Max Data)" }, { value: "", label: "Só base do CRM" }, ...origensVisiveis(unidadeAtiva).filter((o) => o.value)]} />}
           <FilterSelect icon={Building2} value={sectorFilter} onChange={setSectorFilter} options={setoresDisponiveis} allLabel={NEUTRO_SETOR} allValue={NEUTRO_SETOR} />
           <FilterSelect icon={CheckCircle2} value={statusFilter} onChange={setStatusFilter} options={["Ativo", "Em Implantação", "Inativo"]} allLabel={NEUTRO_SITUACAO} allValue={NEUTRO_SITUACAO} />
           {fid?.config?.enabled && fid.resumo.length > 0 && <FilterSelect icon={Award} value={nivelFilter} onChange={setNivelFilter} options={[...fid.resumo.map((n) => `${n.nome}`), "Sem nível"]} allLabel="Todos os níveis" allValue="Todos os níveis" />}

@@ -1,3 +1,4 @@
+import { useUnidadeMax } from "../../lib/unidadeMaxdata";
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus, Package, FileSpreadsheet, Activity, TrendingUp, Sparkles } from "lucide-react";
@@ -24,7 +25,7 @@ import { toast } from "sonner";
 import type { Product } from "../../types";
 import { downloadCsv } from "../../lib/csvExport";
 import { PLUPPEX_TENANT_ID, supabase } from "../../lib/supabase";
-import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
+import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS, origensVisiveis } from "../../lib/useMaxdataPage";
 
 const PAGE_SIZE = 60;
 
@@ -131,16 +132,17 @@ export default function Catalog() {
   const origem = origemEscolhida ?? (maxDisp.disponivel && f.products.length === 0 ? MAXDATA_TODAS : "");
   const [maxReload, setMaxReload] = useState(0);
   const mx = useMaxdataPage({ refresh: maxReload, table: "maxdata_produtos", origem, tenantId: activeTenantId, term: f.searchTerm, page, pageSize: PAGE_SIZE, searchCols: ["name", "sku"], orderBy: "name" });
+  const [unidadeAtiva] = useUnidadeMax();
   const mxStats = useMaxdataStats("maxdata_produtos", origem, activeTenantId, maxReload);
   // Valor total em estoque da Max Data (saldo × custo / × venda), somado no banco.
   const [mxValor, setMxValor] = useState<{ custo: number; venda: number } | null>(null);
   useEffect(() => {
     if (!origem || !activeTenantId || !supabase) { setMxValor(null); return; }
     let off = false;
-    supabase.rpc("maxdata_estoque_valor", { p_tenant: activeTenantId, p_origem: origem === MAXDATA_TODAS ? null : origem })
+    supabase.rpc("maxdata_estoque_valor", { p_tenant: activeTenantId, p_origem: unidadeAtiva || (origem === MAXDATA_TODAS ? null : origem) })
       .then(({ data, error }: any) => { if (!off) setMxValor(error || !data ? null : { custo: Number(data.custo) || 0, venda: Number(data.venda) || 0 }); });
     return () => { off = true; };
-  }, [origem, activeTenantId, maxReload]);
+  }, [origem, activeTenantId, maxReload, unidadeAtiva]);
   useEffect(() => { setPage(0); }, [f.searchTerm, f.selectedCategories, f.selectedTypes, f.selectedStatus, f.sortBy, origem]);
   const viewTotal = mx.ativo ? mx.total : filteredProducts.length;
   // Mais de 10 produtos: abre em lista (mais legível), a menos que o usuário já tenha escolhido uma visualização.
@@ -206,7 +208,7 @@ export default function Catalog() {
           <div className="flex items-center gap-2 text-xs">
             <span className="text-[var(--color-text-muted)] font-bold">Origem:</span>
             <select value={origem} onChange={(e) => setOrigem(e.target.value)} className="h-9 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-transparent px-2 text-xs">
-              {[...MAXDATA_ORIGENS, { value: MAXDATA_TODAS, label: "Max Data · Todas as conexões" }].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {[...origensVisiveis(unidadeAtiva), { value: MAXDATA_TODAS, label: unidadeAtiva ? "Max Data · Filial atual" : "Max Data · Todas as conexões" }].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             {mx.ativo && mx.loading && <span className="text-[var(--color-text-muted)]">Carregando…</span>}
             {(mx.error || maxDisp.erro) && <span className="text-danger">Erro ao ler a Max Data: {mx.error || maxDisp.erro}</span>}
