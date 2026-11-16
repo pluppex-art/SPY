@@ -52,7 +52,7 @@ export function useFinanceTransacoesList(params: TransacoesParams) {
 
   const applyBase = (query: any, range?: { from: string | null; to: string | null }) => {
     let q = query;
-    if (activeFilialId) q = q.or(`filial_id.is.null,filial_id.eq.${activeFilialId}`);
+    if (activeFilialId) q = q.eq("filial_id", activeFilialId);
     if (search.trim()) {
       const term = search.trim().replace(/[%,]/g, "");
       q = q.or(`description.ilike.%${term}%,category.ilike.%${term}%,counterparty.ilike.%${term}%`);

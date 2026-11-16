@@ -76,9 +76,8 @@ export function useLeadsList() {
         .eq("tenant_id", tenantId);
 
       if (activeFilialId) {
-        // Mesmo critério do DataContext (filterByFilial): linhas sem filial_id
-        // (legado) continuam visíveis em qualquer filial ativa.
-        query = query.or(`filial_id.is.null,filial_id.eq.${activeFilialId}`);
+        // Mesmo critério do DataContext (filterByFilial): filial ativa mostra só o que é dela.
+        query = query.eq("filial_id", activeFilialId);
       }
       if (searchQuery.trim()) {
         const q = limpaBusca(searchQuery);
@@ -111,7 +110,7 @@ export function useLeadsList() {
     if (!supabase || !tenantId) return;
     const base = () => {
       let q = supabase!.from("leads").select("*", { count: "exact", head: true }).eq("tenant_id", tenantId);
-      if (activeFilialId) q = q.or(`filial_id.is.null,filial_id.eq.${activeFilialId}`);
+      if (activeFilialId) q = q.eq("filial_id", activeFilialId);
       return q;
     };
     const [hotRes, closedRes] = await Promise.all([

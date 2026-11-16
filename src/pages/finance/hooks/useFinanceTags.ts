@@ -61,7 +61,7 @@ export async function fetchFinanceTagUsage(
       .not("tags", "is", null)
       .order("id")
       .range(from, from + PAGE - 1);
-    if (filialId) q = q.or(`filial_id.is.null,filial_id.eq.${filialId}`);
+    if (filialId) q = q.eq("filial_id", filialId);
     const { data, error } = await q;
     if (error) throw error;
     for (const row of (data as { tags: string[] | null }[]) || []) {

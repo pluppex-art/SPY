@@ -43,7 +43,7 @@ export function useTarefasList(params: {
     setLoading(true);
     try {
       let query = supabase.from("tasks").select("*", { count: "exact" }).eq("tenant_id", tenantId);
-      if (activeFilialId) query = query.or(`filial_id.is.null,filial_id.eq.${activeFilialId}`);
+      if (activeFilialId) query = query.eq("filial_id", activeFilialId);
       if (searchQuery.trim()) {
         const q = limpaBusca(searchQuery);
         query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);

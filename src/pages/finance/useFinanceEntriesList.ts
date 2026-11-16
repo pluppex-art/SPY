@@ -59,7 +59,7 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
     if (statusFilter) q = q.eq("status", statusFilter);
     else if (status && !skipStatus) q = q.eq("status", status);
     if (contraparte) q = q.eq("counterparty", contraparte);
-    if (activeFilialId) q = q.or(`filial_id.is.null,filial_id.eq.${activeFilialId}`);
+    if (activeFilialId) q = q.eq("filial_id", activeFilialId);
     if (search.trim()) {
       const term = limpaBusca(search);
       q = q.or(`description.ilike.%${term}%,category.ilike.%${term}%,counterparty.ilike.%${term}%`);

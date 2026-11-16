@@ -317,10 +317,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const { formatCurrency } = useLocalization();
   const tenantId = activeTenantId;
 
-  // Tabelas com segregação por filial: quando uma filial está ativa (activeFilialId),
-  // a lista exposta pelo contexto já vem filtrada — linhas sem filial_id (legado, ou
-  // nunca atribuídas) continuam visíveis em qualquer filial para não sumir dado antigo.
+  // Tabelas com segregação por filial: com uma filial ativa, a lista mostra SÓ o que pertence a ela
+  // (filial nova = tudo zerado, como um tenant novo). Os dados sem filial (da empresa toda) só
+  // aparecem em "Todas as filiais".
   function filterByFilial<T>(list: T[]): T[] {
+    if (!activeFilialId) return list;
+    return list.filter((item: any) => item.filial_id === activeFilialId);
+  }
+  // Equipe: pessoas sem filial definida continuam visíveis (não some quem a empresa já cadastrou).
+  function filterEquipeByFilial<T>(list: T[]): T[] {
     if (!activeFilialId) return list;
     return list.filter((item: any) => !item.filial_id || item.filial_id === activeFilialId);
   }
@@ -968,7 +973,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const products = useMemo(() => filterByFilial(productsRaw), [productsRaw, activeFilialId]);
   const proposals = useMemo(() => filterByFilial(proposalsRaw), [proposalsRaw, activeFilialId]);
-  const colaboradores = useMemo(() => filterByFilial(colaboradoresRaw), [colaboradoresRaw, activeFilialId]);
+  const colaboradores = useMemo(() => filterEquipeByFilial(colaboradoresRaw), [colaboradoresRaw, activeFilialId]);
 
   // Espelho síncrono de `proposalsRaw` (sem filtro de filial — soma de valor de um
   // lead precisa contar TODAS as propostas dele, independente da visão de filial
