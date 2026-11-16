@@ -6,6 +6,49 @@ import { MODULE_SETTINGS } from "./moduleSettings";
 import { MODULE_SETTINGS_REGISTRY, moduleSettingsPath } from "./moduleSettingsRegistry";
 import { SectionSidebar, type SectionNavGroup } from "../../components/layout/SectionSidebar";
 
+
+/** Explicação de cada página das Configurações — aparece no "?" ao lado do item do menu. */
+const AJUDA: Record<string, string> = {
+  "/app/configuracoes/usuario/perfil": "Seus dados pessoais e a segurança da sua conta: foto, bio, senha e autenticação em 2 fatores. Nome, telefone e cargo são editados em Equipe (RH).",
+  "/app/configuracoes/usuario/preferencias": "Como o SPY aparece para você: tema (escuro, claro ou o mesmo do seu aparelho), idioma e moeda.",
+  "/app/configuracoes/usuario/notificacoes": "Escolha como você quer ser avisado dos eventos da operação comercial: no painel, por e-mail, por WhatsApp ou no navegador. Marque só os canais que você realmente olha.",
+  "/app/configuracoes/empresa/dados": "Os dados cadastrais, fiscais e de contato da sua empresa. Também é aqui que você escreve o perfil da empresa que a IA usa para falar com os clientes.",
+  "/app/configuracoes/empresa/plano": "Sua assinatura e quanto da inteligência artificial você já usou neste mês.",
+  "/app/configuracoes/empresa/lgpd": "Atenda pedidos dos titulares dos dados, como exportar, anonimizar e registrar consentimento. Tudo fica registrado para auditoria.",
+  "/app/configuracoes/empresa/filiais": "Cadastre as filiais, franquias e unidades da empresa. Ao escolher uma filial na barra lateral, o sistema passa a mostrar só os dados dela. A filial nova começa zerada.",
+  "/app/configuracoes/empresa/nichos": "Os nichos são os segmentos de negócio da sua empresa e servem para classificar leads e clientes. Cada empresa tem os seus próprios.",
+  "/app/configuracoes/empresa/equipe": "Convide novas pessoas para a sua empresa no SPY e gerencie o acesso de cada uma.",
+  "/app/configuracoes/empresa/cargos": "Cadastre os cargos da empresa e organize a hierarquia. Os cargos definem o que cada pessoa pode ver e fazer no sistema.",
+  "/app/configuracoes/empresa/permissoes": "Para cada cargo, defina quais páginas e quais IAs a pessoa vê e se ela enxerga todos os dados ou só os próprios.",
+  "/app/configuracoes/crm/funis": "Configure os funis de venda, as etapas de cada um e como o SDR IA se comporta em cada funil.",
+  "/app/configuracoes/crm/origens": "Cadastre de onde seus leads vêm (indicação, anúncio, site…). Isso permite ver depois quais canais trazem mais receita.",
+  "/app/configuracoes/crm/fidelidade": "Classifique os clientes em níveis (Bronze, Prata, Ouro…) conforme o número de compras. O nível aparece na lista de Clientes e dá para filtrar por ele.",
+  "/app/configuracoes/crm/produtos": "Personalize quais informações você guarda sobre produtos e serviços. O catálogo em si fica em Produtos, no menu lateral.",
+  "/app/configuracoes/crm/campos": "Crie campos extras nos leads, escolha o tipo de cada um (texto, número, data…) e as regras de validação, para guardar as informações específicas do seu negócio.",
+  "/app/configuracoes/crm/sla": "O SLA é o prazo máximo para a equipe fazer o primeiro contato com um lead novo. Defina o prazo e, se ele estourar, o sistema avisa e cobra a equipe.",
+  "/app/configuracoes/crm/gatilhos-ia": "Crie regras para o sistema mover o lead de etapa sozinho conforme a nota dele (Lead Score IA), por exemplo levando quem esquenta para o funil de SDR.",
+  "/app/configuracoes/crm/rodizio": "Defina como os leads são distribuídos automaticamente entre SDRs e closers, de acordo com a capacidade de cada um e as tags do lead.",
+  "/app/configuracoes/produtividade/categorias": "Organize as categorias das tarefas e veja o CAC (quanto custa conquistar cada cliente) de cada time comercial.",
+  "/app/configuracoes/kanbans": "Personalize as colunas, cores e etapas dos quadros de tarefas, marketing e educação para o fluxo de trabalho ficar do jeito da sua equipe.",
+  "/app/configuracoes/os/funis": "Cadastre os departamentos da empresa e as etapas do fluxo de cada um. Cada departamento vira uma aba na página de Ordens de Serviço.",
+  "/app/configuracoes/financeiro/categorias": "As categorias classificam suas receitas e despesas. A combinação de tipo e subtipo define em qual linha do DRE cada lançamento entra na soma.",
+  "/app/configuracoes/financeiro/squads": "Informe o orçamento mensal de cada squad (time). Com ele o sistema calcula, em tempo real, o CAC: quanto custa conquistar cada cliente.",
+  "/app/configuracoes/financeiro/bloqueio-periodo": "Ao bloquear um período (por exemplo, um mês já fechado), lançamentos pagos naquele período não podem mais ser criados, editados nem excluídos. Lançamentos pendentes continuam livres.",
+  "/app/configuracoes/financeiro/auditoria": "Todo lançamento criado, editado ou excluído fica registrado aqui, com quem fez, quando fez e o que mudou.",
+  "/app/configuracoes/engajamento/modelos": "Textos prontos que a empresa usa nas comunicações automáticas. Edite aqui para manter o tom e as informações sempre certos.",
+  "/app/configuracoes/engajamento/automacoes": "Regras que fazem o sistema agir sozinho quando algo acontece no funil, por exemplo um lead mudar de etapa. Escolha o gatilho e o que deve acontecer.",
+  "/app/configuracoes/integracoes/conexoes": "Conecte as contas da sua empresa. O que for sincronizado fica disponível para a Aurora responder com informações reais, sempre apenas do seu usuário.",
+  "/app/configuracoes/integracoes/apps": "A central para ligar o SPY aos seus aplicativos e anúncios, como Meta Ads e Google Ads, e acompanhar as conversões.",
+  "/app/configuracoes/integracoes/smtp": "Configure o servidor de e-mail da empresa para os e-mails do sistema saírem com o seu remetente.",
+  "/app/configuracoes/integracoes/webhooks": "Cadastre endereços que recebem um aviso automático quando algo acontece no SPY, e acompanhe o registro dos envios.",
+  "/app/configuracoes/integracoes/sdr-webhooks": "Cadastre os endereços de integração das automações de pré-vendas e teste a conexão com o botão Disparar Teste.",
+  "/app/configuracoes/integracoes/conectores-externos": "Ligue o sistema que a sua empresa já usa (um ERP, um CRM próprio ou outro) ao SPY, de forma segura e autenticada. Depois, ative os eventos que devem ser enviados automaticamente para ele.",
+  "/app/configuracoes/integracoes/links-dinamicos": "Cadastre os links reais que a sua empresa já usa (pagamento, agendamento, checkout, contrato). A Aurora e a IA consultam esta lista na hora de responder, e a mudança vale imediatamente.",
+  "/app/configuracoes/sistema/aurora": "Controle da Aurora: o consumo de IA do mês, os agentes ligados a ela, e quais estão ativos para a sua empresa.",
+  "/app/configuracoes/sistema/treinamento": "Cada agente tem uma instrução-base igual para todas as empresas, que se edita aqui. Os outros 20%, específicos de cada empresa, vêm de Empresa → Dados e de Produtos.",
+  "/app/configuracoes/sistema/backups": "Como os backups do banco de dados são feitos. Eles são automáticos e gerenciados pelo Supabase, de acordo com o plano contratado do projeto.",
+};
+
 export default function SettingsLayout() {
   const { user, isModuleEnabled } = useAuth();
 
@@ -23,7 +66,7 @@ export default function SettingsLayout() {
     return () => window.removeEventListener("spy_modules_changed", handleChanged);
   }, []);
 
-  const groups: SectionNavGroup[] = [
+  const grupos: SectionNavGroup[] = [
     {
       title: "Preferências & Usuário",
       icon: Bell,
@@ -92,7 +135,7 @@ export default function SettingsLayout() {
     // Configurações dos módulos verticais: só aparecem para quem tem o módulo ligado.
     ...MODULE_SETTINGS.filter((m) => isModuleEnabled(m.moduleId)).map((m) => ({ title: m.title, icon: m.icon, items: m.items })),
     ...MODULE_SETTINGS_REGISTRY.filter((m) => m.sections.length > 0 && isModuleEnabled(m.moduleId)).map((m) => ({
-      title: m.title, icon: m.icon, items: m.sections.map((sec) => ({ title: sec.title, path: moduleSettingsPath(m.moduleId, sec.id) })),
+      title: m.title, icon: m.icon, items: m.sections.map((sec) => ({ title: sec.title, path: moduleSettingsPath(m.moduleId, sec.id), help: sec.subtitle })),
     })),
     {
       title: "Integrações",
@@ -119,6 +162,9 @@ export default function SettingsLayout() {
       ],
     },
   ];
+
+  // Cada item recebe o seu "?" com a explicação (quando existe).
+  const groups: SectionNavGroup[] = grupos.map((g) => ({ ...g, items: g.items.map((i) => ({ ...i, help: i.help ?? AJUDA[i.path] })) }));
 
   return (
     <SectionSidebar heading="Configurações" subheading="Gerenciamento Geral" groups={groups}>

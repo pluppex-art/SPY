@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { LayoutList, X, PanelLeftClose, PanelLeftOpen, ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "../ui/button";
+import { HelpTip } from "../ui/help-tip";
 import { cn } from "../../lib/utils";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { useSwipeToDismiss } from "../../hooks/useSwipeGestures";
@@ -14,6 +15,8 @@ export interface SectionNavItem {
   icon?: LucideIcon;
   /** Item ainda não implementado — some com um rótulo "Em breve" e não navega. */
   soon?: boolean;
+  /** Explicação do que a página faz — aparece num "?" ao lado do item. */
+  help?: string;
 }
 
 export interface SectionNavGroup {
@@ -204,13 +207,13 @@ function SectionGroup({
               </div>
             );
           }
-          return (
+          const link = (
             <Link
               key={item.path}
               to={item.path}
               onClick={onItemClick}
               className={cn(
-                "w-full flex items-center gap-2.5 px-4 py-3 lg:py-2 text-sm font-medium rounded-[var(--radius-control)] transition-all",
+                "flex-1 min-w-0 flex items-center gap-2.5 px-4 py-3 lg:py-2 text-sm font-medium rounded-[var(--radius-control)] transition-all",
                 active
                   ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border border-[var(--color-primary-blue)]/20"
                   : "text-[var(--color-text-muted)] border border-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]"
@@ -219,6 +222,14 @@ function SectionGroup({
               {ItemIcon && <ItemIcon className="w-4 h-4 shrink-0" />}
               <span className="break-words lg:truncate w-full text-left leading-tight">{t(item.title)}</span>
             </Link>
+          );
+          // O "?" fica ao lado do link (não dentro dele): tocar nele só abre a explicação, não navega.
+          if (!item.help) return <div key={item.path} className="flex">{link}</div>;
+          return (
+            <div key={item.path} className="flex items-center gap-1">
+              {link}
+              <HelpTip label={`Sobre ${item.title}`} className="shrink-0">{item.help}</HelpTip>
+            </div>
           );
         })}
       </div>
