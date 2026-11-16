@@ -41,6 +41,7 @@ import { supabase } from "../../lib/supabase";
 import { normalizeText, dataLocalISO } from "../../lib/utils";
 import { friendlyError } from "../../lib/friendlyError";
 
+import { HelpTip } from "../../components/ui/help-tip";
 type TipoFiltro = "Todos" | TipoCompromisso;
 
 /** Mesmas 5 categorias do modal "+ Novo Agendamento" (coluna real `tipo`) —
@@ -907,10 +908,7 @@ export default function AgendaCRM() {
                   <h3 className="text-sm font-black uppercase tracking-wider text-[var(--color-text-primary)] flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4 text-[var(--color-primary-blue)]" />
                     Compromissos de {selectedDayDate.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" })}
-                  </h3>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                    Linha do tempo diária de negociações e videochamadas
-                  </p>
+                   <HelpTip label="Sobre Compromissos de )}">Linha do tempo diária de negociações e videochamadas</HelpTip></h3>
                 </div>
                 <Button size="sm" onClick={() => setShowNovaReuniao(true)} className="gap-1 font-bold text-xs">
                   <Plus className="w-3.5 h-3.5" /> Agendar

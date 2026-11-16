@@ -14,6 +14,7 @@ import {
   readKanbanConfig,
 } from "../../../hooks/useKanbanConfig";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
 const CORES_LISTA = ["blue", "orange", "cyan", "emerald", "purple", "rose", "amber", "indigo", "pink", "slate"];
@@ -337,8 +338,7 @@ export function ConfigKanbanBoards() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Funis & Quadros Kanban <Columns3 className="w-5 h-5 text-[var(--color-primary-blue)]" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)]">Personalize as colunas, cores e etapas dos quadros de tarefas, marketing e educação da plataforma.</p>
+         <HelpTip label="Sobre Funis & Quadros Kanban">Personalize as colunas, cores e etapas dos quadros de tarefas, marketing e educação da plataforma.</HelpTip></h1>
       </div>
 
       {/* Board Tabs */}

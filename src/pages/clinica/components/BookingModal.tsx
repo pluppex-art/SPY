@@ -8,6 +8,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { supabase } from "../../../lib/supabase";
 import { useClinicaConfig, dentroDoHorario } from "../../../lib/modules/clinicaConfig";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -158,10 +159,7 @@ export function BookingModal({ isOpen, onClose, leads, addTask, addAppointment }
                   <div>
                     <h2 className="text-base font-bold text-[var(--color-text-primary)] uppercase tracking-tight">
                       Novo Agendamento Clínico
-                    </h2>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      Cadastre uma nova consulta ou atendimento.
-                    </p>
+                     <HelpTip label="Sobre Novo Agendamento Clínico">Cadastre uma nova consulta ou atendimento.</HelpTip></h2>
                   </div>
                 </div>
                 <button

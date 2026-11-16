@@ -12,6 +12,7 @@ import type { DashboardData } from "../revenueInsights";
 import { resolverPeriodo, PERIODO_LABEL, type PeriodoOpcao } from "../vendedoresMetrics";
 import { computeCanais, METRICA_CANAL_LABEL, SEM_ORIGEM, type MetricaCanal, type CanalLinha } from "../canaisMetrics";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 const selectCls =
   "h-9 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-3 text-xs font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)] cursor-pointer";
 
@@ -62,8 +63,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <SectionTitle>Receita por canal de origem</SectionTitle>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">Qual canal traz mais receita pro seu negócio.</p>
+            <SectionTitle>Receita por canal de origem <HelpTip label="Sobre Receita por canal de origem">Qual canal traz mais receita pro seu negócio.</HelpTip></SectionTitle>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="relative">
@@ -91,8 +91,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
         {/* Barras + distribuição */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <Card className="min-w-0 overflow-hidden p-5 shadow-sm">
-            <SectionTitle as="h4">Receita por canal de origem</SectionTitle>
-            <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Comparativo da receita gerada por cada canal no período selecionado.</p>
+            <SectionTitle as="h4">Receita por canal de origem <HelpTip label="Sobre Receita por canal de origem">Comparativo da receita gerada por cada canal no período selecionado.</HelpTip></SectionTitle>
             {ranqueados.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhum canal com dados no período.</p>
             ) : (
@@ -117,8 +116,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
           </Card>
 
           <Card className="min-w-0 overflow-hidden p-5 shadow-sm">
-            <SectionTitle as="h4">Distribuição da receita por canal</SectionTitle>
-            <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Participação de cada canal na receita total.</p>
+            <SectionTitle as="h4">Distribuição da receita por canal <HelpTip label="Sobre Distribuição da receita por canal">Participação de cada canal na receita total.</HelpTip></SectionTitle>
             {donut.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Sem receita no período.</p>
             ) : (
@@ -159,8 +157,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
         <Card className="overflow-hidden min-w-0 shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex flex-wrap items-start justify-between gap-2">
             <div>
-              <SectionTitle as="h4">Detalhamento por canal de origem</SectionTitle>
-              <p className="text-[11px] text-[var(--color-text-muted)]">Veja a receita, leads, vendas, conversão e ticket médio de cada canal.</p>
+              <SectionTitle as="h4">Detalhamento por canal de origem <HelpTip label="Sobre Detalhamento por canal de origem">Veja a receita, leads, vendas, conversão e ticket médio de cada canal.</HelpTip></SectionTitle>
             </div>
             {variacaoTotal !== null && (
               <span className={`text-[11px] font-bold ${variacaoTotal >= 0 ? "text-emerald-500" : "text-rose-500"}`}>

@@ -8,6 +8,7 @@ import { apiFetch } from "../../../lib/apiClient";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { brl } from "../../../lib/saasApi";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 type Config = { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null; list_setup_cents?: number | null; list_monthly_cents?: number | null };
 type Promo = { id: string; code: string | null; label: string; plan_code: string | null; percent_off: number; amount_off_cents: number; setup_waived: boolean; valid_until: string | null; max_uses: number | null; uses: number; active: boolean };
 type Order = { id: string; status: string; plan_name: string; nome: string; empresa: string; email: string; telefone: string; documento: string; total_cents: number; promo_code: string | null; created_at: string; informed_paid_at: string | null; paid_at: string | null; error: string | null; comprovante_path: string | null; kind?: string; fulfilled_at?: string | null; agentes_ok?: boolean | null; agentes_erro?: string | null; acesso_email_ok?: boolean | null };
@@ -94,8 +95,7 @@ export function AdminCheckoutTab() {
       <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h3 className="font-black text-sm">Checkout por Pix</h3>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Página pública para o cliente se cadastrar e pagar. Os preços vêm dos planos; as promoções abaixo trocam o valor na hora.</p>
+            <h3 className="font-black text-sm">Checkout por Pix <HelpTip label="Sobre Checkout por Pix">Página pública para o cliente se cadastrar e pagar. Os preços vêm dos planos; as promoções abaixo trocam o valor na hora.</HelpTip></h3>
           </div>
           <a href="/checkout" target="_blank" rel="noreferrer" className="text-xs font-semibold text-[var(--color-primary-blue)] inline-flex items-center gap-1">Abrir checkout <ExternalLink className="w-3 h-3" /></a>
         </div>
@@ -130,8 +130,7 @@ export function AdminCheckoutTab() {
       </Card>
 
       <Card className="p-5 space-y-4">
-        <h3 className="font-black text-sm">Promoções e cupons</h3>
-        <p className="text-xs text-[var(--color-text-muted)]">Sem cupom = promoção automática (aparece para todos). Com cupom = o cliente digita no checkout.</p>
+        <h3 className="font-black text-sm">Promoções e cupons <HelpTip label="Sobre Promoções e cupons">Sem cupom = promoção automática (aparece para todos). Com cupom = o cliente digita no checkout.</HelpTip></h3>
         <div className="grid gap-2 sm:grid-cols-4">
           <input className={campo} placeholder="Cupom (vazio = automática)" value={novo.code} onChange={(e) => setNovo({ ...novo, code: e.target.value })} aria-label="Cupom" />
           <input className={campo} placeholder="Nome (ex.: Black Friday)" value={novo.label} onChange={(e) => setNovo({ ...novo, label: e.target.value })} aria-label="Nome da promoção" />

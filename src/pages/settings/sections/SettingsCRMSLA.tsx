@@ -5,6 +5,7 @@ import { Clock, ShieldAlert, Sparkles, Check, AlertTriangle, ArrowRight, UserChe
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 interface SLARule {
   priority: "Alta" | "Média" | "Baixa";
   limitHours: number;
@@ -46,8 +47,7 @@ export function ConfigCRMSLA() {
         <div>
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Configuração de SLA & Alertas <Clock className="text-[var(--color-primary-blue)] w-5 h-5" />
-          </h1>
-          <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">Garanta conversões rápidas cobrando sua equipe de vendas caso o tempo de primeiro contato estoure.</p>
+           <HelpTip label="Sobre Configuração de SLA & Alertas">Garanta conversões rápidas cobrando sua equipe de vendas caso o tempo de primeiro contato estoure.</HelpTip></h1>
         </div>
         <Button onClick={handleSaveSla} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs w-full sm:w-auto">
           Salvar Configurações

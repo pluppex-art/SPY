@@ -10,6 +10,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useData } from "../../../contexts/DataContext";
 import { toast } from "sonner";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 interface AdminModulesTabProps {
   initialTenant?: string;
   onTenantChange?: (name: string) => void;
@@ -287,10 +288,7 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
         <div>
           <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
             <UserCheck className="w-4 h-4 text-indigo-500" /> Simulador de Visão por Cargo & Perfil
-          </h3>
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-            Selecione uma função operacional para testar instantaneamente a interface e as restrições do menu lateral.
-          </p>
+           <HelpTip label="Sobre Simulador de Visão por Cargo & Perfil">Selecione uma função operacional para testar instantaneamente a interface e as restrições do menu lateral.</HelpTip></h3>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

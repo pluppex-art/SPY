@@ -14,6 +14,7 @@ import { supabase } from "../../lib/supabase";
 import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface AvaliacaoItem {
   id: string;
   veiculo: string;
@@ -300,10 +301,7 @@ export default function AvaliacoesVeiculos() {
             <div>
               <h3 className="text-base font-black text-[var(--color-text-primary)]">
                 Nova Avaliação de Seminovos
-              </h3>
-              <p className="text-xs text-[var(--color-text-muted)]">
-                Registre os dados do veículo e da proposta de compra/troca
-              </p>
+               <HelpTip label="Sobre Nova Avaliação de Seminovos">Registre os dados do veículo e da proposta de compra/troca</HelpTip></h3>
             </div>
           </div>
         }

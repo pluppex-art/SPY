@@ -7,6 +7,7 @@ import { PropostaDocumento, type PropostaDocumentoItem } from "../../../proposta
 import { usePropostaBranding } from "../../../proposta/usePropostaBranding";
 import { downloadPropostaClientePdf, type PropostaClienteDados } from "../../../../pages/crm/utils/proposalClientPdf";
 
+import { HelpTip } from "../../help-tip";
 interface PropostaClienteViewModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -42,8 +43,7 @@ export function PropostaClienteViewModal({ isOpen, onClose, data, itens, viewTok
       <div className="flex flex-col h-full min-h-0">
         <div className="flex items-center justify-between gap-3 flex-wrap px-4 sm:px-6 py-3 border-b border-[var(--color-border-default)] shrink-0 bg-[var(--color-surface-elevated)]">
           <div className="min-w-0">
-            <h3 className="text-sm font-black text-[var(--color-text-primary)]">Visualização do cliente</h3>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Somente leitura — é assim que o cliente recebe a proposta.</p>
+            <h3 className="text-sm font-black text-[var(--color-text-primary)]">Visualização do cliente <HelpTip label="Sobre Visualização do cliente">Somente leitura — é assim que o cliente recebe a proposta.</HelpTip></h3>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button type="button" variant="outline" size="sm" onClick={baixar} disabled={baixando} className="h-9 gap-1.5 text-xs font-bold cursor-pointer">

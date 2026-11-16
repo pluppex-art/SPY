@@ -8,6 +8,7 @@ import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 export function ConfigNichos() {
   const { nichos, addNicho, updateNicho, deleteNicho } = useData();
   const { activeTenantId } = useAuth();
@@ -52,10 +53,7 @@ export function ConfigNichos() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Nichos <Tag className="w-5 h-5 text-[var(--color-primary-blue)]" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Segmentos de negócio da sua empresa, usados para classificar leads e clientes. Cada empresa tem seus próprios nichos.
-        </p>
+         <HelpTip label="Sobre Nichos">Segmentos de negócio da sua empresa, usados para classificar leads e clientes. Cada empresa tem seus próprios nichos.</HelpTip></h1>
       </div>
 
       <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex items-center gap-3">

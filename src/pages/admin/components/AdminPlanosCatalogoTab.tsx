@@ -8,6 +8,7 @@ import { Badge } from "../../../components/ui/badge";
 import { saasApi, planPayload, tierPayload, brl, type Plan, type CreditTier } from "../../../lib/saasApi";
 import { invalidateBillingStatus } from "../../../hooks/useBillingStatus";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 /**
  * Visão geral dos planos e pacotes de créditos. É só consulta + atalhos: o cadastro (preço, módulos,
  * teto de IA, vitrine) mora no PRODUTO — o botão "Editar no produto" abre o produto na aba Plano & SaaS.
@@ -54,8 +55,7 @@ export function AdminPlanosCatalogoTab() {
       <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h3 className="font-black text-sm">Planos de assinatura</h3>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Preço, módulos, teto de IA e vitrine são cadastrados no produto. Aqui você acompanha e liga/desliga o site.</p>
+            <h3 className="font-black text-sm">Planos de assinatura <HelpTip label="Sobre Planos de assinatura">Preço, módulos, teto de IA e vitrine são cadastrados no produto. Aqui você acompanha e liga/desliga o site.</HelpTip></h3>
           </div>
           <div className="flex gap-2">
             {missingProducts > 0 && (

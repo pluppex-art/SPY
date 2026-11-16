@@ -13,6 +13,7 @@ import {
 import { useLocalization } from "../../../contexts/LocalizationContext";
 import { useAuth } from "../../../contexts/AuthContext";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 interface AdminOverviewTabProps {
   globalMrr: number;
   revenueData: { name: string; mrr: number }[];
@@ -140,10 +141,7 @@ export function AdminOverviewTab({
             <div>
               <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> Evolução do Faturamento da Base
-              </h3>
-              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Histórico consolidado de faturamento de todos os tenants, a partir dos lançamentos financeiros liquidados — não é a mensalidade paga ao SPY (ver aba Faturamento).
-              </p>
+               <HelpTip label="Sobre Evolução do Faturamento da Base">Histórico consolidado de faturamento de todos os tenants, a partir dos lançamentos financeiros liquidados — não é a mensalidade paga ao SPY (ver aba Faturamento).</HelpTip></h3>
             </div>
             {globalMrr > 0 && (
               <span className="text-[11px] font-black text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 px-2.5 py-1 rounded-lg border border-[var(--color-primary-blue)]/20">

@@ -16,6 +16,7 @@ import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
 import { friendlyError } from "../../lib/friendlyError";
 
+import { HelpTip } from "../../components/ui/help-tip";
 type ExtratoItem = {
   id: string;
   data: string;
@@ -348,10 +349,7 @@ export default function FinanceiroConciliacao() {
           className="hidden"
         />
         <Upload className="w-10 h-10 mx-auto mb-2 text-[var(--color-primary-blue)] opacity-80" />
-        <h4 className="text-xs font-bold text-[var(--color-text-primary)] mb-1">Importar Arquivo OFX ou Extrato CSV</h4>
-        <p className="text-[11px] text-[var(--color-text-muted)] mb-3">
-          Selecione seu extrato bancário oficial para importação e conciliação instantânea.
-        </p>
+        <h4 className="text-xs font-bold text-[var(--color-text-primary)] mb-1">Importar Arquivo OFX ou Extrato CSV <HelpTip label="Sobre Importar Arquivo OFX ou Extrato CSV">Selecione seu extrato bancário oficial para importação e conciliação instantânea.</HelpTip></h4>
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}

@@ -12,6 +12,7 @@ import { BRAND_COLORS } from "../../../lib/theme";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 interface NovoTenantModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -248,10 +249,7 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
           <div>
             <h3 className="text-base font-black text-[var(--color-text-primary)]">
               {implementation ? "Criar ambiente do cliente" : "Provisionar Novo Tenant / Instância"}
-            </h3>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mt-0.5">
-              Multi-tenant corporativo com isolamento de dados RLS
-            </p>
+             <HelpTip label="Sobre Ajuda">Multi-tenant corporativo com isolamento de dados RLS</HelpTip></h3>
           </div>
         </div>
       }

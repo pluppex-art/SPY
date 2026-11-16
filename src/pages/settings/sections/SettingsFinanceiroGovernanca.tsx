@@ -7,6 +7,7 @@ import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 const fmtDate = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("pt-BR");
 
 export function ConfigFinanceiroBloqueioPeriodo() {
@@ -35,8 +36,7 @@ export function ConfigFinanceiroBloqueioPeriodo() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Lock className="w-5 h-5 text-[var(--color-primary-blue)]" /> Bloqueio de Período</h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">Transações pagas dentro de um período bloqueado não podem ser criadas, editadas ou excluídas. Lançamentos pendentes continuam livres.</p>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Lock className="w-5 h-5 text-[var(--color-primary-blue)]" /> Bloqueio de Período <HelpTip label="Sobre Bloqueio de Período">Transações pagas dentro de um período bloqueado não podem ser criadas, editadas ou excluídas. Lançamentos pendentes continuam livres.</HelpTip></h1>
       </div>
 
       <Card className="p-5">
@@ -123,8 +123,7 @@ export function ConfigFinanceiroAuditoria() {
   return (
     <div className="max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-[var(--color-primary-blue)]" /> Auditoria Financeira</h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">Todo lançamento criado, editado ou excluído fica registrado aqui — com autor, horário e o que mudou.</p>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-[var(--color-primary-blue)]" /> Auditoria Financeira <HelpTip label="Sobre Auditoria Financeira">Todo lançamento criado, editado ou excluído fica registrado aqui — com autor, horário e o que mudou.</HelpTip></h1>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">

@@ -37,6 +37,7 @@ import {
   type AuroraAcaoIcon,
 } from "./revenueInsights";
 
+import { HelpTip } from "../../components/ui/help-tip";
 // Paleta neutra pro donut de origem (um por fatia) — a ÚNICA cor "de marca"
 // é a primeira (a fatia maior, mesma regra já usada nos outros gráficos
 // categóricos desta sessão: destaque só na série mais importante).
@@ -170,8 +171,7 @@ export default function CentralReceita() {
           </p>
           <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
             Central de Receita <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)]" />
-          </h1>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">Aqui está o panorama da sua receita, o que importa agora e as ações recomendadas pela Aurora.</p>
+           <HelpTip label="Sobre Central de Receita">Aqui está o panorama da sua receita, o que importa agora e as ações recomendadas pela Aurora.</HelpTip></h1>
         </div>
       </div>
 

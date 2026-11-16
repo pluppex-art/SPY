@@ -7,6 +7,7 @@ import { cn } from "../../lib/utils";
 import { INTEGRATION_DEFS, type IntegrationDef, type MaskedIntegration } from "../../lib/tenantIntegrations";
 import { fetchTenantIntegrations, saveTenantIntegration } from "../../lib/implementationTenantApi";
 
+import { HelpTip } from "../ui/help-tip";
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]";
 
@@ -101,8 +102,7 @@ export function RemoteIntegrationsPanel({ implementationId, onSaved }: Props) {
     <Card className="p-5">
       <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
         <KeyRound className="w-4 h-4 text-[var(--color-text-faint)]" /> Configurar integrações do cliente
-      </h3>
-      <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 mb-4">Deixe tudo pronto no ambiente do cliente sem precisar entrar nele.</p>
+       <HelpTip label="Sobre Configurar integrações do cliente">Deixe tudo pronto no ambiente do cliente sem precisar entrar nele.</HelpTip></h3>
 
       {error && <p className="text-xs text-rose-500">{error}</p>}
       {!items && !error && <p className="text-xs text-[var(--color-text-faint)] flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Carregando…</p>}

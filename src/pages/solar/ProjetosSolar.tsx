@@ -18,6 +18,7 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useSolarConfig } from "../../lib/modules/solarConfig";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface ProjetoSolarItem {
   id: string;
   cliente: string;
@@ -305,8 +306,7 @@ export default function ProjetosSolar() {
               <Sun className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Projeto Fotovoltaico</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Cadastre uma nova usina solar para dimensionamento e instalação</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Projeto Fotovoltaico <HelpTip label="Sobre Novo Projeto Fotovoltaico">Cadastre uma nova usina solar para dimensionamento e instalação</HelpTip></h3>
             </div>
           </div>
         }

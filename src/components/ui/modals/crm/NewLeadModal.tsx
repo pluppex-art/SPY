@@ -13,6 +13,7 @@ import { apiFetch } from "../../../../lib/apiClient";
 import { UserPlus } from "lucide-react";
 import { friendlyError } from "../../../../lib/friendlyError";
 
+import { HelpTip } from "../../help-tip";
 interface NewLeadModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -244,10 +245,7 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
           <div>
             <h3 className="text-base font-black text-[var(--color-text-primary)]">
               Novo Lead
-            </h3>
-            <p className="text-xs text-[var(--color-text-muted)]">
-              Cadastre um novo lead e direcione para o funil comercial ou de SDR
-            </p>
+             <HelpTip label="Sobre Novo Lead">Cadastre um novo lead e direcione para o funil comercial ou de SDR</HelpTip></h3>
           </div>
         </div>
       }

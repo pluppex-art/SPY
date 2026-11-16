@@ -44,6 +44,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { apiFetch } from "../../lib/apiClient";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 interface CampanhasServerSummary {
@@ -248,10 +249,7 @@ export default function MarketingCampanhas() {
           </div>
           <h4 className="font-bold text-[var(--color-text-primary)] text-sm mb-0.5">
             Nova Integração de Tráfego
-          </h4>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            TikTok Ads, LinkedIn, Taboola, Webhooks...
-          </p>
+           <HelpTip label="Sobre Nova Integração de Tráfego">TikTok Ads, LinkedIn, Taboola, Webhooks...</HelpTip></h4>
         </Card>
       </div>
 

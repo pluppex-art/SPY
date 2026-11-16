@@ -14,6 +14,7 @@ import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useSolarConfig } from "../../lib/modules/solarConfig";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface HomologacaoItem {
   id: string;
   cliente: string;
@@ -264,8 +265,7 @@ export default function HomologacoesSolar() {
               <FileCheck className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Protocolo de Homologação</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Tramitação de parecer de acesso e conexão junto à concessionária</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Protocolo de Homologação <HelpTip label="Sobre Novo Protocolo de Homologação">Tramitação de parecer de acesso e conexão junto à concessionária</HelpTip></h3>
             </div>
           </div>
         }

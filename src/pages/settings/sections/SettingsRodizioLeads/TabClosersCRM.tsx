@@ -7,6 +7,7 @@ import { Card } from "../../../../components/ui/card";
 import { useData } from "../../../../contexts/DataContext";
 import { toast } from "sonner";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 interface CloserConfig {
   id: string;
   name: string;
@@ -87,8 +88,7 @@ export function TabClosersCRM() {
       {/* Distribution Mode Card */}
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] p-6 shadow-sm space-y-4">
         <div>
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Modo de Distribuição</h3>
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Selecione o algoritmo de repasse automático de leads para os closers.</p>
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Modo de Distribuição <HelpTip label="Sobre Modo de Distribuição">Selecione o algoritmo de repasse automático de leads para os closers.</HelpTip></h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -158,8 +158,7 @@ export function TabClosersCRM() {
             <Users className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-xs font-bold text-[var(--color-text-primary)]">Closers na Rotação</h3>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 font-medium">Controle individual de disponibilidade e tipos de lead permitidos.</p>
+            <h3 className="text-xs font-bold text-[var(--color-text-primary)]">Closers na Rotação <HelpTip label="Sobre Closers na Rotação">Controle individual de disponibilidade e tipos de lead permitidos.</HelpTip></h3>
           </div>
         </div>
 

@@ -18,6 +18,7 @@ import { parseCurrencyBR } from "../../lib/utils";
 import { computeProductRevenue, buildAuroraAcoes, type AuroraAcaoIcon, type DashboardData } from "./revenueInsights";
 import { isLeadOpen } from "../../lib/leadStatus";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const AURORA_ICONS: Record<AuroraAcaoIcon, typeof Flame> = { flame: Flame, sparkles: Sparkles, userx: UserX, filewarning: FileWarning };
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -129,8 +130,7 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <Card className="lg:col-span-7 p-5 shadow-sm">
-          <SectionTitle className="mb-1">Cenários de Receita</SectionTitle>
-          <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Simulação a partir da tendência real dos últimos meses + funil ponderado por Score IA.</p>
+          <SectionTitle className="mb-1">Cenários de Receita <HelpTip label="Sobre Cenários de Receita">Simulação a partir da tendência real dos últimos meses + funil ponderado por Score IA.</HelpTip></SectionTitle>
           <div className="flex flex-wrap gap-2 mb-3">
             {cenarios.map((c) => (
               <div key={c.label} className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-2.5 py-1.5">
@@ -235,8 +235,7 @@ export default function PrevisaoDecisao({ dashboard }: { dashboard: DashboardDat
         </Card>
 
         <Card className="lg:col-span-4 p-5 shadow-sm">
-          <SectionTitle className="mb-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Simulador de Decisão</SectionTitle>
-          <p className="text-[10px] text-[var(--color-text-muted)] mb-4">Veja o impacto de diferentes ações na sua receita.</p>
+          <SectionTitle className="mb-1"><SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Simulador de Decisão <HelpTip label="Sobre Simulador de Decisão">Veja o impacto de diferentes ações na sua receita.</HelpTip></SectionTitle>
           <div className="space-y-4">
             <div>
               <div className="flex items-center justify-between mb-1.5">

@@ -19,6 +19,7 @@ import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
 import { apiFetch } from "../../../lib/apiClient";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 // Paleta de categorias sem contagem fixa (origens de lead variam por tenant)
 // — cor da marca pra fatia mais relevante + tons neutros de cinza, em vez do
 // arco-íris antigo (regra de cores do dashboard: só branco/cinza/cor do
@@ -196,10 +197,7 @@ export function BusinessIntelligenceView() {
         <div>
           <SectionTitle>
             <BarChart3 className="w-5 h-5 text-[var(--color-primary-blue)]" /> Dashboard / BI
-          </SectionTitle>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">
-            CRM, Financeiro e Operacional consolidados — calculado no servidor, sem carregar a base inteira no navegador.
-          </p>
+           <HelpTip label="Sobre Dashboard / BI">CRM, Financeiro e Operacional consolidados — calculado no servidor, sem carregar a base inteira no navegador.</HelpTip></SectionTitle>
         </div>
         <div className="flex items-center gap-2">
           <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />

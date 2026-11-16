@@ -23,6 +23,7 @@ import { isContractAtivo } from "../../components/ui/drillColumns";
 import type { Contract } from "../../types";
 import { usePropostasList } from "./usePropostasList";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const FUNIL_ETAPAS: { step: number; label: string; icon: typeof FileEdit; color: string }[] = [
   { step: 1, label: "Rascunho", icon: FileEdit, color: "#94a3b8" },
   { step: 2, label: "Aguardando retorno", icon: Send, color: "var(--color-info)" },
@@ -56,8 +57,7 @@ function FunilConversao({ rows }: { rows: any[] }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="lg:col-span-2 p-6">
-        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1">Funil de Conversão</h3>
-        <p className="text-[11px] text-[var(--color-text-muted)] mb-5">Em qual etapa cada proposta está agora — da elaboração até a decisão final.</p>
+        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1">Funil de Conversão <HelpTip label="Sobre Funil de Conversão">Em qual etapa cada proposta está agora — da elaboração até a decisão final.</HelpTip></h3>
         <div className="space-y-4">
           {porEtapa.counts.map((e) => (
             <div key={e.step}>

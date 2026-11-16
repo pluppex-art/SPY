@@ -16,6 +16,7 @@ import { supabase, notifyPasswordChanged } from "../../../../lib/supabase";
 import { toast } from "sonner";
 import { friendlyError } from "../../../../lib/friendlyError";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 interface AuroraPrefs {
   colaboradorId: string | null;
   recebeBriefingDiario: boolean;
@@ -233,10 +234,7 @@ export function ConfigPerfilUsuario() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Meu Perfil & Conta <User className="w-5 h-5 text-[var(--color-primary-blue)]" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Veja seus dados cadastrais e gerencie sua foto, bio, senha e segurança. Nome, telefone e cargo são editados em Equipe (RH).
-        </p>
+         <HelpTip label="Sobre Meu Perfil & Conta">Veja seus dados cadastrais e gerencie sua foto, bio, senha e segurança. Nome, telefone e cargo são editados em Equipe (RH).</HelpTip></h1>
       </div>
 
       {/* Header Profile Card */}
@@ -443,8 +441,7 @@ export function ConfigPerfilUsuario() {
                     <Smartphone className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-[var(--color-text-primary)]">2FA (Autenticação 2 Fatores)</h4>
-                    <p className="text-[10px] text-[var(--color-text-muted)]">Protege o login exigindo código OTP.</p>
+                    <h4 className="text-xs font-bold text-[var(--color-text-primary)]">2FA (Autenticação 2 Fatores) <HelpTip label="Sobre 2FA (Autenticação 2 Fatores)">Protege o login exigindo código OTP.</HelpTip></h4>
                   </div>
                 </div>
                 <Badge variant={profile.is2FAEnabled ? "success" : "secondary"} className="text-[10px]">
@@ -496,8 +493,7 @@ export function ConfigPerfilUsuario() {
                 <Sunrise className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-[var(--color-text-primary)]">Receber briefing diário</h4>
-                <p className="text-[10px] text-[var(--color-text-muted)]">O resumo automático que a Aurora manda toda manhã pelo WhatsApp.</p>
+                <h4 className="text-xs font-bold text-[var(--color-text-primary)]">Receber briefing diário <HelpTip label="Sobre Receber briefing diário">O resumo automático que a Aurora manda toda manhã pelo WhatsApp.</HelpTip></h4>
               </div>
             </div>
             <Switch
@@ -513,8 +509,7 @@ export function ConfigPerfilUsuario() {
                 <Mic className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-[var(--color-text-primary)]">Aurora responder com áudio</h4>
-                <p className="text-[10px] text-[var(--color-text-muted)]">Quando desligado, a Aurora te responde só por texto no WhatsApp da equipe.</p>
+                <h4 className="text-xs font-bold text-[var(--color-text-primary)]">Aurora responder com áudio <HelpTip label="Sobre Aurora responder com áudio">Quando desligado, a Aurora te responde só por texto no WhatsApp da equipe.</HelpTip></h4>
               </div>
             </div>
             <Switch

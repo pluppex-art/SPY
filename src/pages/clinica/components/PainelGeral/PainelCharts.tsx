@@ -2,6 +2,7 @@ import { Card } from "../../../../components/ui/card";
 import { Clock, Zap, Inbox } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 interface ChartDay { name: string; consultas: number; noShow: number; }
 
 interface PainelChartsProps {
@@ -21,8 +22,7 @@ export function PainelCharts({ clinicData, totalAppointments, confirmed, finaliz
           <div>
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
               <Clock className="w-4 h-4" /> Fluxo de Atendimento
-            </h3>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">Volume de atendimentos por dia da semana.</p>
+             <HelpTip label="Sobre Fluxo de Atendimento">Volume de atendimentos por dia da semana.</HelpTip></h3>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-xs text-[var(--color-text-muted)]">Compareceu</span></div>

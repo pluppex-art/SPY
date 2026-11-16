@@ -14,6 +14,7 @@ import { Modal } from "../../components/ui/modal";
 import { supabase } from "../../lib/supabase";
 import { useImobiliariaConfig } from "../../lib/modules/imobiliariaConfig";
 
+import { HelpTip } from "../../components/ui/help-tip";
 type Comissao = {
   id: string;
   imovel: string;
@@ -327,8 +328,7 @@ export default function ImobiliarioComissoes() {
               <DollarSign className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Comissão / Split de Honorários</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Calcule comissões de venda e divisão entre corretores e imobiliária</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Comissão / Split de Honorários <HelpTip label="Sobre Nova Comissão / Split de Honorários">Calcule comissões de venda e divisão entre corretores e imobiliária</HelpTip></h3>
             </div>
           </div>
         }

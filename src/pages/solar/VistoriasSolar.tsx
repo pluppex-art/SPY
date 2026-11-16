@@ -15,6 +15,7 @@ import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useSolarConfig } from "../../lib/modules/solarConfig";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface VistoriaSolarItem {
   id: string;
   cliente: string;
@@ -272,8 +273,7 @@ export default function VistoriasSolar() {
               <ClipboardCheck className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Vistoria Técnica</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Inspeção in-loco de estrutura, sombreamento e telhado</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Vistoria Técnica <HelpTip label="Sobre Agendar Vistoria Técnica">Inspeção in-loco de estrutura, sombreamento e telhado</HelpTip></h3>
             </div>
           </div>
         }

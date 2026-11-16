@@ -12,6 +12,7 @@ import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../contexts/AuthContext";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 const MODULE_LABELS: Record<string, string> = {
   crm: "CRM & Central de Vendas", financeiro: "Financeiro", engajamento: "Engajamento",
   marketing: "Marketing", educacao: "Educação", clinica: "Clínica",
@@ -91,8 +92,7 @@ export function ConfigEmpresaPermissoes() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Perfis & Permissões <ShieldCheck className="w-5 h-5 text-[var(--color-primary-blue)]" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)]">Defina, para cada cargo, quais páginas e quais IAs a pessoa vê e se enxerga todos os dados ou só os próprios.</p>
+         <HelpTip label="Sobre Perfis & Permissões">Defina, para cada cargo, quais páginas e quais IAs a pessoa vê e se enxerga todos os dados ou só os próprios.</HelpTip></h1>
       </div>
 
       <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-[var(--color-primary-blue)]/8 border border-[var(--color-primary-blue)]/20 text-xs text-[var(--color-primary-blue)]">

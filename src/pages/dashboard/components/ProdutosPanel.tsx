@@ -15,6 +15,7 @@ import type { DashboardData } from "../revenueInsights";
 import { resolverPeriodo, serieDiaria, PERIODO_LABEL, type PeriodoOpcao } from "../vendedoresMetrics";
 import { computeProdutos, METRICA_PRODUTO_LABEL, type MetricaProduto, type ProdutoLinha } from "../produtosMetrics";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 const selectCls =
   "h-9 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-3 text-xs font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)] cursor-pointer";
 
@@ -87,8 +88,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <SectionTitle>Receita por produto/serviço</SectionTitle>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">Quais produtos geram mais receita e margem.</p>
+            <SectionTitle>Receita por produto/serviço <HelpTip label="Sobre Receita por produto/serviço">Quais produtos geram mais receita e margem.</HelpTip></SectionTitle>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="relative">
@@ -142,8 +142,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
         {/* Barras + evolução */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <Card className="min-w-0 overflow-hidden p-5 shadow-sm">
-            <SectionTitle as="h4">Receita por produto/serviço</SectionTitle>
-            <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Distribuição da receita no período selecionado.</p>
+            <SectionTitle as="h4">Receita por produto/serviço <HelpTip label="Sobre Receita por produto/serviço">Distribuição da receita no período selecionado.</HelpTip></SectionTitle>
             {rankeados.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhum produto vendido no período.</p>
             ) : (
@@ -207,8 +206,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
         {/* Detalhamento */}
         <Card className="overflow-hidden min-w-0 shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <SectionTitle as="h4">Detalhamento por produto/serviço</SectionTitle>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Veja a receita, vendas, ticket médio, participação e margem de cada produto.</p>
+            <SectionTitle as="h4">Detalhamento por produto/serviço <HelpTip label="Sobre Detalhamento por produto/serviço">Veja a receita, vendas, ticket médio, participação e margem de cada produto.</HelpTip></SectionTitle>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">

@@ -18,6 +18,7 @@ import {
   type VendedorLinha,
 } from "../vendedoresMetrics";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 const selectCls =
   "h-9 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-3 text-xs font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)] cursor-pointer";
 
@@ -466,8 +467,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
           <Card className="lg:col-span-7 p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
               <div className="min-w-0">
-                <SectionTitle as="h4">Evolução da receita{sellerRestricted ? "" : " por vendedor"}</SectionTitle>
-                <p className="text-[11px] text-[var(--color-text-muted)]">Receita diária no período selecionado.</p>
+                <SectionTitle as="h4">Evolução da receita{sellerRestricted ? "" : " por vendedor"} <HelpTip label="Sobre Evolução da receita">Receita diária no período selecionado.</HelpTip></SectionTitle>
               </div>
               <select value={acumulada ? "acumulada" : "diaria"} onChange={(e) => setAcumulada(e.target.value === "acumulada")} className={selectCls}>
                 <option value="acumulada">Receita acumulada</option>
@@ -500,8 +500,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
           <Card className="lg:col-span-5 p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
-                <SectionTitle as="h4">Funil{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"}</SectionTitle>
-                <p className="text-[11px] text-[var(--color-text-muted)]">Quantidade de leads em cada etapa.</p>
+                <SectionTitle as="h4">Funil{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"} <HelpTip label="Sobre Funil : sellerRestricted ?  :  por v">Quantidade de leads em cada etapa.</HelpTip></SectionTitle>
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 items-stretch">
@@ -523,8 +522,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
 
         {/* Meta x realizado */}
         <Card className="p-5 shadow-sm">
-          <SectionTitle as="h4">Meta x realizado{sellerRestricted ? "" : " por vendedor"}</SectionTitle>
-          <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Acompanhe o progresso da meta de receita.</p>
+          <SectionTitle as="h4">Meta x realizado{sellerRestricted ? "" : " por vendedor"} <HelpTip label="Sobre Meta x realizado">Acompanhe o progresso da meta de receita.</HelpTip></SectionTitle>
           {comMeta.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] italic py-8 text-center">
               Nenhuma meta definida. Cadastre a meta mensal em Equipe › Editar colaborador.

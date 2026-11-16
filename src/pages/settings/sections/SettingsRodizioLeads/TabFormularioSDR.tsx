@@ -5,6 +5,7 @@ import { Button } from "../../../../components/ui/button";
 import { supabase } from "../../../../lib/supabase";
 import { toast } from "sonner";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 interface SdrColaborador { id: string; nome: string; phone: string; cargo: string; status: string; }
 interface FormRodizioConfig { current_index: number; active_sdr_ids: string[] | null; }
 
@@ -88,8 +89,7 @@ export function TabFormularioSDR({ tenantId }: { tenantId: string }) {
             <FileText className="w-4 h-4" />
           </div>
           <div className="flex-1">
-            <h3 className="text-xs font-bold text-[var(--color-text-primary)]">SDRs no Formulário</h3>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 font-medium">Leads via landing page são distribuídos em round-robin entre os SDRs ativos abaixo.</p>
+            <h3 className="text-xs font-bold text-[var(--color-text-primary)]">SDRs no Formulário <HelpTip label="Sobre SDRs no Formulário">Leads via landing page são distribuídos em round-robin entre os SDRs ativos abaixo.</HelpTip></h3>
           </div>
           {saving && <RefreshCw className="w-4 h-4 text-[var(--color-primary-blue)] animate-spin shrink-0 mt-0.5" />}
         </div>

@@ -11,6 +11,7 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useExternalIntegrations, type ExternalIntegrationInput } from "../../hooks/useExternalIntegrations";
 import { apiFetch } from "../../lib/apiClient";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface ApiKeyRow {
   id: string;
   name: string;
@@ -182,11 +183,7 @@ export function ConfigConectoresExternos() {
         <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
           Conectores Externos
           <Plug className="w-5 h-5 text-[var(--color-primary-blue)]" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Conecte o ERP/CRM próprio da sua empresa (ou outro sistema) ao SPY via API/Webhook autenticado — nunca uma conexão
-          direta ao banco de dados de terceiros. Ative os eventos que devem ser enviados automaticamente pra esse sistema.
-        </p>
+         <HelpTip label="Sobre Conectores Externos">Conecte o ERP/CRM próprio da sua empresa (ou outro sistema) ao SPY via API/Webhook autenticado — nunca uma conexão direta ao banco de dados de terceiros. Ative os eventos que devem ser enviados automaticamente pra esse sistema.</HelpTip></h1>
       </div>
 
       <Card className="p-6 space-y-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">

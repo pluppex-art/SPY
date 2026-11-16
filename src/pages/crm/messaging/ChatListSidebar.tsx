@@ -3,6 +3,7 @@ import { Search, MoreVertical, X, MessageCircle, Instagram, Mail } from "lucide-
 import { motion } from "motion/react";
 import { Contact, Channel } from "./useMessaging";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 const PAGE_SIZE = 50;
 
 interface ChatListSidebarProps {
@@ -223,10 +224,7 @@ export function ChatListSidebar({
                     <Search className="w-5 h-5" />
                   </div>
                   <div className="space-y-1">
-                    <h4 className="text-xs font-bold text-[var(--color-text-primary)]">Nenhum resultado encontrado</h4>
-                    <p className="text-[11px] text-[var(--color-text-muted)] max-w-[200px]">
-                      Não encontramos nenhuma conversa que corresponda à busca.
-                    </p>
+                    <h4 className="text-xs font-bold text-[var(--color-text-primary)]">Nenhum resultado encontrado <HelpTip label="Sobre Nenhum resultado encontrado">Não encontramos nenhuma conversa que corresponda à busca.</HelpTip></h4>
                   </div>
                 </div>
               )}

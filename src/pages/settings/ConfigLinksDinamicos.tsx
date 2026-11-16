@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useTenantDynamicLinks, type DynamicLinkType } from "../../hooks/useTenantDynamicLinks";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const LINK_TYPE_LABELS: Record<DynamicLinkType, string> = {
   payment: "Pagamento",
   scheduling: "Agendamento",
@@ -63,12 +64,7 @@ export function ConfigLinksDinamicos() {
         <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
           Links Dinâmicos
           <Link2 className="w-5 h-5 text-[var(--color-primary-blue)]" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Cadastre aqui os links reais que sua empresa já usa (pagamento, agendamento, checkout, contrato) — a Aurora e a
-          IA consultam essa lista ao vivo em vez de ter qualquer link fixo no prompt. Atualizar um link aqui reflete
-          imediatamente, sem precisar editar nenhuma automação.
-        </p>
+         <HelpTip label="Sobre Links Dinâmicos">Cadastre aqui os links reais que sua empresa já usa (pagamento, agendamento, checkout, contrato) — a Aurora e a IA consultam essa lista ao vivo em vez de ter qualquer link fixo no prompt. Atualizar um link aqui reflete imediatamente, sem precisar editar nenhuma automação.</HelpTip></h1>
       </div>
 
       <Card className="p-4 bg-warning/5 border border-warning/20 flex gap-3">

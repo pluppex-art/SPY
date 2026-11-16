@@ -9,6 +9,7 @@ import { NovoPlanoContasModal, type FinanceCategorySubtipo } from "../../../comp
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { toast } from "sonner";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 const SUBTIPO_LABELS: Record<FinanceCategorySubtipo, string> = {
     DESPESA_FIXA: "Fixa",
     DESPESA_VARIAVEL: "Variável",
@@ -100,8 +101,7 @@ export function ConfigProdutividadeCategorias() {
         <div className="max-w-4xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Categorias & Produtividade</h1>
-                    <p className="text-sm text-[var(--color-text-muted)]">Organize as tarefas e visualize o CAC por time comercial.</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Categorias & Produtividade <HelpTip label="Sobre Categorias & Produtividade">Organize as tarefas e visualize o CAC por time comercial.</HelpTip></h1>
                 </div>
                 <Button onClick={() => { setEditingCategory(null); setIsModalOpen(true); }} className="font-bold px-6"><Plus className="w-4 h-4 mr-2" /> Nova Categoria</Button>
             </div>
@@ -112,8 +112,7 @@ export function ConfigProdutividadeCategorias() {
                     <div>
                         <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-widest flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-[var(--color-primary-blue)]" /> Custo de Aquisição (CAC) por Squad
-                        </h3>
-                        <p className="text-[10px] text-[var(--color-text-faint)] font-medium uppercase mt-1">Investimento Mensal / Novos Leads (Mês Atual)</p>
+                         <HelpTip label="Sobre Custo de Aquisição (CAC) por Squad">Investimento Mensal / Novos Leads (Mês Atual)</HelpTip></h3>
                     </div>
                 </div>
 
@@ -255,8 +254,7 @@ export function ConfigFinanceiroCategorias() {
         <div className="max-w-4xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Planos de Contas (Categorias)</h1>
-                    <p className="text-sm text-[var(--color-text-muted)]">Categorias para classificar receitas e despesas — o par tipo/subtipo define em qual linha do DRE cada lançamento é somado.</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Planos de Contas (Categorias) <HelpTip label="Sobre Planos de Contas (Categorias)">Categorias para classificar receitas e despesas — o par tipo/subtipo define em qual linha do DRE cada lançamento é somado.</HelpTip></h1>
                 </div>
                 <Button onClick={() => { setEditing(null); setIsModalOpen(true); }} className="font-bold px-6"><Plus className="w-4 h-4 mr-2" /> Nova Categoria</Button>
             </div>
@@ -300,8 +298,7 @@ export function ConfigFinanceiroSquads() {
     return (
         <div className="max-w-4xl space-y-6">
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">Gestão Financeira de Times & CAC <Briefcase className="w-5 h-5 text-[var(--color-primary-blue)]" /></h1>
-                <p className="text-sm text-[var(--color-text-muted)] mt-1">Configure o orçamento mensal de cada squad para cálculo automático de Custo de Aquisição de Clientes (CAC) em tempo real.</p>
+                <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">Gestão Financeira de Times & CAC <Briefcase className="w-5 h-5 text-[var(--color-primary-blue)]" /> <HelpTip label="Sobre Gestão Financeira de Times & CAC">Configure o orçamento mensal de cada squad para cálculo automático de Custo de Aquisição de Clientes (CAC) em tempo real.</HelpTip></h1>
             </div>
 
             <div className="grid grid-cols-1 gap-4">

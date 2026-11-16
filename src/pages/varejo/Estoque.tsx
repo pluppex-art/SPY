@@ -22,6 +22,7 @@ import { BotaoImportar } from "../../components/ImportadorPlanilha";
 import { produtosSpec } from "../../lib/importSpecs";
 import { supabase } from "../../lib/supabase";
 
+import { HelpTip } from "../../components/ui/help-tip";
 type TipoMov = "entrada" | "saida" | "ajuste" | "venda";
 
 interface Movimentacao {
@@ -277,10 +278,7 @@ export default function VarejoEstoque() {
         <div>
           <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
             Movimentações de Estoque <Boxes className="w-6 h-6 text-blue-500" />
-          </h1>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">
-            Entradas, saídas e ajustes de saldo, alertas de estoque baixo e histórico de movimentações. O cadastro de produtos fica em Produtos.
-          </p>
+           <HelpTip label="Sobre Movimentações de Estoque">Entradas, saídas e ajustes de saldo, alertas de estoque baixo e histórico de movimentações. O cadastro de produtos fica em Produtos.</HelpTip></h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {activeTenantId && <BotaoImportar spec={produtosSpec({ tenantId: activeTenantId })} label="Importar produtos" />}

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { CargoModal } from "./CargoModal";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 const NIVEL_COLORS: Record<string, string> = {
   "Estratégico": "text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 border-[var(--color-primary-blue)]/20",
   "Tático": "text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-[var(--color-border-default)]",
@@ -64,8 +65,7 @@ export function ConfigEmpresaCargos() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Cargos & Estrutura <Briefcase className="w-5 h-5 text-[var(--color-primary-blue)]" />
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Cadastre e estruture os cargos hierárquicos da empresa.</p>
+           <HelpTip label="Sobre Cargos & Estrutura">Cadastre e estruture os cargos hierárquicos da empresa.</HelpTip></h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" onClick={handleAdicionarPadrao} disabled={adicionando} className="h-9 px-4 text-xs font-bold gap-1.5" title={`Adiciona até ${CARGOS_PADRAO.length} cargos prontos, com nível e páginas sugeridas`}>

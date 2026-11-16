@@ -13,6 +13,7 @@ import { parseCurrencyBR } from "../../lib/utils";
 import { diasDesde, computeVazamentos, type DashboardData } from "./revenueInsights";
 import { isLeadOpen } from "../../lib/leadStatus";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const MOTIVO_PALETTE: Record<string, string> = {
   "Propostas sem follow-up": "#ef4444",
   "Leads quentes sem contato": "#f59e0b",
@@ -112,8 +113,7 @@ export default function VazamentosReceita({ dashboard }: { dashboard: DashboardD
         </Card>
 
         <Card className="lg:col-span-3 p-5 shadow-sm">
-          <SectionTitle className="mb-4">Impacto no Resultado</SectionTitle>
-          <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Se recuperarmos parte dessas oportunidades:</p>
+          <SectionTitle className="mb-4">Impacto no Resultado <HelpTip label="Sobre Impacto no Resultado">Se recuperarmos parte dessas oportunidades:</HelpTip></SectionTitle>
           <div className="space-y-2.5">
             {[["Cenário Conservador", 0.3], ["Cenário Realista", 0.5], ["Cenário Otimista", 0.7]].map(([label, pct]) => (
               <div key={label as string} className="flex items-center justify-between bg-[var(--color-surface-sunken)] rounded-xl px-3.5 py-2.5">

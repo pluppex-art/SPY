@@ -2,13 +2,13 @@ import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { Users, ExternalLink, UserPlus } from "lucide-react";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 export function ConfigEmpresaEquipe() {
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Equipe & Convites</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Convide novos membros e gerencie acessos na sua empresa no S.P.Y..</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Equipe & Convites <HelpTip label="Sobre Equipe & Convites">Convide novos membros e gerencie acessos na sua empresa no S.P.Y..</HelpTip></h1>
         </div>
         <Button 
           onClick={() => window.location.href = "/app/equipe"}

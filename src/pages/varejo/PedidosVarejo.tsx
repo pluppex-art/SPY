@@ -14,6 +14,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface PedidoItem {
   id: string;
   cliente: string;
@@ -303,8 +304,7 @@ export default function PedidosVarejo() {
               <ShoppingBag className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Registrar Pedido de Balcão</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Cadastre vendas manuais e entregas sob demanda</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Registrar Pedido de Balcão <HelpTip label="Sobre Registrar Pedido de Balcão">Cadastre vendas manuais e entregas sob demanda</HelpTip></h3>
             </div>
           </div>
         }

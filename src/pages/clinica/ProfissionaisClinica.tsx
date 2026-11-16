@@ -13,6 +13,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface ProfissionalItem {
   id: string;
   nome: string;
@@ -276,8 +277,7 @@ export default function ProfissionaisClinica() {
               <Stethoscope className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cadastrar Novo Profissional Clínico</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Adicione médicos, cirurgiões ou especialistas à equipe</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cadastrar Novo Profissional Clínico <HelpTip label="Sobre Cadastrar Novo Profissional Clínico">Adicione médicos, cirurgiões ou especialistas à equipe</HelpTip></h3>
             </div>
           </div>
         }

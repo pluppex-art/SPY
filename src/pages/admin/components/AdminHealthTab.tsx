@@ -9,6 +9,7 @@ import { Button } from "../../../components/ui/button";
 import { supabase } from "../../../lib/supabase";
 import { toast } from "sonner";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 interface DiagnosticItem {
   id: string;
   name: string;
@@ -118,10 +119,7 @@ export function AdminHealthTab() {
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-[var(--color-text-primary)] tracking-tight">
               Monitor de Saúde & Diagnóstico da Infraestrutura
-            </h2>
-            <p className="text-xs text-[var(--color-text-muted)] max-w-2xl leading-relaxed">
-              Verificação em tempo real de latência, integridade das tabelas do banco de dados Supabase e isolamento RLS.
-            </p>
+             <HelpTip label="Sobre Monitor de Saúde & Diagnóstico da Infrae">Verificação em tempo real de latência, integridade das tabelas do banco de dados Supabase e isolamento RLS.</HelpTip></h2>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">

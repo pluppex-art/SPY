@@ -16,6 +16,7 @@ import { FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-f
 import { FinanceKpiFilter } from "../finance/components/FinanceKpiFilter";
 import { normalizeText, parseCurrencyBR, dataLocalISO } from "../../lib/utils";
 
+import { HelpTip } from "../../components/ui/help-tip";
 export default function Contracts() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
@@ -127,8 +128,7 @@ export default function Contracts() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestão de Contratos</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Contratos ativos, MRR e saúde financeira.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Gestão de Contratos <HelpTip label="Sobre Gestão de Contratos">Contratos ativos, MRR e saúde financeira.</HelpTip></h1>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="gap-2" onClick={exportarCsv}>Exportar CSV</Button>

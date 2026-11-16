@@ -27,6 +27,7 @@ import { downloadCsv } from "../../lib/csvExport";
 import { PLUPPEX_TENANT_ID, supabase } from "../../lib/supabase";
 import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS, origensVisiveis } from "../../lib/useMaxdataPage";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const PAGE_SIZE = 60;
 
 export default function Catalog() {
@@ -254,10 +255,7 @@ export default function Catalog() {
         {viewTotal === 0 ? (
           <Card className="p-16 flex flex-col items-center justify-center text-center bg-[var(--color-surface-elevated)]/40 border-[var(--color-border-subtle)]">
             <Package className="w-16 h-16 text-slate-700 mb-4 animate-pulse" />
-            <h3 className="text-[var(--color-text-primary)] font-bold text-lg mb-1">Nenhum SKU encontrado</h3>
-            <p className="text-xs text-[var(--color-text-muted)] max-w-sm leading-relaxed">
-              Nenhum produto atende a estes parâmetros de filtro atuais. Modifique os termos de pesquisa ou adicione um novo produto ao catálogo.
-            </p>
+            <h3 className="text-[var(--color-text-primary)] font-bold text-lg mb-1">Nenhum SKU encontrado <HelpTip label="Sobre Nenhum SKU encontrado">Nenhum produto atende a estes parâmetros de filtro atuais. Modifique os termos de pesquisa ou adicione um novo produto ao catálogo.</HelpTip></h3>
             <Button onClick={f.handleOpenAddModal} className="mt-6 font-bold text-xs bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-2">
               Adicionar Primeiro Produto
             </Button>

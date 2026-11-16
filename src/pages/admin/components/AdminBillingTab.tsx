@@ -15,6 +15,7 @@ import { supabase, PLUPPEX_TENANT_ID } from "../../../lib/supabase";
 import { Button } from "../../../components/ui/button";
 import { toast } from "sonner";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 interface AdminBillingTabProps {
   revenueData: { name: string; mrr: number }[];
   CustomTooltip: React.ComponentType<any>;
@@ -237,10 +238,7 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
             <div>
               <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
                 Faturamento Consolidado por Mês
-              </h3>
-              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Soma de todos os lançamentos financeiros pagos de todos os tenants — não é a mensalidade paga ao SPY.
-              </p>
+               <HelpTip label="Sobre Faturamento Consolidado por Mês">Soma de todos os lançamentos financeiros pagos de todos os tenants — não é a mensalidade paga ao SPY.</HelpTip></h3>
             </div>
             {totalMrr > 0 && (
               <span className="text-xs font-mono font-bold text-emerald-500">
@@ -277,10 +275,7 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
           <div>
             <h4 className="text-sm font-bold text-[var(--color-text-primary)]">
               Estrutura de Planos do SaaS
-            </h4>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-              Tabela de precificação do SPY CRM
-            </p>
+             <HelpTip label="Sobre Estrutura de Planos do SaaS">Tabela de precificação do SPY CRM</HelpTip></h4>
           </div>
 
           <div className="space-y-3">

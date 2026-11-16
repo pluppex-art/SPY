@@ -5,6 +5,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { TabClosersCRM } from "./TabClosersCRM";
 import { TabFormularioSDR } from "./TabFormularioSDR";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 const TABS = [
   { key: "formulario", label: "Formulário – SDRs", icon: <FileText className="w-3.5 h-3.5" /> },
   { key: "closers",    label: "CRM – Closers",      icon: <Users    className="w-3.5 h-3.5" /> },
@@ -20,8 +21,7 @@ export function ConfigRodizioLeads() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Rodízio de Leads <Shuffle className="w-5 h-5 text-[var(--color-primary-blue)]" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)]">Configure a distribuição automática de leads entre SDRs e Closers com base em capacidade e tags.</p>
+         <HelpTip label="Sobre Rodízio de Leads">Configure a distribuição automática de leads entre SDRs e Closers com base em capacidade e tags.</HelpTip></h1>
       </div>
 
       <div className="flex items-center gap-1.5 p-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-sm">

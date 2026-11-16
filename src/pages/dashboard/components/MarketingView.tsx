@@ -9,6 +9,7 @@ import { useData } from '../../../contexts/DataContext';
 import { useLocalization } from '../../../contexts/LocalizationContext';
 import { parseCurrencyBR } from '../../../lib/utils';
 
+import { HelpTip } from "../../../components/ui/help-tip";
 // Paleta de categorias sem contagem fixa (origens de lead variam por tenant)
 // — em vez do arco-íris antigo, usa a cor da marca (destaque pra fatia mais
 // relevante) + tons neutros de cinza (ver regra de cores do dashboard: só
@@ -255,8 +256,7 @@ export function MarketingView() {
         <Card className="p-5 shadow-sm">
           <SectionTitle as="h4" className="mb-1">
             <Workflow className="w-4 h-4 text-[var(--color-primary-blue)]" /> Jornada do Lead (Origem → Desfecho)
-          </SectionTitle>
-          <p className="text-xs text-[var(--color-text-muted)] mb-4 font-medium">De cada origem, quantos leads fecharam negócio até agora.</p>
+           <HelpTip label="Sobre Jornada do Lead (Origem → Desfecho)">De cada origem, quantos leads fecharam negócio até agora.</HelpTip></SectionTitle>
           {!sankeyData.hasData ? (
             <div className="py-10 text-center text-xs text-[var(--color-text-faint)]">Sem leads suficientes pra montar a jornada.</div>
           ) : (
@@ -279,8 +279,7 @@ export function MarketingView() {
         <Card className="p-5 shadow-sm">
           <SectionTitle as="h4" className="mb-1">
             <LayoutGrid className="w-4 h-4 text-[var(--color-primary-blue)]" /> Receita Fechada por Origem
-          </SectionTitle>
-          <p className="text-xs text-[var(--color-text-muted)] mb-4 font-medium">Quanto cada origem realmente gerou em negócios fechados — não só volume de leads.</p>
+           <HelpTip label="Sobre Receita Fechada por Origem">Quanto cada origem realmente gerou em negócios fechados — não só volume de leads.</HelpTip></SectionTitle>
           {revenueBySourceData.length === 0 ? (
             <div className="py-10 text-center text-xs text-[var(--color-text-faint)]">Sem negócios fechados com valor no período.</div>
           ) : (

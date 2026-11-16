@@ -7,6 +7,7 @@ import { useData } from "../../../contexts/DataContext";
 import { LeadScoreTrigger } from "../../../types";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 const DEFAULT_SDR_STAGES: Record<string, string> = {
   "sdr-1": "Novos Leads (Inbound)",
   "sdr-2": "Tentando Contato",
@@ -57,10 +58,7 @@ export function ConfigCRMGatilhosIA() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Gatilhos de Lead Score IA <Zap className="w-5 h-5 text-[var(--color-primary-blue)] fill-[var(--color-primary-blue)]/10" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Configure regras automatizadas baseadas no Lead Score para mover os leads imediatamente para etapas do funil SDR.
-        </p>
+         <HelpTip label="Sobre Gatilhos de Lead Score IA">Configure regras automatizadas baseadas no Lead Score para mover os leads imediatamente para etapas do funil SDR.</HelpTip></h1>
       </div>
 
       {/* Rules list */}

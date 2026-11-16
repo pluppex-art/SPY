@@ -4,6 +4,7 @@ import { Card } from "../../../components/ui/card";
 import { MODULES } from "./NovoTenantModal";
 import { saasApi, planPayload, type Plan } from "../../../lib/saasApi";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 /**
  * Visão por módulo: em quais planos ele é liberado. Marcar/desmarcar grava no plano
  * (o mesmo `modules` editável na aba Plano & SaaS do produto) — passa a valer para quem
@@ -37,10 +38,7 @@ export function ModulePlansMatrix() {
   return (
     <Card className="p-5 space-y-3">
       <div>
-        <h3 className="font-black text-sm">Planos que liberam cada módulo</h3>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-          Vale para quem assinar ou reaplicar o plano. Plano sem nenhum módulo marcado não altera os módulos do cliente.
-        </p>
+        <h3 className="font-black text-sm">Planos que liberam cada módulo <HelpTip label="Sobre Planos que liberam cada módulo">Vale para quem assinar ou reaplicar o plano. Plano sem nenhum módulo marcado não altera os módulos do cliente.</HelpTip></h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">

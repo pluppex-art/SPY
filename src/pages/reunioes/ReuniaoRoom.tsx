@@ -26,6 +26,7 @@ import { apiFetch } from "../../lib/apiClient";
 import { supabase } from "../../lib/supabase";
 import { handleDownloadDevProjectPdf, type DevProjectPdfData } from "../dev/utils/devProjectPdf";
 
+import { HelpTip } from "../../components/ui/help-tip";
 function formatDateTime(iso: string) {
   try {
     return new Date(iso).toLocaleString("pt-BR", {
@@ -642,8 +643,7 @@ export default function ReuniaoRoom() {
               <div className="flex items-center gap-3">
                 <AuroraCore mode={auroraCoreMode} size={36} />
                 <div>
-                  <h4 className="text-sm font-black text-[var(--color-text-primary)]">Análise da Aurora</h4>
-                  <p className="text-[11px] text-[var(--color-text-muted)]">Insights automáticos da reunião, transcrição e próximos passos.</p>
+                  <h4 className="text-sm font-black text-[var(--color-text-primary)]">Análise da Aurora <HelpTip label="Sobre Análise da Aurora">Insights automáticos da reunião, transcrição e próximos passos.</HelpTip></h4>
                 </div>
               </div>
               <button

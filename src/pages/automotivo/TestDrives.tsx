@@ -17,6 +17,7 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
 import { fetchVeiculosCatalogo, veiculoLabelFromEmbed, VEICULO_EMBED } from "../../lib/veiculosCatalogo";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface TestDriveItem {
   id: string;
   cliente: string;
@@ -287,8 +288,7 @@ export default function TestDrives() {
               <Calendar className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Novo Test-Drive</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Cadastre o cliente, veículo e horário agendado</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Novo Test-Drive <HelpTip label="Sobre Agendar Novo Test-Drive">Cadastre o cliente, veículo e horário agendado</HelpTip></h3>
             </div>
           </div>
         }

@@ -13,6 +13,7 @@ import type { DashboardData } from "../revenueInsights";
 import { resolverPeriodo, serieDiaria, PERIODO_LABEL, type PeriodoOpcao } from "../vendedoresMetrics";
 import { computeSegmentos, METRICA_LABEL, type MetricaSegmento, type SegmentoLinha } from "../segmentosMetrics";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 const selectCls =
   "h-9 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-3 text-xs font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)] cursor-pointer";
 
@@ -116,8 +117,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <SectionTitle>Receita por segmento</SectionTitle>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">Os segmentos são as categorias dos seus produtos e serviços (Catálogo). Veja a receita, a evolução e o desempenho de cada um.</p>
+            <SectionTitle>Receita por segmento <HelpTip label="Sobre Receita por segmento">Os segmentos são as categorias dos seus produtos e serviços (Catálogo). Veja a receita, a evolução e o desempenho de cada um.</HelpTip></SectionTitle>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select value={metrica} onChange={(e) => setMetrica(e.target.value as MetricaSegmento)} className={selectCls}>
@@ -218,8 +218,7 @@ export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData
         <div className="grid grid-cols-1 2xl:grid-cols-12 gap-4">
           <Card className="2xl:col-span-7 min-w-0 overflow-hidden shadow-sm">
             <div className="p-4 border-b border-[var(--color-border-subtle)]">
-              <SectionTitle as="h4">Desempenho por segmento</SectionTitle>
-              <p className="text-[11px] text-[var(--color-text-muted)]">Principais indicadores de cada segmento.</p>
+              <SectionTitle as="h4">Desempenho por segmento <HelpTip label="Sobre Desempenho por segmento">Principais indicadores de cada segmento.</HelpTip></SectionTitle>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">

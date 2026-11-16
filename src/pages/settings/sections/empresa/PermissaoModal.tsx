@@ -10,6 +10,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { ModulesCombobox, ALL_MODULES } from "./ModulesCombobox";
 import { IA_AGENTS } from "../../../../lib/iaAgents";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 interface PermissaoModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -190,8 +191,7 @@ export function PermissaoModal({ isOpen, onClose, onSave, editing, cargos }: Per
 
         <div className="space-y-2.5 pt-1">
           <div>
-            <h4 className="text-sm font-black text-[var(--color-text-primary)] flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> Mensageria · IAs liberadas</h4>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Quais IAs (cada uma com o próprio WhatsApp) o cargo pode ver na Mensageria. Sem nenhuma marcada, o cargo não vê as conversas das IAs.</p>
+            <h4 className="text-sm font-black text-[var(--color-text-primary)] flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> Mensageria · IAs liberadas <HelpTip label="Sobre Mensageria · IAs liberadas">Quais IAs (cada uma com o próprio WhatsApp) o cargo pode ver na Mensageria. Sem nenhuma marcada, o cargo não vê as conversas das IAs.</HelpTip></h4>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {IA_AGENTS.map((a) => {

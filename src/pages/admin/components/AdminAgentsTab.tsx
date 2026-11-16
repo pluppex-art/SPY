@@ -7,6 +7,7 @@ import { AgentFlowViewerModal } from "../../settings/sections/AgentFlowViewer";
 import { useAgentFlow } from "../../../hooks/useAgentFlow";
 import { Modal } from "../../../components/ui/modal";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 /**
  * Catálogo global de agentes da plataforma, visível pra qualquer master — antes só existia
  * dentro de Configurações → Sistema → Aurora, escopado a um tenant específico (dono da sessão),
@@ -31,10 +32,7 @@ export function AdminAgentsTab() {
         <div>
           <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
             <Bot className="w-4 h-4 text-violet-400" /> Catálogo de agentes da plataforma
-          </h3>
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-            Lista global — ativar/desativar ou renomear é feito por empresa, em Configurações → Sistema → Aurora de cada tenant.
-          </p>
+           <HelpTip label="Sobre Catálogo de agentes da plataforma">Lista global — ativar/desativar ou renomear é feito por empresa, em Configurações → Sistema → Aurora de cada tenant.</HelpTip></h3>
         </div>
         <p className="text-xs text-[var(--color-text-muted)] shrink-0">{CATALOG_WITH_AURORA.length} agentes</p>
       </div>

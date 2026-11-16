@@ -7,6 +7,7 @@ import { NovoCampoCRMModal } from "../../../../components/ui/modals/crm/NovoCamp
 import { toast } from "sonner";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 export function ConfigCRMCampos() {
   const { customLeadFields, setCustomLeadFields } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,8 +41,7 @@ export function ConfigCRMCampos() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Campos Personalizados (CRM) <Sliders className="w-5 h-5 text-[var(--color-primary-blue)]" />
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Defina campos adicionais, tipos de dados e regras de validação para os leads.</p>
+           <HelpTip label="Sobre Campos Personalizados (CRM)">Defina campos adicionais, tipos de dados e regras de validação para os leads.</HelpTip></h1>
         </div>
         <Button
           onClick={() => { setEditingField(null); setIsModalOpen(true); }}

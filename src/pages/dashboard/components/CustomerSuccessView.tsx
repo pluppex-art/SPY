@@ -13,6 +13,7 @@ import { useLocalization } from '../../../contexts/LocalizationContext';
 import { parseCurrencyBR as toNumberMRR } from '../../../lib/utils';
 import type { DashboardSummary } from '../useDashboard';
 
+import { HelpTip } from "../../../components/ui/help-tip";
 function parseContractDate(d: string | undefined | null): Date | null {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(d || '');
   if (!m) return null;
@@ -143,10 +144,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
         <div>
           <SectionTitle>
             <HeartHandshake className="w-4 h-4 text-[var(--color-primary-blue)]" /> Carteira de Contratos
-          </SectionTitle>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">
-            Estado atual da base de contratos recorrentes.
-          </p>
+           <HelpTip label="Sobre Carteira de Contratos">Estado atual da base de contratos recorrentes.</HelpTip></SectionTitle>
         </div>
         {contracts.length === 0 ? (
           <Card className="h-[160px] flex items-center justify-center text-xs text-[var(--color-text-muted)] shadow-sm">
@@ -185,10 +183,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
     <Card className="p-5 shadow-sm">
       <SectionTitle>
         <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> Distribuição de CLV (Valor Vitalício)
-      </SectionTitle>
-      <p className="text-xs text-[var(--color-text-muted)] mt-1 mb-4 font-medium">
-        Tempo de contrato × MRR, por faixa de valor — quantos clientes reais caem em cada faixa.
-      </p>
+       <HelpTip label="Sobre Distribuição de CLV (Valor Vitalício)">Tempo de contrato × MRR, por faixa de valor — quantos clientes reais caem em cada faixa.</HelpTip></SectionTitle>
       {clvHistogram.bins.length === 0 ? (
         <div className="h-[140px] flex items-center justify-center text-xs text-[var(--color-text-muted)]">
           Sem contratos com data de assinatura válida o suficiente pra calcular.

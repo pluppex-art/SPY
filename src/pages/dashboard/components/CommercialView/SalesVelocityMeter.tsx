@@ -7,6 +7,7 @@ import { useData } from '../../../../contexts/DataContext';
 import { useLocalization } from '../../../../contexts/LocalizationContext';
 import { parseCurrencyBR } from '../../../../lib/utils';
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 // `lead.date` é texto livre (ver leadDateIso em useDashboard.ts) — mesmo
 // fallback pro created_at real do banco quando não é uma data ISO válida.
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}/;
@@ -68,10 +69,7 @@ export function SalesVelocityMeter() {
     <Card className="p-5 shadow-sm">
       <SectionTitle className="mb-1">
         <Gauge className="w-4 h-4 text-[var(--color-primary-blue)]" /> Velocidade de Vendas
-      </SectionTitle>
-      <p className="text-xs text-[var(--color-text-muted)] mb-4 font-medium">
-        Tempo médio real entre a criação do lead e a assinatura do contrato.
-      </p>
+       <HelpTip label="Sobre Velocidade de Vendas">Tempo médio real entre a criação do lead e a assinatura do contrato.</HelpTip></SectionTitle>
 
       {!velocity ? (
         <div className="py-10 text-center text-xs text-[var(--color-text-faint)]">

@@ -12,6 +12,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface CaptacaoItem {
   id: string;
   endereco: string;
@@ -277,8 +278,7 @@ export default function Captacoes() {
               <ClipboardList className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Captação de Imóvel</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Cadastre o imóvel em prospecção para o portfólio</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Captação de Imóvel <HelpTip label="Sobre Nova Captação de Imóvel">Cadastre o imóvel em prospecção para o portfólio</HelpTip></h3>
             </div>
           </div>
         }

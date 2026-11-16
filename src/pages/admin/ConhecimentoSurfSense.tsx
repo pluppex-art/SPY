@@ -3,6 +3,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 
+import { HelpTip } from "../../components/ui/help-tip";
 // Endereço do SurfSense hospedado pela própria plataforma (VPS). Pode ser trocado por VITE_SURFSENSE_URL.
 const SURFSENSE_URL = (import.meta as any).env?.VITE_SURFSENSE_URL || "https://surfsense.spycrm.com.br";
 
@@ -22,10 +23,7 @@ export default function ConhecimentoSurfSense() {
           <div className="flex items-start gap-3">
             <BookOpen className="w-5 h-5 mt-0.5 text-[var(--color-primary-blue)]" />
             <div className="space-y-1">
-              <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Abrir o SurfSense</h2>
-              <p className="text-xs text-[var(--color-text-muted)]">
-                Envie PDFs, planilhas e documentos, faça perguntas e receba respostas com a fonte. Abre em uma nova aba, no servidor da própria plataforma.
-              </p>
+              <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Abrir o SurfSense <HelpTip label="Sobre Abrir o SurfSense">Envie PDFs, planilhas e documentos, faça perguntas e receba respostas com a fonte. Abre em uma nova aba, no servidor da própria plataforma.</HelpTip></h2>
             </div>
           </div>
           <Button asChild className="bg-[var(--color-primary-blue)] text-white font-bold">

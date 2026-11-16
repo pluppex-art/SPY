@@ -5,6 +5,7 @@ import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Toolti
 import { Play, RefreshCw, Zap, Inbox, Lightbulb } from "lucide-react";
 import { motion } from "motion/react";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 export function PerformanceIAWhatIfSimulator(props: {
   isSimulating: boolean;
   runSimulation: () => void;
@@ -21,8 +22,7 @@ export function PerformanceIAWhatIfSimulator(props: {
           <div>
             <SectionTitle>
               <Play className="w-5 h-5 text-[var(--color-primary-blue)]" /> Simulador de Cenários
-            </SectionTitle>
-            <p className="text-xs text-[var(--color-text-muted)] mt-2">Simulação ilustrativa com premissas fixas (+20% e +40% de MRR sobre o valor atual) — não é uma previsão.</p>
+             <HelpTip label="Sobre Simulador de Cenários">Simulação ilustrativa com premissas fixas (+20% e +40% de MRR sobre o valor atual) — não é uma previsão.</HelpTip></SectionTitle>
           </div>
           <Button
             onClick={runSimulation}

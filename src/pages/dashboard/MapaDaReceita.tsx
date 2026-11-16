@@ -25,6 +25,7 @@ import ProdutosPanel from "./components/ProdutosPanel";
 import CanaisPanel from "./components/CanaisPanel";
 import { computeChannelRevenue, computeProductRevenue, computeSegmentRevenue, type DashboardData } from "./revenueInsights";
 
+import { HelpTip } from "../../components/ui/help-tip";
 type DrillKey = "leads" | "oportunidades" | "vendas" | "receita" | "retencao" | "emRisco";
 
 const SEGMENT_PALETTE = [
@@ -205,8 +206,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <SectionTitle>Receita por Canal de Origem</SectionTitle>
-            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Qual canal traz mais receita pro seu negócio.</p>
+            <SectionTitle>Receita por Canal de Origem <HelpTip label="Sobre Receita por Canal de Origem">Qual canal traz mais receita pro seu negócio.</HelpTip></SectionTitle>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
@@ -229,8 +229,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
 
         <Card className="overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <SectionTitle>Receita por Produto/Serviço</SectionTitle>
-            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Quais produtos geram mais receita.</p>
+            <SectionTitle>Receita por Produto/Serviço <HelpTip label="Sobre Receita por Produto/Serviço">Quais produtos geram mais receita.</HelpTip></SectionTitle>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
@@ -252,8 +251,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
         </Card>
 
         <Card className="p-5 flex flex-col shadow-sm">
-          <SectionTitle className="mb-1">Receita por Segmento</SectionTitle>
-          <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Em quais segmentos sua empresa mais ganha.</p>
+          <SectionTitle className="mb-1">Receita por Segmento <HelpTip label="Sobre Receita por Segmento">Em quais segmentos sua empresa mais ganha.</HelpTip></SectionTitle>
           {segmentos.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] italic flex-1 flex items-center justify-center">Sem contratos ativos ainda</p>
           ) : (

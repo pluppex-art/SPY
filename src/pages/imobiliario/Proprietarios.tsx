@@ -15,6 +15,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface ProprietarioItem {
   id: string;
   nome: string;
@@ -213,8 +214,7 @@ export default function Proprietarios() {
               <Users className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cadastrar Proprietário</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Dados cadastrais e contato do locador / vendedor</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cadastrar Proprietário <HelpTip label="Sobre Cadastrar Proprietário">Dados cadastrais e contato do locador / vendedor</HelpTip></h3>
             </div>
           </div>
         }

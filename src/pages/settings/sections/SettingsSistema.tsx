@@ -7,6 +7,7 @@ import { useTenantAiConfig } from "../../../hooks/useTenantAiConfig";
 import { useAuth } from "../../../contexts/AuthContext";
 import { ConfigSistemaAuroraAgentes } from "./SettingsSistemaAuroraAgentes";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 // Esta tela mostrava um painel inteiro de "backup" que não fazia nada:
 // destino de storage (S3/GCS/SFTP), botão "Criar Snapshot Agora" e um card
 // com data/tamanho/checksum SHA-512 fixos — nenhum backup nunca foi
@@ -21,21 +22,13 @@ export function ConfigSistemaBackups() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Backups & Segurança do Banco de Dados <ShieldCheck className="w-5 h-5 text-[var(--color-primary-blue)]" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)]">
-          O banco de dados deste sistema roda no Supabase, que gerencia backup e recuperação na própria infraestrutura.
-        </p>
+         <HelpTip label="Sobre Backups & Segurança do Banco de Dados">O banco de dados deste sistema roda no Supabase, que gerencia backup e recuperação na própria infraestrutura.</HelpTip></h1>
       </div>
 
       <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-4 shadow-sm">
         <h3 className="font-bold text-sm text-[var(--color-text-primary)] flex items-center gap-2">
           <HardDrive className="w-4 h-4 text-[var(--color-primary-blue)]" /> Onde o backup é gerenciado
-        </h3>
-        <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-          O Supabase realiza backups automáticos do banco de dados de acordo com o plano contratado do projeto
-          (backups diários e, em planos superiores, Point-in-Time Recovery). Este painel do S.P.Y. CRM não controla
-          nem substitui isso — a configuração e restauração de backups fica no painel do próprio Supabase.
-        </p>
+         <HelpTip label="Sobre Onde o backup é gerenciado">O Supabase realiza backups automáticos do banco de dados de acordo com o plano contratado do projeto (backups diários e, em planos superiores, Point-in-Time Recovery). Este painel do S.P.Y. CRM não controla nem substitui isso — a configuração e restauração de backups fica no painel do próprio Supabase.</HelpTip></h3>
         <a
           href="https://supabase.com/docs/guides/platform/backups"
           target="_blank"

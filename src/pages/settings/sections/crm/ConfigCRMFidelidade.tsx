@@ -8,6 +8,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { useFidelidade, type FidelidadeConfig } from "../../../../lib/fidelidade";
 import { FidelidadeBadge } from "../../../../components/FidelidadeBadge";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 // Configurações › CRM › Fidelidade: define as faixas (Bronze/Prata/Ouro...) pelo número de compras do cliente numa
 // janela (mês, 12 meses ou histórico). Genérico para qualquer empresa; os nomes, mínimos e cores são da empresa.
 
@@ -43,8 +44,7 @@ export function ConfigCRMFidelidade() {
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
-        <h2 className="text-lg font-black text-[var(--color-text-primary)] flex items-center gap-2"><Award className="w-5 h-5 text-[var(--color-primary-blue)]" /> Fidelidade de clientes</h2>
-        <p className="text-xs text-[var(--color-text-muted)] mt-1">Classifique seus clientes em níveis (Bronze, Prata, Ouro...) pelo número de compras. O nível aparece na lista de Clientes e dá para filtrar por ele.</p>
+        <h2 className="text-lg font-black text-[var(--color-text-primary)] flex items-center gap-2"><Award className="w-5 h-5 text-[var(--color-primary-blue)]" /> Fidelidade de clientes <HelpTip label="Sobre Fidelidade de clientes">Classifique seus clientes em níveis (Bronze, Prata, Ouro...) pelo número de compras. O nível aparece na lista de Clientes e dá para filtrar por ele.</HelpTip></h2>
       </div>
 
       <Card className="p-5 space-y-4">

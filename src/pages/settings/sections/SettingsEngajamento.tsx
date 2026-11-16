@@ -7,6 +7,7 @@ import { Reorder } from "motion/react";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 const ENGAJAMENTO_MODELOS_KEY = "engajamento_modelos_mensagem";
 const BUSINESS_DASHBOARD_KPIS_KEY = "business_dashboard_kpis";
 // Contadores de disparo abaixo ("1.240 disparos" etc.) são apenas exemplos
@@ -54,8 +55,7 @@ export function ConfigEngajamentoModelos() {
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Modelos de Mensagem</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Gerencie os templates de comunicação automatizada da sua empresa.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Modelos de Mensagem <HelpTip label="Sobre Modelos de Mensagem">Gerencie os templates de comunicação automatizada da sua empresa.</HelpTip></h1>
         </div>
         <Button onClick={() => { setEditingTemplate(null); setIsModalOpen(true); }} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-4 h-4 mr-1" /> Novo Modelo
@@ -107,8 +107,7 @@ export function ConfigEngajamentoAutomacoes() {
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Regras de Automação</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Gatilhos do sistema baseados em eventos do pipeline.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Regras de Automação <HelpTip label="Sobre Regras de Automação">Gatilhos do sistema baseados em eventos do pipeline.</HelpTip></h1>
         </div>
         <Button onClick={() => window.location.href = '/app/automacoes'} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-4 h-4 mr-1" /> Nova Automação
@@ -177,8 +176,7 @@ export function ConfigBusinessDashboard() {
     <div className="max-w-4xl space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Dashboard de Negócios</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Personalize os KPIs e alertas da tela inicial.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Dashboard de Negócios <HelpTip label="Sobre Dashboard de Negócios">Personalize os KPIs e alertas da tela inicial.</HelpTip></h1>
         </div>
         <Button onClick={handleExport} variant="outline" className="h-9 px-4 text-xs font-bold border-[var(--color-border-default)]">
           Exportar Relatório

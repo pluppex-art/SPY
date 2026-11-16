@@ -19,6 +19,7 @@ import {
 import { cn } from "../../lib/utils";
 import { friendlyError } from "../../lib/friendlyError";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] disabled:opacity-60";
 
@@ -356,8 +357,7 @@ export default function NotaEntradaDetalhe() {
 
         {!locked && (
           <Card className="p-6">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Fluxo da nota</h3>
-            <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Rascunho → Pronta para envio → Enviada → Validada → No estoque. O envio e a validação pela API externa ainda não estão ligados: por enquanto marque o status à mão no topo da página.</p>
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Fluxo da nota <HelpTip label="Sobre Fluxo da nota">Rascunho → Pronta para envio → Enviada → Validada → No estoque. O envio e a validação pela API externa ainda não estão ligados: por enquanto marque o status à mão no topo da página.</HelpTip></h3>
             {blockers.length > 0 ? (
               <ul className="space-y-1 mb-4">{blockers.slice(0, 6).map((b) => <li key={b} className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5"><Link2 className="w-3 h-3 mt-0.5 shrink-0" /> {b}</li>)}{blockers.length > 6 && <li className="text-[11px] text-[var(--color-text-faint)]">+{blockers.length - 6} pendência(s)…</li>}</ul>
             ) : (

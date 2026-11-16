@@ -51,6 +51,7 @@ import { apiFetch } from "../../../../lib/apiClient";
 import { DEFAULT_META_CONFIG, DEFAULT_GOOGLE_CONFIG, DEFAULT_PAYMENT_CONFIG, DEFAULT_MAXDATA_CONFIG } from "../../../../lib/tenantIntegrations";
 import { INTEGRATION_CATALOG, catalogHasAnyValue, catalogMissingRequired, type CatalogIntegration, type CatalogValues } from "../../../../lib/integrationCatalog";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 // Integration Categories
 type IntegrationCategory = "todas" | "anuncios" | "mensageria" | "pagamentos" | "automacoes" | "email" | "dados" | "crm" | "erp" | "ecommerce" | "produtividade" | "logistica";
 
@@ -1369,10 +1370,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
               <div>
                 <h3 className="text-base font-black text-[var(--color-text-primary)]">
                   Configuração Meta Ads & Pixel / CAPI
-                </h3>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Gerenciamento de Pixel, rastreamento de eventos e API de Conversões
-                </p>
+                 <HelpTip label="Sobre Configuração Meta Ads & Pixel / CAPI">Gerenciamento de Pixel, rastreamento de eventos e API de Conversões</HelpTip></h3>
               </div>
             </div>
           }
@@ -1540,10 +1538,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
                   <div>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-primary-blue)] mb-1">
                       Disparador de Evento de Teste (Pixel & CAPI)
-                    </h4>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      Envia um evento de teste de verdade para a Conversions API da Meta (chamada HTTP real) para confirmar que o Pixel ID e o token estão corretos. Não há hoje disparo automático nos eventos do CRM (novo lead, negócio ganho) — só este teste manual.
-                    </p>
+                     <HelpTip label="Sobre Disparador de Evento de Teste (Pixel & C">Envia um evento de teste de verdade para a Conversions API da Meta (chamada HTTP real) para confirmar que o Pixel ID e o token estão corretos. Não há hoje disparo automático nos eventos do CRM (novo lead, negócio ganho) — só este teste manual.</HelpTip></h4>
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -1646,10 +1641,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
               <div>
                 <h3 className="text-base font-black text-[var(--color-text-primary)]">
                   Configuração Google Ads & G-Tag
-                </h3>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Acompanhamento de conversões e Google Analytics 4
-                </p>
+                 <HelpTip label="Sobre Configuração Google Ads & G-Tag">Acompanhamento de conversões e Google Analytics 4</HelpTip></h3>
               </div>
             </div>
           }

@@ -16,6 +16,7 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
 import { fetchVeiculosCatalogo, veiculoLabelFromEmbed, VEICULO_EMBED } from "../../lib/veiculosCatalogo";
 
+import { HelpTip } from "../../components/ui/help-tip";
 // Status alinhado ao CHECK constraint real de veiculo_financiamentos —
 // não existe um "Contrato Assinado" separado no banco; usamos os mesmos
 // 4 valores já usados pelo simulador de financiamento em
@@ -283,8 +284,7 @@ export default function TrocasVeiculos() {
               <ArrowRightLeft className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Negociação com Troca</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Configure a entrada, veículo de saída e a diferença de valor</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Negociação com Troca <HelpTip label="Sobre Nova Negociação com Troca">Configure a entrada, veículo de saída e a diferença de valor</HelpTip></h3>
             </div>
           </div>
         }

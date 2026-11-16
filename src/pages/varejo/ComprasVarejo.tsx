@@ -14,6 +14,7 @@ import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../components/ui/help-tip";
 // Status exibido na UI. No banco (`compras.status`) só existem
 // 'Pendente' | 'Em Transporte' | 'Recebido no Estoque' | 'Cancelado' — os
 // dois primeiros valores da UI ('Emitida...', 'Faturada') mapeiam para 'Pendente'.
@@ -417,8 +418,7 @@ export default function ComprasVarejo() {
               <ClipboardList className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Ordem de Compra</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Solicite reposição de itens e insumos para seu estoque</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Ordem de Compra <HelpTip label="Sobre Nova Ordem de Compra">Solicite reposição de itens e insumos para seu estoque</HelpTip></h3>
             </div>
           </div>
         }

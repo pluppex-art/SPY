@@ -10,6 +10,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { Switch } from "../../components/ui/switch";
 
+import { HelpTip } from "../../components/ui/help-tip";
 type CnpjStatus = "idle" | "checking" | "active" | "inactive" | "invalid";
 
 interface EmpresaDados {
@@ -176,8 +177,7 @@ export default function ConfigEmpresaDados() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Dados da Empresa <Building2 className="w-5 h-5 text-[var(--color-primary-blue)]" />
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Gerencie informações cadastrais, fiscais e de contato da sua organização.</p>
+           <HelpTip label="Sobre Dados da Empresa">Gerencie informações cadastrais, fiscais e de contato da sua organização.</HelpTip></h1>
         </div>
         <Button 
           onClick={() => handleSave()} 
@@ -354,11 +354,7 @@ export default function ConfigEmpresaDados() {
 
           <div className="pt-4 border-t border-[var(--color-border-subtle)] space-y-3">
             <div>
-              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Perfil da empresa para a IA</h3>
-              <p className="text-[11px] text-[var(--color-text-muted)]">
-                A IA usa estes textos para falar sobre a empresa com os clientes. Escreva como explicaria a um vendedor novo. O que não estiver aqui
-                (nem em Produtos) ela não inventa: diz que a equipe confirma. Ela lê na próxima conversa, sem precisar de mais nada.
-              </p>
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Perfil da empresa para a IA <HelpTip label="Sobre Perfil da empresa para a IA">A IA usa estes textos para falar sobre a empresa com os clientes. Escreva como explicaria a um vendedor novo. O que não estiver aqui (nem em Produtos) ela não inventa: diz que a equipe confirma. Ela lê na próxima conversa, sem precisar de mais nada.</HelpTip></h3>
             </div>
             {CAMPOS_IA.map((c) => (
               <div key={c.key} className="space-y-1.5">

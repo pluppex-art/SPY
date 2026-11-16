@@ -14,6 +14,7 @@ import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useSolarConfig } from "../../lib/modules/solarConfig";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface ManutencaoSolarItem {
   id: string;
   usina: string;
@@ -253,8 +254,7 @@ export default function ManutencoesSolar() {
               <Wrench className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Manutenção Fotovoltaica</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Abertura de OS para lavagem de módulos ou revisão elétrica</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Manutenção Fotovoltaica <HelpTip label="Sobre Agendar Manutenção Fotovoltaica">Abertura de OS para lavagem de módulos ou revisão elétrica</HelpTip></h3>
             </div>
           </div>
         }

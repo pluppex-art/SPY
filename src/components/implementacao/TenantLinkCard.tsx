@@ -6,6 +6,7 @@ import { Button } from "../ui/button";
 import { supabase } from "../../lib/supabase";
 import { syncImplementationTenant } from "../../lib/implementationTenantApi";
 
+import { HelpTip } from "../ui/help-tip";
 const norm = (s: string) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 interface Props {
@@ -72,10 +73,7 @@ export function TenantLinkCard({ implementationId, clienteNome, linkedTenantId, 
       <div className="flex items-start gap-3">
         <Database className="w-4 h-4 mt-0.5 text-[var(--color-text-faint)] shrink-0" />
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Ambiente do cliente no SPY</h3>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 mb-3">
-            Se o cliente já tem conta no SPY, puxa usuários (logins), integrações já conectadas, funil e Aurora. Só preenche o que está vazio e nunca apaga o que você digitou.
-          </p>
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Ambiente do cliente no SPY <HelpTip label="Sobre Ambiente do cliente no SPY">Se o cliente já tem conta no SPY, puxa usuários (logins), integrações já conectadas, funil e Aurora. Só preenche o que está vazio e nunca apaga o que você digitou.</HelpTip></h3>
 
           {linkedTenantId ? (
             <div className="flex flex-wrap items-center gap-3">

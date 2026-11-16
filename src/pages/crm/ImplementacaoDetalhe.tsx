@@ -26,6 +26,7 @@ import {
 } from "../../lib/implementationForm";
 import { useImplementationStages } from "../os/hooks/useImplementationStages";
 
+import { HelpTip } from "../../components/ui/help-tip";
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]";
 
@@ -441,8 +442,7 @@ export default function ImplementacaoDetalhe() {
         {tab === "notas" && (
           <div className="space-y-4 max-w-3xl">
             <Card className="p-6">
-              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Notas internas</h3>
-              <p className="text-[11px] text-[var(--color-text-faint)] mb-3">Só a equipe vê. Nunca aparece no relatório enviado ao cliente.</p>
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Notas internas <HelpTip label="Sobre Notas internas">Só a equipe vê. Nunca aparece no relatório enviado ao cliente.</HelpTip></h3>
               <textarea
                 rows={6} value={notes} onChange={(e) => setNotes(e.target.value)}
                 onBlur={() => { if (notes !== (impl.internal_notes || "")) updateImplementation(impl.id, { internal_notes: notes || null }); }}
@@ -451,8 +451,7 @@ export default function ImplementacaoDetalhe() {
             </Card>
 
             <Card className="p-6 border-rose-500/20">
-              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Zona de risco</h3>
-              <p className="text-[11px] text-[var(--color-text-faint)] mb-3">Excluir apaga todas as respostas do formulário desta implementação. Não dá para desfazer.</p>
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Zona de risco <HelpTip label="Sobre Zona de risco">Excluir apaga todas as respostas do formulário desta implementação. Não dá para desfazer.</HelpTip></h3>
               <Button variant="danger" onClick={handleDelete} className="h-9 px-4 text-xs font-medium gap-1.5">
                 <Trash2 className="w-3.5 h-3.5" /> Excluir implementação
               </Button>

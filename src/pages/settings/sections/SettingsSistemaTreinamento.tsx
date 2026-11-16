@@ -12,6 +12,7 @@ import { ConfigSistemaConhecimentoIA } from "./SettingsSistemaConhecimento";
 import { ConfigSistemaAprendizados } from "./SettingsSistemaAprendizados";
 import { friendlyError } from "../../../lib/friendlyError";
 
+import { HelpTip } from "../../../components/ui/help-tip";
 // Os 4 agentes do modelo padrão. `key` é o agent_key que o n8n lê ao vivo por empresa
 // (ai_agent_prompts): o que for salvo aqui entra no prompt do agente na próxima execução,
 // que é o prompt base (80%), igual para todas as empresas. Os 20% de cada empresa vêm só do cadastro:
@@ -147,8 +148,7 @@ function EscopoVendas() {
   return (
     <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-3 shadow-sm">
       <div>
-        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Até onde os agentes de vendas vão ({activeTenantName ?? "empresa selecionada"})</h3>
-        <p className="text-[11px] text-[var(--color-text-muted)]">Vale para esta empresa. Para desligar o Agente Vendedor por completo, use a chave dele em Sistema → Aurora.</p>
+        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Até onde os agentes de vendas vão ({activeTenantName ?? "empresa selecionada"}) <HelpTip label="Sobre Até onde os agentes de vendas vão ()">Vale para esta empresa. Para desligar o Agente Vendedor por completo, use a chave dele em Sistema → Aurora.</HelpTip></h3>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {opcoes.map((o) => (
@@ -188,10 +188,7 @@ export function ConfigSistemaTreinamento() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Treinamento dos agentes <GraduationCap className="w-5 h-5 text-[var(--color-primary-blue)]" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Cada agente tem um prompt base (80%) igual para todas as empresas, que você edita aqui. Os 20% de cada empresa não são digitados aqui: vêm de Empresa → Dados (perfil para a IA) e de Produtos.
-        </p>
+         <HelpTip label="Sobre Treinamento dos agentes">Cada agente tem um prompt base (80%) igual para todas as empresas, que você edita aqui. Os 20% de cada empresa não são digitados aqui: vêm de Empresa → Dados (perfil para a IA) e de Produtos.</HelpTip></h1>
       </div>
 
       <Card className="p-3 bg-warning/10 border border-warning/30 text-xs text-[var(--color-text-primary)] flex items-start gap-2">

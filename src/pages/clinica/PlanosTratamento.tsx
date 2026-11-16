@@ -14,6 +14,7 @@ import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useClinicaConfig } from "../../lib/modules/clinicaConfig";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface PlanoTratamentoItem {
   id: string;
   paciente: string;
@@ -319,8 +320,7 @@ export default function PlanosTratamento() {
               <FileHeart className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Plano de Tratamento</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Defina as sessões, procedimentos inclusos e orçamento</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Plano de Tratamento <HelpTip label="Sobre Novo Plano de Tratamento">Defina as sessões, procedimentos inclusos e orçamento</HelpTip></h3>
             </div>
           </div>
         }

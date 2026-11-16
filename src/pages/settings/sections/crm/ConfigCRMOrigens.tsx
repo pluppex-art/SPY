@@ -7,6 +7,7 @@ import { NovaOrigemCRMModal } from "../../../../components/ui/modals/crm/NovaOri
 import { useData } from "../../../../contexts/DataContext";
 import { confirmDialog } from "../../../../components/ui/confirm-dialog";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 const SETTING_KEY = "crm_lead_origins";
 const DEFAULT_ORIGENS = ["Instagram", "WhatsApp", "Indicação", "Site / Orgânico", "Google Ads", "LinkedIn", "Outbound SDR"];
 
@@ -45,8 +46,7 @@ export function ConfigCRMOrigens() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Origens de Leads <Target className="w-5 h-5 text-[var(--color-primary-blue)]" />
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)]">Gerencie os canais de aquisição e atribuição de tráfego dos seus leads.</p>
+           <HelpTip label="Sobre Origens de Leads">Gerencie os canais de aquisição e atribuição de tráfego dos seus leads.</HelpTip></h1>
         </div>
         <Button 
           onClick={() => setIsModalOpen(true)} 

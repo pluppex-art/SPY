@@ -16,6 +16,7 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
 import { fetchVeiculosCatalogo, updateVeiculoAtributos, mapProductToVeiculo, TIPO_VEICULO } from "../../lib/veiculosCatalogo";
 
+import { HelpTip } from "../../components/ui/help-tip";
 interface ConsignacaoItem {
   id: string;
   veiculo: string;
@@ -342,8 +343,7 @@ export default function ConsignacoesVeiculos() {
               <Handshake className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Consignação de Veículo</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Cadastre o veículo e comissão acordada com o proprietário</p>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Consignação de Veículo <HelpTip label="Sobre Nova Consignação de Veículo">Cadastre o veículo e comissão acordada com o proprietário</HelpTip></h3>
             </div>
           </div>
         }

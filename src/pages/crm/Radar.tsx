@@ -24,6 +24,7 @@ import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
 import { supabase } from "../../lib/supabase";
 import { toast } from "sonner";
 
+import { HelpTip } from "../../components/ui/help-tip";
 type Risk = "critico" | "alto" | "atencao";
 const RISK_META: Record<Risk, { label: string; variant: "destructive" | "warning" | "info"; color: string }> = {
   critico: { label: "Crítico", variant: "destructive", color: "var(--color-danger)" },
@@ -307,8 +308,7 @@ export default function Radar() {
         <Card className="lg:col-span-1 p-5">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">Evolução de negócios em risco</h3>
-              <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Acompanhe a quantidade de negócios que esfriaram.</p>
+              <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">Evolução de negócios em risco <HelpTip label="Sobre Evolução de negócios em risco">Acompanhe a quantidade de negócios que esfriaram.</HelpTip></h3>
             </div>
             <select className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] px-2 py-1 text-[10px] shrink-0" value={janela} onChange={(e) => setJanela(Number(e.target.value) as (typeof JANELAS)[number])}>
               {JANELAS.map((j) => <option key={j} value={j}>Últimos {j} dias</option>)}
@@ -336,8 +336,7 @@ export default function Radar() {
         </Card>
 
         <Card className="p-5">
-          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1">Distribuição por risco</h3>
-          <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Percentual de negócios em risco.</p>
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1">Distribuição por risco <HelpTip label="Sobre Distribuição por risco">Percentual de negócios em risco.</HelpTip></h3>
           {totalEmRisco === 0 ? (
             <div className="h-[160px] flex items-center justify-center text-xs text-[var(--color-text-faint)]">Nenhum negócio esfriando. 🎯</div>
           ) : (
@@ -371,8 +370,7 @@ export default function Radar() {
         </Card>
 
         <Card className="p-5">
-          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1 flex items-center gap-1.5"><ListTree className="w-3.5 h-3.5" /> Parados por etapa</h3>
-          <p className="text-[10px] text-[var(--color-text-muted)] mb-3">Em qual etapa do funil os negócios mais travam.</p>
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1 flex items-center gap-1.5"><ListTree className="w-3.5 h-3.5" /> Parados por etapa <HelpTip label="Sobre Parados por etapa">Em qual etapa do funil os negócios mais travam.</HelpTip></h3>
           {porEtapa.length === 0 ? (
             <div className="h-[160px] flex items-center justify-center text-xs text-[var(--color-text-faint)]">Nenhum negócio esfriando. 🎯</div>
           ) : (

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useData } from "../../../../contexts/DataContext";
 import { apiFetch } from "../../../../lib/apiClient";
 
+import { HelpTip } from "../../../../components/ui/help-tip";
 const SETTING_KEY = "integracoes_sdr_webhooks";
 
 const DEFAULT_SDR_INTEGRATIONS = {
@@ -73,10 +74,7 @@ export function ConfigIntegracoesSDR() {
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
           Integrações SDR & Pré-Vendas
           <Zap className="w-5 h-5 text-[var(--color-primary-blue)]" />
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Cadastre os endpoints e valide a conexão com "Disparar Teste" (chamada HTTP real). O disparo automático nestes eventos de qualificação ainda não está implementado — hoje só o teste manual envia uma requisição de verdade.
-        </p>
+         <HelpTip label="Sobre Integrações SDR & Pré-Vendas">Cadastre os endpoints e valide a conexão com "Disparar Teste" (chamada HTTP real). O disparo automático nestes eventos de qualificação ainda não está implementado — hoje só o teste manual envia uma requisição de verdade.</HelpTip></h1>
       </div>
 
       {/* Reunião Agendada */}

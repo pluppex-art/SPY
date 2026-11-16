@@ -20,6 +20,7 @@ import { SalesFunnelWidget, type FunnelStepData } from './StrategicalWidgets/Sal
 import { RevenueByProductDonut, type RevenueSlice } from './StrategicalWidgets/RevenueByProductDonut';
 import { RevenueWaterfallChart } from './StrategicalWidgets/RevenueWaterfallChart';
 
+import { HelpTip } from "../../../components/ui/help-tip";
 interface Squad {
   nome: string;
   meta?: number;
@@ -250,8 +251,7 @@ export function StrategicalView({
             <div>
               <SectionTitle>
                 <BarChart3 className="w-5 h-5 text-[var(--color-primary-blue)]" /> Fluxo de Performance
-              </SectionTitle>
-              <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">Correlação entre volume de leads prospectados e faturamento recorrente.</p>
+               <HelpTip label="Sobre Fluxo de Performance">Correlação entre volume de leads prospectados e faturamento recorrente.</HelpTip></SectionTitle>
             </div>
           </div>
 
