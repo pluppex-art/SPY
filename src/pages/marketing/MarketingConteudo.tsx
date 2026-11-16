@@ -1,6 +1,6 @@
 import { PageContainer } from "../../components/PageContainer";
 import { useMemo, useState } from "react";
-import { Plus, Calendar, CheckCircle2, X, FileText, Share2, CalendarCheck, Layers } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, X, FileText, Share2, CalendarCheck, Layers, Columns3 } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
@@ -11,6 +11,7 @@ import { useData } from "../../contexts/DataContext";
 
 import { useMarketingConteudo } from "./useMarketingConteudo";
 import { KanbanColumn } from "./components/KanbanColumn";
+import { ConteudoCalendario } from "./components/ConteudoCalendario";
 import { NewTaskModal } from "./components/NewTaskModal";
 import { TaskDetailsDrawer } from "./components/TaskDetailsDrawer";
 import { friendlyError } from "../../lib/friendlyError";
@@ -52,6 +53,7 @@ export default function MarketingConteudo() {
   const [busca, setBusca] = useState("");
   const [plataforma, setPlataforma] = useState("");
   const [etapa, setEtapa] = useState("");
+  const [visao, setVisao] = useState<"quadro" | "calendario">("quadro");
 
   const plataformas = useMemo(() => Array.from(new Set(tasks.map(t => t.platform).filter(Boolean))).sort() as string[], [tasks]);
   const tasksFiltradas = useMemo(() => {
@@ -126,20 +128,40 @@ export default function MarketingConteudo() {
       <div className="flex justify-between items-center mb-6">
         <div className="flex gap-4 items-center overflow-x-auto pb-2 scrollbar-none">
           <Button 
-            onClick={() => setIsNewTaskModalOpen(true)}
+            onClick={() => { setNewDate(""); setIsNewTaskModalOpen(true); }}
             className="bg-[#2563EB] hover:bg-blue-600 shadow-lg text-xs font-bold gap-2"
           >
              <Plus className="w-4 h-4" /> Nova Pauta
           </Button>
-          <Button
-            onClick={() => toast.info("Visualização em calendário ainda não disponível — em breve.")}
-            variant="outline" className="border-white/10 text-xs font-bold gap-2 bg-transparent"
-          >
-             <Calendar className="w-4 h-4" /> Calendário
-          </Button>
+          <div className="flex items-center bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] h-10 shrink-0">
+            {([
+              { id: "quadro" as const, label: "Quadro", icon: Columns3 },
+              { id: "calendario" as const, label: "Calendário", icon: Calendar },
+            ]).map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setVisao(v.id)}
+                aria-pressed={visao === v.id}
+                className={`flex items-center gap-1.5 px-3.5 h-full text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer border-none first:rounded-l-[calc(var(--radius-control)-1px)] last:rounded-r-[calc(var(--radius-control)-1px)] ${
+                  visao === v.id ? "bg-[var(--color-primary-blue)] !text-white shadow-xs" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-transparent"
+                }`}
+              >
+                <v.icon className="w-3.5 h-3.5" /> {v.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
+      {visao === "calendario" ? (
+        <ConteudoCalendario
+          tasks={tasksFiltradas}
+          colunas={initialColumns}
+          onOpenTask={openTask}
+          onNovaPauta={(dataISO) => { setNewDate(dataISO); setIsNewTaskModalOpen(true); }}
+        />
+      ) : (
       <div id="app-marketing-conteudo-kanban-board" className="w-full flex-1 flex flex-col min-h-0">
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-6 overflow-x-auto min-h-[500px] scrollbar-thin pb-6 flex-1 items-start">
@@ -157,6 +179,7 @@ export default function MarketingConteudo() {
           </div>
         </DragDropContext>
       </div>
+      )}
 
       {/* Modal: Nova Pauta */}
       <NewTaskModal
