@@ -162,7 +162,7 @@ export default function Messaging() {
     <div className={`flex flex-col bg-[var(--color-surface)] overflow-hidden ${isMobile ? "min-h-[100dvh] justify-center relative" : "h-full w-full"}`}>
 
       {/* Seções do Chat: tudo numa tela só — conversas (WhatsApp, Instagram, e-mail e as IAs), equipe e chatbot. */}
-      <div className="shrink-0 flex items-center gap-1 p-2 border-b border-white/5 bg-[var(--color-surface)] overflow-x-auto scrollbar-none">
+      <div className="shrink-0 flex items-center gap-1 p-2 border-b border-[var(--color-border-default)] bg-[var(--color-surface)] overflow-x-auto scrollbar-none">
         {([
           { id: "conversas" as const, label: "Conversas", icon: MessageCircle, on: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" },
           { id: "equipe" as const, label: "Equipe", icon: Users, on: "bg-blue-500/15 text-blue-400 border border-blue-500/25" },
@@ -173,7 +173,7 @@ export default function Messaging() {
             type="button"
             onClick={() => setMode(t.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shrink-0 ${
-              mode === t.id ? t.on : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
+              mode === t.id ? t.on : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"
             }`}
           >
             <t.icon className="w-3.5 h-3.5" />
@@ -186,7 +186,7 @@ export default function Messaging() {
       <div className={`flex-1 min-h-0 overflow-hidden ${isMobile ? "w-full max-w-[768px] self-center" : "w-full"}`}>
 
         {mode === "equipe" ? (
-          <div className="h-full w-full flex border border-white/10 rounded-b-2xl bg-[#0F172A]/85 shadow-2xl backdrop-blur-xl overflow-hidden">
+          <div className="h-full w-full flex border border-[var(--color-border-default)] rounded-b-2xl bg-[var(--color-surface)] shadow-2xl backdrop-blur-xl overflow-hidden">
             <InternalChatView />
           </div>
         ) : mode === "chatbot" ? (
@@ -196,7 +196,7 @@ export default function Messaging() {
             </Suspense>
           </div>
         ) : (
-          <div className={`${isMobile ? "h-[calc(100dvh-56px)] flex flex-col relative bg-[var(--color-surface)] overflow-hidden" : "h-full rounded-b-2xl flex border border-white/10 bg-[#0F172A]/85 shadow-2xl backdrop-blur-xl overflow-hidden relative"}`}>
+          <div className={`${isMobile ? "h-[calc(100dvh-56px)] flex flex-col relative bg-[var(--color-surface)] overflow-hidden" : "h-full rounded-b-2xl flex border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-2xl backdrop-blur-xl overflow-hidden relative"}`}>
 
             <ChatListSidebar
               isMobile={isMobile}

@@ -87,22 +87,22 @@ function InternalSidebar({ channels, activeChannelId, onSelectChannel, onNewDM }
   });
 
   return (
-    <div className="w-[320px] lg:w-[380px] h-full flex flex-col shrink-0 border-r border-white/5 bg-[var(--color-surface)] z-10">
+    <div className="w-[320px] lg:w-[380px] h-full flex flex-col shrink-0 border-r border-[var(--color-border-default)] bg-[var(--color-surface)] z-10">
       {/* Header — igual ao ChatListSidebar */}
-      <div className="shrink-0 h-[72px] px-5 flex items-center justify-between border-b border-white/5">
-        <h1 className="text-xl font-bold text-white tracking-tight">Chat Interno</h1>
-        <div className="flex items-center gap-3 text-slate-400">
-          <button onClick={onNewDM} title="Nova mensagem direta" className="p-2 bg-white/[0.03] hover:bg-white/5 rounded-full transition-colors">
+      <div className="shrink-0 h-[72px] px-5 flex items-center justify-between border-b border-[var(--color-border-default)]">
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">Chat Interno</h1>
+        <div className="flex items-center gap-3 text-[var(--color-text-muted)]">
+          <button onClick={onNewDM} title="Nova mensagem direta" className="p-2 bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface-sunken)] rounded-full transition-colors">
             <Plus className="w-5 h-5" />
           </button>
-          <button className="p-2 bg-white/[0.03] hover:bg-white/5 rounded-full transition-colors">
+          <button className="p-2 bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface-sunken)] rounded-full transition-colors">
             <MoreVertical className="w-5 h-5" />
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="shrink-0 flex overflow-x-auto scrollbar-none border-b border-white/5 px-3 py-3 gap-2 bg-[var(--color-surface)]/50 backdrop-blur-md">
+      <div className="shrink-0 flex overflow-x-auto scrollbar-none border-b border-[var(--color-border-default)] px-3 py-3 gap-2 bg-[var(--color-surface)]/50 backdrop-blur-md">
         {tabs.map(tab => (
           <button
             key={tab}
@@ -110,7 +110,7 @@ function InternalSidebar({ channels, activeChannelId, onSelectChannel, onNewDM }
             className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-medium rounded-full transition-all cursor-pointer ${
               activeTab === tab
                 ? "bg-blue-600 text-white shadow-md shadow-blue-900/20"
-                : "bg-white/5 hover:bg-white/10 text-slate-300"
+                : "bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]"
             }`}
           >
             {tab}
@@ -119,20 +119,20 @@ function InternalSidebar({ channels, activeChannelId, onSelectChannel, onNewDM }
       </div>
 
       {/* Search */}
-      <div className="shrink-0 px-5 py-3 border-b border-white/5 bg-[var(--color-surface)]/40">
+      <div className="shrink-0 px-5 py-3 border-b border-[var(--color-border-default)] bg-[var(--color-surface)]/40">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-faint)]" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar canal ou usuário..."
-            className="w-full bg-black/40 border border-white/5 rounded-xl pl-10 pr-8 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors placeholder:text-slate-500"
+            className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-xl pl-10 pr-8 py-2.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500 transition-colors placeholder:text-[var(--color-text-faint)]"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-full hover:bg-white/10"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] p-1 rounded-full hover:bg-[var(--color-surface-sunken)]"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -144,12 +144,12 @@ function InternalSidebar({ channels, activeChannelId, onSelectChannel, onNewDM }
       <div className="scrollbar-none flex-1 overflow-y-auto pb-20">
         {filtered.length === 0 && (
           <div className="p-10 flex flex-col items-center justify-center gap-4 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 shadow-lg">
-              <Search className="w-8 h-8 text-slate-400" strokeWidth={1.5} />
+            <div className="w-16 h-16 rounded-2xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-muted)] shadow-lg">
+              <Search className="w-8 h-8 text-[var(--color-text-muted)]" strokeWidth={1.5} />
             </div>
             <div className="space-y-1">
-              <h4 className="text-sm font-bold text-white">Nenhum canal encontrado</h4>
-              <p className="text-xs text-slate-400">Não encontramos nenhum canal ou usuário com esse nome.</p>
+              <h4 className="text-sm font-bold text-[var(--color-text-primary)]">Nenhum canal encontrado</h4>
+              <p className="text-xs text-[var(--color-text-muted)]">Não encontramos nenhum canal ou usuário com esse nome.</p>
             </div>
           </div>
         )}
@@ -161,10 +161,10 @@ function InternalSidebar({ channels, activeChannelId, onSelectChannel, onNewDM }
             <button
               key={ch.id}
               onClick={() => onSelectChannel(ch.id)}
-              className={`w-full flex items-center gap-4 py-4 transition-all border-b border-white/5 text-left cursor-pointer group border-l-4 ${
+              className={`w-full flex items-center gap-4 py-4 transition-all border-b border-[var(--color-border-default)] text-left cursor-pointer group border-l-4 ${
                 isActive
                   ? "border-l-blue-500 bg-blue-500/10 pl-[16px] pr-5 shadow-[inset_4px_0_15px_rgba(59,130,246,0.15),0_0_15px_rgba(59,130,246,0.1)] ring-1 ring-blue-500/20 text-white"
-                  : "border-transparent pl-[16px] pr-5 hover:bg-white/5"
+                  : "border-transparent pl-[16px] pr-5 hover:bg-[var(--color-surface-sunken)]"
               }`}
             >
               {/* Avatar com badge de tipo */}
@@ -172,7 +172,7 @@ function InternalSidebar({ channels, activeChannelId, onSelectChannel, onNewDM }
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-inner bg-gradient-to-br ${channelColor(ch.name)}`}>
                   {chAvatar(ch)}
                 </div>
-                <div className="absolute -bottom-1 -right-1 bg-[#0F172A] rounded-full p-[3px] shadow-sm ring-2 ring-[#0B1120]">
+                <div className="absolute -bottom-1 -right-1 bg-[var(--color-surface)] rounded-full p-[3px] shadow-sm ring-2 ring-[var(--color-surface)]">
                   {chBadgeIcon(ch.type)}
                 </div>
               </div>
@@ -180,15 +180,15 @@ function InternalSidebar({ channels, activeChannelId, onSelectChannel, onNewDM }
               {/* Conteúdo */}
               <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
                 <div className="flex justify-between items-center">
-                  <h3 className={`font-semibold text-[15px] truncate ${isActive ? "text-white" : "text-slate-200"}`}>
+                  <h3 className={`font-semibold text-[15px] truncate ${"text-[var(--color-text-primary)]"}`}>
                     {chDisplayName(ch)}
                   </h3>
                   {timeStr && (
-                    <span className="text-[11px] font-medium text-slate-500 shrink-0 ml-2">{timeStr}</span>
+                    <span className="text-[11px] font-medium text-[var(--color-text-faint)] shrink-0 ml-2">{timeStr}</span>
                   )}
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[13px] truncate flex-1 leading-snug text-slate-500">{preview}</p>
+                  <p className="text-[13px] truncate flex-1 leading-snug text-[var(--color-text-faint)]">{preview}</p>
                 </div>
               </div>
             </button>
@@ -228,13 +228,13 @@ function InternalChatArea({ channel, messages, inputText, setInputText, sendMess
 
   if (!channel) {
     return (
-      <div className="flex-1 flex items-center justify-center relative bg-[#0F172A]/30">
+      <div className="flex-1 flex items-center justify-center relative bg-[var(--color-surface-sunken)]">
         <div className="flex flex-col items-center justify-center max-w-[420px] text-center px-6">
           <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-900/30 mb-8 -rotate-12 ring-4 ring-white/5">
             <MessageSquare className="w-10 h-10 text-white rotate-12" strokeWidth={2} />
           </div>
-          <h2 className="text-white text-3xl font-bold tracking-tight mb-4">Chat Interno</h2>
-          <p className="text-slate-400 text-[15px] leading-relaxed mb-8">
+          <h2 className="text-[var(--color-text-primary)] text-3xl font-bold tracking-tight mb-4">Chat Interno</h2>
+          <p className="text-[var(--color-text-muted)] text-[15px] leading-relaxed mb-8">
             Comunique-se com sua equipe em canais, squads ou mensagens diretas.
           </p>
         </div>
@@ -245,12 +245,12 @@ function InternalChatArea({ channel, messages, inputText, setInputText, sendMess
   const isDirect = channel.type === "direct";
 
   return (
-    <div className="flex-1 h-full flex flex-col bg-[#0F172A]/50 z-0 relative min-w-0">
+    <div className="flex-1 h-full flex flex-col bg-[var(--color-surface)] z-0 relative min-w-0">
       {/* Header */}
-      <div className="shrink-0 h-[64px] px-2 md:px-6 flex items-center justify-between border-b border-white/5 bg-[#0F172A]/90 backdrop-blur-md z-10 shadow-sm">
+      <div className="shrink-0 h-[64px] px-2 md:px-6 flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] z-10 shadow-sm">
         <div className="flex items-center gap-2 md:gap-3 max-w-[70%]">
           {onBack && (
-            <button onClick={onBack} className="p-2 -ml-1 text-slate-400 hover:text-white rounded-full transition-colors">
+            <button onClick={onBack} className="p-2 -ml-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] rounded-full transition-colors">
               <ArrowLeft className="w-6 h-6" />
             </button>
           )}
@@ -258,22 +258,22 @@ function InternalChatArea({ channel, messages, inputText, setInputText, sendMess
             {isDirect ? channel.name.split(" & ")[1]?.slice(0, 2).toUpperCase() : channelTypeIcon(channel.type)}
           </div>
           <div className="flex flex-col min-w-0">
-            <h2 className="text-white font-semibold text-[15px] md:text-[16px] truncate tracking-tight">
+            <h2 className="text-[var(--color-text-primary)] font-semibold text-[15px] md:text-[16px] truncate tracking-tight">
               {isDirect
                 ? channel.name.replace(/.*& /, "")
                 : `${channel.type === "geral" ? "#" : channel.type === "squad" ? "⚡ " : ""}${channel.name}`}
             </h2>
-            <span className="text-[12px] text-slate-400 truncate">
+            <span className="text-[12px] text-[var(--color-text-muted)] truncate">
               {channel.description || (channel.type === "geral" ? "Canal geral" : channel.type === "squad" ? "Squad" : "Direto")}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 text-slate-400 shrink-0">
-          <button className="p-2 bg-white/5 hover:bg-white/10 hover:text-white rounded-full transition-colors hidden sm:flex">
+        <div className="flex items-center gap-1 text-[var(--color-text-muted)] shrink-0">
+          <button className="p-2 bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] rounded-full transition-colors hidden sm:flex">
             <Search className="w-5 h-5" />
           </button>
-          <button className="p-2 bg-white/5 hover:bg-white/10 hover:text-white rounded-full transition-colors">
+          <button className="p-2 bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] rounded-full transition-colors">
             <MoreVertical className="w-5 h-5" />
           </button>
         </div>
@@ -286,17 +286,17 @@ function InternalChatArea({ channel, messages, inputText, setInputText, sendMess
       >
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full opacity-50 flex-col gap-4">
-            <div className="bg-white/5 p-6 rounded-full shadow-lg ring-1 ring-white/10">
+            <div className="bg-[var(--color-surface-sunken)] p-6 rounded-full shadow-lg ring-1 ring-white/10">
               <MessageSquare className="w-10 h-10 text-blue-400" />
             </div>
-            <p className="text-sm text-slate-400 font-medium">
+            <p className="text-sm text-[var(--color-text-muted)] font-medium">
               Seja o primeiro a escrever em {channel.type !== "direct" ? `#${channel.name}` : channel.name.replace(/.*& /, "")}
             </p>
           </div>
         ) : (
           <>
             <div className="flex justify-center mb-6">
-              <span className="text-[11px] font-medium text-slate-400 bg-white/5 px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-sm">
+              <span className="text-[11px] font-medium text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-sm">
                 Hoje
               </span>
             </div>
@@ -321,7 +321,7 @@ function InternalChatArea({ channel, messages, inputText, setInputText, sendMess
 
                   <div className={`flex flex-col max-w-[85%] sm:max-w-[70%] ${isMe ? "items-end" : "items-start"}`}>
                     {!grouped && (
-                      <span className={`text-[10px] text-slate-500 font-semibold mb-1 ${isMe ? "mr-1" : "ml-1"}`}>
+                      <span className={`text-[10px] text-[var(--color-text-faint)] font-semibold mb-1 ${isMe ? "mr-1" : "ml-1"}`}>
                         {isMe ? "Você" : msg.sender_name}
                       </span>
                     )}
@@ -333,12 +333,12 @@ function InternalChatArea({ channel, messages, inputText, setInputText, sendMess
                       <div className={`px-4 py-2.5 relative shadow-sm ${
                         isMe
                           ? "bg-blue-600 text-white rounded-2xl rounded-tr-sm"
-                          : "bg-white/5 text-slate-100 rounded-2xl rounded-tl-sm border border-white/5"
+                          : "bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] rounded-2xl rounded-tl-sm border border-[var(--color-border-default)]"
                       }`}>
                         <p className="text-[14.5px] leading-relaxed break-words whitespace-pre-wrap pb-2">
                           {msg.content}
                         </p>
-                        <span className={`text-[10px] font-medium absolute bottom-1.5 right-3 flex items-center gap-1 ${isMe ? "text-blue-200/80" : "text-slate-500"}`}>
+                        <span className={`text-[10px] font-medium absolute bottom-1.5 right-3 flex items-center gap-1 ${isMe ? "text-blue-200/80" : "text-[var(--color-text-faint)]"}`}>
                           {formatTime(msg.created_at)}
                           {isMe && <CheckCheck className="w-3.5 h-3.5 text-emerald-400" strokeWidth={2.5} />}
                         </span>
@@ -353,9 +353,9 @@ function InternalChatArea({ channel, messages, inputText, setInputText, sendMess
       </div>
 
       {/* Input */}
-      <div className="p-3 sm:p-4 shrink-0 relative bg-[#0F172A]/80 border-t border-white/5 backdrop-blur-md z-10">
+      <div className="p-3 sm:p-4 shrink-0 relative bg-[var(--color-surface-elevated)] border-t border-[var(--color-border-subtle)] z-10">
         <div className="flex items-end gap-2 sm:gap-3 mx-auto w-full max-w-4xl">
-          <div className="flex-1 bg-[var(--color-surface-elevated)] border border-white/5 rounded-2xl flex items-end min-h-[50px] shadow-inner transition-colors focus-within:border-blue-500/50 min-w-0 relative">
+          <div className="flex-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl flex items-end min-h-[50px] shadow-inner transition-colors focus-within:border-blue-500/50 min-w-0 relative">
 
             {/* Emoji/Sticker picker */}
             {showPicker && (
@@ -368,7 +368,7 @@ function InternalChatArea({ channel, messages, inputText, setInputText, sendMess
 
             <button
               onClick={() => setShowPicker(v => !v)}
-              className={`p-3 sm:p-3.5 shrink-0 transition-colors ${showPicker ? "text-blue-400" : "text-slate-400 hover:text-white"}`}
+              className={`p-3 sm:p-3.5 shrink-0 transition-colors ${showPicker ? "text-blue-400" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
             >
               <SmileIcon className="w-5 h-5" />
             </button>
@@ -381,15 +381,15 @@ function InternalChatArea({ channel, messages, inputText, setInputText, sendMess
                 if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
               }}
               placeholder="Mensagem..."
-              className="flex-1 min-w-0 w-full max-h-[120px] bg-transparent text-white border-0 focus:ring-0 resize-none py-[14px] px-1 text-[15px] outline-none placeholder-slate-500 overflow-y-auto block"
+              className="flex-1 min-w-0 w-full max-h-[120px] bg-transparent text-[var(--color-text-primary)] border-0 focus:ring-0 resize-none py-[14px] px-1 text-[15px] outline-none placeholder:text-[var(--color-text-faint)] overflow-y-auto block"
               rows={1}
             />
 
-            <button className="p-3 sm:p-3.5 text-slate-400 hover:text-white shrink-0 transition-colors">
+            <button className="p-3 sm:p-3.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shrink-0 transition-colors">
               <Paperclip className="w-5 h-5 -rotate-45" />
             </button>
             {!inputText && (
-              <button className="p-3 sm:p-3.5 pl-1 pr-3 sm:pr-4 text-slate-400 hover:text-white shrink-0 transition-colors">
+              <button className="p-3 sm:p-3.5 pl-1 pr-3 sm:pr-4 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shrink-0 transition-colors">
                 <Camera className="w-5 h-5" />
               </button>
             )}
@@ -400,8 +400,8 @@ function InternalChatArea({ channel, messages, inputText, setInputText, sendMess
             className="w-[46px] h-[46px] sm:w-[50px] sm:h-[50px] rounded-2xl bg-blue-600 flex items-center justify-center shrink-0 hover:bg-blue-500 active:scale-95 transition-all shadow-md shadow-blue-900/30"
           >
             {inputText.trim()
-              ? <Send className="w-5 h-5 translate-x-[2px] -translate-y-[1px] text-white" />
-              : <Mic className="w-5 h-5 text-white" />
+              ? <Send className="w-5 h-5 translate-x-[2px] -translate-y-[1px] text-[var(--color-text-primary)]" />
+              : <Mic className="w-5 h-5 text-[var(--color-text-primary)]" />
             }
           </button>
         </div>
@@ -434,7 +434,7 @@ export function InternalChatView() {
 
   if (loading && channels.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-slate-500">
+      <div className="flex-1 flex items-center justify-center text-[var(--color-text-faint)]">
         <div className="text-sm">Carregando canais...</div>
       </div>
     );
@@ -444,19 +444,19 @@ export function InternalChatView() {
     <div className="flex h-full w-full overflow-hidden relative">
       {/* DM User Search Overlay */}
       {showDMSearch && (
-        <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[#0F172A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5">
-              <Search className="w-4 h-4 text-slate-500 shrink-0" />
+        <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border-default)]">
+              <Search className="w-4 h-4 text-[var(--color-text-faint)] shrink-0" />
               <input
                 autoFocus
                 type="text"
                 value={dmSearch}
                 onChange={e => setDmSearch(e.target.value)}
                 placeholder="Buscar usuário para mensagem direta..."
-                className="flex-1 bg-transparent text-sm text-white placeholder-slate-600 outline-none"
+                className="flex-1 bg-transparent text-sm text-[var(--color-text-primary)] placeholder-slate-600 outline-none"
               />
-              <button onClick={() => { setShowDMSearch(false); setDmSearch(""); }} className="text-slate-500 hover:text-white">
+              <button onClick={() => { setShowDMSearch(false); setDmSearch(""); }} className="text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -467,20 +467,20 @@ export function InternalChatView() {
                   <button
                     key={u.id}
                     onClick={() => { openDirectMessage(u); setShowDMSearch(false); setDmSearch(""); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-surface-sunken)] transition-colors text-left"
                   >
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br ${channelColor(u.name)}`}>
                       {u.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-white">{u.name}</p>
-                      <p className="text-[11px] text-slate-500">{u.role || u.email}</p>
+                      <p className="text-sm font-semibold text-[var(--color-text-primary)]">{u.name}</p>
+                      <p className="text-[11px] text-[var(--color-text-faint)]">{u.role || u.email}</p>
                     </div>
                   </button>
                 ))
               }
               {otherUsers.filter(u => normalizeText(u.name).includes(normalizeText(dmSearch))).length === 0 && (
-                <p className="px-4 py-6 text-sm text-slate-600 text-center">Nenhum usuário encontrado</p>
+                <p className="px-4 py-6 text-sm text-[var(--color-text-faint)] text-center">Nenhum usuário encontrado</p>
               )}
             </div>
           </div>

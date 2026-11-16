@@ -13,6 +13,8 @@ interface ConversasSectionProps {
   lead: any;
   /** Dentro do Chat: sem margens e sem altura própria — a área da conversa é quem rola. */
   embed?: boolean;
+  /** Muda quando chega mensagem nova no Chat: recarrega a conversa em silêncio, sem piscar. */
+  sinal?: number;
 }
 
 interface Msg {
@@ -169,7 +171,7 @@ function MidiaMensagem({ leadId, m, doVendedor }: { leadId: string; m: Msg; doVe
  * contam, porque o número é guardado com formatos diferentes ("+55639294-0613",
  * "5561995215212"). A visibilidade é a mesma do resto do sistema (RLS por tenant).
  */
-export function ConversasSection({ lead, embed = false }: ConversasSectionProps) {
+export function ConversasSection({ lead, embed = false, sinal }: ConversasSectionProps) {
   const { colaboradores } = useData() as any;
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [instancias, setInstancias] = useState<Record<string, { name: string; colaboradorId: string | null }>>({});
@@ -285,11 +287,26 @@ export function ConversasSection({ lead, embed = false }: ConversasSectionProps)
     carregar();
   }, [carregar]);
 
+  // Mensagem nova no Chat: recarrega sem limpar a tela.
+  const primeiroSinal = useRef(true);
+  useEffect(() => {
+    if (primeiroSinal.current) { primeiroSinal.current = false; return; }
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sinal]);
+
+  const totalAnterior = useRef(0);
   useEffect(() => {
     if (primeiraCarga.current && msgs.length > 0) {
       fimRef.current?.scrollIntoView();
       primeiraCarga.current = false;
+    } else if (embed && msgs.length > totalAnterior.current && totalAnterior.current > 0) {
+      // Mensagem nova: acompanha o fim só se a pessoa estava perto dele.
+      let el: HTMLElement | null = fimRef.current?.parentElement ?? null;
+      while (el && !(el.scrollHeight > el.clientHeight && /(auto|scroll)/.test(getComputedStyle(el).overflowY))) el = el.parentElement;
+      if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 360) fimRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }
+    totalAnterior.current = msgs.length;
   }, [msgs]);
 
   const nomeDoVendedor = (instId: string | null, direto?: string) => {

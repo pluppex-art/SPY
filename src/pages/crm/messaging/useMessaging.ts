@@ -64,6 +64,25 @@ const playIncomingMessageSound = (soundEnabled: boolean) => {
   }
 };
 
+/** Mensagens da conversa: o que o servidor devolveu + as que acabei de enviar e ainda não chegaram (otimistas). */
+function mesclarMensagens(atuais: Message[] | undefined, servidor: Message[]): Message[] {
+  const pendentes = (atuais || []).filter(
+    (m) => m.id.startsWith("opt-") && !servidor.some((x) => x.sender === "me" && x.text === m.text),
+  );
+  const proxima = pendentes.length ? [...servidor, ...pendentes] : servidor;
+  // Nada mudou (mesmo tamanho, mesmo último id e texto): devolve o mesmo array e a tela não é redesenhada.
+  if (atuais && atuais.length === proxima.length) {
+    const a = atuais[atuais.length - 1];
+    const b = proxima[proxima.length - 1];
+    if (!a || !b || (a.id === b.id && a.text === b.text && a.status === b.status)) return atuais;
+  }
+  return proxima;
+}
+
+/** Assinatura leve da lista de conversas: só redesenha quando algo visível mudou. */
+const assinaturaContatos = (lista: Contact[]) =>
+  lista.map((c) => `${c.id}|${c.unread}|${c.lastMessage}|${c.time}|${c.name}|${c.online ? 1 : 0}`).join("\n");
+
 export function useMessaging() {
   const { leads, leadActivities, addLeadActivity } = useData();
   const { user, activeTenantId } = useAuth();
@@ -141,11 +160,6 @@ export function useMessaging() {
       window.sessionStorage.setItem("axis_activeTab", activeTab);
       window.sessionStorage.setItem("axis_searchQuery", searchQuery);
     }
-    setIsSearching(true);
-    const timer = setTimeout(() => {
-      setIsSearching(false);
-    }, 350);
-    return () => clearTimeout(timer);
   }, [searchQuery, activeTab]);
 
   const [activeChat, setActiveChat] = useState<string | null>(null);
@@ -206,7 +220,7 @@ export function useMessaging() {
       .then(data => {
         // Lista vazia também vale: ao trocar para uma empresa sem conversas, não pode sobrar a lista da anterior.
         if (Array.isArray(data)) {
-          setContacts(data);
+          setContacts((prev) => (assinaturaContatos(prev) === assinaturaContatos(data) ? prev : data));
           const currentUnread = data.reduce((sum: number, c: any) => sum + (c.unread || 0), 0);
           if (currentUnread > prevUnreadCountRef.current) {
             playIncomingMessageSound(soundEnabled);
@@ -281,8 +295,11 @@ export function useMessaging() {
       apiFetch(`/api/whatsapp/messages/${activeChat}${q}`)
         .then(res => res.json())
         .then(data => {
-          if (data) {
-            setMessages(prev => ({ ...prev, [activeChat]: data }));
+          if (Array.isArray(data)) {
+            setMessages(prev => {
+              const proxima = mesclarMensagens(prev[activeChat], data);
+              return proxima === prev[activeChat] ? prev : { ...prev, [activeChat]: proxima };
+            });
           }
           setIsOffline(false);
         })
@@ -390,7 +407,11 @@ export function useMessaging() {
       apiFetch(`/api/whatsapp/messages/${activeChat}${q}`)
         .then(res => res.json())
         .then(data => {
-          setMessages(prev => ({ ...prev, [activeChat]: data }));
+          if (!Array.isArray(data)) return;
+          setMessages(prev => {
+            const proxima = mesclarMensagens(prev[activeChat], data);
+            return proxima === prev[activeChat] ? prev : { ...prev, [activeChat]: proxima };
+          });
         })
         .catch(err => {
           console.warn("Could not reload messages after sending:", err.message || err);
