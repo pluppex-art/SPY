@@ -1,4 +1,3 @@
-import UnidadeMaxSelect from "../../components/UnidadeMaxSelect";
 import { useUnidadeMax } from "../../lib/unidadeMaxdata";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
@@ -182,7 +181,6 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
             </button>
           ))}
         </div>
-        <UnidadeMaxSelect />
         <DateRangeFilter dateFrom={dashboard.dateFrom} setDateFrom={dashboard.setDateFrom} dateTo={dashboard.dateTo} setDateTo={dashboard.setDateTo} />
       </div>
 

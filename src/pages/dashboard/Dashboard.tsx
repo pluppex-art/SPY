@@ -1,4 +1,3 @@
-import UnidadeMaxSelect from "../../components/UnidadeMaxSelect";
 import { PageContainer } from "../../components/PageContainer";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 
@@ -52,8 +51,7 @@ export default function Dashboard() {
             Snapshot Financeiro e todo o resto da tela (mesmo intervalo em
             todo componente, ver useDashboard.ts/StrategicalView.tsx). */}
         <div className="w-full sm:w-fit flex flex-wrap items-center gap-2">
-          <UnidadeMaxSelect />
-        <DateRangeFilter
+          <DateRangeFilter
             dateFrom={dateFrom}
             setDateFrom={setDateFrom}
             dateTo={dateTo}

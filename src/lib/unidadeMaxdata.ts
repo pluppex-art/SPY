@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 
-/** Unidade escolhida para os painéis da Max Data: "" = todas, senão a conexão (principal ou filial). */
-export type UnidadeMax = "" | "maxdata:estoque" | "maxdata:notas";
-const KEY = "spy_unidade_maxdata";
+/** Unidade da Max Data que vale agora — vem da FILIAL escolhida na barra lateral (conexão ligada a ela); "" = todas as filiais.
+ *  ("maxdata:nenhuma" = a filial escolhida não tem conexão da Max Data). Antes: Unidade escolhida para os painéis da Max Data: "" = todas, senão a conexão (principal ou filial). */
+export type UnidadeMax = "" | "maxdata:estoque" | "maxdata:notas" | "maxdata:nenhuma";
 const ouvintes = new Set<() => void>();
-let atual: UnidadeMax = (() => { try { const v = localStorage.getItem(KEY); return v === "maxdata:estoque" || v === "maxdata:notas" ? v : ""; } catch { return ""; } })();
+let atual: UnidadeMax = "";
 
 export function setUnidadeMax(v: UnidadeMax) {
   atual = v;
-  try { localStorage.setItem(KEY, v); } catch { /* sem armazenamento: vale só nesta sessão */ }
   ouvintes.forEach((f) => f());
 }
 export const getUnidadeMax = () => atual;

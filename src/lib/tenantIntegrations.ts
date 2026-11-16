@@ -80,6 +80,7 @@ export const DEFAULT_PAYMENT_CONFIG = {
 /** Max Data — base de dados de clientes. Conexão pronta (URL/chave/ID); o comportamento de importação/enriquecimento entra quando a API estiver definida. */
 export const DEFAULT_MAXDATA_CONFIG = {
   filial: "",
+  filialId: "",
   connected: false,
   apiUrl: "",
   /** application_key (segredo). */

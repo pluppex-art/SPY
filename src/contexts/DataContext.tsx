@@ -1,3 +1,4 @@
+import { setUnidadeMax, type UnidadeMax } from "../lib/unidadeMaxdata";
 import React, { useState, useEffect, useMemo } from 'react';
 import { findDuplicateLead, fillEmptyLeadFields } from "../lib/leadDedupe";
 import { toast } from 'sonner';
@@ -533,7 +534,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const [appointmentsRaw, setAppointments] = useState<Appointment[]>(() => getDefaultAppointments() as Appointment[]);
 
-  const leads = useMemo(() => filterByFilial(leadsRaw), [leadsRaw, activeFilialId]);
+  // Max Data: cada conexão pertence a UMA filial (Integrações › Max Data › "Filial desta conexão"). Com uma
+  // filial ativa, só entram os dados da conexão dela; em "Todas as filiais" entra tudo junto.
+  const unidadeFilial: UnidadeMax = useMemo(() => {
+    if (!activeFilialId) return '';
+    if (appSettings?.integracoes_maxdata_estoque?.filialId === activeFilialId) return 'maxdata:estoque';
+    if (appSettings?.integracoes_maxdata?.filialId === activeFilialId) return 'maxdata:notas';
+    return 'maxdata:nenhuma';
+  }, [activeFilialId, appSettings]);
+  useEffect(() => { setUnidadeMax(unidadeFilial); }, [unidadeFilial]);
+  const leads = useMemo(() => {
+    if (!activeFilialId) return leadsRaw;
+    return leadsRaw.filter((l: any) => l.customFields?.origin === 'maxdata' ? l.customFields?.fonte === unidadeFilial : l.filial_id === activeFilialId);
+  }, [leadsRaw, activeFilialId, unidadeFilial]);
   // Ticket médio dos leads Fechado do tenant — usado só como ESTIMATIVA de
   // exibição pra leads "Novo" sem valor/produto ainda (ex.: cliente cadastrado
   // que nunca reservou/comprou). Nunca escreve em leads.value nem entra em

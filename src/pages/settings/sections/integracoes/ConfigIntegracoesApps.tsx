@@ -173,6 +173,7 @@ function MaxDataConnectionModal({
   onClose: () => void;
   onToggleConnected: () => void;
 }) {
+  const { empresaFiliais } = useData();
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -249,8 +250,11 @@ function MaxDataConnectionModal({
           automaticamente. Por padrão o SPY só LÊ dados do Max. Para cadastrar/alterar clientes e produtos pelo SPY, ative
           "Gravar na Max Data" abaixo e use "Testar gravação". Vendas e NF-e não estão ligadas.
         </Alert>
-        <FormField label="Filial desta conexão" hint={which === "estoque" ? "Loja principal — o nome aparece nos produtos, clientes e vendas que vierem desta conexão (ex.: Casa São Paulo)" : "Filial — cada conexão pertence a UMA unidade; o nome aparece nos dados que vierem dela (ex.: SR)"}>
-          <Input type="text" name={`maxdata-${which}-filial`} autoComplete="off" value={config.filial || ""} onChange={(e) => setConfig((p) => ({ ...p, filial: e.target.value }))} placeholder={which === "estoque" ? "Casa São Paulo" : "SR"} />
+        <FormField label="Filial desta conexão" hint="Cada conexão pertence a UMA filial: ao escolher a filial na barra lateral, todo o sistema mostra só os dados dela. Em “Todas as filiais” aparece tudo junto.">
+          <select className="w-full h-10 rounded-lg border border-border bg-card px-3 text-sm" value={config.filialId || ""} onChange={(e) => { const f = (empresaFiliais as any[]).find((x) => x.id === e.target.value); setConfig((p) => ({ ...p, filialId: e.target.value, filial: f?.nome || "" })); }}>
+            <option value="">— sem filial (só aparece em “Todas as filiais”) —</option>
+            {(empresaFiliais as any[]).map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+          </select>
         </FormField>
         <FormField label="URL base da API" required hint="Servidor da MaxAPI deste cliente com /v2 (ex.: http://IP:porta/v2) — pedir à Max Data. Não é o link da documentação">
           <Input type="text" name={`maxdata-${which}-url`} autoComplete="off" value={config.apiUrl} onChange={(e) => setConfig((p) => ({ ...p, apiUrl: e.target.value }))} placeholder="http://IP:porta/v2" />
