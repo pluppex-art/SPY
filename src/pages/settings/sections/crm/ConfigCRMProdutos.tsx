@@ -31,12 +31,15 @@ export function ConfigCRMProdutos() {
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Catálogo de Produtos <HelpTip label="Sobre Catálogo de Produtos">Personalize os dados de produtos e serviços.</HelpTip></h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Catálogo de Produtos <HelpTip label="Sobre Catálogo de Produtos">Personalize quais informações você guarda sobre produtos e serviços.</HelpTip></h1>
         </div>
       </div>
 
       <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-        <h3 className="font-bold text-base text-[var(--color-text-primary)] mb-2">Acesso ao Catálogo <HelpTip label="Sobre Acesso ao Catálogo">O catálogo principal foi movido para o menu lateral. Acesse "Produtos" na barra de navegação esquerda.</HelpTip></h3>
+        <h3 className="font-bold text-base text-[var(--color-text-primary)] mb-2">Acesso ao Catálogo</h3>
+        <p className="text-[var(--color-text-muted)] mb-4 text-sm leading-relaxed">
+          O catálogo principal foi movido para o menu lateral. Acesse "Produtos" na barra de navegação esquerda.
+        </p>
         <Button 
           onClick={() => window.location.href = '/app/produtos'} 
           variant="outline"
@@ -49,7 +52,7 @@ export function ConfigCRMProdutos() {
       <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h3 className="font-bold text-base text-[var(--color-text-primary)]">Campos Personalizados <HelpTip label="Sobre Campos Personalizados">Adicione mais detalhes aos produtos (SKU, dimensões, atributos específicos).</HelpTip></h3>
+            <h3 className="font-bold text-base text-[var(--color-text-primary)]">Campos Personalizados <HelpTip label="Sobre Campos Personalizados">Adicione detalhes extras aos produtos, como SKU, dimensões ou outros atributos específicos.</HelpTip></h3>
           </div>
           <Button
             onClick={() => { setEditingField(null); setIsModalOpen(true); }}

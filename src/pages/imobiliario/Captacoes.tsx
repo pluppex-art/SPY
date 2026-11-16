@@ -278,7 +278,7 @@ export default function Captacoes() {
               <ClipboardList className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Captação de Imóvel <HelpTip label="Sobre Nova Captação de Imóvel">Cadastre o imóvel em prospecção para o portfólio</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Captação de Imóvel <HelpTip label="Sobre Nova Captação de Imóvel">Cadastre o imóvel que está sendo prospectado para entrar no portfólio.</HelpTip></h3>
             </div>
           </div>
         }

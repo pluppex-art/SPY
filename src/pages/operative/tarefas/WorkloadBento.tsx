@@ -128,7 +128,7 @@ export function WorkloadBento({ tasks, onExpandTask, googleConnected }: Workload
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-orange-500/15 flex items-center justify-center text-orange-500"><Zap className="w-5 h-5" /></div>
           <div>
-            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wide">Foco estratégico <HelpTip label="Sobre Foco estratégico">Ação prioritária baseada nas tarefas de alta prioridade</HelpTip></h3>
+            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wide">Foco estratégico <HelpTip label="Sobre Foco estratégico">Aponta a ação mais importante do momento, com base nas tarefas de alta prioridade. É por aqui que vale começar o dia.</HelpTip></h3>
           </div>
         </div>
         {focus ? (

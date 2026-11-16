@@ -22,7 +22,7 @@ export function PerformanceIAWhatIfSimulator(props: {
           <div>
             <SectionTitle>
               <Play className="w-5 h-5 text-[var(--color-primary-blue)]" /> Simulador de Cenários
-             <HelpTip label="Sobre Simulador de Cenários">Simulação ilustrativa com premissas fixas (+20% e +40% de MRR sobre o valor atual) — não é uma previsão.</HelpTip></SectionTitle>
+             <HelpTip label="Sobre Simulador de Cenários">Simulação de exemplo, com premissas fixas: aumento de 20% e de 40% no MRR sobre o valor atual. Não é uma previsão, serve só para visualizar o tamanho do ganho.</HelpTip></SectionTitle>
           </div>
           <Button
             onClick={runSimulation}

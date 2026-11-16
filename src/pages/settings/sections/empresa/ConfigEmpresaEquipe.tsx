@@ -8,7 +8,7 @@ export function ConfigEmpresaEquipe() {
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Equipe & Convites <HelpTip label="Sobre Equipe & Convites">Convide novos membros e gerencie acessos na sua empresa no S.P.Y..</HelpTip></h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Equipe & Convites <HelpTip label="Sobre Equipe & Convites">Convide novas pessoas para a sua empresa no SPY e gerencie o acesso de cada uma.</HelpTip></h1>
         </div>
         <Button 
           onClick={() => window.location.href = "/app/equipe"}

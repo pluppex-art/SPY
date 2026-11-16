@@ -1370,7 +1370,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
               <div>
                 <h3 className="text-base font-black text-[var(--color-text-primary)]">
                   Configuração Meta Ads & Pixel / CAPI
-                 <HelpTip label="Sobre Configuração Meta Ads & Pixel / CAPI">Gerenciamento de Pixel, rastreamento de eventos e API de Conversões</HelpTip></h3>
+                 <HelpTip label="Sobre Configuração Meta Ads & Pixel / CAPI">Gerencie o Pixel e a API de Conversões da Meta, que acompanham os eventos do seu site e dos anúncios.</HelpTip></h3>
               </div>
             </div>
           }
@@ -1538,7 +1538,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
                   <div>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-primary-blue)] mb-1">
                       Disparador de Evento de Teste (Pixel & CAPI)
-                     <HelpTip label="Sobre Disparador de Evento de Teste (Pixel & C">Envia um evento de teste de verdade para a Conversions API da Meta (chamada HTTP real) para confirmar que o Pixel ID e o token estão corretos. Não há hoje disparo automático nos eventos do CRM (novo lead, negócio ganho) — só este teste manual.</HelpTip></h4>
+                     <HelpTip label="Sobre Disparador de Evento de Teste (Pixel & C">Envia um evento de teste de verdade para a API de Conversões da Meta, para confirmar que o Pixel ID e o token estão corretos. Hoje não há envio automático dos eventos do CRM (novo lead, negócio ganho): só este teste manual.</HelpTip></h4>
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -1641,7 +1641,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
               <div>
                 <h3 className="text-base font-black text-[var(--color-text-primary)]">
                   Configuração Google Ads & G-Tag
-                 <HelpTip label="Sobre Configuração Google Ads & G-Tag">Acompanhamento de conversões e Google Analytics 4</HelpTip></h3>
+                 <HelpTip label="Sobre Configuração Google Ads & G-Tag">Acompanhe as conversões dos anúncios do Google e o Google Analytics 4.</HelpTip></h3>
               </div>
             </div>
           }

@@ -284,7 +284,7 @@ export default function TrocasVeiculos() {
               <ArrowRightLeft className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Negociação com Troca <HelpTip label="Sobre Nova Negociação com Troca">Configure a entrada, veículo de saída e a diferença de valor</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Negociação com Troca <HelpTip label="Sobre Nova Negociação com Troca">Monte a negociação com troca: o valor de entrada, o veículo que o cliente deixa e a diferença a pagar.</HelpTip></h3>
             </div>
           </div>
         }

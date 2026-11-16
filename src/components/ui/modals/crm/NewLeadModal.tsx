@@ -245,7 +245,7 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
           <div>
             <h3 className="text-base font-black text-[var(--color-text-primary)]">
               Novo Lead
-             <HelpTip label="Sobre Novo Lead">Cadastre um novo lead e direcione para o funil comercial ou de SDR</HelpTip></h3>
+             <HelpTip label="Sobre Novo Lead">Preencha os dados do contato e escolha para onde ele vai: o funil comercial (venda direta) ou o funil de SDR (pré-vendas, onde o contato é qualificado antes de chegar ao vendedor). Quanto mais completo o cadastro, mais fácil acompanhar depois.</HelpTip></h3>
           </div>
         </div>
       }

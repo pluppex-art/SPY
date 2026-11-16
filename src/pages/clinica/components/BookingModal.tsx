@@ -159,7 +159,7 @@ export function BookingModal({ isOpen, onClose, leads, addTask, addAppointment }
                   <div>
                     <h2 className="text-base font-bold text-[var(--color-text-primary)] uppercase tracking-tight">
                       Novo Agendamento Clínico
-                     <HelpTip label="Sobre Novo Agendamento Clínico">Cadastre uma nova consulta ou atendimento.</HelpTip></h2>
+                     <HelpTip label="Sobre Novo Agendamento Clínico">Informe o paciente, o profissional e o horário da consulta ou do atendimento.</HelpTip></h2>
                   </div>
                 </div>
                 <button

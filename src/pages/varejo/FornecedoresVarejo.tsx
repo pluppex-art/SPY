@@ -241,7 +241,7 @@ export default function FornecedoresVarejo() {
               <Truck className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cadastrar Novo Fornecedor <HelpTip label="Sobre Cadastrar Novo Fornecedor">Dados cadastrais e contato comercial do parceiro</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cadastrar Novo Fornecedor <HelpTip label="Sobre Cadastrar Novo Fornecedor">Cadastre os dados e o contato comercial do fornecedor parceiro.</HelpTip></h3>
             </div>
           </div>
         }

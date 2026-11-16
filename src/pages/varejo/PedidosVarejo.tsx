@@ -304,7 +304,7 @@ export default function PedidosVarejo() {
               <ShoppingBag className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Registrar Pedido de Balcão <HelpTip label="Sobre Registrar Pedido de Balcão">Cadastre vendas manuais e entregas sob demanda</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Registrar Pedido de Balcão <HelpTip label="Sobre Registrar Pedido de Balcão">Cadastre vendas feitas no balcão e entregas sob demanda.</HelpTip></h3>
             </div>
           </div>
         }

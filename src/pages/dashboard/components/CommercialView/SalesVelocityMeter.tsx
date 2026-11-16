@@ -69,7 +69,7 @@ export function SalesVelocityMeter() {
     <Card className="p-5 shadow-sm">
       <SectionTitle className="mb-1">
         <Gauge className="w-4 h-4 text-[var(--color-primary-blue)]" /> Velocidade de Vendas
-       <HelpTip label="Sobre Velocidade de Vendas">Tempo médio real entre a criação do lead e a assinatura do contrato.</HelpTip></SectionTitle>
+       <HelpTip label="Sobre Velocidade de Vendas">Mostra quanto tempo, em média, passa entre o cadastro do lead e a assinatura do contrato. Quanto menor, mais rápido o seu ciclo de vendas.</HelpTip></SectionTitle>
 
       {!velocity ? (
         <div className="py-10 text-center text-xs text-[var(--color-text-faint)]">

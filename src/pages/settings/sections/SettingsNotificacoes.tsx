@@ -320,7 +320,7 @@ export function ConfigNotificacoesPreferencias() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Preferências de Notificações <Bell className="w-5 h-5 text-[var(--color-primary-blue)]" />
-           <HelpTip label="Sobre Preferências de Notificações">Configure alertas em tempo real no painel, e-mail, WhatsApp e navegador para sua operação comercial.</HelpTip></h1>
+           <HelpTip label="Sobre Preferências de Notificações">Escolha como você quer ser avisado dos eventos da operação comercial: no painel, por e-mail, por WhatsApp ou no navegador. Marque só os canais que você realmente olha.</HelpTip></h1>
         </div>
 
         <div className="flex flex-wrap gap-2 shrink-0">
@@ -354,7 +354,8 @@ export function ConfigNotificacoesPreferencias() {
               <Bell className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h4 className="font-bold text-xs text-[var(--color-text-primary)] truncate">No Painel (In-App) <HelpTip label="Sobre No Painel (In-App)">Sininho & Toasts</HelpTip></h4>
+              <h4 className="font-bold text-xs text-[var(--color-text-primary)] truncate">No Painel (In-App)</h4>
+              <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 truncate">Sininho & Toasts</p>
             </div>
           </div>
           <button
@@ -379,7 +380,8 @@ export function ConfigNotificacoesPreferencias() {
               <Mail className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h4 className="font-bold text-xs text-[var(--color-text-primary)] truncate">E-mails <HelpTip label="Sobre E-mails">Caixa de entrada</HelpTip></h4>
+              <h4 className="font-bold text-xs text-[var(--color-text-primary)] truncate">E-mails</h4>
+              <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 truncate">Caixa de entrada</p>
             </div>
           </div>
           <button
@@ -404,7 +406,8 @@ export function ConfigNotificacoesPreferencias() {
               <MessageSquare className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h4 className="font-bold text-xs text-[var(--color-text-primary)] truncate">WhatsApp <HelpTip label="Sobre WhatsApp">Mensagens diretas</HelpTip></h4>
+              <h4 className="font-bold text-xs text-[var(--color-text-primary)] truncate">WhatsApp</h4>
+              <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 truncate">Mensagens diretas</p>
             </div>
           </div>
           <button
@@ -528,7 +531,7 @@ export function ConfigNotificacoesPreferencias() {
           <div>
             <h3 className="text-xs font-black text-[var(--color-primary-blue)] uppercase tracking-wider">
               Disparadores por Categoria
-             <HelpTip label="Sobre Disparadores por Categoria">Defina os canais de entrega para cada evento de vendas e operação</HelpTip></h3>
+             <HelpTip label="Sobre Disparadores por Categoria">Para cada tipo de evento de vendas e operação, escolha por quais canais o aviso deve chegar.</HelpTip></h3>
           </div>
           <span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider bg-[var(--color-surface-elevated)] px-2.5 py-1 rounded-md border border-[var(--color-border-subtle)]">
             Auto-salvamento ativo

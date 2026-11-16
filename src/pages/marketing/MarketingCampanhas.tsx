@@ -249,7 +249,7 @@ export default function MarketingCampanhas() {
           </div>
           <h4 className="font-bold text-[var(--color-text-primary)] text-sm mb-0.5">
             Nova Integração de Tráfego
-           <HelpTip label="Sobre Nova Integração de Tráfego">TikTok Ads, LinkedIn, Taboola, Webhooks...</HelpTip></h4>
+           <HelpTip label="Sobre Nova Integração de Tráfego">Conecte outras fontes de tráfego pago, como TikTok Ads, LinkedIn, Taboola ou webhooks, para trazer os resultados para dentro do SPY.</HelpTip></h4>
         </Card>
       </div>
 

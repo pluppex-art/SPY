@@ -908,7 +908,7 @@ export default function AgendaCRM() {
                   <h3 className="text-sm font-black uppercase tracking-wider text-[var(--color-text-primary)] flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4 text-[var(--color-primary-blue)]" />
                     Compromissos de {selectedDayDate.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" })}
-                   <HelpTip label="Sobre Compromissos de )}">Linha do tempo diária de negociações e videochamadas</HelpTip></h3>
+                   <HelpTip label="Sobre os compromissos do dia">Mostra, em ordem de horário, as negociações e videochamadas marcadas para o dia.</HelpTip></h3>
                 </div>
                 <Button size="sm" onClick={() => setShowNovaReuniao(true)} className="gap-1 font-bold text-xs">
                   <Plus className="w-3.5 h-3.5" /> Agendar

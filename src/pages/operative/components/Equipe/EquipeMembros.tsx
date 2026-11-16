@@ -140,7 +140,7 @@ export function EquipeMembros({
         <div>
           <h2 className="text-2xl sm:text-3xl font-black text-[var(--color-text-primary)] tracking-tight">
             Membros da Equipe
-           <HelpTip label="Sobre Membros da Equipe">Gestão de colaboradores, cargos, squads e status de atividade.</HelpTip></h2>
+           <HelpTip label="Sobre Membros da Equipe">Aqui você gerencia os colaboradores: cargos, squads (times) e se cada pessoa está ativa.</HelpTip></h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -214,7 +214,10 @@ export function EquipeMembros({
             </div>
             <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
               Nenhum colaborador encontrado
-             <HelpTip label="Sobre Nenhum colaborador encontrado">Nenhum membro corresponde aos filtros de busca ou status selecionados.</HelpTip></h3>
+            </h3>
+            <p className="text-xs text-[var(--color-text-muted)] max-w-sm mx-auto">
+              Nenhum membro corresponde aos filtros de busca ou status selecionados.
+            </p>
           </div>
         )}
       </div>

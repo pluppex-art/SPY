@@ -643,7 +643,7 @@ export default function ReuniaoRoom() {
               <div className="flex items-center gap-3">
                 <AuroraCore mode={auroraCoreMode} size={36} />
                 <div>
-                  <h4 className="text-sm font-black text-[var(--color-text-primary)]">Análise da Aurora <HelpTip label="Sobre Análise da Aurora">Insights automáticos da reunião, transcrição e próximos passos.</HelpTip></h4>
+                  <h4 className="text-sm font-black text-[var(--color-text-primary)]">Análise da Aurora <HelpTip label="Sobre Análise da Aurora">A Aurora resume a reunião: traz os pontos principais, a transcrição e os próximos passos.</HelpTip></h4>
                 </div>
               </div>
               <button

@@ -38,7 +38,7 @@ export function ModulePlansMatrix() {
   return (
     <Card className="p-5 space-y-3">
       <div>
-        <h3 className="font-black text-sm">Planos que liberam cada módulo <HelpTip label="Sobre Planos que liberam cada módulo">Vale para quem assinar ou reaplicar o plano. Plano sem nenhum módulo marcado não altera os módulos do cliente.</HelpTip></h3>
+        <h3 className="font-black text-sm">Planos que liberam cada módulo <HelpTip label="Sobre Planos que liberam cada módulo">Marque quais planos liberam cada módulo. A regra vale para quem assinar o plano ou tiver o plano reaplicado. Um plano sem nenhum módulo marcado não altera os módulos que o cliente já tem.</HelpTip></h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">

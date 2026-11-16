@@ -7,7 +7,6 @@ import { updateTenantModulesInDB } from "../lib/supabase";
 import { DEMO_PRESETS } from "../pages/settings/constants/demoPresets";
 import { toast } from "sonner";
 
-import { HelpTip } from "./ui/help-tip";
 const STAGE_COLORS = ["blue", "cyan", "purple", "amber", "emerald", "pink", "orange", "rose"];
 
 // Wizard de primeiro acesso — mostrado uma vez por tenant (controlado pela
@@ -90,7 +89,8 @@ export function OnboardingWizard() {
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-[var(--color-primary-blue)]" />
             <div>
-              <h2 className="text-base font-black text-[var(--color-text-primary)]">Bem-vindo ao S.P.Y. CRM <HelpTip label="Sobre Bem-vindo ao S.P.Y. CRM">Vamos configurar sua empresa em 2 passos rápidos.</HelpTip></h2>
+              <h2 className="text-base font-black text-[var(--color-text-primary)]">Bem-vindo ao S.P.Y. CRM</h2>
+              <p className="text-xs text-[var(--color-text-muted)]">Vamos configurar sua empresa em 2 passos rápidos.</p>
             </div>
           </div>
           <button onClick={handleSkip} className="w-8 h-8 rounded-full bg-[var(--color-surface)] border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">

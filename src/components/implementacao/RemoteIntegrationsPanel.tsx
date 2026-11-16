@@ -102,7 +102,7 @@ export function RemoteIntegrationsPanel({ implementationId, onSaved }: Props) {
     <Card className="p-5">
       <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
         <KeyRound className="w-4 h-4 text-[var(--color-text-faint)]" /> Configurar integrações do cliente
-       <HelpTip label="Sobre Configurar integrações do cliente">Deixe tudo pronto no ambiente do cliente sem precisar entrar nele.</HelpTip></h3>
+       <HelpTip label="Sobre Configurar integrações do cliente">Aqui você configura as integrações do cliente direto do seu painel, sem precisar entrar na conta dele. Preencha o que o cliente já informou e salve: quando ele abrir o SPY, a conexão já estará pronta.</HelpTip></h3>
 
       {error && <p className="text-xs text-rose-500">{error}</p>}
       {!items && !error && <p className="text-xs text-[var(--color-text-faint)] flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Carregando…</p>}

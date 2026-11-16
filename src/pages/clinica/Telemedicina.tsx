@@ -16,7 +16,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 
-import { HelpTip } from "../../components/ui/help-tip";
 export default function TelemedicinaDashboard() {
   const { activeTenantId } = useAuth();
   const { appointments, updateAppointment } = useData();
@@ -229,7 +228,8 @@ export default function TelemedicinaDashboard() {
 
             <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm flex flex-col items-center justify-center text-center gap-2">
               <MessageSquare className="w-6 h-6 text-[var(--color-text-faint)]" />
-              <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Chat com o Paciente <HelpTip label="Sobre Chat com o Paciente">Mensagens durante a chamada ainda não disponíveis — use o chat do próprio Google Meet por enquanto.</HelpTip></h4>
+              <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider">Chat com o Paciente</h4>
+              <p className="text-xs text-[var(--color-text-muted)]">Mensagens durante a chamada ainda não disponíveis — use o chat do próprio Google Meet por enquanto.</p>
             </Card>
           </div>
         </div>
@@ -266,7 +266,10 @@ export default function TelemedicinaDashboard() {
           <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <h4 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-emerald-500" /> Videochamadas via Google Meet
-             <HelpTip label="Sobre Videochamadas via Google Meet">As chamadas usam a infraestrutura de segurança do Google Meet (TLS em trânsito). Verifique com sua assessoria jurídica os requisitos específicos de telemedicina (CFM) para o seu tipo de atendimento.</HelpTip></h4>
+            </h4>
+            <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+              As chamadas usam a infraestrutura de segurança do Google Meet (TLS em trânsito). Verifique com sua assessoria jurídica os requisitos específicos de telemedicina (CFM) para o seu tipo de atendimento.
+            </p>
           </Card>
         </div>
 

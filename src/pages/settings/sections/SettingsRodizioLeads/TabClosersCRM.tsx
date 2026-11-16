@@ -88,7 +88,7 @@ export function TabClosersCRM() {
       {/* Distribution Mode Card */}
       <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] p-6 shadow-sm space-y-4">
         <div>
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Modo de Distribuição <HelpTip label="Sobre Modo de Distribuição">Selecione o algoritmo de repasse automático de leads para os closers.</HelpTip></h3>
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Modo de Distribuição <HelpTip label="Sobre Modo de Distribuição">Escolha como os leads novos são repassados automaticamente entre os closers (vendedores que fecham o negócio).</HelpTip></h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -158,7 +158,7 @@ export function TabClosersCRM() {
             <Users className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-xs font-bold text-[var(--color-text-primary)]">Closers na Rotação <HelpTip label="Sobre Closers na Rotação">Controle individual de disponibilidade e tipos de lead permitidos.</HelpTip></h3>
+            <h3 className="text-xs font-bold text-[var(--color-text-primary)]">Closers na Rotação <HelpTip label="Sobre Closers na Rotação">Controle quem está disponível para receber leads e quais tipos de lead cada closer pode receber.</HelpTip></h3>
           </div>
         </div>
 

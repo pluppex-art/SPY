@@ -128,7 +128,7 @@ export default function Contracts() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestão de Contratos <HelpTip label="Sobre Gestão de Contratos">Contratos ativos, MRR e saúde financeira.</HelpTip></h1>
+          <h1 className="text-2xl font-bold tracking-tight">Gestão de Contratos <HelpTip label="Sobre Gestão de Contratos">Resumo dos seus contratos: quantos estão ativos, quanto entra todo mês de forma recorrente (MRR) e como está a saúde financeira da carteira. Use para saber rápido como está a base de clientes.</HelpTip></h1>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="gap-2" onClick={exportarCsv}>Exportar CSV</Button>

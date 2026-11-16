@@ -238,7 +238,7 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
             <div>
               <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
                 Faturamento Consolidado por Mês
-               <HelpTip label="Sobre Faturamento Consolidado por Mês">Soma de todos os lançamentos financeiros pagos de todos os tenants — não é a mensalidade paga ao SPY.</HelpTip></h3>
+               <HelpTip label="Sobre Faturamento Consolidado por Mês">Mostra, mês a mês, quanto as empresas da plataforma receberam dos próprios clientes (lançamentos financeiros já pagos, somados). Atenção: não é a mensalidade que as empresas pagam ao SPY.</HelpTip></h3>
             </div>
             {totalMrr > 0 && (
               <span className="text-xs font-mono font-bold text-emerald-500">
@@ -275,7 +275,7 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
           <div>
             <h4 className="text-sm font-bold text-[var(--color-text-primary)]">
               Estrutura de Planos do SaaS
-             <HelpTip label="Sobre Estrutura de Planos do SaaS">Tabela de precificação do SPY CRM</HelpTip></h4>
+             <HelpTip label="Sobre Estrutura de Planos do SaaS">A tabela de planos que o SPY vende, cada um com seu preço e o que está incluído. É a referência usada ao criar uma empresa nova e no checkout.</HelpTip></h4>
           </div>
 
           <div className="space-y-3">

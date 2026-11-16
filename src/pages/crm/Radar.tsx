@@ -308,7 +308,7 @@ export default function Radar() {
         <Card className="lg:col-span-1 p-5">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">Evolução de negócios em risco <HelpTip label="Sobre Evolução de negócios em risco">Acompanhe a quantidade de negócios que esfriaram.</HelpTip></h3>
+              <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">Evolução de negócios em risco <HelpTip label="Sobre Evolução de negócios em risco">Mostra, ao longo do tempo, quantos negócios esfriaram (ficaram parados sem avanço). Se a linha sobe, mais negócios estão ficando para trás e vale agir rápido.</HelpTip></h3>
             </div>
             <select className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] px-2 py-1 text-[10px] shrink-0" value={janela} onChange={(e) => setJanela(Number(e.target.value) as (typeof JANELAS)[number])}>
               {JANELAS.map((j) => <option key={j} value={j}>Últimos {j} dias</option>)}
@@ -336,7 +336,7 @@ export default function Radar() {
         </Card>
 
         <Card className="p-5">
-          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1">Distribuição por risco <HelpTip label="Sobre Distribuição por risco">Percentual de negócios em risco.</HelpTip></h3>
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1">Distribuição por risco <HelpTip label="Sobre Distribuição por risco">Mostra a proporção dos negócios por nível de risco. Quanto maior a fatia de risco alto, mais urgente é retomar o contato com esses clientes.</HelpTip></h3>
           {totalEmRisco === 0 ? (
             <div className="h-[160px] flex items-center justify-center text-xs text-[var(--color-text-faint)]">Nenhum negócio esfriando. 🎯</div>
           ) : (
@@ -370,7 +370,7 @@ export default function Radar() {
         </Card>
 
         <Card className="p-5">
-          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1 flex items-center gap-1.5"><ListTree className="w-3.5 h-3.5" /> Parados por etapa <HelpTip label="Sobre Parados por etapa">Em qual etapa do funil os negócios mais travam.</HelpTip></h3>
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1 flex items-center gap-1.5"><ListTree className="w-3.5 h-3.5" /> Parados por etapa <HelpTip label="Sobre Parados por etapa">Mostra em quais etapas do funil os negócios mais ficam parados. A etapa com mais negócios parados é o gargalo: é onde vale concentrar o esforço da equipe.</HelpTip></h3>
           {porEtapa.length === 0 ? (
             <div className="h-[160px] flex items-center justify-center text-xs text-[var(--color-text-faint)]">Nenhum negócio esfriando. 🎯</div>
           ) : (

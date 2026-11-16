@@ -235,7 +235,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             <Card className="lg:col-span-7 p-5 shadow-sm">
-              <SectionTitle as="h4">Cancelamentos por mês <HelpTip label="Sobre Cancelamentos por mês">Últimos 6 meses, pela data de cancelamento.</HelpTip></SectionTitle>
+              <SectionTitle as="h4">Cancelamentos por mês <HelpTip label="Sobre Cancelamentos por mês">Quantos contratos foram cancelados em cada um dos últimos 6 meses, contados pela data do cancelamento. Se as barras crescem, a perda de clientes está aumentando.</HelpTip></SectionTitle>
               <div className="h-[220px] w-full">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={180}>
                   <BarChart data={churn.meses} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
@@ -257,7 +257,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
             <Card className="lg:col-span-5 shadow-sm overflow-hidden">
               <div className="p-5 pb-3">
-                <SectionTitle as="h4">Por que cancelam <HelpTip label="Sobre Por que cancelam">Motivo informado ao cancelar o contrato.</HelpTip></SectionTitle>
+                <SectionTitle as="h4">Por que cancelam <HelpTip label="Sobre Por que cancelam">Os motivos que foram registrados na hora de cancelar o contrato. Os motivos mais frequentes mostram o que mais precisa ser corrigido para segurar clientes.</HelpTip></SectionTitle>
               </div>
               {churn.porMotivo.length === 0 ? <Vazio>Nenhum cancelamento no período.</Vazio> : (
                 <ul className="divide-y divide-[var(--color-border-subtle)] border-t border-[var(--color-border-subtle)]">
@@ -273,7 +273,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
             <Card className="lg:col-span-12 shadow-sm overflow-hidden">
               <div className="p-5 pb-3">
-                <SectionTitle as="h4">Cancelamentos por plano <HelpTip label="Sobre Cancelamentos por plano">O que mais sai, no período.</HelpTip></SectionTitle>
+                <SectionTitle as="h4">Cancelamentos por plano <HelpTip label="Sobre Cancelamentos por plano">Mostra de quais planos os clientes mais saem no período. Um plano que aparece muito aqui merece atenção: preço, entrega ou público podem estar desalinhados.</HelpTip></SectionTitle>
               </div>
               {churn.porPlano.length === 0 ? <Vazio>Nenhum cancelamento no período.</Vazio> : (
                 <ul className="divide-y divide-[var(--color-border-subtle)] border-t border-[var(--color-border-subtle)]">
@@ -290,7 +290,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
           <Card className="shadow-sm overflow-hidden">
             <div className="p-5 pb-3">
-              <SectionTitle as="h4">Contratos cancelados no período <HelpTip label="Sobre Contratos cancelados no período">Cliente, plano, valor, motivo e tempo de casa.</HelpTip></SectionTitle>
+              <SectionTitle as="h4">Contratos cancelados no período <HelpTip label="Sobre Contratos cancelados no período">A lista dos contratos cancelados no período, com cliente, plano, valor, motivo e há quanto tempo ele era cliente.</HelpTip></SectionTitle>
             </div>
             {churn.noPeriodo.length === 0 ? <Vazio>Nenhum contrato cancelado no período.</Vazio> : (
               <div className="overflow-x-auto">
@@ -332,7 +332,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
           <Card className="shadow-sm overflow-hidden">
             <div className="p-5 pb-3">
-              <SectionTitle as="h4">Produtos em ruptura ou abaixo do mínimo <HelpTip label="Sobre Produtos em ruptura ou abaixo do mínimo">Só produtos ativos com controle de estoque (mínimo, máximo ou saldo informado). Déficit = mínimo − saldo atual.</HelpTip></SectionTitle>
+              <SectionTitle as="h4">Produtos em ruptura ou abaixo do mínimo <HelpTip label="Sobre Produtos em ruptura ou abaixo do mínimo">Produtos ativos com controle de estoque que estão zerados ou abaixo do mínimo definido. O déficit é o quanto falta para chegar ao mínimo (mínimo menos o saldo atual). Dica: reponha os de maior déficit primeiro.</HelpTip></SectionTitle>
             </div>
             {estoque.total === 0 ? <Vazio>Nenhum produto com controle de estoque cadastrado.</Vazio>
               : estoque.criticos.length === 0 ? <Vazio>Nenhum produto em ruptura ou abaixo do mínimo.</Vazio> : (
@@ -377,7 +377,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card className="shadow-sm overflow-hidden">
               <div className="p-5 pb-3">
-                <SectionTitle as="h4">Clientes há muito tempo sem comprar <HelpTip label="Sobre Clientes há muito tempo sem comprar">Do mais antigo para o mais recente. Boa hora para um contato de retomada.</HelpTip></SectionTitle>
+                <SectionTitle as="h4">Clientes há muito tempo sem comprar <HelpTip label="Sobre Clientes há muito tempo sem comprar">Clientes que não compram há mais tempo, do mais antigo para o mais recente. É uma boa hora para um contato de retomada: uma mensagem simples costuma reabrir a conversa.</HelpTip></SectionTitle>
               </div>
               {tempo.paradosC.length === 0 ? <Vazio>Nenhum cliente parado no período.</Vazio> : (
                 <ul className="divide-y divide-[var(--color-border-subtle)] border-t border-[var(--color-border-subtle)] max-h-[480px] overflow-y-auto">
@@ -393,7 +393,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
             <Card className="shadow-sm overflow-hidden">
               <div className="p-5 pb-3">
-                <SectionTitle as="h4">Produtos há muito tempo sem vender <HelpTip label="Sobre Produtos há muito tempo sem vender">Pela data da última venda fechada com o produto.</HelpTip></SectionTitle>
+                <SectionTitle as="h4">Produtos há muito tempo sem vender <HelpTip label="Sobre Produtos há muito tempo sem vender">Produtos que estão parados, ordenados pela data da última venda fechada com eles. Quanto mais antiga a data, mais tempo o produto está sem sair.</HelpTip></SectionTitle>
               </div>
               {tempo.paradosP.length === 0 ? <Vazio>Nenhum produto parado no período.</Vazio> : (
                 <ul className="divide-y divide-[var(--color-border-subtle)] border-t border-[var(--color-border-subtle)] max-h-[480px] overflow-y-auto">
@@ -421,7 +421,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card className="p-5 shadow-sm">
-              <SectionTitle as="h4">Onde o funil se rompe <HelpTip label="Sobre Onde o funil se rompe">Queda de oportunidades de uma etapa para a seguinte.</HelpTip></SectionTitle>
+              <SectionTitle as="h4">Onde o funil se rompe <HelpTip label="Sobre Onde o funil se rompe">Mostra quantas oportunidades se perdem na passagem de uma etapa do funil para a seguinte. Onde a queda é maior está o rompimento: é a etapa que mais precisa de atenção.</HelpTip></SectionTitle>
               {funil.etapas.length === 0 ? <Vazio>Sem dados de funil.</Vazio> : (
                 <ul className="space-y-3">
                   {funil.etapas.map((e) => (
@@ -460,7 +460,7 @@ export default function RupturaReceita({ dashboard }: { dashboard: DashboardData
 
           <Card className="shadow-sm overflow-hidden">
             <div className="p-5 pb-3">
-              <SectionTitle as="h4">Maiores oportunidades perdidas <HelpTip label="Sobre Maiores oportunidades perdidas">Com o motivo informado ao perder a oportunidade.</HelpTip></SectionTitle>
+              <SectionTitle as="h4">Maiores oportunidades perdidas <HelpTip label="Sobre Maiores oportunidades perdidas">As maiores oportunidades que foram perdidas, junto com o motivo registrado. Serve para entender por que os negócios grandes não fecharam.</HelpTip></SectionTitle>
             </div>
             {funil.maiores.length === 0 ? <Vazio>Nenhuma oportunidade perdida no período.</Vazio> : (
               <div className="overflow-x-auto">

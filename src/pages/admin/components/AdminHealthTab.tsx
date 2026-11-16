@@ -119,7 +119,7 @@ export function AdminHealthTab() {
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-[var(--color-text-primary)] tracking-tight">
               Monitor de Saúde & Diagnóstico da Infraestrutura
-             <HelpTip label="Sobre Monitor de Saúde & Diagnóstico da Infrae">Verificação em tempo real de latência, integridade das tabelas do banco de dados Supabase e isolamento RLS.</HelpTip></h2>
+             <HelpTip label="Sobre Monitor de Saúde & Diagnóstico da Infrae">Faz um check-up do sistema na hora: mede a velocidade de resposta (latência), confere se as tabelas do banco de dados estão íntegras e testa se os dados de cada empresa continuam isolados dos das outras (RLS). Se algo aparecer em vermelho, vale investigar.</HelpTip></h2>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">

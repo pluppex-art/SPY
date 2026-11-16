@@ -58,7 +58,7 @@ export function ConfigCRMGatilhosIA() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Gatilhos de Lead Score IA <Zap className="w-5 h-5 text-[var(--color-primary-blue)] fill-[var(--color-primary-blue)]/10" />
-         <HelpTip label="Sobre Gatilhos de Lead Score IA">Configure regras automatizadas baseadas no Lead Score para mover os leads imediatamente para etapas do funil SDR.</HelpTip></h1>
+         <HelpTip label="Sobre Gatilhos de Lead Score IA">Crie regras para o sistema mover o lead de etapa sozinho conforme a nota dele (Lead Score IA). Assim, quem esquenta vai direto para o funil de SDR sem ninguém precisar fazer isso à mão.</HelpTip></h1>
       </div>
 
       {/* Rules list */}

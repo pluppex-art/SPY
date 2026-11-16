@@ -278,7 +278,7 @@ export default function VarejoEstoque() {
         <div>
           <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
             Movimentações de Estoque <Boxes className="w-6 h-6 text-blue-500" />
-           <HelpTip label="Sobre Movimentações de Estoque">Entradas, saídas e ajustes de saldo, alertas de estoque baixo e histórico de movimentações. O cadastro de produtos fica em Produtos.</HelpTip></h1>
+           <HelpTip label="Sobre Movimentações de Estoque">Veja as entradas, saídas e ajustes de saldo, os alertas de estoque baixo e o histórico das movimentações. O cadastro de produtos fica em Produtos.</HelpTip></h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {activeTenantId && <BotaoImportar spec={produtosSpec({ tenantId: activeTenantId })} label="Importar produtos" />}

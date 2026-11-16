@@ -328,7 +328,7 @@ export default function ImobiliarioComissoes() {
               <DollarSign className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Comissão / Split de Honorários <HelpTip label="Sobre Nova Comissão / Split de Honorários">Calcule comissões de venda e divisão entre corretores e imobiliária</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Comissão / Split de Honorários <HelpTip label="Sobre Nova Comissão / Split de Honorários">Calcule a comissão de uma venda e como ela é dividida entre os corretores e a imobiliária (split de honorários).</HelpTip></h3>
             </div>
           </div>
         }

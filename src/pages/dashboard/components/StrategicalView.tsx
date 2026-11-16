@@ -251,7 +251,7 @@ export function StrategicalView({
             <div>
               <SectionTitle>
                 <BarChart3 className="w-5 h-5 text-[var(--color-primary-blue)]" /> Fluxo de Performance
-               <HelpTip label="Sobre Fluxo de Performance">Correlação entre volume de leads prospectados e faturamento recorrente.</HelpTip></SectionTitle>
+               <HelpTip label="Sobre Fluxo de Performance">Compara quantos leads você prospectou com o faturamento recorrente. Se os dois sobem juntos, a prospecção está virando receita.</HelpTip></SectionTitle>
             </div>
           </div>
 

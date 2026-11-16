@@ -46,7 +46,7 @@ export function ConfigCRMOrigens() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Origens de Leads <Target className="w-5 h-5 text-[var(--color-primary-blue)]" />
-           <HelpTip label="Sobre Origens de Leads">Gerencie os canais de aquisição e atribuição de tráfego dos seus leads.</HelpTip></h1>
+           <HelpTip label="Sobre Origens de Leads">Cadastre de onde seus leads vêm (indicação, anúncio, site…). Isso permite ver depois quais canais trazem mais receita.</HelpTip></h1>
         </div>
         <Button 
           onClick={() => setIsModalOpen(true)} 

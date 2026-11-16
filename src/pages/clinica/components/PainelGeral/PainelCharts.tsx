@@ -22,7 +22,7 @@ export function PainelCharts({ clinicData, totalAppointments, confirmed, finaliz
           <div>
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
               <Clock className="w-4 h-4" /> Fluxo de Atendimento
-             <HelpTip label="Sobre Fluxo de Atendimento">Volume de atendimentos por dia da semana.</HelpTip></h3>
+             <HelpTip label="Sobre Fluxo de Atendimento">Mostra quantos atendimentos a clínica fez em cada dia da semana. Serve para ver quais dias são mais cheios e quais são mais vazios.</HelpTip></h3>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-xs text-[var(--color-text-muted)]">Compareceu</span></div>

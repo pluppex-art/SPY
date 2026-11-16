@@ -197,7 +197,7 @@ export function BusinessIntelligenceView() {
         <div>
           <SectionTitle>
             <BarChart3 className="w-5 h-5 text-[var(--color-primary-blue)]" /> Dashboard / BI
-           <HelpTip label="Sobre Dashboard / BI">CRM, Financeiro e Operacional consolidados — calculado no servidor, sem carregar a base inteira no navegador.</HelpTip></SectionTitle>
+           <HelpTip label="Sobre Dashboard / BI">Reúne CRM, Financeiro e Operacional numa só tela. Os números são calculados no servidor, por isso a tela abre rápido mesmo com muita informação.</HelpTip></SectionTitle>
         </div>
         <div className="flex items-center gap-2">
           <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />

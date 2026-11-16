@@ -256,7 +256,7 @@ export function MarketingView() {
         <Card className="p-5 shadow-sm">
           <SectionTitle as="h4" className="mb-1">
             <Workflow className="w-4 h-4 text-[var(--color-primary-blue)]" /> Jornada do Lead (Origem → Desfecho)
-           <HelpTip label="Sobre Jornada do Lead (Origem → Desfecho)">De cada origem, quantos leads fecharam negócio até agora.</HelpTip></SectionTitle>
+           <HelpTip label="Sobre Jornada do Lead (Origem → Desfecho)">Para cada origem de lead, mostra quantos chegaram e quantos já fecharam negócio. Ajuda a ver quais origens trazem contatos que realmente compram.</HelpTip></SectionTitle>
           {!sankeyData.hasData ? (
             <div className="py-10 text-center text-xs text-[var(--color-text-faint)]">Sem leads suficientes pra montar a jornada.</div>
           ) : (
@@ -279,7 +279,7 @@ export function MarketingView() {
         <Card className="p-5 shadow-sm">
           <SectionTitle as="h4" className="mb-1">
             <LayoutGrid className="w-4 h-4 text-[var(--color-primary-blue)]" /> Receita Fechada por Origem
-           <HelpTip label="Sobre Receita Fechada por Origem">Quanto cada origem realmente gerou em negócios fechados — não só volume de leads.</HelpTip></SectionTitle>
+           <HelpTip label="Sobre Receita Fechada por Origem">Mostra quanto cada origem gerou em dinheiro de negócios fechados, e não só em quantidade de leads. Uma origem com poucos leads pode render mais que outra com muitos.</HelpTip></SectionTitle>
           {revenueBySourceData.length === 0 ? (
             <div className="py-10 text-center text-xs text-[var(--color-text-faint)]">Sem negócios fechados com valor no período.</div>
           ) : (

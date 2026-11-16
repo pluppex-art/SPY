@@ -56,7 +56,7 @@ export function RevenueWaterfallChart({ receita, despesasPorCategoria, receitaLi
       <div className="mb-5">
         <SectionTitle>
           <Waves className="w-4 h-4 text-[var(--color-primary-blue)]" /> Receita Bruta → Lucro Líquido
-         <HelpTip label="Sobre Receita Bruta → Lucro Líquido">De onde saiu o dinheiro — receita recebida no período menos cada categoria de despesa paga, até sobrar o resultado líquido.</HelpTip></SectionTitle>
+         <HelpTip label="Sobre Receita Bruta → Lucro Líquido">Mostra o caminho da receita bruta até o lucro líquido: começa na receita recebida no período e vai descontando cada categoria de despesa paga, até sobrar o resultado líquido.</HelpTip></SectionTitle>
       </div>
       {data.length === 0 ? (
         <EmptyState icon={Waves} title="Sem lançamentos pagos no período" description="O waterfall aparece assim que houver receita e despesas pagas." className="py-8" />

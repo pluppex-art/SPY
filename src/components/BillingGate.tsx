@@ -4,7 +4,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { useBillingStatus } from "../hooks/useBillingStatus";
 import { fmtDate } from "../lib/saasApi";
 
-import { HelpTip } from "./ui/help-tip";
 /**
  * Faixa de aviso (teste acabando / pagamento em atraso) e bloqueio total quando a assinatura está
  * suspensa ou cancelada. Master/parceiro nunca ficam trancados (precisam trocar de empresa e regularizar);
@@ -67,7 +66,11 @@ export function SuspendedScreen() {
         <div className="mx-auto w-14 h-14 rounded-2xl bg-danger/10 border border-danger/25 flex items-center justify-center">
           <Lock className="w-6 h-6 text-danger" />
         </div>
-        <h1 className="text-xl font-black text-[var(--color-text-primary)]">Acesso suspenso <HelpTip label="Sobre Acesso suspenso">A assinatura desta empresa está suspensa. Seus dados continuam guardados e o acesso volta assim que o pagamento for regularizado. Para voltar a usar, renove o plano pelo Pix. O acesso é liberado assim que o pagamento for conferido.</HelpTip></h1>
+        <h1 className="text-xl font-black text-[var(--color-text-primary)]">Acesso suspenso</h1>
+        <p className="text-sm text-[var(--color-text-muted)]">
+          A assinatura desta empresa está suspensa. Seus dados continuam guardados e o acesso volta assim que o pagamento for regularizado.
+          Para voltar a usar, renove o plano pelo Pix. O acesso é liberado assim que o pagamento for conferido.
+        </p>
         <Link to="/checkout?renovar=1" className="inline-flex items-center justify-center rounded-xl bg-[var(--color-primary-blue)] px-5 py-3 text-sm font-bold text-white">Renovar / pagar</Link>
         <div><button onClick={logout} className="text-sm underline text-[var(--color-text-muted)]">Sair</button></div>
       </div>

@@ -177,7 +177,7 @@ export default function ConfigEmpresaDados() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Dados da Empresa <Building2 className="w-5 h-5 text-[var(--color-primary-blue)]" />
-           <HelpTip label="Sobre Dados da Empresa">Gerencie informações cadastrais, fiscais e de contato da sua organização.</HelpTip></h1>
+           <HelpTip label="Sobre Dados da Empresa">Mantenha aqui os dados cadastrais, fiscais e de contato da sua empresa. Eles são usados em propostas, contratos e documentos.</HelpTip></h1>
         </div>
         <Button 
           onClick={() => handleSave()} 
@@ -354,7 +354,7 @@ export default function ConfigEmpresaDados() {
 
           <div className="pt-4 border-t border-[var(--color-border-subtle)] space-y-3">
             <div>
-              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Perfil da empresa para a IA <HelpTip label="Sobre Perfil da empresa para a IA">A IA usa estes textos para falar sobre a empresa com os clientes. Escreva como explicaria a um vendedor novo. O que não estiver aqui (nem em Produtos) ela não inventa: diz que a equipe confirma. Ela lê na próxima conversa, sem precisar de mais nada.</HelpTip></h3>
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Perfil da empresa para a IA <HelpTip label="Sobre Perfil da empresa para a IA">A IA usa estes textos para falar da sua empresa com os clientes. Escreva como se estivesse explicando para um vendedor novo. O que não estiver aqui (nem em Produtos) ela não inventa: avisa que a equipe vai confirmar. A mudança vale já na próxima conversa.</HelpTip></h3>
             </div>
             {CAMPOS_IA.map((c) => (
               <div key={c.key} className="space-y-1.5">

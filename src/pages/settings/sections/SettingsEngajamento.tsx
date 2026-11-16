@@ -55,7 +55,7 @@ export function ConfigEngajamentoModelos() {
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Modelos de Mensagem <HelpTip label="Sobre Modelos de Mensagem">Gerencie os templates de comunicação automatizada da sua empresa.</HelpTip></h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Modelos de Mensagem <HelpTip label="Sobre Modelos de Mensagem">Os modelos de mensagem são textos prontos que a empresa usa nas comunicações automáticas. Edite aqui para manter o tom e as informações sempre certos.</HelpTip></h1>
         </div>
         <Button onClick={() => { setEditingTemplate(null); setIsModalOpen(true); }} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-4 h-4 mr-1" /> Novo Modelo
@@ -107,7 +107,7 @@ export function ConfigEngajamentoAutomacoes() {
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Regras de Automação <HelpTip label="Sobre Regras de Automação">Gatilhos do sistema baseados em eventos do pipeline.</HelpTip></h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Regras de Automação <HelpTip label="Sobre Regras de Automação">Regras que fazem o sistema agir sozinho quando algo acontece no funil, por exemplo um lead mudar de etapa. Escolha o gatilho e o que deve acontecer.</HelpTip></h1>
         </div>
         <Button onClick={() => window.location.href = '/app/automacoes'} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-4 h-4 mr-1" /> Nova Automação
@@ -176,7 +176,7 @@ export function ConfigBusinessDashboard() {
     <div className="max-w-4xl space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Dashboard de Negócios <HelpTip label="Sobre Dashboard de Negócios">Personalize os KPIs e alertas da tela inicial.</HelpTip></h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Dashboard de Negócios <HelpTip label="Sobre Dashboard de Negócios">Escolha quais indicadores (KPIs) e alertas aparecem na tela inicial, para ver logo de cara o que importa para o seu negócio.</HelpTip></h1>
         </div>
         <Button onClick={handleExport} variant="outline" className="h-9 px-4 text-xs font-bold border-[var(--color-border-default)]">
           Exportar Relatório

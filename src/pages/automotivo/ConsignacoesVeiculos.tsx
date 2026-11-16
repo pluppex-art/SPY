@@ -343,7 +343,7 @@ export default function ConsignacoesVeiculos() {
               <Handshake className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Consignação de Veículo <HelpTip label="Sobre Nova Consignação de Veículo">Cadastre o veículo e comissão acordada com o proprietário</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Consignação de Veículo <HelpTip label="Sobre Nova Consignação de Veículo">Cadastre o veículo que o proprietário deixou para vender e a comissão combinada com ele.</HelpTip></h3>
             </div>
           </div>
         }

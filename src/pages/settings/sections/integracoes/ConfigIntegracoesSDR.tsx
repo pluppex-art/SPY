@@ -74,7 +74,7 @@ export function ConfigIntegracoesSDR() {
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
           Integrações SDR & Pré-Vendas
           <Zap className="w-5 h-5 text-[var(--color-primary-blue)]" />
-         <HelpTip label="Sobre Integrações SDR & Pré-Vendas">Cadastre os endpoints e valide a conexão com "Disparar Teste" (chamada HTTP real). O disparo automático nestes eventos de qualificação ainda não está implementado — hoje só o teste manual envia uma requisição de verdade.</HelpTip></h1>
+         <HelpTip label="Sobre Integrações SDR & Pré-Vendas">Cadastre os endereços de integração (endpoints) e confirme que funcionam com o botão Disparar Teste. O envio automático nos eventos de qualificação ainda não está implementado: hoje só o teste manual envia uma requisição de verdade.</HelpTip></h1>
       </div>
 
       {/* Reunião Agendada */}

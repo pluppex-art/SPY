@@ -64,7 +64,7 @@ export function ConfigLinksDinamicos() {
         <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
           Links Dinâmicos
           <Link2 className="w-5 h-5 text-[var(--color-primary-blue)]" />
-         <HelpTip label="Sobre Links Dinâmicos">Cadastre aqui os links reais que sua empresa já usa (pagamento, agendamento, checkout, contrato) — a Aurora e a IA consultam essa lista ao vivo em vez de ter qualquer link fixo no prompt. Atualizar um link aqui reflete imediatamente, sem precisar editar nenhuma automação.</HelpTip></h1>
+         <HelpTip label="Sobre Links Dinâmicos">Cadastre os links reais que a sua empresa já usa (pagamento, agendamento, checkout, contrato). A Aurora e a IA consultam esta lista na hora de responder, em vez de ter links fixos. Ao atualizar um link aqui, a mudança vale imediatamente, sem mexer em nenhuma automação.</HelpTip></h1>
       </div>
 
       <Card className="p-4 bg-warning/5 border border-warning/20 flex gap-3">

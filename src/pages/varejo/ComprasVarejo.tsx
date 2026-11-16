@@ -418,7 +418,7 @@ export default function ComprasVarejo() {
               <ClipboardList className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Ordem de Compra <HelpTip label="Sobre Nova Ordem de Compra">Solicite reposição de itens e insumos para seu estoque</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Nova Ordem de Compra <HelpTip label="Sobre Nova Ordem de Compra">Solicite a reposição de itens e insumos para o seu estoque.</HelpTip></h3>
             </div>
           </div>
         }

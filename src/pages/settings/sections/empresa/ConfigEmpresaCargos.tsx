@@ -65,7 +65,7 @@ export function ConfigEmpresaCargos() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Cargos & Estrutura <Briefcase className="w-5 h-5 text-[var(--color-primary-blue)]" />
-           <HelpTip label="Sobre Cargos & Estrutura">Cadastre e estruture os cargos hierárquicos da empresa.</HelpTip></h1>
+           <HelpTip label="Sobre Cargos & Estrutura">Cadastre os cargos da empresa e organize a hierarquia. Os cargos definem o que cada pessoa pode ver e fazer no sistema.</HelpTip></h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" onClick={handleAdicionarPadrao} disabled={adicionando} className="h-9 px-4 text-xs font-bold gap-1.5" title={`Adiciona até ${CARGOS_PADRAO.length} cargos prontos, com nível e páginas sugeridas`}>

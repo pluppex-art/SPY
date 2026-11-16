@@ -183,7 +183,7 @@ export function ConfigConectoresExternos() {
         <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
           Conectores Externos
           <Plug className="w-5 h-5 text-[var(--color-primary-blue)]" />
-         <HelpTip label="Sobre Conectores Externos">Conecte o ERP/CRM próprio da sua empresa (ou outro sistema) ao SPY via API/Webhook autenticado — nunca uma conexão direta ao banco de dados de terceiros. Ative os eventos que devem ser enviados automaticamente pra esse sistema.</HelpTip></h1>
+         <HelpTip label="Sobre Conectores Externos">Aqui você liga o sistema que a sua empresa já usa (um ERP, um CRM próprio ou outro) ao SPY, de forma segura e autenticada. O SPY nunca acessa diretamente o banco de dados do outro sistema. Depois, ative os eventos que devem ser enviados automaticamente para ele.</HelpTip></h1>
       </div>
 
       <Card className="p-6 space-y-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">

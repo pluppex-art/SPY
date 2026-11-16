@@ -141,7 +141,7 @@ export function AdminOverviewTab({
             <div>
               <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> Evolução do Faturamento da Base
-               <HelpTip label="Sobre Evolução do Faturamento da Base">Histórico consolidado de faturamento de todos os tenants, a partir dos lançamentos financeiros liquidados — não é a mensalidade paga ao SPY (ver aba Faturamento).</HelpTip></h3>
+               <HelpTip label="Sobre Evolução do Faturamento da Base">Histórico mensal do faturamento de todas as empresas juntas, somando os lançamentos financeiros já liquidados. Não é a mensalidade paga ao SPY: para isso, veja a aba Faturamento.</HelpTip></h3>
             </div>
             {globalMrr > 0 && (
               <span className="text-[11px] font-black text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 px-2.5 py-1 rounded-lg border border-[var(--color-primary-blue)]/20">

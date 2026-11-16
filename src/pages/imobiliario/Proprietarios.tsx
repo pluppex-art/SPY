@@ -214,7 +214,7 @@ export default function Proprietarios() {
               <Users className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cadastrar Proprietário <HelpTip label="Sobre Cadastrar Proprietário">Dados cadastrais e contato do locador / vendedor</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cadastrar Proprietário <HelpTip label="Sobre Cadastrar Proprietário">Cadastre os dados e o contato de quem aluga ou vende o imóvel. É com essa pessoa que você negocia o imóvel.</HelpTip></h3>
             </div>
           </div>
         }

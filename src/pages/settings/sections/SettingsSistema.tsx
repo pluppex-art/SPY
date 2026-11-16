@@ -22,13 +22,13 @@ export function ConfigSistemaBackups() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Backups & Segurança do Banco de Dados <ShieldCheck className="w-5 h-5 text-[var(--color-primary-blue)]" />
-         <HelpTip label="Sobre Backups & Segurança do Banco de Dados">O banco de dados deste sistema roda no Supabase, que gerencia backup e recuperação na própria infraestrutura.</HelpTip></h1>
+         <HelpTip label="Sobre Backups & Segurança do Banco de Dados">O banco de dados do sistema roda no Supabase, que cuida dos backups e da recuperação na própria infraestrutura dele.</HelpTip></h1>
       </div>
 
       <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] space-y-4 shadow-sm">
         <h3 className="font-bold text-sm text-[var(--color-text-primary)] flex items-center gap-2">
           <HardDrive className="w-4 h-4 text-[var(--color-primary-blue)]" /> Onde o backup é gerenciado
-         <HelpTip label="Sobre Onde o backup é gerenciado">O Supabase realiza backups automáticos do banco de dados de acordo com o plano contratado do projeto (backups diários e, em planos superiores, Point-in-Time Recovery). Este painel do S.P.Y. CRM não controla nem substitui isso — a configuração e restauração de backups fica no painel do próprio Supabase.</HelpTip></h3>
+         <HelpTip label="Sobre Onde o backup é gerenciado">O Supabase faz backups automáticos de acordo com o plano contratado do projeto: diários e, em planos superiores, com recuperação a qualquer ponto do tempo (Point-in-Time Recovery). Este painel do SPY não controla nem substitui isso. Para configurar ou restaurar um backup, use o painel do próprio Supabase.</HelpTip></h3>
         <a
           href="https://supabase.com/docs/guides/platform/backups"
           target="_blank"

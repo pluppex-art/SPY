@@ -254,7 +254,7 @@ export default function ManutencoesSolar() {
               <Wrench className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Manutenção Fotovoltaica <HelpTip label="Sobre Agendar Manutenção Fotovoltaica">Abertura de OS para lavagem de módulos ou revisão elétrica</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Manutenção Fotovoltaica <HelpTip label="Sobre Agendar Manutenção Fotovoltaica">Abra uma ordem de serviço para lavagem de módulos ou revisão elétrica.</HelpTip></h3>
             </div>
           </div>
         }

@@ -285,7 +285,7 @@ export default function Empreendimentos() {
               <Building2 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Empreendimento <HelpTip label="Sobre Novo Empreendimento">Cadastre lançamentos imobiliários e controle de VGV</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Empreendimento <HelpTip label="Sobre Novo Empreendimento">Cadastre o lançamento imobiliário e acompanhe o VGV (Valor Geral de Vendas: o total que o empreendimento pode render se tudo for vendido).</HelpTip></h3>
             </div>
           </div>
         }

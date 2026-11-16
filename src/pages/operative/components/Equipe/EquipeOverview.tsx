@@ -55,7 +55,7 @@ export function EquipeOverview({ team, squads, logs, onAdmitir, onGoLogs, onEdit
           <div className="p-2 w-fit rounded-2xl bg-blue-500/10 border border-blue-500/20 mb-4">
             <LayoutDashboard className="w-5 h-5 text-blue-500" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-[var(--color-text-primary)]">Equipe & Estrutura <HelpTip label="Sobre Equipe & Estrutura">Gerencie colaboradores, squads e acompanhe mudanças de hierarquia.</HelpTip></h1>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-[var(--color-text-primary)]">Equipe & Estrutura <HelpTip label="Sobre Equipe & Estrutura">Gerencie colaboradores e squads e acompanhe as mudanças de hierarquia da equipe.</HelpTip></h1>
         </div>
         <Button onClick={onAdmitir} className="gap-2 h-12 px-6 font-bold rounded-2xl shrink-0">
           <Plus className="w-5 h-5" /> Admitir Membro
@@ -103,7 +103,8 @@ export function EquipeOverview({ team, squads, logs, onAdmitir, onGoLogs, onEdit
             <div className="w-14 h-14 rounded-2xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] flex items-center justify-center mx-auto text-[var(--color-text-muted)]">
               <UserCheck className="w-7 h-7" />
             </div>
-            <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Nenhum colaborador cadastrado <HelpTip label="Sobre Nenhum colaborador cadastrado">Clique em "Admitir Membro" para adicionar o primeiro colaborador.</HelpTip></h3>
+            <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Nenhum colaborador cadastrado</h3>
+            <p className="text-xs text-[var(--color-text-muted)]">Clique em "Admitir Membro" para adicionar o primeiro colaborador.</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-2.5">

@@ -338,7 +338,7 @@ export function ConfigKanbanBoards() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Funis & Quadros Kanban <Columns3 className="w-5 h-5 text-[var(--color-primary-blue)]" />
-         <HelpTip label="Sobre Funis & Quadros Kanban">Personalize as colunas, cores e etapas dos quadros de tarefas, marketing e educação da plataforma.</HelpTip></h1>
+         <HelpTip label="Sobre Funis & Quadros Kanban">Personalize as colunas, cores e etapas dos quadros de tarefas, marketing e educação para o fluxo de trabalho ficar do jeito da sua equipe.</HelpTip></h1>
       </div>
 
       {/* Board Tabs */}

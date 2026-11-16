@@ -349,7 +349,7 @@ export default function FinanceiroConciliacao() {
           className="hidden"
         />
         <Upload className="w-10 h-10 mx-auto mb-2 text-[var(--color-primary-blue)] opacity-80" />
-        <h4 className="text-xs font-bold text-[var(--color-text-primary)] mb-1">Importar Arquivo OFX ou Extrato CSV <HelpTip label="Sobre Importar Arquivo OFX ou Extrato CSV">Selecione seu extrato bancário oficial para importação e conciliação instantânea.</HelpTip></h4>
+        <h4 className="text-xs font-bold text-[var(--color-text-primary)] mb-1">Importar Arquivo OFX ou Extrato CSV <HelpTip label="Sobre Importar Arquivo OFX ou Extrato CSV">Envie o extrato oficial do banco (arquivo OFX ou CSV) para conferir os lançamentos do sistema com o que realmente passou na conta. É a conciliação bancária.</HelpTip></h4>
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}

@@ -41,7 +41,7 @@ export function ConfigCRMCampos() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Campos Personalizados (CRM) <Sliders className="w-5 h-5 text-[var(--color-primary-blue)]" />
-           <HelpTip label="Sobre Campos Personalizados (CRM)">Defina campos adicionais, tipos de dados e regras de validação para os leads.</HelpTip></h1>
+           <HelpTip label="Sobre Campos Personalizados (CRM)">Crie campos extras nos leads, escolha o tipo de cada um (texto, número, data…) e as regras de validação. Assim você guarda as informações específicas do seu negócio.</HelpTip></h1>
         </div>
         <Button
           onClick={() => { setEditingField(null); setIsModalOpen(true); }}

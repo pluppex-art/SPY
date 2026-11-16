@@ -63,7 +63,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <SectionTitle>Receita por canal de origem <HelpTip label="Sobre Receita por canal de origem">Qual canal traz mais receita pro seu negócio.</HelpTip></SectionTitle>
+            <SectionTitle>Receita por canal de origem <HelpTip label="Sobre Receita por canal de origem">Mostra de qual canal vem a sua receita. Os canais no topo da lista são os que mais trazem dinheiro: é neles que costuma valer investir mais.</HelpTip></SectionTitle>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="relative">
@@ -91,7 +91,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
         {/* Barras + distribuição */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <Card className="min-w-0 overflow-hidden p-5 shadow-sm">
-            <SectionTitle as="h4">Receita por canal de origem <HelpTip label="Sobre Receita por canal de origem">Comparativo da receita gerada por cada canal no período selecionado.</HelpTip></SectionTitle>
+            <SectionTitle as="h4">Receita por canal de origem <HelpTip label="Sobre Receita por canal de origem">Compara a receita gerada por cada canal no período escolhido no filtro de datas. Barras maiores são canais que trouxeram mais receita.</HelpTip></SectionTitle>
             {ranqueados.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhum canal com dados no período.</p>
             ) : (
@@ -116,7 +116,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
           </Card>
 
           <Card className="min-w-0 overflow-hidden p-5 shadow-sm">
-            <SectionTitle as="h4">Distribuição da receita por canal <HelpTip label="Sobre Distribuição da receita por canal">Participação de cada canal na receita total.</HelpTip></SectionTitle>
+            <SectionTitle as="h4">Distribuição da receita por canal <HelpTip label="Sobre Distribuição da receita por canal">Mostra que fatia da receita total cada canal representa. Se um único canal concentra quase tudo, o negócio depende muito dele.</HelpTip></SectionTitle>
             {donut.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Sem receita no período.</p>
             ) : (
@@ -157,7 +157,7 @@ export default function CanaisPanel({ dashboard }: { dashboard: DashboardData })
         <Card className="overflow-hidden min-w-0 shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex flex-wrap items-start justify-between gap-2">
             <div>
-              <SectionTitle as="h4">Detalhamento por canal de origem <HelpTip label="Sobre Detalhamento por canal de origem">Veja a receita, leads, vendas, conversão e ticket médio de cada canal.</HelpTip></SectionTitle>
+              <SectionTitle as="h4">Detalhamento por canal de origem <HelpTip label="Sobre Detalhamento por canal de origem">A tabela completa de cada canal: receita, leads, vendas, conversão (quantos leads viraram venda) e ticket médio (valor médio de cada venda).</HelpTip></SectionTitle>
             </div>
             {variacaoTotal !== null && (
               <span className={`text-[11px] font-bold ${variacaoTotal >= 0 ? "text-emerald-500" : "text-rose-500"}`}>

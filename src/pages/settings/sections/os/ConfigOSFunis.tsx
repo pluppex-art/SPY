@@ -176,7 +176,7 @@ export function ConfigOSFunis() {
   return (
     <div className="max-w-5xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Funis de Operação <HelpTip label="Sobre Funis de Operação">Cadastre os departamentos da empresa e o fluxo (etapas) de cada um. Eles viram as abas da página de Ordens de Serviço.</HelpTip></h1>
+        <h1 className="text-2xl font-bold tracking-tight">Funis de Operação <HelpTip label="Sobre Funis de Operação">Cadastre os departamentos da empresa e as etapas do fluxo de cada um. Cada departamento vira uma aba na página de Ordens de Serviço.</HelpTip></h1>
       </div>
 
       {vazio && (

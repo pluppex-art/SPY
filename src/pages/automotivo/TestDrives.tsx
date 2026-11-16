@@ -288,7 +288,7 @@ export default function TestDrives() {
               <Calendar className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Novo Test-Drive <HelpTip label="Sobre Agendar Novo Test-Drive">Cadastre o cliente, veículo e horário agendado</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Novo Test-Drive <HelpTip label="Sobre Agendar Novo Test-Drive">Informe quem fará o test-drive, qual veículo e o horário combinado.</HelpTip></h3>
             </div>
           </div>
         }

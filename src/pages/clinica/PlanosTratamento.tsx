@@ -320,7 +320,7 @@ export default function PlanosTratamento() {
               <FileHeart className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Plano de Tratamento <HelpTip label="Sobre Novo Plano de Tratamento">Defina as sessões, procedimentos inclusos e orçamento</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Plano de Tratamento <HelpTip label="Sobre Novo Plano de Tratamento">Descreva o tratamento do paciente: quantas sessões, quais procedimentos estão incluídos e o orçamento.</HelpTip></h3>
             </div>
           </div>
         }

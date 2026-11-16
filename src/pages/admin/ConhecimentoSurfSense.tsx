@@ -23,7 +23,7 @@ export default function ConhecimentoSurfSense() {
           <div className="flex items-start gap-3">
             <BookOpen className="w-5 h-5 mt-0.5 text-[var(--color-primary-blue)]" />
             <div className="space-y-1">
-              <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Abrir o SurfSense <HelpTip label="Sobre Abrir o SurfSense">Envie PDFs, planilhas e documentos, faça perguntas e receba respostas com a fonte. Abre em uma nova aba, no servidor da própria plataforma.</HelpTip></h2>
+              <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Abrir o SurfSense <HelpTip label="Sobre Abrir o SurfSense">O SurfSense é a base de conhecimento da plataforma: você envia PDFs, planilhas e documentos e depois faz perguntas em linguagem normal. Cada resposta vem com a fonte, para você conferir de onde a informação saiu. Abre em uma nova aba.</HelpTip></h2>
             </div>
           </div>
           <Button asChild className="bg-[var(--color-primary-blue)] text-white font-bold">

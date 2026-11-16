@@ -101,7 +101,7 @@ export function ConfigProdutividadeCategorias() {
         <div className="max-w-4xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Categorias & Produtividade <HelpTip label="Sobre Categorias & Produtividade">Organize as tarefas e visualize o CAC por time comercial.</HelpTip></h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Categorias & Produtividade <HelpTip label="Sobre Categorias & Produtividade">Organize as categorias das tarefas e veja o CAC (quanto custa conquistar cada cliente) de cada time comercial.</HelpTip></h1>
                 </div>
                 <Button onClick={() => { setEditingCategory(null); setIsModalOpen(true); }} className="font-bold px-6"><Plus className="w-4 h-4 mr-2" /> Nova Categoria</Button>
             </div>
@@ -112,7 +112,7 @@ export function ConfigProdutividadeCategorias() {
                     <div>
                         <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-widest flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-[var(--color-primary-blue)]" /> Custo de Aquisição (CAC) por Squad
-                         <HelpTip label="Sobre Custo de Aquisição (CAC) por Squad">Investimento Mensal / Novos Leads (Mês Atual)</HelpTip></h3>
+                         <HelpTip label="Sobre Custo de Aquisição (CAC) por Squad">O CAC é calculado dividindo o investimento do mês pelo número de novos leads do mês atual.</HelpTip></h3>
                     </div>
                 </div>
 
@@ -254,7 +254,7 @@ export function ConfigFinanceiroCategorias() {
         <div className="max-w-4xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Planos de Contas (Categorias) <HelpTip label="Sobre Planos de Contas (Categorias)">Categorias para classificar receitas e despesas — o par tipo/subtipo define em qual linha do DRE cada lançamento é somado.</HelpTip></h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Planos de Contas (Categorias) <HelpTip label="Sobre Planos de Contas (Categorias)">As categorias classificam suas receitas e despesas. A combinação de tipo e subtipo define em qual linha do DRE (demonstrativo de resultado) cada lançamento entra na soma.</HelpTip></h1>
                 </div>
                 <Button onClick={() => { setEditing(null); setIsModalOpen(true); }} className="font-bold px-6"><Plus className="w-4 h-4 mr-2" /> Nova Categoria</Button>
             </div>
@@ -298,7 +298,7 @@ export function ConfigFinanceiroSquads() {
     return (
         <div className="max-w-4xl space-y-6">
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">Gestão Financeira de Times & CAC <Briefcase className="w-5 h-5 text-[var(--color-primary-blue)]" /> <HelpTip label="Sobre Gestão Financeira de Times & CAC">Configure o orçamento mensal de cada squad para cálculo automático de Custo de Aquisição de Clientes (CAC) em tempo real.</HelpTip></h1>
+                <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">Gestão Financeira de Times & CAC <Briefcase className="w-5 h-5 text-[var(--color-primary-blue)]" /> <HelpTip label="Sobre Gestão Financeira de Times & CAC">Informe o orçamento mensal de cada squad (time). Com ele o sistema calcula, em tempo real, o CAC: quanto custa conquistar cada cliente.</HelpTip></h1>
             </div>
 
             <div className="grid grid-cols-1 gap-4">

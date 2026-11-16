@@ -53,7 +53,7 @@ export function ConfigNichos() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Nichos <Tag className="w-5 h-5 text-[var(--color-primary-blue)]" />
-         <HelpTip label="Sobre Nichos">Segmentos de negócio da sua empresa, usados para classificar leads e clientes. Cada empresa tem seus próprios nichos.</HelpTip></h1>
+         <HelpTip label="Sobre Nichos">Os nichos são os segmentos de negócio da sua empresa e servem para classificar leads e clientes. Cada empresa tem os seus próprios.</HelpTip></h1>
       </div>
 
       <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] flex items-center gap-3">

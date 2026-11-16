@@ -171,7 +171,7 @@ export default function CentralReceita() {
           </p>
           <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-text-primary)] mt-1 flex items-center gap-2">
             Central de Receita <span className="w-2 h-2 rounded-full bg-[var(--color-primary-blue)]" />
-           <HelpTip label="Sobre Central de Receita">Aqui está o panorama da sua receita, o que importa agora e as ações recomendadas pela Aurora.</HelpTip></h1>
+           <HelpTip label="Sobre Central de Receita">Esta é a sua visão geral da receita: o panorama do que entrou, o que importa agora e as ações que a Aurora recomenda. Use as abas acima para aprofundar em cada assunto.</HelpTip></h1>
         </div>
       </div>
 

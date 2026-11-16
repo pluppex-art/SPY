@@ -47,7 +47,7 @@ export function ConfigCRMSLA() {
         <div>
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Configuração de SLA & Alertas <Clock className="text-[var(--color-primary-blue)] w-5 h-5" />
-           <HelpTip label="Sobre Configuração de SLA & Alertas">Garanta conversões rápidas cobrando sua equipe de vendas caso o tempo de primeiro contato estoure.</HelpTip></h1>
+           <HelpTip label="Sobre Configuração de SLA & Alertas">O SLA é o prazo máximo para a equipe fazer o primeiro contato com um lead novo. Defina o prazo e, se ele estourar, o sistema avisa e cobra a equipe. Responder rápido aumenta muito a chance de venda.</HelpTip></h1>
         </div>
         <Button onClick={handleSaveSla} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs w-full sm:w-auto">
           Salvar Configurações

@@ -95,7 +95,7 @@ export function AdminCheckoutTab() {
       <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h3 className="font-black text-sm">Checkout por Pix <HelpTip label="Sobre Checkout por Pix">Página pública para o cliente se cadastrar e pagar. Os preços vêm dos planos; as promoções abaixo trocam o valor na hora.</HelpTip></h3>
+            <h3 className="font-black text-sm">Checkout por Pix <HelpTip label="Sobre Checkout por Pix">É a página pública em que o cliente se cadastra e paga por Pix. Os preços vêm dos planos cadastrados; as promoções e cupons abaixo trocam o valor na hora, sem precisar mexer no plano.</HelpTip></h3>
           </div>
           <a href="/checkout" target="_blank" rel="noreferrer" className="text-xs font-semibold text-[var(--color-primary-blue)] inline-flex items-center gap-1">Abrir checkout <ExternalLink className="w-3 h-3" /></a>
         </div>
@@ -130,7 +130,7 @@ export function AdminCheckoutTab() {
       </Card>
 
       <Card className="p-5 space-y-4">
-        <h3 className="font-black text-sm">Promoções e cupons <HelpTip label="Sobre Promoções e cupons">Sem cupom = promoção automática (aparece para todos). Com cupom = o cliente digita no checkout.</HelpTip></h3>
+        <h3 className="font-black text-sm">Promoções e cupons <HelpTip label="Sobre Promoções e cupons">Promoção sem cupom é automática: aparece para todo mundo que entra no checkout. Promoção com cupom só vale quando o cliente digita o código. Use cupom para campanhas e parcerias específicas.</HelpTip></h3>
         <div className="grid gap-2 sm:grid-cols-4">
           <input className={campo} placeholder="Cupom (vazio = automática)" value={novo.code} onChange={(e) => setNovo({ ...novo, code: e.target.value })} aria-label="Cupom" />
           <input className={campo} placeholder="Nome (ex.: Black Friday)" value={novo.label} onChange={(e) => setNovo({ ...novo, label: e.target.value })} aria-label="Nome da promoção" />

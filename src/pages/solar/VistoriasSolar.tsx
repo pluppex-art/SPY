@@ -273,7 +273,7 @@ export default function VistoriasSolar() {
               <ClipboardCheck className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Vistoria Técnica <HelpTip label="Sobre Agendar Vistoria Técnica">Inspeção in-loco de estrutura, sombreamento e telhado</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Agendar Vistoria Técnica <HelpTip label="Sobre Agendar Vistoria Técnica">Agende a inspeção no local para avaliar a estrutura, o sombreamento e o telhado.</HelpTip></h3>
             </div>
           </div>
         }

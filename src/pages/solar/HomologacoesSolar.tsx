@@ -265,7 +265,7 @@ export default function HomologacoesSolar() {
               <FileCheck className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Protocolo de Homologação <HelpTip label="Sobre Novo Protocolo de Homologação">Tramitação de parecer de acesso e conexão junto à concessionária</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Protocolo de Homologação <HelpTip label="Sobre Novo Protocolo de Homologação">Registre o protocolo junto à concessionária para acompanhar o parecer de acesso e a conexão do sistema solar à rede.</HelpTip></h3>
             </div>
           </div>
         }

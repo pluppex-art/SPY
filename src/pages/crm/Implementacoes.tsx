@@ -19,7 +19,6 @@ import { tenantReadiness } from "../../lib/implementationTenant";
 import { useImplementationStages } from "../os/hooks/useImplementationStages";
 import { ClientePicker } from "../os/components/ClientePicker";
 
-import { HelpTip } from "../../components/ui/help-tip";
 const FILTROS = ["Todas", ...IMPLEMENTATION_STATUSES] as const;
 
 const LEGACY_STATUS_DOT: Record<ImplementationStatus, string> = {
@@ -208,7 +207,8 @@ export default function Implementacoes() {
           <Card className="p-6">
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1 flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-500" /> Aguardando início ({aguardando.length})
-             <HelpTip label="Sobre Aguardando início ()">Clientes com lead fechado que ainda não têm implementação. Iniciar cria o formulário já pré-preenchido com o que o sistema sabe.</HelpTip></h3>
+            </h3>
+            <p className="text-xs text-[var(--color-text-muted)] mb-4">Clientes com lead fechado que ainda não têm implementação. Iniciar cria o formulário já pré-preenchido com o que o sistema sabe.</p>
             {aguardando.length > 0 && (
               <div className="divide-y divide-[var(--color-border-subtle)] mb-4">
                 {aguardando.map(({ cliente, lead }) => (

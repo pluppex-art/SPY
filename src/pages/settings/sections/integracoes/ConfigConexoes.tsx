@@ -133,7 +133,7 @@ export function ConfigConexoes() {
   return (
     <div className="max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Conexões <HelpTip label="Sobre Conexões">Conecte as contas da sua empresa. Os dados sincronizados ficam disponíveis para a Aurora responder com informações reais — sempre só do seu usuário.</HelpTip></h1>
+        <h1 className="text-2xl font-bold tracking-tight">Conexões <HelpTip label="Sobre Conexões">Conecte as contas da sua empresa. O que for sincronizado fica disponível para a Aurora responder com informações reais, sempre apenas do seu usuário.</HelpTip></h1>
       </div>
 
       <div className="flex items-start gap-2 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]/60 px-3 py-2.5 text-xs text-[var(--color-text-muted)]">

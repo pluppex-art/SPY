@@ -206,7 +206,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <SectionTitle>Receita por Canal de Origem <HelpTip label="Sobre Receita por Canal de Origem">Qual canal traz mais receita pro seu negócio.</HelpTip></SectionTitle>
+            <SectionTitle>Receita por Canal de Origem <HelpTip label="Sobre Receita por Canal de Origem">Mostra de qual canal vem a sua receita. Os canais no topo da lista são os que mais trazem dinheiro: é neles que costuma valer investir mais.</HelpTip></SectionTitle>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
@@ -229,7 +229,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
 
         <Card className="overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <SectionTitle>Receita por Produto/Serviço <HelpTip label="Sobre Receita por Produto/Serviço">Quais produtos geram mais receita.</HelpTip></SectionTitle>
+            <SectionTitle>Receita por Produto/Serviço <HelpTip label="Sobre Receita por Produto/Serviço">Mostra quais produtos ou serviços geram mais receita. Os primeiros da lista são os que mais sustentam o seu faturamento.</HelpTip></SectionTitle>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
@@ -251,7 +251,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
         </Card>
 
         <Card className="p-5 flex flex-col shadow-sm">
-          <SectionTitle className="mb-1">Receita por Segmento <HelpTip label="Sobre Receita por Segmento">Em quais segmentos sua empresa mais ganha.</HelpTip></SectionTitle>
+          <SectionTitle className="mb-1">Receita por Segmento <HelpTip label="Sobre Receita por Segmento">Mostra em quais segmentos (categorias dos seus produtos e serviços) a empresa mais ganha. Ajuda a decidir onde focar a venda.</HelpTip></SectionTitle>
           {segmentos.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] italic flex-1 flex items-center justify-center">Sem contratos ativos ainda</p>
           ) : (

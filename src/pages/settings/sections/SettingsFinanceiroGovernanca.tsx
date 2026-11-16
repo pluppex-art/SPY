@@ -36,7 +36,7 @@ export function ConfigFinanceiroBloqueioPeriodo() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Lock className="w-5 h-5 text-[var(--color-primary-blue)]" /> Bloqueio de Período <HelpTip label="Sobre Bloqueio de Período">Transações pagas dentro de um período bloqueado não podem ser criadas, editadas ou excluídas. Lançamentos pendentes continuam livres.</HelpTip></h1>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Lock className="w-5 h-5 text-[var(--color-primary-blue)]" /> Bloqueio de Período <HelpTip label="Sobre Bloqueio de Período">Ao bloquear um período (por exemplo, um mês já fechado), lançamentos pagos naquele período não podem mais ser criados, editados nem excluídos. Isso protege os números fechados. Lançamentos pendentes continuam livres.</HelpTip></h1>
       </div>
 
       <Card className="p-5">
@@ -123,7 +123,7 @@ export function ConfigFinanceiroAuditoria() {
   return (
     <div className="max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-[var(--color-primary-blue)]" /> Auditoria Financeira <HelpTip label="Sobre Auditoria Financeira">Todo lançamento criado, editado ou excluído fica registrado aqui — com autor, horário e o que mudou.</HelpTip></h1>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-[var(--color-primary-blue)]" /> Auditoria Financeira <HelpTip label="Sobre Auditoria Financeira">Todo lançamento criado, editado ou excluído fica registrado aqui, com quem fez, quando fez e o que mudou. Use para conferir qualquer alteração financeira.</HelpTip></h1>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">

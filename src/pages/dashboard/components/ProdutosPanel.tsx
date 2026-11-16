@@ -88,7 +88,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
         {/* Cabeçalho + filtros */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <SectionTitle>Receita por produto/serviço <HelpTip label="Sobre Receita por produto/serviço">Quais produtos geram mais receita e margem.</HelpTip></SectionTitle>
+            <SectionTitle>Receita por produto/serviço <HelpTip label="Sobre Receita por produto/serviço">Mostra quais produtos ou serviços geram mais receita e margem (o que sobra depois do custo). Os primeiros da lista são os que mais sustentam o seu resultado.</HelpTip></SectionTitle>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="relative">
@@ -142,7 +142,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
         {/* Barras + evolução */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <Card className="min-w-0 overflow-hidden p-5 shadow-sm">
-            <SectionTitle as="h4">Receita por produto/serviço <HelpTip label="Sobre Receita por produto/serviço">Distribuição da receita no período selecionado.</HelpTip></SectionTitle>
+            <SectionTitle as="h4">Receita por produto/serviço <HelpTip label="Sobre Receita por produto/serviço">Mostra como a receita do período escolhido se divide entre os produtos e serviços.</HelpTip></SectionTitle>
             {rankeados.length === 0 ? (
               <p className="text-xs text-[var(--color-text-faint)] italic py-10 text-center">Nenhum produto vendido no período.</p>
             ) : (
@@ -206,7 +206,7 @@ export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData 
         {/* Detalhamento */}
         <Card className="overflow-hidden min-w-0 shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <SectionTitle as="h4">Detalhamento por produto/serviço <HelpTip label="Sobre Detalhamento por produto/serviço">Veja a receita, vendas, ticket médio, participação e margem de cada produto.</HelpTip></SectionTitle>
+            <SectionTitle as="h4">Detalhamento por produto/serviço <HelpTip label="Sobre Detalhamento por produto/serviço">A tabela completa de cada produto: receita, vendas, ticket médio (valor médio por venda), participação no total e margem.</HelpTip></SectionTitle>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">

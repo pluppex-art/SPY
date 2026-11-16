@@ -306,7 +306,7 @@ export default function ProjetosSolar() {
               <Sun className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Projeto Fotovoltaico <HelpTip label="Sobre Novo Projeto Fotovoltaico">Cadastre uma nova usina solar para dimensionamento e instalação</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Novo Projeto Fotovoltaico <HelpTip label="Sobre Novo Projeto Fotovoltaico">Cadastre uma nova usina solar para dimensionamento (cálculo do tamanho do sistema) e instalação.</HelpTip></h3>
             </div>
           </div>
         }

@@ -18,7 +18,6 @@ import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
 import { toast } from "sonner";
 
-import { HelpTip } from "../../../components/ui/help-tip";
 interface TenantItem {
   id: string;
   name: string;
@@ -598,7 +597,10 @@ export function AdminTenantsTab({
               <div>
                 <h3 className="text-base font-black text-[var(--color-text-primary)]">
                   Editar Empresa: {editingTenant.name}
-                 <HelpTip label="Sobre Editar Empresa:">Atualização cadastral e credenciais administrativas</HelpTip></h3>
+                </h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mt-0.5">
+                  Atualização cadastral e credenciais administrativas
+                </p>
               </div>
             </div>
           }

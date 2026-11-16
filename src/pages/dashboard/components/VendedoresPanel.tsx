@@ -467,7 +467,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
           <Card className="lg:col-span-7 p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
               <div className="min-w-0">
-                <SectionTitle as="h4">Evolução da receita{sellerRestricted ? "" : " por vendedor"} <HelpTip label="Sobre Evolução da receita">Receita diária no período selecionado.</HelpTip></SectionTitle>
+                <SectionTitle as="h4">Evolução da receita{sellerRestricted ? "" : " por vendedor"} <HelpTip label="Sobre Evolução da receita">Mostra a receita de cada dia no período escolhido. Picos e quedas ajudam a achar os melhores e os piores dias.</HelpTip></SectionTitle>
               </div>
               <select value={acumulada ? "acumulada" : "diaria"} onChange={(e) => setAcumulada(e.target.value === "acumulada")} className={selectCls}>
                 <option value="acumulada">Receita acumulada</option>
@@ -500,7 +500,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
           <Card className="lg:col-span-5 p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
-                <SectionTitle as="h4">Funil{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"} <HelpTip label="Sobre Funil : sellerRestricted ?  :  por v">Quantidade de leads em cada etapa.</HelpTip></SectionTitle>
+                <SectionTitle as="h4">Funil{vendedorAtual ? ` — ${vendedorAtual.nome}` : sellerRestricted ? "" : " por vendedor"} <HelpTip label="Sobre o funil">Mostra quantos leads estão em cada etapa do funil. Onde acumula muita gente, é provável que esteja travando.</HelpTip></SectionTitle>
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 items-stretch">
@@ -522,7 +522,7 @@ export default function VendedoresPanel({ dashboard }: { dashboard: DashboardDat
 
         {/* Meta x realizado */}
         <Card className="p-5 shadow-sm">
-          <SectionTitle as="h4">Meta x realizado{sellerRestricted ? "" : " por vendedor"} <HelpTip label="Sobre Meta x realizado">Acompanhe o progresso da meta de receita.</HelpTip></SectionTitle>
+          <SectionTitle as="h4">Meta x realizado{sellerRestricted ? "" : " por vendedor"} <HelpTip label="Sobre Meta x realizado">Compara a meta de receita com o que já foi realizado. Quanto mais perto de 100%, mais perto de bater a meta.</HelpTip></SectionTitle>
           {comMeta.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] italic py-8 text-center">
               Nenhuma meta definida. Cadastre a meta mensal em Equipe › Editar colaborador.

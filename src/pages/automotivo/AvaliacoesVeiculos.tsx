@@ -301,7 +301,7 @@ export default function AvaliacoesVeiculos() {
             <div>
               <h3 className="text-base font-black text-[var(--color-text-primary)]">
                 Nova Avaliação de Seminovos
-               <HelpTip label="Sobre Nova Avaliação de Seminovos">Registre os dados do veículo e da proposta de compra/troca</HelpTip></h3>
+               <HelpTip label="Sobre Nova Avaliação de Seminovos">Preencha os dados do veículo seminovo e o valor proposto na compra ou na troca.</HelpTip></h3>
             </div>
           </div>
         }

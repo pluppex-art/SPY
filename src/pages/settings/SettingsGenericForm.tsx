@@ -3,7 +3,6 @@ import { Card } from "../../components/ui/card";
 import { Save } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
-import { HelpTip } from "../../components/ui/help-tip";
 export default function SettingsGenericForm() {
   const location = useLocation();
   const pathParts = location.pathname.split('/');
@@ -29,7 +28,8 @@ export default function SettingsGenericForm() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{title} <HelpTip label="Sobre Ajuda">Esta configuração ainda está em desenvolvimento.</HelpTip></h1>
+          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <p className="text-sm text-[var(--color-text-muted)]">Esta configuração ainda está em desenvolvimento.</p>
         </div>
       </div>
 

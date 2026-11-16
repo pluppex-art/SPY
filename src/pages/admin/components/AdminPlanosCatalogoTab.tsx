@@ -55,7 +55,7 @@ export function AdminPlanosCatalogoTab() {
       <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h3 className="font-black text-sm">Planos de assinatura <HelpTip label="Sobre Planos de assinatura">Preço, módulos, teto de IA e vitrine são cadastrados no produto. Aqui você acompanha e liga/desliga o site.</HelpTip></h3>
+            <h3 className="font-black text-sm">Planos de assinatura <HelpTip label="Sobre Planos de assinatura">O preço, os módulos incluídos, o limite de uso de IA e a exibição na vitrine são definidos no cadastro do produto. Nesta tela você acompanha os planos e liga ou desliga cada um no site.</HelpTip></h3>
           </div>
           <div className="flex gap-2">
             {missingProducts > 0 && (

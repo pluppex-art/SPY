@@ -1982,7 +1982,7 @@ export default function VarejoVendas() {
               <Receipt className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Comprovante de Venda / Cupom <HelpTip label="Sobre Comprovante de Venda / Cupom">Impressão térmica 80mm e espelho fiscal NFC-e</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Comprovante de Venda / Cupom <HelpTip label="Sobre Comprovante de Venda / Cupom">Comprovante de venda para impressora térmica de 80 mm, com espelho fiscal de NFC-e.</HelpTip></h3>
             </div>
           </div>
         }
@@ -2201,7 +2201,7 @@ export default function VarejoVendas() {
               <Plus className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Adicionar Item Avulso / Rápido <HelpTip label="Sobre Adicionar Item Avulso / Rápido">Insira um produto ou serviço fora do catálogo padrão</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Adicionar Item Avulso / Rápido <HelpTip label="Sobre Adicionar Item Avulso / Rápido">Adicione um produto ou serviço que não está no catálogo padrão, sem precisar cadastrá-lo antes.</HelpTip></h3>
             </div>
           </div>
         }
@@ -2277,7 +2277,7 @@ export default function VarejoVendas() {
               <PauseCircle className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Vendas em Espera ({vendasEmEspera.length}) <HelpTip label="Sobre Vendas em Espera ()">Retome atendimentos que foram pausados temporariamente na fila</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Vendas em Espera ({vendasEmEspera.length}) <HelpTip label="Sobre Vendas em Espera">Retome atendimentos que foram colocados em pausa na fila, para continuar de onde parou.</HelpTip></h3>
             </div>
           </div>
         }
@@ -2474,7 +2474,7 @@ export default function VarejoVendas() {
               <HelpCircle className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Atalhos de Teclado do PDV <HelpTip label="Sobre Atalhos de Teclado do PDV">Agilize o atendimento com as teclas de acesso rápido</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Atalhos de Teclado do PDV <HelpTip label="Sobre Atalhos de Teclado do PDV">Use as teclas de atalho para atender mais rápido no PDV.</HelpTip></h3>
             </div>
           </div>
         }

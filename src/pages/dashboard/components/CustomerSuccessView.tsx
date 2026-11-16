@@ -144,7 +144,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
         <div>
           <SectionTitle>
             <HeartHandshake className="w-4 h-4 text-[var(--color-primary-blue)]" /> Carteira de Contratos
-           <HelpTip label="Sobre Carteira de Contratos">Estado atual da base de contratos recorrentes.</HelpTip></SectionTitle>
+           <HelpTip label="Sobre Carteira de Contratos">A foto de agora da sua base de contratos recorrentes: quantos estão ativos e como está cada situação.</HelpTip></SectionTitle>
         </div>
         {contracts.length === 0 ? (
           <Card className="h-[160px] flex items-center justify-center text-xs text-[var(--color-text-muted)] shadow-sm">
@@ -183,7 +183,7 @@ export function CustomerSuccessView({ serverSummary }: { serverSummary?: Dashboa
     <Card className="p-5 shadow-sm">
       <SectionTitle>
         <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> Distribuição de CLV (Valor Vitalício)
-       <HelpTip label="Sobre Distribuição de CLV (Valor Vitalício)">Tempo de contrato × MRR, por faixa de valor — quantos clientes reais caem em cada faixa.</HelpTip></SectionTitle>
+       <HelpTip label="Sobre Distribuição de CLV (Valor Vitalício)">Agrupa os clientes por faixa de valor (CLV, o valor que o cliente tende a render ao longo da vida), cruzando tempo de contrato com o MRR (valor recorrente mensal). Mostra quantos clientes reais ficam em cada faixa.</HelpTip></SectionTitle>
       {clvHistogram.bins.length === 0 ? (
         <div className="h-[140px] flex items-center justify-center text-xs text-[var(--color-text-muted)]">
           Sem contratos com data de assinatura válida o suficiente pra calcular.

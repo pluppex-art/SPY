@@ -50,7 +50,7 @@ export function ConfigEmpresaFiliais() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
             Filiais & Unidades <Store className="w-5 h-5 text-[var(--color-primary-blue)]" />
-           <HelpTip label="Sobre Filiais & Unidades">Cadastre e gerencie filiais, franquias e unidades da sua empresa.</HelpTip></h1>
+           <HelpTip label="Sobre Filiais & Unidades">Cadastre as filiais, franquias e unidades da empresa. Ao escolher uma filial na barra lateral, o sistema passa a mostrar só os dados dela. A filial nova começa zerada.</HelpTip></h1>
         </div>
         <Button onClick={() => setIsModalOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-3.5 h-3.5" /> Nova Filial

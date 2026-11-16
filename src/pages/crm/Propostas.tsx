@@ -57,7 +57,7 @@ function FunilConversao({ rows }: { rows: any[] }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="lg:col-span-2 p-6">
-        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1">Funil de Conversão <HelpTip label="Sobre Funil de Conversão">Em qual etapa cada proposta está agora — da elaboração até a decisão final.</HelpTip></h3>
+        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] mb-1">Funil de Conversão <HelpTip label="Sobre Funil de Conversão">Mostra em que etapa cada proposta está agora, da elaboração até a decisão final. Quanto mais propostas chegam ao fim do funil, melhor a conversão; se muitas travam numa etapa, é ali que vale agir.</HelpTip></h3>
         <div className="space-y-4">
           {porEtapa.counts.map((e) => (
             <div key={e.step}>

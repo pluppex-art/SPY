@@ -288,7 +288,7 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
         <div>
           <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
             <UserCheck className="w-4 h-4 text-indigo-500" /> Simulador de Visão por Cargo & Perfil
-           <HelpTip label="Sobre Simulador de Visão por Cargo & Perfil">Selecione uma função operacional para testar instantaneamente a interface e as restrições do menu lateral.</HelpTip></h3>
+           <HelpTip label="Sobre Simulador de Visão por Cargo & Perfil">Escolha um cargo para ver, na hora, como ficaria o menu lateral de quem tem aquele perfil. Serve para conferir o que cada função enxerga antes de liberar o acesso para alguém.</HelpTip></h3>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

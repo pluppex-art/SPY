@@ -32,7 +32,7 @@ export function AdminAgentsTab() {
         <div>
           <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
             <Bot className="w-4 h-4 text-violet-400" /> Catálogo de agentes da plataforma
-           <HelpTip label="Sobre Catálogo de agentes da plataforma">Lista global — ativar/desativar ou renomear é feito por empresa, em Configurações → Sistema → Aurora de cada tenant.</HelpTip></h3>
+           <HelpTip label="Sobre Catálogo de agentes da plataforma">Este é o catálogo de todos os agentes que a plataforma oferece. A lista é geral: para ligar, desligar ou renomear um agente em uma empresa, entre nessa empresa em Configurações → Sistema → Aurora.</HelpTip></h3>
         </div>
         <p className="text-xs text-[var(--color-text-muted)] shrink-0">{CATALOG_WITH_AURORA.length} agentes</p>
       </div>

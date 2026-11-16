@@ -6,7 +6,6 @@ import { Download, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet } from "
 import { toast } from "sonner";
 import { useData } from "../../contexts/DataContext";
 
-import { HelpTip } from "../../components/ui/help-tip";
 type TipoLancamento = "Recebimentos" | "Despesas fixas" | "Despesas variáveis" | "Pessoas" | "Impostos";
 
 const TIPO_MAP: Record<string, { type: "Pagar" | "Receber"; subtipo: string | null }> = {
@@ -259,7 +258,8 @@ export default function FinanceiroImportarMovimentacoes() {
         {step === 1 && (
           <>
             <Card className="p-6">
-              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Regras de preenchimento <HelpTip label="Sobre Regras de preenchimento">Apenas arquivos .csv, até 2 MB (esta versão não lê .xlsx binário — exporte sua planilha como CSV).</HelpTip></h3>
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Regras de preenchimento</h3>
+              <p className="text-xs text-[var(--color-text-faint)] mb-4">Apenas arquivos .csv, até 2 MB (esta versão não lê .xlsx binário — exporte sua planilha como CSV).</p>
               <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left mb-4">
                 <thead className="text-[10px] uppercase font-semibold text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
                   <tr><th className="py-2">Coluna obrigatória</th><th className="py-2">Regra</th></tr>

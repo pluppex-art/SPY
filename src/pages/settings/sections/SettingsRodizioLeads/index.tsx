@@ -21,7 +21,7 @@ export function ConfigRodizioLeads() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
           Rodízio de Leads <Shuffle className="w-5 h-5 text-[var(--color-primary-blue)]" />
-         <HelpTip label="Sobre Rodízio de Leads">Configure a distribuição automática de leads entre SDRs e Closers com base em capacidade e tags.</HelpTip></h1>
+         <HelpTip label="Sobre Rodízio de Leads">Defina como os leads são distribuídos automaticamente entre SDRs e closers, de acordo com a capacidade de cada um e as tags do lead.</HelpTip></h1>
       </div>
 
       <div className="flex items-center gap-1.5 p-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-sm">
