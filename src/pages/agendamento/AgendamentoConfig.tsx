@@ -10,7 +10,8 @@ import { Switch } from "../../components/ui/switch";
 import { HelpTip } from "../../components/ui/help-tip";
 import { EmptyState } from "../../components/ui/empty-state";
 import { Spinner } from "../../components/ui/spinner";
-import { chamar, DIAS_SEMANA, dataBR, type ConfigLinha } from "../../lib/agendamento/cliente";
+import { useAuth } from "../../contexts/AuthContext";
+import { chamar, definirTenantAtivo, DIAS_SEMANA, dataBR, type ConfigLinha } from "../../lib/agendamento/cliente";
 import { campo, rotulo } from "./components/Estilos";
 
 const PERMISSOES: { id: keyof ConfigLinha["permissoes_equipe"]; titulo: string; ajuda: string }[] = [
@@ -28,6 +29,8 @@ const Campo = ({ t, children, className }: { t: string; children: React.ReactNod
 
 /** Configuração do Agendamento: o que é reservado, preços, horários, pagamento online, mesas e permissões da equipe. */
 export default function AgendamentoConfig() {
+  const { activeTenantId } = useAuth();
+  definirTenantAtivo(activeTenantId);
   const [c, setC] = useState<ConfigLinha | null>(null);
   const [orig, setOrig] = useState("");
   const [admin, setAdmin] = useState(true);
@@ -40,7 +43,7 @@ export default function AgendamentoConfig() {
     try { const j = await chamar<{ config: ConfigLinha; admin: boolean; linkPublico: string | null }>("GET", "/api/agendamento/config"); setC(j.config); setOrig(JSON.stringify(j.config)); setAdmin(j.admin); setLink(j.linkPublico); }
     catch (e: any) { setErro(e?.message || "Falha ao carregar"); }
   };
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => { carregar(); }, [activeTenantId]);
 
   if (erro) return <PageContainer title="Configurações do Agendamento"><EmptyState title="Não foi possível abrir" description={erro} /></PageContainer>;
   if (!c) return <div className="flex justify-center py-24"><Spinner /></div>;

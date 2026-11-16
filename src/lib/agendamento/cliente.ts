@@ -39,7 +39,12 @@ export const FORMAS = [{ id: "DINHEIRO", rotulo: "Dinheiro" }, { id: "PIX", rotu
 export class ErroApi extends Error { constructor(m: string, public status: number, public code?: string) { super(m); } }
 
 /** Chama uma rota do Agendamento da equipe. Lança ErroApi com a mensagem pronta para mostrar ao usuário. */
+let tenantAtivo: string | undefined;
+/** Empresa que está sendo vista (master/parceiro pode estar em outra que não a do próprio login): vai em toda chamada. */
+export const definirTenantAtivo = (id: string | undefined) => { tenantAtivo = id; };
+
 export async function chamar<T = any>(metodo: "GET" | "POST" | "PUT" | "PATCH", caminho: string, corpo?: unknown): Promise<T> {
+  if (tenantAtivo) caminho += `${caminho.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(tenantAtivo)}`;
   const r = await apiFetch(caminho, { method: metodo, headers: corpo ? { "Content-Type": "application/json" } : undefined, body: corpo ? JSON.stringify(corpo) : undefined });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new ErroApi(j?.error || "Não foi possível concluir. Tente novamente.", r.status, j?.code);

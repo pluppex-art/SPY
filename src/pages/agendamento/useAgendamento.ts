@@ -3,13 +3,14 @@ import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { agoraNoFuso, calcularAlertas, metricasDoDia, type Agora } from "../../lib/agendamento/engine";
-import { chamar, configParaEngine, linhaParaReserva, ErroApi, type ConfigLinha, type Reserva } from "../../lib/agendamento/cliente";
+import { chamar, definirTenantAtivo, configParaEngine, linhaParaReserva, ErroApi, type ConfigLinha, type Reserva } from "../../lib/agendamento/cliente";
 
 type Permissoes = Record<"criar" | "editar" | "cancelar" | "receber" | "sem_contato", boolean>;
 
 /** Agenda do dia: configuração, reservas (com tempo real) e as ações da equipe. */
 export function useAgendamento(data: string) {
   const { activeTenantId } = useAuth();
+  definirTenantAtivo(activeTenantId);
   const [config, setConfig] = useState<ConfigLinha | null>(null);
   const [admin, setAdmin] = useState(false);
   const [permissoes, setPermissoes] = useState<Permissoes>({ criar: true, editar: true, cancelar: false, receber: true, sem_contato: false });
