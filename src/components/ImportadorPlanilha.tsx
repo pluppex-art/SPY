@@ -10,7 +10,9 @@ import {
 } from "../lib/importer";
 import { friendlyError } from "../lib/friendlyError";
 import { suppressPopups } from "../lib/popups";
-import { Upload } from "lucide-react";
+import { Upload, Share2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu";
+import { exportToCSV } from "../lib/exportCsv";
 import { useAuth } from "../contexts/AuthContext";
 import { useData } from "../contexts/DataContext";
 import { leadsSpec } from "../lib/importSpecs";
@@ -340,8 +342,8 @@ export function BotaoImportar({ spec, label = "Importar planilha", className = "
   );
 }
 
-/** Importar leads (usa o funil e a empresa da sessão). */
-export function BotaoImportarLeads({ className = "", label }: { className?: string; label?: string }) {
+/** Monta a especificação de importação de leads (funil e empresa da sessão). Null enquanto não há empresa ativa. */
+function useLeadsImportSpec(): ImportSpec | null {
   const { user, activeTenantId, activeFilialId } = useAuth() as any;
   const { funis, colaboradores } = useData() as any;
   if (!activeTenantId) return null;
@@ -352,8 +354,65 @@ export function BotaoImportarLeads({ className = "", label }: { className?: stri
   const importadorDaEmpresa = !!user && (user as any).tenantId === activeTenantId;
   const sellers: { nome: string; userId?: string | null }[] = [];
   for (const c of (colaboradores || []) as any[]) if (isVendedorColab(c) && !sellers.some((s) => s.nome === c.nome)) sellers.push({ nome: c.nome, userId: c.user_id ?? c.userId ?? null });
-  const spec = leadsSpec({ tenantId: activeTenantId, filialId: activeFilialId, sellerName: importadorDaEmpresa ? (user?.name || "") : "", sellerUserId: importadorDaEmpresa ? user?.id ?? null : null, sellers, rodizioElegiveis, funis: funis || [] });
+  return leadsSpec({ tenantId: activeTenantId, filialId: activeFilialId, sellerName: importadorDaEmpresa ? (user?.name || "") : "", sellerUserId: importadorDaEmpresa ? user?.id ?? null : null, sellers, rodizioElegiveis, funis: funis || [] });
+}
+
+/** Importar leads (usa o funil e a empresa da sessão). */
+export function BotaoImportarLeads({ className = "", label }: { className?: string; label?: string }) {
+  const spec = useLeadsImportSpec();
+  if (!spec) return null;
   return <BotaoImportar spec={spec} className={className} label={label} />;
+}
+
+// Planilha aberta no Excel pode interpretar "=", "+", "-" ou "@" no começo da célula como fórmula: o apóstrofo neutraliza.
+const celulaSegura = (v: unknown) => { const t = v == null ? "" : String(v); return /^[=+\-@]/.test(t) ? `'${t}` : t; };
+
+/** Baixa os leads informados (os que estão na tela, já com os filtros) como planilha CSV. */
+function exportarLeadsCsv(leads: any[]) {
+  if (!leads.length) { toast.error("Não há leads para exportar com os filtros atuais."); return; }
+  const linhas = leads.map((l) => ({
+    Nome: celulaSegura(l.name),
+    Empresa: celulaSegura(l.company),
+    "E-mail": celulaSegura(l.email),
+    Telefone: celulaSegura(l.phone),
+    Cidade: celulaSegura(l.customFields?.cidade ?? l.city),
+    UF: celulaSegura(l.customFields?.estado ?? l.state),
+    Situação: celulaSegura(l.status),
+    Valor: Number(l.value) || 0,
+    Responsável: celulaSegura(l.seller),
+    Origem: celulaSegura(l.source),
+    Interesse: celulaSegura(l.lead_interesse_cliente),
+    Data: celulaSegura(l.date),
+  }));
+  exportToCSV(linhas, `leads_${new Date().toISOString().slice(0, 10)}`);
+  toast.success(`${linhas.length.toLocaleString("pt-BR")} lead(s) exportado(s).`);
+}
+
+/** Botão "Compartilhar": abre um menu para escolher entre importar uma planilha ou exportar os leads. */
+export function BotaoCompartilharLeads({ leads, className = "" }: { leads: any[]; className?: string }) {
+  const spec = useLeadsImportSpec();
+  const [importando, setImportando] = useState(false);
+  if (!spec) return null;
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className={`h-9 px-4 text-xs font-bold gap-1.5 border-[var(--color-border-default)] ${className}`} aria-label="Compartilhar: importar ou exportar leads">
+            <Share2 className="w-3.5 h-3.5" /> Compartilhar
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[14rem]">
+          <DropdownMenuItem onSelect={() => setImportando(true)} className="gap-2 cursor-pointer">
+            <Upload className="w-4 h-4" /> Importar planilha
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => exportarLeadsCsv(leads)} className="gap-2 cursor-pointer">
+            <Download className="w-4 h-4" /> Exportar leads (planilha)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {importando && <ImportadorPlanilha spec={spec} open={importando} onClose={() => setImportando(false)} />}
+    </>
+  );
 }
 
 

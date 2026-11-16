@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { LeadCard } from "./LeadCard";
 import { Task } from "../../../../types";
 import { leadInterestEstimate } from "../../../../components/ui/lead-details/LeadDetailsModal.helpers";
@@ -237,7 +237,7 @@ export function PipelineKanbanBoard({
   const pctOf = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 1000) / 10 : 0);
 
   return (
-    <div ref={fillRef} style={{ height: fillHeight }} className="flex gap-3 max-sm:!h-[72dvh] overflow-x-auto overscroll-x-contain snap-x snap-mandatory sm:snap-none pb-4 min-h-[320px] scrollbar-none select-none items-stretch">
+    <div ref={fillRef} style={{ height: fillHeight }} className="flex gap-3 max-sm:min-h-[72dvh] overflow-x-auto overscroll-x-contain snap-x snap-mandatory sm:snap-none pb-0 min-h-[320px] scrollbar-none select-none items-stretch">
       {activePipelineStages.map((stage, stageIdx) => {
         const isMinimized = minimizedColumns.has(stage.id);
         const rawStageLeads = filteredItemsList.filter((l: any) => matchesStage(l, stage));
@@ -258,7 +258,7 @@ export function PipelineKanbanBoard({
             onDragLeave={() => setDraggedOverStageId(null)}
             onDrop={(e) => handleDrop(stage, e)}
             style={{ borderTopColor: draggedOverStageId === stage.id ? undefined : stage.color }}
-            className={`shrink-0 snap-start max-sm:[content-visibility:auto] max-sm:[contain-intrinsic-size:auto_320px_auto_72dvh] flex flex-col bg-[var(--color-surface)]/40 border-2 border-t-4 rounded-3xl transition-all duration-300 h-full ${
+            className={`shrink-0 snap-start max-sm:[content-visibility:auto] max-sm:[contain-intrinsic-size:auto_320px_auto_72dvh] flex flex-col bg-[var(--color-surface)]/40 border-2 border-t-4 border-b-0 rounded-3xl rounded-b-none transition-all duration-300 h-full ${
               isMinimized ? "w-[56px] p-2" : "w-[84vw] max-w-[320px] sm:w-[280px] p-3"
             } ${draggedOverStageId === stage.id ? "border-[var(--color-primary-blue)]/60 bg-[var(--color-primary-blue)]/10 scale-[1.01]" : "border-[var(--color-border-default)] hover:bg-[var(--color-surface-elevated)]/60"}`}
           >
@@ -287,7 +287,18 @@ export function PipelineKanbanBoard({
                       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
                       <h3 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider group-hover:text-[var(--color-primary-blue)] transition-colors truncate">{stage.name}</h3>
                     </button>
-                    <span className="text-[10px] font-bold text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-2 py-0.5 rounded-full shrink-0">{stageLeads.length}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] font-bold text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-2 py-0.5 rounded-full">{stageLeads.length}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleColumn(stage.id)}
+                        title="Recolher coluna"
+                        aria-label={`Recolher a coluna ${stage.name}`}
+                        className="grid place-items-center w-6 h-6 rounded-full text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-1.5">
                     <span className="text-[10px] font-mono font-bold text-[var(--color-text-muted)] truncate">{formatCurrency(stageValue)}</span>

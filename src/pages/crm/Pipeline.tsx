@@ -197,6 +197,7 @@ export default function Pipeline() {
           showAnalytics={showAnalytics}
           setShowAnalytics={setShowAnalytics}
           onNewLead={checkCapacityAndOpenModal}
+          leadsExport={view === "lista" ? listaLeads : (filteredItemsList as any[])}
         />
       }
     >
