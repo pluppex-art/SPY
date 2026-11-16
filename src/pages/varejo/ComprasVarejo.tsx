@@ -235,7 +235,7 @@ export default function ComprasVarejo() {
   return (
     <PageContainer
       title="Ordens de Compra & Reposição"
-      description="Emissão de pedidos a fornecedores, entrada de mercadorias e alimentação do saldo em estoque."
+      description="Emita pedidos aos fornecedores, registre a entrada das mercadorias e alimente o saldo do estoque."
       actions={
         <Button onClick={() => {
           if (!previsaoEntrega && cfgVarejo.compras.prazoEntregaPadraoDias > 0) {

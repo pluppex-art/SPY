@@ -198,7 +198,7 @@ export default function FinanceiroOrcamentos() {
   return (
     <PageContainer
       title="Orçamentos"
-      description="Planeje um valor por categoria a cada mês e acompanhe o realizado — calculado direto dos lançamentos pagos, nunca digitado à mão."
+      description="Planeje um valor para cada categoria a cada mês e acompanhe o realizado. O realizado é calculado direto dos lançamentos pagos."
     >
       {categoriasAtivas.length === 0 ? (
         <EmptyState

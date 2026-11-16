@@ -97,7 +97,7 @@ export default function TelemedicinaDashboard() {
   return (
     <PageContainer 
       title="Telemedicina S.P.Y." 
-      description="Consultas virtuais com integração Google Meet e anotações de atendimento."
+      description="Faça consultas virtuais pelo Google Meet e registre as anotações do atendimento."
       actions={
         <div className="flex items-center gap-3 flex-wrap">
           {!googleEmail ? (

@@ -164,7 +164,7 @@ export default function FornecedoresVarejo() {
   return (
     <PageContainer
       title="Fornecedores de Mercadorias"
-      description="Cadastro de distribuidoras, condições de pagamento, prazos de entrega e catálogo de produtos."
+      description="Cadastro de distribuidoras, com condições de pagamento, prazos de entrega e catálogo de produtos."
       actions={
         <div className="flex items-center gap-2 flex-wrap">
         {activeTenantId && <BotaoImportar spec={fornecedoresSpec({ tenantId: activeTenantId, onDone: () => setReloadKey((k) => k + 1) })} />}

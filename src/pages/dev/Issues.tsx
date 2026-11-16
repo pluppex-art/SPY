@@ -57,7 +57,7 @@ export default function Issues() {
   return (
     <PageContainer
       title="Issues & Bugs"
-      description="Rastreamento centralizado de bugs, erros e issues de todos os projetos."
+      description="Lista central de bugs, erros e pendências (issues) de todos os projetos."
       breadcrumb={[{ label: "Dev & Tecnologia", path: "/app/dev/painel" }, { label: "Issues" }]}
       actions={
         <Button onClick={() => setIsModalOpen(true)} className="rounded-xl h-10 px-6 text-xs gap-2">

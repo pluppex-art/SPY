@@ -85,7 +85,7 @@ export default function FinanceiroProjecao() {
   return (
     <PageContainer
       title="Fluxo de Caixa Projetado"
-      description="Recebimentos e pagamentos já lançados como 'A Vencer' — projetado nunca se mistura com o que já foi de fato pago ou recebido."
+      description="Recebimentos e pagamentos já lançados como “A Vencer”. O projetado nunca se mistura com o que já foi pago de fato."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Projeção de Caixa" }]}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">

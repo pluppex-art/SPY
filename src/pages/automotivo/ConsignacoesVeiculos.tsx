@@ -253,7 +253,7 @@ export default function ConsignacoesVeiculos() {
   return (
     <PageContainer
       title="Veículos em Consignação & Repasses"
-      description="Contratos de consignação, comissão retida e cálculo automático de repasse ao proprietário."
+      description="Acompanhe os veículos deixados em consignação: os contratos, a comissão retida e o cálculo automático do repasse ao proprietário."
       actions={
         <div className="flex items-center gap-2">
           <Button onClick={handleExportCSV} variant="outline" className="h-9 px-3.5 text-xs font-bold gap-1.5 border-[var(--color-border-default)]">

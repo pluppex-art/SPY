@@ -119,7 +119,7 @@ export default function FaturamentoClinico() {
   return (
     <PageContainer 
       title="Faturamento Clínico" 
-      description="Gestão de honorários, controle de faturamento e repasses médicos."
+      description="Controle os honorários, o faturamento da clínica e os repasses aos médicos."
       actions={
         <div className="flex items-center gap-3 flex-wrap">
           <Button 

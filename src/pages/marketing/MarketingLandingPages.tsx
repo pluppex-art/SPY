@@ -217,7 +217,7 @@ export default function MarketingLandingPages() {
   return (
     <PageContainer
       title="Gestão & Analytics de Landing Pages"
-      description="Acompanhe gráficos de conversão, cliques, ranking da página que mais vende e conecte LPs de clientes."
+      description="Acompanhe conversão, cliques e qual página vende mais, e conecte as páginas de captura (LPs) dos clientes."
       actions={
         <div className="flex items-center gap-2 flex-wrap">
           <Button

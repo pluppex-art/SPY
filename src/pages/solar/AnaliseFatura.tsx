@@ -218,7 +218,7 @@ export default function AnaliseFatura() {
   return (
     <PageContainer
       title="Energia Solar — Análise de Fatura"
-      description="Envie uma foto da conta de luz e obtenha consumo médio, dimensionamento e economia estimada automaticamente."
+      description="Envie uma foto da conta de luz e o sistema calcula sozinho o consumo médio, o dimensionamento do sistema solar e a economia estimada."
     >
       <div className="space-y-6 max-w-5xl mx-auto pb-12">
         <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">

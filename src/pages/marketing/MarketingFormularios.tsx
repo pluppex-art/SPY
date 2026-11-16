@@ -98,7 +98,7 @@ export default function MarketingFormularios() {
   return (
     <PageContainer
       title="Formulários"
-      subtitle="Gerencie formulários de captação de leads conectados ao CRM."
+      subtitle="Gerencie os formulários de captação de leads ligados ao CRM."
       actions={!selected && (
         <button
           onClick={() => setIsModalOpen(true)}

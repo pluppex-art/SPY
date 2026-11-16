@@ -189,7 +189,7 @@ export default function Pipeline() {
   return (
     <PageContainer
       title="Central de Vendas"
-      description="Gerencie oportunidades em visão de lista ou kanban interativo."
+      description="Gerencie suas oportunidades em lista ou em quadro kanban (colunas por etapa) que você arrasta para mover."
       actions={
         <PipelineTopActions
           view={view}

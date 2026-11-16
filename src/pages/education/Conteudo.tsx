@@ -103,7 +103,7 @@ export default function Conteudo() {
   return (
     <PageContainer
       title="Repositório de Conteúdo S.P.Y."
-      description="Gestão centralizada de ativos educacionais e trilhas de aprendizagem de alta performance."
+      description="Gerencie os materiais educacionais e as trilhas de aprendizagem."
       actions={
         <div className="flex items-center gap-3">
           <Button onClick={handleExport} variant="outline" className="border-white/10 text-[10px] font-black uppercase tracking-widest h-11 px-6 rounded-2xl gap-2">

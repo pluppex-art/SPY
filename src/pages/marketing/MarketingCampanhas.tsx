@@ -124,7 +124,7 @@ export default function MarketingCampanhas() {
   return (
     <PageContainer
       title="Gestão de Campanhas & Tráfego"
-      subtitle="Acompanhe o ROI, performance de conversões e conexões ativas do Meta Ads e Google Ads."
+      subtitle="Acompanhe o retorno (ROI), as conversões e as conexões ativas do Meta Ads e do Google Ads."
       actions={
         <Button
           onClick={() => navigate("/app/configuracoes/integracoes/apps")}

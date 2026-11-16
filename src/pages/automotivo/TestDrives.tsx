@@ -188,7 +188,7 @@ export default function TestDrives() {
   return (
     <PageContainer
       title="Test-Drives Agendados"
-      description="Controle de experiência de condução com clientes, verificação de CNH e agendamentos integrados à Agenda."
+      description="Controle os test-drives com clientes, inclusive a verificação da CNH. Os agendamentos aparecem integrados à Agenda."
       actions={
         <div className="flex items-center gap-2">
           <Link

@@ -110,7 +110,7 @@ export default function PainelGeralEducation() {
   return (
     <PageContainer 
       title="Painel Educacional S.P.Y." 
-      description="Visão 360º da operação pedagógica, turmas ativas, base de alunos e controle de mensalidades."
+      description="Visão geral da operação pedagógica: turmas ativas, base de alunos e controle das mensalidades."
       actions={
         <div className="flex items-center gap-3">
           <Button 

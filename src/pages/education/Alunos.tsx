@@ -103,7 +103,7 @@ export default function Alunos() {
   return (
     <PageContainer
       title="Gestão de Alunos S.P.Y."
-      description="Base centralizada de matrículas, desempenho acadêmico e engajamento."
+      description="Base única de matrículas, desempenho acadêmico e engajamento dos alunos."
       actions={
         <div className="flex items-center gap-2 flex-wrap">
           {activeTenantId && <BotaoImportar spec={alunosSpec({ tenantId: activeTenantId })} />}

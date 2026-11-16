@@ -58,7 +58,7 @@ export default function Projetos() {
   return (
     <PageContainer
       title="Projetos"
-      description="Gerencie todos os projetos de desenvolvimento, stacks, times e progresso."
+      description="Gerencie os projetos de desenvolvimento, as tecnologias usadas (stacks), os times e o progresso."
       breadcrumb={[{ label: "Dev & Tecnologia", path: "/app/dev/painel" }, { label: "Projetos" }]}
       actions={
         <Button onClick={() => setIsModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 px-6 text-[10px] font-black uppercase tracking-widest gap-2">

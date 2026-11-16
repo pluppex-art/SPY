@@ -95,7 +95,7 @@ export default function Atividades() {
   return (
     <PageContainer
       title="Atividades Comerciais"
-      description="Linha do tempo consolidada de contatos, ligações, reuniões e histórico de interações."
+      description="Linha do tempo com todos os contatos, ligações, reuniões e o histórico de interações com seus clientes."
       actions={
         <Button onClick={() => toast.info("Para registrar uma nova atividade, abra os detalhes do Lead na Central de Vendas ou na lista.")} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-3.5 h-3.5" /> Registrar Atividade

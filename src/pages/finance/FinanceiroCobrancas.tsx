@@ -258,7 +258,7 @@ export default function FinanceiroCobrancas() {
   return (
     <PageContainer
       title="Gestão de Cobranças & Faturamento"
-      description="Emissão e acompanhamento de faturas, boletos bancários e cobranças via Pix com conciliação automática."
+      description="Emita e acompanhe faturas, boletos e cobranças por Pix, com conciliação automática dos pagamentos."
       actions={
         <div className="flex items-center gap-2">
           <FinancePeriodFilter />

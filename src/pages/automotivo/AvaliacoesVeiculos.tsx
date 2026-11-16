@@ -214,7 +214,7 @@ export default function AvaliacoesVeiculos() {
   return (
     <PageContainer
       title="Avaliações de Seminovos & Usados"
-      description="Checklist cautelar, laudo de pintura, motor, histórico de leilão e precificação FIPE."
+      description="Registre a avaliação de veículos seminovos e usados: checklist cautelar, laudo de pintura, motor, histórico de leilão e preço de referência da tabela FIPE."
       actions={
         <div className="flex items-center gap-2">
           <Button onClick={handleExportCSV} variant="outline" className="h-9 px-3.5 text-xs font-bold gap-1.5 border-[var(--color-border-default)]">

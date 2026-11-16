@@ -228,7 +228,7 @@ export default function PainelVarejo() {
   return (
     <PageContainer
       title="Painel Executivo de Varejo"
-      description="Visão consolidada da frente de caixa (PDV), giro de produtos, reposições e lucratividade da operação."
+      description="Visão geral da frente de caixa (PDV), do giro de produtos, das reposições e da lucratividade."
       actions={
         <div className="flex items-center gap-2">
           <Link

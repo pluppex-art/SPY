@@ -87,7 +87,7 @@ export default function Turmas() {
   return (
     <PageContainer
       title="Gestão de Turmas S.P.Y."
-      description="Controle pedagógico, alocação de instrutores e monitoramento de vagas em tempo real."
+      description="Gerencie as turmas, a alocação de instrutores e as vagas disponíveis em tempo real."
       actions={
         <div className="flex items-center gap-2">
           <Button 

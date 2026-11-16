@@ -118,7 +118,7 @@ export default function AgendaClinica() {
   return (
     <PageContainer
       title="Agenda Médica"
-      description="Sincronização de horários, gestão de salas e fluxo de pacientes por unidade."
+      description="Organize os horários dos profissionais, as salas e o fluxo de pacientes de cada unidade."
       actions={
         <div className="flex items-center gap-3 flex-wrap">
           <Button

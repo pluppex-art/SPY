@@ -116,7 +116,7 @@ export default function FinanceiroFluxoCaixa() {
   return (
     <PageContainer
       title="Fluxo de Caixa"
-      description="Entradas e saídas já efetivamente pagas (regime de caixa) — o que já aconteceu de fato, dia a dia."
+      description="Entradas e saídas que já foram efetivamente pagas (regime de caixa): o que já aconteceu de fato, dia a dia."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Fluxo de Caixa" }]}
       actions={
         <div className="flex items-center gap-2 print:hidden">

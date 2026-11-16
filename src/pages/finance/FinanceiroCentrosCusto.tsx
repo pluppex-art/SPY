@@ -199,7 +199,7 @@ export default function FinanceiroCentrosCusto() {
   return (
     <PageContainer
       title="Centros de Custo & Squads"
-      description="Gerencie unidades de despesa, orçamentos departamentais e centros de resultado."
+      description="Gerencie as unidades de despesa (centros de custo), os orçamentos por departamento e os centros de resultado."
       actions={
         <div className="flex items-center gap-2">
           <Button

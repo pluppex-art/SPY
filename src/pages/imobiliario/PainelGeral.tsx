@@ -234,7 +234,7 @@ export default function ImobiliarioPainel() {
   return (
     <PageContainer
       title="Painel Geral"
-      description="Visão 360° do portfólio de imóveis e veículos, performance da equipe e funil de vendas."
+      description="Visão geral do portfólio de imóveis e veículos, do desempenho da equipe e do funil de vendas."
     >
       <div className="space-y-6 max-w-[1700px] mx-auto pb-10">
 

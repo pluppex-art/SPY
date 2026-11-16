@@ -54,7 +54,7 @@ export default function Eventos() {
   return (
     <PageContainer
       title="Eventos & Compromissos"
-      description="Visão consolidada de reuniões, visitas a imóveis, vistorias solares e test-drives agendados."
+      description="Todos os compromissos num só lugar: reuniões, visitas a imóveis, vistorias solares e test-drives agendados."
       actions={
         <div className="flex items-center gap-2">
           <Link

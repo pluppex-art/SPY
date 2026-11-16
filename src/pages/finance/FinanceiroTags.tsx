@@ -186,7 +186,7 @@ export default function FinanceiroTags() {
   return (
     <PageContainer
       title="Tags"
-      description="Cadastre as etiquetas usadas para classificar lançamentos do Financeiro."
+      description="Cadastre as etiquetas (tags) usadas para classificar os lançamentos do Financeiro."
       actions={
         <div className="flex items-center gap-2 flex-wrap">
           <Button onClick={handleExportCSV} variant="outline" className="h-9 px-3.5 text-xs font-bold gap-1.5 border-[var(--color-border-default)]">

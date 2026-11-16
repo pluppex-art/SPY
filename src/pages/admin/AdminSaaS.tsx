@@ -156,7 +156,7 @@ export default function AdminSaaS() {
   return (
     <PageContainer
       title="Gestão de Infraestrutura & SaaS"
-      description="Centro de Comando Global — Instâncias, Faturamento, Governança Modular e Saúde da Infraestrutura."
+      description="O painel geral da plataforma: aqui você acompanha as empresas (instâncias), o faturamento, quais módulos cada empresa tem liberados e a saúde da infraestrutura."
       actions={
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Status Pill */}

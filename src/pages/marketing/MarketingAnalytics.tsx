@@ -120,7 +120,7 @@ export default function MarketingAnalytics() {
   return (
     <PageContainer
       title="Métricas de Marketing Avançadas"
-      subtitle="Analise CPL, CPLQ, CAC, ROAS e performance geral dos seus canais."
+      subtitle="Analise o custo e o retorno dos seus canais: CPL (custo por lead), CPLQ (custo por lead qualificado), CAC (custo para conquistar um cliente) e ROAS (retorno sobre o gasto com anúncios)."
     >
       <AquisicaoPanel />
 

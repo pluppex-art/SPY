@@ -180,7 +180,7 @@ export default function RelatoriosExecutivos() {
   return (
     <PageContainer
       title="Relatórios Executivos S.P.Y."
-      description="Consolidado estratégico dos pilares Comercial, Financeiro e Operacional para tomadores de decisão."
+      description="Resumo estratégico dos três pilares do negócio (Comercial, Financeiro e Operacional) para quem toma as decisões."
       actions={
         <div className="flex items-center gap-3">
           <select 

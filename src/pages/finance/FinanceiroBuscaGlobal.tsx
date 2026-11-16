@@ -205,7 +205,7 @@ export default function FinanceiroBuscaGlobal() {
   return (
     <PageContainer
       title="Busca Financeira"
-      description="Busca em todo o histórico, sem limite de período — os totalizadores somam pagamentos e pendências."
+      description="Busca em todo o histórico financeiro, sem limite de período. Os totais somam pagamentos e pendências."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Busca" }]}
       actions={
         <div className="flex items-center gap-2">

@@ -210,7 +210,7 @@ export default function FinanceiroContasBancarias() {
   return (
     <PageContainer
       title="Contas Bancárias"
-      description="Saldo real de caixa — só lançamentos pagos e vinculados a uma conta afetam o saldo."
+      description="Mostra o saldo real de caixa. Só entram no saldo os lançamentos já pagos e ligados a uma conta."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Contas Bancárias" }]}
       actions={
         <div className="flex items-center gap-2">

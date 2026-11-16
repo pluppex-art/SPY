@@ -65,7 +65,7 @@ export default function FollowUps() {
   return (
     <PageContainer
       title="Central de Follow-ups"
-      description="Identifique oportunidades paradas, agende retomadas e garanta que nenhum lead fique sem resposta."
+      description="Encontre oportunidades paradas, agende a retomada do contato e garanta que nenhum lead fique sem resposta."
     >
       <KpiFilterCard className="mb-4"
         id="crmFollowUps"

@@ -133,7 +133,7 @@ export default function PainelSolar() {
   return (
     <PageContainer
       title="Painel Executivo de Energia Solar"
-      description="Visão analítica de projetos fotovoltaicos, potência instalada (kWp), funil de contratos e homologação."
+      description="Visão analítica dos projetos fotovoltaicos, da potência instalada (kWp), do funil de contratos e das homologações."
       actions={
         <div className="flex items-center gap-2">
           <Link

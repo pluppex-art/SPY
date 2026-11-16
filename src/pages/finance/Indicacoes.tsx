@@ -430,7 +430,7 @@ export default function Indicacoes() {
   return (
     <PageContainer
       title="Indicações & Parcerias"
-      description="Cadastre afiliados, gere links rastreáveis com formulário para Instagram/WhatsApp e controle comissões."
+      description="Cadastre afiliados, gere links rastreáveis com formulário para Instagram ou WhatsApp e controle as comissões."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Indicações & Parcerias" }]}
       actions={
         <div className="flex items-center gap-2 flex-wrap">

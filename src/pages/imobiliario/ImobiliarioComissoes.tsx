@@ -198,7 +198,7 @@ export default function ImobiliarioComissoes() {
   return (
     <PageContainer
       title="Comissões Imobiliárias & Honorários"
-      description="Cálculo de comissões, split entre imobiliária e corretores parceiros, integrado ao fluxo de caixa."
+      description="Calcule as comissões e o split (divisão) entre a imobiliária e os corretores parceiros, integrado ao fluxo de caixa."
       actions={
         <div className="flex items-center gap-2">
           <Link

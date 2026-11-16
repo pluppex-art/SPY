@@ -187,7 +187,7 @@ export default function Captacoes() {
   return (
     <PageContainer
       title="Captações de Imóveis"
-      description="Esteira de entrada, avaliação de mercado, documentação e inclusão de novos imóveis ao portfólio."
+      description="Acompanhe a captação de imóveis do início ao fim: entrada, avaliação de mercado, documentação e inclusão no portfólio."
       actions={
         <div className="flex items-center gap-2">
           <Button onClick={handleExportCSV} variant="outline" className="h-9 px-3.5 text-xs font-bold gap-1.5 border-[var(--color-border-default)]">

@@ -180,7 +180,7 @@ export default function ProntuariosDashboard() {
   return (
     <PageContainer
       title="Prontuário Eletrônico (EHR)"
-      description="Histórico clínico completo, evolução do paciente e acompanhamento multiprofissional."
+      description="O prontuário eletrônico: histórico clínico completo, evolução do paciente e acompanhamento por vários profissionais."
       actions={
         selectedPacienteId && (
           <Button onClick={() => setShowNovaEntrada(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">

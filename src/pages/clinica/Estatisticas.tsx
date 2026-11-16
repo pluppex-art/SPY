@@ -107,7 +107,7 @@ export default function EstatisticasClinicas() {
   return (
     <PageContainer 
       title="BI & Performance Clínica" 
-      description="Análise detalhada de fluxo de pacientes, produtividade médica e indicadores de saúde."
+      description="Indicadores da clínica: fluxo de pacientes, produtividade dos médicos e números de saúde."
       actions={
         <Button 
           variant="outline" 

@@ -169,7 +169,7 @@ export default function ManutencoesSolar() {
   return (
     <PageContainer
       title="O&M — Manutenção & Pós-Venda Solar"
-      description="Operação e manutenção contínua, limpeza de placas fotovoltaicas, inspeção de inversores e termografia."
+      description="Operação e manutenção contínua: limpeza das placas, inspeção de inversores e termografia."
       actions={
         <div className="flex items-center gap-2">
           <Button

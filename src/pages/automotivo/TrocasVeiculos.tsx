@@ -203,7 +203,7 @@ export default function TrocasVeiculos() {
   return (
     <PageContainer
       title="Negociações com Troca / Veículo na Entrada"
-      description="Gerenciamento de negócios comerciais envolvendo veículo seminovo como parte do pagamento."
+      description="Gerencie as negociações em que o cliente dá um veículo seminovo como parte do pagamento."
       actions={
         <Button onClick={() => setModalOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-3.5 h-3.5" /> Nova Negociação de Troca

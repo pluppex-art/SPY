@@ -102,7 +102,7 @@ export default function MarketingConteudo() {
   return (
     <PageContainer
       title="Gestão de Conteúdo (Kanban)"
-      subtitle="Organize postagens, vídeos, e criativos em um fluxo visual."
+      subtitle="Organize postagens, vídeos e criativos em um quadro visual por etapa."
     >
       <KpiFilterCard
         id="marketingConteudo"

@@ -143,7 +143,7 @@ export default function FinanceiroExtrato() {
   return (
     <PageContainer
       title="Extrato"
-      description="Saldo corrido da conta — filtre por 'somente pagos' pra ver o extrato real, igual ao saldo bancário."
+      description="Saldo corrido da conta. Filtre por “somente pagos” para ver o extrato real, igual ao saldo do banco."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Relatórios", path: "/app/financeiro/relatorios" }, { label: "Extrato" }]}
       actions={
         <div className="flex items-center gap-2 print:hidden">

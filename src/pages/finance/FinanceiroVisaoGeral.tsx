@@ -392,7 +392,7 @@ export default function FinanceiroVisaoGeral() {
   return (
     <PageContainer
       title="Painel Financeiro"
-      description="Saúde financeira, fluxo de caixa, MRR e inadimplência em um só lugar."
+      description="Reúne num só lugar a saúde financeira, o fluxo de caixa, o MRR e a inadimplência."
       actions={
         <div className="flex flex-wrap items-center gap-2 print:hidden">
           <div className="flex items-center rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] h-9">

@@ -79,7 +79,7 @@ export default function Oportunidades() {
   return (
     <PageContainer
       title="Oportunidades Comerciais"
-      description="Visão analítica de negociações, valores em jogo e projeções de fechamento."
+      description="Visão analítica das negociações: quanto dinheiro está em jogo e a projeção de fechamento."
       actions={
         <div className="flex items-center gap-2">
           <Link

@@ -310,7 +310,7 @@ export default function Clientes() {
   return (
     <PageContainer
       title="Base de Clientes S.P.Y."
-      description="Gerencie a carteira de clientes ativos e em implantação de forma inteligente."
+      description="Gerencie sua carteira de clientes, os ativos e os que estão em implantação."
       actions={
         <div className="flex items-center gap-2 flex-wrap">
         {activeTenantId && <BotaoImportar spec={clientesSpec({ tenantId: activeTenantId })} />}

@@ -191,7 +191,7 @@ export default function Empreendimentos() {
   return (
     <PageContainer
       title="Empreendimentos & Lançamentos"
-      description="Gerenciamento de torres, condomínios fechados, espelho de vendas e tabelas de construtoras."
+      description="Gerencie empreendimentos: torres, condomínios fechados, espelho de vendas e as tabelas das construtoras."
       actions={
         <div className="flex items-center gap-2">
           <Button onClick={handleExportCSV} variant="outline" className="h-9 px-3.5 text-xs font-bold gap-1.5 border-[var(--color-border-default)]">

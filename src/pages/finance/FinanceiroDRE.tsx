@@ -168,7 +168,7 @@ export default function FinanceiroDRE() {
   return (
     <PageContainer
       title="DRE Gerencial"
-      description="Demonstração de Resultados por regime de competência — soma real dos lançamentos por categoria, inclui pendentes."
+      description="O DRE mostra o resultado da empresa por regime de competência: soma os lançamentos por categoria, inclusive os pendentes."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "DRE Gerencial" }]}
       actions={
         <div className="flex gap-2 flex-wrap items-center">

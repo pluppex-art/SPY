@@ -119,7 +119,7 @@ export default function AgendaConfiguracoes() {
   return (
     <PageContainer
       title="Configurações da Agenda"
-      description="Gerencie a sincronização bidirecional do Google Calendar, geração de salas e alertas aos clientes."
+      description="Ajuste a sincronização com o Google Calendar (as mudanças valem nos dois sentidos), a criação automática de salas de reunião e os avisos enviados aos clientes."
       actions={
         <Button
           onClick={handleSave}

@@ -40,7 +40,7 @@ export default function Dashboard() {
 
     <PageContainer
       title="Inteligência S.P.Y."
-      description="Painel de comando estratégico para decisões baseadas em dados."
+      description="O painel estratégico da empresa, para decidir com base em dados."
       actions={
         <DashboardActionsTabs activeTab={activeTab as any} onTabChange={setActiveTab as any} />
       }

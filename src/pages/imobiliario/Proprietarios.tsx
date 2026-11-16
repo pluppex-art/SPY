@@ -134,7 +134,7 @@ export default function Proprietarios() {
   return (
     <PageContainer
       title="Gestão de Proprietários"
-      description="Cadastro, documentos de posse e imóveis vinculados a locadores e proprietários vendedores."
+      description="Cadastro, documentos de posse e imóveis ligados a cada proprietário ou locador."
       actions={
         <div className="flex items-center gap-2 flex-wrap">
         {activeTenantId && <BotaoImportar spec={proprietariosSpec({ tenantId: activeTenantId, onDone: () => setReloadKey((k) => k + 1) })} />}

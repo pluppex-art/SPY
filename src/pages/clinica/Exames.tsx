@@ -79,7 +79,7 @@ export default function Exames() {
   return (
     <PageContainer 
       title="Exames & Laboratório" 
-      description="Gerencie pedidos de exames laboratoriais e acompanhe o status de cada resultado."
+      description="Gerencie os pedidos de exames laboratoriais e acompanhe a situação de cada resultado."
       actions={
         <div className="flex items-center gap-3 flex-wrap">
           <Button

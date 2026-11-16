@@ -69,7 +69,7 @@ export default function FinanceiroMRR() {
   return (
     <PageContainer
       title="MRR & Receita Recorrente"
-      description="Receita recorrente ativa, separada de qualquer projeção — realizado e projetado nunca se misturam aqui."
+      description="A receita recorrente ativa, separada de qualquer projeção. O que já foi realizado e o que é projetado nunca se misturam aqui."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "MRR & Receita Recorrente" }]}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">

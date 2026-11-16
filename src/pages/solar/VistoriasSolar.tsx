@@ -181,7 +181,7 @@ export default function VistoriasSolar() {
   return (
     <PageContainer
       title="Vistorias Técnicas Solares"
-      description="Inspeção in-loco de estrutura de telhado, sombreamento, padrão de entrada e viabilidade técnica."
+      description="Inspeção no local: estrutura do telhado, sombreamento, padrão de entrada e viabilidade técnica."
       actions={
         <div className="flex items-center gap-2">
           <Button

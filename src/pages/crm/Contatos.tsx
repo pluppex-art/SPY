@@ -193,7 +193,7 @@ export default function Contatos() {
   return (
     <PageContainer
       title="Contatos Comerciais"
-      description="Diretório unificado de tomadores de decisão, influenciadores e interlocutores comerciais."
+      description="Lista única das pessoas com quem você negocia: quem decide, quem influencia e os demais interlocutores."
       actions={
         <div className="flex items-center gap-2 flex-wrap">
         {activeTenantId && <BotaoImportar spec={contatosSpec({ tenantId: activeTenantId, onDone: fetchContatos })} />}

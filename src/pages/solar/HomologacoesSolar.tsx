@@ -174,7 +174,7 @@ export default function HomologacoesSolar() {
   return (
     <PageContainer
       title="Homologações & Parecer de Acesso"
-      description="Tramitação regulatória junto às distribuidoras de energia conforme Resolução Normativa ANEEL."
+      description="Acompanhe a tramitação junto às distribuidoras de energia, conforme a Resolução Normativa da ANEEL."
       actions={
         <div className="flex items-center gap-2">
           <Button

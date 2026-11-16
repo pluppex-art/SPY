@@ -450,7 +450,7 @@ export default function Corretores() {
   return (
     <PageContainer
       title="Corretores & Vendedores"
-      description="Gerencie a equipe de corretores e vendedores, portfólios públicos e performance individual."
+      description="Gerencie a equipe de corretores e vendedores, os portfólios públicos e o desempenho de cada um."
       actions={
         <Button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-5 h-10 gap-2 font-bold">
           <Plus className="w-4 h-4" /> Novo Corretor

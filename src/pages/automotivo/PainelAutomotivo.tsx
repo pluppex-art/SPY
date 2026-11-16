@@ -111,7 +111,7 @@ export default function PainelAutomotivo() {
   return (
     <PageContainer
       title="Painel Geral Concessionária & Revenda"
-      description="Visão executiva do estoque de veículos, giro de pátio, ticket médio e test-drives agendados."
+      description="Resumo da operação da concessionária: estoque de veículos, giro de pátio (rapidez com que os carros saem), ticket médio e test-drives agendados."
       actions={
         <div className="flex items-center gap-2">
           <Link

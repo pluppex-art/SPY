@@ -218,7 +218,7 @@ export default function PlanosTratamento() {
   return (
     <PageContainer
       title="Planos de Tratamento & Orçamentos"
-      description="Elaboração de planos terapêuticos multidisciplinares, sessões, aprovação e evolução clínica."
+      description="Monte planos de tratamento com várias especialidades, as sessões, a aprovação do paciente e a evolução clínica."
       actions={
         <div className="flex items-center gap-2">
           <Button

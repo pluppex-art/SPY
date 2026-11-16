@@ -102,7 +102,7 @@ export default function Dashboard() {
   return (
     <PageContainer
       title="Dashboard de Performance"
-      description="Análise inteligente da correlação entre pré-qualificação IA e conversão comercial."
+      description="Mostra como a pré-qualificação feita pela IA se relaciona com a conversão em venda, para você ver se as notas da IA estão acertando."
     >
       <KpiCards stats={stats} />
 

@@ -316,7 +316,7 @@ export default function RHColaboradores() {
   return (
     <PageContainer
       title="Equipe & Squads"
-      description="Gerencie colaboradores, organize squads por área e acompanhe metas e desempenho da equipe."
+      description="Gerencie os colaboradores, organize os squads (times) por área e acompanhe metas e desempenho."
       actions={
         <div className="flex items-center gap-2">
           {activeTab === "squads" ? (podeGerenciar ? (

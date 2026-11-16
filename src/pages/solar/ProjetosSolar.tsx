@@ -204,7 +204,7 @@ export default function ProjetosSolar() {
   return (
     <PageContainer
       title="Projetos Fotovoltaicos"
-      description="Gerenciamento de usinas solares, potência kWp, geração estimada e status de implantação."
+      description="Gerencie as usinas solares: potência em kWp, geração estimada e situação da implantação."
       actions={
         <div className="flex items-center gap-2">
           <Button

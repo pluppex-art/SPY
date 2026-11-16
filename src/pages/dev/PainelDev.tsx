@@ -14,7 +14,7 @@ export default function PainelDev() {
   return (
     <PageContainer
       title="Painel Dev & Tecnologia"
-      description="Visão geral da operação de desenvolvimento — sprints, deploys, issues e saúde dos ambientes."
+      description="Visão geral do desenvolvimento: sprints, deploys (publicações), issues e a saúde dos ambientes."
       actions={
         <div className="flex items-center gap-3">
           <Button onClick={() => navigate("/app/dev/sprints")} variant="outline" className="h-10 rounded-xl border-white/5 text-xs gap-2">

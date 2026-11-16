@@ -183,7 +183,7 @@ export default function Catalog() {
   return (
     <PageContainer
       title="Produtos & SKUs S.P.Y."
-      description="Painel Central de Gestão de Preços, Margem de Lucro, SKU e Comissionamento Comercial."
+      description="Central de gestão de preços, margem de lucro, SKU e comissionamento comercial dos seus produtos."
       actions={
         <div className="flex items-center gap-2 flex-wrap">
           {activeTenantId && <BotaoImportar spec={produtosSpec({ tenantId: activeTenantId, defaultType: searchParams.get("type") || searchParams.get("tipo") })} />}

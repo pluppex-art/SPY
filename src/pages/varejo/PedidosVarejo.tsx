@@ -210,7 +210,7 @@ export default function PedidosVarejo() {
   return (
     <PageContainer
       title="Pedidos de Venda & Balcão"
-      description="Histórico de vendas realizadas pelo PDV, pedidos de entrega e status de separação."
+      description="Histórico das vendas feitas no PDV, dos pedidos de entrega e da situação da separação."
       actions={
         <div className="flex items-center gap-2">
           <Link

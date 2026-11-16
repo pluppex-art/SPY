@@ -126,7 +126,7 @@ export default function Mensalidades() {
   return (
     <PageContainer
       title="Mensalidades & Inadimplência"
-      description="Controle de cobranças por aluno, vencimentos e recebimentos."
+      description="Controle as cobranças por aluno, os vencimentos e os recebimentos, e acompanhe quem está inadimplente."
       actions={
         <div className="flex items-center gap-2">
           <Button onClick={handleExportCSV} disabled={exporting} variant="outline" className="h-9 px-3.5 text-xs font-bold gap-1.5 border-[var(--color-border-default)]">

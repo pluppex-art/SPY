@@ -203,7 +203,7 @@ export default function FinanceiroTransferencias() {
   return (
     <PageContainer
       title="Transferências entre Contas"
-      description="Movimentação entre suas próprias contas — nunca conta como receita ou despesa, nunca entra no DRE."
+      description="Movimentação entre as suas próprias contas. Nunca conta como receita nem despesa e nunca entra no DRE."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Transferências" }]}
       actions={
         <div className="flex items-center gap-2">

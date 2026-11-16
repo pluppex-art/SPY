@@ -255,7 +255,7 @@ export default function Propostas() {
   return (
     <PageContainer
       title="Propostas & Contratos"
-      description="Ciclo comercial completo: elaboração de orçamento, aprovação com conversão em contrato e faturamento integrado."
+      description="Todo o ciclo comercial: montar o orçamento, aprovar e converter em contrato, com o faturamento integrado."
       actions={
         <div className="flex items-center gap-3">
           <Button

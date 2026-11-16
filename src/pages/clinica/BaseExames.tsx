@@ -178,7 +178,7 @@ export default function BaseExames() {
   return (
     <PageContainer
       title="Base de Exames"
-      description="A base oficial de exames e procedimentos usada como referência nas comparações de tabelas."
+      description="A lista oficial de exames e procedimentos da clínica. Ela é a referência usada quando você compara tabelas de parceiros."
       breadcrumb={[{ label: "Clínica & Saúde" }, { label: "Base de Exames" }]}
       actions={
         <div className="flex items-center gap-2">

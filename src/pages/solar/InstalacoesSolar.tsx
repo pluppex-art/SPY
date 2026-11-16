@@ -186,7 +186,7 @@ export default function InstalacoesSolar() {
   return (
     <PageContainer
       title="Obras & Instalações em Andamento"
-      description="Controle de cronograma de montagem, equipe de instaladores, fixação de estruturas e comissionamento."
+      description="Controle o cronograma de montagem, a equipe de instaladores, a fixação das estruturas e o comissionamento."
       actions={
         <div className="flex items-center gap-2">
           <Button

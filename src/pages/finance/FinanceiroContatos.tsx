@@ -274,7 +274,7 @@ export default function FinanceiroContatos() {
   return (
     <PageContainer
       title="Contatos"
-      description="Clientes, fornecedores e funcionários — usados em lançamentos, cobranças e relatórios."
+      description="Cadastro de clientes, fornecedores e funcionários, usado nos lançamentos, nas cobranças e nos relatórios."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Contatos" }]}
       actions={<div className="flex items-center gap-2 flex-wrap"><FinancePeriodFilter />{activeTenantId && <BotaoImportar spec={clientesSpec({ tenantId: activeTenantId }, "financeiro")} />}<Button onClick={openNew} className="h-9 px-4 text-xs font-medium gap-1.5"><Plus className="w-3.5 h-3.5" /> Novo Contato</Button></div>}
     >

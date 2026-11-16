@@ -135,7 +135,7 @@ export default function FinanceiroPerformanceAnual() {
   return (
     <PageContainer
       title="Performance Anual"
-      description="Comparativo do ano com o ano anterior — receitas, despesas, maiores movimentações e saldo das contas."
+      description="Compara o ano atual com o anterior: receitas, despesas, maiores movimentações e saldo das contas."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Relatórios", path: "/app/financeiro/relatorios" }, { label: "Performance Anual" }]}
       actions={
         <div className="flex items-center gap-2 print:hidden">

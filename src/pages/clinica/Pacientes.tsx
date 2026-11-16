@@ -66,7 +66,7 @@ function PacienteFormModal({ onClose, onSave, initial }: {
       onClose={onClose}
       maxWidth="max-w-lg"
       title={isEdit ? "Editar Paciente" : "Novo Paciente"}
-      description="Cadastro completo para prontuário, agendamento e faturamento."
+      description="Cadastro completo dos pacientes: convênios, alergias e histórico de atendimento."
       footer={
         <div className="flex justify-end gap-2 w-full">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
@@ -232,7 +232,7 @@ export default function Pacientes() {
   return (
     <PageContainer
       title="Gestão de Pacientes"
-      description="Cadastro completo de pacientes, convênios, alergias e histórico de atendimento."
+      description="Cadastro completo dos pacientes: convênios, alergias e histórico de atendimento."
       actions={
         <div className="flex items-center gap-3 flex-wrap">
           {activeTenantId && <BotaoImportar spec={pacientesSpec({ tenantId: activeTenantId, onDone: refetch })} />}

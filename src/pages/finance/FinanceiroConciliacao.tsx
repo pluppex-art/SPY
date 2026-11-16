@@ -282,7 +282,7 @@ export default function FinanceiroConciliacao() {
   return (
     <PageContainer
       title="Conciliação Bancária & OFX"
-      description="Importe extratos OFX/Excel e concilie automaticamente transações bancárias com o sistema."
+      description="Importe o extrato do banco (OFX ou Excel) e o sistema concilia sozinho as transações do banco com as do sistema."
       actions={
         <Button
           onClick={handleConciliarAuto}

@@ -535,7 +535,7 @@ export default function Visitas() {
   return (
     <PageContainer
       title="Visitas & Test-Drives"
-      description="Controle e organize todas as visitas de imóveis e test-drives de veículos com clientes."
+      description="Controle e organize as visitas a imóveis e os test-drives de veículos com os clientes."
       actions={
         <Button onClick={() => setShowForm(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
           <Plus className="w-3.5 h-3.5" /> Agendar Visita

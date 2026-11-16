@@ -142,7 +142,7 @@ export default function Empresas() {
   return (
     <PageContainer
       title="Empresas & Contas B2B"
-      description="Diretório corporativo de contas comerciais, filiais e parceiros estratégicos."
+      description="Lista das empresas-cliente (contas B2B), suas filiais e parceiros estratégicos."
       actions={
         <div className="flex items-center gap-2 flex-wrap">
         {activeTenantId && <BotaoImportar spec={clientesSpec({ tenantId: activeTenantId, onDone: fetchEmpresas }, "empresas")} />}

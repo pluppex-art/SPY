@@ -23,7 +23,7 @@ export default function PerformanceIA() {
   return (
     <PageContainer
       title="Cérebro Performance IA"
-      description="Simulações avançadas e auditoria preditiva baseada em redes neurais."
+      description="Simulações e auditoria preditiva feitas pela IA, para antecipar resultados e conferir se as previsões estão acertando."
     >
       <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
         {/* AI Engine Status */}

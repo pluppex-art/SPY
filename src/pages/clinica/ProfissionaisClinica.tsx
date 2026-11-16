@@ -181,7 +181,7 @@ export default function ProfissionaisClinica() {
   return (
     <PageContainer
       title="Corpo Clínico & Profissionais"
-      description="Gerenciamento de médicos, dentistas, terapeutas, especialidades e escalas de atendimento."
+      description="Cadastre e gerencie médicos, dentistas e terapeutas, com suas especialidades e escalas de atendimento."
       actions={
         <div className="flex items-center gap-2">
           <Button

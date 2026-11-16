@@ -106,7 +106,7 @@ export default function ClinicasDashboard() {
   return (
     <PageContainer
       title="Gestão de Clínicas S.P.Y."
-      description="Monitoramento clínico, eficiência operacional e jornada do paciente em tempo real."
+      description="Acompanhe em tempo real a operação da clínica: eficiência do atendimento e a jornada do paciente."
       actions={
         <div className="flex items-center gap-4">
           <Button onClick={() => setIsBookingOpen(true)} className="gap-2">
