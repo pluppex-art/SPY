@@ -26,6 +26,7 @@ import { toast } from "sonner";
 
 import { HelpTip } from "../../components/ui/help-tip";
 import { calcularBoas } from "../../lib/radarBoas";
+import { riscoDe } from "../../lib/radarRetrato";
 import { RadarBoasPainel } from "./components/Radar/RadarBoas";
 type Risk = "critico" | "alto" | "atencao";
 const RISK_META: Record<Risk, { label: string; variant: "destructive" | "warning" | "info"; color: string }> = {
@@ -33,16 +34,10 @@ const RISK_META: Record<Risk, { label: string; variant: "destructive" | "warning
   alto: { label: "Alto", variant: "warning", color: "var(--color-warning)" },
   atencao: { label: "Atenção", variant: "info", color: "var(--color-info)" },
 };
-// Limiares fixos de severidade (dias parado) — definem tanto os cards/donut/
-// histórico (base estável, sem depender do filtro da tabela) quanto a tabela.
-// "Atenção" = já esfriou (>=1 dia) mas ainda não virou Alto.
-const CRITICO_DIAS = 14;
-const ALTO_DIAS = 7;
+// Limiares de severidade (dias parado) ficam em lib/radarRetrato.ts, a mesma regra da rotina diária do servidor.
 const JANELAS = [7, 30, 90] as const;
 
-function riskOf(idle: number): Risk {
-  return idle >= CRITICO_DIAS ? "critico" : idle >= ALTO_DIAS ? "alto" : "atencao";
-}
+const riskOf = riscoDe;
 
 function buildStageMaps(funis: any[]) {
   const funisConfig: any[] = funis && funis.length > 0 ? funis : FUNIS_DEFAULT;

@@ -49,6 +49,7 @@ import { ensureAdminColaborador } from "./server/tenantAdminColaborador.js";
 import { agentesDoTenant } from "./server/agentesDoCliente.js";
 import { sessoesModelo } from "./server/agenteSecretoModelo.js";
 import { validarMidiaSaida, rotuloHistorico } from "./server/chatMediaSaida.js";
+import { gravarRetratosRadar } from "./server/radarSnapshots.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { registerMaxdataWriteRoutes } from "./server/maxdataWrite.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
@@ -6789,6 +6790,21 @@ app.get("/api/notifications/cron", async (req: any, res) => {
     res.json({ ok: true, ...(await runNotificationReminders(supabaseService, PUBLIC_APP_URL)) });
   } catch (err: any) {
     console.error("[notifications/cron]", err?.message);
+    res.status(500).json({ ok: false });
+  }
+});
+
+// Rotina diária do Radar: grava o retrato do dia (negócios esfriando e esquentando) de cada empresa, para o
+// histórico dos gráficos não depender de alguém abrir a tela. Vercel Cron envia "Authorization: Bearer $CRON_SECRET".
+app.all("/api/radar/cron/retrato", async (req: any, res) => {
+  if (req.method !== "GET" && req.method !== "POST") return res.status(405).json({ error: "Método não permitido." });
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !safeEqualStr(String(req.headers.authorization || ""), `Bearer ${secret}`)) return res.status(401).json({ error: "unauthorized" });
+  if (!supabaseService) return res.status(503).json({ error: "not_configured" });
+  try {
+    res.json({ ok: true, ...(await gravarRetratosRadar(supabaseService)) });
+  } catch (err: any) {
+    console.error("[radar/cron/retrato]", err?.message);
     res.status(500).json({ ok: false });
   }
 });

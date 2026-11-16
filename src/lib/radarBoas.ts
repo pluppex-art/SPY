@@ -7,7 +7,7 @@
  * status e updated_at. Não existe "data de fechamento" no lead, então "fechado recentemente" usa a
  * última atualização de um lead já Fechado.
  */
-import { isLeadOpen } from "./leadStatus";
+import { isLeadOpen } from "./leadStatus.js";
 
 export const SCORE_CHAMAS = 85;
 export const SCORE_QUENTE = 70;
