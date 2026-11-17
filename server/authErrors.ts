@@ -9,7 +9,7 @@ export function friendlyAuthCreateError(err: any): FriendlyAuthError {
   const code = String(err?.code || "");
   const msg = String(err?.message || "");
   if (code === "weak_password" || /weak|easy to guess|pwned|known to be/i.test(msg)) {
-    return { status: 422, code: "senha_fraca", message: "Essa senha é muito comum (aparece em listas de senhas vazadas) e foi recusada. Escolha outra mais forte — misture letras, números e símbolos — ou deixe o campo em branco para gerar uma senha temporária forte." };
+    return { status: 422, code: "senha_fraca", message: "O servidor de login recusou essa senha por estar em listas de senhas vazadas. Escolha outra ou deixe o campo em branco para gerar uma senha temporária. (O administrador do sistema pode desligar essa checagem em Supabase → Authentication → Attack Protection → “Prevent use of leaked passwords”.)" };
   }
   if (code === "email_exists" || code === "user_already_exists" || /already (been )?registered|already exists/i.test(msg)) {
     return { status: 409, code: "email_existente", message: "Este e-mail já possui um login no sistema. Use outro e-mail." };

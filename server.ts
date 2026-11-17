@@ -5122,7 +5122,7 @@ app.post("/api/admin/team-user", requireUser, async (req: any, res) => {
   const { email, password, name, role, targetTenantId } = req.body ?? {};
   const cleanEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
   if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) return res.status(400).json({ error: "Informe um e-mail válido." });
-  if (typeof password !== "string" || password.length < 8) return res.status(400).json({ error: "A senha precisa ter pelo menos 8 caracteres." });
+  if (typeof password !== "string" || password.length < 6) return res.status(400).json({ error: "A senha precisa ter pelo menos 6 caracteres." });
   if (typeof name !== "string" || !name.trim()) return res.status(400).json({ error: "Informe o nome." });
 
   const { data: caller } = await req.supabase.from("users").select("is_master, is_tenant_admin, tenant_id").eq("id", req.user.id).maybeSingle();

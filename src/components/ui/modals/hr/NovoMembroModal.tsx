@@ -100,7 +100,7 @@ export function NovoMembroModal({
   }, [isOpen, initialValue]);
 
   const emailOk = /^\S+@\S+\.\S+$/.test(email.trim());
-  const senhaFraca = modoAcesso === "senha" && senha.length > 0 && (senha.length < 8 || !/[A-Za-z]/.test(senha) || !/\d/.test(senha));
+  const senhaFraca = modoAcesso === "senha" && senha.length > 0 && senha.length < 6;
   const senhaDiverge = modoAcesso === "senha" && senha.length > 0 && senha !== confirmaSenha;
   // Palavra + números ("luminar123", "empresa2026"): o Auth costuma recusar por constar em listas de senhas vazadas. Só um aviso — não bloqueia.
   const senhaProvavelmenteComum = modoAcesso === "senha" && !senhaFraca && /^[A-Za-z]+\d{1,6}$/.test(senha);
@@ -115,7 +115,7 @@ export function NovoMembroModal({
   const erros = {
     nome: !nome.trim() ? "Informe o nome." : "",
     email: !email.trim() ? "Informe o e-mail." : !emailOk ? "E-mail inválido." : "",
-    senha: senhaFraca ? "Mínimo 8 caracteres, com letras e números." : "",
+    senha: senhaFraca ? "Mínimo de 6 caracteres." : "",
     confirma: senhaDiverge ? "As senhas não coincidem." : "",
   };
   const temErro = Object.values(erros).some(Boolean);
