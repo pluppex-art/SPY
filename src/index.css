@@ -480,18 +480,11 @@ html:not(.dark) .sidebar-logo-header div {
   box-shadow: none !important;
 }
 html.dark .sidebar-logo-header {
-  background-color: rgba(37, 99, 235, 0.15) !important;
-  border: 1px solid rgba(37, 99, 235, 0.25) !important;
+  background-color: color-mix(in srgb, var(--color-primary-blue) 15%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--color-primary-blue) 25%, transparent) !important;
 }
 
-html:not(.dark) .sidebar-logo-header img {
-  mix-blend-mode: multiply !important;
-  filter: invert(1) hue-rotate(180deg) contrast(1.2) !important;
-}
-html.dark .sidebar-logo-header img {
-  mix-blend-mode: screen !important;
-  filter: none !important;
-}
+/* A logo agora é PNG/WebP com fundo transparente (Logo.tsx aplica o hue-rotate da empresa): sem blend nem inversão. */
 
 /* Botões de Ação com cores sólidas mantêm texto branco (ignora classes com opacidade como /10, /20 etc) */
 html:not(.dark) [class*="bg-[#2563EB]" i]:not([class*="bg-[#2563EB]/"]),
