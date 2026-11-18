@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import { Logo } from "../../../components/ui/Logo";
 
 export function SiteFooter() {
   const { pathname } = useLocation();
@@ -10,7 +9,7 @@ export function SiteFooter() {
       <div className="sp-wrap">
         <div className="sp-footer__grid">
           <div className="sp-footer__brand">
-            <Logo variant="full" color="orange" size={32} />
+            <img src="/logo-topbar.webp" alt="S.P.Y. CRM" width={720} height={320} loading="lazy" decoding="async" style={{ height: 52, width: "auto", display: "block" }} />
             <p>CRM e ERP multiempresa, com a Aurora, assistente de IA.</p>
           </div>
           <nav aria-label="Navegação do rodapé">

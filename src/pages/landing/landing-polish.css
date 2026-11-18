@@ -9,8 +9,8 @@
   --sp-night: #0b1120;
   --sp-night-2: #111a2e;
   --sp-night-line: rgba(255, 255, 255, 0.1);
-  --sp-glow: rgba(249, 115, 22, 0.35);
-  --sp-grad: linear-gradient(100deg, #fb923c 0%, #f97316 45%, #fbbf24 100%);
+  --sp-glow: rgba(139, 92, 246, 0.35);
+  --sp-grad: linear-gradient(100deg, #a78bfa 0%, #8b5cf6 45%, #c4b5fd 100%);
 }
 
 /* tokens das seções escuras */
@@ -27,9 +27,9 @@
   --sp-text: #f8fafc;
   --sp-body: #cbd5e1;
   --sp-muted: #a3b2c7;
-  --sp-brand-text: #fb923c;
-  --sp-brand-tint: rgba(249, 115, 22, 0.16);
-  --sp-brand-tint-text: #fdba74;
+  --sp-brand-text: #a78bfa;
+  --sp-brand-tint: rgba(139, 92, 246, 0.16);
+  --sp-brand-tint-text: #c4b5fd;
   --sp-shadow-card: 0 18px 40px -18px rgba(0, 0, 0, 0.7);
   --sp-shadow-window: 0 40px 80px -28px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --color-text-primary: #f8fafc; /* wordmark do logo */
@@ -38,7 +38,7 @@
 
 /* ---------- botões ---------- */
 .sp-btn--primary {
-  background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
+  background: linear-gradient(180deg, #a78bfa 0%, #8b5cf6 100%);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 10px 24px -10px var(--sp-glow);
   position: relative;
   overflow: hidden;
@@ -54,7 +54,7 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .sp-btn--primary:hover {
-    background: linear-gradient(180deg, #fdba74 0%, #f97316 100%);
+    background: linear-gradient(180deg, #c4b5fd 0%, #8b5cf6 100%);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 16px 32px -10px var(--sp-glow);
     transform: translateY(-1px);
   }
@@ -115,7 +115,7 @@
 }
 .sp-hero .sp-link,
 .sp-header .sp-link {
-  color: #fdba74 !important;
+  color: #c4b5fd !important;
 }
 
 /* ---------- títulos: barrinha de marca ---------- */
@@ -154,7 +154,7 @@
   overflow: hidden;
   isolation: isolate;
   background:
-    radial-gradient(900px 480px at 85% 10%, rgba(249, 115, 22, 0.22), transparent 60%),
+    radial-gradient(900px 480px at 85% 10%, rgba(139, 92, 246, 0.22), transparent 60%),
     radial-gradient(700px 420px at 0% 100%, rgba(251, 191, 36, 0.08), transparent 60%),
     linear-gradient(180deg, #0b1120 0%, #0e1628 100%);
   padding-block: 56px 72px;
@@ -213,7 +213,7 @@
   margin-top: -490px;
   border-radius: 50%;
   pointer-events: none;
-  background: repeating-radial-gradient(circle at center, transparent 0 79px, rgba(249, 115, 22, 0.16) 80px 81px);
+  background: repeating-radial-gradient(circle at center, transparent 0 79px, rgba(139, 92, 246, 0.16) 80px 81px);
   -webkit-mask-image: radial-gradient(circle closest-side, #000 15%, transparent 100%);
   mask-image: radial-gradient(circle closest-side, #000 15%, transparent 100%);
 }
@@ -222,7 +222,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(249, 115, 22, 0.34) 0deg, rgba(249, 115, 22, 0) 70deg, transparent 360deg);
+  background: conic-gradient(from 0deg, rgba(139, 92, 246, 0.34) 0deg, rgba(139, 92, 246, 0) 70deg, transparent 360deg);
   animation: sp-sweep 7s linear infinite;
 }
 @keyframes sp-sweep {
@@ -239,14 +239,14 @@
 .sp-hero .sp-frame {
   background: #0f172a;
   border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 50px 90px -30px rgba(249, 115, 22, 0.38), 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 50px 90px -30px rgba(139, 92, 246, 0.38), 0 30px 60px -30px rgba(0, 0, 0, 0.8);
 }
 .sp-hero .sp-frame__bar {
   background: #0b1120;
   border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 .sp-hero .sp-frame__bar i:nth-child(1) { background: #ef4444; }
-.sp-hero .sp-frame__bar i:nth-child(2) { background: #f59e0b; }
+.sp-hero .sp-frame__bar i:nth-child(2) { background: #a78bfa; }
 .sp-hero .sp-frame__bar i:nth-child(3) { background: #22c55e; }
 
 /* emblema do espião */
@@ -257,7 +257,7 @@
   right: 10px;
   width: 84px;
   height: 84px;
-  color: #fb923c;
+  color: #a78bfa;
   transform: translate(calc(var(--px) * 14px), calc(var(--py) * 10px));
   transition: transform 450ms var(--sp-ease);
   pointer-events: none;
@@ -269,7 +269,8 @@
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.9), 0 18px 40px -8px rgba(0, 0, 0, 0.8), 0 0 40px -4px var(--sp-glow);
+  /* a cor do aro é laranja de propósito: o hue-rotate do tema roxo (fim do arquivo) a converte em roxo */
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.9), 0 18px 40px -8px rgba(0, 0, 0, 0.8), 0 0 40px -4px rgba(249, 115, 22, 0.35);
   animation: sp-bob 5s ease-in-out infinite;
 }
 .sp-emblem__ring {
@@ -283,7 +284,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid rgba(249, 115, 22, 0.7);
+  border: 2px solid rgba(139, 92, 246, 0.7);
   animation: sp-ping 2.4s var(--sp-ease) infinite;
 }
 @keyframes sp-ping {
@@ -320,7 +321,7 @@
 /* demo do pipeline dentro do hero (quando não há screenshot) */
 .sp-hero .sp-app {
   background: #131c31;
-  box-shadow: var(--sp-shadow-window), 0 50px 90px -30px rgba(249, 115, 22, 0.35);
+  box-shadow: var(--sp-shadow-window), 0 50px 90px -30px rgba(139, 92, 246, 0.35);
 }
 .sp-hero .sp-lead {
   background: #0b1120;
@@ -358,8 +359,8 @@
 @media (hover: hover) and (pointer: fine) {
   .sp-trust li:hover {
     transform: translateY(-2px);
-    border-color: #fdba74;
-    box-shadow: 0 12px 24px -16px rgba(249, 115, 22, 0.5);
+    border-color: #c4b5fd;
+    box-shadow: 0 12px 24px -16px rgba(139, 92, 246, 0.5);
   }
 }
 
@@ -378,11 +379,11 @@
 .sp-niche {
   --mx: -400px;
   --my: -400px;
-  background-image: radial-gradient(360px circle at var(--mx) var(--my), rgba(249, 115, 22, 0.1), transparent 60%);
+  background-image: radial-gradient(360px circle at var(--mx) var(--my), rgba(139, 92, 246, 0.1), transparent 60%);
   background-repeat: no-repeat;
 }
 .sp-aurora .sp-agents li {
-  background-image: radial-gradient(320px circle at var(--mx) var(--my), rgba(249, 115, 22, 0.16), transparent 60%);
+  background-image: radial-gradient(320px circle at var(--mx) var(--my), rgba(139, 92, 246, 0.16), transparent 60%);
 }
 .sp-niche:hover,
 .sp-mod__list button:hover {
@@ -405,7 +406,7 @@
   .sp-sim__in:hover {
     transform: translateY(-3px);
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 26px 44px -24px rgba(15, 23, 42, 0.32);
-    border-color: #fdba74;
+    border-color: #c4b5fd;
   }
 }
 
@@ -506,14 +507,14 @@
 }
 .sp-lead--moving {
   border-color: var(--sp-brand);
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.16), 0 14px 26px -14px var(--sp-glow);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.16), 0 14px 26px -14px var(--sp-glow);
   animation: sp-lead-glow 1.8s ease-in-out infinite;
 }
 .sp-lead--won {
   background: var(--sp-brand-tint);
 }
 @keyframes sp-lead-glow {
-  50% { box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.08), 0 14px 26px -14px var(--sp-glow); }
+  50% { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.08), 0 14px 26px -14px var(--sp-glow); }
 }
 .sp-col h3 span {
   min-width: 22px;
@@ -524,7 +525,7 @@
   padding: 1px 7px;
 }
 .sp-invoice {
-  border: 1px solid rgba(249, 115, 22, 0.35);
+  border: 1px solid rgba(139, 92, 246, 0.35);
 }
 
 /* explorador de módulos */
@@ -544,13 +545,13 @@
   margin-bottom: 4px;
 }
 .sp-mod__list button[aria-pressed="true"] {
-  border-color: #fdba74;
+  border-color: #c4b5fd;
   box-shadow: 0 12px 24px -18px var(--sp-glow);
 }
 @media (hover: hover) and (pointer: fine) {
   .sp-mod__list button:hover {
     transform: translateX(3px);
-    border-color: #fed7aa;
+    border-color: #ddd6fe;
   }
 }
 .sp-mod__shot .sp-frame,
@@ -577,7 +578,7 @@
   overflow: hidden;
   isolation: isolate;
   background:
-    radial-gradient(700px 420px at 100% 0%, rgba(249, 115, 22, 0.2), transparent 60%),
+    radial-gradient(700px 420px at 100% 0%, rgba(139, 92, 246, 0.2), transparent 60%),
     radial-gradient(600px 380px at 0% 100%, rgba(99, 102, 241, 0.14), transparent 60%),
     linear-gradient(180deg, #0b1120 0%, #0f182c 100%);
   border-block: 0;
@@ -637,7 +638,7 @@
   animation: sp-live 2s ease-out infinite;
 }
 .sp-bubble--user {
-  background: linear-gradient(180deg, #fb923c, #f97316);
+  background: linear-gradient(180deg, #a78bfa, #8b5cf6);
   box-shadow: 0 10px 20px -12px var(--sp-glow);
 }
 .sp-bubble--ai {
@@ -670,12 +671,12 @@
   color: #fff;
 }
 .sp-agents__role {
-  color: #fdba74;
+  color: #c4b5fd;
 }
 @media (hover: hover) and (pointer: fine) {
   .sp-agents li:hover {
     transform: translateY(-3px);
-    border-color: rgba(249, 115, 22, 0.55);
+    border-color: rgba(139, 92, 246, 0.55);
   }
 }
 .sp-example blockquote {
@@ -777,9 +778,9 @@
 }
 .sp-plan--hl {
   background-color: var(--sp-warm);
-  background-image: radial-gradient(360px circle at var(--mx) var(--my), rgba(249, 115, 22, 0.16), transparent 60%),
-    linear-gradient(180deg, #fff7ed 0%, #fff 70%);
-  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.25), 0 30px 60px -28px var(--sp-glow);
+  background-image: radial-gradient(360px circle at var(--mx) var(--my), rgba(139, 92, 246, 0.16), transparent 60%),
+    linear-gradient(180deg, #f5f3ff 0%, #fff 70%);
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.25), 0 30px 60px -28px var(--sp-glow);
 }
 @media (min-width: 900px) {
   .sp-plan--hl {
@@ -789,14 +790,14 @@
 @media (hover: hover) and (pointer: fine) {
   .sp-plan:hover {
     transform: translateY(-5px);
-    border-color: #fdba74;
+    border-color: #c4b5fd;
   }
   .sp-plan--hl:hover {
     transform: translateY(-14px);
   }
 }
 .sp-plan__badge {
-  background: linear-gradient(180deg, #fb923c, #f97316);
+  background: linear-gradient(180deg, #a78bfa, #8b5cf6);
   box-shadow: 0 8px 16px -8px var(--sp-glow);
 }
 .sp-price strong {
@@ -830,7 +831,7 @@
     top: 44px;
     bottom: -30px;
     width: 2px;
-    background: linear-gradient(180deg, var(--sp-brand), rgba(249, 115, 22, 0.1));
+    background: linear-gradient(180deg, var(--sp-brand), rgba(139, 92, 246, 0.1));
   }
 }
 @media (min-width: 900px) {
@@ -841,7 +842,7 @@
     right: -20px;
     top: 19px;
     height: 2px;
-    background: linear-gradient(90deg, var(--sp-brand), rgba(249, 115, 22, 0.12));
+    background: linear-gradient(90deg, var(--sp-brand), rgba(139, 92, 246, 0.12));
     transform-origin: left;
   }
   .sp-js .sp-steps li[data-reveal]:not([data-in])::after {
@@ -868,12 +869,12 @@
   transition: border-color 220ms var(--sp-ease), box-shadow 220ms var(--sp-ease);
 }
 .sp-faq__item:has([aria-expanded="true"]) {
-  border-color: #fdba74;
+  border-color: #c4b5fd;
   box-shadow: 0 16px 30px -22px var(--sp-glow);
 }
 @media (hover: hover) and (pointer: fine) {
   .sp-faq__item:hover {
-    border-color: #fdba74;
+    border-color: #c4b5fd;
   }
 }
 .sp-faq__q svg {
@@ -891,8 +892,8 @@
   overflow: hidden;
   isolation: isolate;
   background:
-    radial-gradient(600px 360px at 100% 0%, rgba(249, 115, 22, 0.16), transparent 60%),
-    linear-gradient(180deg, #fff7ed, #ffedd5);
+    radial-gradient(600px 360px at 100% 0%, rgba(139, 92, 246, 0.16), transparent 60%),
+    linear-gradient(180deg, #f5f3ff, #ede9fe);
 }
 .sp-contact::before {
   /* marca d'água: o espião */
@@ -909,7 +910,7 @@
   filter: grayscale(0.2);
 }
 .sp-contact__card {
-  border: 1px solid rgba(249, 115, 22, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.2);
   box-shadow: var(--sp-shadow-window), 0 0 0 6px rgba(255, 255, 255, 0.5);
 }
 
@@ -946,7 +947,7 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .sp-footer li a:hover {
-    color: #fb923c;
+    color: #a78bfa;
   }
 }
 .sp-footer__legal {
@@ -972,10 +973,10 @@
 
 /* rolagem combinando com a marca */
 html:has(.sp-root) {
-  scrollbar-color: #f97316 #0b1120;
+  scrollbar-color: #8b5cf6 #0b1120;
 }
 .sp-root ::-webkit-scrollbar-thumb {
-  background: #fb923c;
+  background: #a78bfa;
   border-color: #0b1120;
 }
 
@@ -1039,3 +1040,11 @@ html:has(.sp-root) body {
     filter: drop-shadow(0 0 12px var(--sp-glow));
   }
 }
+
+/* ---------- tema roxo: recolore a arte laranja (logo, ícone do espião) ---------- */
+.sp-brand__img,
+.sp-emblem img,
+.sp-footer__brand img { filter: hue-rotate(237deg) saturate(1.05); }
+.sp-brand:hover .sp-brand__img { filter: hue-rotate(237deg) saturate(1.05) drop-shadow(0 0 14px rgba(139, 92, 246, 0.55)); }
+.sp-footer::before { filter: hue-rotate(237deg); }
+.sp-contact::before { filter: hue-rotate(237deg) grayscale(0.2); }
