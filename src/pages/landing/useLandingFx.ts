@@ -32,6 +32,17 @@ export function useLandingFx(root: React.RefObject<HTMLElement | null>) {
         card.style.setProperty("--mx", `${e.clientX - r.left}px`);
         card.style.setProperty("--my", `${e.clientY - r.top}px`);
       }
+      const emb = el.querySelector<HTMLElement>(".sp-emblem");
+      if (emb) {
+        // o espião "olha" para o cursor: vetor do centro dele até o ponteiro, limitado a -1..1
+        const r = emb.getBoundingClientRect();
+        const dx = e.clientX - (r.left + r.width / 2);
+        const dy = e.clientY - (r.top + r.height / 2);
+        const d = Math.hypot(dx, dy) || 1;
+        const k = Math.min(1, d / 320) / d;
+        emb.style.setProperty("--lx", (dx * k).toFixed(3));
+        emb.style.setProperty("--ly", (dy * k).toFixed(3));
+      }
       const hero = el.querySelector<HTMLElement>(".sp-hero");
       if (hero) {
         const r = hero.getBoundingClientRect();

@@ -10,7 +10,10 @@ export function SpyEmblem({ className = "" }: { className?: string }) {
       <svg className="sp-emblem__ring" viewBox="0 0 100 100" fill="none">
         <circle cx="50" cy="50" r="48" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2 5" strokeLinecap="round" />
       </svg>
-      <img src="/spy-icon.png" alt="" width={96} height={96} decoding="async" draggable={false} />
+      <span className="sp-emblem__eye">
+        <img src="/spy-icon.png" alt="" width={168} height={168} decoding="async" draggable={false} />
+        <span className="sp-emblem__lid" />
+      </span>
     </div>
   );
 }

@@ -20,6 +20,7 @@ import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useRevealOnScroll } from "./useRevealOnScroll";
 import { useLandingFx } from "./useLandingFx";
+import { SpyWatchers } from "./components/SpyWatchers";
 import { SocialProofPopup } from "../../components/SocialProofPopup";
 import "./landing.css";
 import "./landing-polish.css";
@@ -44,6 +45,7 @@ export default function LandingPage() {
       <a href="#conteudo" className="sp-skip">
         Ir para o conteúdo
       </a>
+      <SpyWatchers />
       <SiteHeader />
       <main id="conteudo">
         <HeroSection />
