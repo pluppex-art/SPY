@@ -1000,3 +1000,23 @@ html:has(.sp-root) {
     width: 44px;
   }
 }
+
+/* ---------- sem rolagem lateral ---------- */
+html:has(.sp-root),
+html:has(.sp-root) body {
+  overflow-x: clip;
+}
+.sp-life__steps,
+.sp-life__demo {
+  min-width: 0;
+}
+/* abas quebram de linha em vez de rolar para o lado */
+.sp-tabs {
+  flex-wrap: wrap;
+  overflow: visible;
+  width: 100%;
+}
+.sp-tabs--steps .sp-tab,
+.sp-tabs .sp-tab {
+  flex: 0 1 auto;
+}
