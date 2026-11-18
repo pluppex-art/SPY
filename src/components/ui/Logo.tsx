@@ -24,42 +24,28 @@ function resolveColor(color: LogoProps["color"]): string {
   return color;
 }
 
-/** Matiz (0-360) de um "#RRGGBB". */
-function hueOf(hex: string): number {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
-  if (d === 0) return 0;
-  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
-  return (h * 60 + 360) % 360;
-}
-
-/** Matiz da cor laranja da logo oficial (arquivos em /public). */
-const LOGO_SOURCE_HUE = 25;
+const MASK_BASE = { maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" } as const;
 
 /**
- * Logo oficial da S.P.Y. (espião + mira, e "SPY CRM"): é a mesma arte para todas as empresas; só a cor muda,
- * girando o matiz da imagem laranja até a cor da empresa. Duas versões do texto "SPY": branco (fundo escuro)
- * e cinza-escuro (fundo claro); o CSS (.spy-logo--*) escolhe pela classe `dark` do <html>.
+ * Logo oficial da S.P.Y. (espião + mira, e "SPY CRM"), a mesma arte para todas as empresas. Está dividida em
+ * camadas: a parte colorida (mira, chapéu, "CRM") é uma máscara pintada com a cor EXATA da empresa — a mesma
+ * dos botões —, e a parte neutra (texto "SPY" e olhos) fica branca no tema escuro e grafite no claro; o CSS
+ * (.spy-logo--*) escolhe pela classe `dark` do <html>.
  */
 export function Logo({ variant = "full", color, size = 32, className }: LogoProps) {
   const hex = resolveColor(color);
-  const hue = Math.round(hueOf(/^#[0-9a-fA-F]{6}$/.test(hex) ? hex : LOGO_COLORS.purple) - LOGO_SOURCE_HUE);
-  const style: React.CSSProperties = { filter: `hue-rotate(${hue}deg)` };
-  if (variant === "icon") {
-    return (
-      <span className={className}>
-        <img src="/logo-icon-t.webp" alt="S.P.Y." width={size} height={size}
-          style={{ ...style, width: size, height: size, display: "block" }} draggable={false} />
-      </span>
-    );
-  }
-  const h = Math.round(size * 1.7);
-  const w = Math.round((h * 720) / 320);
-  const dims = { width: w, height: h, display: "block" as const };
+  const fill = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : LOGO_COLORS.purple;
+  const isIcon = variant === "icon";
+  const h = isIcon ? size : Math.round(size * 1.7);
+  const w = isIcon ? size : Math.round((h * 720) / 320);
+  const base = isIcon ? "/logo-icon" : "/logo-full";
+  const maskUrl = `url(${base}-color.webp)`;
+  const layer: React.CSSProperties = { position: "absolute", inset: 0, width: w, height: h, display: "block" };
   return (
-    <span className={`inline-flex items-center ${className ?? ""}`} role="img" aria-label="SPY CRM">
-      <img className="spy-logo--on-dark" src="/logo-topbar.webp" alt="" width={w} height={h} style={{ ...style, ...dims }} draggable={false} />
-      <img className="spy-logo--on-light" src="/logo-topbar-light.webp" alt="" width={w} height={h} style={{ ...style, ...dims }} draggable={false} />
+    <span className={`relative inline-block shrink-0 ${className ?? ""}`} style={{ width: w, height: h }} role="img" aria-label={isIcon ? "S.P.Y." : "SPY CRM"}>
+      <img className="spy-logo--on-dark" src={`${base}-white.webp`} alt="" width={w} height={h} style={layer} draggable={false} />
+      <img className="spy-logo--on-light" src={`${base}-dark.webp`} alt="" width={w} height={h} style={layer} draggable={false} />
+      <span aria-hidden="true" style={{ ...layer, ...MASK_BASE, backgroundColor: fill, maskImage: maskUrl, WebkitMaskImage: maskUrl }} />
     </span>
   );
 }

@@ -49,37 +49,53 @@ export function contrastWithWhite(hex: string): number {
 export const MIN_BRAND_CONTRAST = 2.2;
 
 /**
- * Gera o SVG do Favicon oficial do S.P.Y. (mira, chapéu e óculos de espião)
- * customizado dinamicamente com a cor primária escolhida.
- */
-export function generateFaviconSvg(hex: string): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-  <circle cx="50" cy="50" r="50" fill="#0B1120"/>
-  <circle cx="50" cy="50" r="38" stroke="${hex}" stroke-width="5" fill="none"/>
-  <line x1="50" y1="6"  x2="50" y2="18" stroke="${hex}" stroke-width="5" stroke-linecap="round"/>
-  <line x1="50" y1="82" x2="50" y2="94" stroke="${hex}" stroke-width="5" stroke-linecap="round"/>
-  <line x1="6"  y1="50" x2="18" y2="50" stroke="${hex}" stroke-width="5" stroke-linecap="round"/>
-  <line x1="82" y1="50" x2="94" y2="50" stroke="${hex}" stroke-width="5" stroke-linecap="round"/>
-  <path d="M27 47c0-13 10-23 23-23s23 10 23 23c8 1 13 5 13 9H14c0-4 5-8 13-9Z" fill="${hex}"/>
-  <rect x="17" y="53" width="66" height="8" rx="4" fill="${hex}"/>
-  <rect x="29" y="58" width="17" height="10" rx="5" fill="#0B1120"/>
-  <rect x="54" y="58" width="17" height="10" rx="5" fill="#0B1120"/>
-  <rect x="46" y="61" width="8" height="3" rx="1.5" fill="#0B1120"/>
-</svg>`;
-}
-
-/**
  * Atualiza dinamicamente o favicon na aba do navegador com a cor informada.
  */
-export function updateFaviconColor(hex: string) {
+let faviconSeq = 0;
+const faviconImgs: Record<string, Promise<HTMLImageElement>> = {};
+function loadImg(src: string): Promise<HTMLImageElement> {
+  return (faviconImgs[src] ??= new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  }));
+}
+
+/** Favicon = ícone oficial do espião, pintado com a cor da empresa (a mesma dos botões), sobre um disco escuro. */
+export async function updateFaviconColor(hex: string) {
   if (typeof document === "undefined" || !isValidBrandHex(hex)) return;
-  // Troca os ícones de aba (não o apple-touch-icon) por um SVG do espião na cor da empresa.
-  document.querySelectorAll('link[rel~="icon"]').forEach((el) => el.remove());
-  const link = document.createElement("link");
-  link.rel = "icon";
-  link.type = "image/svg+xml";
-  link.href = `data:image/svg+xml,${encodeURIComponent(generateFaviconSvg(hex))}`;
-  document.head.appendChild(link);
+  const seq = ++faviconSeq;
+  try {
+    const [white, mask] = await Promise.all([loadImg("/logo-icon-white.webp"), loadImg("/logo-icon-color.webp")]);
+    if (seq !== faviconSeq) return; // uma troca de cor mais nova já está a caminho
+    const N = 128;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = N;
+    const g = canvas.getContext("2d");
+    if (!g) return;
+    g.fillStyle = "#0B1120";
+    g.beginPath();
+    g.arc(N / 2, N / 2, N / 2, 0, Math.PI * 2);
+    g.fill();
+    g.drawImage(white, 0, 0, N, N);
+    const tint = document.createElement("canvas");
+    tint.width = tint.height = N;
+    const t = tint.getContext("2d")!;
+    t.drawImage(mask, 0, 0, N, N);
+    t.globalCompositeOperation = "source-in";
+    t.fillStyle = hex;
+    t.fillRect(0, 0, N, N);
+    g.drawImage(tint, 0, 0);
+    document.querySelectorAll('link[rel~="icon"]').forEach((el) => el.remove());
+    const link = document.createElement("link");
+    link.rel = "icon";
+    link.type = "image/png";
+    link.href = canvas.toDataURL("image/png");
+    document.head.appendChild(link);
+  } catch {
+    /* sem canvas/imagem: fica o favicon estático do index.html */
+  }
 }
 
 function whiteContrast(hex: string): number {
