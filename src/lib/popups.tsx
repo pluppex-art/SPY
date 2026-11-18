@@ -146,7 +146,7 @@ async function celebrate() {
   if (typeof window === "undefined" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
   try {
     const { default: confetti } = await import("canvas-confetti");
-    const brand = getComputedStyle(document.documentElement).getPropertyValue("--color-primary-blue").trim() || "#F97316";
+    const brand = getComputedStyle(document.documentElement).getPropertyValue("--color-primary-blue").trim() || "#7C3AED";
     confetti({ particleCount: 120, spread: 70, origin: { y: 0.3 }, colors: [brand, "#10B981", "#FBBF24"], disableForReducedMotion: true });
   } catch { /* confete é enfeite: nunca pode atrapalhar o aviso */ }
 }

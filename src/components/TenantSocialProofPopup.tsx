@@ -58,7 +58,7 @@ export function TenantSocialProofPopup({ tenantId, token }: { tenantId?: string;
   }, [scope, tenantId, token]);
 
   if (!shown || items.length === 0) return null;
-  const color = brand?.color || "var(--color-primary-blue, #F97316)";
+  const color = brand?.color || "var(--color-primary-blue, #7C3AED)";
   const initial = (brand?.name || "?").trim().charAt(0).toUpperCase() || "?";
   const ago = shown.kind === "recent" ? formatAgo(shown.closedAt) : "";
   // "acabou de comprar" só quando a venda foi mesmo agora (< 1 h); senão, "comprou" + quando.

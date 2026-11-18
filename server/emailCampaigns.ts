@@ -64,20 +64,24 @@ export function renderVars(text: string, v: { name?: string | null; company?: st
     .replace(/\{\{\s*empresa\s*\}\}/gi, (v.company || "").trim());
 }
 
+/** Roxo padrão do S.P.Y.; a empresa com cor própria (tenants.primary_color) usa a dela. */
+const DEFAULT_LINK_COLOR = "#7C3AED";
+const safeColor = (c?: string | null) => (c && /^#[0-9a-fA-F]{6}$/.test(c) ? c : DEFAULT_LINK_COLOR);
+
 /** Texto simples → HTML seguro: parágrafos, quebras de linha e links http(s). */
-export function textToHtml(text: string): string {
+export function textToHtml(text: string, color = DEFAULT_LINK_COLOR): string {
   const paras = escapeHtml(text.replace(/\r\n/g, "\n").trim()).split(/\n{2,}/);
   return paras
-    .map((p) => `<p style="margin:0 0 14px;line-height:1.55">${p.replace(/\n/g, "<br>").replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#F97316">$1</a>')}</p>`)
+    .map((p) => `<p style="margin:0 0 14px;line-height:1.55">${p.replace(/\n/g, "<br>").replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:${color}">$1</a>')}</p>`)
     .join("");
 }
 
-function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; unsubUrl: string }) {
+function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; unsubUrl: string }) {
   const subject = renderVars(opts.subject, opts).replace(/[\r\n]+/g, " ").trim().slice(0, 200);
   const text = renderVars(opts.body, opts);
   const footerTxt = `\n\n—\nVocê recebeu este e-mail de ${opts.tenantName}. Para não receber mais, acesse: ${opts.unsubUrl}`;
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
-<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${textToHtml(text)}</div>
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${textToHtml(text, safeColor(opts.tenantColor))}</div>
 <p style="max-width:600px;margin:14px auto 0;font-size:11px;color:#6b7280;text-align:center">Você recebeu este e-mail de ${escapeHtml(opts.tenantName)}.<br><a href="${opts.unsubUrl}" style="color:#6b7280">Não quero mais receber</a></p>
 </body></html>`;
   return { subject, text: text + footerTxt, html };
@@ -253,13 +257,13 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     return data;
   };
 
-  const mailFor = async (camp: any, tenantName: string, base: string, r: { name?: string | null; company?: string | null; email: string }) =>
-    ({ to: r.email, ...buildMail({ subject: camp.subject, body: camp.body, name: r.name, company: r.company, tenantName, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) }),
+  const mailFor = async (camp: any, tenant: { name: string; color: string | null }, base: string, r: { name?: string | null; company?: string | null; email: string }) =>
+    ({ to: r.email, ...buildMail({ subject: camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) }),
       headers: { "List-Unsubscribe": `<${optoutUrl(base, camp.tenant_id, r.email)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
 
   const tenantNameOf = async (tenantId: string) => {
-    const { data } = await supabaseService.from("tenants").select("name").eq("id", tenantId).maybeSingle();
-    return String(data?.name || "nossa equipe");
+    const { data } = await supabaseService.from("tenants").select("name, primary_color").eq("id", tenantId).maybeSingle();
+    return { name: String(data?.name || "nossa equipe"), color: (data?.primary_color as string | null) || null };
   };
 
   // Teste: manda UM e-mail só para quem está logado (nunca para outra pessoa).
@@ -299,7 +303,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       }
       if (camp.status === "ready") await db.from("email_campaigns").update({ status: "sending", started_at: new Date().toISOString() }).eq("id", camp.id);
 
-      const [tenantName, optouts] = await Promise.all([tenantNameOf(tenantId), optoutSet(db, tenantId)]);
+      const [tenant, optouts] = await Promise.all([tenantNameOf(tenantId), optoutSet(db, tenantId)]);
       const base = baseUrl(req);
       let via: string | null = null;
       const queue = [...claimed];
@@ -311,7 +315,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
           }
           if (optouts.has(r.email)) { await db.from("email_campaign_recipients").update({ status: "skipped", error: "descadastrado" }).eq("id", r.id); continue; }
           try {
-            const out = await sendTenantEmail(db, tenantId, await mailFor(camp, tenantName, base, r));
+            const out = await sendTenantEmail(db, tenantId, await mailFor(camp, tenant, base, r));
             via = out.via;
             await db.from("email_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", r.id);
           } catch (e: any) {
@@ -357,9 +361,11 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       && crypto.timingSafeEqual(Buffer.from(s), Buffer.from(sign(t, email)));
     // GET só mostra a confirmação (antivírus/leitores de e-mail abrem links sozinhos e não podem descadastrar ninguém).
     if (ok && req.method === "GET") {
+      const { data: tn } = await supabaseService!.from("tenants").select("primary_color").eq("id", t).maybeSingle();
+      const btnColor = tn?.primary_color as string | null;
       return res.status(200).type("html").send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Descadastro</title>
 <body style="font-family:Arial,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;background:#f5f5f7;margin:0"><form method="post" style="background:#fff;padding:32px;border-radius:14px;max-width:420px;text-align:center">
-<h2 style="margin:0 0 8px">Deixar de receber e-mails?</h2><p style="color:#6b7280;margin:0 0 18px">Confirme para sair desta lista.</p><button style="background:#F97316;color:#fff;border:0;padding:12px 22px;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer">Confirmar saída</button></form></body>`);
+<h2 style="margin:0 0 8px">Deixar de receber e-mails?</h2><p style="color:#6b7280;margin:0 0 18px">Confirme para sair desta lista.</p><button style="background:${safeColor(btnColor)};color:#fff;border:0;padding:12px 22px;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer">Confirmar saída</button></form></body>`);
     }
     if (ok) await supabaseService.from("email_optouts").upsert({ tenant_id: t, email }, { onConflict: "tenant_id,email", ignoreDuplicates: true });
     res.status(ok ? 200 : 400).type("html").send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Descadastro</title>

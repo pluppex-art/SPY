@@ -4,15 +4,15 @@
  *
  * Identidade: cabeçalho e rodapé na cor da marca com a logo do S.P.Y. (sempre a do S.P.Y.), título em duas
  * linhas (a 2ª na cor da marca), cartão de dados, botão com seta, painel com a ilustração do pipeline e
- * cartão informativo. O padrão é o laranja oficial do S.P.Y.; se a empresa dona do destinatário tem cor
+ * cartão informativo. O padrão é o roxo do S.P.Y.; se a empresa dona do destinatário tem cor
  * própria (tenants.primary_color), tudo que é "cor da marca" passa a usar a dela. Imagens vão embutidas (CID).
  */
 import { EMAIL_IMAGES_B64 } from "./emailAssets.js";
 
 const BRAND = "S.P.Y.";
 const TAGLINE = "Seu espião comercial";
-/** Laranja oficial do S.P.Y. (mesmo LOGIN_DEFAULT_COLOR do app): vale quando a empresa não definiu cor. */
-const COLOR_PRIMARY = "#f97316";
+/** Roxo padrão do S.P.Y. (mesmo DEFAULT_BRAND_COLOR do app): vale quando a empresa não definiu cor. */
+const COLOR_PRIMARY = "#7c3aed";
 const COLOR_TEXT = "#0f172a";
 const COLOR_BODY = "#475569";
 const COLOR_MUTED = "#64748b";

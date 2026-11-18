@@ -13,10 +13,11 @@ export const BRAND_COLORS: BrandColorOption[] = [
   { id: "orange", label: "Laranja", hex: "#F97316" },
 ];
 
-export const DEFAULT_BRAND_COLOR = BRAND_COLORS[0].hex;
+/** Cor padrão do sistema: roxo. Empresas com cor própria (tenants.primary_color) continuam com a delas. */
+export const DEFAULT_BRAND_COLOR = BRAND_COLORS.find((c) => c.id === "purple")!.hex;
 
-/** Cor da tela de login quando a empresa ainda não foi identificada: o laranja oficial do S.P.Y. */
-export const LOGIN_DEFAULT_COLOR = BRAND_COLORS.find((c) => c.id === "orange")!.hex;
+/** Cor da tela de login quando a empresa ainda não foi identificada: o roxo padrão do S.P.Y. */
+export const LOGIN_DEFAULT_COLOR = DEFAULT_BRAND_COLOR;
 
 /** Aceita só "#RRGGBB" (é o que vai para a variável CSS e para o banco). */
 export function isValidBrandHex(hex: string): boolean {

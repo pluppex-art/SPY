@@ -2,9 +2,10 @@
 
 @theme {
   /* Regra 60-30-10: 60% Dominante (Fundo), 30% Secundário (Superfícies/Bordas), 10% Destaque (Ações) */
-  --color-primary-blue: #2563EB; /* 10% Destaque */
+  --color-primary-blue: #7C3AED; /* 10% Destaque (roxo padrão; applyThemeColor troca pela cor da empresa) */
   --color-tech-cyan: #06B6D4;    /* 10% Destaque Alt */
   --color-accent: var(--color-tech-cyan); /* nome formal do destaque secundário */
+
 
   /* Tokens semânticos de status — usados por Button/Badge/Alert e por toda página que hoje
      usa emerald/rose/amber/blue cru para os mesmos conceitos. Modificador de opacidade
@@ -33,6 +34,23 @@
   --font-sans: Arial, "Helvetica Neue", Helvetica, ui-sans-serif, system-ui, sans-serif;
   --font-display: Arial, "Helvetica Neue", Helvetica, ui-sans-serif, system-ui, sans-serif;
   --font-mono: Arial, "Helvetica Neue", Helvetica, ui-sans-serif, system-ui, sans-serif;
+}
+
+@theme inline {
+  /* O "laranja" do Tailwind (bg-orange-500, text-orange-400…) é a cor da marca da empresa: todas as
+     telas que o usam passam a seguir tenants.primary_color (roxo por padrão). Cada tom é derivado de
+     --color-primary-blue, que applyThemeColor() troca em runtime. */
+  --color-orange-50: color-mix(in srgb, var(--color-primary-blue) 7%, white);
+  --color-orange-100: color-mix(in srgb, var(--color-primary-blue) 14%, white);
+  --color-orange-200: color-mix(in srgb, var(--color-primary-blue) 28%, white);
+  --color-orange-300: color-mix(in srgb, var(--color-primary-blue) 50%, white);
+  --color-orange-400: color-mix(in srgb, var(--color-primary-blue) 75%, white);
+  --color-orange-500: var(--color-primary-blue);
+  --color-orange-600: color-mix(in srgb, var(--color-primary-blue) 88%, black);
+  --color-orange-700: color-mix(in srgb, var(--color-primary-blue) 72%, black);
+  --color-orange-800: color-mix(in srgb, var(--color-primary-blue) 56%, black);
+  --color-orange-900: color-mix(in srgb, var(--color-primary-blue) 40%, black);
+  --color-orange-950: color-mix(in srgb, var(--color-primary-blue) 25%, black);
 }
 
 /* Escala nomeada de radius/shadow para os primitivos (src/components/ui). Não sobrescreve a
@@ -630,10 +648,10 @@ html:not(.dark) [class*="hover:bg-violet-500/10"]:hover,
 html:not(.dark) .group:hover [class*="group-hover:bg-violet-500/10"] { background-color: #F5F3FF !important; border-color: #DDD6FE !important; }
 
 html:not(.dark) [class*="text-orange-300"],
-html:not(.dark) [class*="text-orange-400"] { color: #C2410C !important; }
-html:not(.dark) [class*="bg-orange-500/10"]:not([class*="hover:bg-orange-500/10"]):not([class*="group-hover:bg-orange-500/10"]) { background-color: #FFF7ED !important; border-color: #FED7AA !important; }
+html:not(.dark) [class*="text-orange-400"] { color: color-mix(in srgb, var(--color-primary-blue) 72%, black) !important; }
+html:not(.dark) [class*="bg-orange-500/10"]:not([class*="hover:bg-orange-500/10"]):not([class*="group-hover:bg-orange-500/10"]) { background-color: color-mix(in srgb, var(--color-primary-blue) 7%, white) !important; border-color: color-mix(in srgb, var(--color-primary-blue) 28%, white) !important; }
 html:not(.dark) [class*="hover:bg-orange-500/10"]:hover,
-html:not(.dark) .group:hover [class*="group-hover:bg-orange-500/10"] { background-color: #FFF7ED !important; border-color: #FED7AA !important; }
+html:not(.dark) .group:hover [class*="group-hover:bg-orange-500/10"] { background-color: color-mix(in srgb, var(--color-primary-blue) 7%, white) !important; border-color: color-mix(in srgb, var(--color-primary-blue) 28%, white) !important; }
 
 html:not(.dark) [class*="text-sky-300"],
 html:not(.dark) [class*="text-sky-400"] { color: #0369A1 !important; }

@@ -19,7 +19,7 @@ export interface LogoProps {
 }
 
 function resolveColor(color: LogoProps["color"]): string {
-  if (!color) return LOGO_COLORS.blue;
+  if (!color) return LOGO_COLORS.purple;
   if (color in LOGO_COLORS) return LOGO_COLORS[color as LogoColorId];
   return color;
 }
