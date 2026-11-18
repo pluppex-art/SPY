@@ -860,7 +860,7 @@ create table if not exists public.tenants (
   timezone character varying(100) null default 'America/Sao_Paulo'::character varying,
   webhook_url character varying(2048) null,
   evolution_api_url character varying(2048) null,
-  primary_color character varying(50) null default '#2563EB'::character varying,
+  primary_color character varying(50) null default '#7C3AED'::character varying,
   module_crm boolean null default true,
   module_sdr_ia boolean null default false,
   module_adv_dashboard boolean null default false,
@@ -880,7 +880,7 @@ ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS modules jsonb null;
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone null default CURRENT_TIMESTAMP;
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS webhook_url character varying(2048) null;
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS evolution_api_url character varying(2048) null;
-ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS primary_color character varying(50) null default '#2563EB'::character varying;
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS primary_color character varying(50) null default '#7C3AED'::character varying;
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS module_crm boolean null default true;
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS module_sdr_ia boolean null default false;
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS module_adv_dashboard boolean null default false;

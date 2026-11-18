@@ -3613,7 +3613,7 @@ app.get("/api/public-proposal/:token", async (req, res) => {
       }
     }
 
-    const tenantPrimaryColor = tenantData?.primary_color || "#2563EB";
+    const tenantPrimaryColor = tenantData?.primary_color || "#7C3AED";
     const tenantName =
       empresaDados?.nomeFantasia ||
       empresaDados?.razaoSocial ||
@@ -5293,7 +5293,7 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
         plan: typeof plan === "string" && plan.trim() ? plan.trim().slice(0, 50) : "start",
         status: "Active",
         timezone: timezone?.trim() || "America/Sao_Paulo",
-        primary_color: /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : "#2563EB",
+        primary_color: /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : "#7C3AED",
         modules: modules && typeof modules === "object"
           ? modules
           : { crm: true, sdr: false, advDashboard: false, financeiro: true, marketing: false, educacao: false, clinica: false, produtividade: true, rh: false, bi: false, engajamento: false },

@@ -63,7 +63,7 @@ export async function provisionTenantForImplementation(deps: ProvisionDeps, impl
   if (existing) { await note("Chatbot: ambiente NÃO criado — o e-mail do responsável já tem acesso no sistema. Crie manualmente com outro e-mail."); return { status: "failed", reason: "email_ja_cadastrado" }; }
 
   const { data: tenant, error: tErr } = await db.from("tenants").insert({
-    name: company, niche: "Geral", plan: "start", status: "Active", timezone: "America/Sao_Paulo", primary_color: "#2563EB", modules: DEFAULT_MODULES,
+    name: company, niche: "Geral", plan: "start", status: "Active", timezone: "America/Sao_Paulo", primary_color: "#7C3AED", modules: DEFAULT_MODULES,
   }).select().maybeSingle();
   if (tErr || !tenant) { await note("Chatbot: não foi possível criar o ambiente (erro ao criar a empresa)."); return { status: "failed", reason: "erro_ao_criar_empresa" }; }
 
