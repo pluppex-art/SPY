@@ -6,6 +6,7 @@ import { useDocumentMeta } from "../useDocumentMeta";
 import { LeadForm } from "./LeadForm";
 import { NICHES } from "./formConfig";
 import "../landing.css";
+import "../landing-polish.css";
 
 /** Página pública /f/:niche — mesmo visual claro/laranja da landing. */
 export default function FormPage() {

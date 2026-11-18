@@ -19,12 +19,15 @@ import { useDocumentMeta } from "./useDocumentMeta";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useRevealOnScroll } from "./useRevealOnScroll";
+import { useLandingFx } from "./useLandingFx";
 import { SocialProofPopup } from "../../components/SocialProofPopup";
 import "./landing.css";
+import "./landing-polish.css";
 
 export default function LandingPage() {
   const rootRef = useRef<HTMLDivElement>(null);
   useRevealOnScroll(rootRef);
+  useLandingFx(rootRef);
   useDocumentMeta(
     "S.P.Y. — CRM e ERP com IA para pequenas e médias empresas",
     "Do lead ao financeiro em um só sistema: pipeline de vendas, propostas e contratos, financeiro completo, módulos por segmento e a Aurora, assistente de IA.",

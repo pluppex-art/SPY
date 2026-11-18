@@ -1,0 +1,1002 @@
+/* =====================================================================
+   S.P.Y. — camada visual da landing ("dossiê de espião")
+   Carrega depois de landing.css. Não muda estrutura nem conteúdo: só
+   aparência e interação. Seções escuras (hero, Aurora, rodapé) usam o mesmo
+   truque do resto da landing: redefinir os tokens --sp-* no escopo.
+   ===================================================================== */
+
+.sp-root {
+  --sp-night: #0b1120;
+  --sp-night-2: #111a2e;
+  --sp-night-line: rgba(255, 255, 255, 0.1);
+  --sp-glow: rgba(249, 115, 22, 0.35);
+  --sp-grad: linear-gradient(100deg, #fb923c 0%, #f97316 45%, #fbbf24 100%);
+}
+
+/* tokens das seções escuras */
+.sp-hero,
+.sp-aurora,
+.sp-footer,
+.sp-header {
+  --sp-bg: var(--sp-night);
+  --sp-bg-2: var(--sp-night-2);
+  --sp-panel: #131c31;
+  --sp-panel-2: #1b2640;
+  --sp-line: var(--sp-night-line);
+  --sp-line-strong: rgba(255, 255, 255, 0.2);
+  --sp-text: #f8fafc;
+  --sp-body: #cbd5e1;
+  --sp-muted: #a3b2c7;
+  --sp-brand-text: #fb923c;
+  --sp-brand-tint: rgba(249, 115, 22, 0.16);
+  --sp-brand-tint-text: #fdba74;
+  --sp-shadow-card: 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+  --sp-shadow-window: 0 40px 80px -28px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --color-text-primary: #f8fafc; /* wordmark do logo */
+  color: var(--sp-text);
+}
+
+/* ---------- botões ---------- */
+.sp-btn--primary {
+  background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 10px 24px -10px var(--sp-glow);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.sp-btn--primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.45) 50%, transparent 65%);
+  transform: translateX(-120%);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-btn--primary:hover {
+    background: linear-gradient(180deg, #fdba74 0%, #f97316 100%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 16px 32px -10px var(--sp-glow);
+    transform: translateY(-1px);
+  }
+  .sp-btn--primary:hover::after {
+    transform: translateX(120%);
+    transition: transform 700ms var(--sp-ease);
+  }
+}
+.sp-btn--primary:active {
+  transform: scale(0.97);
+}
+
+/* ---------- header (vidro escuro) ---------- */
+.sp-header {
+  background: rgba(11, 17, 32, 0.95);
+  -webkit-backdrop-filter: saturate(1.4) blur(16px);
+  backdrop-filter: saturate(1.4) blur(16px);
+  border-bottom: 1px solid var(--sp-night-line);
+}
+.sp-header[data-scrolled="true"] {
+  background: rgba(11, 17, 32, 0.92);
+  border-bottom-color: var(--sp-night-line);
+  box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.6);
+}
+.sp-nav a,
+.sp-nav a:hover {
+  color: var(--sp-body);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-nav a:hover {
+    color: #fff;
+  }
+}
+.sp-brand svg {
+  transition: transform 500ms var(--sp-ease), filter 300ms var(--sp-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-brand:hover svg {
+    transform: rotate(-8deg) scale(1.08);
+    filter: drop-shadow(0 0 10px var(--sp-glow));
+  }
+}
+.sp-menu-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--sp-night-line);
+  color: #fff;
+}
+.sp-drawer {
+  background: var(--sp-night);
+  border-top-color: var(--sp-night-line);
+  box-shadow: 0 24px 40px -16px rgba(0, 0, 0, 0.7);
+}
+.sp-drawer a {
+  color: #fff;
+}
+.sp-link {
+  position: relative;
+}
+.sp-hero .sp-link,
+.sp-header .sp-link {
+  color: #fdba74 !important;
+}
+
+/* ---------- títulos: barrinha de marca ---------- */
+.sp-h2 {
+  position: relative;
+  padding-top: 22px;
+}
+.sp-h2::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 44px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--sp-grad);
+  transform-origin: left;
+  transition: width 700ms var(--sp-ease);
+}
+.sp-js .sp-h2[data-reveal]:not([data-in])::before {
+  width: 0;
+}
+.sp-grad {
+  background: var(--sp-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* =====================================================================
+   HERO
+   ===================================================================== */
+.sp-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(900px 480px at 85% 10%, rgba(249, 115, 22, 0.22), transparent 60%),
+    radial-gradient(700px 420px at 0% 100%, rgba(251, 191, 36, 0.08), transparent 60%),
+    linear-gradient(180deg, #0b1120 0%, #0e1628 100%);
+  padding-block: 56px 72px;
+  --px: 0;
+  --py: 0;
+}
+.sp-hero::before {
+  /* grade de pontos, esmaecida nas bordas */
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1.2px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 60% 40%, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse 80% 70% at 60% 40%, #000 30%, transparent 75%);
+}
+.sp-hero h1 {
+  color: #fff;
+}
+.sp-hero__sub {
+  color: #cbd5e1;
+}
+.sp-hero__note {
+  color: #a3b2c7;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sp-hero__note::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+  animation: sp-live 2s ease-out infinite;
+}
+@keyframes sp-live {
+  70% { box-shadow: 0 0 0 9px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+.sp-hero .sp-caption {
+  color: #a3b2c7;
+}
+
+/* radar atrás do produto */
+.sp-hero__radar {
+  position: absolute;
+  z-index: -1;
+  width: 980px;
+  height: 980px;
+  right: -380px;
+  top: 50%;
+  margin-top: -490px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: repeating-radial-gradient(circle at center, transparent 0 79px, rgba(249, 115, 22, 0.16) 80px 81px);
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 15%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, #000 15%, transparent 100%);
+}
+.sp-hero__radar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(249, 115, 22, 0.34) 0deg, rgba(249, 115, 22, 0) 70deg, transparent 360deg);
+  animation: sp-sweep 7s linear infinite;
+}
+@keyframes sp-sweep {
+  to { transform: rotate(360deg); }
+}
+
+/* palco do produto: inclina de leve seguindo o cursor */
+.sp-hero__stage {
+  position: relative;
+  transform: perspective(1500px) rotateY(calc(var(--px) * -3.5deg)) rotateX(calc(var(--py) * 2.5deg));
+  transition: transform 350ms var(--sp-ease);
+  will-change: transform;
+}
+.sp-hero .sp-frame {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 50px 90px -30px rgba(249, 115, 22, 0.38), 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+}
+.sp-hero .sp-frame__bar {
+  background: #0b1120;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+.sp-hero .sp-frame__bar i:nth-child(1) { background: #ef4444; }
+.sp-hero .sp-frame__bar i:nth-child(2) { background: #f59e0b; }
+.sp-hero .sp-frame__bar i:nth-child(3) { background: #22c55e; }
+
+/* emblema do espião */
+.sp-emblem {
+  position: absolute;
+  z-index: 3;
+  top: -46px;
+  right: 10px;
+  width: 84px;
+  height: 84px;
+  color: #fb923c;
+  transform: translate(calc(var(--px) * 14px), calc(var(--py) * 10px));
+  transition: transform 450ms var(--sp-ease);
+  pointer-events: none;
+}
+.sp-emblem img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.9), 0 18px 40px -8px rgba(0, 0, 0, 0.8), 0 0 40px -4px var(--sp-glow);
+  animation: sp-bob 5s ease-in-out infinite;
+}
+.sp-emblem__ring {
+  position: absolute;
+  inset: -14px;
+  width: calc(100% + 28px);
+  height: calc(100% + 28px);
+  animation: sp-spin-slow 24s linear infinite;
+}
+.sp-emblem__ping {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(249, 115, 22, 0.7);
+  animation: sp-ping 2.4s var(--sp-ease) infinite;
+}
+@keyframes sp-ping {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+@keyframes sp-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes sp-spin-slow {
+  to { transform: rotate(360deg); }
+}
+@media (min-width: 640px) {
+  .sp-emblem {
+    width: 104px;
+    height: 104px;
+    top: -56px;
+    right: 18px;
+  }
+}
+@media (min-width: 1040px) {
+  .sp-hero {
+    padding-block: 88px 112px;
+  }
+  .sp-emblem {
+    width: 116px;
+    height: 116px;
+    top: -62px;
+    right: -26px;
+  }
+}
+
+/* demo do pipeline dentro do hero (quando não há screenshot) */
+.sp-hero .sp-app {
+  background: #131c31;
+  box-shadow: var(--sp-shadow-window), 0 50px 90px -30px rgba(249, 115, 22, 0.35);
+}
+.sp-hero .sp-lead {
+  background: #0b1120;
+}
+
+/* =====================================================================
+   FAIXA DE CONFIANÇA
+   ===================================================================== */
+.sp-trust {
+  background: #fff;
+  border-block: 0;
+  border-bottom: 1px solid var(--sp-line);
+  position: relative;
+}
+.sp-trust ul {
+  gap: 12px;
+  padding-block: 20px;
+}
+.sp-trust li {
+  position: relative;
+  padding: 10px 14px;
+  border: 1px solid var(--sp-line);
+  border-radius: 14px;
+  background-color: var(--sp-bg-2);
+  font-size: 15px;
+  transition: transform 220ms var(--sp-ease), border-color 220ms var(--sp-ease), box-shadow 220ms var(--sp-ease);
+}
+.sp-trust svg {
+  box-sizing: content-box;
+  padding: 7px;
+  border-radius: 10px;
+  background: var(--sp-brand-tint);
+  color: var(--sp-brand-tint-text);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-trust li:hover {
+    transform: translateY(-2px);
+    border-color: #fdba74;
+    box-shadow: 0 12px 24px -16px rgba(249, 115, 22, 0.5);
+  }
+}
+
+/* =====================================================================
+   HOLOFOTE NOS CARTÕES (segue o cursor, via --mx/--my)
+   ===================================================================== */
+.sp-plan,
+.sp-prob__col,
+.sp-seg__col,
+.sp-sim__in,
+.sp-sim__out,
+.sp-credits,
+.sp-agents li,
+.sp-trust li,
+.sp-mod__list button,
+.sp-niche {
+  --mx: -400px;
+  --my: -400px;
+  background-image: radial-gradient(360px circle at var(--mx) var(--my), rgba(249, 115, 22, 0.1), transparent 60%);
+  background-repeat: no-repeat;
+}
+.sp-aurora .sp-agents li {
+  background-image: radial-gradient(320px circle at var(--mx) var(--my), rgba(249, 115, 22, 0.16), transparent 60%);
+}
+.sp-niche:hover,
+.sp-mod__list button:hover {
+  background-color: transparent;
+}
+.sp-mod__list button[aria-pressed="true"] {
+  background-color: var(--sp-brand-tint);
+}
+
+/* ---------- cartões: relevo e hover ---------- */
+.sp-prob__col,
+.sp-seg__col,
+.sp-sim__in {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 30px -22px rgba(15, 23, 42, 0.25);
+  transition: transform 260ms var(--sp-ease), box-shadow 260ms var(--sp-ease), border-color 260ms var(--sp-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-prob__col:hover,
+  .sp-seg__col:hover,
+  .sp-sim__in:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 26px 44px -24px rgba(15, 23, 42, 0.32);
+    border-color: #fdba74;
+  }
+}
+
+/* problema */
+.sp-prob__col:not(.sp-prob__col--good) {
+  background-color: #fff;
+  border-top: 3px solid #fca5a5;
+}
+.sp-prob__col--good {
+  border-top: 3px solid var(--sp-brand);
+  background-color: var(--sp-warm);
+}
+.sp-prob h3 {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.sp-prob ol li > svg:first-child {
+  box-sizing: content-box;
+  padding: 3px;
+  border-radius: 50%;
+  background: #fee2e2;
+  margin-top: 3px;
+}
+.sp-prob__col--good ol li > svg:first-child {
+  background: var(--sp-brand-tint);
+}
+.sp-pains li {
+  transition: transform 200ms var(--sp-ease), border-color 200ms var(--sp-ease), background-color 200ms var(--sp-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-pains li:hover {
+    transform: translateY(-2px);
+    border-color: var(--sp-brand);
+    background: var(--sp-warm);
+  }
+}
+
+/* =====================================================================
+   CICLO / ABAS / EXPLORADOR
+   ===================================================================== */
+.sp-tabs {
+  background: var(--sp-panel-2);
+  border: 1px solid var(--sp-line);
+  padding: 5px;
+}
+.sp-tab[aria-selected="true"] {
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 6px 14px -8px rgba(15, 23, 42, 0.3);
+}
+.sp-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 5px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--sp-brand);
+}
+.sp-tab {
+  position: relative;
+}
+.sp-life__bar {
+  height: 4px;
+  border-radius: 4px;
+}
+.sp-life__bar span {
+  background: var(--sp-grad);
+  box-shadow: 0 0 14px var(--sp-glow);
+}
+.sp-life__panel {
+  padding: 20px 22px;
+  border: 1px solid var(--sp-line);
+  border-left: 3px solid var(--sp-brand);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 14px 30px -22px rgba(15, 23, 42, 0.3);
+}
+.sp-life__panel li svg,
+.sp-fin li svg,
+.sp-contact__points svg,
+.sp-plan li svg {
+  box-sizing: content-box;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--sp-brand-tint);
+}
+
+/* janela do pipeline (demo) */
+.sp-app {
+  border: 1px solid var(--sp-line-strong);
+}
+.sp-app__bar {
+  background: var(--sp-bg-2);
+}
+.sp-lead {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.sp-lead--moving {
+  border-color: var(--sp-brand);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.16), 0 14px 26px -14px var(--sp-glow);
+  animation: sp-lead-glow 1.8s ease-in-out infinite;
+}
+.sp-lead--won {
+  background: var(--sp-brand-tint);
+}
+@keyframes sp-lead-glow {
+  50% { box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.08), 0 14px 26px -14px var(--sp-glow); }
+}
+.sp-col h3 span {
+  min-width: 22px;
+  text-align: center;
+  border-radius: 999px;
+  background: var(--sp-panel-2);
+  font-size: 12px;
+  padding: 1px 7px;
+}
+.sp-invoice {
+  border: 1px solid rgba(249, 115, 22, 0.35);
+}
+
+/* explorador de módulos */
+.sp-band {
+  background-color: var(--sp-bg-2);
+  background-image: radial-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+.sp-mod__list button {
+  border: 1px solid transparent;
+  transition: background-color 200ms var(--sp-ease), border-color 200ms var(--sp-ease), transform 200ms var(--sp-ease);
+}
+.sp-mod__list li + li {
+  border-top: 0;
+}
+.sp-mod__list li {
+  margin-bottom: 4px;
+}
+.sp-mod__list button[aria-pressed="true"] {
+  border-color: #fdba74;
+  box-shadow: 0 12px 24px -18px var(--sp-glow);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-mod__list button:hover {
+    transform: translateX(3px);
+    border-color: #fed7aa;
+  }
+}
+.sp-mod__shot .sp-frame,
+.sp-fin__shot .sp-frame,
+.sp-aurora__visual .sp-frame {
+  transition: transform 400ms var(--sp-ease), box-shadow 400ms var(--sp-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-mod__shot .sp-frame:hover,
+  .sp-fin__shot .sp-frame:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 44px 80px -28px rgba(15, 23, 42, 0.38);
+  }
+}
+.sp-frame__bar i:nth-child(1) { background: #fca5a5; }
+.sp-frame__bar i:nth-child(2) { background: #fcd34d; }
+.sp-frame__bar i:nth-child(3) { background: #86efac; }
+
+/* =====================================================================
+   AURORA (seção escura)
+   ===================================================================== */
+.sp-aurora {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(700px 420px at 100% 0%, rgba(249, 115, 22, 0.2), transparent 60%),
+    radial-gradient(600px 380px at 0% 100%, rgba(99, 102, 241, 0.14), transparent 60%),
+    linear-gradient(180deg, #0b1120 0%, #0f182c 100%);
+  border-block: 0;
+  color: var(--sp-text);
+}
+.sp-aurora::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1.2px);
+  background-size: 28px 28px;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
+}
+.sp-aurora .sp-h2 {
+  color: #fff;
+}
+.sp-aurora__list li {
+  border-top-color: var(--sp-night-line);
+}
+.sp-aurora__list svg {
+  box-sizing: content-box;
+  padding: 6px;
+  margin: -3px 0 0 -6px;
+  border-radius: 10px;
+  background: var(--sp-brand-tint);
+}
+.sp-aurora__list strong {
+  color: #fff;
+}
+.sp-chat {
+  background: linear-gradient(180deg, #131c31, #0f1729);
+  border: 1px solid var(--sp-night-line);
+  box-shadow: var(--sp-shadow-window), 0 0 60px -20px var(--sp-glow);
+}
+.sp-chat__head img {
+  box-shadow: 0 0 0 2px var(--sp-brand), 0 0 18px -2px var(--sp-glow);
+}
+.sp-chat__head strong {
+  color: #fff;
+}
+.sp-chat__head small {
+  position: relative;
+  padding-left: 14px;
+}
+.sp-chat__head small::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: sp-live 2s ease-out infinite;
+}
+.sp-bubble--user {
+  background: linear-gradient(180deg, #fb923c, #f97316);
+  box-shadow: 0 10px 20px -12px var(--sp-glow);
+}
+.sp-bubble--ai {
+  background: #1e2a46;
+  color: #f1f5f9;
+  border: 1px solid var(--sp-night-line);
+}
+.sp-dots i {
+  background: #94a3b8;
+}
+.sp-aurora .sp-frame {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: var(--sp-shadow-window), 0 0 60px -24px var(--sp-glow);
+}
+.sp-aurora .sp-caption {
+  color: #94a3b8;
+}
+.sp-agents h3,
+.sp-example h3 {
+  color: #fff;
+}
+.sp-agents li {
+  border: 1px solid var(--sp-night-line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  background-color: rgba(255, 255, 255, 0.03);
+  transition: transform 220ms var(--sp-ease), border-color 220ms var(--sp-ease);
+}
+.sp-agents li strong {
+  color: #fff;
+}
+.sp-agents__role {
+  color: #fdba74;
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-agents li:hover {
+    transform: translateY(-3px);
+    border-color: rgba(249, 115, 22, 0.55);
+  }
+}
+.sp-example blockquote {
+  background: #1e2a46;
+  color: #f1f5f9;
+  border: 1px solid var(--sp-night-line);
+  box-shadow: var(--sp-shadow-card);
+}
+.sp-example dl {
+  background: #131c31;
+  border: 1px solid var(--sp-night-line);
+  box-shadow: var(--sp-shadow-card);
+}
+.sp-example dd {
+  color: #fff;
+}
+.sp-aurora__more {
+  position: relative;
+}
+
+/* =====================================================================
+   FINANCEIRO / SEGMENTOS / SEGURANÇA
+   ===================================================================== */
+.sp-fin h3 {
+  position: relative;
+  border-bottom-color: var(--sp-line);
+}
+.sp-fin h3::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 36px;
+  height: 2px;
+  background: var(--sp-brand);
+}
+.sp-seg__mods li {
+  transition: transform 200ms var(--sp-ease), border-color 200ms var(--sp-ease), background-color 200ms var(--sp-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-seg__mods li:hover {
+    transform: translateY(-2px);
+    border-color: var(--sp-brand);
+    background: var(--sp-warm);
+  }
+}
+.sp-seg__col h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sp-seg__col h3::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--sp-brand);
+  transform: rotate(45deg);
+  flex: none;
+}
+.sp-niche {
+  border-bottom-color: var(--sp-line);
+}
+.sp-niche h3 svg {
+  box-sizing: content-box;
+  padding: 7px;
+  border-radius: 12px;
+  background: var(--sp-brand-tint);
+  transition: transform 260ms var(--sp-ease), background-color 260ms var(--sp-ease), color 260ms var(--sp-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-niche:hover h3 svg {
+    transform: rotate(-8deg) scale(1.06);
+    background: var(--sp-brand);
+    color: var(--sp-ink);
+  }
+}
+.sp-two h3 svg {
+  box-sizing: content-box;
+  padding: 7px;
+  border-radius: 12px;
+  background: var(--sp-brand-tint);
+}
+.sp-two li {
+  transition: padding-left 220ms var(--sp-ease), color 220ms var(--sp-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-two li:hover {
+    padding-left: 8px;
+    color: var(--sp-text);
+  }
+}
+
+/* =====================================================================
+   PLANOS
+   ===================================================================== */
+.sp-plan {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 18px 36px -26px rgba(15, 23, 42, 0.28);
+}
+.sp-plan--hl {
+  background-color: var(--sp-warm);
+  background-image: radial-gradient(360px circle at var(--mx) var(--my), rgba(249, 115, 22, 0.16), transparent 60%),
+    linear-gradient(180deg, #fff7ed 0%, #fff 70%);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.25), 0 30px 60px -28px var(--sp-glow);
+}
+@media (min-width: 900px) {
+  .sp-plan--hl {
+    transform: translateY(-10px);
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-plan:hover {
+    transform: translateY(-5px);
+    border-color: #fdba74;
+  }
+  .sp-plan--hl:hover {
+    transform: translateY(-14px);
+  }
+}
+.sp-plan__badge {
+  background: linear-gradient(180deg, #fb923c, #f97316);
+  box-shadow: 0 8px 16px -8px var(--sp-glow);
+}
+.sp-price strong {
+  font-size: 48px;
+}
+.sp-credits {
+  background-color: #fff;
+}
+
+/* =====================================================================
+   IMPLANTAÇÃO (passos ligados por uma linha)
+   ===================================================================== */
+.sp-steps li::before {
+  background: #fff;
+  border: 2px solid var(--sp-brand);
+  box-shadow: 0 8px 18px -8px var(--sp-glow);
+  transition: background-color 250ms var(--sp-ease), color 250ms var(--sp-ease), transform 250ms var(--sp-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-steps li:hover::before {
+    background: var(--sp-brand);
+    color: var(--sp-ink);
+    transform: scale(1.08);
+  }
+}
+@media (max-width: 899px) {
+  .sp-steps li:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 19px;
+    top: 44px;
+    bottom: -30px;
+    width: 2px;
+    background: linear-gradient(180deg, var(--sp-brand), rgba(249, 115, 22, 0.1));
+  }
+}
+@media (min-width: 900px) {
+  .sp-steps li:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 52px;
+    right: -20px;
+    top: 19px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--sp-brand), rgba(249, 115, 22, 0.12));
+    transform-origin: left;
+  }
+  .sp-js .sp-steps li[data-reveal]:not([data-in])::after {
+    transform: scaleX(0);
+  }
+  .sp-steps li::after {
+    transition: transform 700ms var(--sp-ease) 250ms;
+  }
+}
+
+/* =====================================================================
+   FAQ
+   ===================================================================== */
+.sp-faq {
+  border-top: 0;
+  display: grid;
+  gap: 10px;
+}
+.sp-faq__item {
+  border: 1px solid var(--sp-line);
+  border-radius: 14px;
+  background: #fff;
+  padding-inline: 20px;
+  transition: border-color 220ms var(--sp-ease), box-shadow 220ms var(--sp-ease);
+}
+.sp-faq__item:has([aria-expanded="true"]) {
+  border-color: #fdba74;
+  box-shadow: 0 16px 30px -22px var(--sp-glow);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-faq__item:hover {
+    border-color: #fdba74;
+  }
+}
+.sp-faq__q svg {
+  box-sizing: content-box;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--sp-brand-tint);
+}
+
+/* =====================================================================
+   CONTATO
+   ===================================================================== */
+.sp-contact {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(600px 360px at 100% 0%, rgba(249, 115, 22, 0.16), transparent 60%),
+    linear-gradient(180deg, #fff7ed, #ffedd5);
+}
+.sp-contact::before {
+  /* marca d'água: o espião */
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -120px;
+  bottom: -140px;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: url("/spy-icon.png") center / cover;
+  opacity: 0.07;
+  filter: grayscale(0.2);
+}
+.sp-contact__card {
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  box-shadow: var(--sp-shadow-window), 0 0 0 6px rgba(255, 255, 255, 0.5);
+}
+
+/* =====================================================================
+   RODAPÉ (escuro, com o espião ao fundo)
+   ===================================================================== */
+.sp-footer {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(180deg, #0b1120, #070b16);
+  border-top: 1px solid var(--sp-night-line);
+  color: var(--sp-body);
+}
+.sp-footer::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -90px;
+  bottom: -150px;
+  width: 460px;
+  height: 460px;
+  border-radius: 50%;
+  background: url("/spy-icon.png") center / cover;
+  opacity: 0.12;
+  -webkit-mask-image: radial-gradient(circle, #000 55%, transparent 72%);
+  mask-image: radial-gradient(circle, #000 55%, transparent 72%);
+}
+.sp-footer h2 {
+  color: #fff;
+}
+.sp-footer li a {
+  position: relative;
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-footer li a:hover {
+    color: #fb923c;
+  }
+}
+.sp-footer__legal {
+  border-top-color: var(--sp-night-line);
+}
+
+/* =====================================================================
+   REVELAR AO ROLAR: um pouco mais de presença
+   ===================================================================== */
+.sp-js [data-reveal] {
+  transform: translateY(22px) scale(0.985);
+}
+.sp-js [data-reveal][data-in] {
+  transform: none;
+}
+
+/* barra de progresso com brilho */
+.sp-progress {
+  height: 3px;
+  background: var(--sp-grad);
+  box-shadow: 0 0 12px var(--sp-glow);
+}
+
+/* rolagem combinando com a marca */
+html:has(.sp-root) {
+  scrollbar-color: #f97316 #0b1120;
+}
+.sp-root ::-webkit-scrollbar-thumb {
+  background: #fb923c;
+  border-color: #0b1120;
+}
+
+/* ---------- movimento reduzido ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .sp-hero__stage,
+  .sp-emblem {
+    transform: none !important;
+    transition: none !important;
+  }
+  .sp-hero__radar::after,
+  .sp-emblem__ring,
+  .sp-emblem__ping,
+  .sp-emblem img {
+    animation: none !important;
+  }
+  .sp-plan--hl,
+  .sp-plan--hl:hover {
+    transform: none;
+  }
+  .sp-js .sp-h2[data-reveal]:not([data-in])::before {
+    width: 44px;
+  }
+}

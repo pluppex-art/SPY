@@ -6,6 +6,7 @@ import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
 import { useDocumentMeta } from "../useDocumentMeta";
 import "../landing.css";
+import "../landing-polish.css";
 
 /** Moldura das páginas institucionais (mesmo header, footer e tema claro da landing). */
 export function InstitutionalShell({ children }: { children: ReactNode }) {

@@ -3,6 +3,7 @@ import { ProductShot, shotUrl } from "./ProductShot";
 import { motion, useReducedMotion } from "motion/react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
+import { SpyEmblem } from "./SpyEmblem";
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 
@@ -20,10 +21,11 @@ export function HeroSection() {
 
   return (
     <section className="sp-hero" aria-labelledby="sp-hero-title">
+      <div className="sp-hero__radar" aria-hidden="true" />
       <div className="sp-wrap sp-hero__grid">
         <div>
           <motion.h1 id="sp-hero-title" {...item(0)}>
-            <span className="sp-nowrap">Do lead ao financeiro,</span> <span className="sp-nowrap">em um só sistema.</span>
+            <span className="sp-nowrap">Do lead ao financeiro,</span> <span className="sp-nowrap sp-grad">em um só sistema.</span>
           </motion.h1>
           <motion.p className="sp-hero__sub" {...item(1)}>
             O S.P.Y. é o CRM e ERP para pequenas e médias empresas. Reúne pipeline de vendas, propostas,
@@ -53,12 +55,15 @@ export function HeroSection() {
                 transition: { duration: 0.6, ease: EASE, delay: 0.2 },
               })}
         >
-          <ProductShot
-            slot="pipeline"
-            eager
-            alt="Tela de Leads e Pipeline do S.P.Y. em kanban, com leads por etapa, score e valor"
-            fallback={<PipelineDemo />}
-          />
+          <div className="sp-hero__stage">
+            <SpyEmblem />
+            <ProductShot
+              slot="pipeline"
+              eager
+              alt="Tela de Leads e Pipeline do S.P.Y. em kanban, com leads por etapa, score e valor"
+              fallback={<PipelineDemo />}
+            />
+          </div>
           {!shotUrl("pipeline") && <figcaption className="sp-caption">Exemplo ilustrativo, com dados fictícios.</figcaption>}
         </motion.figure>
       </div>
