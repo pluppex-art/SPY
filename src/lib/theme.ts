@@ -71,9 +71,15 @@ export function generateFaviconSvg(hex: string): string {
 /**
  * Atualiza dinamicamente o favicon na aba do navegador com a cor informada.
  */
-export function updateFaviconColor(_hex: string) {
-  // O favicon e o ícone do app agora são a logo oficial "SPY CRM" (arquivos estáticos em /public).
-  // Antes este método trocava o ícone por um desenho gerado na cor do tenant, o que sobrescrevia a logo.
+export function updateFaviconColor(hex: string) {
+  if (typeof document === "undefined" || !isValidBrandHex(hex)) return;
+  // Troca os ícones de aba (não o apple-touch-icon) por um SVG do espião na cor da empresa.
+  document.querySelectorAll('link[rel~="icon"]').forEach((el) => el.remove());
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.type = "image/svg+xml";
+  link.href = `data:image/svg+xml,${encodeURIComponent(generateFaviconSvg(hex))}`;
+  document.head.appendChild(link);
 }
 
 function whiteContrast(hex: string): number {
