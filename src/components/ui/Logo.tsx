@@ -24,46 +24,42 @@ function resolveColor(color: LogoProps["color"]): string {
   return color;
 }
 
-/** Ícone de marca: chapéu de espião + óculos escuros dentro de uma mira circular. */
-function LogoMark({ color, size = 32 }: { color: string; size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" role="img" aria-label="S.P.Y.">
-      <circle cx="50" cy="50" r="42" stroke={color} strokeWidth="6" />
-      <line x1="50" y1="1" x2="50" y2="16" stroke={color} strokeWidth="6" strokeLinecap="round" />
-      <line x1="50" y1="84" x2="50" y2="99" stroke={color} strokeWidth="6" strokeLinecap="round" />
-      <line x1="1" y1="50" x2="16" y2="50" stroke={color} strokeWidth="6" strokeLinecap="round" />
-      <line x1="84" y1="50" x2="99" y2="50" stroke={color} strokeWidth="6" strokeLinecap="round" />
-      <path
-        d="M27 47c0-13 10-23 23-23s23 10 23 23c8 1 13 5 13 9H14c0-4 5-8 13-9Z"
-        fill={color}
-      />
-      <rect x="17" y="53" width="66" height="8" rx="4" fill={color} />
-      {/* Óculos escuros — lentes em pílula, não elipses genéricas, pra reforçar a leitura "espião" mesmo em tamanhos pequenos */}
-      <rect x="29" y="58" width="17" height="10" rx="5" fill="#0B1120" />
-      <rect x="54" y="58" width="17" height="10" rx="5" fill="#0B1120" />
-      <rect x="46" y="61" width="8" height="3" rx="1.5" fill="#0B1120" />
-    </svg>
-  );
+/** Matiz (0-360) de um "#RRGGBB". */
+function hueOf(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (d === 0) return 0;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
 }
 
-/** Logo da S.P.Y. — ícone sozinho ou com o wordmark, na cor de marca do tenant (4 opções ou hex custom). */
+/** Matiz da cor laranja da logo oficial (arquivos em /public). */
+const LOGO_SOURCE_HUE = 25;
+
+/**
+ * Logo oficial da S.P.Y. (espião + mira, e "SPY CRM"): é a mesma arte para todas as empresas; só a cor muda,
+ * girando o matiz da imagem laranja até a cor da empresa. Duas versões do texto "SPY": branco (fundo escuro)
+ * e cinza-escuro (fundo claro); o CSS (.spy-logo--*) escolhe pela classe `dark` do <html>.
+ */
 export function Logo({ variant = "full", color, size = 32, className }: LogoProps) {
   const hex = resolveColor(color);
+  const hue = Math.round(hueOf(/^#[0-9a-fA-F]{6}$/.test(hex) ? hex : LOGO_COLORS.purple) - LOGO_SOURCE_HUE);
+  const style: React.CSSProperties = { filter: `hue-rotate(${hue}deg)` };
   if (variant === "icon") {
     return (
       <span className={className}>
-        <LogoMark color={hex} size={size} />
+        <img src="/logo-icon-t.webp" alt="S.P.Y." width={size} height={size}
+          style={{ ...style, width: size, height: size, display: "block" }} draggable={false} />
       </span>
     );
   }
+  const h = Math.round(size * 1.7);
+  const w = Math.round((h * 720) / 320);
+  const dims = { width: w, height: h, display: "block" as const };
   return (
-    <span className={`inline-flex items-center gap-2 ${className ?? ""}`}>
-      <LogoMark color={hex} size={size} />
-      {/* Wordmark "SPY" (cor do texto do tema) sobre "CRM" (cor de marca), como na logo oficial. */}
-      <span className="inline-flex flex-col leading-[0.95] font-black" role="img" aria-label="SPY CRM">
-        <span className="tracking-[0.04em] text-[var(--color-text-primary)]" style={{ fontSize: size * 0.62 }}>SPY</span>
-        <span className="tracking-[0.08em]" style={{ fontSize: size * 0.42, color: hex }}>CRM</span>
-      </span>
+    <span className={`inline-flex items-center ${className ?? ""}`} role="img" aria-label="SPY CRM">
+      <img className="spy-logo--on-dark" src="/logo-topbar.webp" alt="" width={w} height={h} style={{ ...style, ...dims }} draggable={false} />
+      <img className="spy-logo--on-light" src="/logo-topbar-light.webp" alt="" width={w} height={h} style={{ ...style, ...dims }} draggable={false} />
     </span>
   );
 }

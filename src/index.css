@@ -961,3 +961,8 @@ body:has(main .fixed.inset-0[class*="bg-black"]) header {
     overflow-wrap: break-word;
   }
 }
+
+/* Logo oficial: versão com texto branco no tema escuro, azul-marinho no claro (ver components/ui/Logo.tsx). */
+.spy-logo--on-dark { display: none !important; }
+html.dark .spy-logo--on-dark { display: block !important; }
+html.dark .spy-logo--on-light { display: none !important; }
