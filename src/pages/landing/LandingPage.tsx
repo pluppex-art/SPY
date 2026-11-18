@@ -29,8 +29,8 @@ export default function LandingPage() {
   useRevealOnScroll(rootRef);
   useLandingFx(rootRef);
   useDocumentMeta(
-    "S.P.Y. — CRM e ERP com IA para pequenas e médias empresas",
-    "Do lead ao financeiro em um só sistema: pipeline de vendas, propostas e contratos, financeiro completo, módulos por segmento e a Aurora, assistente de IA.",
+    "S.P.Y. — CRM e ERP com IA: nenhum lead esquecido",
+    "CRM e ERP com IA para pequenas e médias empresas. Pipeline, propostas, contratos e financeiro num só lugar, com a Aurora acompanhando cada lead até o caixa.",
   );
   const { hash } = useLocation();
   // âncoras vindas de outra página (ex.: /lp#planos redirecionado, /landing#contato)
