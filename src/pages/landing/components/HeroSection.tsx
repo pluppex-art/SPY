@@ -25,11 +25,11 @@ export function HeroSection() {
       <div className="sp-wrap sp-hero__grid">
         <div>
           <motion.h1 id="sp-hero-title" {...item(0)}>
-            <span className="sp-nowrap">Do lead ao financeiro,</span> <span className="sp-nowrap sp-grad">em um só sistema.</span>
+            <span className="sp-nowrap">Nenhum lead esquecido.</span> <span className="sp-nowrap sp-grad">Toda venda, até o caixa.</span>
           </motion.h1>
           <motion.p className="sp-hero__sub" {...item(1)}>
-            O S.P.Y. é o CRM e ERP para pequenas e médias empresas. Reúne pipeline de vendas, propostas,
-            contratos e financeiro, e conta com a Aurora, uma assistente de IA que trabalha com os dados da sua operação.
+            O S.P.Y. é o CRM e ERP que organiza o seu pipeline, envia propostas, fecha contratos e controla o financeiro num só
+            lugar. E a Aurora, nossa IA, acompanha cada lead e aponta o próximo passo, para nenhuma oportunidade esfriar.
           </motion.p>
           <motion.div className="sp-hero__actions" {...item(2)}>
             <Link to="/f/spy" className="sp-btn sp-btn--primary">
