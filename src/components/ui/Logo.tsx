@@ -16,6 +16,8 @@ export interface LogoProps {
   color?: LogoColorId | (string & {});
   size?: number;
   className?: string;
+  /** Fundo onde a logo aparece: "dark"/"light" fixa o texto branco/grafite; "auto" segue o tema do app. */
+  tone?: "auto" | "dark" | "light";
 }
 
 function resolveColor(color: LogoProps["color"]): string {
@@ -32,7 +34,7 @@ const MASK_BASE = { maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepe
  * dos botões —, e a parte neutra (texto "SPY" e olhos) fica branca no tema escuro e grafite no claro; o CSS
  * (.spy-logo--*) escolhe pela classe `dark` do <html>.
  */
-export function Logo({ variant = "full", color, size = 32, className }: LogoProps) {
+export function Logo({ variant = "full", color, size = 32, className, tone = "auto" }: LogoProps) {
   const hex = resolveColor(color);
   const fill = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : LOGO_COLORS.purple;
   const isIcon = variant === "icon";
@@ -43,8 +45,8 @@ export function Logo({ variant = "full", color, size = 32, className }: LogoProp
   const layer: React.CSSProperties = { position: "absolute", inset: 0, width: w, height: h, display: "block" };
   return (
     <span className={`relative inline-block shrink-0 ${className ?? ""}`} style={{ width: w, height: h }} role="img" aria-label={isIcon ? "S.P.Y." : "SPY CRM"}>
-      <img className="spy-logo--on-dark" src={`${base}-white.webp`} alt="" width={w} height={h} style={layer} draggable={false} />
-      <img className="spy-logo--on-light" src={`${base}-dark.webp`} alt="" width={w} height={h} style={layer} draggable={false} />
+      {tone !== "light" && <img className={tone === "dark" ? "" : "spy-logo--on-dark"} src={`${base}-white.webp`} alt="" width={w} height={h} style={layer} draggable={false} />}
+      {tone !== "dark" && <img className={tone === "light" ? "" : "spy-logo--on-light"} src={`${base}-dark.webp`} alt="" width={w} height={h} style={layer} draggable={false} />}
       <span aria-hidden="true" style={{ ...layer, ...MASK_BASE, backgroundColor: fill, maskImage: maskUrl, WebkitMaskImage: maskUrl }} />
     </span>
   );

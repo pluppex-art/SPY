@@ -75,25 +75,7 @@ export function AuthLayout({ primaryColor, title, subtitle, children }: { primar
         <div className="relative z-10 flex flex-col h-full px-14 py-12">
 
           {/* Logo topo */}
-          <div className="flex items-center gap-3">
-            <div
-              className="rounded-xl p-2.5 shadow-lg transition-all duration-700"
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                boxShadow: `0 0 32px ${hexAlpha(primaryColor, 0.3)}`,
-              }}
-            >
-              <Logo variant="icon" size={32} color={primaryColor} />
-            </div>
-            <span
-              className="font-black tracking-[0.14em] text-xl transition-colors duration-700"
-              style={{ color: primaryColor, textShadow: `0 0 20px ${hexAlpha(primaryColor, 0.5)}` }}
-            >
-              S.P.Y.
-            </span>
-          </div>
+          <Logo variant="full" size={40} color={primaryColor} tone="dark" className="transition-all duration-700" />
 
           {/* Headline */}
           <div className="mt-auto mb-10">
@@ -186,14 +168,8 @@ export function AuthLayout({ primaryColor, title, subtitle, children }: { primar
         <div className="w-full max-w-sm relative z-10">
 
           {/* Logo mobile */}
-          <div className="flex lg:hidden items-center gap-3 mb-10">
-            <Logo variant="icon" size={28} color={primaryColor} />
-            <span
-              className="font-black tracking-[0.14em] text-lg transition-colors duration-700"
-              style={{ color: primaryColor }}
-            >
-              S.P.Y.
-            </span>
+          <div className="flex lg:hidden items-center mb-10">
+            <Logo variant="full" size={30} color={primaryColor} tone="dark" />
           </div>
 
           {/* Cabeçalho do form */}
