@@ -221,6 +221,15 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
                     </button>
                   )}
                 </div>
+                <details className="mt-3 rounded-xl border border-slate-700 bg-slate-950/60 p-3">
+                  <summary className="cursor-pointer text-[11px] font-black uppercase tracking-widest text-slate-300">Receber os leads deste formulário no CRM</summary>
+                  <p className="text-[11px] text-slate-400 mt-2">Faça o seu formulário (no site ou em outra ferramenta) enviar os dados para o endereço abaixo. O lead entra no CRM com a origem “{form.source}” e quem já existe é só atualizado.</p>
+                  <pre className="mt-2 text-[10px] font-mono whitespace-pre-wrap break-all p-2 rounded-lg bg-slate-900 text-slate-300">{`POST ${typeof window !== "undefined" ? window.location.origin : ""}/api/public/forms/${form.id}/submit
+Content-Type: application/json
+
+{ "name": "Maria Silva", "phone": "63999990000", "email": "maria@exemplo.com", "message": "texto livre" }`}</pre>
+                  <p className="text-[11px] text-slate-500 mt-2">Obrigatório: nome e (WhatsApp ou e-mail). Qualquer outro campo de texto vira nota do lead. Inclua um campo escondido chamado <code>website</code> vazio: se vier preenchido, o envio é descartado como spam.</p>
+                </details>
               </div>
 
               {/* Modo: Passo a Passo (Corridinha / Typeform) */}
@@ -358,12 +367,12 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
                           <button
                             type="button"
                             onClick={() => {
-                              toast.success("Simulação de envio concluída! Lead qualificado gerado com sucesso.");
+                              toast.info("Pré-visualização: nada foi enviado. Os leads reais chegam pelo formulário publicado.");
                               setCurrentStep(0);
                             }}
                             className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg"
                           >
-                            ✓ Enviar Inscrição
+                            ✓ Testar envio (pré-visualização)
                           </button>
                         )}
                       </div>
@@ -443,10 +452,10 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
 
                     <button
                       type="button"
-                      onClick={() => toast.success("Inscrição via Scroll Contínuo enviada com sucesso!")}
+                      onClick={() => toast.info("Pré-visualização: nada foi enviado. Os leads reais chegam pelo formulário publicado.")}
                       className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl"
                     >
-                      Enviar Respostas do Formulário
+                      Testar envio (pré-visualização)
                     </button>
                   </div>
                 </div>

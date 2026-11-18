@@ -1,3 +1,4 @@
+import { ehGastoMarketing } from "../../lib/gastoMarketing";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { BarChart2, TrendingUp, Users, Target, Activity, DollarSign, Inbox } from "lucide-react";
@@ -44,7 +45,7 @@ export default function MarketingAnalytics() {
   // Receita vinda de Marketing (simplificado como Total Recebido ou leads com status Fechado * valor)
   // Como as despesas de marketing também não têm flag clara, pegamos tudo do tipo Pagar/Receber ou usamos apenas baseados em leads
   const clientTotalRevenue = leads.filter(l => l.status === 'Fechado').reduce((s, l) => s + parseCurrencyBR(l.value), 0);
-  const clientTotalSpent = financeEntries.filter(f => f.type === 'Pagar' && (f.category?.toLowerCase().includes('marketing') || f.category?.toLowerCase().includes('anúncio')) && f.status === 'Pago').reduce((s, f) => s + f.value, 0);
+  const clientTotalSpent = financeEntries.filter(f => f.type === 'Pagar' && ehGastoMarketing(f.category) && f.status === 'Pago').reduce((s, f) => s + f.value, 0);
 
   const clientTotalLeads = leads.length;
   const clientClosedLeads = leads.filter(l => l.status === 'Fechado').length;
@@ -68,7 +69,7 @@ export default function MarketingAnalytics() {
       try {
         const d = new Date(l.date || l.createdAt || '');
         if(isNaN(d.getTime())) return;
-        const month = d.toLocaleDateString('pt-BR', { month: 'short' });
+        const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         
         if (!months[month]) months[month] = { revenue: 0, leads: 0, closed: 0, spent: 0 };
         
@@ -83,17 +84,19 @@ export default function MarketingAnalytics() {
     // Processa gastos de mkt
     financeEntries.forEach(f => {
       if (f.type !== 'Pagar' || f.status !== 'Pago') return;
-      if (!(f.category?.toLowerCase().includes('marketing') || f.category?.toLowerCase().includes('anúncio'))) return;
+      if (!ehGastoMarketing(f.category)) return;
       try {
         const d = new Date(f.date || '');
         if(isNaN(d.getTime())) return;
-        const month = d.toLocaleDateString('pt-BR', { month: 'short' });
-        if (months[month]) months[month].spent += f.value;
+        const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (!months[month]) months[month] = { revenue: 0, leads: 0, closed: 0, spent: 0 };
+        months[month].spent += f.value;
       } catch {}
     });
 
-    return Object.entries(months).map(([month, data]) => ({
-      name: month,
+    const NOMES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    return Object.entries(months).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({
+      name: `${NOMES[Number(month.slice(5)) - 1]}/${month.slice(2, 4)}`,
       revenue: data.revenue,
       cac: data.leads > 0 ? (data.spent / data.leads) : 0
     }));

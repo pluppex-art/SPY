@@ -37,6 +37,7 @@ export default function MarketingEmail() {
   const [options, setOptions] = useState<Options | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<string | null>(null);
+  const [falhas, setFalhas] = useState<Record<string, { email: string; error: string | null }[] | null>>({});
   const [check, setCheck] = useState<{ kind: string; host?: string; port?: number; encryption?: string; fromDomain?: string; verified: boolean; error?: string } | null>(null);
   const [checking, setChecking] = useState(false);
   const verifySender = async () => {
@@ -149,6 +150,20 @@ export default function MarketingEmail() {
     void run(c);
   };
 
+  const verFalhas = async (c: Campaign) => {
+    if (falhas[c.id]) { setFalhas((f) => ({ ...f, [c.id]: null })); return; }
+    try { const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/failures`).then(json); setFalhas((f) => ({ ...f, [c.id]: r.failures })); } catch (e: any) { toast.error(e.message); }
+  };
+  const reenviarFalhas = async (c: Campaign) => {
+    try {
+      const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/retry-failed`, { method: "POST" }).then(json);
+      if (!r.requeued) { toast.info("Não há falhas para reenviar."); return; }
+      setFalhas((f) => ({ ...f, [c.id]: null }));
+      toast.success(`${r.requeued} envio(s) voltaram para a fila.`);
+      void run({ ...c, status: "sending" });
+    } catch (e: any) { toast.error(e.message); }
+  };
+
   const cancel = async (c: Campaign) => {
     if (!(await confirmDialog({ title: "Cancelar campanha?", description: "Quem ainda não recebeu não receberá. O que já foi enviado não volta.", confirmLabel: "Cancelar campanha", variant: "danger" } as any))) return;
     stopRef.current = true;
@@ -209,6 +224,20 @@ export default function MarketingEmail() {
                       ? <Button variant="outline" onClick={() => { stopRef.current = true; }} className="h-8 px-3 text-xs gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Enviando… (pausar)</Button>
                       : <Button onClick={() => void (c.status === "sending" ? run(c) : send(c))} className="h-8 px-3 text-xs font-bold gap-1.5"><Send className="w-3.5 h-3.5" /> {c.status === "sending" ? "Retomar envio" : "Disparar"}</Button>}
                     <Button variant="outline" onClick={() => void cancel(c)} className="h-8 px-3 text-xs gap-1.5 text-[var(--color-danger)]"><XCircle className="w-3.5 h-3.5" /> Cancelar</Button>
+                  </div>
+                )}
+                {c.failed > 0 && c.status !== "cancelled" && running !== c.id && (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" onClick={() => void verFalhas(c)} className="h-8 px-3 text-xs">{falhas[c.id] ? "Ocultar falhas" : `Ver as ${c.failed} falha(s)`}</Button>
+                      <Button variant="outline" onClick={() => void reenviarFalhas(c)} className="h-8 px-3 text-xs">Reenviar falhas</Button>
+                    </div>
+                    {falhas[c.id] && (
+                      <ul className="text-[11px] text-[var(--color-text-muted)] space-y-0.5 max-h-40 overflow-auto">
+                        {falhas[c.id]!.map((f, i) => <li key={i}><b className="text-[var(--color-text-primary)]">{f.email}</b> — {f.error || "erro desconhecido"}</li>)}
+                        {c.failed > 50 && <li>…mostrando as primeiras 50.</li>}
+                      </ul>
+                    )}
                   </div>
                 )}
               </Card>

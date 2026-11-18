@@ -1,3 +1,4 @@
+import { modulosDoCargo } from "../src/lib/cargosUsuario.js";
 import crypto from "node:crypto";
 import type { Express } from "express";
 import { sendTenantEmail, checkTenantSender } from "./mailer.js";
@@ -72,7 +73,7 @@ const safeColor = (c?: string | null) => (c && /^#[0-9a-fA-F]{6}$/.test(c) ? c :
 export function textToHtml(text: string, color = DEFAULT_LINK_COLOR): string {
   const paras = escapeHtml(text.replace(/\r\n/g, "\n").trim()).split(/\n{2,}/);
   return paras
-    .map((p) => `<p style="margin:0 0 14px;line-height:1.55">${p.replace(/\n/g, "<br>").replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:${color}">$1</a>')}</p>`)
+    .map((p) => `<p style="margin:0 0 14px;line-height:1.55">${p.replace(/\n/g, "<br>").replace(/(https?:\/\/[^\s<]+)/g, `<a href="$1" style="color:${color}">$1</a>`)}</p>`)
     .join("");
 }
 
@@ -180,6 +181,21 @@ const baseUrl = (req: any) => (process.env.PUBLIC_APP_URL || `https://${req.get(
 export function registerEmailCampaignRoutes(app: Express, { requireUser, resolveRequestedTenantId, limiter, supabaseService }: Deps) {
   const noDb = (res: any) => res.status(503).json({ error: "Servidor sem acesso ao banco." });
 
+  /** Só quem tem o módulo Marketing (na empresa e no cargo) cria e dispara campanhas: o menu já escondia isso, agora o servidor também confere. */
+  const liberarMarketing = async (req: any, res: any, tenantId: string): Promise<boolean> => {
+    try {
+      const { data: t } = await supabaseService.from("tenants").select("modules").eq("id", tenantId).is("deleted_at", null).maybeSingle();
+      const { data: u } = await supabaseService.from("users").select("role, is_master, is_tenant_admin, tenant_id").eq("id", req.user.id).maybeSingle();
+      const admin = !!u && (u.is_master === true || (u.is_tenant_admin === true && u.tenant_id === tenantId));
+      if (u?.is_master !== true && t?.modules?.marketing !== true) { res.status(403).json({ error: "O módulo Marketing não está ativo nesta empresa." }); return false; }
+      if (admin) return true;
+      const { data: cargos } = await supabaseService.from("cargos").select("nome, modulos, restringir_aos_proprios_dados").eq("tenant_id", tenantId);
+      const mods = modulosDoCargo({ role: u?.role }, cargos || []);
+      if (mods && !mods.includes("marketing")) { res.status(403).json({ error: "Seu perfil não tem acesso ao Marketing." }); return false; }
+      return true;
+    } catch { res.status(500).json({ error: "Não foi possível conferir a permissão." }); return false; }
+  };
+
   // Opções para montar o público: origens e status existentes (só leads com e-mail válido).
   app.get("/api/email-campaigns/audience-options", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
@@ -227,6 +243,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   app.post("/api/email-campaigns", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
     const name = String(req.body?.name || "").trim().slice(0, 120);
     const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
     const body = String(req.body?.body || "").trim().slice(0, 20_000);
@@ -270,6 +287,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   app.post("/api/email-campaigns/:id/test", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
     const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
     const to = cleanEmail(req.user?.email);
     if (!to) return res.status(400).json({ error: "Sua conta não tem e-mail válido para receber o teste." });
@@ -285,6 +303,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   app.post("/api/email-campaigns/:id/send-batch", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
     const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
     if (camp.status === "cancelled") return res.json({ done: true, status: "cancelled", pending: 0, sent: camp.sent, failed: camp.failed });
     const started = Date.now();
@@ -338,10 +357,24 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   app.post("/api/email-campaigns/:id/cancel", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
     const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
     await supabaseService.from("email_campaign_recipients").update({ status: "skipped", error: "campanha cancelada" }).eq("campaign_id", camp.id).in("status", ["pending", "sending"]);
     await supabaseService.from("email_campaigns").update({ status: "cancelled", finished_at: new Date().toISOString() }).eq("id", camp.id);
     res.json({ ok: true });
+  });
+
+  /** Põe os envios que falharam de volta na fila (para tentar de novo) e reabre a campanha. */
+  app.post("/api/email-campaigns/:id/retry-failed", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
+    const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
+    if (camp.status === "cancelled") return res.status(409).json({ error: "Campanha cancelada." });
+    const { data } = await supabaseService.from("email_campaign_recipients").update({ status: "pending", error: null, claimed_at: null }).eq("campaign_id", camp.id).eq("status", "failed").select("id");
+    const n = data?.length || 0;
+    if (n > 0) await supabaseService.from("email_campaigns").update({ status: "sending", failed: 0 }).eq("id", camp.id);
+    res.json({ requeued: n });
   });
 
   app.get("/api/email-campaigns/:id/failures", requireUser, limiter, async (req: any, res: any) => {

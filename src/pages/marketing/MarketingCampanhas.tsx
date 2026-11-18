@@ -1,3 +1,5 @@
+import { ehGastoMarketing } from "../../lib/gastoMarketing";
+import { parseCurrencyBR } from "../../lib/utils";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -87,17 +89,17 @@ export default function MarketingCampanhas() {
 
   const totalRevenueClient = useMemo(
     () =>
-      financeEntries
-        .filter((f) => f.type === "Receber" && f.status === "Pago")
-        .reduce((s, f) => s + f.value, 0),
-    [financeEntries]
+      leads
+        .filter((l) => l.status === "Fechado")
+        .reduce((s, l) => s + parseCurrencyBR(l.value), 0),
+    [leads]
   );
   const totalRevenue = serverSummary?.totalRevenue ?? totalRevenueClient;
 
   const totalSpentClient = useMemo(
     () =>
       financeEntries
-        .filter((f) => f.type === "Pagar" && f.status === "Pago")
+        .filter((f) => f.type === "Pagar" && f.status === "Pago" && ehGastoMarketing(f.category))
         .reduce((s, f) => s + f.value, 0),
     [financeEntries]
   );
@@ -261,14 +263,14 @@ export default function MarketingCampanhas() {
             value: formatCurrency(totalSpent),
             icon: DollarSign,
             color: "text-rose-500",
-            sub: "Despesas de tráfego pagas",
+            sub: "Despesas pagas de marketing e anúncios",
           },
           {
             label: "Receita Gerada",
             value: formatCurrency(totalRevenue),
             icon: ArrowUpRight,
             color: "text-emerald-500",
-            sub: "Contratos e vendas fechadas",
+            sub: "Negócios fechados no CRM",
           },
           {
             label: "CPA Médio",

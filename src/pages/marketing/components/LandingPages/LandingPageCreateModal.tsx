@@ -26,9 +26,9 @@ export function LandingPageCreateModal({
         <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
           <div>
             <h3 className="text-lg font-black text-white flex items-center gap-2 uppercase tracking-wide">
-              🚀 Criar Nova Landing Page
+              🚀 Cadastrar Landing Page
             </h3>
-            <p className="text-xs text-slate-400 mt-1">Configure o título e os dados da sua nova página de captura.</p>
+            <p className="text-xs text-slate-400 mt-1">Registre uma página que você já publicou (no seu site ou em outra ferramenta) para acompanhar visitas e contatos.</p>
           </div>
           <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
@@ -44,20 +44,18 @@ export function LandingPageCreateModal({
               value={newName}
               onChange={(e) => {
                 setNewName(e.target.value);
-                if (!newSlug) setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
               }}
               className="w-full bg-[var(--color-surface-elevated)] text-white border border-white/10 rounded-xl h-11 px-4 text-sm focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>
 
           <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Caminho / Slug (URL)</label>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Endereço da página</label>
             <div className="flex items-center bg-[var(--color-surface-elevated)] border border-white/10 rounded-xl h-11 overflow-hidden px-4 text-sm text-slate-400">
-              <span className="shrink-0">lp.seussistema.com/</span>
               <input
-                type="text" required placeholder="black-friday"
+                type="text" required placeholder="www.seusite.com.br/black-friday"
                 value={newSlug} onChange={(e) => setNewSlug(e.target.value)}
-                className="flex-1 bg-transparent text-white focus:outline-none h-full pl-1 text-sm font-semibold"
+                className="flex-1 bg-transparent text-white focus:outline-none h-full text-sm font-semibold"
               />
             </div>
           </div>
@@ -80,7 +78,7 @@ export function LandingPageCreateModal({
               Cancelar
             </Button>
             <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-xl uppercase text-xs font-black tracking-widest">
-              Criar Página
+              Cadastrar Página
             </Button>
           </div>
         </form>

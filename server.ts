@@ -51,6 +51,8 @@ import { sessoesModelo } from "./server/agenteSecretoModelo.js";
 import { validarMidiaSaida, rotuloHistorico } from "./server/chatMediaSaida.js";
 import { gravarRetratosRadar } from "./server/radarSnapshots.js";
 import { registerAgendamentoRoutes } from "./server/agendamento.js";
+import { ehGastoMarketing } from "./src/lib/gastoMarketing.js";
+import { registerMarketingPublicRoutes, corsPublicoMarketing } from "./server/marketingPublico.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { registerMaxdataWriteRoutes } from "./server/maxdataWrite.js";
 import { connFromConfig as maxConnFromConfig, maxdataAuth, maxdataGet, MaxDataError } from "./server/maxdataClient.js";
@@ -468,6 +470,7 @@ app.use((req: any, res, next) => {
 // outro lugar, extensão maliciosa). Sem SPY_CORS_ORIGIN configurada, não reflete
 // nenhuma origem (mais seguro que abrir geral por omissão). Fallback pro nome antigo
 // AXIS_CORS_ORIGIN — produção na Vercel ainda só tem a variável antiga configurada.
+app.use(corsPublicoMarketing);
 const allowedOrigins = (process.env.SPY_CORS_ORIGIN || process.env.AXIS_CORS_ORIGIN || "https://axis-crm.pluppex.com.br").split(",").map(o => o.trim()).filter(Boolean);
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -502,6 +505,7 @@ const googleCalendarLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardH
 // Mais restritivo que os demais — endpoint sem autenticação nenhuma (formulário
 // público do site de marketing), maior risco de abuso/spam automatizado.
 const publicLeadLimiter = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: true, legacyHeaders: false });
+const publicFormsLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
 const publicLeadLimiterAgendamento = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
 // Endpoints públicos sem auth: enumeração de tenant e aceite de proposta.
 const publicProposalLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
@@ -531,6 +535,7 @@ registerFinancialReportRoutes(app, { supabaseService, hasSupabaseService: Boolea
 registerMessageTriggerRoutes(app, { requireUser });
 // Chatbot por regras (sem IA): conexão de WhatsApp dedicada por bot — ver server/chatbot.ts.
 // Módulo Agendamento (reservas por hora, página pública e pagamento online). Ver server/agendamento.ts.
+registerMarketingPublicRoutes(app, { supabaseService, limiter: publicFormsLimiter });
 registerAgendamentoRoutes(app, {
   requireUser, resolveTenant: resolveRequestedTenantId, supabaseService, limiterPublico: publicLeadLimiterAgendamento,
   segredo: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.CRON_SECRET || "", appUrl: (process.env.PUBLIC_APP_URL || "http://localhost:3002").replace(/\/+$/, ""), cronSecret: process.env.CRON_SECRET,
@@ -1236,14 +1241,15 @@ app.get("/api/marketing/campanhas-summary", requireUserOrInternalService, async 
 
     const sb = req.supabase;
     const [leadsAll, entries] = await Promise.all([
-      fetchAllRowsPaginated(sb, "leads", "status,date,source", (q) => q.eq("tenant_id", tenantId)) as Promise<{ status: string; date: string | null; source: string | null }[]>,
-      fetchAllRowsPaginated(sb, "finance_entries", "type,status,value", (q) => q.eq("tenant_id", tenantId)) as Promise<{ type: string; status: string; value: number }[]>,
+      fetchAllRowsPaginated(sb, "leads", "status,date,source,value", (q) => q.eq("tenant_id", tenantId)) as Promise<{ status: string; date: string | null; source: string | null; value: number | null }[]>,
+      fetchAllRowsPaginated(sb, "finance_entries", "type,status,value,category", (q) => q.eq("tenant_id", tenantId)) as Promise<{ type: string; status: string; value: number; category: string | null }[]>,
     ]);
 
     const totalLeads = leadsAll.length;
     const closedLeads = leadsAll.filter(l => l.status === "Fechado").length;
-    const totalRevenue = entries.filter(f => f.type === "Receber" && f.status === "Pago").reduce((s, f) => s + (Number(f.value) || 0), 0);
-    const totalSpent = entries.filter(f => f.type === "Pagar" && f.status === "Pago").reduce((s, f) => s + (Number(f.value) || 0), 0);
+    // Mesma definição da tela Análises de Marketing: receita = negócios fechados; investimento = só despesas de marketing/anúncios.
+    const totalRevenue = leadsAll.filter(l => l.status === "Fechado").reduce((s, l) => s + (Number(l.value) || 0), 0);
+    const totalSpent = entries.filter(f => f.type === "Pagar" && f.status === "Pago" && ehGastoMarketing(f.category)).reduce((s, f) => s + (Number(f.value) || 0), 0);
     const cpa = totalLeads > 0 ? totalSpent / totalLeads : 0;
 
     const trafficCounts = [0, 0, 0, 0, 0, 0, 0];
@@ -1664,7 +1670,7 @@ app.get("/api/marketing/analytics-summary", requireUserOrInternalService, async 
     const closedLeadsRows = leadsAll.filter((l) => l.status === "Fechado");
     const totalRevenue = closedLeadsRows.reduce((s, l) => s + (Number(l.value) || 0), 0);
     const totalSpent = entries
-      .filter((f) => f.type === "Pagar" && f.status === "Pago" && (f.category?.toLowerCase().includes("marketing") || f.category?.toLowerCase().includes("anúncio")))
+      .filter((f) => f.type === "Pagar" && f.status === "Pago" && ehGastoMarketing(f.category))
       .reduce((s, f) => s + (Number(f.value) || 0), 0);
 
     const totalLeads = leadsAll.length;
@@ -3058,8 +3064,11 @@ app.get("/api/v1/products", requireApiKey, async (req, res) => {
 // .env.example (ao lado de SPY_FORM_CLIENT_ID) mas nunca tinha sido lida em
 // lugar nenhum do código até agora.
 app.post("/api/public/lead-capture", async (req, res) => {
-  const { niche, name, phone, email, summary } = req.body ?? {};
+  const { niche, name, phone, email, summary, website } = req.body ?? {};
+  if (website) return res.json({ success: true }); // campo-isca: só robô preenche
   if (!name?.toString().trim()) return res.status(400).json({ error: "Nome é obrigatório." });
+  if (!phone?.toString().replace(/\D/g, "") && !email?.toString().trim()) return res.status(400).json({ error: "Informe WhatsApp ou e-mail." });
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.toString().trim())) return res.status(400).json({ error: "E-mail inválido." });
 
   const tenantId = process.env.SPY_FORM_TENANT_ID || process.env.AXIS_FORM_TENANT_ID;
   if (!tenantId) return res.status(503).json({ error: "Captação de leads do site não está configurada neste ambiente." });

@@ -2,13 +2,13 @@ import { Button } from "../../../../components/ui/button";
 import { Modal } from "../../../../components/ui/modal";
 import { FormField } from "../../../../components/ui/form-field";
 import { Input } from "../../../../components/ui/input";
-import { Activity, Sparkles } from "lucide-react";
+import { Activity, Copy, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface LandingPageTrackingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedPage: { name: string } | null;
+  selectedPage: { id: string; name: string } | null;
   pixelId: string;
   setPixelId: (v: string) => void;
   gtagId: string;
@@ -27,6 +27,7 @@ export function LandingPageTrackingModal({
   onSave,
 }: LandingPageTrackingModalProps) {
   if (!isOpen || !selectedPage) return null;
+  const script = `<script src="${typeof window !== "undefined" ? window.location.origin : ""}/api/lp/tracker.js?id=${selectedPage.id}" async></script>`;
 
   return (
     <Modal
@@ -86,20 +87,30 @@ export function LandingPageTrackingModal({
           />
         </FormField>
 
-        <div className="pt-2">
+        <div className="pt-2 space-y-2">
           <Button
             variant="outline"
-            onClick={() =>
-              toast.promise(new Promise((res) => setTimeout(res, 1000)), {
-                loading: "Validando scripts na página...",
-                success: "Pixel e Google Tag verificados com sucesso! 🚀",
-                error: "Falha na validação.",
-              })
-            }
-            className="w-full text-xs font-bold gap-2 text-emerald-600 dark:text-emerald-400"
+            onClick={() => {
+              const pixel = pixelId.trim(); const g = gtagId.trim();
+              const erros: string[] = [];
+              if (pixel && !/^\d{8,20}$/.test(pixel)) erros.push("O Pixel da Meta tem só números (8 a 20 dígitos).");
+              if (g && !/^(G|AW|GT|UA)-[A-Z0-9-]{4,}$/i.test(g)) erros.push("A Google Tag começa com G-, AW- ou GT- (ex.: G-ABC123XYZ).");
+              if (erros.length) toast.error(erros.join(" "));
+              else toast.success(pixel || g ? "Formato dos IDs conferido. O envio dos dados depende do script estar instalado na página." : "Nenhum ID informado.");
+            }}
+            className="w-full text-xs font-bold gap-2"
           >
-            <Sparkles className="w-4 h-4" /> Validar Tags e Scripts
+            <Sparkles className="w-4 h-4" /> Conferir formato dos IDs
           </Button>
+        </div>
+
+        <div className="rounded-xl border border-[var(--color-border-default)] p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Script que conta visitas e contatos</span>
+            <button type="button" className="text-[11px] font-bold flex items-center gap-1 text-[var(--color-primary-blue)]" onClick={() => { navigator.clipboard.writeText(script).then(() => toast.success("Script copiado.")); }}><Copy className="w-3.5 h-3.5" />Copiar</button>
+          </div>
+          <pre className="text-[10px] font-mono overflow-x-auto p-2 rounded-lg bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] whitespace-pre-wrap break-all">{script}</pre>
+          <p className="text-[11px] text-[var(--color-text-muted)]">Cole antes de <code>&lt;/head&gt;</code> da página. Ele conta a visita, os cliques e, quando alguém envia um formulário com nome e WhatsApp/e-mail, registra a conversão e cria o lead no CRM.</p>
         </div>
       </div>
     </Modal>

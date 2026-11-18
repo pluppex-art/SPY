@@ -36,10 +36,13 @@ function mapRowToTask(row: any) {
     platform: row.platform || "Instagram",
     date,
     publishDateISO,
-    priority: "Média",
+    priority: row.priority === "Alta" || row.priority === "Baixa" ? row.priority : "Média",
     value: 0,
   };
 }
+
+// A coluna `priority` vem da migração 20261124_marketing_content_priority; sem ela, grava como antes (sem prioridade) em vez de falhar.
+let gravaPrioridade = true;
 
 function taskToRow(task: any, tenantId?: string) {
   const row: any = {
@@ -51,6 +54,7 @@ function taskToRow(task: any, tenantId?: string) {
     ...(tenantId ? { tenant_id: tenantId } : {}),
   };
   if (task.publishDateISO) row.publish_date = task.publishDateISO;
+  if (gravaPrioridade && task.priority) row.priority = task.priority;
   return row;
 }
 
@@ -86,9 +90,13 @@ export function useMarketingConteudo() {
   const updateTaskInDatabase = async (task: any) => {
     if (supabase) {
       try {
-        const { error } = await supabase
+        let { error } = await supabase
           .from("marketing_content")
           .upsert(taskToRow(task, activeTenantId));
+        if (error && gravaPrioridade && /priority/i.test(error.message)) {
+          gravaPrioridade = false;
+          ({ error } = await supabase.from("marketing_content").upsert(taskToRow(task, activeTenantId)));
+        }
 
         if (error) {
           console.error("Supabase upsert failure:", error.message);

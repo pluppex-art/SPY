@@ -50,6 +50,7 @@ export default function MarketingLandingPages() {
   const [selectedPage, setSelectedPage] = useState<any>(null);
   const [newName, setNewName] = useState("");
   const [newSlug, setNewSlug] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
   const [pixelId, setPixelId] = useState("");
   const [gtagId, setGtagId] = useState("");
 
@@ -72,7 +73,7 @@ export default function MarketingLandingPages() {
       const views = p.views ?? 0;
       const clicks = p.clicks ?? 0;
       const conversions = p.conversions ?? 0;
-      const salesVal = p.salesVal ?? 0;
+      const salesVal = Number(p.revenue ?? 0) || 0;
       const rate = views > 0 ? parseFloat(((conversions / views) * 100).toFixed(1)) : 0;
       return {
         ...p,
@@ -115,12 +116,12 @@ export default function MarketingLandingPages() {
     }));
   }, [pages]);
 
-  const toggleStatus = (id: string) => {
+  const toggleStatus = async (id: string) => {
     const page = pages.find((p) => p.id === id);
     if (!page) return;
     const newStatus = page.status === "published" ? "draft" : "published";
-    updateMarketingLandingPage(id, { status: newStatus });
-    toast.success(`Página alterada para: ${newStatus === "published" ? "Publicada" : "Rascunho"}`);
+    await updateMarketingLandingPage(id, { status: newStatus });
+    toast.success(`Página marcada como: ${newStatus === "published" ? "Ativa" : "Pausada"}`);
   };
 
   const openTrackingModal = (page: any) => {
@@ -130,25 +131,41 @@ export default function MarketingLandingPages() {
     setIsTrackingModalOpen(true);
   };
 
-  const handleCreatePage = (e: { preventDefault(): void }) => {
+  const normalizarUrl = (v: string) => v.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  const urlValida = (v: string) => /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(\/\S*)?$/i.test(v);
+
+  const handleCreatePage = async (e: { preventDefault(): void }) => {
     e.preventDefault();
-    if (!newName || !newSlug) {
-      toast.error("Preencha todos os campos obrigatórios.");
+    const url = normalizarUrl(newSlug);
+    if (!newName.trim() || !url) {
+      toast.error("Preencha o nome e o endereço da página.");
       return;
     }
-    addMarketingLandingPage({
-      name: newName,
-      url: `lp.seussistema.com/${newSlug.replace(/\s+/g, "-").toLowerCase()}`,
+    if (!urlValida(url)) {
+      toast.error("Informe o endereço completo da página, como www.seusite.com.br/promocao.");
+      return;
+    }
+    // Métricas nascem zeradas: só crescem com visitas e conversões reais (script de rastreio da página).
+    if (editId) {
+      await updateMarketingLandingPage(editId, { name: newName.trim(), url, meta_pixel_id: pixelId.trim() || null, google_analytics_id: gtagId.trim() || null });
+      toast.success("Página atualizada.");
+      setIsCreateModalOpen(false); setEditId(null); setNewName(""); setNewSlug(""); setPixelId(""); setGtagId("");
+      return;
+    }
+    const criada: any = await addMarketingLandingPage({
+      name: newName.trim(),
+      url,
       status: "published",
-      views: 120,
-      clicks: 45,
-      conversions: 8,
-      salesVal: 6800,
-      conversion_rate: 6.6,
-      meta_pixel_id: pixelId,
-      google_analytics_id: gtagId,
+      views: 0,
+      clicks: 0,
+      conversions: 0,
+      revenue: 0,
+      conversion_rate: 0,
+      meta_pixel_id: pixelId.trim() || null,
+      google_analytics_id: gtagId.trim() || null,
     });
-    toast.success("Landing Page criada e publicada com sucesso!");
+    if (!criada) return; // o erro já foi mostrado e nada ficou salvo
+    toast.success("Página cadastrada. Abra “Rastreamento” nela para copiar o script que conta as visitas.");
     setIsCreateModalOpen(false);
     setNewName("");
     setNewSlug("");
@@ -156,28 +173,31 @@ export default function MarketingLandingPages() {
     setGtagId("");
   };
 
-  const handleConnectClientLP = (e: React.FormEvent) => {
+  const handleConnectClientLP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientLPName || !clientLPDomain) {
+    if (!clientLPName.trim() || !clientLPDomain.trim()) {
       toast.error("Preencha o nome e o domínio/URL da página.");
       return;
     }
-
-    const cleanUrl = clientLPDomain.replace(/^https?:\/\//, "");
-    addMarketingLandingPage({
-      name: `[Cliente] ${clientLPName}`,
+    const cleanUrl = normalizarUrl(clientLPDomain);
+    if (!urlValida(cleanUrl)) {
+      toast.error("Informe um endereço válido, como www.cliente.com.br/oferta.");
+      return;
+    }
+    const criada: any = await addMarketingLandingPage({
+      name: `[Cliente] ${clientLPName.trim()}`,
       url: cleanUrl,
       status: "published",
-      views: 340,
-      clicks: 110,
-      conversions: 14,
-      salesVal: 11900,
-      conversion_rate: 4.1,
-      isClientConnected: true,
-      clientName: clientSelected || "Cliente Parceiro",
+      views: 0,
+      clicks: 0,
+      conversions: 0,
+      revenue: 0,
+      conversion_rate: 0,
+      is_external: true,
+      client_name: clientSelected || null,
     });
-
-    toast.success(`🚀 Landing Page do cliente "${clientLPName}" conectada com sucesso!`);
+    if (!criada) return;
+    toast.success(`Página do cliente "${clientLPName.trim()}" conectada. Copie o script em “Rastreamento” para contar as visitas.`);
     setIsConnectModalOpen(false);
     setClientLPName("");
     setClientLPDomain("");
@@ -206,13 +226,6 @@ export default function MarketingLandingPages() {
     setIsTrackingModalOpen(false);
   };
 
-  const trackingScriptCode = `<script>
-  (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-  'https://cdn.axis.com/tracker.js?id=LP-'+(i||'CLIENTE');f.parentNode.insertBefore(j,f);
-  })(window,document,'script','dataLayer','${topSellingLP?.id || "TOKEN"}');
-</script>`;
 
   return (
     <PageContainer
@@ -228,10 +241,10 @@ export default function MarketingLandingPages() {
           </Button>
 
           <Button
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => { setEditId(null); setNewName(""); setNewSlug(""); setPixelId(""); setGtagId(""); setIsCreateModalOpen(true); }}
             className="bg-[#2563EB] hover:bg-blue-600 text-white font-black text-xs gap-1.5 h-10 px-5 rounded-xl shadow-md shadow-blue-600/20 cursor-pointer"
           >
-            <Plus className="w-4 h-4" /> Criar Nova Página
+            <Plus className="w-4 h-4" /> Cadastrar Página
           </Button>
         </div>
       }
@@ -416,9 +429,9 @@ export default function MarketingLandingPages() {
               onToggleStatus={toggleStatus}
               onOpenTracking={openTrackingModal}
               onEdit={(p) => {
-                setSelectedPage(p);
+                setEditId(p.id);
                 setNewName(p.name);
-                setNewSlug(p.url.split("/").pop() || "");
+                setNewSlug(p.url || "");
                 setPixelId(p.meta_pixel_id || "");
                 setGtagId(p.google_analytics_id || "");
                 setIsCreateModalOpen(true);
@@ -487,33 +500,9 @@ export default function MarketingLandingPages() {
             </select>
           </div>
 
-          {/* Script de Rastreamento para o Cliente Instalar */}
-          <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase text-emerald-400 flex items-center gap-1">
-                <Code className="w-3.5 h-3.5" /> Script de Rastreio para o Cliente
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(trackingScriptCode);
-                  setCopiedScript(true);
-                  toast.success("Script copiado!");
-                  setTimeout(() => setCopiedScript(false), 2000);
-                }}
-                className="text-[10px] font-bold text-slate-300 hover:text-white flex items-center gap-1 cursor-pointer"
-              >
-                {copiedScript ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                {copiedScript ? "Copiado" : "Copiar Script"}
-              </button>
-            </div>
-            <pre className="text-[10px] text-slate-400 font-mono overflow-x-auto p-2 bg-black/50 rounded-lg">
-              {trackingScriptCode}
-            </pre>
-            <p className="text-[10px] text-slate-500">
-              O cliente deve colar esse trecho antes da tag <code>&lt;/head&gt;</code> no site dele para ativar os gráficos.
-            </p>
-          </div>
+          <p className="text-[11px] text-[var(--color-text-muted)]">
+            Depois de conectar, abra <b>Rastreamento</b> na página para copiar o script que o cliente cola no site dele e que passa a contar visitas, cliques e contatos de verdade.
+          </p>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
             <Button type="button" variant="outline" onClick={() => setIsConnectModalOpen(false)} className="h-9 text-xs font-bold">
