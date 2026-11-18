@@ -1025,3 +1025,17 @@ html:has(.sp-root) body {
 @media (min-width: 1040px) {
   .sp-hero h1 { font-size: clamp(36px, 3.55vw, 52px); }
 }
+
+/* logo oficial no topo (webp com fundo transparente) */
+.sp-brand__img {
+  display: block;
+  height: 54px;
+  width: auto;
+  transition: transform 400ms var(--sp-ease), filter 300ms var(--sp-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-brand:hover .sp-brand__img {
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 12px var(--sp-glow));
+  }
+}

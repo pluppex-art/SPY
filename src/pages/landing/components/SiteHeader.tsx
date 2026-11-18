@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import { Logo } from "../../../components/ui/Logo";
 
 export const NAV_LINKS = [
   { href: "#recursos", label: "O que faz" },
@@ -92,7 +91,7 @@ export function SiteHeader() {
       <div className="sp-wrap">
         <div className="sp-header__bar">
           <Link to="/landing" className="sp-brand" aria-label="S.P.Y. — página inicial">
-            <Logo variant="full" color="orange" size={32} />
+            <img className="sp-brand__img" src="/logo-topbar.webp" alt="S.P.Y. CRM" width={720} height={320} decoding="async" fetchPriority="high" />
           </Link>
 
           <nav className="sp-nav" aria-label="Principal">
