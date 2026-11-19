@@ -217,7 +217,7 @@ export async function enviarEmailParaLeads(db: any, tenantId: string, base: stri
     const unsub = optoutUrl(base, tenantId, r.email);
     const mail = buildMail({ subject: `Uma mensagem de ${tenantName}`, body: texto, name: r.name, company: r.company, tenantName, tenantColor: tn?.primary_color ?? null, tenantLogo: emp?.value?.logoUrl, unsubUrl: unsub });
     try {
-      await sendTenantEmail(db, tenantId, { to: r.email, ...mail, headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
+      await sendTenantEmail(db, tenantId, { to: r.email, ...mail, replyToEmpresa: true, deParte: tenantName, headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
       enviados++; restante--;
     } catch { falhas++; }
   }
@@ -423,7 +423,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
 
   const mailFor = async (camp: any, tenant: { name: string; color: string | null; logo?: string | null }, base: string, r: { id?: string; variant?: string | null; name?: string | null; company?: string | null; email: string }) =>
     ({ to: r.email, ...buildMail({ subject: r.variant === "b" && camp.subject_b ? camp.subject_b : camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, tenantLogo: tenant.logo, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) , track: r.id ? { base, rid: r.id } : undefined }),
-      headers: { "List-Unsubscribe": `<${optoutUrl(base, camp.tenant_id, r.email)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
+      headers: { "List-Unsubscribe": `<${optoutUrl(base, camp.tenant_id, r.email)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }, replyToEmpresa: true, deParte: tenant.name });
 
   const tenantNameOf = async (tenantId: string) => {
     const { data } = await supabaseService.from("tenants").select("name, primary_color").eq("id", tenantId).maybeSingle();

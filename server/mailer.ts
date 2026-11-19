@@ -8,6 +8,10 @@ export interface OutgoingEmail {
   /** Cabeçalhos extras (ex.: List-Unsubscribe nos disparos em massa). */
   headers?: Record<string, string>;
   replyTo?: string;
+  /** Só no SMTP da plataforma: as respostas vão para o e-mail da empresa (Dados da empresa) em vez de se perderem no remetente da plataforma. */
+  replyToEmpresa?: boolean;
+  /** Só no SMTP da plataforma: nome que aparece como remetente (o endereço continua o da plataforma). */
+  deParte?: string;
   html?: string;
   text?: string;
   /** Imagens embutidas (CID) — ex.: a logo do S.P.Y. nos e-mails com layout. */
@@ -42,6 +46,23 @@ function transporterDe(c: { host: string; port: number; user: string; pass: stri
   return t;
 }
 
+/** Troca só o NOME do remetente, mantendo o endereço (que tem SPF/DKIM da plataforma). Aceita `Nome <a@b.com>` ou `a@b.com`. */
+export function montarRemetente(fromEnv: string, nome?: string): string {
+  const m = String(fromEnv).match(/<([^>]+)>/);
+  const endereco = (m ? m[1] : String(fromEnv)).trim();
+  const limpo = String(nome ?? "").replace(/[\r\n"<>\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+  return limpo ? `"${limpo}" <${endereco}>` : String(fromEnv);
+}
+
+/** E-mail cadastrado em Dados da empresa (só se for um endereço válido). */
+export async function emailDaEmpresa(db: any, tenantId: string): Promise<string | null> {
+  try {
+    const { data: emp } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "empresa_dados").maybeSingle();
+    const e = String(emp?.value?.email ?? "").trim();
+    return /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]{2,}$/.test(e) ? e : null;
+  } catch { return null; }
+}
+
 export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingEmail): Promise<{ messageId: string; via: "tenant" | "platform" }> {
   const { data } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
   const t = data?.value;
@@ -61,8 +82,14 @@ export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingE
     from = e.SPY_SMTP_FROM; encryption = e.SPY_SMTP_ENCRYPTION || "StartTLS";
   }
 
+  let replyTo = mail.replyTo;
+  if (!tenantReady) {
+    if (mail.deParte) from = montarRemetente(from, mail.deParte);
+    if (mail.replyToEmpresa && !replyTo) replyTo = await emailDaEmpresa(db, tenantId) ?? undefined;
+  }
+
   const transporter = transporterDe({ host, port, user, pass, encryption });
-  const info = await transporter.sendMail({ from, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments, headers: mail.headers, replyTo: mail.replyTo });
+  const info = await transporter.sendMail({ from, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments, headers: mail.headers, replyTo });
   return { messageId: String(info.messageId || ""), via: tenantReady ? "tenant" : "platform" };
 }
 

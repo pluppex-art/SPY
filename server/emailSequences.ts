@@ -115,7 +115,7 @@ export async function processarSequencias(db: any, base: string, aj: Ajudas, opt
     const unsub = optoutUrl(base, en.tenant_id, en.email);
     try {
       const mail = buildMail({ subject: passo.subject, body: passo.body, name: en.name, company: en.company, tenantName: t.name, tenantColor: t.color, tenantLogo: t.logo, unsubUrl: unsub, ...(rec?.id ? { track: { base, rid: rec.id } } : {}) });
-      await (aj.enviar ?? sendTenantEmail)(db, en.tenant_id, { to: en.email, ...mail, headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
+      await (aj.enviar ?? sendTenantEmail)(db, en.tenant_id, { to: en.email, ...mail, replyToEmpresa: true, deParte: t.name, headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
       if (rec?.id) await db.from("email_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", rec.id);
       cotas.set(en.tenant_id, (cotas.get(en.tenant_id) || 0) - 1);
       const proximo = passos[en.step_idx + 1];

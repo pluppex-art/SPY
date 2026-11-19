@@ -686,3 +686,16 @@ test("logo no e-mail: só endereço https de imagem aparece no topo; o resto é 
     assert.ok(!buildMail({ ...base, tenantLogo: ruim as any }).html.includes('alt="Minha'), String(ruim));
   }
 });
+
+test("remetente e respostas: nome da empresa como remetente (endereço da plataforma intacto) e Reply-To só com e-mail válido", async () => {
+  const { montarRemetente, emailDaEmpresa } = await import("../../server/mailer.js");
+  assert.equal(montarRemetente("SPY <noreply@spycrm.com.br>", "Boliche do Zé"), '"Boliche do Zé" <noreply@spycrm.com.br>');
+  assert.equal(montarRemetente("noreply@spycrm.com.br", "Boliche"), '"Boliche" <noreply@spycrm.com.br>');
+  assert.equal(montarRemetente("SPY <noreply@spycrm.com.br>", ""), "SPY <noreply@spycrm.com.br>");
+  assert.ok(!montarRemetente("a@b.com", 'Mau"\r\nBcc: x@y.com <z>').match(/[\r\n]/)); // sem quebra de linha (injeção de cabeçalho)
+  const mk = (email: any) => criarFakeDb({ app_settings: [{ tenant_id: T, key: "empresa_dados", value: { email } }] });
+  assert.equal(await emailDaEmpresa(mk("contato@empresa.com.br"), T), "contato@empresa.com.br");
+  assert.equal(await emailDaEmpresa(mk("sem-arroba"), T), null);
+  assert.equal(await emailDaEmpresa(mk('a@b.com>\r\nBcc: x@y.com'), T), null);
+  assert.equal(await emailDaEmpresa(mk(undefined), T), null);
+});
