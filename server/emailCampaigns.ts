@@ -581,6 +581,19 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     res.json({ name: camp.name, subject: camp.subject, body: camp.body });
   });
 
+  // Quem recebeu e o que fez (abriu/clicou): base da planilha para o time comercial ligar para quem se interessou.
+  app.get("/api/email-campaigns/:id/engajamento", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
+    try {
+      let linhas: any[];
+      try { linhas = await pagedTable(supabaseService, "email_campaign_recipients", "email, name, status, open_count, click_count, opened_at, clicked_at", tenantId, (q) => q.eq("campaign_id", camp.id)); }
+      catch (e: any) { if (!/open_count|click_count|opened_at|clicked_at/i.test(String(e?.message))) throw e; linhas = await pagedTable(supabaseService, "email_campaign_recipients", "email, name, status", tenantId, (q) => q.eq("campaign_id", camp.id)); }
+      res.json({ linhas });
+    } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao ler os destinatários." }); }
+  });
+
   app.get("/api/email-campaigns/:id/failures", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;

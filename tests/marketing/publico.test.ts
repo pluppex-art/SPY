@@ -388,3 +388,16 @@ test("avisos do e-mail: pega assunto gritado, spam, links demais e dá dicas", a
   assert.deepEqual(bom, []);
   assert.equal(avisosDoEmail("", "").length, 0);
 });
+
+test("planilha de engajamento: marca quem abriu/clicou e neutraliza fórmulas", async () => {
+  const { csvEngajamento } = await import("../../src/lib/csvEngajamento.js");
+  const csv = csvEngajamento([
+    { email: "a@x.com", name: "Ana; \"A\"", status: "sent", open_count: 2, click_count: 1 },
+    { email: "b@x.com", name: "=HYPERLINK(\"x\")", status: "failed", open_count: 0, click_count: 0 },
+  ]);
+  const l = csv.split("\r\n");
+  assert.equal(l.length, 3);
+  assert.ok(l[1].startsWith('a@x.com;"Ana; ""A""";Enviado;Sim;2;Sim;1'));
+  assert.ok(l[2].includes("'=HYPERLINK"));
+  assert.ok(l[2].includes(";Falhou;Não;0;Não;0"));
+});

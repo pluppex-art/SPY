@@ -6,6 +6,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
+import { csvEngajamento } from "../../lib/csvEngajamento";
 import { avisosDoEmail } from "../../lib/avisosEmail";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { HelpTip } from "../../components/ui/help-tip";
@@ -43,6 +44,13 @@ export default function MarketingEmail() {
     setCarregandoPrevia(true);
     try { setPrevia(await apiFetchTenant("/api/email-campaigns/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject, body }) }).then(json)); }
     catch (e: any) { toast.error(e.message); } finally { setCarregandoPrevia(false); }
+  };
+  const exportar = async (c: Campaign) => {
+    try {
+      const { linhas } = await apiFetchTenant(`/api/email-campaigns/${c.id}/engajamento`).then(json);
+      const url = URL.createObjectURL(new Blob(["\ufeff" + csvEngajamento(linhas)], { type: "text/csv;charset=utf-8" }));
+      const a = document.createElement("a"); a.href = url; a.download = `${c.name.replace(/[^\w\-]+/g, "_").slice(0, 50) || "campanha"}.csv`; a.click(); URL.revokeObjectURL(url);
+    } catch (e: any) { toast.error(e.message); }
   };
   const reenviar = async (c: Campaign) => {
     if (!(await confirmDialog({ title: "Reenviar para quem não abriu?", description: `Cria uma nova campanha só com quem recebeu "${c.name}" e não abriu nem clicou. Você confere e dispara em seguida.`, confirmLabel: "Criar reenvio" }))) return;
@@ -301,6 +309,9 @@ export default function MarketingEmail() {
                     </p>
                   )}
                 </div>
+                {c.sent > 0 && (
+                  <Button variant="outline" onClick={() => void exportar(c)} className="h-8 px-3 text-xs gap-1.5">Exportar planilha (quem abriu/clicou)</Button>
+                )}
                 {c.status === "done" && c.sent > 0 && c.opened !== undefined && (c.opened || 0) < c.sent && (
                   <Button variant="outline" onClick={() => void reenviar(c)} className="h-8 px-3 text-xs gap-1.5"><Send className="w-3.5 h-3.5" /> Reenviar para quem não abriu</Button>
                 )}
