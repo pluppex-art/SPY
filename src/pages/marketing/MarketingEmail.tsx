@@ -427,7 +427,7 @@ export default function MarketingEmail() {
             {avisosDoEmail(subject, body).length > 0 && (
               <ul className="space-y-0.5 font-normal">{avisosDoEmail(subject, body).map((v) => (
                 <li key={v.texto} className={v.nivel === "atencao" ? "text-[var(--color-warning,#b45309)]" : "text-[var(--color-text-muted)]"}>{v.nivel === "atencao" ? "⚠ " : "💡 "}{v.texto}</li>))}</ul>)}
-            <span className="font-normal">Use <code>{"{{nome}}"}</code>, <code>{"{{primeiro_nome}}"}</code> e <code>{"{{empresa}}"}</code>. O link para sair da lista é adicionado sozinho no rodapé.</span></label>
+            <span className="font-normal">Use <code>{"{{nome}}"}</code>, <code>{"{{primeiro_nome}}"}</code> e <code>{"{{empresa}}"}</code>. O link para sair da lista é adicionado sozinho no rodapé.<br />Formatação: <code>{"**negrito**"}</code> · <code>{"[texto do link](https://...)"}</code> · botão: <code>{"[[Quero saber mais|https://...]]"}</code></span></label>
 
           <div className="space-y-2">
             <p className="text-[11px] font-bold text-[var(--color-text-muted)]">Quem recebe — pode ser gente que está no sistema ou não. Marque as fontes e/ou use uma lista própria.</p>

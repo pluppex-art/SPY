@@ -135,6 +135,7 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
               <input value={p.subject} onChange={(e) => setPasso(i, { subject: e.target.value })} maxLength={200} placeholder="Assunto — pode usar {{primeiro_nome}}" className={`${campo} w-full`} />
               <textarea value={p.body} onChange={(e) => setPasso(i, { body: e.target.value })} rows={5} maxLength={20000} placeholder={"Olá {{primeiro_nome}},\n\n..."} className="w-full px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" />
             </div>))}
+          <p className="text-[11px] text-[var(--color-text-muted)]">Use <code>{"{{nome}}"}</code>, <code>{"{{primeiro_nome}}"}</code>, <code>{"{{empresa}}"}</code>. Formatação: <code>{"**negrito**"}</code> · <code>{"[texto](https://...)"}</code> · botão <code>{"[[Quero saber mais|https://...]]"}</code>. O link de sair da lista vai sozinho no rodapé.</p>
           {passos.length < 8 && <Button variant="outline" onClick={() => setPassos((l) => [...l, novoPasso(3)])} className="h-8 px-3 text-xs gap-1.5"><Plus className="w-3.5 h-3.5" /> Adicionar e-mail</Button>}
           </>)}
           {editId && !inscId ? <p className="text-[11px] text-[var(--color-text-muted)]">Quem já está na sequência continua de onde parou. Mudar o público não é possível aqui: crie outra sequência.</p> : <div className="space-y-2">

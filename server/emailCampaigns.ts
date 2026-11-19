@@ -84,10 +84,30 @@ const safeColor = (c?: string | null) => (c && /^#[0-9a-fA-F]{6}$/.test(c) ? c :
 
 /** Texto simples → HTML seguro: parágrafos, quebras de linha e links http(s). `rastrear` troca o destino do link (contagem de cliques). */
 export function textToHtml(text: string, color = DEFAULT_LINK_COLOR, rastrear?: (urlOriginal: string) => string): string {
-  const paras = escapeHtml(text.replace(/\r\n/g, "\n").trim()).split(/\n{2,}/);
+  const paras = escapeHtml(text.replace(/\u0000/g, "").replace(/\r\n/g, "\n").trim()).split(/\n{2,}/);
+  const href = (m: string) => (rastrear ? rastrear(m.replace(/&amp;/g, "&")) : m);
   return paras
-    .map((p) => `<p style="margin:0 0 14px;line-height:1.55">${p.replace(/\n/g, "<br>").replace(/(https?:\/\/[^\s<]+)/g, (m) => `<a href="${rastrear ? rastrear(m.replace(/&amp;/g, "&")) : m}" style="color:${color}">${m}</a>`)}</p>`)
+    .map((p) => {
+      const guardados: string[] = [];
+      const guardar = (html: string) => `\u0000${guardados.push(html) - 1}\u0000`;
+      // Formatação simples: [[Texto do botão|https://...]] vira botão e [texto](https://...) vira link com o texto escolhido.
+      let t = p
+        .replace(/\[\[([^\]|]{1,80})\|(https?:\/\/[^\s\]<]+)\]\]/g, (_m, l, u) => guardar(`<a href="${href(u)}" style="display:inline-block;background:${color};color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">${l}</a>`))
+        .replace(/\[([^\]]{1,120})\]\((https?:\/\/[^\s)<]+)\)/g, (_m, l, u) => guardar(`<a href="${href(u)}" style="color:${color}">${l}</a>`));
+      t = t.replace(/(https?:\/\/[^\s<]+)/g, (m) => guardar(`<a href="${href(m)}" style="color:${color}">${m}</a>`));
+      t = t.replace(/\*\*([^*\n]{1,200})\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
+      t = t.replace(/\u0000(\d+)\u0000/g, (_m, i) => guardados[Number(i)] ?? "");
+      return `<p style="margin:0 0 14px;line-height:1.55">${t}</p>`;
+    })
     .join("");
+}
+
+/** Versão em texto puro do e-mail: tira a marcação de botão, link e negrito (mostra o endereço ao lado do texto). */
+export function textoSimples(text: string): string {
+  return text
+    .replace(/\[\[([^\]|]{1,80})\|(https?:\/\/[^\s\]]+)\]\]/g, "$1: $2")
+    .replace(/\[([^\]]{1,120})\]\((https?:\/\/[^\s)]+)\)/g, "$1 ($2)")
+    .replace(/\*\*([^*\n]{1,200})\*\*/g, "$1");
 }
 
 export function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; unsubUrl: string; track?: { base: string; rid: string } }) {
@@ -98,7 +118,7 @@ export function buildMail(opts: { subject: string; body: string; name?: string |
 <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${textToHtml(text, safeColor(opts.tenantColor), opts.track ? (u) => urlClique(opts.track!.base, opts.track!.rid, u) : undefined)}</div>
 <p style="max-width:600px;margin:14px auto 0;font-size:11px;color:#6b7280;text-align:center">Você recebeu este e-mail de ${escapeHtml(opts.tenantName)}.<br><a href="${opts.unsubUrl}" style="color:#6b7280">Não quero mais receber</a></p>
 ${opts.track ? `<img src="${urlAbertura(opts.track.base, opts.track.rid)}" width="1" height="1" alt="" style="display:none;border:0">` : ""}</body></html>`;
-  return { subject, text: text + footerTxt, html };
+  return { subject, text: textoSimples(text) + footerTxt, html };
 }
 
 interface Deps { requireUser: any; resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>; limiter: any; supabaseService: any }

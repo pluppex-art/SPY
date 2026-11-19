@@ -658,3 +658,20 @@ test("sequência: caixa inexistente para a pessoa na hora e bloqueia o endereço
   assert.equal(db.t.email_sequence_enrollments[0].status, "stopped");
   assert.equal(db.t.email_optouts[0].email, "nao@existe.com");
 });
+
+test("formatação do e-mail: negrito, link com texto e botão; tudo escapado, rastreado e com versão em texto puro", async () => {
+  const { textToHtml, textoSimples } = await import("../../server/emailCampaigns.js");
+  const r = (u: string) => `R(${u})`;
+  const html = textToHtml("Oi **você**!\n\nVeja [nosso site](https://x.com/a?b=1&c=2) ou https://y.com/z\n\n[[Quero saber mais|https://x.com/oferta]]", "#112233", r);
+  assert.ok(html.includes("<strong>você</strong>"));
+  assert.ok(html.includes('<a href="R(https://x.com/a?b=1&c=2)" style="color:#112233">nosso site</a>'));
+  assert.ok(html.includes('<a href="R(https://y.com/z)" style="color:#112233">https://y.com/z</a>'));
+  assert.ok(html.includes('href="R(https://x.com/oferta)"') && html.includes("background:#112233") && html.includes(">Quero saber mais</a>"));
+  // tentativa de injeção: HTML e aspas viram texto; protocolo perigoso não vira link
+  const mau = textToHtml('[[<img src=x onerror=1>|https://a.com/"onmouseover="x]] [clique](javascript:alert(1)) **<b>x</b>**', "#000");
+  assert.ok(!mau.includes("<img") && !mau.includes('onmouseover="x"') && !mau.includes("javascript:alert(1)\""));
+  assert.ok(!/href="javascript/i.test(mau));
+  // não usa os marcadores internos como entrada
+  assert.ok(!textToHtml("a\u00000\u0000b", "#000").includes("\u0000"));
+  assert.equal(textoSimples("Oi **você** [site](https://x.com) [[Botão|https://y.com]]"), "Oi você site (https://x.com) Botão: https://y.com");
+});
