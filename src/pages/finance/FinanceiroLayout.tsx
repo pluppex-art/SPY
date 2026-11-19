@@ -33,6 +33,12 @@ import {
   ShoppingCart,
   GraduationCap,
   Stethoscope,
+  Clock,
+  MessageCircle,
+  Gift,
+  HandCoins,
+  Plane,
+  PiggyBank,
 } from "lucide-react";
 import { SectionSidebar, type SectionNavGroup, type SectionNavItem } from "../../components/layout/SectionSidebar";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
@@ -48,6 +54,9 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
     { title: "Receitas (a receber)", path: "/app/financeiro/receitas", icon: Inbox },
     { title: "Contratos & Faturas", path: "/app/financeiro/faturas", icon: Receipt },
     { title: "Cobranças", path: "/app/financeiro/cobrancas", icon: Receipt },
+    { title: "Promessas de Pagamento", path: "/app/financeiro/promessas", icon: Clock },
+    { title: "Histórico de Cobranças", path: "/app/financeiro/historico-cobrancas", icon: MessageCircle },
+    { title: "Patrocínios e Permutas", path: "/app/financeiro/patrocinios", icon: Gift },
     { title: "Inadimplência", path: "/app/financeiro/inadimplencia", icon: AlertTriangle },
     { title: "MRR & Receita Recorrente", path: "/app/financeiro/mrr", icon: Repeat2 },
   ];
@@ -56,6 +65,8 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
 
   const pessoas: SectionNavItem[] = [];
   if (has("rh")) pessoas.push({ title: "Equipe & Folha", path: "/app/equipe", icon: Users });
+  pessoas.push({ title: "Adiantamentos", path: "/app/financeiro/adiantamentos", icon: HandCoins });
+  pessoas.push({ title: "Acordos e Permutas", path: "/app/financeiro/acordos", icon: Handshake });
   if (has("crm")) pessoas.push({ title: "Comissões & Vendedores", path: "/app/financeiro/indicacoes", icon: Handshake });
   else pessoas.push({ title: "Indicações & Parcerias", path: "/app/financeiro/indicacoes", icon: Handshake });
 
@@ -79,6 +90,7 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
         { title: "Compras e Parcelas", path: "/app/financeiro/compras", icon: ShoppingCart },
         { title: "Centros de Custo", path: "/app/financeiro/centros-custo", icon: Target },
         { title: "Orçamentos", path: "/app/financeiro/orcamentos", icon: Target },
+        { title: "Viagens e Eventos", path: "/app/financeiro/viagens", icon: Plane },
       ],
     },
     { title: "Pessoas & Comercial", icon: Users, items: pessoas },
@@ -92,6 +104,8 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
         { title: "Bancos e Conciliação", path: "/app/financeiro/conciliacao", icon: RefreshCw },
         { title: "Contas Bancárias", path: "/app/financeiro/bancos", icon: CreditCard },
         { title: "Transferências entre Contas", path: "/app/financeiro/transferencias", icon: Repeat },
+        { title: "Metas e Resultados", path: "/app/financeiro/metas", icon: Target },
+        { title: "Reservas Financeiras", path: "/app/financeiro/reservas", icon: PiggyBank },
       ],
     },
     {

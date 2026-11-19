@@ -75,6 +75,14 @@ const FinanceiroMRR = lazy(() => import("./pages/finance/FinanceiroMRR"));
 const FinanceiroCentralResumo = lazy(() => import("./pages/finance/FinanceiroCentralResumo"));
 const FinanceiroAgenda = lazy(() => import("./pages/finance/FinanceiroAgenda"));
 const FinanceiroCompras = lazy(() => import("./pages/finance/FinanceiroCompras"));
+const FinanceiroPromessas = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroPromessas })));
+const FinanceiroHistoricoCobrancas = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroHistoricoCobrancas })));
+const FinanceiroAdiantamentos = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroAdiantamentos })));
+const FinanceiroAcordos = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroAcordos })));
+const FinanceiroPatrocinios = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroPatrocinios })));
+const FinanceiroViagens = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroViagens })));
+const FinanceiroMetas = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroMetas })));
+const FinanceiroReservas = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroReservas })));
 const FinanceiroProjecao = lazy(() => import("./pages/finance/FinanceiroProjecao"));
 const FinanceiroRelatorios = lazy(() => import("./pages/finance/FinanceiroRelatorios"));
 const FinanceiroRelatorioAgrupado = lazy(() => import("./pages/finance/FinanceiroRelatorioAgrupado"));
@@ -377,6 +385,14 @@ function AppContent() {
             <Route path="resumo" element={<FinanceiroCentralResumo />} />
             <Route path="agenda" element={<FinanceiroAgenda />} />
             <Route path="compras" element={<FinanceiroCompras />} />
+            <Route path="promessas" element={<FinanceiroPromessas />} />
+            <Route path="historico-cobrancas" element={<FinanceiroHistoricoCobrancas />} />
+            <Route path="adiantamentos" element={<FinanceiroAdiantamentos />} />
+            <Route path="acordos" element={<FinanceiroAcordos />} />
+            <Route path="patrocinios" element={<FinanceiroPatrocinios />} />
+            <Route path="viagens" element={<FinanceiroViagens />} />
+            <Route path="metas" element={<FinanceiroMetas />} />
+            <Route path="reservas" element={<FinanceiroReservas />} />
             <Route path="projecao" element={<FinanceiroProjecao />} />
             <Route path="relatorios" element={<FinanceiroRelatorios />} />
             <Route path="relatorios/extrato" element={<FinanceiroExtrato />} />
