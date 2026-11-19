@@ -20,6 +20,7 @@ const STALE_CLAIM_MS = 3 * 60_000;
 const COTA_DIARIA_SMTP_PROPRIO = 5_000;
 const COTA_DIARIA_SMTP_PLATAFORMA = 300;
 const PAGE = 1000;
+const CLIQUE_MIN_MS = 10_000;
 const EMAIL_RE = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
@@ -645,8 +646,10 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   const registrar = async (rid: string, tipo: "open" | "click") => {
     if (!supabaseService || !UUID.test(rid)) return;
     try {
-      const { data: r } = await supabaseService.from("email_campaign_recipients").select("campaign_id, opened_at, clicked_at, open_count, click_count").eq("id", rid).maybeSingle();
+      const { data: r } = await supabaseService.from("email_campaign_recipients").select("campaign_id, sent_at, opened_at, clicked_at, open_count, click_count").eq("id", rid).maybeSingle();
       if (!r) return;
+      // Antivírus e leitores de e-mail clicam em todos os links no instante em que o e-mail chega: clique em menos de 10 segundos do envio não é de uma pessoa.
+      if (tipo === "click" && r.sent_at && Date.now() - Date.parse(r.sent_at) < CLIQUE_MIN_MS) return;
       const agora = new Date().toISOString();
       const primeiro = tipo === "open" ? !r.opened_at : !r.clicked_at;
       await supabaseService.from("email_campaign_recipients").update(tipo === "open"

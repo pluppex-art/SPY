@@ -611,3 +611,25 @@ test("resumo de e-mail: taxas, ranking com mínimo de envios e rótulo de sequê
   assert.deepEqual(r.melhores.map((m) => m.name), ["Sequência: Boas-vindas", "Black Friday"]);
   assert.equal(resumirEmail([]).taxaAbertura, null);
 });
+
+test("rastreio de e-mail: clique logo após o envio (antivírus) não conta, clique depois conta; o redirecionamento sempre funciona", async () => {
+  process.env.EMAIL_OPTOUT_SECRET = "segredo-de-teste";
+  const CAMP = "33333333-3333-4333-8333-333333333333", RAPIDO = "44444444-4444-4444-8444-444444444441", NORMAL = "44444444-4444-4444-8444-444444444442";
+  const base0 = { campaign_id: CAMP, tenant_id: T, status: "sent", opened_at: null, clicked_at: null, open_count: 0, click_count: 0 };
+  const db = criarFakeDb({
+    email_campaigns: [{ id: CAMP, tenant_id: T, opened: 0, clicked: 0 }],
+    email_campaign_recipients: [{ ...base0, id: RAPIDO, email: "a@b.com", sent_at: new Date().toISOString() }, { ...base0, id: NORMAL, email: "c@d.com", sent_at: new Date(Date.now() - 60_000).toISOString() }],
+  });
+  const app = express();
+  registerEmailCampaignRoutes(app as any, { requireUser: (_q: any, _s: any, n: any) => n(), resolveRequestedTenantId: async () => T, limiter: (_q: any, _s: any, n: any) => n(), supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  try {
+    const alvo = "https://exemplo.com/x";
+    const r1 = await fetch(urlClique(base, RAPIDO, alvo), { redirect: "manual" });
+    assert.equal(r1.status, 302); assert.equal(r1.headers.get("location"), alvo);
+    assert.equal(db.t.email_campaign_recipients.find((r: any) => r.id === RAPIDO).click_count, 0);
+    assert.equal((await fetch(urlClique(base, NORMAL, alvo), { redirect: "manual" })).status, 302);
+    assert.equal(db.t.email_campaign_recipients.find((r: any) => r.id === NORMAL).click_count, 1);
+    assert.equal(db.t.email_campaigns[0].clicked, 1);
+  } finally { srv.close(); }
+});
