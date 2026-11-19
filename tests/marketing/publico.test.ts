@@ -432,3 +432,77 @@ test("follow-up pela rota: cria campanha só com quem clicou e aceita assunto/te
     assert.deepEqual(db.t.email_campaign_recipients.filter((x: any) => x.campaign_id === r.id).map((x: any) => x.email), ["a@x.com"]);
   } finally { srv.close(); }
 });
+
+test("sequência de e-mails: valida passos, envia no prazo, avança, respeita descadastro/cota/pausa e fecha no fim", async () => {
+  const { parsePassos, processarSequencias } = await import("../../server/emailSequences.js");
+  assert.equal(parsePassos([]).ok, false);
+  assert.equal(parsePassos([{ dias: 0, subject: "a", body: "" }]).ok, false);
+  assert.equal(parsePassos([{ dias: 99, subject: "a", body: "b" }]).ok, false);
+  assert.equal(parsePassos(Array.from({ length: 9 }, () => ({ dias: 1, subject: "a", body: "b" }))).ok, false);
+  assert.equal(parsePassos([{ dias: 0, subject: "a", body: "b" }, { dias: 3, subject: "c", body: "d" }]).ok, true);
+
+  const SEQ = "22222222-2222-4222-8222-222222222222", CAMP = "33333333-3333-4333-8333-333333333333";
+  const agora = Date.parse("2026-11-20T12:00:00Z");
+  const db = criarFakeDb({
+    email_campaigns: [{ id: CAMP, tenant_id: T, name: "[Sequência] X", status: "done", total: 0, sent: 0, failed: 0 }],
+    email_sequences: [{ id: SEQ, tenant_id: T, name: "X", status: "active", campaign_id: CAMP, steps: [{ dias: 0, subject: "Oi {{primeiro_nome}}", body: "Texto 1" }, { dias: 3, subject: "De novo", body: "Texto 2" }] }],
+    email_sequence_enrollments: [
+      { id: "e1", sequence_id: SEQ, tenant_id: T, email: "a@x.com", name: "Ana Souza", step_idx: 0, status: "active", falhas: 0, next_send_at: "2026-11-20T00:00:00Z" },
+      { id: "e2", sequence_id: SEQ, tenant_id: T, email: "sai@x.com", name: "Sai", step_idx: 0, status: "active", falhas: 0, next_send_at: "2026-11-20T00:00:00Z" },
+      { id: "e3", sequence_id: SEQ, tenant_id: T, email: "futuro@x.com", name: "F", step_idx: 0, status: "active", falhas: 0, next_send_at: "2026-11-25T00:00:00Z" },
+    ],
+    email_optouts: [{ tenant_id: T, email: "sai@x.com" }], email_campaign_recipients: [],
+  });
+  const enviados: any[] = [];
+  const aj = { cotaRestante: async () => ({ restante: 10 }), tenantNameOf: async () => ({ name: "Empresa", color: null }), enviar: async (_d: any, _t: string, mail: any) => { enviados.push(mail); } };
+  const r1 = await processarSequencias(db, "https://app.test", aj as any, { agora });
+  assert.equal(r1.enviados, 1); assert.equal(r1.encerrados, 1);
+  assert.equal(enviados[0].to, "a@x.com"); assert.equal(enviados[0].subject, "Oi Ana");
+  assert.ok(enviados[0].html.includes("/api/email/o/")); // rastreio de abertura
+  const e1 = db.t.email_sequence_enrollments.find((e: any) => e.id === "e1");
+  assert.equal(e1.step_idx, 1); assert.equal(e1.status, "active"); assert.equal(e1.next_send_at, new Date(agora + 3 * 86400000).toISOString());
+  assert.equal(db.t.email_sequence_enrollments.find((e: any) => e.id === "e2").status, "stopped");
+  assert.equal(db.t.email_sequence_enrollments.find((e: any) => e.id === "e3").step_idx, 0);
+  assert.equal(db.t.email_campaigns[0].sent, 1);
+  // Ainda não chegou o dia do 2º e-mail
+  assert.equal((await processarSequencias(db, "https://app.test", aj as any, { agora: agora + 86400000 })).enviados, 0);
+  // Pausada não envia
+  db.t.email_sequences[0].status = "paused";
+  assert.equal((await processarSequencias(db, "https://app.test", aj as any, { agora: agora + 4 * 86400000 })).enviados, 0);
+  db.t.email_sequences[0].status = "active";
+  // Sem cota não envia
+  assert.equal((await processarSequencias(db, "https://app.test", { ...aj, cotaRestante: async () => ({ restante: 0 }) } as any, { agora: agora + 4 * 86400000 })).semCota >= 1, true);
+  // Dia do 2º e-mail: envia e conclui
+  const r3 = await processarSequencias(db, "https://app.test", aj as any, { agora: agora + 4 * 86400000 });
+  assert.equal(r3.enviados >= 1, true);
+  assert.equal(db.t.email_sequence_enrollments.find((e: any) => e.id === "e1").status, "done");
+  assert.equal(enviados.at(-2)?.subject === "De novo" || enviados.at(-1)?.subject === "De novo", true);
+});
+
+test("sequência pela rota: cria com público, evita repetidos e exclui junto com o histórico", async () => {
+  const db = criarFakeDb({
+    tenants: [{ id: T, name: "E", modules: { marketing: true } }], users: [{ id: "u1", is_master: false, is_tenant_admin: true, tenant_id: T }],
+    leads: [{ id: "l1", tenant_id: T, name: "Ana", email: "ana@x.com", status: "novo" }, { id: "l2", tenant_id: T, name: "Bia", email: "bia@x.com", status: "novo" }],
+    email_optouts: [], email_campaigns: [], email_campaign_recipients: [], email_sequences: [], email_sequence_enrollments: [],
+  });
+  const app = express(); app.use(express.json());
+  registerEmailCampaignRoutes(app as any, { requireUser: (q: any, _s: any, n: any) => { q.user = { id: "u1" }; n(); }, resolveRequestedTenantId: async () => T, limiter: (_q: any, _s: any, n: any) => n(), supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  const post = (path: string, body: any) => fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  try {
+    assert.equal((await post("/api/email-sequences", { name: "S", passos: [] })).status, 400);
+    const c = await (await post("/api/email-sequences", { name: "Boas-vindas", passos: [{ dias: 0, subject: "Oi", body: "Texto" }, { dias: 2, subject: "Lembrete", body: "Texto 2" }], audience: { leads: true } })).json();
+    assert.equal(c.entraram, 2);
+    assert.equal(db.t.email_sequence_enrollments.length, 2);
+    assert.equal(db.t.email_campaigns[0].name, "[Sequência] Boas-vindas");
+    const i = await (await post(`/api/email-sequences/${c.id}/inscrever`, { audience: { leads: true } })).json();
+    assert.equal(i.entraram, 0); assert.equal(i.jaEstavam, 2);
+    const lista = await (await fetch(`${base}/api/email-sequences`)).json();
+    assert.equal(lista.sequences[0].inscritos, 2); assert.equal(lista.sequences[0].ativos, 2);
+    // a campanha interna da sequência não aparece na lista de campanhas
+    assert.equal((await (await fetch(`${base}/api/email-campaigns`)).json()).campaigns.length, 0);
+    const d = await fetch(`${base}/api/email-sequences/${c.id}`, { method: "DELETE" });
+    assert.equal(d.status, 200);
+    assert.equal(db.t.email_sequences.length, 0); assert.equal(db.t.email_campaigns.length, 0);
+  } finally { srv.close(); }
+});

@@ -6,6 +6,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
+import { SequenciasEmail } from "./SequenciasEmail";
 import { csvEngajamento } from "../../lib/csvEngajamento";
 import { avisosDoEmail } from "../../lib/avisosEmail";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -36,6 +37,7 @@ export default function MarketingEmail() {
   const { appSettings, saveAppSetting } = useData();
   const modelos: { id: string; nome: string; assunto: string; corpo: string }[] = Array.isArray(appSettings?.email_modelos) ? appSettings.email_modelos : [];
   const [modeloId, setModeloId] = useState("");
+  const [seqAberto, setSeqAberto] = useState(false);
   const [subjectB, setSubjectB] = useState("");
   const [abRes, setAbRes] = useState<Record<string, any>>({});
   const [previa, setPrevia] = useState<{ subject: string; html: string } | null>(null);
@@ -268,7 +270,7 @@ export default function MarketingEmail() {
     <PageContainer
       title="E-mail em massa"
       description="Envie um e-mail para leads, clientes, contatos, equipe ou uma lista própria (colada ou de planilha) — com ou sem cadastro no sistema — com descadastro automático."
-      actions={<div className="flex gap-2"><Button variant="outline" onClick={() => void abrirDescadastros()} className="h-9 px-3 text-xs">Descadastrados</Button><Button variant="outline" onClick={() => void load()} className="h-9 px-3 text-xs gap-1.5"><RefreshCw className="w-3.5 h-3.5" /></Button><Button onClick={() => setOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5"><Plus className="w-3.5 h-3.5" /> Nova campanha</Button></div>}
+      actions={<div className="flex gap-2"><Button variant="outline" onClick={() => setSeqAberto(true)} className="h-9 px-3 text-xs">Sequências</Button><Button variant="outline" onClick={() => void abrirDescadastros()} className="h-9 px-3 text-xs">Descadastrados</Button><Button variant="outline" onClick={() => void load()} className="h-9 px-3 text-xs gap-1.5"><RefreshCw className="w-3.5 h-3.5" /></Button><Button onClick={() => setOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5"><Plus className="w-3.5 h-3.5" /> Nova campanha</Button></div>}
     >
       <div className="space-y-4 max-w-4xl">
         {options && (
@@ -368,6 +370,7 @@ export default function MarketingEmail() {
           })}
       </div>
 
+      <SequenciasEmail open={seqAberto} onClose={() => setSeqAberto(false)} api={apiFetchTenant} />
       <Modal isOpen={!!reenvio} onClose={() => setReenvio(null)} title={reenvio?.grupo === "clicaram" ? "Follow-up para quem clicou" : "Reenviar para quem não abriu"} description="Cria uma campanha nova só com esse grupo. Ajuste o assunto e o texto se quiser; depois envie um teste e dispare." maxWidth="max-w-xl">
         {reenvio && (
           <div className="space-y-3">

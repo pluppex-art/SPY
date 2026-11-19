@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { canalDoLead } from "../src/lib/canalAquisicao.js";
 import type { Express } from "express";
 import { sendTenantEmail, checkTenantSender } from "./mailer.js";
+import { registrarSequencias, processarSequencias } from "./emailSequences.js";
 
 // Disparo de e-mail em massa por empresa (genérico, qualquer tenant). Regras:
 //  - público = leads DA EMPRESA com e-mail válido, filtrados por origem/status; sem repetidos e sem descadastrados;
@@ -88,7 +89,7 @@ export function textToHtml(text: string, color = DEFAULT_LINK_COLOR, rastrear?: 
     .join("");
 }
 
-function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; unsubUrl: string; track?: { base: string; rid: string } }) {
+export function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; unsubUrl: string; track?: { base: string; rid: string } }) {
   const subject = renderVars(opts.subject, opts).replace(/[\r\n]+/g, " ").trim().slice(0, 200);
   const text = renderVars(opts.body, opts);
   const footerTxt = `\n\n—\nVocê recebeu este e-mail de ${opts.tenantName}. Para não receber mais, acesse: ${opts.unsubUrl}`;
@@ -116,7 +117,7 @@ async function pagedLeads(db: any, tenantId: string) {
   return out;
 }
 
-async function optoutSet(db: any, tenantId: string): Promise<Set<string>> {
+export async function optoutSet(db: any, tenantId: string): Promise<Set<string>> {
   const s = new Set<string>();
   for (let from = 0; ; from += PAGE) {
     const { data } = await db.from("email_optouts").select("email").eq("tenant_id", tenantId).range(from, from + PAGE - 1);
@@ -223,7 +224,7 @@ export function selectAudience(leads: any[], aud: Audience, optouts: Set<string>
   return dedupeCandidates(filterLeads(leads, aud), optouts);
 }
 
-async function pagedTable(db: any, table: string, columns: string, tenantId: string, extra?: (q: any) => any): Promise<any[]> {
+export async function pagedTable(db: any, table: string, columns: string, tenantId: string, extra?: (q: any) => any): Promise<any[]> {
   const out: any[] = [];
   for (let from = 0; from < 60_000; from += PAGE) {
     let q = db.from(table).select(columns).eq("tenant_id", tenantId);
@@ -332,7 +333,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     // Colunas novas (métricas e agendamento) podem ainda não existir no banco: tenta com tudo e vai tirando.
     let data: any[] | null = null; let error: any = null;
     for (const extra of [", opened, clicked, agendada_para, subject_b", ", opened, clicked, agendada_para", ", opened, clicked", ""]) {
-      ({ data, error } = await supabaseService.from("email_campaigns").select(`${colunas}${extra}`).eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(50));
+      ({ data, error } = await supabaseService.from("email_campaigns").select(`${colunas}${extra}`).eq("tenant_id", tenantId).not("name", "like", "[Sequência] %").order("created_at", { ascending: false }).limit(50));
       if (!error || !/opened|clicked|agendada_para|subject_b/i.test(error.message)) break;
     }
     if (error) return res.status(500).json({ error: error.message });
@@ -413,6 +414,8 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const { count } = await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "sent").gte("sent_at", new Date(Date.now() - 24 * 3600_000).toISOString());
     return { restante: Math.max(0, limite - (count || 0)), limite, proprio };
   };
+
+  registrarSequencias(app, { requireUser, resolveRequestedTenantId, limiter, supabaseService }, { liberarMarketing, cotaRestante, tenantNameOf, baseUrl });
 
   type ResultadoLote = { done: boolean; status: string; pending: number; sent: number; failed: number; total: number; cota?: { limite: number; proprio: boolean } };
 
@@ -496,7 +499,9 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       if (Date.now() - inicio > 45_000) break;
       try { await processarLote(camp, camp.tenant_id, (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, "")); lotes++; } catch (e: any) { console.warn("[email cron]", camp.id, e?.message); }
     }
-    res.json({ campanhas: (campanhas || []).length, lotes });
+    let sequencias: any = null;
+    try { sequencias = await processarSequencias(supabaseService, (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, ""), { cotaRestante, tenantNameOf }, { orcamentoMs: Math.max(5_000, 50_000 - (Date.now() - inicio)) }); } catch (e: any) { console.warn("[sequências cron]", e?.message); }
+    res.json({ campanhas: (campanhas || []).length, lotes, sequencias });
   });
 
   app.post("/api/email-campaigns/:id/cancel", requireUser, limiter, async (req: any, res: any) => {

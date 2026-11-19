@@ -80,7 +80,7 @@ export function criarFakeDb(seed: Record<string, Row[]> = {}, opts: { agoraMs?: 
 
   const from = (nome: string) => {
     const filtros: ((r: Row) => boolean)[] = [];
-    let op: "select" | "insert" | "update" | "upsert" = "select";
+    let op: "select" | "insert" | "update" | "upsert" | "delete" = "select"; let contar = false;
     let patch: Row = {}, ins: Row[] = [], onConflict = "id", ordem: [string, boolean] | null = null, max = Infinity, deslocar = 0, um = false;
     const executar = (): Resp => {
       const linhas = (t[nome] ??= []);
@@ -97,6 +97,8 @@ export function criarFakeDb(seed: Record<string, Row[]> = {}, opts: { agoraMs?: 
         return { data: um ? saida[0] ?? null : saida, error: null };
       }
       let m = linhas.filter((r) => filtros.every((f) => f(r)));
+      if (op === "delete") { for (const r of m) linhas.splice(linhas.indexOf(r), 1); return { data: m, error: null }; }
+      if (contar) return { data: m.slice(0, 0), count: m.length, error: null } as any;
       if (op === "update") {
         for (const r of m) {
           const proposto = { ...r, ...patch };
@@ -110,7 +112,9 @@ export function criarFakeDb(seed: Record<string, Row[]> = {}, opts: { agoraMs?: 
       return { data: um ? m[0] ?? null : m, error: null };
     };
     const q: any = {
-      select: () => q,
+      select: (_c?: string, o?: { count?: string; head?: boolean }) => { if (o?.count) contar = true; return q; },
+      delete: () => { op = "delete"; return q; },
+      not: (c: string, operador: string, v: any) => { filtros.push((r) => { const base = operador === "like" ? new RegExp("^" + String(v).replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/%/g, ".*") + "$").test(String(r[c] ?? "")) : operador === "is" ? (r[c] ?? null) === v : r[c] === v; return !base; }); return q; },
       insert: (v: any) => { op = "insert"; ins = Array.isArray(v) ? v : [v]; return q; },
       upsert: (v: any, o?: any) => { op = "upsert"; ins = Array.isArray(v) ? v : [v]; if (o?.onConflict) onConflict = o.onConflict; return q; },
       update: (p: Row) => { op = "update"; patch = p; return q; },
