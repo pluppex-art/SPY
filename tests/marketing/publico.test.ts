@@ -473,7 +473,7 @@ test("sequência de e-mails: valida passos, envia no prazo, avança, respeita de
   // Sem cota não envia
   assert.equal((await processarSequencias(db, "https://app.test", { ...aj, cotaRestante: async () => ({ restante: 0 }) } as any, { agora: agora + 4 * 86400000 })).semCota >= 1, true);
   // Dia do 2º e-mail: envia e conclui
-  const r3 = await processarSequencias(db, "https://app.test", aj as any, { agora: agora + 4 * 86400000 });
+  const r3 = await processarSequencias(db, "https://app.test", aj as any, { agora: agora + 4 * 86400000 + 7 * 3600000 }); // depois do adiamento por falta de cota
   assert.equal(r3.enviados >= 1, true);
   assert.equal(db.t.email_sequence_enrollments.find((e: any) => e.id === "e1").status, "done");
   assert.equal(enviados.at(-2)?.subject === "De novo" || enviados.at(-1)?.subject === "De novo", true);
@@ -637,6 +637,7 @@ test("rastreio de e-mail: clique logo após o envio (antivírus) não conta, cli
 test("endereço inexistente: reconhece caixa que não existe e não confunde com spam, limite ou erro temporário", async () => {
   const { ehEnderecoInexistente, bloquearEnderecoInexistente } = await import("../../server/emailCampaigns.js");
   for (const m of ["550 5.1.1 The email account that you tried to reach does not exist", "550 User unknown", "553 5.1.2 Recipient address rejected", "Mailbox not found", "550 No such user here"]) assert.equal(ehEnderecoInexistente(m), true, m);
+  for (const m of ["553 5.1.8 Domain of sender address does not exist", "550 sender address rejected: not owned by user", "550 From address does not exist"]) assert.equal(ehEnderecoInexistente(m), false, m); // culpa do remetente, não do destinatário
   for (const m of ["550 5.7.1 Message blocked as spam", "421 4.7.0 Try again later", "452 4.2.2 Mailbox full quota exceeded", "Connection timeout", "550 5.7.1 Rejected by policy: user not allowed", "rate limit exceeded", ""]) assert.equal(ehEnderecoInexistente(m), false, m);
   const db = criarFakeDb({ email_optouts: [] });
   await bloquearEnderecoInexistente(db, T, "x@y.com"); await bloquearEnderecoInexistente(db, T, "x@y.com");
@@ -717,4 +718,50 @@ test("UTM automático nos links do e-mail: marca origem e campanha, respeita UTM
   const com = buildMail({ subject: "a", body: "veja https://site.com/x", tenantName: "E", unsubUrl: "#", utmCampanha: "Promo", track: { base: "https://app.test", rid: "44444444-4444-4444-8444-444444444444" } });
   const u64 = com.html.match(/\/api\/email\/c\/[^?]+\?u=([^&"]+)/)?.[1] || "";
   assert.ok(Buffer.from(u64, "base64url").toString().includes("utm_campaign=promo"));
+});
+
+test("revisão: sequência pausada com muitos vencidos e empresa sem cota não travam a fila das outras", async () => {
+  const { processarSequencias } = await import("../../server/emailSequences.js");
+  const OUTRA = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", S_PAUSA = "f1111111-1111-4111-8111-111111111111", S_SEM = "f2222222-2222-4222-8222-222222222222", S_OK = "f3333333-3333-4333-8333-333333333333";
+  const C = (id: string, t: string) => ({ id, tenant_id: t, name: "[Sequência] x", status: "done", total: 0, sent: 0, failed: 0 });
+  const passos = [{ dias: 0, subject: "a", body: "b" }];
+  const mk = (sid: string, t: string, n: number, pref: string) => Array.from({ length: n }, (_, i) => ({ id: `${pref}${i}`, sequence_id: sid, tenant_id: t, email: `${pref}${i}@x.com`, name: "N", step_idx: 0, status: "active", falhas: 0, next_send_at: "2026-11-01T00:00:00Z" }));
+  const db = criarFakeDb({
+    email_campaigns: [C("c1", T), C("c2", T), C("c3", OUTRA)],
+    email_sequences: [
+      { id: S_PAUSA, tenant_id: T, name: "P", status: "paused", campaign_id: "c1", steps: passos },
+      { id: S_SEM, tenant_id: T, name: "S", status: "active", campaign_id: "c2", steps: passos },
+      { id: S_OK, tenant_id: OUTRA, name: "O", status: "active", campaign_id: "c3", steps: passos },
+    ],
+    email_sequence_enrollments: [...mk(S_PAUSA, T, 250, "p"), ...mk(S_SEM, T, 3, "s"), { ...mk(S_OK, OUTRA, 1, "o")[0], next_send_at: "2026-11-10T00:00:00Z" }],
+    email_campaign_recipients: [], email_optouts: [],
+  });
+  const enviados: string[] = [];
+  const aj = { cotaRestante: async (_d: any, t: string) => ({ restante: t === T ? 0 : 10 }), tenantNameOf: async () => ({ name: "E", color: null }), enviar: async (_d: any, _t: string, m: any) => { enviados.push(m.to); } };
+  const r = await processarSequencias(db, "https://a.test", aj as any, { agora: Date.parse("2026-11-20T12:00:00Z") });
+  assert.deepEqual(enviados, ["o0@x.com"]); // a outra empresa enviou, mesmo com 250 vencidos pausados e uma empresa sem cota à frente
+  assert.equal(r.pausadas, 0);
+  // quem está sem cota foi adiado (não fica na frente da fila amanhã)
+  assert.ok(db.t.email_sequence_enrollments.filter((e: any) => e.id.startsWith("s")).every((e: any) => e.next_send_at > "2026-11-20T12:00:00Z"));
+});
+
+test("revisão: entrada automática lê além de 1000 leads, e nome do lead não vira botão/link", async () => {
+  const { inscreverAutomaticos } = await import("../../server/emailSequences.js");
+  const { renderVars, buildMail } = await import("../../server/emailCampaigns.js");
+  const SEQ = "f4444444-4444-4444-8444-444444444444";
+  const db = criarFakeDb({
+    email_sequences: [{ id: SEQ, tenant_id: T, name: "A", status: "active", steps: [{ dias: 0, subject: "a", body: "b" }], auto: { sources: [], statuses: [], canais: [], desde: "2026-11-01T00:00:00.000Z" } }],
+    leads: Array.from({ length: 1500 }, (_, i) => ({ id: `l${String(i).padStart(4, "0")}`, tenant_id: T, name: "L", email: `l${i}@x.com`, created_at: new Date(Date.UTC(2026, 10, 2, 0, 0, i)).toISOString() })),
+    email_optouts: [], email_sequence_enrollments: [],
+  });
+  const r = await inscreverAutomaticos(db, { agora: Date.parse("2026-11-20T00:00:00Z") });
+  assert.equal(r.entraram, 1500);
+  // injeção pelo nome
+  assert.equal(renderVars("Oi {{nome}} da {{empresa}}", { name: "[[Clique|https://evil.com]]", company: "[x](https://evil.com)" }), "Oi Clique| da x(");
+  const html = buildMail({ subject: "a", body: "Oi {{nome}}", name: "[[Clique|https://evil.com]]", tenantName: "E", unsubUrl: "#" }).html;
+  assert.ok(!html.includes("evil.com"));
+  assert.ok(!/<a [^>]*>Clique/.test(html));
+  // marcador interno nunca sobra no HTML, mesmo com link colado a botão
+  const { textToHtml } = await import("../../server/emailCampaigns.js");
+  assert.ok(!textToHtml("http://a.com[[B|http://b.com]]", "#000").includes("\u0000"));
 });

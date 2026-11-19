@@ -70,12 +70,14 @@ const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
 
 /** Troca {{nome}}, {{primeiro_nome}}, {{empresa}} (valor ausente vira vazio). */
 export function renderVars(text: string, v: { name?: string | null; company?: string | null }): string {
-  const name = (v.name || "").trim();
+  // Nome e empresa vêm de quem preencheu um formulário: sem colchetes nem endereços, para não virarem botão/link de outra pessoa.
+  const limpa = (x: string) => x.replace(/[\[\]\u0000]/g, "").replace(/https?:\/\/\S*/gi, "");
+  const name = limpa((v.name || "").trim());
   const first = name.split(/\s+/)[0] || "";
   return text
     .replace(/\{\{\s*primeiro[_ ]nome\s*\}\}/gi, first)
     .replace(/\{\{\s*nome\s*\}\}/gi, name)
-    .replace(/\{\{\s*empresa\s*\}\}/gi, (v.company || "").trim());
+    .replace(/\{\{\s*empresa\s*\}\}/gi, limpa((v.company || "").trim()));
 }
 
 /** Roxo padrão do S.P.Y.; a empresa com cor própria (tenants.primary_color) usa a dela. */
@@ -94,7 +96,7 @@ export function textToHtml(text: string, color = DEFAULT_LINK_COLOR, rastrear?: 
       let t = p
         .replace(/\[\[([^\]|]{1,80})\|(https?:\/\/[^\s\]<]+)\]\]/g, (_m, l, u) => guardar(`<a href="${href(u)}" style="display:inline-block;background:${color};color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">${l}</a>`))
         .replace(/\[([^\]]{1,120})\]\((https?:\/\/[^\s)<]+)\)/g, (_m, l, u) => guardar(`<a href="${href(u)}" style="color:${color}">${l}</a>`));
-      t = t.replace(/(https?:\/\/[^\s<]+)/g, (m) => guardar(`<a href="${href(m)}" style="color:${color}">${m}</a>`));
+      t = t.replace(/(https?:\/\/[^\s<\u0000]+)/g, (m) => guardar(`<a href="${href(m)}" style="color:${color}">${m}</a>`));
       t = t.replace(/\*\*([^*\n]{1,200})\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
       t = t.replace(/\u0000(\d+)\u0000/g, (_m, i) => guardados[Number(i)] ?? "");
       return `<p style="margin:0 0 14px;line-height:1.55">${t}</p>`;
@@ -185,7 +187,8 @@ function filterLeads(leads: any[], aud: Audience): Candidate[] {
 export function ehEnderecoInexistente(msg: unknown): boolean {
   const t = String(msg ?? "").toLowerCase();
   if (/5\.7\.|spam|blocked|blacklist|policy|reputation|rate limit|too many|quota|try again|temporar|greylist|4\d\d[ -]/.test(t)) return false;
-  return /5\.1\.[1-2]|user unknown|unknown user|no such user|no such recipient|mailbox (not found|unavailable|does not exist)|recipient (address )?rejected|invalid recipient|address rejected|does not exist|user not found/.test(t);
+  if (/sender|remetente|\bfrom\b|domain of/.test(t)) return false; // recusa por causa do REMETENTE (ex.: "domain of sender address does not exist") não diz nada sobre o destinatário
+  return /5\.1\.[1-2]|user unknown|unknown user|no such user|no such recipient|mailbox (not found|unavailable|does not exist)|user not found/.test(t);
 }
 
 /** Guarda o e-mail como inexistente para as próximas campanhas e sequências o pularem. Silencioso se a coluna `motivo` ainda não existir. */

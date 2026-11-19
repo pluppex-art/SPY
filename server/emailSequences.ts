@@ -52,16 +52,23 @@ export async function inscreverAutomaticos(db: any, opts: { agora?: number; sequ
   for (const seq of seqs || []) {
     const auto = seq.auto; const passos: Passo[] = seq.steps || [];
     if (!auto?.desde || !passos.length) continue;
-    const consulta = (cols: string) => db.from("leads").select(cols).eq("tenant_id", seq.tenant_id).is("deleted_at", null).not("email", "is", null).neq("email", "").gte("created_at", auto.desde).order("created_at", { ascending: true }).limit(1000);
-    let { data: leads, error: el } = await consulta("id, name, email, company, source, status, customFields");
-    if (el && /customFields/i.test(el.message)) ({ data: leads, error: el } = await consulta("id, name, email, company, source, status"));
+    // Lê em páginas (o banco devolve no máximo 1000 linhas por consulta), senão depois de 1000 leads novos os mais recentes nunca entrariam.
+    const consulta = (cols: string, de: number) => db.from("leads").select(cols).eq("tenant_id", seq.tenant_id).is("deleted_at", null).not("email", "is", null).neq("email", "").gte("created_at", auto.desde).order("created_at", { ascending: true }).order("id", { ascending: true }).range(de, de + 999);
+    let cols = "id, name, email, company, source, status, customFields"; let leads: any[] = []; let el: any = null;
+    for (let de = 0; de < 20_000; de += 1000) {
+      let r = await consulta(cols, de);
+      if (r.error && /customFields/i.test(r.error.message) && cols.includes("customFields")) { cols = "id, name, email, company, source, status"; r = await consulta(cols, de); }
+      if (r.error) { el = r.error; break; }
+      leads.push(...(r.data || []));
+      if (!r.data || r.data.length < 1000) break;
+    }
     if (el) continue;
-    const sel = selectAudience(leads || [], { leads: true, sources: auto.sources, statuses: auto.statuses, canais: auto.canais } as any, await optoutSet(db, seq.tenant_id));
+    const sel = selectAudience(leads, { leads: true, sources: auto.sources, statuses: auto.statuses, canais: auto.canais } as any, await optoutSet(db, seq.tenant_id));
     if (!sel.rows.length) continue;
     const existentes = await jaInscritos(db, seq);
     const novos = sel.rows.filter((r) => !existentes.has(r.email));
     for (let i = 0; i < novos.length; i += 500) {
-      const { error: ei } = await db.from("email_sequence_enrollments").insert(novos.slice(i, i + 500).map((r) => ({ sequence_id: seq.id, tenant_id: seq.tenant_id, lead_id: r.lead_id, email: r.email, name: r.name, company: r.company, step_idx: 0, next_send_at: quandoEnviar(agora, passos[0].dias), status: "active" })));
+      const { error: ei } = await db.from("email_sequence_enrollments").upsert(novos.slice(i, i + 500).map((r) => ({ sequence_id: seq.id, tenant_id: seq.tenant_id, lead_id: r.lead_id, email: r.email, name: r.name, company: r.company, step_idx: 0, next_send_at: quandoEnviar(agora, passos[0].dias), status: "active" })), { onConflict: "sequence_id,email", ignoreDuplicates: true });
       if (ei) break;
       entraram += Math.min(500, novos.length - i);
     }
@@ -76,15 +83,22 @@ interface Ajudas { cotaRestante: (db: any, tenantId: string) => Promise<{ restan
 /** Envia os e-mails da sequência que já estão no prazo. `tenantId` limita a uma empresa (botão "enviar agora"); sem ele roda todas (cron). */
 export async function processarSequencias(db: any, base: string, aj: Ajudas, opts: { tenantId?: string; sequenceId?: string; agora?: number; orcamentoMs?: number } = {}) {
   const inicio = Date.now(); const agora = opts.agora ?? Date.now(); const orcamento = opts.orcamentoMs ?? 40_000;
-  let q = db.from("email_sequence_enrollments").select("*").eq("status", "active").lte("next_send_at", new Date(agora).toISOString()).order("next_send_at", { ascending: true }).limit(POR_RODADA + 1);
+  // Só sequências ativas entram na fila: linhas de sequência pausada, sempre as mais antigas, travariam a fila de todas as empresas.
+  let qs = db.from("email_sequences").select("id").eq("status", "active").limit(1000);
+  if (opts.tenantId) qs = qs.eq("tenant_id", opts.tenantId);
+  if (opts.sequenceId) qs = qs.eq("id", opts.sequenceId);
+  const { data: ativas, error: errAtivas } = await qs;
+  if (errAtivas) throw new Error(errAtivas.message);
+  const idsAtivas = (ativas || []).map((x: any) => x.id);
+  if (!idsAtivas.length) return { enviados: 0, falhas: 0, encerrados: 0, semCota: 0, pausadas: 0, restantes: false };
+  let q = db.from("email_sequence_enrollments").select("*").eq("status", "active").in("sequence_id", idsAtivas).lte("next_send_at", new Date(agora).toISOString()).order("next_send_at", { ascending: true }).limit(POR_RODADA + 1);
   if (opts.tenantId) q = q.eq("tenant_id", opts.tenantId);
-  if (opts.sequenceId) q = q.eq("sequence_id", opts.sequenceId);
   const { data: devidos, error } = await q;
   if (error) throw new Error(error.message);
   const fila: any[] = (devidos || []).slice(0, POR_RODADA);
   const maisDevidos = (devidos || []).length > POR_RODADA;
   const seqs = new Map<string, any>(); const cotas = new Map<string, number>(); const optouts = new Map<string, Set<string>>(); const nomes = new Map<string, { name: string; color: string | null; logo?: string | null }>();
-  const tocadas = new Set<string>();
+  const tocadas = new Set<string>(); const adiadas = new Set<string>();
   let enviados = 0, falhas = 0, encerrados = 0, semCota = 0, pausadas = 0;
   for (const en of fila) {
     if (Date.now() - inicio > orcamento) break;
@@ -102,7 +116,12 @@ export async function processarSequencias(db: any, base: string, aj: Ajudas, opt
       if (cliques && cliques.length) { await db.from("email_sequence_enrollments").update({ status: "stopped" }).eq("id", en.id); encerrados++; continue; }
     }
     if (!cotas.has(en.tenant_id)) cotas.set(en.tenant_id, (await aj.cotaRestante(db, en.tenant_id)).restante);
-    if ((cotas.get(en.tenant_id) || 0) <= 0) { semCota++; continue; }
+    if ((cotas.get(en.tenant_id) || 0) <= 0) {
+      semCota++;
+      // Sem cota hoje: adia todos os vencidos desta empresa para não ocuparem o começo da fila das outras empresas.
+      if (!adiadas.has(en.tenant_id)) { adiadas.add(en.tenant_id); await db.from("email_sequence_enrollments").update({ next_send_at: new Date(agora + 6 * 3600_000).toISOString() }).eq("tenant_id", en.tenant_id).eq("status", "active").lte("next_send_at", new Date(agora).toISOString()); }
+      continue;
+    }
     if (!nomes.has(en.tenant_id)) nomes.set(en.tenant_id, await aj.tenantNameOf(en.tenant_id));
     const t = nomes.get(en.tenant_id)!;
     // Reserva este envio: se a rotina diária e o botão "enviar agora" rodarem juntos, só um deles pega esta pessoa (sem e-mail duplicado).
@@ -111,12 +130,15 @@ export async function processarSequencias(db: any, base: string, aj: Ajudas, opt
     if (!reservado || reservado.length === 0) continue;
     tocadas.add(seq.id);
     // A linha em email_campaign_recipients é o que dá o rastreio de abertura/clique e conta na cota diária.
-    const { data: rec } = await db.from("email_campaign_recipients").insert({ campaign_id: seq.campaign_id, tenant_id: en.tenant_id, lead_id: en.lead_id, email: en.email, name: en.name, company: en.company, status: "sending", claimed_at: new Date().toISOString() }).select("id").single();
+    let rec: { id?: string } | null = null;
     const unsub = optoutUrl(base, en.tenant_id, en.email);
     try {
-      const mail = buildMail({ subject: passo.subject, body: passo.body, name: en.name, company: en.company, tenantName: t.name, tenantColor: t.color, tenantLogo: t.logo, utmCampanha: `Sequência ${seq.name}`, unsubUrl: unsub, ...(rec?.id ? { track: { base, rid: rec.id } } : {}) });
+      const { data: criado, error: errRec } = await db.from("email_campaign_recipients").insert({ campaign_id: seq.campaign_id, tenant_id: en.tenant_id, lead_id: en.lead_id, email: en.email, name: en.name, company: en.company, status: "sending", claimed_at: new Date().toISOString() }).select("id").single();
+      if (errRec || !criado?.id) throw new Error("Não foi possível registrar o envio da sequência."); // sem a linha não há rastreio nem parar ao clicar: não envia
+      rec = criado;
+      const mail = buildMail({ subject: passo.subject, body: passo.body, name: en.name, company: en.company, tenantName: t.name, tenantColor: t.color, tenantLogo: t.logo, utmCampanha: `Sequência ${seq.name}`, unsubUrl: unsub, track: { base, rid: criado.id } });
       await (aj.enviar ?? sendTenantEmail)(db, en.tenant_id, { to: en.email, ...mail, replyToEmpresa: true, deParte: t.name, headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
-      if (rec?.id) await db.from("email_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", rec.id);
+      await db.from("email_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", rec!.id);
       cotas.set(en.tenant_id, (cotas.get(en.tenant_id) || 0) - 1);
       const proximo = passos[en.step_idx + 1];
       await db.from("email_sequence_enrollments").update(proximo
@@ -170,7 +192,7 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
     const existentes = await jaInscritos(db, seq);
     const novos = sel.rows.filter((r) => !existentes.has(r.email));
     for (let i = 0; i < novos.length; i += 500) {
-      const { error } = await db.from("email_sequence_enrollments").insert(novos.slice(i, i + 500).map((r) => ({ sequence_id: seq.id, tenant_id: tenantId, lead_id: r.lead_id, email: r.email, name: r.name, company: r.company, step_idx: 0, next_send_at: quando, status: "active" })));
+      const { error } = await db.from("email_sequence_enrollments").upsert(novos.slice(i, i + 500).map((r) => ({ sequence_id: seq.id, tenant_id: tenantId, lead_id: r.lead_id, email: r.email, name: r.name, company: r.company, step_idx: 0, next_send_at: quando, status: "active" })), { onConflict: "sequence_id,email", ignoreDuplicates: true });
       if (error) throw new Error(error.message);
     }
     return { entraram: novos.length, jaEstavam: sel.rows.length - novos.length };

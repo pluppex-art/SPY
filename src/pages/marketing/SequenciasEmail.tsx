@@ -74,7 +74,7 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
       for (let i = 0; i < 15; i++) {
         const r = await api(`/api/email-sequences/${s.id}/processar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(json);
         enviados += r.enviados;
-        if (!r.restantes || r.enviados === 0) { if (r.semCota) toast.warning("Limite diário de envios atingido; o resto sai amanhã."); break; }
+        if (!r.restantes || (r.enviados + r.encerrados + r.falhas) === 0) { if (r.semCota) toast.warning("Limite diário de envios atingido; o resto sai amanhã."); break; }
       }
       toast.success(enviados ? `${enviados} e-mail(s) enviado(s).` : "Nada no prazo para enviar agora."); await carregar();
     } catch (e: any) { toast.error(e.message); } finally { setRodando(null); }
