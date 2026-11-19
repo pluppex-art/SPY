@@ -36,6 +36,13 @@ export default function MarketingEmail() {
   const [modeloId, setModeloId] = useState("");
   const [subjectB, setSubjectB] = useState("");
   const [abRes, setAbRes] = useState<Record<string, any>>({});
+  const [previa, setPrevia] = useState<{ subject: string; html: string } | null>(null);
+  const [carregandoPrevia, setCarregandoPrevia] = useState(false);
+  const verPrevia = async () => {
+    setCarregandoPrevia(true);
+    try { setPrevia(await apiFetchTenant("/api/email-campaigns/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject, body }) }).then(json)); }
+    catch (e: any) { toast.error(e.message); } finally { setCarregandoPrevia(false); }
+  };
   const reenviar = async (c: Campaign) => {
     if (!(await confirmDialog({ title: "Reenviar para quem não abriu?", description: `Cria uma nova campanha só com quem recebeu "${c.name}" e não abriu nem clicou. Você confere e dispara em seguida.`, confirmLabel: "Criar reenvio" }))) return;
     try { const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/reenviar-nao-abriram`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(json); toast.success(`Reenvio criado com ${r.total} pessoa(s). Envie um teste e dispare.`); await load(); }
@@ -338,6 +345,13 @@ export default function MarketingEmail() {
           })}
       </div>
 
+      <Modal isOpen={!!previa} onClose={() => setPrevia(null)} title="Pré-visualização" description="Exemplo com nome fictício. Nada foi enviado." maxWidth="max-w-2xl">
+        {previa && (
+          <div className="space-y-2">
+            <p className="text-xs text-[var(--color-text-muted)]">Assunto: <b className="text-[var(--color-text-primary)]">{previa.subject}</b></p>
+            <iframe title="Pré-visualização do e-mail" sandbox="" srcDoc={previa.html} className="w-full h-[460px] rounded-lg border border-[var(--color-border-default)] bg-white" />
+          </div>)}
+      </Modal>
       <Modal isOpen={descAberto} onClose={() => setDescAberto(false)} title="Descadastrados" description="Quem pediu para sair nunca mais recebe campanhas: o sistema pula essas pessoas em qualquer envio. Esta lista não pode ser desfeita por aqui." maxWidth="max-w-lg">
         <div className="space-y-3">
           <div className="flex gap-2">
@@ -373,6 +387,7 @@ export default function MarketingEmail() {
             <input value={subjectB} onChange={(e) => setSubjectB(e.target.value)} maxLength={200} placeholder="Preencha para testar outro assunto: metade recebe o A e metade o B" className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
           <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Mensagem
             <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={8} maxLength={20000} placeholder={"Olá {{primeiro_nome}},\n\nO Treinão acontece neste sábado, dia 14, às 9h...\n\nTe esperamos!"} className="px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" />
+            <button type="button" onClick={() => void verPrevia()} disabled={!body.trim() || carregandoPrevia} className="self-start text-[11px] font-bold text-[var(--color-primary-blue)] underline disabled:opacity-50">{carregandoPrevia ? "Carregando…" : "Ver como o e-mail vai ficar"}</button>
             <span className="font-normal">Use <code>{"{{nome}}"}</code>, <code>{"{{primeiro_nome}}"}</code> e <code>{"{{empresa}}"}</code>. O link para sair da lista é adicionado sozinho no rodapé.</span></label>
 
           <div className="space-y-2">

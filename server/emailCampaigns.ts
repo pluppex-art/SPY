@@ -291,6 +291,18 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao ler os leads." }); }
   });
 
+  // Pré-visualização: mostra como o e-mail fica (com nome de exemplo), sem enviar nada nem rastrear.
+  app.post("/api/email-campaigns/preview", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
+    const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
+    const body = String(req.body?.body || "").slice(0, 20_000);
+    const t = await tenantNameOf(tenantId);
+    const mail = buildMail({ subject, body, name: "Maria da Silva", company: "Empresa Exemplo", tenantName: t.name, tenantColor: t.color, unsubUrl: "#" });
+    res.json({ subject: mail.subject, html: mail.html });
+  });
+
   // Confere o remetente (login no SMTP, sem enviar e-mail). Só dados não secretos.
   app.get("/api/email-campaigns/sender-check", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);

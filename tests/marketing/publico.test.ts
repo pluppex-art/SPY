@@ -362,3 +362,17 @@ test("público por canal e campanha: filtra leads pela origem do primeiro contat
   assert.deepEqual(por({ canais: ["Meta"], campanhas: ["bf"] }), ["a@x.com"]);
   assert.equal(por({}).length, 3);
 });
+
+test("pré-visualização do e-mail: usa nome de exemplo, não envia nada e não deixa HTML solto do texto passar", async () => {
+  const db = criarFakeDb({ tenants: [{ id: T, name: "Minha Empresa", modules: { marketing: true } }], users: [{ id: "u1", is_master: false, is_tenant_admin: true, tenant_id: T }] });
+  const app = express(); app.use(express.json());
+  registerEmailCampaignRoutes(app as any, { requireUser: (q: any, _s: any, n: any) => { q.user = { id: "u1" }; n(); }, resolveRequestedTenantId: async () => T, limiter: (_q: any, _s: any, n: any) => n(), supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  try {
+    const r = await (await fetch(`${base}/api/email-campaigns/preview`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject: "{{primeiro_nome}}, olá", body: "Oi {{nome}} <script>x</script>" }) })).json();
+    assert.equal(r.subject, "Maria, olá");
+    assert.ok(r.html.includes("Oi Maria da Silva"));
+    assert.ok(!r.html.includes("<script>"));
+    assert.ok(r.html.includes("Minha Empresa"));
+  } finally { srv.close(); }
+});
