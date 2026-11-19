@@ -115,7 +115,7 @@ export default function MarketingCampanhas() {
       subtitle="Acompanhe o retorno (ROI), as conversões e as conexões ativas do Meta Ads e do Google Ads."
       actions={
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => navigate("/app/marketing/campanhas/dados")} variant="outline" className="gap-2 text-xs font-bold">
+          <Button onClick={() => navigate("/app/marketing/dados-campanhas")} variant="outline" className="gap-2 text-xs font-bold">
             <BarChart3 className="w-3.5 h-3.5" /> Ver dados dos leads
           </Button>
           <Button

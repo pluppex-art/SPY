@@ -333,7 +333,8 @@ function AppContent() {
             <Route path="conteudo" element={<MarketingConteudo />} />
             <Route path="trafego" element={<MarketingTrafego />} />
             <Route path="campanhas" element={<MarketingCampanhas />} />
-            <Route path="campanhas/dados" element={<MarketingCampanhasDados />} />
+            <Route path="dados-campanhas" element={<MarketingCampanhasDados />} />
+            <Route path="campanhas/dados" element={<Navigate to="/app/marketing/dados-campanhas" replace />} />
             <Route path="analytics" element={<MarketingAnalytics />} />
             <Route path="social" element={<Navigate to="/app/marketing/conteudo" replace />} />
             <Route path="landing-pages" element={<MarketingLandingPages />} />
