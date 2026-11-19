@@ -8,6 +8,7 @@ import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { HelpTip } from "../../components/ui/help-tip";
+import { useData } from "../../contexts/DataContext";
 import { apiFetch } from "../../lib/apiClient";
 import { useAuth } from "../../contexts/AuthContext";
 import { readTableFile } from "../../lib/tableFile";
@@ -30,6 +31,9 @@ export default function MarketingEmail() {
   // Empresa ATIVA (master/parceiro troca de empresa na barra): toda chamada leva o tenantId. Sem isso o servidor
   // cai na empresa do próprio usuário e a tela mostraria leads/campanhas de outra empresa.
   const { activeTenantId } = useAuth();
+  const { appSettings, saveAppSetting } = useData();
+  const modelos: { id: string; nome: string; assunto: string; corpo: string }[] = Array.isArray(appSettings?.email_modelos) ? appSettings.email_modelos : [];
+  const [modeloId, setModeloId] = useState("");
   const apiFetchTenant = (path: string, init?: RequestInit) => {
     if (!activeTenantId) return Promise.reject(new Error("Empresa não identificada."));
     return apiFetch(`${path}${path.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(activeTenantId)}`, init);
@@ -174,6 +178,33 @@ export default function MarketingEmail() {
     try { await apiFetchTenant(`/api/email-campaigns/${c.id}/cancel`, { method: "POST" }).then(json); await load(); } catch (e: any) { toast.error(e.message); }
   };
 
+  const usarModelo = (id: string) => {
+    setModeloId(id);
+    const m = modelos.find((x) => x.id === id);
+    if (m) { setSubject(m.assunto); setBody(m.corpo); if (!name.trim()) setName(m.nome); }
+  };
+  const salvarModelo = async () => {
+    if (!subject.trim() || !body.trim()) { toast.error("Escreva o assunto e a mensagem antes de salvar como modelo."); return; }
+    const nome = (name.trim() || subject.trim()).slice(0, 60);
+    const existente = modelos.find((x) => x.nome.toLowerCase() === nome.toLowerCase());
+    const novo = { id: existente?.id ?? crypto.randomUUID(), nome, assunto: subject.trim().slice(0, 200), corpo: body.trim().slice(0, 20000) };
+    await saveAppSetting("email_modelos", [...modelos.filter((x) => x.id !== novo.id), novo].slice(-30));
+    setModeloId(novo.id);
+    toast.success(existente ? `Modelo “${nome}” atualizado.` : `Modelo “${nome}” salvo.`);
+  };
+  const excluirModelo = async () => {
+    const m = modelos.find((x) => x.id === modeloId);
+    if (!m || !(await confirmDialog({ title: "Excluir modelo?", description: `O modelo “${m.nome}” será removido. As campanhas já criadas não mudam.`, confirmLabel: "Excluir", variant: "danger" }))) return;
+    await saveAppSetting("email_modelos", modelos.filter((x) => x.id !== modeloId));
+    setModeloId("");
+  };
+  const duplicar = async (c: Campaign) => {
+    try {
+      const r = await apiFetchTenant(`/api/email-campaigns/${c.id}`).then(json);
+      setName(`${r.name} (cópia)`.slice(0, 120)); setSubject(r.subject); setBody(r.body); setModeloId(""); setOpen(true);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
   const canCreate = name.trim() && subject.trim() && body.trim() && (preview?.total ?? 0) > 0 && !creating;
 
   return (
@@ -238,6 +269,7 @@ export default function MarketingEmail() {
                     <Button variant="outline" onClick={() => void cancel(c)} className="h-8 px-3 text-xs gap-1.5 text-[var(--color-danger)]"><XCircle className="w-3.5 h-3.5" /> Cancelar</Button>
                   </div>
                 )}
+                <div><Button variant="ghost" onClick={() => void duplicar(c)} className="h-7 px-2 text-[11px] text-[var(--color-text-muted)]">Duplicar campanha</Button></div>
                 {c.failed > 0 && c.status !== "cancelled" && running !== c.id && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-2">
@@ -259,6 +291,15 @@ export default function MarketingEmail() {
 
       <Modal isOpen={open} onClose={() => !creating && setOpen(false)} title="Nova campanha de e-mail" maxWidth="max-w-2xl">
         <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]">
+            <span>Modelo</span>
+            <select value={modeloId} onChange={(e) => usarModelo(e.target.value)} className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] max-w-[220px]">
+              <option value="">{modelos.length ? "Escolher um modelo salvo…" : "Nenhum modelo salvo"}</option>
+              {modelos.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+            </select>
+            <Button type="button" variant="outline" onClick={() => void salvarModelo()} className="h-9 px-3 text-xs">Salvar como modelo</Button>
+            {modeloId && <Button type="button" variant="ghost" onClick={() => void excluirModelo()} className="h-9 px-3 text-xs text-[var(--color-danger)]">Excluir modelo</Button>}
+          </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Nome (só para você)
               <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Ex.: Aviso Treinão 14/11" className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>

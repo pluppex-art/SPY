@@ -472,6 +472,14 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     res.json({ requeued: n });
   });
 
+  /** Texto de uma campanha já criada (para duplicar). */
+  app.get("/api/email-campaigns/:id", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
+    res.json({ name: camp.name, subject: camp.subject, body: camp.body });
+  });
+
   app.get("/api/email-campaigns/:id/failures", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;

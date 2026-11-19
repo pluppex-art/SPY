@@ -273,3 +273,17 @@ test("canal: nomes de gasto e de UTM caem no mesmo canal", () => {
   for (const n of ["Facebook Ads", "facebook", "Instagram", "IG", "Meta Ads", "meta"]) assert.equal(normalizarCanal(n), "Meta", n);
   assert.equal(normalizarCanal("Google Ads"), "Google"); assert.equal(normalizarCanal("indicação"), "Indicação"); assert.equal(normalizarCanal(""), "");
 });
+
+test("duplicar campanha: devolve só nome, assunto e texto da campanha da própria empresa", async () => {
+  const MINHA = "77777777-7777-4777-8777-777777777777", OUTRA = "88888888-8888-4888-8888-888888888888";
+  const db = criarFakeDb({ email_campaigns: [{ id: MINHA, tenant_id: T, name: "Aviso", subject: "Oi {{primeiro_nome}}", body: "Texto", audience: { leads: true }, total: 10 }, { id: OUTRA, tenant_id: "99999999-9999-4999-8999-999999999999", name: "Alheia", subject: "x", body: "y" }] });
+  const app = express();
+  registerEmailCampaignRoutes(app as any, { requireUser: (_q: any, _s: any, n: any) => n(), resolveRequestedTenantId: async () => T, limiter: (_q: any, _s: any, n: any) => n(), supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  try {
+    const ok = await (await fetch(`${base}/api/email-campaigns/${MINHA}`)).json();
+    assert.deepEqual(ok, { name: "Aviso", subject: "Oi {{primeiro_nome}}", body: "Texto" });
+    assert.equal((await fetch(`${base}/api/email-campaigns/${OUTRA}`)).status, 404);
+    assert.equal((await fetch(`${base}/api/email-campaigns/nao-e-uuid`)).status, 400);
+  } finally { srv.close(); }
+});
