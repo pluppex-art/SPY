@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { canalDoLead } from "../src/lib/canalAquisicao.js";
 import type { Express } from "express";
 import { sendTenantEmail, checkTenantSender } from "./mailer.js";
-import { registrarSequencias, processarSequencias } from "./emailSequences.js";
+import { registrarSequencias, processarSequencias, inscreverAutomaticos } from "./emailSequences.js";
 
 // Disparo de e-mail em massa por empresa (genérico, qualquer tenant). Regras:
 //  - público = leads DA EMPRESA com e-mail válido, filtrados por origem/status; sem repetidos e sem descadastrados;
@@ -500,6 +500,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       try { await processarLote(camp, camp.tenant_id, (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, "")); lotes++; } catch (e: any) { console.warn("[email cron]", camp.id, e?.message); }
     }
     let sequencias: any = null;
+    try { await inscreverAutomaticos(supabaseService); } catch (e: any) { console.warn("[sequências auto]", e?.message); }
     try { sequencias = await processarSequencias(supabaseService, (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, ""), { cotaRestante, tenantNameOf }, { orcamentoMs: Math.max(5_000, 50_000 - (Date.now() - inicio)) }); } catch (e: any) { console.warn("[sequências cron]", e?.message); }
     res.json({ campanhas: (campanhas || []).length, lotes, sequencias });
   });

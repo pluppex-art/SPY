@@ -7,7 +7,7 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 
 type Api = (path: string, init?: RequestInit) => Promise<Response>;
 interface Passo { dias: number; subject: string; body: string }
-interface Seq { id: string; name: string; status: string; passos: Passo[]; inscritos: number; ativos: number; concluidos: number; parados: number; enviados: number; falhas: number; abriram: number; clicaram: number }
+interface Seq { id: string; name: string; status: string; passos: Passo[]; auto?: { sources: string[]; statuses: string[]; canais: string[] } | null; inscritos: number; ativos: number; concluidos: number; parados: number; enviados: number; falhas: number; abriram: number; clicaram: number }
 interface Opt { value: string; count: number }
 const json = async (r: Response) => { const b = await r.json().catch(() => ({})); if (!r.ok) throw new Error(b?.error || "Falha na requisição."); return b; };
 const campo = "h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]";
@@ -27,6 +27,7 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
   const [sources, setSources] = useState<string[]>([]); const [statuses, setStatuses] = useState<string[]>([]); const [canais, setCanais] = useState<string[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [autoNovos, setAutoNovos] = useState(false);
   const toggle = (l: string[], set: (v: string[]) => void, v: string) => set(l.includes(v) ? l.filter((x) => x !== v) : [...l, v]);
   const audience = { leads, clientes, sources, statuses, canais };
 
@@ -47,9 +48,9 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
   const criar = async () => {
     setSalvando(true);
     try {
-      const r = await api("/api/email-sequences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nome, passos, audience }) }).then(json);
+      const r = await api("/api/email-sequences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nome, passos, audience, autoInscrever: autoNovos && leads }) }).then(json);
       toast.success(`Sequência criada com ${r.entraram} pessoa(s). O 1º e-mail sai na rotina diária, ou clique em "Enviar agora".`);
-      setCriando(false); setNome(""); setPassos([novoPasso(0), novoPasso(3)]); setSources([]); setStatuses([]); setCanais([]);
+      setCriando(false); setNome(""); setPassos([novoPasso(0), novoPasso(3)]); setSources([]); setStatuses([]); setCanais([]); setAutoNovos(false);
       await carregar();
     } catch (e: any) { toast.error(e.message); } finally { setSalvando(false); }
   };
@@ -63,6 +64,11 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
       }
       toast.success(enviados ? `${enviados} e-mail(s) enviado(s).` : "Nada no prazo para enviar agora."); await carregar();
     } catch (e: any) { toast.error(e.message); } finally { setRodando(null); }
+  };
+  const alternarAuto = async (s: Seq) => {
+    const ligar = !s.auto;
+    if (ligar && !(await confirmDialog({ title: "Ligar entrada automática?", description: "A partir de agora, todo lead novo com e-mail válido entra nesta sequência (na rotina diária). Leads que já existem não entram.", confirmLabel: "Ligar" }))) return;
+    try { await api(`/api/email-sequences/${s.id}/auto`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativo: ligar, ...(s.auto || {}) }) }).then(json); await carregar(); } catch (e: any) { toast.error(e.message); }
   };
   const pausar = async (s: Seq) => { try { await api(`/api/email-sequences/${s.id}/status`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: s.status === "active" ? "paused" : "active" }) }).then(json); await carregar(); } catch (e: any) { toast.error(e.message); } };
   const excluir = async (s: Seq) => {
@@ -88,6 +94,7 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
                 <p className="text-[11px] text-[var(--color-text-muted)]">{s.inscritos} inscrito(s): {s.ativos} em andamento · {s.concluidos} concluído(s) · {s.parados} parado(s) · {s.enviados} e-mail(s) enviado(s){s.enviados > 0 && <> · <b className="text-[var(--color-text-primary)]">{Math.round((s.abriram / s.enviados) * 100)}%</b> abriram · <b className="text-[var(--color-text-primary)]">{Math.round((s.clicaram / s.enviados) * 100)}%</b> clicaram</>}{s.falhas > 0 && <span className="text-[var(--color-danger)]"> · {s.falhas} falha(s)</span>}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={() => void agora(s)} disabled={rodando === s.id || s.status !== "active"} className="h-8 px-3 text-xs gap-1.5">{rodando === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Enviar agora o que está no prazo</Button>
+                  <Button variant="outline" onClick={() => void alternarAuto(s)} className="h-8 px-3 text-xs gap-1.5">Entrada automática: {s.auto ? "ligada" : "desligada"}</Button>
                   <Button variant="outline" onClick={() => void pausar(s)} className="h-8 px-3 text-xs gap-1.5">{s.status === "active" ? <><Pause className="w-3.5 h-3.5" /> Pausar</> : <><Play className="w-3.5 h-3.5" /> Retomar</>}</Button>
                   <Button variant="outline" onClick={() => void excluir(s)} className="h-8 px-3 text-xs gap-1.5 text-[var(--color-danger)]"><Trash2 className="w-3.5 h-3.5" /> Excluir</Button>
                 </div>
@@ -121,7 +128,8 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
               {opts.statuses.map((o) => <button key={`t${o.value}`} type="button" onClick={() => toggle(statuses, setStatuses, o.value)} className={chip(statuses.includes(o.value))}>Status: {o.value || "—"} · {o.count}</button>)}
               {(opts.canais || []).slice(0, 20).map((o) => <button key={`c${o.value}`} type="button" onClick={() => toggle(canais, setCanais, o.value)} className={chip(canais.includes(o.value))}>Canal: {o.value} · {o.count}</button>)}
             </div>)}
-            <p className="text-[11px] text-[var(--color-text-muted)]">{total === null ? "Contando…" : <><b className="text-[var(--color-text-primary)]">{total}</b> pessoa(s) com e-mail válido entram (sem repetidos nem descadastrados).</>} Quem virar lead depois não entra sozinho nesta sequência.</p>
+            {leads && <label className="inline-flex items-start gap-1.5 cursor-pointer text-xs text-[var(--color-text-primary)]"><input type="checkbox" className="mt-0.5" checked={autoNovos} onChange={(e) => setAutoNovos(e.target.checked)} /> <span>Também inscrever <b>automaticamente</b> quem virar lead daqui para frente (com esses mesmos filtros de origem, status e canal)</span></label>}
+            <p className="text-[11px] text-[var(--color-text-muted)]">{total === null ? "Contando…" : <><b className="text-[var(--color-text-primary)]">{total}</b> pessoa(s) com e-mail válido entram (sem repetidos nem descadastrados).</>}</p>
           </div>
           <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setCriando(false)} className="h-9 px-3 text-xs">Voltar</Button><Button onClick={() => void criar()} disabled={!valido || salvando || !total} className="h-9 px-4 text-xs font-bold">{salvando ? "Criando…" : "Criar sequência"}</Button></div>
         </div>

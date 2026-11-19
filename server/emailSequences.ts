@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { sendTenantEmail } from "./mailer.js";
-import { buildMail, cleanEmail, optoutUrl, optoutSet, pagedTable, parseAudience, resolveAudience } from "./emailCampaigns.js";
+import { buildMail, cleanEmail, optoutUrl, optoutSet, pagedTable, parseAudience, resolveAudience, selectAudience } from "./emailCampaigns.js";
 
 /** Sequência de e-mails: vários envios em dias seguidos para cada pessoa inscrita (ex.: dia 0, dia 3, dia 7). */
 
@@ -26,6 +26,39 @@ export function parsePassos(raw: unknown): { ok: true; passos: Passo[] } | { ok:
     passos.push({ dias: d, subject, body });
   }
   return { ok: true, passos };
+}
+
+/** Filtros da entrada automática (só leads): lista de origens, status e canais; vazio = todos. `desde` = só leads criados depois. */
+export function parseAuto(raw: any, desde: string): { sources: string[]; statuses: string[]; canais: string[]; desde: string } {
+  const arr = (v: any) => (Array.isArray(v) ? v.map(String).slice(0, 100) : []);
+  return { sources: arr(raw?.sources), statuses: arr(raw?.statuses), canais: arr(raw?.canais), desde };
+}
+
+/** Coloca nas sequências com entrada automática os leads novos (criados depois da ativação) que combinam com os filtros. */
+export async function inscreverAutomaticos(db: any, opts: { agora?: number } = {}): Promise<{ sequencias: number; entraram: number }> {
+  const agora = opts.agora ?? Date.now();
+  const { data: seqs, error } = await db.from("email_sequences").select("*").eq("status", "active").not("auto", "is", null).limit(100);
+  if (error) { if (/auto/i.test(error.message)) return { sequencias: 0, entraram: 0 }; throw new Error(error.message); }
+  let entraram = 0;
+  for (const seq of seqs || []) {
+    const auto = seq.auto; const passos: Passo[] = seq.steps || [];
+    if (!auto?.desde || !passos.length) continue;
+    const consulta = (cols: string) => db.from("leads").select(cols).eq("tenant_id", seq.tenant_id).is("deleted_at", null).not("email", "is", null).neq("email", "").gte("created_at", auto.desde).order("created_at", { ascending: true }).limit(1000);
+    let { data: leads, error: el } = await consulta("id, name, email, company, source, status, customFields");
+    if (el && /customFields/i.test(el.message)) ({ data: leads, error: el } = await consulta("id, name, email, company, source, status"));
+    if (el) continue;
+    const sel = selectAudience(leads || [], { leads: true, sources: auto.sources, statuses: auto.statuses, canais: auto.canais } as any, await optoutSet(db, seq.tenant_id));
+    if (!sel.rows.length) continue;
+    const { data: ja } = await db.from("email_sequence_enrollments").select("email").eq("sequence_id", seq.id).limit(20_000);
+    const existentes = new Set((ja || []).map((r: any) => String(r.email)));
+    const novos = sel.rows.filter((r) => !existentes.has(r.email));
+    for (let i = 0; i < novos.length; i += 500) {
+      const { error: ei } = await db.from("email_sequence_enrollments").insert(novos.slice(i, i + 500).map((r) => ({ sequence_id: seq.id, tenant_id: seq.tenant_id, lead_id: r.lead_id, email: r.email, name: r.name, company: r.company, step_idx: 0, next_send_at: quandoEnviar(agora, passos[0].dias), status: "active" })));
+      if (ei) break;
+      entraram += Math.min(500, novos.length - i);
+    }
+  }
+  return { sequencias: (seqs || []).length, entraram };
 }
 
 export const quandoEnviar = (agora: number, dias: number) => new Date(agora + dias * DIA_MS).toISOString();
@@ -127,7 +160,7 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
     if (!db) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     try {
-      const { data: seqs, error } = await db.from("email_sequences").select("id, name, steps, status, campaign_id, created_at").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(50);
+      const { data: seqs, error } = await db.from("email_sequences").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(50);
       if (error) { if (migracao(error)) return res.json({ sequences: [], pendenteMigracao: true }); throw new Error(error.message); }
       const insc = await pagedTable(db, "email_sequence_enrollments", "sequence_id, status", tenantId);
       const camps = (seqs || []).map((s: any) => s.campaign_id).filter(Boolean);
@@ -135,7 +168,7 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
       const porCamp = new Map<string, any>((cs || []).map((c: any) => [c.id, c]));
       res.json({ sequences: (seqs || []).map((s: any) => {
         const mine = insc.filter((i: any) => i.sequence_id === s.id); const c = porCamp.get(s.campaign_id) || {};
-        return { id: s.id, name: s.name, status: s.status, passos: s.steps, created_at: s.created_at,
+        return { id: s.id, name: s.name, status: s.status, passos: s.steps, auto: s.auto ? { ...s.auto, desde: undefined } : null, created_at: s.created_at,
           inscritos: mine.length, ativos: mine.filter((i: any) => i.status === "active").length, concluidos: mine.filter((i: any) => i.status === "done").length, parados: mine.filter((i: any) => i.status === "stopped").length,
           enviados: c.sent || 0, falhas: c.failed || 0, abriram: c.opened || 0, clicaram: c.clicked || 0 };
       }) });
@@ -150,12 +183,14 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
     if (!name) return res.status(400).json({ error: "Dê um nome para a sequência." });
     const p = parsePassos(req.body?.passos);
     if (p.ok === false) return res.status(400).json({ error: p.erro });
+    const autoOn = req.body?.autoInscrever === true && req.body?.audience?.leads !== false;
     let campId: string | null = null; let seqId: string | null = null;
     try {
       const { data: camp, error: ec } = await db.from("email_campaigns").insert({ tenant_id: tenantId, name: `[Sequência] ${name}`.slice(0, 120), subject: p.passos[0].subject, body: p.passos[0].body, audience: { sequencia: true }, total: 0, status: "done", created_by: req.user.id }).select("id").single();
       if (ec) throw new Error(ec.message);
       campId = camp.id;
-      const { data: seq, error } = await db.from("email_sequences").insert({ tenant_id: tenantId, name, steps: p.passos, status: "active", campaign_id: campId, created_by: req.user.id }).select("*").single();
+      const { data: seq, error } = await db.from("email_sequences").insert({ tenant_id: tenantId, name, steps: p.passos, status: "active", campaign_id: campId, created_by: req.user.id, ...(autoOn ? { auto: parseAuto(req.body.audience, new Date().toISOString()) } : {}) }).select("*").single();
+      if (error && autoOn && /auto/i.test(error.message) && !/email_sequence/i.test(error.message)) throw new Error("A entrada automática ainda não foi liberada no banco de dados (migração 20261202). Peça para a equipe técnica aplicar ou crie sem ela.");
       if (error) { if (migracao(error)) throw new Error(MSG_MIGRACAO); throw new Error(error.message); }
       seqId = seq.id;
       const r = req.body?.audience ? await inscrever(seq, tenantId, req.body.audience) : { entraram: 0, jaEstavam: 0 };
@@ -173,6 +208,19 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
     if (!(await aj.liberarMarketing(req, res, tenantId))) return;
     const seq = await carregar(req, res, tenantId); if (!seq) return;
     try { res.json(await inscrever(seq, tenantId, req.body?.audience)); } catch (e: any) { res.status(400).json({ error: e?.message || "Não foi possível inscrever." }); }
+  });
+
+  // Liga/desliga a entrada automática de leads novos (com os filtros dados; só vale para leads criados depois de ligar).
+  app.post("/api/email-sequences/:id/auto", requireUser, limiter, async (req: any, res: any) => {
+    if (!db) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await aj.liberarMarketing(req, res, tenantId))) return;
+    const seq = await carregar(req, res, tenantId); if (!seq) return;
+    const ligar = req.body?.ativo === true;
+    const auto = ligar ? parseAuto(req.body, seq.auto?.desde || new Date().toISOString()) : null;
+    const { error } = await db.from("email_sequences").update({ auto }).eq("id", seq.id);
+    if (error) return res.status(400).json({ error: /auto/i.test(error.message) ? "A entrada automática ainda não foi liberada no banco de dados (migração 20261202)." : error.message });
+    res.json({ ok: true, auto });
   });
 
   app.post("/api/email-sequences/:id/status", requireUser, limiter, async (req: any, res: any) => {

@@ -506,3 +506,27 @@ test("sequência pela rota: cria com público, evita repetidos e exclui junto co
     assert.equal(db.t.email_sequences.length, 0); assert.equal(db.t.email_campaigns.length, 0);
   } finally { srv.close(); }
 });
+
+test("entrada automática: só leads novos (depois de ligar) que combinam com os filtros, sem repetir nem descadastrados", async () => {
+  const { inscreverAutomaticos } = await import("../../server/emailSequences.js");
+  const SEQ = "44444444-4444-4444-8444-444444444444";
+  const db = criarFakeDb({
+    email_sequences: [
+      { id: SEQ, tenant_id: T, name: "S", status: "active", steps: [{ dias: 1, subject: "a", body: "b" }], auto: { sources: [], statuses: [], canais: ["Meta"], desde: "2026-11-10T00:00:00.000Z" } },
+      { id: "55555555-5555-4555-8555-555555555555", tenant_id: T, name: "Desligada", status: "active", steps: [{ dias: 0, subject: "a", body: "b" }], auto: null },
+    ],
+    leads: [
+      { id: "1", tenant_id: T, name: "Velho", email: "velho@x.com", created_at: "2026-11-01T00:00:00Z", customFields: { utm_source: "instagram" } },
+      { id: "2", tenant_id: T, name: "Novo Meta", email: "meta@x.com", created_at: "2026-11-12T00:00:00Z", customFields: { utm_source: "instagram" } },
+      { id: "3", tenant_id: T, name: "Novo Google", email: "g@x.com", created_at: "2026-11-12T00:00:00Z", customFields: { utm_source: "google" } },
+      { id: "4", tenant_id: T, name: "Saiu", email: "saiu@x.com", created_at: "2026-11-12T00:00:00Z", customFields: { utm_source: "facebook" } },
+    ],
+    email_optouts: [{ tenant_id: T, email: "saiu@x.com" }], email_sequence_enrollments: [],
+  });
+  const agora = Date.parse("2026-11-15T12:00:00Z");
+  const r = await inscreverAutomaticos(db, { agora });
+  assert.equal(r.entraram, 1);
+  assert.deepEqual(db.t.email_sequence_enrollments.map((e: any) => e.email), ["meta@x.com"]);
+  assert.equal(db.t.email_sequence_enrollments[0].next_send_at, new Date(agora + 86400000).toISOString());
+  assert.equal((await inscreverAutomaticos(db, { agora })).entraram, 0); // não repete
+});
