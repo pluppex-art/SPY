@@ -675,3 +675,14 @@ test("formatação do e-mail: negrito, link com texto e botão; tudo escapado, r
   assert.ok(!textToHtml("a\u00000\u0000b", "#000").includes("\u0000"));
   assert.equal(textoSimples("Oi **você** [site](https://x.com) [[Botão|https://y.com]]"), "Oi você site (https://x.com) Botão: https://y.com");
 });
+
+test("logo no e-mail: só endereço https de imagem aparece no topo; o resto é ignorado", async () => {
+  const { buildMail, logoSegura } = await import("../../server/emailCampaigns.js");
+  const base = { subject: "a", body: "Oi", tenantName: "Minha <Empresa>", unsubUrl: "#" };
+  const com = buildMail({ ...base, tenantLogo: "https://cdn.exemplo.com/logo.png" });
+  assert.ok(com.html.includes('<img src="https://cdn.exemplo.com/logo.png" alt="Minha &lt;Empresa&gt;"'));
+  for (const ruim of ["data:image/png;base64,AAAA", "http://x.com/l.png", 'https://x.com/a"onerror="1', "", null, undefined, "javascript:alert(1)"]) {
+    assert.equal(logoSegura(ruim), null, String(ruim));
+    assert.ok(!buildMail({ ...base, tenantLogo: ruim as any }).html.includes('alt="Minha'), String(ruim));
+  }
+});

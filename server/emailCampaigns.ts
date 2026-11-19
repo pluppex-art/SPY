@@ -110,12 +110,16 @@ export function textoSimples(text: string): string {
     .replace(/\*\*([^*\n]{1,200})\*\*/g, "$1");
 }
 
-export function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; unsubUrl: string; track?: { base: string; rid: string } }) {
+/** Só endereço https de imagem serve em e-mail (imagem embutida/local não aparece nos apps de e-mail). */
+export const logoSegura = (u: unknown): string | null => { const t = String(u ?? "").trim(); return /^https:\/\/[^\s"'<>]{4,500}$/i.test(t) ? t : null; };
+const logoHtml = (logo: string | null | undefined, nome: string) => { const u = logoSegura(logo); return u ? `<p style="margin:0 0 18px"><img src="${escapeHtml(u)}" alt="${escapeHtml(nome)}" style="max-height:48px;max-width:200px;border:0"></p>` : ""; };
+
+export function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; tenantLogo?: string | null; unsubUrl: string; track?: { base: string; rid: string } }) {
   const subject = renderVars(opts.subject, opts).replace(/[\r\n]+/g, " ").trim().slice(0, 200);
   const text = renderVars(opts.body, opts);
   const footerTxt = `\n\n—\nVocê recebeu este e-mail de ${opts.tenantName}. Para não receber mais, acesse: ${opts.unsubUrl}`;
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
-<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${textToHtml(text, safeColor(opts.tenantColor), opts.track ? (u) => urlClique(opts.track!.base, opts.track!.rid, u) : undefined)}</div>
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${logoHtml(opts.tenantLogo, opts.tenantName)}${textToHtml(text, safeColor(opts.tenantColor), opts.track ? (u) => urlClique(opts.track!.base, opts.track!.rid, u) : undefined)}</div>
 <p style="max-width:600px;margin:14px auto 0;font-size:11px;color:#6b7280;text-align:center">Você recebeu este e-mail de ${escapeHtml(opts.tenantName)}.<br><a href="${opts.unsubUrl}" style="color:#6b7280">Não quero mais receber</a></p>
 ${opts.track ? `<img src="${urlAbertura(opts.track.base, opts.track.rid)}" width="1" height="1" alt="" style="display:none;border:0">` : ""}</body></html>`;
   return { subject, text: textoSimples(text) + footerTxt, html };
@@ -200,6 +204,7 @@ export async function enviarEmailParaLeads(db: any, tenantId: string, base: stri
   const { data: leads } = await db.from("leads").select("id, name, email, company").eq("tenant_id", tenantId).is("deleted_at", null).in("id", ids);
   const { data: tn } = await db.from("tenants").select("name, primary_color").eq("id", tenantId).maybeSingle();
   const { data: smtp } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
+  const { data: emp } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "empresa_dados").maybeSingle();
   const t = smtp?.value;
   const proprio = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
   const { count } = await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "sent").gte("sent_at", new Date(Date.now() - 24 * 3600_000).toISOString());
@@ -210,7 +215,7 @@ export async function enviarEmailParaLeads(db: any, tenantId: string, base: stri
   for (const r of rows) {
     if (restante <= 0) { bloqueadosPelaCota++; continue; }
     const unsub = optoutUrl(base, tenantId, r.email);
-    const mail = buildMail({ subject: `Uma mensagem de ${tenantName}`, body: texto, name: r.name, company: r.company, tenantName, tenantColor: tn?.primary_color ?? null, unsubUrl: unsub });
+    const mail = buildMail({ subject: `Uma mensagem de ${tenantName}`, body: texto, name: r.name, company: r.company, tenantName, tenantColor: tn?.primary_color ?? null, tenantLogo: emp?.value?.logoUrl, unsubUrl: unsub });
     try {
       await sendTenantEmail(db, tenantId, { to: r.email, ...mail, headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
       enviados++; restante--;
@@ -342,7 +347,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
     const body = String(req.body?.body || "").slice(0, 20_000);
     const t = await tenantNameOf(tenantId);
-    const mail = buildMail({ subject, body, name: "Maria da Silva", company: "Empresa Exemplo", tenantName: t.name, tenantColor: t.color, unsubUrl: "#" });
+    const mail = buildMail({ subject, body, name: "Maria da Silva", company: "Empresa Exemplo", tenantName: t.name, tenantColor: t.color, tenantLogo: t.logo, unsubUrl: "#" });
     res.json({ subject: mail.subject, html: mail.html });
   });
 
@@ -416,13 +421,15 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     return data;
   };
 
-  const mailFor = async (camp: any, tenant: { name: string; color: string | null }, base: string, r: { id?: string; variant?: string | null; name?: string | null; company?: string | null; email: string }) =>
-    ({ to: r.email, ...buildMail({ subject: r.variant === "b" && camp.subject_b ? camp.subject_b : camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) , track: r.id ? { base, rid: r.id } : undefined }),
+  const mailFor = async (camp: any, tenant: { name: string; color: string | null; logo?: string | null }, base: string, r: { id?: string; variant?: string | null; name?: string | null; company?: string | null; email: string }) =>
+    ({ to: r.email, ...buildMail({ subject: r.variant === "b" && camp.subject_b ? camp.subject_b : camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, tenantLogo: tenant.logo, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) , track: r.id ? { base, rid: r.id } : undefined }),
       headers: { "List-Unsubscribe": `<${optoutUrl(base, camp.tenant_id, r.email)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
 
   const tenantNameOf = async (tenantId: string) => {
     const { data } = await supabaseService.from("tenants").select("name, primary_color").eq("id", tenantId).maybeSingle();
-    return { name: String(data?.name || "nossa equipe"), color: (data?.primary_color as string | null) || null };
+    let logo: string | null = null;
+    try { const { data: emp } = await supabaseService.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "empresa_dados").maybeSingle(); logo = logoSegura(emp?.value?.logoUrl); } catch { /* sem logo */ }
+    return { name: String(data?.name || "nossa equipe"), color: (data?.primary_color as string | null) || null, logo };
   };
 
   // Teste: manda UM e-mail só para quem está logado (nunca para outra pessoa).
