@@ -376,3 +376,15 @@ test("pré-visualização do e-mail: usa nome de exemplo, não envia nada e não
     assert.ok(r.html.includes("Minha Empresa"));
   } finally { srv.close(); }
 });
+
+test("avisos do e-mail: pega assunto gritado, spam, links demais e dá dicas", async () => {
+  const { avisosDoEmail } = await import("../../src/lib/avisosEmail.js");
+  const ruim = avisosDoEmail("GANHE DINHEIRO AGORA!!!", "Oi");
+  assert.ok(ruim.some((v) => v.nivel === "atencao" && /MAIÚSCULAS/.test(v.texto)));
+  assert.ok(ruim.some((v) => /exclama/.test(v.texto)));
+  assert.ok(ruim.some((v) => /Expressões/.test(v.texto)));
+  assert.ok(ruim.some((v) => /curta/.test(v.texto)));
+  const bom = avisosDoEmail("{{primeiro_nome}}, sua vaga está confirmada", "Olá {{primeiro_nome}}, o treino é sábado às 9h. Veja os detalhes em https://exemplo.com.br/treino e responda este e-mail se precisar.");
+  assert.deepEqual(bom, []);
+  assert.equal(avisosDoEmail("", "").length, 0);
+});

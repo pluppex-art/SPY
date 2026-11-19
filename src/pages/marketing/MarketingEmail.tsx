@@ -6,6 +6,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
+import { avisosDoEmail } from "../../lib/avisosEmail";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { HelpTip } from "../../components/ui/help-tip";
 import { useData } from "../../contexts/DataContext";
@@ -388,6 +389,9 @@ export default function MarketingEmail() {
           <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Mensagem
             <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={8} maxLength={20000} placeholder={"Olá {{primeiro_nome}},\n\nO Treinão acontece neste sábado, dia 14, às 9h...\n\nTe esperamos!"} className="px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" />
             <button type="button" onClick={() => void verPrevia()} disabled={!body.trim() || carregandoPrevia} className="self-start text-[11px] font-bold text-[var(--color-primary-blue)] underline disabled:opacity-50">{carregandoPrevia ? "Carregando…" : "Ver como o e-mail vai ficar"}</button>
+            {avisosDoEmail(subject, body).length > 0 && (
+              <ul className="space-y-0.5 font-normal">{avisosDoEmail(subject, body).map((v) => (
+                <li key={v.texto} className={v.nivel === "atencao" ? "text-[var(--color-warning,#b45309)]" : "text-[var(--color-text-muted)]"}>{v.nivel === "atencao" ? "⚠ " : "💡 "}{v.texto}</li>))}</ul>)}
             <span className="font-normal">Use <code>{"{{nome}}"}</code>, <code>{"{{primeiro_nome}}"}</code> e <code>{"{{empresa}}"}</code>. O link para sair da lista é adicionado sozinho no rodapé.</span></label>
 
           <div className="space-y-2">
