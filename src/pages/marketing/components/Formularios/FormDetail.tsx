@@ -10,6 +10,8 @@ import { supabase } from "../../../../lib/supabase";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { FormStepsEditor } from "./FormStepsEditor";
+import { FormCamposEditor } from "./FormCamposEditor";
+import { normalizarCampos } from "../../../../lib/formularioCampos";
 
 export interface FormDefinition {
   id: string;
@@ -18,12 +20,17 @@ export interface FormDefinition {
   previewUrl: string;
   source: string;
   active: boolean;
+  /** Formulário criado dentro do sistema (link próprio), com campos editáveis. */
+  hospedado?: boolean;
+  campos?: any[];
+  mensagemSucesso?: string;
+  passoAPasso?: boolean;
 }
 
 interface SdrInfo { id: string; nome: string; phone: string; }
 interface FormRodizioConfig { current_index: number; active_sdr_ids: string[] | null; }
 interface LeadStat { total: number; today: number; thisWeek: number; }
-type Tab = "visualizar" | "rodizio" | "leads" | "perguntas";
+type Tab = "visualizar" | "rodizio" | "leads" | "perguntas" | "campos";
 
 export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId: string }) {
   const [tab,         setTab]       = useState<Tab>("visualizar");
@@ -134,6 +141,7 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
   const TABS: { key: Tab; label: string; icon: ReactNode }[] = [
     { key: "visualizar", label: "Visualizar",      icon: <Eye        className="w-3.5 h-3.5" /> },
     ...(supportsStepsEditor ? [{ key: "perguntas" as Tab, label: "Editar Perguntas", icon: <Pencil className="w-3.5 h-3.5" /> }] : []),
+    ...(form.hospedado ? [{ key: "campos" as Tab, label: "Campos", icon: <Pencil className="w-3.5 h-3.5" /> }] : []),
     { key: "rodizio",    label: "Rodízio SDR",     icon: <Users      className="w-3.5 h-3.5" /> },
     { key: "leads",      label: "Leads",           icon: <TrendingUp className="w-3.5 h-3.5" /> },
   ];
@@ -492,6 +500,10 @@ Content-Type: application/json
                 </div>
               )}
             </div>
+          )}
+
+          {tab === "campos" && form.hospedado && (
+            <FormCamposEditor key={form.id} formId={form.id} link={form.previewUrl} camposIniciais={normalizarCampos(form.campos)} mensagemInicial={form.mensagemSucesso || ""} passoAPassoInicial={form.passoAPasso !== false} />
           )}
 
           {tab === "perguntas" && supportsStepsEditor && (

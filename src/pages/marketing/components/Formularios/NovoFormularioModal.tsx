@@ -8,6 +8,8 @@ interface NovoFormularioPayload {
   description: string;
   previewUrl: string;
   source: string;
+  hospedar: boolean;
+  layoutMode: "scroll" | "passo_a_passo";
 }
 
 interface NovoFormularioModalProps {
@@ -26,19 +28,21 @@ export function NovoFormularioModal({ isOpen, onClose, onSave }: NovoFormularioM
   const [previewUrl, setPreviewUrl] = useState("");
   const [source, setSource] = useState("");
   const [layoutMode, setLayoutMode] = useState<"scroll" | "passo_a_passo">("passo_a_passo");
+  const [hospedar, setHospedar] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  const reset = () => { setName(""); setDescription(""); setPreviewUrl(""); setSource(""); setLayoutMode("passo_a_passo"); setLoading(false); };
+  const reset = () => { setName(""); setDescription(""); setPreviewUrl(""); setSource(""); setLayoutMode("passo_a_passo"); setHospedar(true); setLoading(false); };
   const handleClose = () => { reset(); onClose(); };
 
-  const canSubmit = Boolean(name.trim() && previewUrl.trim() && source.trim());
+  const sourceFinal = source.trim() || `form_${name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40)}`;
+  const canSubmit = Boolean(name.trim() && (hospedar || (previewUrl.trim() && source.trim())));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
     setLoading(true);
     try {
-      await onSave({ name: name.trim(), description: description.trim(), previewUrl: previewUrl.trim(), source: source.trim() });
+      await onSave({ name: name.trim(), description: description.trim(), previewUrl: previewUrl.trim(), source: hospedar ? sourceFinal : source.trim(), hospedar, layoutMode });
       reset();
     } finally {
       setLoading(false);
@@ -81,6 +85,7 @@ export function NovoFormularioModal({ isOpen, onClose, onSave }: NovoFormularioM
               setDescription("Formulário oficial de qualificação com 5 passos interativos, rodízio de SDRs e captação direta de leads no CRM.");
               setPreviewUrl("https://escolaempreendamais.pluppex.com.br/inscricao");
               setSource("landing_empreenda");
+              setHospedar(false);
             }}
             className="text-[10px] font-black text-orange-400 hover:text-orange-300 hover:underline uppercase tracking-wider"
           >
@@ -95,10 +100,16 @@ export function NovoFormularioModal({ isOpen, onClose, onSave }: NovoFormularioM
           <label className={labelClass}>Descrição</label>
           <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Contexto do formulário" className={inputClass} />
         </div>
-        <div>
+        <div className="grid grid-cols-2 gap-2">
+          {[[true, "Criar aqui no sistema", "Montamos o formulário e geramos o link para você divulgar."], [false, "Já tenho uma página", "Cadastre o endereço de um formulário que já existe."]].map(([v, t, d]) => (
+            <button key={String(v)} type="button" onClick={() => setHospedar(v as boolean)} className={`p-3 rounded-xl border text-left cursor-pointer ${hospedar === v ? "bg-orange-500/15 border-orange-500 ring-1 ring-orange-500/30" : "bg-[var(--color-surface)] border-white/10"}`}>
+              <span className="text-xs block font-black text-white">{t as string}</span><span className="text-[10px] text-slate-400 block mt-0.5">{d as string}</span>
+            </button>))}
+        </div>
+        {!hospedar && <div>
           <label className={labelClass}>URL da Landing Page / Formulário *</label>
           <input type="url" value={previewUrl} onChange={(e) => setPreviewUrl(e.target.value)} placeholder="https://sua-pagina.com.br/inscricao" className={inputClass} required />
-        </div>
+        </div>}
         <div>
           <label className={labelClass}>Formato de Exibição do Formulário</label>
           <div className="grid grid-cols-2 gap-2 mt-1.5">
@@ -135,8 +146,8 @@ export function NovoFormularioModal({ isOpen, onClose, onSave }: NovoFormularioM
         </div>
 
         <div>
-          <label className={labelClass}>Source (identificador dos leads) *</label>
-          <input type="text" value={source} onChange={(e) => setSource(e.target.value)} placeholder="Ex: landing_curso_vendas" className={inputClass} required />
+          <label className={labelClass}>Source (identificador dos leads){hospedar ? "" : " *"}</label>
+          <input type="text" value={source} onChange={(e) => setSource(e.target.value)} placeholder={hospedar ? `Automático: ${sourceFinal || "form_nome"}` : "Ex: landing_curso_vendas"} className={inputClass} required={!hospedar} />
           <p className="text-[10px] text-slate-500 mt-1.5">Deve bater com o campo "source" gravado nos leads criados por esse formulário.</p>
         </div>
       </form>

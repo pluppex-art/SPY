@@ -1,3 +1,4 @@
+import { CAMPOS_PADRAO } from "../../lib/formularioCampos";
 import { useState, useMemo, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { FileText, ChevronRight, Plus, Trash2, Sparkles, CheckCircle2, PauseCircle, Globe } from "lucide-react";
@@ -40,6 +41,10 @@ export default function MarketingFormularios() {
       previewUrl: f.preview_url,
       source: f.source,
       active: f.active !== false,
+      hospedado: f.hospedado === true,
+      campos: Array.isArray(f.campos) ? f.campos : [],
+      mensagemSucesso: f.mensagem_sucesso || "",
+      passoAPasso: f.layout_mode !== "scroll",
     }));
 
     const hasEmpreenda = list.some(
@@ -69,14 +74,27 @@ export default function MarketingFormularios() {
     );
   }, [forms, busca, statusFiltro, origem]);
 
-  const handleCreate = async (data: { name: string; description: string; previewUrl: string; source: string }) => {
-    await addMarketingForm({
+  const handleCreate = async (data: { name: string; description: string; previewUrl: string; source: string; hospedar?: boolean; layoutMode?: "scroll" | "passo_a_passo" }) => {
+    if (data.hospedar) {
+      // Formulário feito no sistema: o link é gerado a partir do id, e os campos padrão podem ser editados depois.
+      const id = crypto.randomUUID();
+      const criado: any = await addMarketingForm({
+        id, name: data.name, description: data.description, preview_url: `${window.location.origin}/form/${id}`, source: data.source,
+        active: true, hospedado: true, campos: CAMPOS_PADRAO, layout_mode: data.layoutMode ?? "passo_a_passo",
+      });
+      if (!criado) return; // o erro já foi mostrado
+      toast.success("Formulário criado. Edite os campos e divulgue o link.");
+      setIsModalOpen(false);
+      return;
+    }
+    const criado: any = await addMarketingForm({
       name: data.name,
       description: data.description,
       preview_url: data.previewUrl,
       source: data.source,
       active: true,
     });
+    if (!criado) return;
     toast.success("Formulário cadastrado.");
     setIsModalOpen(false);
   };

@@ -10,6 +10,7 @@
 import express, { type Express, type Request, type Response, type NextFunction, type RequestHandler } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { upsertLead } from "./leadUpsert.js";
+import { CAMPOS_PADRAO, normalizarCampos, validarRespostas } from "../src/lib/formularioCampos.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -116,17 +117,43 @@ export function registerMarketingPublicRoutes(app: Express, { supabaseService: d
     res.send();
   });
 
+  /** Dados para desenhar um formulário hospedado no sistema (só o necessário para a pessoa preencher). */
+  app.get("/api/public/forms/:formId/config", limiter, async (req, res) => {
+    try {
+      if (!db) return res.status(503).json({ error: "Indisponível no momento." });
+      const formId = String(req.params.formId ?? "").slice(0, 80);
+      const { data: form } = await db.from("marketing_forms").select("*").eq("id", formId).maybeSingle();
+      if (!form || form.active === false || form.hospedado !== true) return res.status(404).json({ error: "Formulário não encontrado." });
+      const campos = normalizarCampos(form.campos);
+      const { data: tn } = await db.from("tenants").select("name").eq("id", form.tenant_id).maybeSingle();
+      res.json({ nome: form.name, descricao: form.description || "", empresa: tn?.name || "", campos: campos.length ? campos : CAMPOS_PADRAO, passoAPasso: form.layout_mode === "passo_a_passo", mensagemSucesso: form.mensagem_sucesso || "Recebemos suas informações! Em breve entraremos em contato." });
+    } catch (e: any) {
+      console.error("[forms/config]", e?.message);
+      res.status(500).json({ error: "Não foi possível abrir o formulário agora." });
+    }
+  });
+
   app.post("/api/public/forms/:formId/submit", limiter, async (req, res) => {
     try {
       if (!db) return res.status(503).json({ error: "Indisponível no momento." });
       const b = lerCorpo(req);
       if (b.website) return res.json({ success: true }); // isca para robôs
       const formId = String(req.params.formId ?? "").slice(0, 80);
-      const v = validarContatoPublico(b);
-      if (v.ok === false) return res.status(400).json({ error: v.erro });
-      const { data: form } = await db.from("marketing_forms").select("id,tenant_id,name,source,active").eq("id", formId).maybeSingle();
+      const { data: form } = await db.from("marketing_forms").select("*").eq("id", formId).maybeSingle();
       if (!form || form.active === false) return res.status(404).json({ error: "Formulário não encontrado." });
-      await upsertLead(db, form.tenant_id, { name: v.contato.nome, email: v.contato.email, phone: v.contato.telefone, source: form.source || `Formulário: ${form.name}`, papel: "entrada", nota: notaDosCampos(b) || `Preencheu o formulário "${form.name}".` });
+      let contato: { nome: string; email: string; telefone: string }; let nota: string;
+      if (form.hospedado === true) {
+        // Formulário feito no sistema: valida contra os campos que a empresa montou.
+        const campos = normalizarCampos(form.campos);
+        const r = validarRespostas(campos.length ? campos : CAMPOS_PADRAO, b);
+        if (r.ok === false) return res.status(400).json({ error: r.erro });
+        contato = r.contato; nota = r.nota;
+      } else {
+        const v = validarContatoPublico(b);
+        if (v.ok === false) return res.status(400).json({ error: v.erro });
+        contato = v.contato; nota = notaDosCampos(b);
+      }
+      await upsertLead(db, form.tenant_id, { name: contato.nome, email: contato.email, phone: contato.telefone, source: form.source || `Formulário: ${form.name}`, papel: "entrada", nota: nota || `Preencheu o formulário "${form.name}".` });
       res.json({ success: true });
     } catch (e: any) {
       console.error("[forms/submit]", e?.message);

@@ -134,3 +134,37 @@ test("rastreio de e-mail: abertura e clique contam uma pessoa uma vez, só com a
   assert.ok(html.includes("RASTREIO(https://x.com/a?b=1&c=2)"));
   assert.ok(html.includes(">https://x.com/a?b=1&amp;c=2</a>"));
 });
+
+import { validarRespostas, normalizarCampos, CAMPOS_PADRAO } from "../../src/lib/formularioCampos.js";
+test("formulário próprio: valida obrigatórios, tipos e opções; monta contato e nota com os títulos das perguntas", () => {
+  const campos = normalizarCampos([...CAMPOS_PADRAO, { id: "interesse", label: "Interesse", tipo: "opcoes", obrigatorio: true, opcoes: ["Plano A", "Plano B"] }]);
+  const ok = validarRespostas(campos, { nome: "Maria Silva", telefone: "(63) 99999-0000", email: "Maria@X.com", mensagem: "oi", interesse: "Plano B" });
+  assert.equal(ok.ok, true);
+  if (ok.ok === true) { assert.deepEqual(ok.contato, { nome: "Maria Silva", telefone: "63999990000", email: "maria@x.com" }); assert.match(ok.nota, /Interesse: Plano B/); assert.match(ok.nota, /Como podemos ajudar\?: oi/); }
+  const falha = (r: any) => validarRespostas(campos, { nome: "Maria", telefone: "63999990000", interesse: "Plano A", ...r });
+  assert.equal(falha({ nome: "" }).ok, false);
+  assert.equal(falha({ telefone: "123" }).ok, false);
+  assert.equal(falha({ email: "sem-arroba" }).ok, false);
+  assert.equal(falha({ interesse: "Plano Z" }).ok, false); // opção que não existe
+  assert.equal(falha({ interesse: "" }).ok, false); // obrigatório
+  // campos inválidos do editor são descartados: sem título, tipo desconhecido, opções com menos de 2 itens
+  const lim = normalizarCampos([{ id: "a", label: "", tipo: "texto" }, { id: "b", label: "B", tipo: "xx" }, { id: "c", label: "C", tipo: "opcoes", opcoes: ["só uma"] }, { id: "ok", label: "OK", tipo: "texto" }, { id: "ok", label: "OK2", tipo: "texto" }]);
+  assert.deepEqual(lim.map((c) => c.id), ["ok", "ok_2"]);
+});
+
+test("formulário próprio: o servidor usa os campos do formulário e só aceita formulários hospedados na tela pública", async () => {
+  const db = criarFakeDb({ tenants: [{ id: T, name: "Empresa X" }], marketing_forms: [
+    { id: "h1", tenant_id: T, name: "Curso", source: "form_curso", active: true, hospedado: true, layout_mode: "passo_a_passo", campos: [{ id: "nome", label: "Seu nome", tipo: "texto", obrigatorio: true }, { id: "telefone", label: "WhatsApp", tipo: "telefone", obrigatorio: true }, { id: "turno", label: "Turno", tipo: "opcoes", obrigatorio: true, opcoes: ["Manhã", "Noite"] }] },
+    { id: "ext", tenant_id: T, name: "Externo", source: "ext", active: true, hospedado: false },
+  ] });
+  const { app, chamar } = criarFakeApp();
+  registerMarketingPublicRoutes(app, { supabaseService: db as any, limiter: ((_a: any, _b: any, n: any) => n && n()) as any });
+  const cfg = await chamar("GET", "/api/public/forms/:formId/config", { params: { formId: "h1" } });
+  assert.equal(cfg.status, 200); assert.equal(cfg.corpo.campos.length, 3); assert.equal(cfg.corpo.empresa, "Empresa X"); assert.equal(cfg.corpo.passoAPasso, true);
+  assert.equal(JSON.stringify(cfg.corpo).includes("tenant"), false);
+  assert.equal((await chamar("GET", "/api/public/forms/:formId/config", { params: { formId: "ext" } })).status, 404);
+  assert.equal((await chamar("POST", "/api/public/forms/:formId/submit", { params: { formId: "h1" }, body: { nome: "Ana Lima", telefone: "63988887777", turno: "Tarde" } })).status, 400);
+  const ok = await chamar("POST", "/api/public/forms/:formId/submit", { params: { formId: "h1" }, body: { nome: "Ana Lima", telefone: "63988887777", turno: "Noite" } });
+  assert.equal(ok.status, 200);
+  const l = db.t.leads[0]; assert.equal(l.source, "form_curso"); assert.match(l.notes, /Turno: Noite/);
+});
