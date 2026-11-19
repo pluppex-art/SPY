@@ -142,26 +142,10 @@ export function Sidebar({
           </Link>
         </div>
 
-        {!isSidebarCollapsed && (canSwitchTenant || canSwitchFilial) && (
+        {!isSidebarCollapsed && canSwitchFilial && (
           <div className="px-2 pt-2 pb-1 space-y-0.5 shrink-0">
-            {canSwitchTenant ? (
-              <div className="flex items-center gap-2.5 px-3 py-2 rounded-[var(--radius-control)] hover:bg-[var(--color-surface-sunken)] transition-colors" title="Trocar de cliente">
-                <Building2 className="w-4 h-4 text-[var(--color-primary-blue)] shrink-0" />
-                <select
-                  className="appearance-none bg-transparent border-none outline-none shadow-none ring-0 text-[var(--color-text-primary)] focus:outline-none focus:ring-0 focus:shadow-none text-xs font-bold cursor-pointer w-full truncate"
-                  value={activeTenantId || ""}
-                  onChange={(e) => {
-                    const opt = tenantOptions.find(t => t.id === e.target.value);
-                    if (opt) switchTenant(opt.id, opt.name);
-                  }}
-                >
-                  {tenantOptions.map(t => (
-                    <option key={t.id} value={t.id} className="bg-[var(--color-surface)]">{t.name}</option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-[var(--color-text-faint)] shrink-0 pointer-events-none" />
-              </div>
-            ) : (
+            {/* A troca de empresa fica na barra superior (TenantSwitcher). */}
+            {canSwitchTenant ? null : (
               <div className="text-xs text-[var(--color-text-muted)] font-bold truncate flex items-center gap-2.5 px-3 py-2">
                 <Building2 className="w-4 h-4 shrink-0 text-[var(--color-text-faint)]" />
                 {activeTenantName || user?.tenantName || "S.P.Y. Gestão Corporativa"}

@@ -1,4 +1,4 @@
-import { TenantSwitcherMobile } from "./TenantSwitcherMobile";
+import { TenantSwitcher } from "./TenantSwitcher";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -232,7 +232,7 @@ export function Topbar({
         </div>
 
         {/* Master / parceiro: troca de empresa no celular (lista em tela cheia). */}
-        <TenantSwitcherMobile />
+        <TenantSwitcher variante="mobile" />
 
         <div className="max-md:w-0 max-md:h-0 md:block">
           <CommandPalette />
@@ -240,6 +240,7 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-4 max-md:gap-2.5 sm:gap-5 shrink-0">
+        <TenantSwitcher variante="desktop" />
         <button
           type="button"
           onClick={() => toggleTheme()}
