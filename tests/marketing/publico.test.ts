@@ -585,3 +585,15 @@ test("sequência: duas rodadas ao mesmo tempo não mandam o mesmo e-mail duas ve
   await Promise.all([processarSequencias(db, "https://a.test", aj as any, { agora }), processarSequencias(db, "https://a.test", aj as any, { agora })]);
   assert.deepEqual(enviados, ["z@x.com"]);
 });
+
+test("leituras grandes: lista de descadastrados passa de 1000 linhas (paginada)", async () => {
+  const db = criarFakeDb({
+    tenants: [{ id: T, modules: { marketing: true } }], users: [{ id: "u1", is_master: false, is_tenant_admin: true, tenant_id: T }],
+    email_optouts: Array.from({ length: 2300 }, (_, i) => ({ tenant_id: T, email: `p${i}@x.com`, created_at: new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString() })),
+  });
+  const app = express(); app.use(express.json());
+  registerEmailCampaignRoutes(app as any, { requireUser: (q: any, _s: any, n: any) => { q.user = { id: "u1" }; n(); }, resolveRequestedTenantId: async () => T, limiter: (_q: any, _s: any, n: any) => n(), supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  try { const l = await (await fetch(`${base}/api/email-campaigns/descadastros`)).json(); assert.equal(l.itens.length, 2300); assert.equal(l.itens[0].email, "p2299@x.com"); }
+  finally { srv.close(); }
+});

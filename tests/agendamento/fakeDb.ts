@@ -81,7 +81,7 @@ export function criarFakeDb(seed: Record<string, Row[]> = {}, opts: { agoraMs?: 
   const from = (nome: string) => {
     const filtros: ((r: Row) => boolean)[] = [];
     let op: "select" | "insert" | "update" | "upsert" | "delete" = "select"; let contar = false;
-    let patch: Row = {}, ins: Row[] = [], onConflict = "id", ordem: [string, boolean] | null = null, max = Infinity, deslocar = 0, um = false;
+    let patch: Row = {}, ins: Row[] = [], onConflict = "id", ordem: [string, boolean][] = [], max = Infinity, deslocar = 0, um = false;
     const executar = (): Resp => {
       const linhas = (t[nome] ??= []);
       if (op === "insert" || op === "upsert") {
@@ -107,7 +107,7 @@ export function criarFakeDb(seed: Record<string, Row[]> = {}, opts: { agoraMs?: 
         }
         return { data: um ? m[0] ?? null : m, error: null };
       }
-      if (ordem) { const [c, asc] = ordem; m = [...m].sort((a, b) => (a[c] > b[c] ? 1 : a[c] < b[c] ? -1 : 0) * (asc ? 1 : -1)); }
+      if (ordem.length) m = [...m].sort((a, b) => { for (const [c, asc] of ordem) { const d = (a[c] > b[c] ? 1 : a[c] < b[c] ? -1 : 0) * (asc ? 1 : -1); if (d) return d; } return 0; });
       m = m.slice(deslocar, deslocar + max);
       return { data: um ? m[0] ?? null : m, error: null };
     };
@@ -128,7 +128,7 @@ export function criarFakeDb(seed: Record<string, Row[]> = {}, opts: { agoraMs?: 
       like: (c: string, v: string) => { const re = new RegExp("^" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/%/g, ".*") + "$"); filtros.push((r) => re.test(String(r[c] ?? ""))); return q; },
       ilike: (c: string, v: string) => { filtros.push((r) => String(r[c] ?? "").toLowerCase() === v.toLowerCase().replace(/\\/g, "")); return q; },
       or: () => q,
-      order: (c: string, o?: { ascending?: boolean }) => { ordem = [c, o?.ascending !== false]; return q; },
+      order: (c: string, o?: { ascending?: boolean }) => { ordem.push([c, o?.ascending !== false]); return q; },
       limit: (n: number) => { max = n; return q; },
       range: (a: number, b: number) => { deslocar = a; max = b - a + 1; return q; },
       maybeSingle: () => { um = true; return Promise.resolve(executar()); },

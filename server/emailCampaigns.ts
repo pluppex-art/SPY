@@ -532,9 +532,10 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   app.get("/api/email-campaigns/descadastros", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
-    const { data, error } = await supabaseService.from("email_optouts").select("email, created_at").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(5000);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ itens: data || [] });
+    try { // em páginas: o banco devolve no máximo 1000 linhas por consulta
+      const itens = await pagedTable(supabaseService, "email_optouts", "email, created_at", tenantId, (q) => q.order("created_at", { ascending: false }).order("email", { ascending: true }));
+      res.json({ itens });
+    } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao ler os descadastrados." }); }
   });
 
   /** Bloqueia um e-mail à mão (ex.: alguém reclamou por outro canal). Não existe "desbloquear": quem saiu da lista só volta se pedir ao próprio remetente. */

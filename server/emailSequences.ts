@@ -34,6 +34,12 @@ export function parseAuto(raw: any, desde: string): { sources: string[]; statuse
   return { sources: arr(raw?.sources), statuses: arr(raw?.statuses), canais: arr(raw?.canais), desde };
 }
 
+/** E-mails já inscritos (lê em páginas: o banco devolve no máximo 1000 linhas por consulta). */
+async function jaInscritos(db: any, seq: any): Promise<Set<string>> {
+  const linhas = await pagedTable(db, "email_sequence_enrollments", "email", seq.tenant_id, (q) => q.eq("sequence_id", seq.id));
+  return new Set(linhas.map((r: any) => String(r.email)));
+}
+
 /** Coloca nas sequências com entrada automática os leads novos (criados depois da ativação) que combinam com os filtros. */
 export async function inscreverAutomaticos(db: any, opts: { agora?: number; sequenceId?: string; tenantId?: string } = {}): Promise<{ sequencias: number; entraram: number }> {
   const agora = opts.agora ?? Date.now();
@@ -52,8 +58,7 @@ export async function inscreverAutomaticos(db: any, opts: { agora?: number; sequ
     if (el) continue;
     const sel = selectAudience(leads || [], { leads: true, sources: auto.sources, statuses: auto.statuses, canais: auto.canais } as any, await optoutSet(db, seq.tenant_id));
     if (!sel.rows.length) continue;
-    const { data: ja } = await db.from("email_sequence_enrollments").select("email").eq("sequence_id", seq.id).limit(20_000);
-    const existentes = new Set((ja || []).map((r: any) => String(r.email)));
+    const existentes = await jaInscritos(db, seq);
     const novos = sel.rows.filter((r) => !existentes.has(r.email));
     for (let i = 0; i < novos.length; i += 500) {
       const { error: ei } = await db.from("email_sequence_enrollments").insert(novos.slice(i, i + 500).map((r) => ({ sequence_id: seq.id, tenant_id: seq.tenant_id, lead_id: r.lead_id, email: r.email, name: r.name, company: r.company, step_idx: 0, next_send_at: quandoEnviar(agora, passos[0].dias), status: "active" })));
@@ -157,8 +162,7 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
     if (sel.rows.length > MAX_INSCRITOS) throw new Error(`Público com ${sel.rows.length} pessoas; o máximo por sequência é ${MAX_INSCRITOS}. Filtre por origem ou status.`);
     const passos: Passo[] = seq.steps || [];
     const quando = quandoEnviar(Date.now(), passos[0]?.dias ?? 0);
-    const { data: ja } = await db.from("email_sequence_enrollments").select("email").eq("sequence_id", seq.id).limit(20_000);
-    const existentes = new Set((ja || []).map((r: any) => String(r.email)));
+    const existentes = await jaInscritos(db, seq);
     const novos = sel.rows.filter((r) => !existentes.has(r.email));
     for (let i = 0; i < novos.length; i += 500) {
       const { error } = await db.from("email_sequence_enrollments").insert(novos.slice(i, i + 500).map((r) => ({ sequence_id: seq.id, tenant_id: tenantId, lead_id: r.lead_id, email: r.email, name: r.name, company: r.company, step_idx: 0, next_send_at: quando, status: "active" })));
