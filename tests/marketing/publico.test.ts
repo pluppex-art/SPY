@@ -918,3 +918,30 @@ test("campanha ↔ lead: liga pelo ID ou pelo nome (UTM), ignorando acento/maiú
   assert.equal(leadDaCampanha({ customFields: null }, c), false);
   assert.equal(leadDaCampanha({ customFields: { utm_campaign: "!!!" } }, { id: "1", nome: "???" }), false); // slugs vazios não casam
 });
+
+test("Meta Ads: teste de conexão traduz os erros e não grava nem vaza o token", async () => {
+  const { explicarErroMeta, registerMarketingAdsRoutes } = await import("../../server/marketingAds.js");
+  assert.match(explicarErroMeta({ error: { code: 190, message: "Error validating access token: Session has expired" } }), /expirou/);
+  assert.match(explicarErroMeta({ error: { code: 200, message: "(#200) Requires ads_read permission" } }), /permissão/);
+  assert.match(explicarErroMeta({ error: { code: 100, message: "Unsupported get request" } }), /Não encontrei essa conta/);
+  assert.match(explicarErroMeta({ error: { code: 17, message: "User request limit reached" } }), /limitou/);
+  const db = criarFakeDb({ app_settings: [{ tenant_id: T, key: "integracoes_meta_ads", value: { accountId: "111", adsToken: "SALVO" } }] });
+  const app = express(); app.use(express.json());
+  registerMarketingAdsRoutes(app as any, { requireUser: (_q: any, _s: any, n: any) => n(), resolveRequestedTenantId: async () => T, supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  const orig = globalThis.fetch; const vistos: { url: string; auth: string }[] = [];
+  (globalThis as any).fetch = async (u: any, init: any) => {
+    const url = String(u); if (!url.startsWith("https://graph.facebook.com/")) return orig(u, init);
+    vistos.push({ url, auth: String(init?.headers?.Authorization || "") });
+    return url.includes("/act_999") ? ({ ok: false, json: async () => ({ error: { code: 190, message: "expired" } }) } as any) : ({ ok: true, json: async () => ({ name: "Minha Conta", currency: "BRL", account_status: 1 }) } as any);
+  };
+  const post = (b: any) => fetch(`${base}/api/marketing/meta-testar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then((r) => r.json());
+  try {
+    assert.deepEqual(await post({ accountId: "act_555", adsToken: "DIGITADO" }), { ok: true, nome: "Minha Conta", moeda: "BRL", situacao: "ativa" });
+    assert.ok(vistos[0].url.includes("/act_555?") && vistos[0].auth === "Bearer DIGITADO" && !vistos[0].url.includes("DIGITADO")); // usa o que foi digitado; token só no cabeçalho
+    await post({}); assert.ok(vistos[1].url.includes("/act_111?") && vistos[1].auth === "Bearer SALVO"); // vazio: cai no salvo
+    const ruim = await post({ accountId: "999", adsToken: "X" }); assert.equal(ruim.ok, false); assert.match(ruim.error, /expirou/);
+    assert.equal((await post({ accountId: "", adsToken: "" }).then(() => 1)), 1);
+    assert.equal(db.t.app_settings[0].value.adsToken, "SALVO"); // não grava nada
+  } finally { (globalThis as any).fetch = orig; srv.close(); }
+});

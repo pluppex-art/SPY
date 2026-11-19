@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { IA_AGENTS } from "../../../../lib/iaAgents";
 import { NovaIntegracaoModal } from "../../../../components/ui/modals/settings/NovaIntegracaoModal";
 import { apiFetch } from "../../../../lib/apiClient";
+import { TesteMetaAds } from "./TesteMetaAds";
 import { DEFAULT_META_CONFIG, DEFAULT_GOOGLE_CONFIG, DEFAULT_PAYMENT_CONFIG, DEFAULT_MAXDATA_CONFIG } from "../../../../lib/tenantIntegrations";
 import { INTEGRATION_CATALOG, catalogHasAnyValue, catalogMissingRequired, type CatalogIntegration, type CatalogValues } from "../../../../lib/integrationCatalog";
 
@@ -1491,6 +1492,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
                     />
                   </FormField>
                 </div>
+                <TesteMetaAds accountId={metaConfig.accountId} adsToken={metaConfig.adsToken} />
 
                 <div className="p-4 rounded-[var(--radius-panel)] border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]/60 flex items-center justify-between">
                   <div className="space-y-0.5">

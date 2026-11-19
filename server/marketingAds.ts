@@ -135,6 +135,18 @@ export function serieDiaria(objetivo: string, linhas: any[]): DiaCampanha[] {
   return out.sort((a, b) => a.data.localeCompare(b.data));
 }
 
+const STATUS_CONTA: Record<number, string> = { 1: "ativa", 2: "desativada", 3: "com pagamento pendente", 7: "em análise de risco", 8: "em período de carência", 9: "em carência", 100: "em fechamento", 101: "fechada", 201: "ativa" };
+
+/** Traduz o erro do Graph numa orientação que a pessoa consegue seguir. */
+export function explicarErroMeta(j: any): string {
+  const code = Number(j?.error?.code), msg = String(j?.error?.message || "");
+  if (code === 190 || /expired|session|invalid.*token|OAuth/i.test(msg)) return "O token expirou ou é inválido. Gere um novo token com a permissão ads_read.";
+  if (code === 200 || code === 10 || /permission/i.test(msg)) return "O token não tem permissão para ler esta conta. Ele precisa da permissão ads_read e de acesso a esta conta de anúncios.";
+  if (code === 100 || /does not exist|unsupported get request/i.test(msg)) return "Não encontrei essa conta de anúncios. Confira o ID (só números, sem act_) e se o token tem acesso a ela.";
+  if (code === 4 || code === 17 || code === 32 || code === 613) return "O Meta limitou as consultas por agora. Tente de novo em alguns minutos.";
+  return "O Meta recusou a consulta. Confira o ID da conta e o token.";
+}
+
 interface Deps { requireUser: any; resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>; supabaseService: any }
 
 export function registerMarketingAdsRoutes(app: Express, { requireUser, resolveRequestedTenantId, supabaseService }: Deps) {
@@ -257,6 +269,26 @@ export function registerMarketingAdsRoutes(app: Express, { requireUser, resolveR
     } catch (e: any) {
       console.error("[meta-campanha]", e?.message);
       res.status(502).json({ configurado: true, error: "Não foi possível consultar o Meta Ads agora." });
+    }
+  });
+
+  /** Testa o ID da conta e o token (os digitados na tela ou, se vazios, os já salvos) sem gravar nada. */
+  app.post("/api/marketing/meta-testar", requireUser, async (req: any, res: any) => {
+    if (!supabaseService) return res.status(503).json({ error: "Servidor sem acesso ao banco." });
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    try {
+      const { data: s } = await supabaseService.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_meta_ads").maybeSingle();
+      const conta = String(req.body?.accountId || s?.value?.accountId || "").replace(/\D/g, "");
+      const token = String(req.body?.adsToken || s?.value?.adsToken || "").trim();
+      if (!conta) return res.json({ ok: false, error: "Informe o ID da conta de anúncios." });
+      if (!token) return res.json({ ok: false, error: "Informe o token de leitura de anúncios." });
+      const r = await fetch(`${GRAPH}/act_${conta}?fields=name,currency,account_status`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
+      const j: any = await r.json().catch(() => ({}));
+      if (!r.ok) return res.json({ ok: false, error: explicarErroMeta(j) });
+      res.json({ ok: true, nome: String(j?.name || ""), moeda: String(j?.currency || ""), situacao: STATUS_CONTA[Number(j?.account_status)] || "" });
+    } catch (e: any) {
+      console.error("[meta-testar]", e?.message);
+      res.json({ ok: false, error: "Não foi possível falar com o Meta agora. Tente de novo em instantes." });
     }
   });
 }
