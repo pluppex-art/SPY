@@ -174,6 +174,17 @@ export async function enviarEmailParaLeads(db: any, tenantId: string, base: stri
   return { enviados, falhas, semEmail, descadastrados, bloqueadosPelaCota };
 }
 
+/** Data de envio escolhida (AAAA-MM-DD, horário de Brasília): de hoje até 90 dias. O disparo automático sai a partir das 00h desse dia. */
+export function parseAgendamento(raw: unknown, agora: Date = new Date()): { ok: true; quando: string | null } | { ok: false; erro: string } {
+  if (raw === undefined || raw === null || raw === "") return { ok: true, quando: null };
+  const d = String(raw);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(Date.parse(d))) return { ok: false, erro: "Data de agendamento inválida." };
+  const hojeBR = new Date(agora.getTime() - 3 * 3600_000).toISOString().slice(0, 10);
+  if (d < hojeBR) return { ok: false, erro: "A data do agendamento já passou." };
+  if (Date.parse(d) - Date.parse(hojeBR) > 90 * 86400_000) return { ok: false, erro: "Agende no máximo 90 dias à frente." };
+  return { ok: true, quando: `${d}T00:00:00-03:00` };
+}
+
 export function selectAudience(leads: any[], aud: Audience, optouts: Set<string>) {
   return dedupeCandidates(filterLeads(leads, aud), optouts);
 }
@@ -271,9 +282,12 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     const colunas = "id, name, subject, status, total, sent, failed, sender, created_at, started_at, finished_at";
-    let { data, error } = await supabaseService.from("email_campaigns").select(`${colunas}, opened, clicked`).eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(50);
-    if (error && /opened|clicked/i.test(error.message)) // migração 20261126 ainda não aplicada: lista sem as métricas
-      ({ data, error } = await supabaseService.from("email_campaigns").select(colunas).eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(50));
+    // Colunas novas (métricas e agendamento) podem ainda não existir no banco: tenta com tudo e vai tirando.
+    let data: any[] | null = null; let error: any = null;
+    for (const extra of [", opened, clicked, agendada_para", ", opened, clicked", ""]) {
+      ({ data, error } = await supabaseService.from("email_campaigns").select(`${colunas}${extra}`).eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(50));
+      if (!error || !/opened|clicked|agendada_para/i.test(error.message)) break;
+    }
     if (error) return res.status(500).json({ error: error.message });
     res.json({ campaigns: data || [] });
   });
@@ -287,6 +301,8 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
     const body = String(req.body?.body || "").trim().slice(0, 20_000);
     if (!name || !subject || !body) return res.status(400).json({ error: "Informe nome, assunto e mensagem." });
+    const agendamento = parseAgendamento(req.body?.agendarPara);
+    if (agendamento.ok === false) return res.status(400).json({ error: agendamento.erro });
     try {
       const aud = parseAudience(req.body?.audience);
       const sel = await resolveAudience(supabaseService, tenantId, aud);
@@ -294,8 +310,8 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       if (sel.rows.length > MAX_RECIPIENTS) return res.status(400).json({ error: `Público com ${sel.rows.length} pessoas; o máximo por campanha é ${MAX_RECIPIENTS}. Filtre por origem ou status.` });
       const audience = { ...aud, manual: undefined, manualCount: aud.manual?.length || 0 }; // a lista própria fica nos destinatários, não duplicada aqui
       const { data: camp, error } = await supabaseService.from("email_campaigns")
-        .insert({ tenant_id: tenantId, name, subject, body, audience, total: sel.rows.length, status: "ready", created_by: req.user.id }).select("id").single();
-      if (error) throw new Error(error.message);
+        .insert({ tenant_id: tenantId, name, subject, body, audience, total: sel.rows.length, status: "ready", created_by: req.user.id, ...(agendamento.quando ? { agendada_para: agendamento.quando } : {}) }).select("id").single();
+      if (error) throw new Error(agendamento.quando && /agendada_para/i.test(error.message) ? "O agendamento ainda não foi liberado no banco de dados (migração 20261129). Peça para a equipe técnica aplicar ou envie agora." : error.message);
       for (let i = 0; i < sel.rows.length; i += 500) {
         const { error: e2 } = await supabaseService.from("email_campaign_recipients")
           .insert(sel.rows.slice(i, i + 500).map((r) => ({ ...r, campaign_id: camp.id, tenant_id: tenantId })));
@@ -421,7 +437,10 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const auth = String(req.headers.authorization || "");
     if (!segredo || !supabaseService || auth.length !== `Bearer ${segredo}`.length || !crypto.timingSafeEqual(Buffer.from(auth), Buffer.from(`Bearer ${segredo}`))) return res.status(401).json({ error: "Não autorizado." });
     const inicio = Date.now();
-    const { data: campanhas } = await supabaseService.from("email_campaigns").select("*").eq("status", "sending").order("started_at", { ascending: true }).limit(20);
+    const { data: emAndamento } = await supabaseService.from("email_campaigns").select("*").eq("status", "sending").order("started_at", { ascending: true }).limit(20);
+    // Agendadas cuja data chegou também saem aqui.
+    const { data: agendadas } = await supabaseService.from("email_campaigns").select("*").eq("status", "ready").not("agendada_para", "is", null).lte("agendada_para", new Date().toISOString()).order("agendada_para", { ascending: true }).limit(20);
+    const campanhas = [...(emAndamento || []), ...(agendadas || [])];
     let lotes = 0;
     for (const camp of campanhas || []) {
       if (Date.now() - inicio > 45_000) break;

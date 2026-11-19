@@ -17,7 +17,7 @@ import { FileSpreadsheet } from "lucide-react";
 // Disparo de e-mail em massa: monta o público a partir dos leads da empresa (por origem/status), cria a campanha
 // e envia em lotes com progresso. Sai pelo SMTP da empresa (Integrações → SMTP) ou, sem ele, pelo da plataforma.
 
-interface Campaign { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; opened?: number; clicked?: number; sender: string | null; created_at: string }
+interface Campaign { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; opened?: number; clicked?: number; agendada_para?: string | null; sender: string | null; created_at: string }
 interface Option { value: string; count: number }
 interface Options { sources: Option[]; statuses: Option[]; sender: { kind: "tenant" | "platform"; from?: string } }
 interface Preview { total: number; semEmail: number; descadastrados: number; repetidos: number; excluidos?: number; sample: { name: string; email: string }[] }
@@ -84,6 +84,7 @@ export default function MarketingEmail() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [agendarPara, setAgendarPara] = useState("");
 
   const tenantRef = useRef(activeTenantId);
   tenantRef.current = activeTenantId;
@@ -119,8 +120,9 @@ export default function MarketingEmail() {
   const create = async () => {
     setCreating(true);
     try {
-      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body, audience }) }).then(json);
-      toast.success(`Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
+      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body, audience, ...(agendarPara ? { agendarPara } : {}) }) }).then(json);
+      toast.success(agendarPara ? `Campanha agendada para ${agendarPara.split("-").reverse().join("/")} (${r.total} destinatário(s)). Envie um teste para você antes.` : `Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
+      setAgendarPara("");
       setOpen(false); setName(""); setSubject(""); setBody(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
       await load();
     } catch (e: any) { toast.error(e.message); } finally { setCreating(false); }
@@ -213,7 +215,7 @@ export default function MarketingEmail() {
                     <h4 className="text-sm font-bold text-[var(--color-text-primary)] truncate">{c.name}</h4>
                     <p className="text-xs text-[var(--color-text-muted)] truncate">Assunto: {c.subject}</p>
                   </div>
-                  <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]">{STATUS_LABEL[c.status] || c.status}</span>
+                  <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]">{c.status === "ready" && c.agendada_para ? `Agendada para ${new Date(c.agendada_para).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : STATUS_LABEL[c.status] || c.status}</span>
                 </div>
                 <div>
                   <div className="h-2 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden"><div className="h-full bg-[var(--color-primary-blue)] transition-all" style={{ width: `${pct}%` }} /></div>
@@ -312,8 +314,12 @@ export default function MarketingEmail() {
                   : "Não foi possível calcular o público."}
             </div>
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end items-center gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={creating} className="h-9 px-4 text-xs">Cancelar</Button>
+            <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]">Enviar em
+              <input type="date" value={agendarPara} min={new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)} onChange={(e) => setAgendarPara(e.target.value)} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" />
+              <HelpTip label="Agendamento">Deixe em branco para disparar você mesmo quando quiser. Com uma data, a campanha sai sozinha no envio automático das 10h (Brasília) desse dia, mesmo com o sistema fechado. Você ainda pode enviar antes pelo botão.</HelpTip>
+            </label>
             <Button onClick={() => void create()} disabled={!canCreate} className="h-9 px-5 text-xs font-bold gap-1.5">{creating && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Criar campanha</Button>
           </div>
         </div>

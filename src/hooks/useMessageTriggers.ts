@@ -27,7 +27,7 @@ export interface MessageTrigger {
   erro: string | null;
   createdAt: string;
   /** Por onde a mensagem sai depois de aprovada. */
-  canal: "whatsapp" | "email";
+  canal: "whatsapp" | "email" | "sms";
 }
 
 /**
@@ -71,7 +71,7 @@ export function useMessageTriggers() {
         leadsEncontrados: Array.isArray(row.leads_encontrados) ? row.leads_encontrados : [],
         erro: row.erro,
         createdAt: row.created_at,
-        canal: row.canal === "email" ? "email" : "whatsapp",
+        canal: row.canal === "email" || row.canal === "sms" ? row.canal : "whatsapp",
       }))
     );
     setLoading(false);
@@ -82,14 +82,14 @@ export function useMessageTriggers() {
   }, [refresh]);
 
   const criar = useCallback(
-    async (descricao: string, canal: "whatsapp" | "email" = "whatsapp") => {
+    async (descricao: string, canal: "whatsapp" | "email" | "sms" = "whatsapp") => {
       if (!supabase || !activeTenantId) return { error: "Sem empresa ativa" };
       const { data, error } = await supabase
         .from("tenant_message_triggers")
-        .insert({ tenant_id: activeTenantId, descricao, ...(canal === "email" ? { canal } : {}) })
+        .insert({ tenant_id: activeTenantId, descricao, ...(canal !== "whatsapp" ? { canal } : {}) })
         .select("id")
         .single();
-      if (error) return { error: /canal/i.test(error.message) ? "O envio por e-mail ainda não foi liberado no banco de dados (migração 20261125). Peça para a equipe técnica aplicar." : error.message };
+      if (error) return { error: /canal/i.test(error.message) ? "O envio por e-mail/SMS ainda não foi liberado no banco de dados (migrações 20261125 e 20261129). Peça para a equipe técnica aplicar." : error.message };
       // A linha já existe (status pendente_interpretacao) — mesmo se essa chamada falhar,
       // o usuário já vê o gatilho na lista como "processando" e pode tentar de novo depois.
       await apiFetch(`/api/message-triggers/${data.id}/interpretar`, { method: "POST" }).catch(() => {});

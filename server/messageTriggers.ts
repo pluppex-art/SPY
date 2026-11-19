@@ -16,6 +16,7 @@
  */
 import type { Express, RequestHandler } from "express";
 import { enviarEmailParaLeads } from "./emailCampaigns.js";
+import { enviarSmsParaLeads } from "./sms.js";
 
 interface Deps {
   requireUser: RequestHandler;
@@ -90,6 +91,19 @@ export function registerMessageTriggerRoutes(app: Express, { requireUser, supaba
         const base = (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, "");
         const r = await enviarEmailParaLeads(supabaseService, completo.tenant_id, base, ids, texto);
         await supabaseService.from("tenant_message_triggers").update({ status: r.enviados > 0 || r.falhas === 0 ? "executado" : "erro", executado_em: new Date().toISOString(), erro: r.falhas || r.bloqueadosPelaCota ? `${r.enviados} enviado(s), ${r.falhas} falha(s)${r.bloqueadosPelaCota ? `, ${r.bloqueadosPelaCota} fora da cota diária` : ""}.` : null }).eq("id", req.params.id);
+        return res.json({ ok: true, ...r });
+      }
+
+      // Canal SMS: também nativo, pelo Twilio ou Zenvia cadastrados em Integrações.
+      if (completo?.canal === "sms") {
+        if (!supabaseService) return res.status(503).json({ error: "Servidor sem acesso ao banco." });
+        const ids = (Array.isArray(completo.leads_encontrados) ? completo.leads_encontrados : []).map((l: any) => l?.id).filter(Boolean);
+        const texto = String(completo.mensagem_sugerida || "").trim();
+        if (!ids.length || !texto) return res.status(409).json({ error: "O gatilho não tem leads ou mensagem para enviar." });
+        const r = await enviarSmsParaLeads(supabaseService, completo.tenant_id, ids, texto);
+        if (r.erro) return res.status(409).json({ error: r.erro });
+        const aviso = `${r.enviados} SMS enviado(s), ${r.falhas} falha(s)${r.semTelefone ? `, ${r.semTelefone} sem telefone válido` : ""}${r.acimaDoLimite ? `, ${r.acimaDoLimite} acima do limite de 200 por envio` : ""}.`;
+        await supabaseService.from("tenant_message_triggers").update({ status: r.enviados > 0 ? "executado" : "erro", executado_em: new Date().toISOString(), erro: r.falhas || r.semTelefone || r.acimaDoLimite || r.enviados === 0 ? aviso : null }).eq("id", req.params.id);
         return res.json({ ok: true, ...r });
       }
 

@@ -19,7 +19,7 @@ export const GATILHO_TEMPLATES: GatilhoTemplate[] = [
   { id: "personalizado", label: "Personalizado", texto: "" },
 ];
 
-const CANAIS_DISPONIVEIS = new Set(["whatsapp", "email"]);
+const CANAIS_DISPONIVEIS = new Set(["whatsapp", "email", "sms"]);
 export interface CanalEnvio { id: string; label: string; disponivel: boolean }
 export const CANAIS_ENVIO: CanalEnvio[] = [
   { id: "whatsapp", label: "WhatsApp", disponivel: true },

@@ -133,7 +133,7 @@ export default function MarketingAutomacoes() {
   const handleSubmit = async () => {
     if (!descricao.trim()) { toast.error("Descreva o que você quer que aconteça."); return; }
     setSubmitting(true);
-    const { error } = await criar(descricao.trim(), canalSelecionado === "email" ? "email" : "whatsapp");
+    const { error } = await criar(descricao.trim(), canalSelecionado === "email" || canalSelecionado === "sms" ? canalSelecionado : "whatsapp");
     setSubmitting(false);
     if (error) { toast.error(error); return; }
     setDescricao("");

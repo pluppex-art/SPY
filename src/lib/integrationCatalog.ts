@@ -62,8 +62,8 @@ export const INTEGRATION_CATALOG: CatalogIntegration[] = [
 
   // ── Mensageria
   { id: "telegram", name: "Telegram Bot", category: "mensageria", description: d("bot do Telegram"), fields: [sec("botToken", "Bot Token"), t("chatId", "Chat / canal padrão (ID)")] },
-  { id: "twilio", name: "Twilio (SMS / WhatsApp)", category: "mensageria", description: d("Twilio"), fields: [t("accountSid", "Account SID", true), sec("authToken", "Auth Token"), t("fromNumber", "Número remetente", false, "No formato internacional, ex.: +5511999999999")] },
-  { id: "zenvia", name: "Zenvia", category: "mensageria", description: d("Zenvia", "SMS e chat."), fields: [sec("apiToken", "API Token"), t("sender", "Remetente / canal")] },
+  { id: "twilio", name: "Twilio (SMS / WhatsApp)", category: "mensageria", description: "Guarda as credenciais do Twilio. Usadas para enviar SMS nos Gatilhos de mensagem (Marketing → Automações). Outros usos do Twilio ainda não estão ligados.", fields: [t("accountSid", "Account SID", true), sec("authToken", "Auth Token"), t("fromNumber", "Número remetente", false, "No formato internacional, ex.: +5511999999999")] },
+  { id: "zenvia", name: "Zenvia", category: "mensageria", description: "Guarda as credenciais da Zenvia. Usadas para enviar SMS nos Gatilhos de mensagem (Marketing → Automações), quando não há Twilio cadastrado.", fields: [sec("apiToken", "API Token"), t("sender", "Remetente / canal")] },
   { id: "slack", name: "Slack", category: "mensageria", description: d("Slack", "Avisos em canais."), fields: [url("webhookUrl", "Incoming Webhook URL", true, undefined, "https://hooks.slack.com/…"), t("channel", "Canal padrão")] },
 
   // ── Pagamentos

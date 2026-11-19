@@ -199,3 +199,48 @@ test("landing page própria: só abre se estiver publicada, conta visita 1x, cri
   assert.equal(db.t.marketing_landing_pages[0].conversions, 1);
   assert.equal(db.t.leads.length, 1); assert.match(db.t.leads[0].source, /LP Oferta/);
 });
+
+import { telefoneE164, credencialDeSms, montarRequisicaoSms, enviarSmsParaLeads } from "../../server/sms.js";
+import { parseAgendamento } from "../../server/emailCampaigns.js";
+
+test("SMS: telefone vira formato internacional e credenciais vêm do cadastro (Twilio antes de Zenvia)", () => {
+  assert.equal(telefoneE164("(63) 99999-0000"), "+5563999990000");
+  assert.equal(telefoneE164("+55 63 3222-1000"), "+556332221000");
+  assert.equal(telefoneE164("123"), ""); assert.equal(telefoneE164("+1 415 555 0100"), "");
+  assert.equal(credencialDeSms({}), null);
+  assert.equal(credencialDeSms({ twilio: { accountSid: "AC1", authToken: "t" } }), null); // incompleto
+  const tw = credencialDeSms({ twilio: { accountSid: "AC1", authToken: "t", fromNumber: "+5511999999999" }, zenvia: { apiToken: "z", sender: "x" } });
+  assert.equal(tw?.provedor, "twilio");
+  assert.equal(credencialDeSms({ zenvia: { apiToken: "z", sender: "Loja" } })?.provedor, "zenvia");
+  const r = montarRequisicaoSms(tw!, "+5563999990000", "Oi!");
+  assert.match(r.url, /api\.twilio\.com\/2010-04-01\/Accounts\/AC1\/Messages\.json$/);
+  assert.match(String(r.init.body), /To=%2B5563999990000/);
+  const z = montarRequisicaoSms({ provedor: "zenvia", apiToken: "z", from: "Loja" }, "+5563999990000", "Oi!");
+  assert.equal(JSON.parse(String(z.init.body)).to, "5563999990000");
+});
+
+test("SMS: sem credencial cadastrada não envia nada e avisa; com credencial envia só para telefones válidos, sem repetir", async () => {
+  const leads = [{ id: "a", tenant_id: T, name: "Ana Lima", phone: "(63) 99999-0001", deleted_at: null }, { id: "b", tenant_id: T, name: "Beto", phone: "63999990001", deleted_at: null }, { id: "c", tenant_id: T, name: "Cris", phone: "12", deleted_at: null }];
+  const semCred = await enviarSmsParaLeads(criarFakeDb({ leads }) as any, T, ["a", "b", "c"], "Oi {{primeiro_nome}}");
+  assert.equal(semCred.enviados, 0); assert.match(String(semCred.erro), /Twilio ou a Zenvia/);
+  const db = criarFakeDb({ leads, app_settings: [{ tenant_id: T, key: "integracoes_catalogo", value: { twilio: { accountSid: "AC1", authToken: "t", fromNumber: "+5511999999999" } } }] });
+  const corpos: string[] = [];
+  const original = globalThis.fetch;
+  (globalThis as any).fetch = async (_u: string, init: any) => { corpos.push(String(init.body)); return { ok: true } as any; };
+  try {
+    const r = await enviarSmsParaLeads(db as any, T, ["a", "b", "c"], "Oi {{primeiro_nome}}!");
+    assert.equal(r.enviados, 1); assert.equal(r.semTelefone, 1); // a e b têm o mesmo número; c é inválido
+    assert.match(decodeURIComponent(corpos[0].replace(/\+(?=[^%])/g, " ")), /Body=Oi Ana!/);
+  } finally { (globalThis as any).fetch = original; }
+});
+
+test("e-mail agendado: data válida de hoje até 90 dias, em horário de Brasília", () => {
+  const agora = new Date("2026-11-19T12:00:00Z");
+  assert.deepEqual(parseAgendamento("", agora), { ok: true, quando: null });
+  assert.deepEqual(parseAgendamento("2026-11-19", agora), { ok: true, quando: "2026-11-19T00:00:00-03:00" });
+  assert.equal(parseAgendamento("2026-11-18", agora).ok, false);
+  assert.equal(parseAgendamento("2027-03-01", agora).ok, false);
+  assert.equal(parseAgendamento("amanhã", agora).ok, false);
+  // 01h UTC ainda é "ontem" em Brasília
+  assert.equal(parseAgendamento("2026-11-18", new Date("2026-11-19T01:00:00Z")).ok, true);
+});
