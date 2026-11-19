@@ -330,3 +330,20 @@ test("reenvio: só quem recebeu e não abriu nem clicou, sem descadastrados", as
   ], new Set(["e@x.com"]));
   assert.deepEqual(r.map((x) => x.email), ["a@x.com"]);
 });
+
+test("link UTM: normaliza, mantém parâmetros existentes e valida", async () => {
+  const { montarLinkUtm } = await import("../../src/lib/linkUtm.js");
+  const r = montarLinkUtm({ url: "spycrm.com.br/form/abc?x=1", source: "Instagram", medium: "Stories", campaign: "Black Friday 2026!", content: "" });
+  assert.ok(r.ok);
+  if (r.ok) {
+    const u = new URL(r.link);
+    assert.equal(u.searchParams.get("x"), "1");
+    assert.equal(u.searchParams.get("utm_source"), "instagram");
+    assert.equal(u.searchParams.get("utm_medium"), "stories");
+    assert.equal(u.searchParams.get("utm_campaign"), "black_friday_2026");
+    assert.equal(u.searchParams.has("utm_content"), false);
+  }
+  assert.equal(montarLinkUtm({ url: "", source: "x" }).ok, false);
+  assert.equal(montarLinkUtm({ url: "https://site.com", source: "" }).ok, false);
+  assert.equal(montarLinkUtm({ url: "https://localhost", source: "x" }).ok, false);
+});
