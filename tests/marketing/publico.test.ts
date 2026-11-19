@@ -597,3 +597,17 @@ test("leituras grandes: lista de descadastrados passa de 1000 linhas (paginada)"
   try { const l = await (await fetch(`${base}/api/email-campaigns/descadastros`)).json(); assert.equal(l.itens.length, 2300); assert.equal(l.itens[0].email, "p2299@x.com"); }
   finally { srv.close(); }
 });
+
+test("resumo de e-mail: taxas, ranking com mínimo de envios e rótulo de sequência", async () => {
+  const { resumirEmail } = await import("../../src/lib/resumoEmail.js");
+  const r = resumirEmail([
+    { id: "a", name: "Black Friday", sent: 100, opened: 40, clicked: 10 },
+    { id: "b", name: "[Sequência] Boas-vindas", sent: 50, opened: 30, clicked: 20 },
+    { id: "c", name: "Teste pequeno", sent: 5, opened: 5, clicked: 5 },
+    { id: "d", name: "Sem envio", sent: 0 },
+  ]);
+  assert.equal(r.campanhas, 3); assert.equal(r.enviados, 155);
+  assert.equal(r.taxaAbertura, 48.4); assert.equal(r.taxaClique, 22.6);
+  assert.deepEqual(r.melhores.map((m) => m.name), ["Sequência: Boas-vindas", "Black Friday"]);
+  assert.equal(resumirEmail([]).taxaAbertura, null);
+});

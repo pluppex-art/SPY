@@ -12,6 +12,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
 import { AquisicaoPanel } from "./AquisicaoPanel";
 import { GeradorLinkUtm } from "./GeradorLinkUtm";
+import { EmailResumoPanel } from "./EmailResumoPanel";
 import { apiFetch } from "../../lib/apiClient";
 
 const COLORS = ['#3b82f6', '#f43f5e', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4'];
@@ -156,6 +157,7 @@ export default function MarketingAnalytics() {
       subtitle="Analise o custo e o retorno dos seus canais: CPL (custo por lead), CPLQ (custo por lead qualificado), CAC (custo para conquistar um cliente) e ROAS (retorno sobre o gasto com anúncios)."
     >
       <AquisicaoPanel />
+      <EmailResumoPanel />
       <GeradorLinkUtm />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
