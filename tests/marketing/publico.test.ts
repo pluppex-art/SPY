@@ -318,3 +318,15 @@ test("teste A/B de assunto: divide meio a meio e resume por variante", async () 
   assert.deepEqual(r.a, { enviados: 2, abriram: 1, clicaram: 0 });
   assert.deepEqual(r.b, { enviados: 1, abriram: 1, clicaram: 1 });
 });
+
+test("reenvio: só quem recebeu e não abriu nem clicou, sem descadastrados", async () => {
+  const { selecionarNaoAbriram } = await import("../../server/emailCampaigns.js");
+  const r = selecionarNaoAbriram([
+    { email: "a@x.com", status: "sent", open_count: 0, click_count: 0 },
+    { email: "b@x.com", status: "sent", open_count: 1, click_count: 0 },
+    { email: "c@x.com", status: "sent", open_count: 0, click_count: 2 },
+    { email: "d@x.com", status: "failed", open_count: 0, click_count: 0 },
+    { email: "e@x.com", status: "sent", open_count: 0, click_count: 0 },
+  ], new Set(["e@x.com"]));
+  assert.deepEqual(r.map((x) => x.email), ["a@x.com"]);
+});

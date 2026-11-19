@@ -177,6 +177,12 @@ export async function enviarEmailParaLeads(db: any, tenantId: string, base: stri
 /** Teste A/B: metade recebe o assunto A e metade o B, alternando pela posição (a lista já vem sem repetidos). */
 export const varianteDaPosicao = (i: number): "a" | "b" => (i % 2 === 0 ? "a" : "b");
 
+/** Quem recebeu e não abriu nem clicou (e não saiu da lista): base do reenvio. */
+export function selecionarNaoAbriram(rows: any[], optouts: Set<string>) {
+  return rows.filter((r) => r.status === "sent" && !(r.open_count > 0) && !(r.click_count > 0) && !optouts.has(String(r.email)))
+    .map((r) => ({ lead_id: r.lead_id, email: r.email, name: r.name, company: r.company }));
+}
+
 export function resumoAB(rows: { variant?: string | null; status?: string; open_count?: number; click_count?: number }[]) {
   const z = () => ({ enviados: 0, abriram: 0, clicaram: 0 });
   const out = { a: z(), b: z() };
@@ -511,6 +517,30 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   });
 
   /** Texto de uma campanha já criada (para duplicar). */
+  // Reenvio para quem não abriu nem clicou: cria uma campanha nova (pronta para disparar) com esse grupo, e assunto opcionalmente novo.
+  app.post("/api/email-campaigns/:id/reenviar-nao-abriram", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
+    const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
+    if (camp.status !== "done") return res.status(400).json({ error: "Só dá para reenviar depois que a campanha terminar." });
+    const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200) || camp.subject;
+    try {
+      const todos = await pagedTable(supabaseService, "email_campaign_recipients", "lead_id, email, name, company, status, open_count, click_count", tenantId, (q) => q.eq("campaign_id", camp.id).eq("status", "sent"));
+      const optouts = await optoutSet(supabaseService, tenantId);
+      const rows = selecionarNaoAbriram(todos, optouts);
+      if (rows.length === 0) return res.status(400).json({ error: "Todo mundo que recebeu já abriu ou clicou (ou saiu da lista)." });
+      const { data: nova, error } = await supabaseService.from("email_campaigns")
+        .insert({ tenant_id: tenantId, name: `${camp.name} (reenvio)`.slice(0, 120), subject, body: camp.body, audience: { reenvioDe: camp.id }, total: rows.length, status: "ready", created_by: req.user.id }).select("id").single();
+      if (error) throw new Error(error.message);
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error: e2 } = await supabaseService.from("email_campaign_recipients").insert(rows.slice(i, i + 500).map((r) => ({ ...r, campaign_id: nova.id, tenant_id: tenantId })));
+        if (e2) { await supabaseService.from("email_campaigns").delete().eq("id", nova.id); throw new Error(e2.message); }
+      }
+      res.json({ id: nova.id, total: rows.length });
+    } catch (e: any) { res.status(500).json({ error: e?.message || "Não foi possível criar o reenvio." }); }
+  });
+
   // Resultado do teste A/B: enviados, aberturas e cliques de cada assunto.
   app.get("/api/email-campaigns/:id/ab", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);

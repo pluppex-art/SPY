@@ -36,6 +36,11 @@ export default function MarketingEmail() {
   const [modeloId, setModeloId] = useState("");
   const [subjectB, setSubjectB] = useState("");
   const [abRes, setAbRes] = useState<Record<string, any>>({});
+  const reenviar = async (c: Campaign) => {
+    if (!(await confirmDialog({ title: "Reenviar para quem não abriu?", description: `Cria uma nova campanha só com quem recebeu "${c.name}" e não abriu nem clicou. Você confere e dispara em seguida.`, confirmLabel: "Criar reenvio" }))) return;
+    try { const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/reenviar-nao-abriram`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(json); toast.success(`Reenvio criado com ${r.total} pessoa(s). Envie um teste e dispare.`); await load(); }
+    catch (e: any) { toast.error(e.message); }
+  };
   const verAB = async (id: string) => {
     try { setAbRes((p) => ({ ...p, [id]: null })); const r = await apiFetchTenant(`/api/email-campaigns/${id}/ab`).then(json); setAbRes((p) => ({ ...p, [id]: r })); }
     catch (e: any) { toast.error(e.message); setAbRes((p) => { const n = { ...p }; delete n[id]; return n; }); }
@@ -286,6 +291,9 @@ export default function MarketingEmail() {
                     </p>
                   )}
                 </div>
+                {c.status === "done" && c.sent > 0 && c.opened !== undefined && (c.opened || 0) < c.sent && (
+                  <Button variant="outline" onClick={() => void reenviar(c)} className="h-8 px-3 text-xs gap-1.5"><Send className="w-3.5 h-3.5" /> Reenviar para quem não abriu</Button>
+                )}
                 {c.subject_b && c.sent > 0 && (
                   <div className="text-[11px] text-[var(--color-text-muted)]">
                     {abRes[c.id] === undefined ? <button onClick={() => void verAB(c.id)} className="font-bold text-[var(--color-primary-blue)] underline">Ver resultado do teste A/B</button>
