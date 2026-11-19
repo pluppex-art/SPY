@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Plus, Edit2, Trash2, Inbox } from "lucide-react";
+import { Plus, Edit2, Trash2, Inbox, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../../components/PageContainer";
 import { Card } from "../../../components/ui/card";
@@ -13,6 +13,7 @@ import { Skeleton } from "../../../components/ui/skeleton";
 import type { LucideIcon } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { friendlyError } from "../../../lib/friendlyError";
+import { exportarXlsx, dataParaArquivo, type ColunaXlsx } from "../../../lib/exportXlsx";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
 import { Field, ModalFooter, inputCls, selectCls, textareaCls } from "./ModalKit";
@@ -135,6 +136,23 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
 
   const statusOpcoes = campoStatus ? campos.find((c) => c.key === campoStatus)?.opcoes ?? [] : [];
 
+  const exportar = async () => {
+    const colunas: ColunaXlsx[] = [
+      ...campos.map((c) => ({ titulo: c.label, tipo: (c.tipo === "money" ? "moeda" : c.tipo === "date" ? "data" : "texto") as ColunaXlsx["tipo"], largura: c.tipo === "textarea" ? 40 : undefined })),
+      ...(enriquecer ? [{ titulo: "Origem do valor" } as ColunaXlsx] : []),
+    ];
+    const dados = filtradas.map((l) => [
+      ...campos.map((c) => (c.tipo === "month" ? String(l[c.key] ?? "").split("-").reverse().join("/") : l[c.key])),
+      ...(enriquecer ? [l._auto ? `Automático · ${l._auto}` : "Manual"] : []),
+    ]);
+    try {
+      await exportarXlsx(`${tabela.replace("finance_", "")}-${dataParaArquivo()}`, [{ nome: titulo, colunas, linhas: dados }]);
+      toast.success(`${dados.length} linha(s) exportada(s).`);
+    } catch (e) {
+      toast.error(friendlyError(e));
+    }
+  };
+
   const abrirNovo = () => {
     setForm(vazio(campos));
     setEditando({});
@@ -203,7 +221,12 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
     <PageContainer
       title={titulo}
       description={descricao}
-      actions={<Button onClick={abrirNovo}><Plus className="mr-2 h-4 w-4" />Nova {nomeItem}</Button>}
+      actions={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportar} disabled={filtradas.length === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar planilha</Button>
+          <Button onClick={abrirNovo}><Plus className="mr-2 h-4 w-4" />Nova {nomeItem}</Button>
+        </div>
+      }
     >
       {resumos.length > 0 && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

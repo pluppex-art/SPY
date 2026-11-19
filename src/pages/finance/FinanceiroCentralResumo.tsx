@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { ArrowDownCircle, ArrowUpCircle, CalendarClock, AlertTriangle, Wallet, MessageCircle, Copy } from "lucide-react";
+import { FileSpreadsheet, ArrowDownCircle, ArrowUpCircle, CalendarClock, AlertTriangle, Wallet, MessageCircle, Copy } from "lucide-react";
+import { exportarXlsx, dataParaArquivo } from "../../lib/exportXlsx";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -92,6 +93,30 @@ export default function FinanceiroCentralResumo() {
       toast.error("Não foi possível copiar. Selecione o texto e copie manualmente.");
     }
   };
+  const exportar = async () => {
+    try {
+      await exportarXlsx(`resumo-financeiro-${dataParaArquivo()}`, [
+        {
+          nome: "Resumo",
+          colunas: [{ titulo: "Indicador", largura: 34 }, { titulo: "Valor", tipo: "moeda" }],
+          linhas: [
+            ["Entradas do mês (recebido)", r.entradas], ["Saídas do mês (pago)", r.saidas], ["Saldo do mês", r.saldoMes],
+            ["A receber (em aberto)", r.totalReceber], ["A receber em atraso", r.vencidosReceber],
+            ["Total a pagar", r.totalPagar], ["A pagar vencido", r.vencidosPagar], ["A pagar a vencer", r.aVencerPagar],
+            ...r.previsao.map((p) => [`Previsão ${p.dias} dias (entra − sai)`, p.saldo]),
+          ],
+        },
+        {
+          nome: "Próximos vencimentos",
+          colunas: [{ titulo: "Vencimento", tipo: "data" }, { titulo: "Descrição", largura: 40 }, { titulo: "Fornecedor", largura: 28 }, { titulo: "Valor", tipo: "moeda" }, { titulo: "Status", largura: 12 }],
+          linhas: r.proximos.map((l) => [l.date, l.description, l.counterparty, l.value, statusDoLancamento(l, hoje)]),
+        },
+      ]);
+      toast.success("Planilha gerada.");
+    } catch {
+      toast.error("Não foi possível gerar a planilha.");
+    }
+  };
   const abrirWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
 
   return (
@@ -100,6 +125,7 @@ export default function FinanceiroCentralResumo() {
       description={`Visão rápida do caixa${user?.name ? `, ${user.name.split(" ")[0]}` : ""}: o que entrou, o que saiu e o que vence.`}
       actions={
         <div className="flex gap-2">
+          <Button variant="outline" onClick={exportar}><FileSpreadsheet className="mr-2 h-4 w-4" />Planilha</Button>
           <Button variant="outline" onClick={copiar}><Copy className="mr-2 h-4 w-4" />Copiar</Button>
           <Button onClick={abrirWhatsApp}><MessageCircle className="mr-2 h-4 w-4" />Gerar resumo para WhatsApp</Button>
         </div>

@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronRight, ShoppingCart } from "lucide-react";
+import { ChevronDown, ChevronRight, ShoppingCart, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
+import { exportarXlsx, dataParaArquivo } from "../../lib/exportXlsx";
 import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -58,6 +60,25 @@ export default function FinanceiroCompras() {
       .sort((a, b) => Number(a.status === "Pago") - Number(b.status === "Pago") || a.descricao.localeCompare(b.descricao));
   }, [rows, tipo, busca, hoje]);
 
+  const exportar = async () => {
+    const linhas = grupos.flatMap((g) =>
+      g.parcelas.map((p) => [g.descricao, g.contraparte, `${p.installment_number}/${p.installment_total}`, p.date, p.value, statusDoLancamento(p, hoje), `${g.pagas}/${g.parcelas.length}`]),
+    );
+    try {
+      await exportarXlsx(`${tipo === "Pagar" ? "compras" : "vendas-parceladas"}-${dataParaArquivo()}`, [{
+        nome: tipo === "Pagar" ? "Compras e parcelas" : "Vendas parceladas",
+        colunas: [
+          { titulo: tipo === "Pagar" ? "Compra" : "Venda", largura: 36 }, { titulo: tipo === "Pagar" ? "Fornecedor" : "Cliente", largura: 28 }, { titulo: "Parcela", largura: 10 },
+          { titulo: "Vencimento", tipo: "data" }, { titulo: "Valor", tipo: "moeda" }, { titulo: "Status", largura: 12 }, { titulo: "Parcelas pagas (compra)", largura: 22 },
+        ],
+        linhas,
+      }]);
+      toast.success(`${linhas.length} parcela(s) exportada(s).`);
+    } catch {
+      toast.error("Não foi possível gerar a planilha.");
+    }
+  };
+
   const alternar = (id: string) =>
     setAbertos((prev) => {
       const n = new Set(prev);
@@ -66,7 +87,11 @@ export default function FinanceiroCompras() {
     });
 
   return (
-    <PageContainer title="Compras e Parcelas" description="Cada compra parcelada com as parcelas pagas, a vencer e atrasadas — controle de boletos por fornecedor ou cliente.">
+    <PageContainer
+      title="Compras e Parcelas"
+      description="Cada compra parcelada com as parcelas pagas, a vencer e atrasadas — controle de boletos por fornecedor ou cliente."
+      actions={<Button variant="outline" onClick={exportar} disabled={grupos.length === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar planilha</Button>}
+    >
       {erro && <Card className="p-4 text-sm text-red-600">{erro}</Card>}
 
       <FilterBar>

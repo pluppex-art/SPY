@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
+import { exportarXlsx } from "../../lib/exportXlsx";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -45,10 +47,29 @@ export default function FinanceiroAgenda() {
   }, [ano, mes]);
 
   const doDia = porDia.get(diaSel) ?? [];
+  const exportar = async () => {
+    const linhas = [...porDia.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .flatMap(([dia, ls]) => ls.map((l) => [dia, l.type === "Pagar" ? "A pagar" : "A receber", l.description, l.counterparty, l.installment_total && l.installment_total > 1 ? `${l.installment_number}/${l.installment_total}` : "", l.value, statusDoLancamento(l, hoje)]));
+    try {
+      await exportarXlsx(`agenda-${prefixo}`, [{
+        nome: `Agenda ${MESES[mes]} ${ano}`,
+        colunas: [{ titulo: "Vencimento", tipo: "data" }, { titulo: "Tipo", largura: 12 }, { titulo: "Descrição", largura: 40 }, { titulo: "Cliente / fornecedor", largura: 28 }, { titulo: "Parcela", largura: 10 }, { titulo: "Valor", tipo: "moeda" }, { titulo: "Status", largura: 12 }],
+        linhas,
+      }]);
+      toast.success(`${linhas.length} lançamento(s) exportado(s).`);
+    } catch {
+      toast.error("Não foi possível gerar a planilha.");
+    }
+  };
   const mover = (delta: number) => setRef(new Date(ano, mes + delta, 1));
 
   return (
-    <PageContainer title="Agenda Financeira" description="Vencimentos de contas, parcelas e contratos no calendário do mês.">
+    <PageContainer
+      title="Agenda Financeira"
+      description="Vencimentos de contas, parcelas e contratos no calendário do mês."
+      actions={<Button variant="outline" onClick={exportar} disabled={porDia.size === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar mês</Button>}
+    >
       {erro && <Card className="p-4 text-sm text-red-600">{erro}</Card>}
 
       <Card className="p-4">
