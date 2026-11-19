@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Plus, Edit2, Trash2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../../components/PageContainer";
 import { Card } from "../../../components/ui/card";
@@ -8,6 +8,8 @@ import { Modal } from "../../../components/ui/modal";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { FilterBar, FilterSearch } from "../../../components/ui/kpi-filter-card";
 import { StatCard } from "../../../components/ui/stat-card";
+import { EmptyState } from "../../../components/ui/empty-state";
+import { Skeleton } from "../../../components/ui/skeleton";
 import type { LucideIcon } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { friendlyError } from "../../../lib/friendlyError";
@@ -69,6 +71,14 @@ const vazio = (campos: CampoCadastro[]) =>
         (c.tipo === "bool" ? false : c.tipo === "money" ? "" : c.tipo === "select" ? c.opcoes?.[0] ?? "" : c.tipo === "date" ? new Date().toISOString().slice(0, 10) : c.tipo === "month" ? new Date().toISOString().slice(0, 7) : ""),
     ]),
   ) as Record<string, any>;
+
+const TOM_STATUS: Record<string, string> = {
+  Pendente: "bg-amber-500/15 text-amber-600", "Em aberto": "bg-amber-500/15 text-amber-600", "Em andamento": "bg-amber-500/15 text-amber-600", Negociando: "bg-amber-500/15 text-amber-600",
+  Cumprida: "bg-emerald-500/15 text-emerald-600", Concluído: "bg-emerald-500/15 text-emerald-600", Descontado: "bg-emerald-500/15 text-emerald-600", Recebido: "bg-emerald-500/15 text-emerald-600", Fechado: "bg-sky-500/15 text-sky-600",
+  Quebrada: "bg-red-500/15 text-red-600", Cancelado: "bg-slate-500/15 text-slate-600", Cancelada: "bg-slate-500/15 text-slate-600",
+};
+const chipStatus = (v?: string | null) =>
+  v ? <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${TOM_STATUS[v] ?? "bg-slate-500/15 text-slate-600"}`}>{v}</span> : "—";
 
 const dataBR = (iso?: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
 
@@ -222,51 +232,100 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
         <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar…" />
       </FilterBar>
 
-      <Card className="overflow-x-auto">
-        {filtradas.length === 0 ? (
-          <p className="p-6 text-sm text-[var(--color-text-muted)]">{loading ? "Carregando…" : `Nenhuma ${nomeItem} cadastrada. Use o botão "Nova ${nomeItem}".`}</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--color-border-default)] text-left text-xs text-[var(--color-text-muted)]">
-                {campoLista.map((c) => <th key={c.key} className="px-3 py-2 font-semibold">{c.label}</th>)}
-                {progresso && <th className="px-3 py-2 font-semibold">{progresso.label}</th>}
-                {enriquecer && <th className="px-3 py-2 font-semibold">Origem do valor</th>}
-                <th className="w-20 px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtradas.map((l) => {
-                const pct = progresso ? Math.min(100, (Number(l[progresso.atual]) / (Number(l[progresso.total]) || 1)) * 100) : 0;
-                return (
-                  <tr key={l.id} className="border-b border-[var(--color-border-default)] last:border-0">
-                    {campoLista.map((c) => <td key={c.key} className="px-3 py-2">{mostra(c, l[c.key])}</td>)}
-                    {progresso && (
-                      <td className="min-w-[8rem] px-3 py-2">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-border-default)]">
-                          <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="text-xs text-[var(--color-text-muted)]">{pct.toFixed(0)}%</span>
-                      </td>
-                    )}
-                    {enriquecer && (
-                      <td className="px-3 py-2 text-xs">
-                        {l._auto ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-600">Automático · {l._auto}</span> : <span className="text-[var(--color-text-muted)]">Manual</span>}
-                      </td>
-                    )}
-                    <td className="px-3 py-2">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => abrirEdicao(l)} aria-label="Editar"><Edit2 className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => excluir(l)} aria-label="Excluir"><Trash2 className="h-4 w-4" /></Button>
+      {loading && linhas.length === 0 ? (
+        <Card className="space-y-2 p-4">
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
+        </Card>
+      ) : filtradas.length === 0 ? (
+        <EmptyState
+          icon={Inbox}
+          title={linhas.length === 0 ? `Nenhuma ${nomeItem} cadastrada` : "Nada encontrado"}
+          description={linhas.length === 0 ? `Cadastre a primeira ${nomeItem} para começar a acompanhar aqui.` : "Tente limpar a busca ou o filtro."}
+          action={linhas.length === 0 ? <Button onClick={abrirNovo}><Plus className="mr-2 h-4 w-4" />Nova {nomeItem}</Button> : undefined}
+        />
+      ) : (
+        <>
+          {/* Celular: um cartão por linha */}
+          <div className="space-y-2 md:hidden">
+            {filtradas.map((l) => {
+              const pct = progresso ? Math.min(100, (Number(l[progresso.atual]) / (Number(l[progresso.total]) || 1)) * 100) : 0;
+              return (
+                <Card key={l.id} className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 break-words text-sm font-semibold">{l[principal.key]}</p>
+                    <div className="flex shrink-0 gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => abrirEdicao(l)} aria-label="Editar"><Edit2 className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => excluir(l)} aria-label="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </div>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                    {campoLista.slice(1).map((c) => (
+                      <div key={c.key}>
+                        <dt className="text-[var(--color-text-muted)]">{c.label}</dt>
+                        <dd className="font-medium">{c.key === "status" ? chipStatus(l[c.key]) : mostra(c, l[c.key])}</dd>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </Card>
+                    ))}
+                  </dl>
+                  {progresso && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs text-[var(--color-text-muted)]"><span>{progresso.label}</span><span>{pct.toFixed(0)}%</span></div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-border-default)]"><div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} /></div>
+                    </div>
+                  )}
+                  {enriquecer && <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">{l._auto ? `Automático · ${l._auto}` : "Valor manual"}</p>}
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Computador: tabela */}
+          <Card className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]/60 text-left text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
+                  {campoLista.map((c) => <th key={c.key} className={`px-3 py-2.5 font-semibold ${c.tipo === "money" ? "text-right" : ""}`}>{c.label}</th>)}
+                  {progresso && <th className="px-3 py-2.5 font-semibold">{progresso.label}</th>}
+                  {enriquecer && <th className="px-3 py-2.5 font-semibold">Origem do valor</th>}
+                  <th className="w-20 px-3 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtradas.map((l) => {
+                  const pct = progresso ? Math.min(100, (Number(l[progresso.atual]) / (Number(l[progresso.total]) || 1)) * 100) : 0;
+                  return (
+                    <tr key={l.id} className="border-b border-[var(--color-border-default)] transition-colors last:border-0 hover:bg-[var(--color-surface-sunken)]/50">
+                      {campoLista.map((c) => (
+                        <td key={c.key} className={`px-3 py-2.5 ${c.tipo === "money" ? "text-right font-medium tabular-nums" : ""} ${c === principal ? "font-semibold" : ""}`}>
+                          {c.key === "status" ? chipStatus(l[c.key]) : mostra(c, l[c.key])}
+                        </td>
+                      ))}
+                      {progresso && (
+                        <td className="min-w-[9rem] px-3 py-2.5">
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-border-default)]">
+                            <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs text-[var(--color-text-muted)]">{pct.toFixed(0)}%</span>
+                        </td>
+                      )}
+                      {enriquecer && (
+                        <td className="px-3 py-2.5 text-xs">
+                          {l._auto ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-600">Automático · {l._auto}</span> : <span className="text-[var(--color-text-muted)]">Manual</span>}
+                        </td>
+                      )}
+                      <td className="px-3 py-2.5">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => abrirEdicao(l)} aria-label="Editar"><Edit2 className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => excluir(l)} aria-label="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        </>
+      )}
 
       {dicaOrigem && <p className="text-xs text-[var(--color-text-muted)]">{dicaOrigem}</p>}
       {rodape}

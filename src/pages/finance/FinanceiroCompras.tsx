@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ChevronDown, ChevronRight, ShoppingCart } from "lucide-react";
+import { Button } from "../../components/ui/button";
+import { EmptyState } from "../../components/ui/empty-state";
+import { Skeleton } from "../../components/ui/skeleton";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -81,10 +85,15 @@ export default function FinanceiroCompras() {
         <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar compra ou fornecedor…" />
       </FilterBar>
 
-      {grupos.length === 0 ? (
-        <Card className="p-6 text-sm text-[var(--color-text-muted)]">
-          {loading ? "Carregando…" : "Nenhuma compra parcelada. Ao lançar uma despesa parcelada em Despesas, ela aparece aqui com o controle de cada parcela."}
-        </Card>
+      {loading && rows.length === 0 ? (
+        <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+      ) : grupos.length === 0 ? (
+        <EmptyState
+          icon={ShoppingCart}
+          title="Nenhuma compra parcelada"
+          description="Ao lançar uma despesa parcelada em Despesas, ela aparece aqui com o controle de cada parcela."
+          action={<Link to="/app/financeiro/despesas"><Button>Ir para Despesas</Button></Link>}
+        />
       ) : (
         <div className="space-y-2">
           {grupos.map((g) => {
