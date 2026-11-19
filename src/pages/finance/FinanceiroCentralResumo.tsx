@@ -8,7 +8,7 @@ import { StatCard } from "../../components/ui/stat-card";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { LegendaStatusFinanceiro, StatusFinanceiroBadge } from "./components/StatusFinanceiroBadge";
-import { statusDoLancamento, useFinanceEntriesResumo } from "./hooks/useFinanceEntriesResumo";
+import { hojeISO, statusDoLancamento, useFinanceEntriesResumo } from "./hooks/useFinanceEntriesResumo";
 
 const soma = (xs: { value: number }[]) => xs.reduce((a, x) => a + x.value, 0);
 const dataBR = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
@@ -36,7 +36,20 @@ export default function FinanceiroCentralResumo() {
     const proximos = [...pagarAberto]
       .sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"))
       .slice(0, 8);
+    const somarDias = (n: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + n);
+      return hojeISO(d);
+    };
+    // Previsão: tudo que está em aberto (inclui o que já venceu) com vencimento até o horizonte.
+    const previsao = [30, 60, 90].map((dias) => {
+      const limite = somarDias(dias);
+      const entra = soma(receberAberto.filter((l) => !l.date || l.date <= limite));
+      const sai = soma(pagarAberto.filter((l) => !l.date || l.date <= limite));
+      return { dias, entra, sai, saldo: entra - sai };
+    });
     return {
+      previsao,
       entradas,
       saidas,
       saldoMes: entradas - saidas,
@@ -58,6 +71,8 @@ export default function FinanceiroCentralResumo() {
       `Entradas no mês (recebido): ${brl(r.entradas)}`,
       `Saídas no mês (pago): ${brl(r.saidas)}`,
       `Saldo do mês: ${brl(r.saldoMes)}`,
+      ``,
+      ...r.previsao.map((p) => `Previsão ${p.dias} dias: entra ${brl(p.entra)} / sai ${brl(p.sai)} → ${p.saldo < 0 ? "déficit" : "sobra"} ${brl(Math.abs(p.saldo))}`),
       ``,
       `A receber: ${brl(r.totalReceber)} (vencido: ${brl(r.vencidosReceber)})`,
       `Total a pagar: ${brl(r.totalPagar)}`,
@@ -100,6 +115,23 @@ export default function FinanceiroCentralResumo() {
         <StatCard icon={AlertTriangle} label="Vencido a pagar" value={loading ? "…" : brl(r.vencidosPagar)} tone={r.vencidosPagar > 0 ? "danger" : "default"} sub={`${r.qtdVencidosPagar} conta(s)`} />
         <StatCard icon={ArrowUpCircle} label="A receber" value={loading ? "…" : brl(r.totalReceber)} sub={`Em atraso: ${brl(r.vencidosReceber)}`} caption="Pendente + atrasado" />
       </div>
+
+      <Card className="p-4">
+        <h3 className="mb-1 text-sm font-semibold">Previsão de caixa (30, 60 e 90 dias)</h3>
+        <p className="mb-3 text-xs text-[var(--color-text-muted)]">Entradas e saídas em aberto que vencem até cada data (inclui o que já venceu e não foi pago). Não considera o saldo atual das contas.</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {r.previsao.map((p) => (
+            <div key={p.dias} className="rounded-lg border border-[var(--color-border-default)] p-3 text-sm">
+              <p className="mb-1 font-semibold">Próximos {p.dias} dias</p>
+              <p className="text-emerald-600">Entra: {brl(p.entra)}</p>
+              <p className="text-red-600">Sai: {brl(p.sai)}</p>
+              <p className={`mt-1 font-bold ${p.saldo < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                {p.saldo < 0 ? "Déficit" : "Sobra"}: {brl(Math.abs(p.saldo))}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <Card className="p-4">
         <h3 className="mb-3 text-sm font-semibold">Próximos vencimentos (contas a pagar)</h3>
