@@ -72,7 +72,7 @@ export default function MarketingEmail() {
     catch (e: any) { toast.error(e.message); setAbRes((p) => { const n = { ...p }; delete n[id]; return n; }); }
   };
   const [descAberto, setDescAberto] = useState(false);
-  const [descItens, setDescItens] = useState<{ email: string; created_at: string }[] | null>(null);
+  const [descItens, setDescItens] = useState<{ email: string; created_at: string; motivo?: string | null }[] | null>(null);
   const [descNovo, setDescNovo] = useState("");
   const apiFetchTenant = (path: string, init?: RequestInit) => {
     if (!activeTenantId) return Promise.reject(new Error("Empresa não identificada."));
@@ -232,7 +232,7 @@ export default function MarketingEmail() {
     } catch (e: any) { toast.error(e.message); }
   };
   const exportarDescadastros = () => {
-    const csv = ["E-mail;Data", ...(descItens || []).map((d) => `${d.email};${new Date(d.created_at).toLocaleDateString("pt-BR")}`)].join("\r\n");
+    const csv = ["E-mail;Data;Motivo", ...(descItens || []).map((d) => `${d.email};${new Date(d.created_at).toLocaleDateString("pt-BR")};${d.motivo === "invalido" ? "Endereço inexistente" : "Descadastro"}`)].join("\r\n");
     const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = "descadastrados.csv"; a.click(); URL.revokeObjectURL(url);
   };
@@ -396,7 +396,7 @@ export default function MarketingEmail() {
           </div>
           {descItens === null ? <Loader2 className="w-4 h-4 animate-spin" /> : descItens.length === 0 ? <p className="text-xs text-[var(--color-text-muted)]">Ninguém se descadastrou ainda.</p> : (<>
             <div className="flex items-center justify-between text-xs"><b className="text-[var(--color-text-primary)]">{descItens.length.toLocaleString("pt-BR")} pessoa(s)</b><Button variant="outline" onClick={exportarDescadastros} className="h-8 px-3 text-xs">Exportar planilha</Button></div>
-            <ul className="max-h-72 overflow-auto divide-y divide-[var(--color-border-default)] text-xs">{descItens.slice(0, 300).map((d) => <li key={d.email} className="flex justify-between py-1.5"><span className="text-[var(--color-text-primary)] break-all">{d.email}</span><span className="text-[var(--color-text-muted)] shrink-0 ml-3">{new Date(d.created_at).toLocaleDateString("pt-BR")}</span></li>)}</ul>
+            <ul className="max-h-72 overflow-auto divide-y divide-[var(--color-border-default)] text-xs">{descItens.slice(0, 300).map((d) => <li key={d.email} className="flex justify-between py-1.5"><span className="text-[var(--color-text-primary)] break-all">{d.email}{d.motivo === "invalido" && <span className="ml-2 text-[10px] text-[var(--color-text-faint)]">(endereço inexistente)</span>}</span><span className="text-[var(--color-text-muted)] shrink-0 ml-3">{new Date(d.created_at).toLocaleDateString("pt-BR")}</span></li>)}</ul>
             {descItens.length > 300 && <p className="text-[11px] text-[var(--color-text-muted)]">Mostrando os 300 mais recentes. A planilha tem todos.</p>}
           </>)}
         </div>

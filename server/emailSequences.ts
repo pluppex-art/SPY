@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { sendTenantEmail } from "./mailer.js";
-import { buildMail, cleanEmail, optoutUrl, optoutSet, pagedTable, parseAudience, resolveAudience, selectAudience } from "./emailCampaigns.js";
+import { buildMail, bloquearEnderecoInexistente, ehEnderecoInexistente, cleanEmail, optoutUrl, optoutSet, pagedTable, parseAudience, resolveAudience, selectAudience } from "./emailCampaigns.js";
 
 /** Sequência de e-mails: vários envios em dias seguidos para cada pessoa inscrita (ex.: dia 0, dia 3, dia 7). */
 
@@ -125,6 +125,11 @@ export async function processarSequencias(db: any, base: string, aj: Ajudas, opt
       enviados++;
     } catch (e: any) {
       if (rec?.id) await db.from("email_campaign_recipients").update({ status: "failed", error: String(e?.message || e).slice(0, 300) }).eq("id", rec.id);
+      if (ehEnderecoInexistente(e?.message || e)) { // caixa inexistente: não adianta tentar de novo
+        await bloquearEnderecoInexistente(db, en.tenant_id, en.email);
+        await db.from("email_sequence_enrollments").update({ status: "stopped", falhas: (en.falhas || 0) + 1 }).eq("id", en.id);
+        falhas++; continue;
+      }
       const f = (en.falhas || 0) + 1;
       await db.from("email_sequence_enrollments").update(f >= FALHAS_MAX ? { status: "stopped", falhas: f } : { falhas: f, next_send_at: quandoEnviar(agora, 1) }).eq("id", en.id);
       falhas++;

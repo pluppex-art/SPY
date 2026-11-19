@@ -633,3 +633,28 @@ test("rastreio de e-mail: clique logo após o envio (antivírus) não conta, cli
     assert.equal(db.t.email_campaigns[0].clicked, 1);
   } finally { srv.close(); }
 });
+
+test("endereço inexistente: reconhece caixa que não existe e não confunde com spam, limite ou erro temporário", async () => {
+  const { ehEnderecoInexistente, bloquearEnderecoInexistente } = await import("../../server/emailCampaigns.js");
+  for (const m of ["550 5.1.1 The email account that you tried to reach does not exist", "550 User unknown", "553 5.1.2 Recipient address rejected", "Mailbox not found", "550 No such user here"]) assert.equal(ehEnderecoInexistente(m), true, m);
+  for (const m of ["550 5.7.1 Message blocked as spam", "421 4.7.0 Try again later", "452 4.2.2 Mailbox full quota exceeded", "Connection timeout", "550 5.7.1 Rejected by policy: user not allowed", "rate limit exceeded", ""]) assert.equal(ehEnderecoInexistente(m), false, m);
+  const db = criarFakeDb({ email_optouts: [] });
+  await bloquearEnderecoInexistente(db, T, "x@y.com"); await bloquearEnderecoInexistente(db, T, "x@y.com");
+  assert.equal(db.t.email_optouts.length, 1); assert.equal(db.t.email_optouts[0].motivo, "invalido");
+});
+
+test("sequência: caixa inexistente para a pessoa na hora e bloqueia o endereço", async () => {
+  const { processarSequencias } = await import("../../server/emailSequences.js");
+  const SEQ = "cccccccc-cccc-4ccc-8ccc-cccccccccccc", CAMP = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const db = criarFakeDb({
+    email_campaigns: [{ id: CAMP, tenant_id: T, name: "[Sequência] Q", status: "done", total: 0, sent: 0, failed: 0 }],
+    email_sequences: [{ id: SEQ, tenant_id: T, name: "Q", status: "active", campaign_id: CAMP, steps: [{ dias: 0, subject: "1", body: "a" }] }],
+    email_sequence_enrollments: [{ id: "q1", sequence_id: SEQ, tenant_id: T, email: "nao@existe.com", name: "N", step_idx: 0, status: "active", falhas: 0, next_send_at: "2026-11-20T00:00:00Z" }],
+    email_campaign_recipients: [], email_optouts: [],
+  });
+  const aj = { cotaRestante: async () => ({ restante: 10 }), tenantNameOf: async () => ({ name: "E", color: null }), enviar: async () => { throw new Error("550 5.1.1 User unknown"); } };
+  const r = await processarSequencias(db, "https://a.test", aj as any, { agora: Date.parse("2026-11-20T12:00:00Z") });
+  assert.equal(r.falhas, 1);
+  assert.equal(db.t.email_sequence_enrollments[0].status, "stopped");
+  assert.equal(db.t.email_optouts[0].email, "nao@existe.com");
+});

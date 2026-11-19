@@ -138,6 +138,21 @@ function filterLeads(leads: any[], aud: Audience): Candidate[] {
     .map((l) => ({ id: `lead:${l.id}`, email: l.email, name: l.name, company: l.company }));
 }
 
+/**
+ * Erro de envio que mostra que o ENDEREÇO não existe (caixa inexistente): insistir só piora a reputação do remetente.
+ * Bloqueios por spam, política, limite ou erro temporário NÃO entram (esses não dizem nada sobre o endereço).
+ */
+export function ehEnderecoInexistente(msg: unknown): boolean {
+  const t = String(msg ?? "").toLowerCase();
+  if (/5\.7\.|spam|blocked|blacklist|policy|reputation|rate limit|too many|quota|try again|temporar|greylist|4\d\d[ -]/.test(t)) return false;
+  return /5\.1\.[1-2]|user unknown|unknown user|no such user|no such recipient|mailbox (not found|unavailable|does not exist)|recipient (address )?rejected|invalid recipient|address rejected|does not exist|user not found/.test(t);
+}
+
+/** Guarda o e-mail como inexistente para as próximas campanhas e sequências o pularem. Silencioso se a coluna `motivo` ainda não existir. */
+export async function bloquearEnderecoInexistente(db: any, tenantId: string, email: string) {
+  try { await db.from("email_optouts").upsert({ tenant_id: tenantId, email, motivo: "invalido" }, { onConflict: "tenant_id,email", ignoreDuplicates: true }); } catch { /* sem a coluna: só não bloqueia */ }
+}
+
 /** Tira inválidos, descadastrados e repetidos (o mesmo e-mail entra uma vez só, venha de onde vier). */
 export function dedupeCandidates(cands: Candidate[], optouts: Set<string>, excluir: Set<string> = new Set()) {
   const seen = new Set<string>();
@@ -458,6 +473,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
           await db.from("email_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", r.id);
         } catch (e: any) {
           await db.from("email_campaign_recipients").update({ status: "failed", error: String(e?.message || e).slice(0, 300) }).eq("id", r.id);
+          if (ehEnderecoInexistente(e?.message || e)) await bloquearEnderecoInexistente(db, tenantId, r.email);
         }
       }
     };
@@ -534,7 +550,9 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     try { // em páginas: o banco devolve no máximo 1000 linhas por consulta
-      const itens = await pagedTable(supabaseService, "email_optouts", "email, created_at", tenantId, (q) => q.order("created_at", { ascending: false }).order("email", { ascending: true }));
+      const ler = (cols: string) => pagedTable(supabaseService, "email_optouts", cols, tenantId, (q) => q.order("created_at", { ascending: false }).order("email", { ascending: true }));
+      let itens: any[];
+      try { itens = await ler("email, created_at, motivo"); } catch (e: any) { if (!/motivo/i.test(String(e?.message))) throw e; itens = await ler("email, created_at"); }
       res.json({ itens });
     } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao ler os descadastrados." }); }
   });
