@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowDown, ArrowUp, ChevronRight, Facebook, Loader2, RefreshCw, Search, Settings } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, Facebook, Globe, Loader2, RefreshCw, Search, Settings } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -21,6 +21,7 @@ export function CampanhasLista() {
   const { activeTenantId } = useAuth();
   const navigate = useNavigate();
   const [dias, setDias] = useState(30);
+  const [canal, setCanal] = useState<"meta" | "google">("meta");
   const [iniciado, setIniciado] = useState(false); // nada é buscado no Meta até a pessoa clicar em "Carregar campanhas"
   const [dados, setDados] = useState<Resposta | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -76,38 +77,31 @@ export function CampanhasLista() {
     ["CPC médio", resumo.cpc > 0 ? brl(resumo.cpc) : "—"],
   ];
 
-  if (!iniciado) {
-    return (
-      <Card className="p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2"><Facebook className="w-4 h-4 text-blue-500" /> Campanhas do Meta Ads</h3>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-xl">Veja cada campanha com valor usado, resultados, cliques e custo por resultado. Clique numa campanha para abrir os dados dela. Os dados só são buscados no Meta quando você clicar no botão.</p>
-          </div>
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1 rounded-xl bg-[var(--color-surface-sunken)] p-1" role="tablist" aria-label="Canal">
+          {([["meta", "Campanhas do Meta Ads", Facebook], ["google", "Campanhas do Google Ads", Globe]] as const).map(([id, rotulo, Icone]) => (
+            <button key={id} type="button" role="tab" aria-selected={canal === id} onClick={() => setCanal(id)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${canal === id ? "bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)] shadow-sm" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
+              <Icone className="w-3.5 h-3.5" />{rotulo}
+            </button>))}
+        </div>
+        {canal === "meta" && (
           <div className="flex items-center gap-2">
             <select value={dias} onChange={(e) => setDias(Number(e.target.value))} aria-label="Período" className="h-9 px-2 rounded-lg text-xs font-bold border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]">
               {PERIODOS.map((p) => <option key={p} value={p}>Últimos {p} dias</option>)}
             </select>
-            <Button onClick={() => setIniciado(true)} className="h-9 px-4 text-xs font-bold gap-1.5"><Facebook className="w-3.5 h-3.5" /> Carregar campanhas</Button>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2"><Facebook className="w-4 h-4 text-blue-500" /> Campanhas do Meta Ads</h3>
-        <div className="flex items-center gap-2">
-          <select value={dias} onChange={(e) => setDias(Number(e.target.value))} aria-label="Período" className="h-9 px-2 rounded-lg text-xs font-bold border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]">
-            {PERIODOS.map((p) => <option key={p} value={p}>Últimos {p} dias</option>)}
-          </select>
-          <Button variant="outline" onClick={() => void carregar(true)} disabled={carregando} className="h-9 px-3 text-xs gap-1.5" aria-label="Atualizar">{carregando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}</Button>
-        </div>
+            {iniciado
+              ? <Button variant="outline" onClick={() => void carregar(true)} disabled={carregando} className="h-9 px-3 text-xs gap-1.5" aria-label="Atualizar">{carregando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}</Button>
+              : <Button onClick={() => setIniciado(true)} className="h-9 px-4 text-xs font-bold gap-1.5"><Facebook className="w-3.5 h-3.5" /> Carregar campanhas</Button>}
+          </div>)}
       </div>
 
-      {naoConectado ? (
+      {canal === "google" ? (
+        <Card className="p-6"><EmptyState icon={Globe} title="Nenhuma campanha do Google Ads por aqui ainda" description="Para listar as campanhas do Google Ads o SPY precisa de credenciais de desenvolvedor e da autorização (OAuth) do Google. Quando isso estiver conectado, a lista aparece neste mesmo lugar." className="py-6" /></Card>
+      ) : !iniciado ? (
+        <Card className="p-6"><EmptyState icon={Facebook} title="Nenhuma campanha carregada" description="Clique em “Carregar campanhas” para buscar as campanhas do Meta Ads no período escolhido. Os dados só são buscados quando você clicar." className="py-6" /></Card>
+      ) : naoConectado ? (
         <Card className="p-6 border-dashed">
           <EmptyState icon={Facebook} title="Conecte o Meta Ads para ver suas campanhas" description="Cadastre o ID da conta de anúncios e um token de leitura (ads_read) em Integrações. O SPY só lê os dados: não cria, altera nem pausa nada." className="py-6" />
           <div className="flex justify-center"><Button onClick={() => navigate("/app/configuracoes/integracoes/apps")} className="h-9 px-4 text-xs font-bold gap-1.5"><Settings className="w-3.5 h-3.5" /> Abrir Integrações</Button></div>

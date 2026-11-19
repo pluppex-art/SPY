@@ -147,6 +147,7 @@ const MarketingAutomacoes = lazy(() => import("./pages/marketing/MarketingAutoma
 const MarketingConteudo = lazy(() => import("./pages/marketing/MarketingConteudo"));
 const MarketingTrafego = lazy(() => import("./pages/marketing/MarketingTrafego"));
 const MarketingCampanhas = lazy(() => import("./pages/marketing/MarketingCampanhas"));
+const MarketingCampanhasDados = lazy(() => import("./pages/marketing/MarketingCampanhasDados"));
 const MarketingAnalytics = lazy(() => import("./pages/marketing/MarketingAnalytics"));
 const MarketingLandingPages = lazy(() => import("./pages/marketing/MarketingLandingPages"));
 const EEmpreendaEditor = lazy(() => import("./pages/marketing/EEmpreendaEditor"));
@@ -332,6 +333,7 @@ function AppContent() {
             <Route path="conteudo" element={<MarketingConteudo />} />
             <Route path="trafego" element={<MarketingTrafego />} />
             <Route path="campanhas" element={<MarketingCampanhas />} />
+            <Route path="campanhas/dados" element={<MarketingCampanhasDados />} />
             <Route path="analytics" element={<MarketingAnalytics />} />
             <Route path="social" element={<Navigate to="/app/marketing/conteudo" replace />} />
             <Route path="landing-pages" element={<MarketingLandingPages />} />
