@@ -36,6 +36,11 @@ interface Candidate { id: string; email: unknown; name?: string | null; company?
 const secret = () => process.env.EMAIL_OPTOUT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || "";
 const sign = (tenantId: string, email: string) => crypto.createHmac("sha256", secret()).update(`${tenantId}|${email}`).digest("hex").slice(0, 32);
 
+/** Assinatura dos links de rastreio (abertura e clique): ninguém consegue montar um link que redireciona para onde quiser. */
+const sigRastreio = (rid: string, alvo = "") => crypto.createHmac("sha256", secret()).update(`track|${rid}|${alvo}`).digest("hex").slice(0, 32);
+export const urlAbertura = (base: string, rid: string) => `${base}/api/email/o/${rid}.gif?s=${sigRastreio(rid)}`;
+export const urlClique = (base: string, rid: string, destino: string) => `${base}/api/email/c/${rid}?u=${Buffer.from(destino, "utf8").toString("base64url")}&s=${sigRastreio(rid, destino)}`;
+
 export function optoutUrl(base: string, tenantId: string, email: string): string {
   const e = Buffer.from(email, "utf8").toString("base64url");
   return `${base}/api/email/optout?t=${tenantId}&e=${e}&s=${sign(tenantId, email)}`;
@@ -72,22 +77,22 @@ export function renderVars(text: string, v: { name?: string | null; company?: st
 const DEFAULT_LINK_COLOR = "#7C3AED";
 const safeColor = (c?: string | null) => (c && /^#[0-9a-fA-F]{6}$/.test(c) ? c : DEFAULT_LINK_COLOR);
 
-/** Texto simples → HTML seguro: parágrafos, quebras de linha e links http(s). */
-export function textToHtml(text: string, color = DEFAULT_LINK_COLOR): string {
+/** Texto simples → HTML seguro: parágrafos, quebras de linha e links http(s). `rastrear` troca o destino do link (contagem de cliques). */
+export function textToHtml(text: string, color = DEFAULT_LINK_COLOR, rastrear?: (urlOriginal: string) => string): string {
   const paras = escapeHtml(text.replace(/\r\n/g, "\n").trim()).split(/\n{2,}/);
   return paras
-    .map((p) => `<p style="margin:0 0 14px;line-height:1.55">${p.replace(/\n/g, "<br>").replace(/(https?:\/\/[^\s<]+)/g, `<a href="$1" style="color:${color}">$1</a>`)}</p>`)
+    .map((p) => `<p style="margin:0 0 14px;line-height:1.55">${p.replace(/\n/g, "<br>").replace(/(https?:\/\/[^\s<]+)/g, (m) => `<a href="${rastrear ? rastrear(m.replace(/&amp;/g, "&")) : m}" style="color:${color}">${m}</a>`)}</p>`)
     .join("");
 }
 
-function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; unsubUrl: string }) {
+function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; unsubUrl: string; track?: { base: string; rid: string } }) {
   const subject = renderVars(opts.subject, opts).replace(/[\r\n]+/g, " ").trim().slice(0, 200);
   const text = renderVars(opts.body, opts);
   const footerTxt = `\n\n—\nVocê recebeu este e-mail de ${opts.tenantName}. Para não receber mais, acesse: ${opts.unsubUrl}`;
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
-<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${textToHtml(text, safeColor(opts.tenantColor))}</div>
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${textToHtml(text, safeColor(opts.tenantColor), opts.track ? (u) => urlClique(opts.track!.base, opts.track!.rid, u) : undefined)}</div>
 <p style="max-width:600px;margin:14px auto 0;font-size:11px;color:#6b7280;text-align:center">Você recebeu este e-mail de ${escapeHtml(opts.tenantName)}.<br><a href="${opts.unsubUrl}" style="color:#6b7280">Não quero mais receber</a></p>
-</body></html>`;
+${opts.track ? `<img src="${urlAbertura(opts.track.base, opts.track.rid)}" width="1" height="1" alt="" style="display:none;border:0">` : ""}</body></html>`;
   return { subject, text: text + footerTxt, html };
 }
 
@@ -265,8 +270,10 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   app.get("/api/email-campaigns", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
-    const { data, error } = await supabaseService.from("email_campaigns").select("id, name, subject, status, total, sent, failed, sender, created_at, started_at, finished_at")
-      .eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(50);
+    const colunas = "id, name, subject, status, total, sent, failed, sender, created_at, started_at, finished_at";
+    let { data, error } = await supabaseService.from("email_campaigns").select(`${colunas}, opened, clicked`).eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(50);
+    if (error && /opened|clicked/i.test(error.message)) // migração 20261126 ainda não aplicada: lista sem as métricas
+      ({ data, error } = await supabaseService.from("email_campaigns").select(colunas).eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(50));
     if (error) return res.status(500).json({ error: error.message });
     res.json({ campaigns: data || [] });
   });
@@ -306,8 +313,8 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     return data;
   };
 
-  const mailFor = async (camp: any, tenant: { name: string; color: string | null }, base: string, r: { name?: string | null; company?: string | null; email: string }) =>
-    ({ to: r.email, ...buildMail({ subject: camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) }),
+  const mailFor = async (camp: any, tenant: { name: string; color: string | null }, base: string, r: { id?: string; name?: string | null; company?: string | null; email: string }) =>
+    ({ to: r.email, ...buildMail({ subject: camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) , track: r.id ? { base, rid: r.id } : undefined }),
       headers: { "List-Unsubscribe": `<${optoutUrl(base, camp.tenant_id, r.email)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
 
   const tenantNameOf = async (tenantId: string) => {
@@ -474,6 +481,55 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
 <body style="font-family:Arial,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;background:#f5f5f7;margin:0"><div style="background:#fff;padding:32px;border-radius:14px;max-width:420px;text-align:center">
 <h2 style="margin:0 0 8px">${ok ? "Pronto, você saiu da lista" : "Link inválido"}</h2><p style="color:#6b7280;margin:0">${ok ? "Você não receberá mais e-mails desta empresa." : "Não foi possível confirmar este pedido. Responda o e-mail recebido pedindo para sair da lista."}</p></div></body>`);
   };
+  /**
+   * Rastreio de abertura (imagem de 1 pixel) e de clique (redirecionamento assinado). Só grava se a assinatura confere e
+   * conta uma pessoa uma vez por campanha (aberturas/cliques repetidos só aumentam o contador do destinatário).
+   * Aberturas são estimativas: alguns apps de e-mail baixam as imagens sozinhos e outros bloqueiam.
+   */
+  const registrar = async (rid: string, tipo: "open" | "click") => {
+    if (!supabaseService || !UUID.test(rid)) return;
+    try {
+      const { data: r } = await supabaseService.from("email_campaign_recipients").select("campaign_id, opened_at, clicked_at, open_count, click_count").eq("id", rid).maybeSingle();
+      if (!r) return;
+      const agora = new Date().toISOString();
+      const primeiro = tipo === "open" ? !r.opened_at : !r.clicked_at;
+      await supabaseService.from("email_campaign_recipients").update(tipo === "open"
+        ? { open_count: (r.open_count || 0) + 1, ...(primeiro ? { opened_at: agora } : {}) }
+        : { click_count: (r.click_count || 0) + 1, ...(primeiro ? { clicked_at: agora } : {}), ...(!r.opened_at ? { opened_at: agora, open_count: (r.open_count || 0) + 1 } : {}) }).eq("id", rid);
+      const campo = tipo === "open" ? "opened" : "clicked";
+      const abriuAgora = tipo === "click" && !r.opened_at;
+      for (const [col, deve] of [[campo, primeiro], ["opened", abriuAgora]] as const) {
+        if (!deve) continue;
+        for (let i = 0; i < 4; i++) { // soma sem perder contagem quando duas pessoas abrem juntas
+          const { data: c } = await supabaseService.from("email_campaigns").select(col).eq("id", r.campaign_id).maybeSingle();
+          if (!c) break;
+          const atual = (c as any)[col] || 0;
+          const { data: ok } = await supabaseService.from("email_campaigns").update({ [col]: atual + 1 }).eq("id", r.campaign_id).eq(col, atual).select("id");
+          if (ok && ok.length) break;
+        }
+      }
+    } catch (e: any) { console.warn("[email rastreio]", e?.message); }
+  };
+  const igual = (a: string, b: string) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+
+  app.get("/api/email/o/:rid.gif", async (req: any, res: any) => {
+    const rid = String(req.params.rid || "");
+    if (UUID.test(rid) && !!secret() && igual(String(req.query.s || ""), sigRastreio(rid))) await registrar(rid, "open");
+    res.setHeader("Content-Type", "image/gif");
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.end(Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64"));
+  });
+
+  app.get("/api/email/c/:rid", async (req: any, res: any) => {
+    const rid = String(req.params.rid || "");
+    let destino = "";
+    try { destino = Buffer.from(String(req.query.u || ""), "base64url").toString("utf8"); } catch { /* inválido */ }
+    const ok = UUID.test(rid) && /^https?:\/\//i.test(destino) && !!secret() && igual(String(req.query.s || ""), sigRastreio(rid, destino));
+    if (!ok) return res.status(400).send("Link inválido.");
+    await registrar(rid, "click");
+    res.redirect(302, destino);
+  });
+
   app.get("/api/email/optout", limiter, optout);
   app.post("/api/email/optout", limiter, optout);
 }

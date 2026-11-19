@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { HelpTip } from "../../components/ui/help-tip";
 import { apiFetch } from "../../lib/apiClient";
 import { useAuth } from "../../contexts/AuthContext";
 import { readTableFile } from "../../lib/tableFile";
@@ -16,7 +17,7 @@ import { FileSpreadsheet } from "lucide-react";
 // Disparo de e-mail em massa: monta o público a partir dos leads da empresa (por origem/status), cria a campanha
 // e envia em lotes com progresso. Sai pelo SMTP da empresa (Integrações → SMTP) ou, sem ele, pelo da plataforma.
 
-interface Campaign { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; sender: string | null; created_at: string }
+interface Campaign { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; opened?: number; clicked?: number; sender: string | null; created_at: string }
 interface Option { value: string; count: number }
 interface Options { sources: Option[]; statuses: Option[]; sender: { kind: "tenant" | "platform"; from?: string } }
 interface Preview { total: number; semEmail: number; descadastrados: number; repetidos: number; excluidos?: number; sample: { name: string; email: string }[] }
@@ -217,6 +218,14 @@ export default function MarketingEmail() {
                 <div>
                   <div className="h-2 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden"><div className="h-full bg-[var(--color-primary-blue)] transition-all" style={{ width: `${pct}%` }} /></div>
                   <p className="text-[11px] mt-1 text-[var(--color-text-muted)]">{c.sent} enviado(s) de {c.total}{c.failed > 0 && <span className="text-[var(--color-danger)]"> · {c.failed} falha(s)</span>}</p>
+                  {c.sent > 0 && c.opened !== undefined && (
+                    <p className="text-[11px] mt-0.5 text-[var(--color-text-muted)] flex items-center gap-1.5">
+                      <span><b className="text-[var(--color-text-primary)]">{Math.round(((c.opened || 0) / c.sent) * 100)}%</b> abriram ({c.opened || 0})</span>
+                      <span>·</span>
+                      <span><b className="text-[var(--color-text-primary)]">{Math.round(((c.clicked || 0) / c.sent) * 100)}%</b> clicaram ({c.clicked || 0})</span>
+                      <HelpTip label="Aberturas e cliques">Aberturas são estimativas: alguns apps de e-mail baixam as imagens sozinhos (contam a mais) e outros bloqueiam (contam a menos). Cliques em links do texto são mais confiáveis.</HelpTip>
+                    </p>
+                  )}
                 </div>
                 {active && (
                   <div className="flex flex-wrap gap-2">

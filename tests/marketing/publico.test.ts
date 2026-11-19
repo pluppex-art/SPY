@@ -97,3 +97,40 @@ test("Meta Ads: soma o gasto por dia, calcula CPC/CTR e ignora linhas inválidas
   assert.deepEqual(r.porDia.map((d) => d.data), ["2026-11-01", "2026-11-02"]);
   assert.deepEqual(resumirInsights([]).porDia, []);
 });
+
+import express from "express";
+import { registerEmailCampaignRoutes, urlAbertura, urlClique, textToHtml as _t } from "../../server/emailCampaigns.js";
+
+test("rastreio de e-mail: abertura e clique contam uma pessoa uma vez, só com assinatura válida, e o redirecionamento é seguro", async () => {
+  process.env.EMAIL_OPTOUT_SECRET = "segredo-de-teste";
+  const CAMP = "33333333-3333-4333-8333-333333333333", RID = "44444444-4444-4444-8444-444444444444";
+  const db = criarFakeDb({
+    email_campaigns: [{ id: CAMP, tenant_id: T, opened: 0, clicked: 0 }],
+    email_campaign_recipients: [{ id: RID, campaign_id: CAMP, tenant_id: T, email: "a@b.com", status: "sent", opened_at: null, clicked_at: null, open_count: 0, click_count: 0 }],
+  });
+  const app = express();
+  registerEmailCampaignRoutes(app as any, { requireUser: (_q: any, _s: any, n: any) => n(), resolveRequestedTenantId: async () => T, limiter: (_q: any, _s: any, n: any) => n(), supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  try {
+    const pixel = urlAbertura(base, RID);
+    assert.equal((await fetch(pixel)).headers.get("content-type"), "image/gif");
+    await fetch(pixel); // abre de novo: mesma pessoa
+    await fetch(`${base}/api/email/o/${RID}.gif?s=assinatura-falsa`); // não conta
+    assert.equal(db.t.email_campaigns[0].opened, 1);
+    assert.equal(db.t.email_campaign_recipients[0].open_count, 2);
+
+    const alvo = "https://exemplo.com/oferta?a=1&b=2";
+    const r = await fetch(urlClique(base, RID, alvo), { redirect: "manual" });
+    assert.equal(r.status, 302); assert.equal(r.headers.get("location"), alvo);
+    assert.equal(db.t.email_campaigns[0].clicked, 1);
+    // link forjado para outro destino ou com protocolo perigoso: recusado e não redireciona
+    const forjado = urlClique(base, RID, alvo).replace(/u=[^&]+/, `u=${Buffer.from("https://malvado.com").toString("base64url")}`);
+    assert.equal((await fetch(forjado, { redirect: "manual" })).status, 400);
+    const js = `${base}/api/email/c/${RID}?u=${Buffer.from("javascript:alert(1)").toString("base64url")}&s=x`;
+    assert.equal((await fetch(js, { redirect: "manual" })).status, 400);
+  } finally { srv.close(); }
+  // os links do corpo do e-mail passam pelo rastreio e o texto visível continua o mesmo
+  const html = _t("veja https://x.com/a?b=1&c=2", "#000", (u) => `RASTREIO(${u})`);
+  assert.ok(html.includes("RASTREIO(https://x.com/a?b=1&c=2)"));
+  assert.ok(html.includes(">https://x.com/a?b=1&amp;c=2</a>"));
+});
