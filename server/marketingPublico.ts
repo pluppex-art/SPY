@@ -11,6 +11,7 @@ import express, { type Express, type Request, type Response, type NextFunction, 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { upsertLead } from "./leadUpsert.js";
 import { CAMPOS_PADRAO, normalizarCampos, validarRespostas } from "../src/lib/formularioCampos.js";
+import { normalizarConteudoLP } from "../src/lib/paginaLP.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -60,7 +61,7 @@ window.spyConversion=function(d){send('conversion',d||{})};
 
 /** CORS aberto só para as entradas públicas (formulários e rastreio de LP rodam em outros domínios). */
 export const corsPublicoMarketing: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
-  if (!/^\/api\/(public\/forms|public\/lp-track|lp\/)/.test(req.path)) return next();
+  if (!/^\/api\/(public\/forms|public\/lp-track|public\/lp\/|lp\/)/.test(req.path)) return next();
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -130,6 +131,44 @@ export function registerMarketingPublicRoutes(app: Express, { supabaseService: d
     } catch (e: any) {
       console.error("[forms/config]", e?.message);
       res.status(500).json({ error: "Não foi possível abrir o formulário agora." });
+    }
+  });
+
+  /** Landing page criada no sistema: dados para desenhar a página. `contar=1` registra uma visita (a página pede uma vez por sessão). */
+  app.get("/api/public/lp/:id", limiter, async (req, res) => {
+    try {
+      if (!db) return res.status(503).json({ error: "Indisponível no momento." });
+      const id = String(req.params.id ?? "");
+      if (!UUID.test(id)) return res.status(404).json({ error: "Página não encontrada." });
+      const { data: lp } = await db.from("marketing_landing_pages").select("*").eq("id", id).is("deleted_at", null).maybeSingle();
+      if (!lp || lp.hospedada !== true || lp.status !== "published") return res.status(404).json({ error: "Esta página não está no ar." });
+      const { data: tn } = await db.from("tenants").select("name").eq("id", lp.tenant_id).maybeSingle();
+      if (req.query.contar === "1") await somar(id, "views");
+      res.json({ nome: lp.name, empresa: tn?.name || "", ...normalizarConteudoLP(lp.conteudo) });
+    } catch (e: any) {
+      console.error("[lp/config]", e?.message);
+      res.status(500).json({ error: "Não foi possível abrir a página agora." });
+    }
+  });
+
+  app.post("/api/public/lp/:id/submit", limiter, async (req, res) => {
+    try {
+      if (!db) return res.status(503).json({ error: "Indisponível no momento." });
+      const b = lerCorpo(req);
+      if (b.website) return res.json({ success: true });
+      const id = String(req.params.id ?? "");
+      if (!UUID.test(id)) return res.status(404).json({ error: "Página não encontrada." });
+      const { data: lp } = await db.from("marketing_landing_pages").select("*").eq("id", id).is("deleted_at", null).maybeSingle();
+      if (!lp || lp.hospedada !== true || lp.status !== "published") return res.status(404).json({ error: "Esta página não está no ar." });
+      const conteudo = normalizarConteudoLP(lp.conteudo);
+      const r = validarRespostas(conteudo.campos, b);
+      if (r.ok === false) return res.status(400).json({ error: r.erro });
+      await upsertLead(db, lp.tenant_id, { name: r.contato.nome, email: r.contato.email, phone: r.contato.telefone, source: `Landing page: ${lp.name}`, papel: "entrada", nota: r.nota || `Converteu na landing page "${lp.name}".` });
+      await somar(id, "conversions");
+      res.json({ success: true });
+    } catch (e: any) {
+      console.error("[lp/submit]", e?.message);
+      res.status(500).json({ error: "Não foi possível enviar agora. Tente novamente em instantes." });
     }
   });
 

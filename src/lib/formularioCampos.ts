@@ -60,3 +60,12 @@ export function validarRespostas(campos: CampoForm[], corpo: Record<string, unkn
   if (!contato.email && !contato.telefone) return { ok: false, erro: "Informe seu WhatsApp ou e-mail." };
   return { ok: true, contato, nota: linhas.join("\n").slice(0, 3000) };
 }
+
+/** Problema que impede salvar os campos (ou null se estiver tudo certo): título, opções, nome e algum contato. */
+export function erroDosCampos(campos: CampoForm[]): string | null {
+  const limpos = normalizarCampos(campos.map((c) => ({ ...c, opcoes: c.tipo === "opcoes" ? c.opcoes : undefined })));
+  if (limpos.length !== campos.length) return "Revise as perguntas: todas precisam de título, e “Escolha uma opção” precisa de pelo menos 2 opções.";
+  if (!limpos.some((c) => c.tipo === "telefone" || c.tipo === "email")) return "Inclua um campo de WhatsApp/telefone ou de e-mail, senão o lead chega sem contato.";
+  if (!limpos.some((c) => c.id === "nome" || (c.tipo === "texto" && /nome/i.test(c.label)))) return "Inclua um campo de nome (com a palavra “nome” no título).";
+  return null;
+}

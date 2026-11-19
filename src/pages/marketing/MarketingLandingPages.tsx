@@ -1,3 +1,5 @@
+import { LandingPageEditorModal } from "./components/LandingPages/LandingPageEditorModal";
+import { friendlyError } from "../../lib/friendlyError";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
@@ -12,7 +14,7 @@ import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
-import { PLUPPEX_TENANT_ID } from "../../lib/supabase";
+import { PLUPPEX_TENANT_ID, supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { Modal } from "../../components/ui/modal";
 import {
@@ -37,6 +39,7 @@ export default function MarketingLandingPages() {
   const { activeTenantId } = useAuth();
   const {
     marketingLandingPages: rawPages,
+    setMarketingLandingPages,
     addMarketingLandingPage,
     updateMarketingLandingPage,
     deleteMarketingLandingPage,
@@ -51,6 +54,8 @@ export default function MarketingLandingPages() {
   const [newName, setNewName] = useState("");
   const [newSlug, setNewSlug] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
+  const [editorAberto, setEditorAberto] = useState(false);
+  const [paginaEditor, setPaginaEditor] = useState<any | null>(null);
   const [pixelId, setPixelId] = useState("");
   const [gtagId, setGtagId] = useState("");
 
@@ -204,6 +209,23 @@ export default function MarketingLandingPages() {
     setClientSelected("");
   };
 
+  /** Cria ou atualiza uma landing page hospedada no sistema (link próprio, conteúdo editável). */
+  const salvarPaginaHospedada = async ({ id, nome, conteudo }: { id: string; nome: string; conteudo: any }): Promise<boolean> => {
+    if (paginaEditor) {
+      const { error } = supabase ? await supabase.from("marketing_landing_pages").update({ name: nome, conteudo }).eq("id", id) : { error: { message: "sem conexão" } as any };
+      if (error) { toast.error(/conteudo|hospedada/i.test(error.message) ? "O banco ainda não tem as colunas das páginas próprias (migração 20261128). Peça para a equipe técnica aplicar." : `Não foi possível salvar: ${friendlyError(error)}`); return false; }
+      setMarketingLandingPages((rawPages || []).map((p: any) => (p.id === id ? { ...p, name: nome, conteudo } : p)));
+      toast.success("Página atualizada.");
+      return true;
+    }
+    const criada: any = await addMarketingLandingPage({
+      id, name: nome, url: `${window.location.host}/p/${id}`, status: "published", views: 0, clicks: 0, conversions: 0, revenue: 0, conversion_rate: 0, hospedada: true, conteudo,
+    });
+    if (!criada) return false;
+    toast.success("Página criada e no ar. Copie o link e divulgue.");
+    return true;
+  };
+
   const handleDeletePage = async (id: string) => {
     const page = pages.find((p: any) => p.id === id);
     if (
@@ -234,6 +256,13 @@ export default function MarketingLandingPages() {
       actions={
         <div className="flex items-center gap-2 flex-wrap">
           <Button
+            onClick={() => { setPaginaEditor(null); setEditorAberto(true); }}
+            className="bg-[#2563EB] hover:bg-blue-600 text-white font-black text-xs gap-1.5 h-10 px-5 rounded-xl shadow-md shadow-blue-600/20 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Criar Página Aqui
+          </Button>
+
+          <Button
             onClick={() => setIsConnectModalOpen(true)}
             className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs gap-1.5 h-10 px-4 rounded-xl shadow-md shadow-emerald-600/20 cursor-pointer"
           >
@@ -242,9 +271,10 @@ export default function MarketingLandingPages() {
 
           <Button
             onClick={() => { setEditId(null); setNewName(""); setNewSlug(""); setPixelId(""); setGtagId(""); setIsCreateModalOpen(true); }}
-            className="bg-[#2563EB] hover:bg-blue-600 text-white font-black text-xs gap-1.5 h-10 px-5 rounded-xl shadow-md shadow-blue-600/20 cursor-pointer"
+            variant="outline"
+            className="font-black text-xs gap-1.5 h-10 px-5 rounded-xl cursor-pointer"
           >
-            <Plus className="w-4 h-4" /> Cadastrar Página
+            <Plus className="w-4 h-4" /> Cadastrar Página Existente
           </Button>
         </div>
       }
@@ -429,6 +459,7 @@ export default function MarketingLandingPages() {
               onToggleStatus={toggleStatus}
               onOpenTracking={openTrackingModal}
               onEdit={(p) => {
+                if ((p as any).hospedada) { setPaginaEditor(p); setEditorAberto(true); return; }
                 setEditId(p.id);
                 setNewName(p.name);
                 setNewSlug(p.url || "");
@@ -514,6 +545,8 @@ export default function MarketingLandingPages() {
           </div>
         </form>
       </Modal>
+
+      <LandingPageEditorModal isOpen={editorAberto} onClose={() => setEditorAberto(false)} pagina={paginaEditor} onSalvar={salvarPaginaHospedada} />
 
       {/* Modais Originais */}
       <LandingPageCreateModal

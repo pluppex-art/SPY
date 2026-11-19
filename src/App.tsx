@@ -197,6 +197,7 @@ const PropostaPublica = lazy(() => import("./pages/public/PropostaPublica"));
 const ImplementacaoPublica = lazy(() => import("./pages/public/ImplementacaoPublica"));
 const Checkout = lazy(() => import("./pages/public/Checkout"));
 const CatalogoPublico = lazy(() => import("./pages/public/CatalogoPublico"));
+const PaginaPublicaLP = lazy(() => import("./pages/public/PaginaPublicaLP"));
 const FormularioPublico = lazy(() => import("./pages/public/FormularioPublico"));
 const AgendarPublico = lazy(() => import("./pages/public/AgendarPublico"));
 const AgendamentoAgenda = lazy(() => import("./pages/agendamento/AgendamentoAgenda"));
@@ -615,6 +616,7 @@ function AppContent() {
         <Route path="/catalogo/:tenantId" element={<CatalogoPublico />} />
         <Route path="/agendar/:slug" element={<AgendarPublico />} />
         <Route path="/form/:formId" element={<FormularioPublico />} />
+        <Route path="/p/:id" element={<PaginaPublicaLP />} />
 
         {/* Proposta pública com tracking — sem autenticação, acesso só via token */}
         <Route path="/proposta/:token" element={<PropostaPublica />} />

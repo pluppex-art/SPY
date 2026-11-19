@@ -168,3 +168,34 @@ test("formulário próprio: o servidor usa os campos do formulário e só aceita
   assert.equal(ok.status, 200);
   const l = db.t.leads[0]; assert.equal(l.source, "form_curso"); assert.match(l.notes, /Turno: Noite/);
 });
+
+import { normalizarConteudoLP, CONTEUDO_LP_PADRAO } from "../../src/lib/paginaLP.js";
+test("landing page própria: conteúdo seguro (cor, imagem https, limites) e padrões quando vem vazio", () => {
+  const c = normalizarConteudoLP({ titulo: "  Oferta  ", cor: "javascript:x", imagem: "http://inseguro.com/a.png", bullets: ["a", "", "b"], cta: "" });
+  assert.equal(c.titulo, "Oferta"); assert.equal(c.cor, CONTEUDO_LP_PADRAO.cor); assert.equal(c.imagem, ""); assert.deepEqual(c.bullets, ["a", "b"]); assert.equal(c.cta, CONTEUDO_LP_PADRAO.cta);
+  assert.ok(c.campos.length >= 2);
+  assert.equal(normalizarConteudoLP({ imagem: "https://x.com/a.png", cor: "#aabbcc" }).imagem, "https://x.com/a.png");
+  assert.equal(normalizarConteudoLP(null).titulo, CONTEUDO_LP_PADRAO.titulo);
+});
+
+test("landing page própria: só abre se estiver publicada, conta visita 1x, cria lead e conta a conversão", async () => {
+  const id = "55555555-5555-4555-8555-555555555555", rascunho = "66666666-6666-4666-8666-666666666666";
+  const db = criarFakeDb({ tenants: [{ id: T, name: "Empresa X" }], marketing_landing_pages: [
+    { id, tenant_id: T, name: "LP Oferta", status: "published", hospedada: true, views: 0, clicks: 0, conversions: 0, deleted_at: null, conteudo: { titulo: "Oferta", cor: "#112233" } },
+    { id: rascunho, tenant_id: T, name: "LP Rascunho", status: "draft", hospedada: true, views: 0, clicks: 0, conversions: 0, deleted_at: null, conteudo: {} },
+  ] });
+  const { app, chamar } = criarFakeApp();
+  registerMarketingPublicRoutes(app, { supabaseService: db as any, limiter: ((_a: any, _b: any, n: any) => n && n()) as any });
+  const cfg = await chamar("GET", "/api/public/lp/:id", { params: { id }, query: { contar: "1" } });
+  assert.equal(cfg.status, 200); assert.equal(cfg.corpo.titulo, "Oferta"); assert.equal(cfg.corpo.cor, "#112233");
+  assert.equal(JSON.stringify(cfg.corpo).includes("tenant"), false);
+  await chamar("GET", "/api/public/lp/:id", { params: { id }, query: {} }); // sem contar: não soma
+  assert.equal(db.t.marketing_landing_pages[0].views, 1);
+  assert.equal((await chamar("GET", "/api/public/lp/:id", { params: { id: rascunho }, query: {} })).status, 404);
+  assert.equal((await chamar("POST", "/api/public/lp/:id/submit", { params: { id: rascunho }, body: { nome: "Ana Lima", telefone: "63988887777" } })).status, 404);
+  assert.equal((await chamar("POST", "/api/public/lp/:id/submit", { params: { id }, body: { nome: "Ana Lima" } })).status, 400);
+  const ok = await chamar("POST", "/api/public/lp/:id/submit", { params: { id }, body: { nome: "Ana Lima", telefone: "63988887777", mensagem: "oi" } });
+  assert.equal(ok.status, 200);
+  assert.equal(db.t.marketing_landing_pages[0].conversions, 1);
+  assert.equal(db.t.leads.length, 1); assert.match(db.t.leads[0].source, /LP Oferta/);
+});
