@@ -530,3 +530,22 @@ test("entrada automática: só leads novos (depois de ligar) que combinam com os
   assert.equal(db.t.email_sequence_enrollments[0].next_send_at, new Date(agora + 86400000).toISOString());
   assert.equal((await inscreverAutomaticos(db, { agora })).entraram, 0); // não repete
 });
+
+test("sequência com 'parar ao clicar': quem clicou sai, quem não clicou segue", async () => {
+  const { processarSequencias } = await import("../../server/emailSequences.js");
+  const SEQ = "66666666-6666-4666-8666-666666666666", CAMP = "77777777-7777-4777-8777-777777777777";
+  const agora = Date.parse("2026-11-20T12:00:00Z");
+  const db = criarFakeDb({
+    email_campaigns: [{ id: CAMP, tenant_id: T, name: "[Sequência] Y", status: "done", total: 2, sent: 2, failed: 0 }],
+    email_sequences: [{ id: SEQ, tenant_id: T, name: "Y", status: "active", campaign_id: CAMP, parar_ao_clicar: true, steps: [{ dias: 0, subject: "1", body: "a" }, { dias: 1, subject: "2", body: "b" }] }],
+    email_sequence_enrollments: ["clicou", "ignorou"].map((n, i) => ({ id: `p${i}`, sequence_id: SEQ, tenant_id: T, email: `${n}@x.com`, name: n, step_idx: 1, status: "active", falhas: 0, next_send_at: "2026-11-20T00:00:00Z" })),
+    email_campaign_recipients: [{ campaign_id: CAMP, tenant_id: T, email: "clicou@x.com", status: "sent", click_count: 1 }, { campaign_id: CAMP, tenant_id: T, email: "ignorou@x.com", status: "sent", click_count: 0 }],
+    email_optouts: [],
+  });
+  const enviados: string[] = [];
+  const aj = { cotaRestante: async () => ({ restante: 10 }), tenantNameOf: async () => ({ name: "E", color: null }), enviar: async (_d: any, _t: string, m: any) => { enviados.push(m.to); } };
+  await processarSequencias(db, "https://app.test", aj as any, { agora });
+  assert.deepEqual(enviados, ["ignorou@x.com"]);
+  assert.equal(db.t.email_sequence_enrollments.find((e: any) => e.email === "clicou@x.com").status, "stopped");
+  assert.equal(db.t.email_sequence_enrollments.find((e: any) => e.email === "ignorou@x.com").status, "done");
+});

@@ -92,6 +92,10 @@ export async function processarSequencias(db: any, base: string, aj: Ajudas, opt
     if (!passo) { await db.from("email_sequence_enrollments").update({ status: "done" }).eq("id", en.id); encerrados++; continue; }
     if (!optouts.has(en.tenant_id)) optouts.set(en.tenant_id, await optoutSet(db, en.tenant_id));
     if (optouts.get(en.tenant_id)!.has(String(en.email)) || !cleanEmail(en.email)) { await db.from("email_sequence_enrollments").update({ status: "stopped" }).eq("id", en.id); encerrados++; continue; }
+    if (seq.parar_ao_clicar && en.step_idx > 0) { // já clicou em um e-mail anterior: considera interessada e para a sequência
+      const { data: cliques } = await db.from("email_campaign_recipients").select("id").eq("campaign_id", seq.campaign_id).eq("email", en.email).gt("click_count", 0).limit(1);
+      if (cliques && cliques.length) { await db.from("email_sequence_enrollments").update({ status: "stopped" }).eq("id", en.id); encerrados++; continue; }
+    }
     if (!cotas.has(en.tenant_id)) cotas.set(en.tenant_id, (await aj.cotaRestante(db, en.tenant_id)).restante);
     if ((cotas.get(en.tenant_id) || 0) <= 0) { semCota++; continue; }
     if (!nomes.has(en.tenant_id)) nomes.set(en.tenant_id, await aj.tenantNameOf(en.tenant_id));
@@ -171,7 +175,7 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
       const porCamp = new Map<string, any>((cs || []).map((c: any) => [c.id, c]));
       res.json({ sequences: (seqs || []).map((s: any) => {
         const mine = insc.filter((i: any) => i.sequence_id === s.id); const c = porCamp.get(s.campaign_id) || {};
-        return { id: s.id, name: s.name, status: s.status, passos: s.steps, auto: s.auto ? { ...s.auto, desde: undefined } : null, created_at: s.created_at,
+        return { id: s.id, name: s.name, status: s.status, passos: s.steps, auto: s.auto ? { ...s.auto, desde: undefined } : null, pararAoClicar: s.parar_ao_clicar === true, created_at: s.created_at,
           inscritos: mine.length, ativos: mine.filter((i: any) => i.status === "active").length, concluidos: mine.filter((i: any) => i.status === "done").length, parados: mine.filter((i: any) => i.status === "stopped").length,
           enviados: c.sent || 0, falhas: c.failed || 0, abriram: c.opened || 0, clicaram: c.clicked || 0 };
       }) });
@@ -192,7 +196,8 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
       const { data: camp, error: ec } = await db.from("email_campaigns").insert({ tenant_id: tenantId, name: `[Sequência] ${name}`.slice(0, 120), subject: p.passos[0].subject, body: p.passos[0].body, audience: { sequencia: true }, total: 0, status: "done", created_by: req.user.id }).select("id").single();
       if (ec) throw new Error(ec.message);
       campId = camp.id;
-      const { data: seq, error } = await db.from("email_sequences").insert({ tenant_id: tenantId, name, steps: p.passos, status: "active", campaign_id: campId, created_by: req.user.id, ...(autoOn ? { auto: parseAuto(req.body.audience, new Date().toISOString()) } : {}) }).select("*").single();
+      const { data: seq, error } = await db.from("email_sequences").insert({ tenant_id: tenantId, name, steps: p.passos, status: "active", campaign_id: campId, created_by: req.user.id, ...(autoOn ? { auto: parseAuto(req.body.audience, new Date().toISOString()) } : {}), ...(req.body?.pararAoClicar === true ? { parar_ao_clicar: true } : {}) }).select("*").single();
+      if (error && /parar_ao_clicar/i.test(error.message)) throw new Error("A opção de parar ao clicar ainda não foi liberada no banco de dados (migração 20261203). Peça para a equipe técnica aplicar ou crie sem ela.");
       if (error && autoOn && /auto/i.test(error.message) && !/email_sequence/i.test(error.message)) throw new Error("A entrada automática ainda não foi liberada no banco de dados (migração 20261202). Peça para a equipe técnica aplicar ou crie sem ela.");
       if (error) { if (migracao(error)) throw new Error(MSG_MIGRACAO); throw new Error(error.message); }
       seqId = seq.id;
@@ -224,6 +229,17 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
     const { error } = await db.from("email_sequences").update({ auto }).eq("id", seq.id);
     if (error) return res.status(400).json({ error: /auto/i.test(error.message) ? "A entrada automática ainda não foi liberada no banco de dados (migração 20261202)." : error.message });
     res.json({ ok: true, auto });
+  });
+
+  app.post("/api/email-sequences/:id/parar-ao-clicar", requireUser, limiter, async (req: any, res: any) => {
+    if (!db) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await aj.liberarMarketing(req, res, tenantId))) return;
+    const seq = await carregar(req, res, tenantId); if (!seq) return;
+    const ativo = req.body?.ativo === true;
+    const { error } = await db.from("email_sequences").update({ parar_ao_clicar: ativo }).eq("id", seq.id);
+    if (error) return res.status(400).json({ error: /parar_ao_clicar/i.test(error.message) ? "Essa opção ainda não foi liberada no banco de dados (migração 20261203)." : error.message });
+    res.json({ ok: true, ativo });
   });
 
   app.post("/api/email-sequences/:id/status", requireUser, limiter, async (req: any, res: any) => {
