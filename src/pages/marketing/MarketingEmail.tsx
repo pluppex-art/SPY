@@ -52,10 +52,18 @@ export default function MarketingEmail() {
       const a = document.createElement("a"); a.href = url; a.download = `${c.name.replace(/[^\w\-]+/g, "_").slice(0, 50) || "campanha"}.csv`; a.click(); URL.revokeObjectURL(url);
     } catch (e: any) { toast.error(e.message); }
   };
+  const [reenvio, setReenvio] = useState<{ c: Campaign; grupo: "nao-abriram" | "clicaram"; assunto: string; texto: string } | null>(null);
+  const [criandoReenvio, setCriandoReenvio] = useState(false);
   const reenviar = async (c: Campaign, grupo: "nao-abriram" | "clicaram" = "nao-abriram") => {
-    if (!(await confirmDialog({ title: grupo === "clicaram" ? "Follow-up para quem clicou?" : "Reenviar para quem não abriu?", description: grupo === "clicaram" ? `Cria uma nova campanha só com quem clicou em links de "${c.name}". Ela usa o mesmo assunto e texto da original.` : `Cria uma nova campanha só com quem recebeu "${c.name}" e não abriu nem clicou. Você confere e dispara em seguida.`, confirmLabel: grupo === "clicaram" ? "Criar follow-up" : "Criar reenvio" }))) return;
-    try { const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/reenviar-${grupo}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(json); toast.success(`Campanha criada com ${r.total} pessoa(s). Envie um teste e dispare.`); await load(); }
+    try { const o = await apiFetchTenant(`/api/email-campaigns/${c.id}`).then(json); setReenvio({ c, grupo, assunto: o.subject, texto: o.body }); }
     catch (e: any) { toast.error(e.message); }
+  };
+  const criarReenvio = async () => {
+    if (!reenvio) return; setCriandoReenvio(true);
+    try {
+      const r = await apiFetchTenant(`/api/email-campaigns/${reenvio.c.id}/reenviar-${reenvio.grupo}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject: reenvio.assunto, body: reenvio.texto }) }).then(json);
+      toast.success(`Campanha criada com ${r.total} pessoa(s). Envie um teste e dispare.`); setReenvio(null); await load();
+    } catch (e: any) { toast.error(e.message); } finally { setCriandoReenvio(false); }
   };
   const verAB = async (id: string) => {
     try { setAbRes((p) => ({ ...p, [id]: null })); const r = await apiFetchTenant(`/api/email-campaigns/${id}/ab`).then(json); setAbRes((p) => ({ ...p, [id]: r })); }
@@ -360,6 +368,16 @@ export default function MarketingEmail() {
           })}
       </div>
 
+      <Modal isOpen={!!reenvio} onClose={() => setReenvio(null)} title={reenvio?.grupo === "clicaram" ? "Follow-up para quem clicou" : "Reenviar para quem não abriu"} description="Cria uma campanha nova só com esse grupo. Ajuste o assunto e o texto se quiser; depois envie um teste e dispare." maxWidth="max-w-xl">
+        {reenvio && (
+          <div className="space-y-3">
+            <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto
+              <input value={reenvio.assunto} onChange={(e) => setReenvio({ ...reenvio, assunto: e.target.value })} maxLength={200} className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
+            <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Mensagem
+              <textarea value={reenvio.texto} onChange={(e) => setReenvio({ ...reenvio, texto: e.target.value })} rows={8} maxLength={20000} className="px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" /></label>
+            <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setReenvio(null)} className="h-9 px-3 text-xs">Cancelar</Button><Button onClick={() => void criarReenvio()} disabled={criandoReenvio || !reenvio.assunto.trim() || !reenvio.texto.trim()} className="h-9 px-4 text-xs font-bold">{criandoReenvio ? "Criando…" : "Criar campanha"}</Button></div>
+          </div>)}
+      </Modal>
       <Modal isOpen={!!previa} onClose={() => setPrevia(null)} title="Pré-visualização" description="Exemplo com nome fictício. Nada foi enviado." maxWidth="max-w-2xl">
         {previa && (
           <div className="space-y-2">

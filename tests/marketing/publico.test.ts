@@ -410,3 +410,25 @@ test("follow-up: só quem clicou, sem descadastrados", async () => {
   ], new Set(["c@x.com"]));
   assert.deepEqual(r.map((x) => x.email), ["a@x.com"]);
 });
+
+test("follow-up pela rota: cria campanha só com quem clicou e aceita assunto/texto novos", async () => {
+  const CID = "11111111-1111-4111-8111-111111111111";
+  const db = criarFakeDb({
+    tenants: [{ id: T, name: "E", modules: { marketing: true } }], users: [{ id: "u1", is_master: false, is_tenant_admin: true, tenant_id: T }],
+    email_campaigns: [{ id: CID, tenant_id: T, name: "Original", subject: "Antigo", body: "Texto antigo", status: "done" }],
+    email_campaign_recipients: [
+      { tenant_id: T, campaign_id: CID, email: "a@x.com", name: "A", status: "sent", click_count: 1, open_count: 1 },
+      { tenant_id: T, campaign_id: CID, email: "b@x.com", name: "B", status: "sent", click_count: 0, open_count: 0 },
+    ], email_optouts: [],
+  });
+  const app = express(); app.use(express.json());
+  registerEmailCampaignRoutes(app as any, { requireUser: (q: any, _s: any, n: any) => { q.user = { id: "u1" }; n(); }, resolveRequestedTenantId: async () => T, limiter: (_q: any, _s: any, n: any) => n(), supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  try {
+    const r = await (await fetch(`${base}/api/email-campaigns/${CID}/reenviar-clicaram`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject: "Novo assunto", body: "Texto novo" }) })).json();
+    assert.equal(r.total, 1);
+    const nova = db.t.email_campaigns.find((c: any) => c.id === r.id);
+    assert.equal(nova.subject, "Novo assunto"); assert.equal(nova.body, "Texto novo"); assert.match(nova.name, /follow-up/);
+    assert.deepEqual(db.t.email_campaign_recipients.filter((x: any) => x.campaign_id === r.id).map((x: any) => x.email), ["a@x.com"]);
+  } finally { srv.close(); }
+});

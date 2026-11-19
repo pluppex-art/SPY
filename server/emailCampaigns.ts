@@ -552,6 +552,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
     if (camp.status !== "done") return res.status(400).json({ error: "Só dá para reenviar depois que a campanha terminar." });
     const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200) || camp.subject;
+    const corpo = String(req.body?.body || "").trim().slice(0, 20_000) || camp.body;
     try {
       const todos = await pagedTable(supabaseService, "email_campaign_recipients", "lead_id, email, name, company, status, open_count, click_count", tenantId, (q) => q.eq("campaign_id", camp.id).eq("status", "sent"));
       const optouts = await optoutSet(supabaseService, tenantId);
@@ -559,7 +560,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       const rows = clicaram ? selecionarClicaram(todos, optouts) : selecionarNaoAbriram(todos, optouts);
       if (rows.length === 0) return res.status(400).json({ error: clicaram ? "Ninguém clicou em links dessa campanha ainda." : "Todo mundo que recebeu já abriu ou clicou (ou saiu da lista)." });
       const { data: nova, error } = await supabaseService.from("email_campaigns")
-        .insert({ tenant_id: tenantId, name: `${camp.name} (${clicaram ? "follow-up" : "reenvio"})`.slice(0, 120), subject, body: camp.body, audience: { reenvioDe: camp.id, grupo: clicaram ? "clicaram" : "nao_abriram" }, total: rows.length, status: "ready", created_by: req.user.id }).select("id").single();
+        .insert({ tenant_id: tenantId, name: `${camp.name} (${clicaram ? "follow-up" : "reenvio"})`.slice(0, 120), subject, body: corpo, audience: { reenvioDe: camp.id, grupo: clicaram ? "clicaram" : "nao_abriram" }, total: rows.length, status: "ready", created_by: req.user.id }).select("id").single();
       if (error) throw new Error(error.message);
       for (let i = 0; i < rows.length; i += 500) {
         const { error: e2 } = await supabaseService.from("email_campaign_recipients").insert(rows.slice(i, i + 500).map((r) => ({ ...r, campaign_id: nova.id, tenant_id: tenantId })));
