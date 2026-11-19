@@ -75,7 +75,8 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
       title: "Painel Geral",
       icon: LayoutDashboard,
       items: [
-        { title: "Painel Financeiro", path: "/app/financeiro/dashboard", icon: LayoutDashboard },
+        { title: "Painel Geral", path: "/app/financeiro/dashboard", icon: LayoutDashboard },
+        { title: "Análise detalhada", path: "/app/financeiro/visao-geral", icon: BarChart3 },
         { title: "Central de Resumo", path: "/app/financeiro/resumo", icon: ClipboardList },
         { title: "Agenda Financeira", path: "/app/financeiro/agenda", icon: CalendarDays },
         { title: "Busca Financeira", path: "/app/financeiro/busca", icon: Search },
