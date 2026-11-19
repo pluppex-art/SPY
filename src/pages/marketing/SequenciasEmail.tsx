@@ -30,6 +30,7 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
   const [autoNovos, setAutoNovos] = useState(false);
   const [pararClicar, setPararClicar] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [inscId, setInscId] = useState<{ id: string; nome: string } | null>(null);
   const toggle = (l: string[], set: (v: string[]) => void, v: string) => set(l.includes(v) ? l.filter((x) => x !== v) : [...l, v]);
   const audience = { leads, clientes, sources, statuses, canais };
 
@@ -45,13 +46,18 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
   }, [criando, leads, clientes, sources, statuses, canais]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setPasso = (i: number, p: Partial<Passo>) => setPassos((l) => l.map((x, j) => (j === i ? { ...x, ...p } : x)));
-  const valido = nome.trim() && passos.every((p) => p.subject.trim() && p.body.trim());
+  const valido = !!inscId || nome.trim() && passos.every((p) => p.subject.trim() && p.body.trim());
 
   const editar = (s: Seq) => { setEditId(s.id); setNome(s.name); setPassos(s.passos.map((p) => ({ ...p }))); setCriando(true); };
-  const fecharForm = () => { setCriando(false); setEditId(null); setNome(""); setPassos([novoPasso(0), novoPasso(3)]); };
+  const fecharForm = () => { setCriando(false); setEditId(null); setInscId(null); setNome(""); setPassos([novoPasso(0), novoPasso(3)]); };
   const criar = async () => {
     setSalvando(true);
     try {
+      if (inscId) {
+        const r = await api(`/api/email-sequences/${inscId.id}/inscrever`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audience }) }).then(json);
+        toast.success(`${r.entraram} pessoa(s) inscrita(s)${r.jaEstavam ? ` (${r.jaEstavam} já estavam na sequência)` : ""}. O 1º e-mail sai na rotina diária ou em "Enviar agora".`);
+        fecharForm(); await carregar(); return;
+      }
       if (editId) {
         await api(`/api/email-sequences/${editId}/editar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nome, passos }) }).then(json);
         toast.success("Sequência atualizada. Quem já está nela segue do ponto onde parou."); fecharForm(); await carregar(); return;
@@ -103,6 +109,7 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
                 <p className="text-[11px] text-[var(--color-text-muted)]">{s.inscritos} inscrito(s): {s.ativos} em andamento · {s.concluidos} concluído(s) · {s.parados} parado(s) · {s.enviados} e-mail(s) enviado(s){s.enviados > 0 && <> · <b className="text-[var(--color-text-primary)]">{Math.round((s.abriram / s.enviados) * 100)}%</b> abriram · <b className="text-[var(--color-text-primary)]">{Math.round((s.clicaram / s.enviados) * 100)}%</b> clicaram</>}{s.falhas > 0 && <span className="text-[var(--color-danger)]"> · {s.falhas} falha(s)</span>}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={() => void agora(s)} disabled={rodando === s.id || s.status !== "active"} className="h-8 px-3 text-xs gap-1.5">{rodando === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Enviar agora (inclui leads novos)</Button>
+                  <Button variant="outline" onClick={() => { setInscId({ id: s.id, nome: s.name }); setCriando(true); }} className="h-8 px-3 text-xs gap-1.5">Inscrever mais pessoas</Button>
                   <Button variant="outline" onClick={() => editar(s)} className="h-8 px-3 text-xs gap-1.5">Editar e-mails</Button>
                   <Button variant="outline" onClick={() => void alternarAuto(s)} className="h-8 px-3 text-xs gap-1.5">Entrada automática: {s.auto ? "ligada" : "desligada"}</Button>
                   <Button variant="outline" onClick={() => void alternarParar(s)} className="h-8 px-3 text-xs gap-1.5">Parar ao clicar: {s.pararAoClicar ? "sim" : "não"}</Button>
@@ -113,6 +120,7 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
         </div>
       ) : (
         <div className="space-y-3">
+          {!inscId && (<>
           <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Nome (só para você)
             <input value={nome} onChange={(e) => setNome(e.target.value)} maxLength={120} placeholder="Ex.: Boas-vindas a novos leads" className={campo} /></label>
           {passos.map((p, i) => (
@@ -128,8 +136,9 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
               <textarea value={p.body} onChange={(e) => setPasso(i, { body: e.target.value })} rows={5} maxLength={20000} placeholder={"Olá {{primeiro_nome}},\n\n..."} className="w-full px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" />
             </div>))}
           {passos.length < 8 && <Button variant="outline" onClick={() => setPassos((l) => [...l, novoPasso(3)])} className="h-8 px-3 text-xs gap-1.5"><Plus className="w-3.5 h-3.5" /> Adicionar e-mail</Button>}
-          {editId ? <p className="text-[11px] text-[var(--color-text-muted)]">Quem já está na sequência continua de onde parou. Mudar o público não é possível aqui: crie outra sequência.</p> : <div className="space-y-2">
-            <p className="text-[11px] font-bold text-[var(--color-text-muted)]">Quem entra na sequência</p>
+          </>)}
+          {editId && !inscId ? <p className="text-[11px] text-[var(--color-text-muted)]">Quem já está na sequência continua de onde parou. Mudar o público não é possível aqui: crie outra sequência.</p> : <div className="space-y-2">
+            <p className="text-[11px] font-bold text-[var(--color-text-muted)]">Quem entra na sequência{inscId ? ` "${inscId.nome}"` : ""}</p>
             <div className="flex flex-wrap gap-x-4 text-xs text-[var(--color-text-primary)]">
               <label className="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={leads} onChange={(e) => setLeads(e.target.checked)} /> Leads</label>
               <label className="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={clientes} onChange={(e) => setClientes(e.target.checked)} /> Clientes</label>
@@ -139,11 +148,11 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
               {opts.statuses.map((o) => <button key={`t${o.value}`} type="button" onClick={() => toggle(statuses, setStatuses, o.value)} className={chip(statuses.includes(o.value))}>Status: {o.value || "—"} · {o.count}</button>)}
               {(opts.canais || []).slice(0, 20).map((o) => <button key={`c${o.value}`} type="button" onClick={() => toggle(canais, setCanais, o.value)} className={chip(canais.includes(o.value))}>Canal: {o.value} · {o.count}</button>)}
             </div>)}
-            <label className="inline-flex items-start gap-1.5 cursor-pointer text-xs text-[var(--color-text-primary)]"><input type="checkbox" className="mt-0.5" checked={pararClicar} onChange={(e) => setPararClicar(e.target.checked)} /> <span><b>Parar</b> de enviar para quem clicar em um link de algum e-mail (já demonstrou interesse)</span></label>
-            {leads && <label className="inline-flex items-start gap-1.5 cursor-pointer text-xs text-[var(--color-text-primary)]"><input type="checkbox" className="mt-0.5" checked={autoNovos} onChange={(e) => setAutoNovos(e.target.checked)} /> <span>Também inscrever <b>automaticamente</b> quem virar lead daqui para frente (com esses mesmos filtros de origem, status e canal)</span></label>}
+            {!inscId && <label className="inline-flex items-start gap-1.5 cursor-pointer text-xs text-[var(--color-text-primary)]"><input type="checkbox" className="mt-0.5" checked={pararClicar} onChange={(e) => setPararClicar(e.target.checked)} /> <span><b>Parar</b> de enviar para quem clicar em um link de algum e-mail (já demonstrou interesse)</span></label>}
+            {leads && !inscId && <label className="inline-flex items-start gap-1.5 cursor-pointer text-xs text-[var(--color-text-primary)]"><input type="checkbox" className="mt-0.5" checked={autoNovos} onChange={(e) => setAutoNovos(e.target.checked)} /> <span>Também inscrever <b>automaticamente</b> quem virar lead daqui para frente (com esses mesmos filtros de origem, status e canal)</span></label>}
             <p className="text-[11px] text-[var(--color-text-muted)]">{total === null ? "Contando…" : <><b className="text-[var(--color-text-primary)]">{total}</b> pessoa(s) com e-mail válido entram (sem repetidos nem descadastrados).</>}</p>
           </div>}
-          <div className="flex justify-end gap-2"><Button variant="outline" onClick={fecharForm} className="h-9 px-3 text-xs">Voltar</Button><Button onClick={() => void criar()} disabled={!valido || salvando || (!editId && !total)} className="h-9 px-4 text-xs font-bold">{salvando ? "Salvando…" : editId ? "Salvar alterações" : "Criar sequência"}</Button></div>
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={fecharForm} className="h-9 px-3 text-xs">Voltar</Button><Button onClick={() => void criar()} disabled={!valido || salvando || ((!editId || !!inscId) && !total)} className="h-9 px-4 text-xs font-bold">{salvando ? "Salvando…" : inscId ? "Inscrever" : editId ? "Salvar alterações" : "Criar sequência"}</Button></div>
         </div>
       )}
     </Modal>
