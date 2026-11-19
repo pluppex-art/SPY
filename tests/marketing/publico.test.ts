@@ -267,3 +267,9 @@ test("canal de aquisição: UTM só com chaves conhecidas, canais agrupados, e a
   assert.equal(db.t.leads.length, 1);
   assert.equal(db.t.leads[0].customFields.utm_source, "facebook");
 });
+
+import { normalizarCanal } from "../../src/lib/canalAquisicao.js";
+test("canal: nomes de gasto e de UTM caem no mesmo canal", () => {
+  for (const n of ["Facebook Ads", "facebook", "Instagram", "IG", "Meta Ads", "meta"]) assert.equal(normalizarCanal(n), "Meta", n);
+  assert.equal(normalizarCanal("Google Ads"), "Google"); assert.equal(normalizarCanal("indicação"), "Indicação"); assert.equal(normalizarCanal(""), "");
+});

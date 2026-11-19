@@ -22,10 +22,18 @@ const MAPA: Record<string, string> = {
   email: "E-mail", "e-mail": "E-mail", newsletter: "E-mail", whatsapp: "WhatsApp", wa: "WhatsApp", sms: "SMS",
 };
 
+/** Nome de canal padronizado a partir de um texto livre (utm_source ou a origem de um lançamento de gasto): "Facebook Ads" → "Meta". */
+export function normalizarCanal(nome: unknown): string {
+  const t = limpar(nome, 60);
+  if (!t) return "";
+  const k = t.toLowerCase();
+  return MAPA[k] ?? MAPA[k.replace(/\s*(ads|anúncios|anuncios)$/i, "").trim()] ?? t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 /** Canal do lead: utm_source quando existe (agrupando variações), senão a origem cadastrada, senão "Orgânico". */
 export function canalDoLead(lead: { source?: string | null; customFields?: Record<string, any> | null }): string {
-  const utm = limpar(lead.customFields?.utm_source, 60).toLowerCase();
-  if (utm) return MAPA[utm] ?? utm.charAt(0).toUpperCase() + utm.slice(1);
+  const utm = normalizarCanal(lead.customFields?.utm_source);
+  if (utm) return utm;
   if (lead.customFields?.veio_do_meta_ads === "sim") return "Meta";
   if (lead.customFields?.veio_do_google_ads === "sim") return "Google";
   return limpar(lead.source, 60) || "Orgânico";

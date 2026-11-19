@@ -1,5 +1,6 @@
 import { ehGastoMarketing } from "../../lib/gastoMarketing";
-import { canalDoLead } from "../../lib/canalAquisicao";
+import { canalDoLead, normalizarCanal } from "../../lib/canalAquisicao";
+import { supabase } from "../../lib/supabase";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { BarChart2, TrendingUp, Users, Target, Activity, DollarSign, Inbox } from "lucide-react";
@@ -40,6 +41,16 @@ export default function MarketingAnalytics() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (!cancelled && data) setServerSummary(data); })
       .catch(() => { /* silencioso — cálculo client-side abaixo já cobre */ });
+    return () => { cancelled = true; };
+  }, [activeTenantId]);
+
+  // Gastos lançados à mão por canal (Marketing → Aquisição), para mostrar custo por lead em cada canal.
+  const [gastosLancados, setGastosLancados] = useState<{ source: string; amount: number }[]>([]);
+  useEffect(() => {
+    if (!supabase || !activeTenantId) return;
+    let cancelled = false;
+    supabase.from("marketing_spend").select("source, amount").eq("tenant_id", activeTenantId).limit(5000)
+      .then(({ data }) => { if (!cancelled) setGastosLancados((data || []).map((r: any) => ({ source: String(r.source || ""), amount: Number(r.amount) || 0 }))); });
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
@@ -129,9 +140,12 @@ export default function MarketingAnalytics() {
       if (l.status === 'Fechado') { x.fechados++; x.receita += parseCurrencyBR(l.value); }
       m.set(c, x);
     }
-    return [...m.entries()].map(([nome, x]) => ({ nome, ...x, taxa: x.leads > 0 ? (x.fechados / x.leads) * 100 : 0, ticket: x.fechados > 0 ? x.receita / x.fechados : 0 }))
+    const gasto = new Map<string, number>();
+    for (const g of gastosLancados) { const c = normalizarCanal(g.source); if (c) gasto.set(c, (gasto.get(c) ?? 0) + g.amount); }
+    for (const c of gasto.keys()) if (!m.has(c)) m.set(c, { leads: 0, fechados: 0, receita: 0 });
+    return [...m.entries()].map(([nome, x]) => ({ nome, ...x, gasto: gasto.get(nome) ?? 0, cpl: x.leads > 0 && (gasto.get(nome) ?? 0) > 0 ? (gasto.get(nome)! / x.leads) : 0, cac: x.fechados > 0 && (gasto.get(nome) ?? 0) > 0 ? (gasto.get(nome)! / x.fechados) : 0, taxa: x.leads > 0 ? (x.fechados / x.leads) * 100 : 0, ticket: x.fechados > 0 ? x.receita / x.fechados : 0 }))
       .sort((a, b) => b.receita - a.receita || b.leads - a.leads).slice(0, 12);
-  }, [leads]);
+  }, [leads, gastosLancados]);
 
   const sourceData = (serverSummary?.sourceData ?? clientSourceData).map((s, i) => ({ ...s, color: COLORS[i % COLORS.length] }));
 
@@ -266,11 +280,11 @@ export default function MarketingAnalytics() {
         <h3 className="text-sm font-black text-white uppercase tracking-wider mb-1 flex items-center gap-2">
           <Users className="w-4 h-4 text-emerald-500" /> Canais de Aquisição
         </h3>
-        <p className="text-[11px] text-slate-500 mb-4">De onde vêm os leads e quantos viram venda. Leads de páginas e formulários do sistema trazem o canal da campanha (UTM); os demais usam a origem cadastrada.</p>
+        <p className="text-[11px] text-slate-500 mb-4">De onde vêm os leads e quantos viram venda. Leads de páginas e formulários do sistema trazem o canal da campanha (UTM); os demais usam a origem cadastrada. O gasto vem dos valores lançados por canal em Aquisição (o nome do canal precisa bater, ex.: “Meta” ou “Facebook Ads”).</p>
         {canais.length === 0 ? <p className="text-xs text-slate-500">Ainda não há leads.</p> : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[560px]">
-              <thead className="text-[10px] uppercase tracking-wider text-slate-500"><tr>{["Canal", "Leads", "Vendas", "Conversão", "Receita", "Ticket médio"].map((h, i) => <th key={h} className={`font-black py-2 ${i === 0 ? "text-left" : "text-right"}`}>{h}</th>)}</tr></thead>
+            <table className="w-full text-sm min-w-[760px]">
+              <thead className="text-[10px] uppercase tracking-wider text-slate-500"><tr>{["Canal", "Leads", "Vendas", "Conversão", "Receita", "Ticket médio", "Gasto", "Custo/lead", "Custo/venda"].map((h, i) => <th key={h} className={`font-black py-2 ${i === 0 ? "text-left" : "text-right"}`}>{h}</th>)}</tr></thead>
               <tbody>{canais.map((c) => (
                 <tr key={c.nome} className="border-t border-white/5">
                   <td className="py-2 font-bold text-white">{c.nome}</td>
@@ -279,6 +293,9 @@ export default function MarketingAnalytics() {
                   <td className="py-2 text-right text-slate-300">{c.taxa.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</td>
                   <td className="py-2 text-right font-bold text-emerald-400">{formatCurrency(c.receita)}</td>
                   <td className="py-2 text-right text-slate-300">{c.ticket > 0 ? formatCurrency(c.ticket) : "—"}</td>
+                  <td className="py-2 text-right text-slate-300">{c.gasto > 0 ? formatCurrency(c.gasto) : "—"}</td>
+                  <td className="py-2 text-right text-slate-300">{c.cpl > 0 ? formatCurrency(c.cpl) : "—"}</td>
+                  <td className="py-2 text-right text-slate-300">{c.cac > 0 ? formatCurrency(c.cac) : "—"}</td>
                 </tr>))}</tbody>
             </table>
           </div>
