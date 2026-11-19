@@ -287,3 +287,20 @@ test("duplicar campanha: devolve só nome, assunto e texto da campanha da própr
     assert.equal((await fetch(`${base}/api/email-campaigns/nao-e-uuid`)).status, 400);
   } finally { srv.close(); }
 });
+
+test("descadastrados: lista só da empresa, bloqueio manual valida o e-mail e não duplica", async () => {
+  const OUTRA = "99999999-9999-4999-8999-999999999999";
+  const db = criarFakeDb({ email_optouts: [{ tenant_id: T, email: "a@x.com", created_at: "2026-11-01T10:00:00Z" }, { tenant_id: OUTRA, email: "b@x.com", created_at: "2026-11-02T10:00:00Z" }], tenants: [{ id: T, modules: { marketing: true } }], users: [{ id: "u1", is_master: false, is_tenant_admin: true, tenant_id: T }] });
+  const app = express(); app.use(express.json());
+  registerEmailCampaignRoutes(app as any, { requireUser: (q: any, _s: any, n: any) => { q.user = { id: "u1" }; n(); }, resolveRequestedTenantId: async () => T, limiter: (_q: any, _s: any, n: any) => n(), supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  try {
+    const l = await (await fetch(`${base}/api/email-campaigns/descadastros`)).json();
+    assert.deepEqual(l.itens.map((i: any) => i.email), ["a@x.com"]);
+    const post = (email: string) => fetch(`${base}/api/email-campaigns/descadastros`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+    assert.equal((await post("sem-arroba")).status, 400);
+    assert.equal((await post("teste@example.com")).status, 400); // domínio reservado
+    assert.equal((await post("Nova@Pessoa.com")).status, 200);
+    assert.ok(db.t.email_optouts.some((o: any) => o.email === "nova@pessoa.com" && o.tenant_id === T));
+  } finally { srv.close(); }
+});

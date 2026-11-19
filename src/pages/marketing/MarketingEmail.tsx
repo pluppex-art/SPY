@@ -34,6 +34,9 @@ export default function MarketingEmail() {
   const { appSettings, saveAppSetting } = useData();
   const modelos: { id: string; nome: string; assunto: string; corpo: string }[] = Array.isArray(appSettings?.email_modelos) ? appSettings.email_modelos : [];
   const [modeloId, setModeloId] = useState("");
+  const [descAberto, setDescAberto] = useState(false);
+  const [descItens, setDescItens] = useState<{ email: string; created_at: string }[] | null>(null);
+  const [descNovo, setDescNovo] = useState("");
   const apiFetchTenant = (path: string, init?: RequestInit) => {
     if (!activeTenantId) return Promise.reject(new Error("Empresa não identificada."));
     return apiFetch(`${path}${path.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(activeTenantId)}`, init);
@@ -178,6 +181,23 @@ export default function MarketingEmail() {
     try { await apiFetchTenant(`/api/email-campaigns/${c.id}/cancel`, { method: "POST" }).then(json); await load(); } catch (e: any) { toast.error(e.message); }
   };
 
+  const abrirDescadastros = async () => {
+    setDescAberto(true); setDescItens(null);
+    try { setDescItens((await apiFetchTenant("/api/email-campaigns/descadastros").then(json)).itens); } catch (e: any) { toast.error(e.message); setDescItens([]); }
+  };
+  const bloquearEmail = async () => {
+    try {
+      await apiFetchTenant("/api/email-campaigns/descadastros", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: descNovo }) }).then(json);
+      toast.success("E-mail bloqueado: não receberá mais campanhas."); setDescNovo("");
+      setDescItens((await apiFetchTenant("/api/email-campaigns/descadastros").then(json)).itens);
+    } catch (e: any) { toast.error(e.message); }
+  };
+  const exportarDescadastros = () => {
+    const csv = ["E-mail;Data", ...(descItens || []).map((d) => `${d.email};${new Date(d.created_at).toLocaleDateString("pt-BR")}`)].join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = "descadastrados.csv"; a.click(); URL.revokeObjectURL(url);
+  };
+
   const usarModelo = (id: string) => {
     setModeloId(id);
     const m = modelos.find((x) => x.id === id);
@@ -211,7 +231,7 @@ export default function MarketingEmail() {
     <PageContainer
       title="E-mail em massa"
       description="Envie um e-mail para leads, clientes, contatos, equipe ou uma lista própria (colada ou de planilha) — com ou sem cadastro no sistema — com descadastro automático."
-      actions={<div className="flex gap-2"><Button variant="outline" onClick={() => void load()} className="h-9 px-3 text-xs gap-1.5"><RefreshCw className="w-3.5 h-3.5" /></Button><Button onClick={() => setOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5"><Plus className="w-3.5 h-3.5" /> Nova campanha</Button></div>}
+      actions={<div className="flex gap-2"><Button variant="outline" onClick={() => void abrirDescadastros()} className="h-9 px-3 text-xs">Descadastrados</Button><Button variant="outline" onClick={() => void load()} className="h-9 px-3 text-xs gap-1.5"><RefreshCw className="w-3.5 h-3.5" /></Button><Button onClick={() => setOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5"><Plus className="w-3.5 h-3.5" /> Nova campanha</Button></div>}
     >
       <div className="space-y-4 max-w-4xl">
         {options && (
@@ -288,6 +308,20 @@ export default function MarketingEmail() {
             );
           })}
       </div>
+
+      <Modal isOpen={descAberto} onClose={() => setDescAberto(false)} title="Descadastrados" description="Quem pediu para sair nunca mais recebe campanhas: o sistema pula essas pessoas em qualquer envio. Esta lista não pode ser desfeita por aqui." maxWidth="max-w-lg">
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input value={descNovo} onChange={(e) => setDescNovo(e.target.value)} placeholder="Bloquear um e-mail à mão" className="flex-1 h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" />
+            <Button onClick={() => void bloquearEmail()} disabled={!descNovo.trim()} className="h-9 px-3 text-xs">Bloquear</Button>
+          </div>
+          {descItens === null ? <Loader2 className="w-4 h-4 animate-spin" /> : descItens.length === 0 ? <p className="text-xs text-[var(--color-text-muted)]">Ninguém se descadastrou ainda.</p> : (<>
+            <div className="flex items-center justify-between text-xs"><b className="text-[var(--color-text-primary)]">{descItens.length.toLocaleString("pt-BR")} pessoa(s)</b><Button variant="outline" onClick={exportarDescadastros} className="h-8 px-3 text-xs">Exportar planilha</Button></div>
+            <ul className="max-h-72 overflow-auto divide-y divide-[var(--color-border-default)] text-xs">{descItens.slice(0, 300).map((d) => <li key={d.email} className="flex justify-between py-1.5"><span className="text-[var(--color-text-primary)] break-all">{d.email}</span><span className="text-[var(--color-text-muted)] shrink-0 ml-3">{new Date(d.created_at).toLocaleDateString("pt-BR")}</span></li>)}</ul>
+            {descItens.length > 300 && <p className="text-[11px] text-[var(--color-text-muted)]">Mostrando os 300 mais recentes. A planilha tem todos.</p>}
+          </>)}
+        </div>
+      </Modal>
 
       <Modal isOpen={open} onClose={() => !creating && setOpen(false)} title="Nova campanha de e-mail" maxWidth="max-w-2xl">
         <div className="space-y-4">

@@ -472,6 +472,27 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     res.json({ requeued: n });
   });
 
+  /** Lista de quem pediu para não receber e-mails (descadastrados), mais recentes primeiro. */
+  app.get("/api/email-campaigns/descadastros", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    const { data, error } = await supabaseService.from("email_optouts").select("email, created_at").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(5000);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ itens: data || [] });
+  });
+
+  /** Bloqueia um e-mail à mão (ex.: alguém reclamou por outro canal). Não existe "desbloquear": quem saiu da lista só volta se pedir ao próprio remetente. */
+  app.post("/api/email-campaigns/descadastros", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
+    const email = cleanEmail(req.body?.email);
+    if (!email) return res.status(400).json({ error: "Informe um e-mail válido." });
+    const { error } = await supabaseService.from("email_optouts").upsert({ tenant_id: tenantId, email }, { onConflict: "tenant_id,email", ignoreDuplicates: true });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ ok: true, email });
+  });
+
   /** Texto de uma campanha já criada (para duplicar). */
   app.get("/api/email-campaigns/:id", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
