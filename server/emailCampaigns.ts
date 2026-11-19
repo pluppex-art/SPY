@@ -1,5 +1,6 @@
 import { modulosDoCargo } from "../src/lib/cargosUsuario.js";
 import crypto from "node:crypto";
+import { canalDoLead } from "../src/lib/canalAquisicao.js";
 import type { Express } from "express";
 import { sendTenantEmail, checkTenantSender } from "./mailer.js";
 
@@ -24,6 +25,8 @@ const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a
 export interface Audience {
   /** Filtros aplicados só aos leads. */
   sources?: string[]; statuses?: string[];
+  /** Canal de aquisição (Meta, Google, E-mail…) e campanha (utm_campaign) do primeiro contato. */
+  canais?: string[]; campanhas?: string[];
   /** Quais cadastros entram. Leads entra por padrão (false para desligar). */
   leads?: boolean; clientes?: boolean; contatos?: boolean; equipe?: boolean;
   /** Lista própria: pessoas que podem nem estar no sistema (inscritos de um formulário, etc.). */
@@ -101,9 +104,11 @@ interface Deps { requireUser: any; resolveRequestedTenantId: (req: any, res: any
 async function pagedLeads(db: any, tenantId: string) {
   const out: any[] = [];
   for (let from = 0; from < 60_000; from += PAGE) {
-    const { data, error } = await db.from("leads").select("id, name, email, company, source, status")
+    const consulta = (cols: string) => db.from("leads").select(cols)
       .eq("tenant_id", tenantId).is("deleted_at", null).not("email", "is", null).neq("email", "")
       .order("created_at", { ascending: true }).range(from, from + PAGE - 1);
+    let { data, error } = await consulta("id, name, email, company, source, status, customFields");
+    if (error && /customFields/i.test(error.message)) ({ data, error } = await consulta("id, name, email, company, source, status"));
     if (error) throw new Error(error.message);
     out.push(...(data || []));
     if (!data || data.length < PAGE) break;
@@ -124,7 +129,10 @@ async function optoutSet(db: any, tenantId: string): Promise<Set<string>> {
 function filterLeads(leads: any[], aud: Audience): Candidate[] {
   const sources = new Set((aud.sources || []).map(String));
   const statuses = new Set((aud.statuses || []).map(String));
-  return leads.filter((l) => (!sources.size || sources.has(String(l.source ?? ""))) && (!statuses.size || statuses.has(String(l.status ?? ""))))
+  const canais = new Set((aud.canais || []).map(String));
+  const campanhas = new Set((aud.campanhas || []).map(String));
+  return leads.filter((l) => (!sources.size || sources.has(String(l.source ?? ""))) && (!statuses.size || statuses.has(String(l.status ?? "")))
+    && (!canais.size || canais.has(canalDoLead(l))) && (!campanhas.size || campanhas.has(String(l.customFields?.utm_campaign ?? ""))))
     .map((l) => ({ id: `lead:${l.id}`, email: l.email, name: l.name, company: l.company }));
 }
 
@@ -237,7 +245,7 @@ export async function resolveAudience(db: any, tenantId: string, aud: Audience) 
 export function parseAudience(raw: any): Audience {
   const arr = (v: any) => (Array.isArray(v) ? v.map(String).slice(0, 100) : []);
   return {
-    sources: arr(raw?.sources), statuses: arr(raw?.statuses),
+    sources: arr(raw?.sources), statuses: arr(raw?.statuses), canais: arr(raw?.canais), campanhas: arr(raw?.campanhas),
     leads: raw?.leads !== false, clientes: raw?.clientes === true, contatos: raw?.contatos === true, equipe: raw?.equipe === true,
     excluir: Array.isArray(raw?.excluir) ? raw.excluir.map((e: any) => String(e).slice(0, 254)).slice(0, 20_000) : [],
     manual: Array.isArray(raw?.manual) ? raw.manual.slice(0, MAX_RECIPIENTS + 1).map((m: any) => ({ email: String(m?.email ?? "").slice(0, 254), name: String(m?.name ?? "").slice(0, 120) })) : [],
@@ -278,7 +286,8 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       const { data: smtp } = await supabaseService.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
       const t = smtp?.value;
       const own = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
-      res.json({ sources: count("source"), statuses: count("status"), sender: own ? { kind: "tenant", from: String(t.fromEmail) } : { kind: "platform" } });
+      const contar = (f: (l: any) => string) => { const m = new Map<string, number>(); for (const l of leads) if (cleanEmail(l.email)) { const k = f(l); if (k) m.set(k, (m.get(k) || 0) + 1); } return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([value, n]) => ({ value, count: n })); };
+      res.json({ sources: count("source"), statuses: count("status"), canais: contar((l) => canalDoLead(l)), campanhas: contar((l) => String(l.customFields?.utm_campaign ?? "")), sender: own ? { kind: "tenant", from: String(t.fromEmail) } : { kind: "platform" } });
     } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao ler os leads." }); }
   });
 

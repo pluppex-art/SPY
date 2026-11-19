@@ -20,7 +20,7 @@ import { FileSpreadsheet } from "lucide-react";
 
 interface Campaign { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; opened?: number; clicked?: number; agendada_para?: string | null; subject_b?: string | null; sender: string | null; created_at: string }
 interface Option { value: string; count: number }
-interface Options { sources: Option[]; statuses: Option[]; sender: { kind: "tenant" | "platform"; from?: string } }
+interface Options { sources: Option[]; statuses: Option[]; canais?: Option[]; campanhas?: Option[]; sender: { kind: "tenant" | "platform"; from?: string } }
 interface Preview { total: number; semEmail: number; descadastrados: number; repetidos: number; excluidos?: number; sample: { name: string; email: string }[] }
 
 const STATUS_LABEL: Record<string, string> = { ready: "Pronta para enviar", sending: "Enviando", done: "Concluída", cancelled: "Cancelada" };
@@ -70,6 +70,8 @@ export default function MarketingEmail() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sources, setSources] = useState<string[]>([]);
+  const [canais, setCanais] = useState<string[]>([]);
+  const [campanhas, setCampanhas] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
   const [inclLeads, setInclLeads] = useState(true);
   const [inclClientes, setInclClientes] = useState(false);
@@ -80,7 +82,7 @@ export default function MarketingEmail() {
   const [fileName, setFileName] = useState("");
   const [excluir, setExcluir] = useState<string[]>([]);
   const [showList, setShowList] = useState(false);
-  const audience = { leads: inclLeads, clientes: inclClientes, contatos: inclContatos, equipe: inclEquipe, sources, statuses, manual, excluir };
+  const audience = { leads: inclLeads, clientes: inclClientes, contatos: inclContatos, equipe: inclEquipe, sources, statuses, canais, campanhas, manual, excluir };
 
   const onManualText = (t: string) => { setManualText(t); setFileName(""); setManual(parseManualText(t)); };
   const onSheet = async (file?: File | null) => {
@@ -116,7 +118,7 @@ export default function MarketingEmail() {
   }, [activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setCampaigns([]); setOptions(null); setCheck(null); setPreview(null); setLoading(true);
-    setExcluir([]); setManual([]); setManualText(""); setFileName(""); setSources([]); setStatuses([]);
+    setExcluir([]); setManual([]); setManualText(""); setFileName(""); setSources([]); setStatuses([]); setCanais([]); setCampanhas([]);
     setOpen(false);
     if (activeTenantId) void load();
   }, [activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -131,7 +133,7 @@ export default function MarketingEmail() {
         .then(json).then((p) => { if (tenantRef.current === t0) setPreview(p); }).catch(() => setPreview(null)).finally(() => setPreviewing(false));
     }, 350);
     return () => clearTimeout(t);
-  }, [open, activeTenantId, sources, statuses, inclLeads, inclClientes, inclContatos, inclEquipe, manual, excluir]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, activeTenantId, sources, statuses, canais, campanhas, inclLeads, inclClientes, inclContatos, inclEquipe, manual, excluir]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (list: string[], set: (v: string[]) => void, v: string) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
@@ -387,6 +389,14 @@ export default function MarketingEmail() {
             {inclLeads && options && options.statuses.length > 0 && (
               <div className="flex flex-wrap gap-1.5">{options.statuses.map((o) => (
                 <button key={`t-${o.value}`} type="button" onClick={() => toggle(statuses, setStatuses, o.value)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${statuses.includes(o.value) ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>Status: {o.value || "—"} · {o.count}</button>))}</div>
+            )}
+            {inclLeads && options && (options.canais?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-1.5">{options.canais!.slice(0, 40).map((o) => (
+                <button key={`c-${o.value}`} type="button" onClick={() => toggle(canais, setCanais, o.value)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${canais.includes(o.value) ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>Canal: {o.value} · {o.count}</button>))}</div>
+            )}
+            {inclLeads && options && (options.campanhas?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-1.5">{options.campanhas!.slice(0, 40).map((o) => (
+                <button key={`k-${o.value}`} type="button" onClick={() => toggle(campanhas, setCampanhas, o.value)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${campanhas.includes(o.value) ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>Campanha: {o.value} · {o.count}</button>))}</div>
             )}
             <div className="space-y-1.5 p-3 rounded-xl border border-dashed border-[var(--color-border-default)]">
               <div className="flex items-center justify-between gap-2">

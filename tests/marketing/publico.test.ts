@@ -347,3 +347,18 @@ test("link UTM: normaliza, mantém parâmetros existentes e valida", async () =>
   assert.equal(montarLinkUtm({ url: "https://site.com", source: "" }).ok, false);
   assert.equal(montarLinkUtm({ url: "https://localhost", source: "x" }).ok, false);
 });
+
+test("público por canal e campanha: filtra leads pela origem do primeiro contato", async () => {
+  const { selectAudience } = await import("../../server/emailCampaigns.js");
+  const leads = [
+    { id: "1", email: "a@x.com", name: "A", source: "Site", status: "novo", customFields: { utm_source: "instagram", utm_campaign: "bf" } },
+    { id: "2", email: "b@x.com", name: "B", source: "Site", status: "novo", customFields: { utm_source: "google", utm_campaign: "bf" } },
+    { id: "3", email: "c@x.com", name: "C", source: "Indicação", status: "novo", customFields: null },
+  ];
+  const por = (aud: any) => selectAudience(leads, aud, new Set()).rows.map((r) => r.email);
+  assert.deepEqual(por({ canais: ["Meta"] }), ["a@x.com"]);
+  assert.deepEqual(por({ campanhas: ["bf"] }), ["a@x.com", "b@x.com"]);
+  assert.deepEqual(por({ canais: ["Indicação"] }), ["c@x.com"]);
+  assert.deepEqual(por({ canais: ["Meta"], campanhas: ["bf"] }), ["a@x.com"]);
+  assert.equal(por({}).length, 3);
+});
