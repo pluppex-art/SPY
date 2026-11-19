@@ -136,6 +136,7 @@ export function FinanceiroAdiantamentos() {
       titulo="Adiantamentos"
       descricao="Valores adiantados a funcionários ou sócios e em qual pagamento serão descontados."
       nomeItem="adiantamento"
+      masc
       ordenarPor="data_adiantamento"
       campoStatus="status"
       resumos={[
@@ -162,6 +163,7 @@ export function FinanceiroAcordos() {
       titulo="Acordos, Descontos e Permutas"
       descricao="Acordos fechados com clientes, funcionários e parceiros, com valor e situação."
       nomeItem="acordo"
+      masc
       ordenarPor="data_acordo"
       campoStatus="status"
       resumos={[
@@ -188,6 +190,7 @@ export function FinanceiroPatrocinios() {
       titulo="Patrocínios e Permutas"
       descricao="Patrocinadores, valores combinados e recebidos, e as contrapartidas a entregar."
       nomeItem="patrocínio"
+      masc
       campoStatus="status"
       progresso={{ atual: "valor_recebido", total: "valor_total", label: "Recebido" }}
       resumos={[

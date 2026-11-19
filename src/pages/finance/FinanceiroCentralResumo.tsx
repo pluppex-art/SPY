@@ -5,7 +5,8 @@ import { exportarXlsx, dataParaArquivo } from "../../lib/exportXlsx";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { StatCard } from "../../components/ui/stat-card";
+import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
+import { kpiSimples } from "./components/kpiSimples";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { LegendaStatusFinanceiro, StatusFinanceiroBadge } from "./components/StatusFinanceiroBadge";
@@ -131,16 +132,21 @@ export default function FinanceiroCentralResumo() {
         </div>
       }
     >
+      <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
       {erro && <Card className="p-4 text-sm text-red-600">{erro}</Card>}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <StatCard icon={ArrowUpCircle} label="Entradas do mês" value={loading ? "…" : brl(r.entradas)} tone="success" caption="Recebimentos pagos" />
-        <StatCard icon={ArrowDownCircle} label="Saídas do mês" value={loading ? "…" : brl(r.saidas)} tone="danger" caption="Pagamentos feitos" />
-        <StatCard icon={Wallet} label="Saldo do mês" value={loading ? "…" : brl(r.saldoMes)} tone={r.saldoMes < 0 ? "danger" : "success"} caption="Entradas − saídas" />
-        <StatCard icon={CalendarClock} label="Total a pagar" value={loading ? "…" : brl(r.totalPagar)} tone="warning" sub={`A vencer: ${brl(r.aVencerPagar)}`} caption="Vencidos + a vencer" />
-        <StatCard icon={AlertTriangle} label="Vencido a pagar" value={loading ? "…" : brl(r.vencidosPagar)} tone={r.vencidosPagar > 0 ? "danger" : "default"} sub={`${r.qtdVencidosPagar} conta(s)`} />
-        <StatCard icon={ArrowUpCircle} label="A receber" value={loading ? "…" : brl(r.totalReceber)} sub={`Em atraso: ${brl(r.vencidosReceber)}`} caption="Pendente + atrasado" />
-      </div>
+      <FinanceKpiGrid
+        cards={[
+          kpiSimples("Entradas do mês", loading ? "…" : brl(r.entradas), ArrowUpCircle, "Recebimentos pagos"),
+          kpiSimples("Saídas do mês", loading ? "…" : brl(r.saidas), ArrowDownCircle, "Pagamentos feitos"),
+          kpiSimples("Saldo do mês", loading ? "…" : brl(r.saldoMes), Wallet, "Entradas − saídas", r.saldoMes < 0),
+          kpiSimples("Previsão 30 dias", loading ? "…" : `${r.previsao[0].saldo < 0 ? "Déficit " : "Sobra "}${brl(Math.abs(r.previsao[0].saldo))}`, CalendarClock, "Entra − sai até 30 dias", r.previsao[0].saldo < 0),
+          kpiSimples("Total a pagar", loading ? "…" : brl(r.totalPagar), CalendarClock, `A vencer: ${brl(r.aVencerPagar)}`),
+          kpiSimples("Vencido a pagar", loading ? "…" : brl(r.vencidosPagar), AlertTriangle, `${r.qtdVencidosPagar} conta(s)`, r.vencidosPagar > 0),
+          kpiSimples("A receber", loading ? "…" : brl(r.totalReceber), ArrowUpCircle, "Pendente + atrasado"),
+          kpiSimples("Recebimentos em atraso", loading ? "…" : brl(r.vencidosReceber), AlertTriangle, "Vencidos e não pagos", r.vencidosReceber > 0),
+        ]}
+      />
 
       <Card className="p-4">
         <h3 className="mb-1 text-sm font-semibold">Previsão de caixa (30, 60 e 90 dias)</h3>
@@ -187,6 +193,7 @@ export default function FinanceiroCentralResumo() {
       </Card>
 
       <LegendaStatusFinanceiro />
+      </div>
     </PageContainer>
   );
 }

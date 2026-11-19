@@ -4,7 +4,8 @@ import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, BarChart3, CheckCircle2,
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { StatCard } from "../../components/ui/stat-card";
+import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
+import { kpiSimples } from "./components/kpiSimples";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -50,7 +51,7 @@ function CartaoArea({ titulo, icon: Icon, to, linhas, atalhos }: { titulo: strin
           const corpo = (
             <>
               <span className="text-[var(--color-text-muted)]">{l.label}</span>
-              <span className={`font-semibold tabular-nums ${l.tone ? cor[l.tone] : ""}`}>{l.value}</span>
+              <span className={`whitespace-nowrap text-right font-semibold tabular-nums ${l.tone ? cor[l.tone] : ""}`}>{l.value}</span>
             </>
           );
           return (
@@ -175,15 +176,21 @@ export default function FinanceiroPainelGeral() {
         </div>
       }
     >
+      <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
       {erro && <Card className="p-4 text-sm text-red-600">{erro}</Card>}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <StatCard icon={Landmark} label="Saldo em contas" value={loading ? "…" : temContas ? brl(saldoContas) : "—"} tone={saldoContas < 0 ? "danger" : "default"} caption={temContas ? "Todas as contas" : "Cadastre contas em Contas Bancárias"} />
-        <StatCard icon={ArrowUpCircle} label="Entradas do mês" value={loading ? "…" : brl(d.entradas)} tone="success" caption="Recebido" />
-        <StatCard icon={ArrowDownCircle} label="Saídas do mês" value={loading ? "…" : brl(d.saidas)} tone="danger" caption="Pago" />
-        <StatCard icon={Inbox} label="A receber" value={loading ? "…" : brl(d.aReceber)} sub={`Atrasado: ${brl(soma(d.receberAtrasado))}`} caption="Em aberto" />
-        <StatCard icon={TrendingDown} label="A pagar" value={loading ? "…" : brl(d.aPagar)} tone="warning" sub={`Vencido: ${brl(soma(d.pagarAtrasado))}`} caption="Em aberto" />
-      </div>
+      <FinanceKpiGrid
+        cards={[
+          kpiSimples("Saldo em contas", loading ? "…" : temContas ? brl(saldoContas) : "—", Landmark, temContas ? "Todas as contas" : "Cadastre em Contas Bancárias", saldoContas < 0),
+          kpiSimples("Entradas do mês", loading ? "…" : brl(d.entradas), ArrowUpCircle, "Recebido"),
+          kpiSimples("Saídas do mês", loading ? "…" : brl(d.saidas), ArrowDownCircle, "Pago"),
+          kpiSimples("Resultado do mês", loading ? "…" : brl(d.entradas - d.saidas), Wallet, "Entradas − saídas", d.entradas - d.saidas < 0),
+          kpiSimples("A receber", loading ? "…" : brl(d.aReceber), Inbox, "Em aberto"),
+          kpiSimples("Recebimentos em atraso", loading ? "…" : brl(soma(d.receberAtrasado)), AlertTriangle, `${d.receberAtrasado.length} lançamento(s)`, d.receberAtrasado.length > 0),
+          kpiSimples("A pagar", loading ? "…" : brl(d.aPagar), TrendingDown, "Em aberto"),
+          kpiSimples("Vencido a pagar", loading ? "…" : brl(soma(d.pagarAtrasado)), AlertTriangle, `${d.pagarAtrasado.length} conta(s)`, d.pagarAtrasado.length > 0),
+        ]}
+      />
 
       <Card className="p-4">
         <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><AlertTriangle className="h-4 w-4" />Alertas</h3>
@@ -248,6 +255,7 @@ export default function FinanceiroPainelGeral() {
       </div>
 
       <LegendaStatusFinanceiro />
+      </div>
     </PageContainer>
   );
 }

@@ -70,6 +70,7 @@ export default function FinanceiroAgenda() {
       description="Vencimentos de contas, parcelas e contratos no calendário do mês."
       actions={<Button variant="outline" onClick={exportar} disabled={porDia.size === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar mês</Button>}
     >
+      <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
       {erro && <Card className="p-4 text-sm text-red-600">{erro}</Card>}
 
       <Card className="p-4">
@@ -137,6 +138,7 @@ export default function FinanceiroAgenda() {
       </Card>
 
       <LegendaStatusFinanceiro />
+      </div>
     </PageContainer>
   );
 }

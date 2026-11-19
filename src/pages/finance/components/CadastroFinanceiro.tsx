@@ -6,8 +6,8 @@ import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Modal } from "../../../components/ui/modal";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
-import { FilterBar, FilterSearch } from "../../../components/ui/kpi-filter-card";
-import { StatCard } from "../../../components/ui/stat-card";
+import { FilterBar, FilterSearch, FilterChips } from "../../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./FinanceKpiFilter";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { Skeleton } from "../../../components/ui/skeleton";
 import type { LucideIcon } from "lucide-react";
@@ -46,6 +46,8 @@ interface Props {
   titulo: string;
   descricao: string;
   nomeItem: string; // "promessa", "meta"...
+  /** Item masculino ("acordo", "patrocínio"): "Novo", "Nenhum", "cadastrado". */
+  masc?: boolean;
   campos: CampoCadastro[];
   /** Campo (select) usado como filtro por chips/status. */
   campoStatus?: string;
@@ -88,7 +90,7 @@ const dataBR = (iso?: string | null) => (iso ? iso.split("-").reverse().join("/"
  * reservas, adiantamentos, acordos, patrocínios, viagens). Cada tela é só uma
  * configuração: tabela + campos. Tudo isolado por empresa (tenant_id + RLS).
  */
-export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos, campoStatus, ordenarPor = "created_at", resumos = [], rodape, progresso, enriquecer, dicaOrigem }: Props) {
+export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc = false, campos, campoStatus, ordenarPor = "created_at", resumos = [], rodape, progresso, enriquecer, dicaOrigem }: Props) {
   const { activeTenantId: tenantId } = useAuth();
   const { formatCurrency: brl } = useLocalization();
   const [linhas, setLinhas] = useState<any[]>([]);
@@ -99,6 +101,7 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
 
+  const NOVO = masc ? "Novo" : "Nova";
   const campoLista = campos.filter((c) => c.naLista ?? c.tipo !== "textarea");
   const principal = campos[0];
 
@@ -224,36 +227,31 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
       actions={
         <div className="flex gap-2">
           <Button variant="outline" onClick={exportar} disabled={filtradas.length === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar planilha</Button>
-          <Button onClick={abrirNovo}><Plus className="mr-2 h-4 w-4" />Nova {nomeItem}</Button>
+          <Button onClick={abrirNovo}><Plus className="mr-2 h-4 w-4" />{NOVO} {nomeItem}</Button>
         </div>
       }
     >
-      {resumos.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {resumos.map((r) => {
-            const v = r.calcula(linhas);
-            return <StatCard key={r.label} icon={r.icon} label={r.label} tone={r.tone} value={loading ? "…" : r.moeda && typeof v === "number" ? brl(v) : v} sub={r.sub?.(linhas)} />;
-          })}
-        </div>
-      )}
-
-      <FilterBar>
-        {statusOpcoes.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {["", ...statusOpcoes].map((s) => (
-              <button
-                key={s || "todos"}
-                type="button"
-                onClick={() => setFiltro(s)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${filtro === s ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)] text-white" : "border-[var(--color-border-default)]"}`}
-              >
-                {s || "Todos"}
-              </button>
-            ))}
-          </div>
-        )}
-        <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar…" />
-      </FilterBar>
+      <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
+      <FinanceKpiFilter
+        id={`fin-${tabela}`}
+        kpis={resumos.map((r) => {
+          const v = r.calcula(linhas);
+          return {
+            label: r.label,
+            value: loading ? "…" : r.moeda && typeof v === "number" ? brl(v) : v,
+            icon: r.icon,
+            tone: r.tone === "danger" ? ("danger" as const) : r.tone === "warning" ? ("warning" as const) : r.tone === "success" ? ("success" as const) : ("primary" as const),
+            hint: r.sub?.(linhas),
+          };
+        })}
+        activeCount={(busca.trim() ? 1 : 0) + (filtro ? 1 : 0)}
+        onClear={() => { setBusca(""); setFiltro(""); }}
+      >
+        <FilterBar>
+          <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar…" />
+        </FilterBar>
+        {statusOpcoes.length > 0 && <FilterChips value={filtro} onChange={setFiltro} options={statusOpcoes} />}
+      </FinanceKpiFilter>
 
       {loading && linhas.length === 0 ? (
         <Card className="space-y-2 p-4">
@@ -262,9 +260,9 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
       ) : filtradas.length === 0 ? (
         <EmptyState
           icon={Inbox}
-          title={linhas.length === 0 ? `Nenhuma ${nomeItem} cadastrada` : "Nada encontrado"}
-          description={linhas.length === 0 ? `Cadastre a primeira ${nomeItem} para começar a acompanhar aqui.` : "Tente limpar a busca ou o filtro."}
-          action={linhas.length === 0 ? <Button onClick={abrirNovo}><Plus className="mr-2 h-4 w-4" />Nova {nomeItem}</Button> : undefined}
+          title={linhas.length === 0 ? `${masc ? "Nenhum" : "Nenhuma"} ${nomeItem} ${masc ? "cadastrado" : "cadastrada"}` : "Nada encontrado"}
+          description={linhas.length === 0 ? `Cadastre ${masc ? "o primeiro" : "a primeira"} ${nomeItem} para começar a acompanhar aqui.` : "Tente limpar a busca ou o filtro."}
+          action={linhas.length === 0 ? <Button onClick={abrirNovo}><Plus className="mr-2 h-4 w-4" />{NOVO} {nomeItem}</Button> : undefined}
         />
       ) : (
         <>
@@ -352,8 +350,9 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
 
       {dicaOrigem && <p className="text-xs text-[var(--color-text-muted)]">{dicaOrigem}</p>}
       {rodape}
+      </div>
 
-      <Modal isOpen={!!editando} onClose={() => setEditando(null)} title={editando?.id ? `Editar ${nomeItem}` : `Nova ${nomeItem}`} footer={<ModalFooter onCancel={() => setEditando(null)} submitLabel="Salvar" saving={saving} type="button" onSubmit={salvar} />}>
+      <Modal isOpen={!!editando} onClose={() => setEditando(null)} title={editando?.id ? `Editar ${nomeItem}` : `${NOVO} ${nomeItem}`} footer={<ModalFooter onCancel={() => setEditando(null)} submitLabel="Salvar" saving={saving} type="button" onSubmit={salvar} />}>
         <div className="space-y-3">
           {campos.map((c) => (
             <Field key={c.key} label={c.label} required={c.obrigatorio}>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronRight, ShoppingCart, FileSpreadsheet } from "lucide-react";
+import { ChevronDown, ChevronRight, ShoppingCart, FileSpreadsheet, Layers, Wallet, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { exportarXlsx, dataParaArquivo } from "../../lib/exportXlsx";
 import { Button } from "../../components/ui/button";
@@ -9,7 +9,9 @@ import { Skeleton } from "../../components/ui/skeleton";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { useLocalization } from "../../contexts/LocalizationContext";
-import { FilterBar, FilterSearch } from "../../components/ui/kpi-filter-card";
+import { FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
+import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
+import { kpiSimples } from "./components/kpiSimples";
 import { LegendaStatusFinanceiro, StatusFinanceiroBadge } from "./components/StatusFinanceiroBadge";
 import { statusDoLancamento, useFinanceEntriesResumo, type LancamentoResumo, type StatusFinanceiro } from "./hooks/useFinanceEntriesResumo";
 
@@ -92,23 +94,31 @@ export default function FinanceiroCompras() {
       description="Cada compra parcelada com as parcelas pagas, a vencer e atrasadas — controle de boletos por fornecedor ou cliente."
       actions={<Button variant="outline" onClick={exportar} disabled={grupos.length === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar planilha</Button>}
     >
+      <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
       {erro && <Card className="p-4 text-sm text-red-600">{erro}</Card>}
 
-      <FilterBar>
-        <div className="flex gap-1">
-          {(["Pagar", "Receber"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTipo(t)}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${tipo === t ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)] text-white" : "border-[var(--color-border-default)]"}`}
-            >
-              {t === "Pagar" ? "Compras (a pagar)" : "Vendas parceladas (a receber)"}
-            </button>
-          ))}
-        </div>
-        <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar compra ou fornecedor…" />
-      </FilterBar>
+      <FinanceKpiFilter
+        id="finCompras"
+        kpis={[
+          kpiSimples(tipo === "Pagar" ? "Compras parceladas" : "Vendas parceladas", loading ? "…" : grupos.length, Layers, `${grupos.filter((g) => g.status !== "Pago").length} em andamento`),
+          kpiSimples("Valor total", loading ? "…" : brl(grupos.reduce((a, g) => a + g.total, 0)), Wallet, "Soma das parcelas"),
+          kpiSimples("Parcelas atrasadas", loading ? "…" : grupos.reduce((a, g) => a + g.parcelas.filter((p) => statusDoLancamento(p, hoje) === "Atrasado").length, 0), AlertTriangle, "Vencidas e não pagas", grupos.some((g) => g.status === "Atrasado")),
+          kpiSimples("Já pago", loading ? "…" : brl(grupos.reduce((a, g) => a + g.parcelas.filter((p) => p.status === "Pago").reduce((x, p) => x + p.value, 0), 0)), CheckCircle2, "Parcelas quitadas"),
+        ]}
+        activeCount={busca.trim() ? 1 : 0}
+        onClear={() => setBusca("")}
+      >
+        <FilterBar>
+          <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar compra ou fornecedor…" />
+        </FilterBar>
+        <FilterChips
+          value={tipo}
+          onChange={(v) => setTipo(v as "Pagar" | "Receber")}
+          allLabel="Compras (a pagar)"
+          allValue="Pagar"
+          options={[{ value: "Receber", label: "Vendas parceladas (a receber)" }]}
+        />
+      </FinanceKpiFilter>
 
       {loading && rows.length === 0 ? (
         <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
@@ -157,6 +167,7 @@ export default function FinanceiroCompras() {
       )}
 
       <LegendaStatusFinanceiro />
+      </div>
     </PageContainer>
   );
 }
