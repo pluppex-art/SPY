@@ -1,5 +1,79 @@
 import { AlertTriangle, CheckCircle2, Clock, Wallet, Target, Gift, Plane, HandCoins, Handshake, PiggyBank, MessageCircle, Users } from "lucide-react";
+import { supabase } from "../../lib/supabase";
+import { fetchAllRows } from "../../lib/pgrst";
 import { CadastroFinanceiro, type ResumoCadastro } from "./components/CadastroFinanceiro";
+import { saldoDaConta, transferenciasDaConta, type FinanceEntryLike } from "./lib/financeEngine";
+
+const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+
+interface BaseLanc extends FinanceEntryLike {
+  tags: string[];
+  conta_bancaria_id: string | null;
+}
+
+/** Lançamentos, contas e transferências do tenant — base para ligar metas e reservas ao dinheiro real. */
+async function carregarBase(tenantId: string) {
+  const entries = (
+    await fetchAllRows<any>(() => supabase!.from("finance_entries").select("id,type,status,value,category,tags,date_normalized,conta_bancaria_id").eq("tenant_id", tenantId).order("id"))
+  ).map((r) => ({ ...r, value: Number(r.value) || 0, date: r.date_normalized || "", tags: r.tags || [] })) as BaseLanc[];
+  const [{ data: contas }, { data: transfers }] = await Promise.all([
+    supabase!.from("finance_bank_accounts").select("id,nome,saldo_inicial,sinal_saldo_inicial").eq("tenant_id", tenantId).eq("arquivada", false),
+    supabase!.from("finance_transfers").select("valor,pago,conta_origem_id,conta_destino_id").eq("tenant_id", tenantId),
+  ]);
+  return { entries, contas: contas || [], transfers: (transfers || []) as any[] };
+}
+
+/** Lançamento "pertence" ao nome quando a categoria ou alguma tag tem o mesmo nome (sem diferenciar maiúsculas). */
+const casaComNome = (e: BaseLanc, nome: string) => norm(e.category) === norm(nome) || e.tags.some((t) => norm(t) === norm(nome));
+
+async function enriquecerMetas(linhas: any[], tenantId: string) {
+  const { entries } = await carregarBase(tenantId);
+  return linhas.map((m) => {
+    const doMes = entries.filter((e) => e.type === "Receber" && e.date.startsWith(m.mes));
+    if (m.tipo === "Geral") {
+      return { ...m, valor_realizado: doMes.filter((e) => e.status === "Pago").reduce((a, e) => a + e.value, 0), _auto: "recebimentos pagos do mês" };
+    }
+    if (m.tipo === "Produto" || m.tipo === "Projeto") {
+      const casam = doMes.filter((e) => casaComNome(e, m.nome));
+      if (casam.length) {
+        return { ...m, valor_realizado: casam.filter((e) => e.status === "Pago").reduce((a, e) => a + e.value, 0), _auto: `${casam.length} lançamento(s) de "${m.nome}"` };
+      }
+    }
+    return m; // Vendedor, ou sem lançamento com esse nome no mês: vale o digitado
+  });
+}
+
+async function enriquecerReservas(linhas: any[], tenantId: string) {
+  const { entries, contas, transfers } = await carregarBase(tenantId);
+  return linhas.map((r) => {
+    if (r.tipo === "Operacional") {
+      const conta = contas.find((c: any) => norm(c.nome) === norm(r.nome));
+      if (conta) {
+        const { recebidas, enviadas } = transferenciasDaConta(transfers, conta.id);
+        const saldo = saldoDaConta({
+          saldoInicial: Number(conta.saldo_inicial) || 0,
+          sinalSaldoInicial: conta.sinal_saldo_inicial,
+          entriesDaConta: entries.filter((e) => e.conta_bancaria_id === conta.id),
+          transferenciasRecebidasPagas: recebidas,
+          transferenciasEnviadasPagas: enviadas,
+        });
+        return { ...r, saldo_atual: saldo, _auto: `conta "${conta.nome}"` };
+      }
+    }
+    const casam = entries.filter((e) => casaComNome(e, r.nome));
+    if (r.tipo === "Projeto/Evento" && casam.length) {
+      const pagos = casam.filter((e) => e.status === "Pago");
+      const saldo = pagos.filter((e) => e.type === "Receber").reduce((a, e) => a + e.value, 0) - pagos.filter((e) => e.type === "Pagar").reduce((a, e) => a + e.value, 0);
+      return { ...r, saldo_atual: saldo, _auto: "recebido − pago do projeto" };
+    }
+    if (r.tipo === "Comprometida") {
+      const abertos = casam.filter((e) => e.type === "Pagar" && e.status !== "Pago");
+      if (abertos.length) return { ...r, saldo_atual: abertos.reduce((a, e) => a + e.value, 0), _auto: `${abertos.length} conta(s) a pagar` };
+    }
+    return r;
+  });
+}
+
 
 const soma = (xs: any[], k: string) => xs.reduce((a, x) => a + (Number(x[k]) || 0), 0);
 const so = (xs: any[], k: string, v: string) => xs.filter((x) => x[k] === v);
@@ -175,6 +249,8 @@ export function FinanceiroMetas() {
       ordenarPor="mes"
       campoStatus="tipo"
       progresso={{ atual: "valor_realizado", total: "valor_meta", label: "Atingido" }}
+      enriquecer={enriquecerMetas}
+      dicaOrigem='Como o "realizado" é calculado: em meta de Geral, soma os recebimentos pagos do mês. Em Produto ou Projeto, soma os recebimentos pagos do mês cuja categoria ou tag tem o mesmo nome da meta. Sem lançamento com esse nome (e em Vendedor), vale o valor digitado.' 
       resumos={[
         { label: "Meta total", icon: Target, moeda: true, calcula: (l) => soma(l, "valor_meta") },
         { label: "Realizado", icon: CheckCircle2, tone: "success", moeda: true, calcula: (l) => soma(l, "valor_realizado") },
@@ -202,6 +278,8 @@ export function FinanceiroReservas() {
       nomeItem="reserva"
       campoStatus="tipo"
       progresso={{ atual: "saldo_atual", total: "valor_meta", label: "Saldo / meta" }}
+      enriquecer={enriquecerReservas}
+      dicaOrigem='Como o saldo é calculado: Operacional usa o saldo real da conta bancária com o mesmo nome da reserva. Projeto/Evento usa recebido − pago dos lançamentos com categoria ou tag de mesmo nome. Comprometida soma as contas a pagar em aberto com esse nome. Sem correspondência, vale o valor digitado.' 
       resumos={[
         { label: "Saldo reservado", icon: PiggyBank, tone: "success", moeda: true, calcula: (l) => soma(l, "saldo_atual") },
         { label: "Meta das reservas", icon: Target, moeda: true, calcula: (l) => soma(l, "valor_meta") },

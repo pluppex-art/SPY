@@ -52,6 +52,13 @@ interface Props {
   rodape?: ReactNode;
   /** Barra de progresso numérica por linha (ex.: realizado / meta). */
   progresso?: { atual: string; total: string; label: string };
+  /**
+   * Troca valores digitados por valores calculados dos lançamentos reais. Cada linha devolvida pode
+   * trazer `_auto` (texto da origem do número) — vira a coluna "Origem". A linha original (com o que
+   * foi digitado) fica guardada em `_orig` e é ela que abre na edição.
+   */
+  enriquecer?: (linhas: any[], tenantId: string) => Promise<any[]>;
+  dicaOrigem?: ReactNode;
 }
 
 const vazio = (campos: CampoCadastro[]) =>
@@ -70,7 +77,7 @@ const dataBR = (iso?: string | null) => (iso ? iso.split("-").reverse().join("/"
  * reservas, adiantamentos, acordos, patrocínios, viagens). Cada tela é só uma
  * configuração: tabela + campos. Tudo isolado por empresa (tenant_id + RLS).
  */
-export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos, campoStatus, ordenarPor = "created_at", resumos = [], rodape, progresso }: Props) {
+export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos, campoStatus, ordenarPor = "created_at", resumos = [], rodape, progresso, enriquecer, dicaOrigem }: Props) {
   const { activeTenantId: tenantId } = useAuth();
   const { formatCurrency: brl } = useLocalization();
   const [linhas, setLinhas] = useState<any[]>([]);
@@ -89,9 +96,19 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
     setLoading(true);
     const { data, error } = await supabase.from(tabela).select("*").eq("tenant_id", tenantId).order(ordenarPor, { ascending: false }).limit(2000);
     if (error) toast.error(friendlyError(error));
-    else setLinhas(data || []);
+    else {
+      let rows = data || [];
+      if (enriquecer && rows.length) {
+        try {
+          rows = (await enriquecer(rows, tenantId)).map((r, i) => ({ ...r, _orig: (data || [])[i] }));
+        } catch (e) {
+          toast.error("Não foi possível calcular os valores pelos lançamentos; mostrando os valores digitados.");
+        }
+      }
+      setLinhas(rows);
+    }
     setLoading(false);
-  }, [tabela, tenantId, ordenarPor]);
+  }, [tabela, tenantId, ordenarPor, enriquecer]);
 
   useEffect(() => {
     carregar();
@@ -112,7 +129,8 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
     setForm(vazio(campos));
     setEditando({});
   };
-  const abrirEdicao = (l: any) => {
+  const abrirEdicao = (linha: any) => {
+    const l = linha._orig ?? linha;
     setForm({
       ...vazio(campos),
       ...Object.fromEntries(
@@ -213,6 +231,7 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
               <tr className="border-b border-[var(--color-border-default)] text-left text-xs text-[var(--color-text-muted)]">
                 {campoLista.map((c) => <th key={c.key} className="px-3 py-2 font-semibold">{c.label}</th>)}
                 {progresso && <th className="px-3 py-2 font-semibold">{progresso.label}</th>}
+                {enriquecer && <th className="px-3 py-2 font-semibold">Origem do valor</th>}
                 <th className="w-20 px-3 py-2" />
               </tr>
             </thead>
@@ -230,6 +249,11 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
                         <span className="text-xs text-[var(--color-text-muted)]">{pct.toFixed(0)}%</span>
                       </td>
                     )}
+                    {enriquecer && (
+                      <td className="px-3 py-2 text-xs">
+                        {l._auto ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-600">Automático · {l._auto}</span> : <span className="text-[var(--color-text-muted)]">Manual</span>}
+                      </td>
+                    )}
                     <td className="px-3 py-2">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="sm" onClick={() => abrirEdicao(l)} aria-label="Editar"><Edit2 className="h-4 w-4" /></Button>
@@ -244,6 +268,7 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, campos
         )}
       </Card>
 
+      {dicaOrigem && <p className="text-xs text-[var(--color-text-muted)]">{dicaOrigem}</p>}
       {rodape}
 
       <Modal isOpen={!!editando} onClose={() => setEditando(null)} title={editando?.id ? `Editar ${nomeItem}` : `Nova ${nomeItem}`} footer={<ModalFooter onCancel={() => setEditando(null)} submitLabel="Salvar" saving={saving} type="button" onSubmit={salvar} />}>
