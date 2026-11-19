@@ -18,7 +18,7 @@ import { FileSpreadsheet } from "lucide-react";
 // Disparo de e-mail em massa: monta o público a partir dos leads da empresa (por origem/status), cria a campanha
 // e envia em lotes com progresso. Sai pelo SMTP da empresa (Integrações → SMTP) ou, sem ele, pelo da plataforma.
 
-interface Campaign { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; opened?: number; clicked?: number; agendada_para?: string | null; sender: string | null; created_at: string }
+interface Campaign { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; opened?: number; clicked?: number; agendada_para?: string | null; subject_b?: string | null; sender: string | null; created_at: string }
 interface Option { value: string; count: number }
 interface Options { sources: Option[]; statuses: Option[]; sender: { kind: "tenant" | "platform"; from?: string } }
 interface Preview { total: number; semEmail: number; descadastrados: number; repetidos: number; excluidos?: number; sample: { name: string; email: string }[] }
@@ -34,6 +34,12 @@ export default function MarketingEmail() {
   const { appSettings, saveAppSetting } = useData();
   const modelos: { id: string; nome: string; assunto: string; corpo: string }[] = Array.isArray(appSettings?.email_modelos) ? appSettings.email_modelos : [];
   const [modeloId, setModeloId] = useState("");
+  const [subjectB, setSubjectB] = useState("");
+  const [abRes, setAbRes] = useState<Record<string, any>>({});
+  const verAB = async (id: string) => {
+    try { setAbRes((p) => ({ ...p, [id]: null })); const r = await apiFetchTenant(`/api/email-campaigns/${id}/ab`).then(json); setAbRes((p) => ({ ...p, [id]: r })); }
+    catch (e: any) { toast.error(e.message); setAbRes((p) => { const n = { ...p }; delete n[id]; return n; }); }
+  };
   const [descAberto, setDescAberto] = useState(false);
   const [descItens, setDescItens] = useState<{ email: string; created_at: string }[] | null>(null);
   const [descNovo, setDescNovo] = useState("");
@@ -127,10 +133,10 @@ export default function MarketingEmail() {
   const create = async () => {
     setCreating(true);
     try {
-      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body, audience, ...(agendarPara ? { agendarPara } : {}) }) }).then(json);
+      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body, audience, ...(subjectB.trim() ? { subjectB: subjectB.trim() } : {}), ...(agendarPara ? { agendarPara } : {}) }) }).then(json);
       toast.success(agendarPara ? `Campanha agendada para ${agendarPara.split("-").reverse().join("/")} (${r.total} destinatário(s)). Envie um teste para você antes.` : `Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
       setAgendarPara("");
-      setOpen(false); setName(""); setSubject(""); setBody(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
+      setOpen(false); setName(""); setSubject(""); setSubjectB(""); setBody(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
       await load();
     } catch (e: any) { toast.error(e.message); } finally { setCreating(false); }
   };
@@ -280,6 +286,19 @@ export default function MarketingEmail() {
                     </p>
                   )}
                 </div>
+                {c.subject_b && c.sent > 0 && (
+                  <div className="text-[11px] text-[var(--color-text-muted)]">
+                    {abRes[c.id] === undefined ? <button onClick={() => void verAB(c.id)} className="font-bold text-[var(--color-primary-blue)] underline">Ver resultado do teste A/B</button>
+                      : abRes[c.id] === null ? "Carregando…"
+                      : abRes[c.id].ab && (
+                        <div className="grid sm:grid-cols-2 gap-2">
+                          {(["a", "b"] as const).map((v) => {
+                            const x = abRes[c.id][v]; const pct = (n: number) => (x.enviados ? Math.round((n / x.enviados) * 100) : 0);
+                            return <div key={v} className="rounded-lg bg-[var(--color-surface-sunken)] p-2"><p className="font-bold text-[var(--color-text-primary)] truncate">{v.toUpperCase()}: {v === "a" ? abRes[c.id].assuntoA : abRes[c.id].assuntoB}</p><p>{x.enviados} enviado(s) · <b>{pct(x.abriram)}%</b> abriram · <b>{pct(x.clicaram)}%</b> clicaram</p></div>;
+                          })}
+                        </div>)}
+                  </div>
+                )}
                 {active && (
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" onClick={() => void test(c)} disabled={running === c.id} className="h-8 px-3 text-xs gap-1.5"><FlaskConical className="w-3.5 h-3.5" /> Enviar teste para mim</Button>
@@ -340,6 +359,8 @@ export default function MarketingEmail() {
             <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto
               <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} placeholder="Ex.: {{primeiro_nome}}, sua vaga no Treinão está confirmada" className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
           </div>
+          <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto B (opcional — teste A/B)
+            <input value={subjectB} onChange={(e) => setSubjectB(e.target.value)} maxLength={200} placeholder="Preencha para testar outro assunto: metade recebe o A e metade o B" className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
           <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Mensagem
             <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={8} maxLength={20000} placeholder={"Olá {{primeiro_nome}},\n\nO Treinão acontece neste sábado, dia 14, às 9h...\n\nTe esperamos!"} className="px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" />
             <span className="font-normal">Use <code>{"{{nome}}"}</code>, <code>{"{{primeiro_nome}}"}</code> e <code>{"{{empresa}}"}</code>. O link para sair da lista é adicionado sozinho no rodapé.</span></label>

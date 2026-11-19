@@ -304,3 +304,17 @@ test("descadastrados: lista sÃ³ da empresa, bloqueio manual valida o e-mail e nÃ
     assert.ok(db.t.email_optouts.some((o: any) => o.email === "nova@pessoa.com" && o.tenant_id === T));
   } finally { srv.close(); }
 });
+
+test("teste A/B de assunto: divide meio a meio e resume por variante", async () => {
+  const { varianteDaPosicao, resumoAB } = await import("../../server/emailCampaigns.js");
+  const v = Array.from({ length: 10 }, (_, i) => varianteDaPosicao(i));
+  assert.equal(v.filter((x) => x === "a").length, 5);
+  assert.equal(v.filter((x) => x === "b").length, 5);
+  const r = resumoAB([
+    { variant: "a", status: "sent", open_count: 1, click_count: 0 }, { variant: "a", status: "sent", open_count: 0 },
+    { variant: "b", status: "sent", open_count: 2, click_count: 1 }, { variant: "b", status: "failed", open_count: 0 },
+    { variant: null, status: "sent", open_count: 1 },
+  ]);
+  assert.deepEqual(r.a, { enviados: 2, abriram: 1, clicaram: 0 });
+  assert.deepEqual(r.b, { enviados: 1, abriram: 1, clicaram: 1 });
+});

@@ -174,6 +174,20 @@ export async function enviarEmailParaLeads(db: any, tenantId: string, base: stri
   return { enviados, falhas, semEmail, descadastrados, bloqueadosPelaCota };
 }
 
+/** Teste A/B: metade recebe o assunto A e metade o B, alternando pela posição (a lista já vem sem repetidos). */
+export const varianteDaPosicao = (i: number): "a" | "b" => (i % 2 === 0 ? "a" : "b");
+
+export function resumoAB(rows: { variant?: string | null; status?: string; open_count?: number; click_count?: number }[]) {
+  const z = () => ({ enviados: 0, abriram: 0, clicaram: 0 });
+  const out = { a: z(), b: z() };
+  for (const r of rows) {
+    const v = r.variant === "b" ? out.b : r.variant === "a" ? out.a : null;
+    if (!v || r.status !== "sent") continue;
+    v.enviados++; if ((r.open_count || 0) > 0) v.abriram++; if ((r.click_count || 0) > 0) v.clicaram++;
+  }
+  return out;
+}
+
 /** Data de envio escolhida (AAAA-MM-DD, horário de Brasília): de hoje até 90 dias. O disparo automático sai a partir das 00h desse dia. */
 export function parseAgendamento(raw: unknown, agora: Date = new Date()): { ok: true; quando: string | null } | { ok: false; erro: string } {
   if (raw === undefined || raw === null || raw === "") return { ok: true, quando: null };
@@ -284,9 +298,9 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const colunas = "id, name, subject, status, total, sent, failed, sender, created_at, started_at, finished_at";
     // Colunas novas (métricas e agendamento) podem ainda não existir no banco: tenta com tudo e vai tirando.
     let data: any[] | null = null; let error: any = null;
-    for (const extra of [", opened, clicked, agendada_para", ", opened, clicked", ""]) {
+    for (const extra of [", opened, clicked, agendada_para, subject_b", ", opened, clicked, agendada_para", ", opened, clicked", ""]) {
       ({ data, error } = await supabaseService.from("email_campaigns").select(`${colunas}${extra}`).eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(50));
-      if (!error || !/opened|clicked|agendada_para/i.test(error.message)) break;
+      if (!error || !/opened|clicked|agendada_para|subject_b/i.test(error.message)) break;
     }
     if (error) return res.status(500).json({ error: error.message });
     res.json({ campaigns: data || [] });
@@ -301,6 +315,8 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
     const body = String(req.body?.body || "").trim().slice(0, 20_000);
     if (!name || !subject || !body) return res.status(400).json({ error: "Informe nome, assunto e mensagem." });
+    const subjectB = String(req.body?.subjectB || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
+    const ab = !!subjectB && subjectB !== subject;
     const agendamento = parseAgendamento(req.body?.agendarPara);
     if (agendamento.ok === false) return res.status(400).json({ error: agendamento.erro });
     try {
@@ -310,11 +326,12 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       if (sel.rows.length > MAX_RECIPIENTS) return res.status(400).json({ error: `Público com ${sel.rows.length} pessoas; o máximo por campanha é ${MAX_RECIPIENTS}. Filtre por origem ou status.` });
       const audience = { ...aud, manual: undefined, manualCount: aud.manual?.length || 0 }; // a lista própria fica nos destinatários, não duplicada aqui
       const { data: camp, error } = await supabaseService.from("email_campaigns")
-        .insert({ tenant_id: tenantId, name, subject, body, audience, total: sel.rows.length, status: "ready", created_by: req.user.id, ...(agendamento.quando ? { agendada_para: agendamento.quando } : {}) }).select("id").single();
+        .insert({ tenant_id: tenantId, name, subject, body, audience, total: sel.rows.length, status: "ready", created_by: req.user.id, ...(agendamento.quando ? { agendada_para: agendamento.quando } : {}), ...(ab ? { subject_b: subjectB } : {}) }).select("id").single();
+      if (error && ab && /subject_b/i.test(error.message)) throw new Error("O teste A/B ainda não foi liberado no banco de dados (migração 20261130). Peça para a equipe técnica aplicar ou use um assunto só.");
       if (error) throw new Error(agendamento.quando && /agendada_para/i.test(error.message) ? "O agendamento ainda não foi liberado no banco de dados (migração 20261129). Peça para a equipe técnica aplicar ou envie agora." : error.message);
       for (let i = 0; i < sel.rows.length; i += 500) {
         const { error: e2 } = await supabaseService.from("email_campaign_recipients")
-          .insert(sel.rows.slice(i, i + 500).map((r) => ({ ...r, campaign_id: camp.id, tenant_id: tenantId })));
+          .insert(sel.rows.slice(i, i + 500).map((r, j) => ({ ...r, campaign_id: camp.id, tenant_id: tenantId, ...(ab ? { variant: varianteDaPosicao(i + j) } : {}) })));
         if (e2) { await supabaseService.from("email_campaigns").delete().eq("id", camp.id); throw new Error(e2.message); }
       }
       res.json({ id: camp.id, total: sel.rows.length });
@@ -329,8 +346,8 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     return data;
   };
 
-  const mailFor = async (camp: any, tenant: { name: string; color: string | null }, base: string, r: { id?: string; name?: string | null; company?: string | null; email: string }) =>
-    ({ to: r.email, ...buildMail({ subject: camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) , track: r.id ? { base, rid: r.id } : undefined }),
+  const mailFor = async (camp: any, tenant: { name: string; color: string | null }, base: string, r: { id?: string; variant?: string | null; name?: string | null; company?: string | null; email: string }) =>
+    ({ to: r.email, ...buildMail({ subject: r.variant === "b" && camp.subject_b ? camp.subject_b : camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) , track: r.id ? { base, rid: r.id } : undefined }),
       headers: { "List-Unsubscribe": `<${optoutUrl(base, camp.tenant_id, r.email)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
 
   const tenantNameOf = async (tenantId: string) => {
@@ -382,7 +399,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       const ids = (cand || []).map((r: any) => r.id);
       if (ids.length) {
         const { data } = await db.from("email_campaign_recipients").update({ status: "sending", claimed_at: new Date().toISOString() })
-          .in("id", ids).eq("status", "pending").select("id, email, name, company");
+          .in("id", ids).eq("status", "pending").select("id, email, name, company, variant");
         claimed = data || [];
       }
     }
@@ -494,6 +511,18 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   });
 
   /** Texto de uma campanha já criada (para duplicar). */
+  // Resultado do teste A/B: enviados, aberturas e cliques de cada assunto.
+  app.get("/api/email-campaigns/:id/ab", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
+    if (!camp.subject_b) return res.json({ ab: false });
+    try {
+      const rows = await pagedTable(supabaseService, "email_campaign_recipients", "variant, status, open_count, click_count", tenantId, (q) => q.eq("campaign_id", camp.id));
+      res.json({ ab: true, ...resumoAB(rows), assuntoA: camp.subject, assuntoB: camp.subject_b });
+    } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao ler o resultado." }); }
+  });
+
   app.get("/api/email-campaigns/:id", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
