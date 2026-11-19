@@ -123,6 +123,18 @@ async function lerPaginas(urlInicial: string, token: string, max = 5): Promise<{
   return { dados };
 }
 
+export interface DiaCampanha { data: string; gasto: number; impressoes: number; cliques: number; resultados: number }
+
+/** Série diária de uma campanha (para o gráfico do detalhe). O "resultado" de cada dia segue o objetivo da campanha. */
+export function serieDiaria(objetivo: string, linhas: any[]): DiaCampanha[] {
+  const out: DiaCampanha[] = [];
+  for (const l of linhas || []) {
+    const data = dataISO(l?.date_start); if (!data) continue;
+    out.push({ data, gasto: dinheiro(l.spend), impressoes: Math.round(Number(l.impressions) || 0), cliques: Math.round(Number(l.clicks) || 0), resultados: Math.round(resultadoDaCampanha(objetivo, l.actions, Math.round(Number(l.reach) || 0)).valor) });
+  }
+  return out.sort((a, b) => a.data.localeCompare(b.data));
+}
+
 interface Deps { requireUser: any; resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>; supabaseService: any }
 
 export function registerMarketingAdsRoutes(app: Express, { requireUser, resolveRequestedTenantId, supabaseService }: Deps) {
@@ -202,6 +214,48 @@ export function registerMarketingAdsRoutes(app: Express, { requireUser, resolveR
       res.json(dados);
     } catch (e: any) {
       console.error("[meta-campanhas]", e?.message);
+      res.status(502).json({ configurado: true, error: "Não foi possível consultar o Meta Ads agora." });
+    }
+  });
+
+  /** Dados de UMA campanha (cabeçalho, totais do período e série diária) para a tela de detalhe. Só leitura; guarda 10 minutos. */
+  app.get("/api/marketing/meta-campanhas/:id", requireUser, async (req: any, res: any) => {
+    if (!supabaseService) return res.status(503).json({ error: "Servidor sem acesso ao banco." });
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    const id = String(req.params.id || "");
+    if (!/^\d{1,25}$/.test(id)) return res.status(400).json({ error: "Campanha inválida." });
+    const dias = [7, 14, 30, 90].includes(Number(req.query.dias)) ? Number(req.query.dias) : 30;
+    try {
+      const { data: s } = await supabaseService.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_meta_ads").maybeSingle();
+      const conta = String(s?.value?.accountId ?? "").replace(/\D/g, "");
+      const token = String(s?.value?.adsToken ?? "").trim();
+      if (!conta || !token) return res.json({ configurado: false });
+      const chave = `det:${tenantId}:${id}:${dias}`;
+      const c = cache.get(chave);
+      if (c && req.query.atualizar !== "1" && Date.now() - c.em < CACHE_MS) return res.json(c.dados);
+      const iso = (d: Date) => d.toISOString().slice(0, 10);
+      const faixa = encodeURIComponent(JSON.stringify({ since: iso(new Date(Date.now() - (dias - 1) * 86400_000)), until: iso(new Date()) }));
+      const M = "spend,impressions,reach,clicks,ctr,cpc,cpm,actions";
+      const H = { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) };
+      const [cab, tot, dia, conf] = await Promise.all([
+        fetch(`${GRAPH}/${id}?fields=id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time,created_time,buying_type,bid_strategy,account_id`, H).then(async (r) => ({ ok: r.ok, j: await r.json().catch(() => ({})) as any })),
+        lerPaginas(`${GRAPH}/${id}/insights?fields=campaign_id,campaign_name,${M}&time_range=${faixa}`, token),
+        lerPaginas(`${GRAPH}/${id}/insights?fields=${M}&time_increment=1&time_range=${faixa}&limit=100`, token),
+        fetch(`${GRAPH}/act_${conta}?fields=currency,name`, H).then((r) => r.json()).catch(() => ({})) as Promise<any>,
+      ]);
+      if (!cab.ok) {
+        const msg = String(cab.j?.error?.message || "");
+        return res.status(cab.j?.error?.code === 100 ? 404 : 502).json({ configurado: true, error: cab.j?.error?.code === 100 ? "Campanha não encontrada nessa conta." : /token|session|expired|permission|OAuth/i.test(msg) ? "O token do Meta Ads expirou ou não tem permissão de leitura (ads_read). Gere outro em Integrações." : "O Meta não respondeu agora. Tente de novo em instantes." });
+      }
+      if (String(cab.j?.account_id || "") && String(cab.j.account_id) !== conta) return res.status(404).json({ configurado: true, error: "Campanha não encontrada nessa conta." }); // só campanhas da conta cadastrada
+      const moeda = String(conf?.currency || "BRL").toUpperCase();
+      const [campanha] = mesclarCampanhas([cab.j], tot.dados, moeda, "campaign");
+      const extra = { compra: String(cab.j?.buying_type || ""), lance: String(cab.j?.bid_strategy || ""), criadaEm: dataISO(cab.j?.created_time) };
+      const dados = { configurado: true, dias, moeda, conta: String(conf?.name || ""), campanha: { ...campanha, ...extra, cpm: campanha.cpm }, diario: serieDiaria(campanha.objetivo, dia.dados), parcial: !!(tot.erro || dia.erro), atualizadoEm: new Date().toISOString() };
+      cache.set(chave, { em: Date.now(), dados });
+      res.json(dados);
+    } catch (e: any) {
+      console.error("[meta-campanha]", e?.message);
       res.status(502).json({ configurado: true, error: "Não foi possível consultar o Meta Ads agora." });
     }
   });

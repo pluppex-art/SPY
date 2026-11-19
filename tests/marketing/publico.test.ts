@@ -876,3 +876,45 @@ test("Meta Ads: conjuntos e anúncios (nível, filtro por campanha, objetivo her
     assert.ok(urls.some((u) => u.includes("/act_123/ads?") && u.includes('"adset.id"') && !u.includes("drop") && !u.includes("campaign.id")));
   } finally { (globalThis as any).fetch = orig; srv.close(); }
 });
+
+test("Meta Ads: detalhe de uma campanha (cabeçalho, totais, série diária) e proteção de conta/id", async () => {
+  const { serieDiaria, registerMarketingAdsRoutes } = await import("../../server/marketingAds.js");
+  const s = serieDiaria("OUTCOME_LEADS", [{ date_start: "2026-11-02", spend: "10", clicks: "4", impressions: "100", actions: [{ action_type: "lead", value: "1" }] }, { date_start: "2026-11-01", spend: "5", clicks: "1", impressions: "50" }, { date_start: "lixo", spend: "9" }]);
+  assert.deepEqual(s.map((d) => [d.data, d.gasto, d.resultados]), [["2026-11-01", 5, 0], ["2026-11-02", 10, 1]]);
+  const db = criarFakeDb({ app_settings: [{ tenant_id: T, key: "integracoes_meta_ads", value: { accountId: "123", adsToken: "TKN" } }] });
+  const app = express();
+  registerMarketingAdsRoutes(app as any, { requireUser: (q: any, _s: any, n: any) => n(), resolveRequestedTenantId: async () => T, supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  const orig = globalThis.fetch; let contaDaCampanha = "123";
+  (globalThis as any).fetch = async (u: any, init: any) => {
+    const url = String(u); if (!url.startsWith("https://graph.facebook.com/")) return orig(u, init);
+    let corpo: any = { currency: "BRL", name: "Conta" };
+    if (/\/777\?fields=/.test(url)) corpo = { id: "777", name: "Camp 777", effective_status: "ACTIVE", objective: "OUTCOME_LEADS", daily_budget: "3000", account_id: contaDaCampanha, buying_type: "AUCTION", created_time: "2026-10-01T10:00:00-0300" };
+    else if (url.includes("/777/insights") && url.includes("time_increment")) corpo = { data: [{ date_start: "2026-11-01", spend: "20", clicks: "10", actions: [{ action_type: "lead", value: "2" }] }] };
+    else if (url.includes("/777/insights")) corpo = { data: [{ campaign_id: "777", spend: "20", impressions: "500", reach: "400", clicks: "10", ctr: "2", actions: [{ action_type: "lead", value: "2" }] }] };
+    return { ok: true, json: async () => corpo } as any;
+  };
+  try {
+    assert.equal((await fetch(`${base}/api/marketing/meta-campanhas/abc`)).status, 400);
+    const r = await (await fetch(`${base}/api/marketing/meta-campanhas/777?dias=30`)).json();
+    assert.equal(r.campanha.nome, "Camp 777"); assert.equal(r.campanha.resultados, 2); assert.equal(r.campanha.custoPorResultado, 10);
+    assert.equal(r.campanha.compra, "AUCTION"); assert.equal(r.diario.length, 1); assert.equal(r.diario[0].resultados, 2);
+    // campanha de OUTRA conta (mesmo que o token enxergue): não mostra
+    contaDaCampanha = "999";
+    const outra = await fetch(`${base}/api/marketing/meta-campanhas/777?dias=7`);
+    assert.equal(outra.status, 404);
+  } finally { (globalThis as any).fetch = orig; srv.close(); }
+});
+
+test("campanha ↔ lead: liga pelo ID ou pelo nome (UTM), ignorando acento/maiúscula, sem falso positivo", async () => {
+  const { leadDaCampanha, slugCampanha } = await import("../../src/pages/marketing/campanhasComum.js");
+  const c = { id: "120210", nome: "Black Friday 2026 | Leads" };
+  assert.equal(slugCampanha("Black Friday 2026 | Leads"), "black_friday_2026_leads");
+  assert.equal(leadDaCampanha({ customFields: { utm_campaign: "black_friday_2026_leads" } }, c), true);
+  assert.equal(leadDaCampanha({ customFields: { utm_campaign: "Black Friday 2026 | Leads" } }, c), true);
+  assert.equal(leadDaCampanha({ customFields: { utm_campaign: "120210" } }, c), true);
+  assert.equal(leadDaCampanha({ customFields: { utm_campaign: "black_friday" } }, c), false);
+  assert.equal(leadDaCampanha({ customFields: {} }, c), false);
+  assert.equal(leadDaCampanha({ customFields: null }, c), false);
+  assert.equal(leadDaCampanha({ customFields: { utm_campaign: "!!!" } }, { id: "1", nome: "???" }), false); // slugs vazios não casam
+});
