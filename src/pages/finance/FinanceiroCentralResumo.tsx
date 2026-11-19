@@ -1,0 +1,134 @@
+import { useMemo } from "react";
+import { toast } from "sonner";
+import { ArrowDownCircle, ArrowUpCircle, CalendarClock, AlertTriangle, Wallet, MessageCircle, Copy } from "lucide-react";
+import { PageContainer } from "../../components/PageContainer";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { StatCard } from "../../components/ui/stat-card";
+import { useLocalization } from "../../contexts/LocalizationContext";
+import { useAuth } from "../../contexts/AuthContext";
+import { LegendaStatusFinanceiro, StatusFinanceiroBadge } from "./components/StatusFinanceiroBadge";
+import { statusDoLancamento, useFinanceEntriesResumo } from "./hooks/useFinanceEntriesResumo";
+
+const soma = (xs: { value: number }[]) => xs.reduce((a, x) => a + x.value, 0);
+const dataBR = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
+
+/**
+ * Central de Resumo — o "quanto tenho, quanto entrou, quanto saiu, o que vence"
+ * numa tela só, mais o texto pronto para mandar no WhatsApp. Funciona para
+ * qualquer tipo de empresa: tudo vem dos lançamentos já feitos.
+ */
+export default function FinanceiroCentralResumo() {
+  const { rows, loading, erro, hoje } = useFinanceEntriesResumo();
+  const { formatCurrency: brl } = useLocalization();
+  const { user } = useAuth();
+
+  const r = useMemo(() => {
+    const mes = hoje.slice(0, 7);
+    const doMes = rows.filter((l) => l.date?.startsWith(mes));
+    const entradas = soma(doMes.filter((l) => l.type === "Receber" && l.status === "Pago"));
+    const saidas = soma(doMes.filter((l) => l.type === "Pagar" && l.status === "Pago"));
+    const pagarAberto = rows.filter((l) => l.type === "Pagar" && l.status !== "Pago");
+    const receberAberto = rows.filter((l) => l.type === "Receber" && l.status !== "Pago");
+    const vencidosPagar = pagarAberto.filter((l) => statusDoLancamento(l, hoje) === "Atrasado");
+    const aVencerPagar = pagarAberto.filter((l) => statusDoLancamento(l, hoje) !== "Atrasado");
+    const vencidosReceber = receberAberto.filter((l) => statusDoLancamento(l, hoje) === "Atrasado");
+    const proximos = [...pagarAberto]
+      .sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"))
+      .slice(0, 8);
+    return {
+      entradas,
+      saidas,
+      saldoMes: entradas - saidas,
+      totalPagar: soma(pagarAberto),
+      vencidosPagar: soma(vencidosPagar),
+      qtdVencidosPagar: vencidosPagar.length,
+      aVencerPagar: soma(aVencerPagar),
+      totalReceber: soma(receberAberto),
+      vencidosReceber: soma(vencidosReceber),
+      proximos,
+    };
+  }, [rows, hoje]);
+
+  const texto = useMemo(() => {
+    const [a, m, d] = hoje.split("-");
+    return [
+      `*Resumo financeiro — ${d}/${m}/${a}*`,
+      ``,
+      `Entradas no mês (recebido): ${brl(r.entradas)}`,
+      `Saídas no mês (pago): ${brl(r.saidas)}`,
+      `Saldo do mês: ${brl(r.saldoMes)}`,
+      ``,
+      `A receber: ${brl(r.totalReceber)} (vencido: ${brl(r.vencidosReceber)})`,
+      `Total a pagar: ${brl(r.totalPagar)}`,
+      `  • Vencido: ${brl(r.vencidosPagar)} (${r.qtdVencidosPagar} conta${r.qtdVencidosPagar === 1 ? "" : "s"})`,
+      `  • A vencer: ${brl(r.aVencerPagar)}`,
+      ...(r.proximos.length
+        ? [``, `*Próximos vencimentos:*`, ...r.proximos.map((l) => `• ${dataBR(l.date)} — ${l.description} — ${brl(l.value)}`)]
+        : []),
+    ].join("\n");
+  }, [r, hoje, brl]);
+
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      toast.success("Resumo copiado.");
+    } catch {
+      toast.error("Não foi possível copiar. Selecione o texto e copie manualmente.");
+    }
+  };
+  const abrirWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+
+  return (
+    <PageContainer
+      title="Central de Resumo"
+      description={`Visão rápida do caixa${user?.name ? `, ${user.name.split(" ")[0]}` : ""}: o que entrou, o que saiu e o que vence.`}
+      actions={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={copiar}><Copy className="mr-2 h-4 w-4" />Copiar</Button>
+          <Button onClick={abrirWhatsApp}><MessageCircle className="mr-2 h-4 w-4" />Gerar resumo para WhatsApp</Button>
+        </div>
+      }
+    >
+      {erro && <Card className="p-4 text-sm text-red-600">{erro}</Card>}
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <StatCard icon={ArrowUpCircle} label="Entradas do mês" value={loading ? "…" : brl(r.entradas)} tone="success" caption="Recebimentos pagos" />
+        <StatCard icon={ArrowDownCircle} label="Saídas do mês" value={loading ? "…" : brl(r.saidas)} tone="danger" caption="Pagamentos feitos" />
+        <StatCard icon={Wallet} label="Saldo do mês" value={loading ? "…" : brl(r.saldoMes)} tone={r.saldoMes < 0 ? "danger" : "success"} caption="Entradas − saídas" />
+        <StatCard icon={CalendarClock} label="Total a pagar" value={loading ? "…" : brl(r.totalPagar)} tone="warning" sub={`A vencer: ${brl(r.aVencerPagar)}`} caption="Vencidos + a vencer" />
+        <StatCard icon={AlertTriangle} label="Vencido a pagar" value={loading ? "…" : brl(r.vencidosPagar)} tone={r.vencidosPagar > 0 ? "danger" : "default"} sub={`${r.qtdVencidosPagar} conta(s)`} />
+        <StatCard icon={ArrowUpCircle} label="A receber" value={loading ? "…" : brl(r.totalReceber)} sub={`Em atraso: ${brl(r.vencidosReceber)}`} caption="Pendente + atrasado" />
+      </div>
+
+      <Card className="p-4">
+        <h3 className="mb-3 text-sm font-semibold">Próximos vencimentos (contas a pagar)</h3>
+        {r.proximos.length === 0 ? (
+          <p className="text-sm text-[var(--color-text-muted)]">{loading ? "Carregando…" : "Nenhuma conta a pagar em aberto."}</p>
+        ) : (
+          <ul className="divide-y divide-[var(--color-border-default)]">
+            {r.proximos.map((l) => (
+              <li key={l.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{l.description}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{dataBR(l.date)}{l.counterparty ? ` · ${l.counterparty}` : ""}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <StatusFinanceiroBadge status={statusDoLancamento(l, hoje)} />
+                  <span className="font-semibold tabular-nums">{brl(l.value)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card className="p-4">
+        <h3 className="mb-2 text-sm font-semibold">Texto do resumo (WhatsApp)</h3>
+        <pre className="whitespace-pre-wrap rounded-lg bg-[var(--color-surface-muted,transparent)] p-3 text-xs">{texto}</pre>
+      </Card>
+
+      <LegendaStatusFinanceiro />
+    </PageContainer>
+  );
+}

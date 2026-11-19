@@ -72,6 +72,9 @@ const FinanceiroContasBancarias = lazy(() => import("./pages/finance/FinanceiroC
 const FinanceiroTransferencias = lazy(() => import("./pages/finance/FinanceiroTransferencias"));
 const FinanceiroInadimplencia = lazy(() => import("./pages/finance/FinanceiroInadimplencia"));
 const FinanceiroMRR = lazy(() => import("./pages/finance/FinanceiroMRR"));
+const FinanceiroCentralResumo = lazy(() => import("./pages/finance/FinanceiroCentralResumo"));
+const FinanceiroAgenda = lazy(() => import("./pages/finance/FinanceiroAgenda"));
+const FinanceiroCompras = lazy(() => import("./pages/finance/FinanceiroCompras"));
 const FinanceiroProjecao = lazy(() => import("./pages/finance/FinanceiroProjecao"));
 const FinanceiroRelatorios = lazy(() => import("./pages/finance/FinanceiroRelatorios"));
 const FinanceiroRelatorioAgrupado = lazy(() => import("./pages/finance/FinanceiroRelatorioAgrupado"));
@@ -371,6 +374,9 @@ function AppContent() {
             <Route path="dre" element={<FinanceiroDRE />} />
             <Route path="inadimplencia" element={<FinanceiroInadimplencia />} />
             <Route path="mrr" element={<FinanceiroMRR />} />
+            <Route path="resumo" element={<FinanceiroCentralResumo />} />
+            <Route path="agenda" element={<FinanceiroAgenda />} />
+            <Route path="compras" element={<FinanceiroCompras />} />
             <Route path="projecao" element={<FinanceiroProjecao />} />
             <Route path="relatorios" element={<FinanceiroRelatorios />} />
             <Route path="relatorios/extrato" element={<FinanceiroExtrato />} />
