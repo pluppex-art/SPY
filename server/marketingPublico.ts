@@ -10,7 +10,7 @@
 import express, { type Express, type Request, type Response, type NextFunction, type RequestHandler } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { upsertLead } from "./leadUpsert.js";
-import { CAMPOS_PADRAO, normalizarCampos, validarRespostas } from "../src/lib/formularioCampos.js";
+import { CAMPOS_PADRAO, normalizarCampos, telefoneBrValido, validarRespostas } from "../src/lib/formularioCampos.js";
 import { normalizarConteudoLP } from "../src/lib/paginaLP.js";
 import { sanitizarUtm } from "../src/lib/canalAquisicao.js";
 
@@ -25,7 +25,7 @@ export function validarContatoPublico(b: any): { ok: true; contato: ContatoPubli
   const telefone = String(b?.phone ?? b?.telefone ?? b?.whatsapp ?? "").replace(/\D/g, "").slice(0, 15);
   if (nome.length < 2) return { ok: false, erro: "Informe seu nome." };
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
-  const telOk = telefone.length >= 10 && telefone.length <= 13;
+  const telOk = telefoneBrValido(telefone);
   if (email && !emailOk) return { ok: false, erro: "E-mail inválido." };
   if (telefone && !telOk) return { ok: false, erro: "Telefone inválido." };
   if (!email && !telefone) return { ok: false, erro: "Informe seu WhatsApp ou e-mail." };
@@ -70,9 +70,9 @@ export const corsPublicoMarketing: RequestHandler = (req: Request, res: Response
   next();
 };
 
-interface Deps { supabaseService: SupabaseClient | null; limiter: RequestHandler }
+interface Deps { supabaseService: SupabaseClient | null; limiter: RequestHandler; /** Limite mais folgado só para os beacons de visita/clique/conversão (um clique rápido não pode gastar a cota da conversão). */ trackLimiter?: RequestHandler }
 
-export function registerMarketingPublicRoutes(app: Express, { supabaseService: db, limiter }: Deps) {
+export function registerMarketingPublicRoutes(app: Express, { supabaseService: db, limiter, trackLimiter }: Deps) {
   const lerCorpo = (req: any): any => {
     const b = req.body;
     if (typeof b === "string") { try { return JSON.parse(b); } catch { return {}; } }
@@ -93,12 +93,14 @@ export function registerMarketingPublicRoutes(app: Express, { supabaseService: d
       if (!lp) return;
       const novo = { views: lp.views ?? 0, clicks: lp.clicks ?? 0, conversions: lp.conversions ?? 0, [campo]: ((lp as any)[campo] ?? 0) + 1 } as Record<string, number>;
       const taxa = novo.views > 0 ? Math.round((novo.conversions / novo.views) * 1000) / 10 : 0;
-      const { data: ok } = await db!.from("marketing_landing_pages").update({ [campo]: novo[campo], conversion_rate: taxa }).eq("id", id).eq(campo, (lp as any)[campo] ?? 0).select("id");
+      const upd = db!.from("marketing_landing_pages").update({ [campo]: novo[campo], conversion_rate: taxa }).eq("id", id);
+      const lido = (lp as any)[campo];
+      const { data: ok } = await (lido === null || lido === undefined ? upd.is(campo, null) : upd.eq(campo, lido)).select("id"); // coluna NULL nunca casa com "= 0"
       if (ok && ok.length) return;
     }
   };
 
-  app.post("/api/public/lp-track", limiter, express.text({ type: "*/*", limit: "16kb" }), async (req, res) => {
+  app.post("/api/public/lp-track", trackLimiter ?? limiter, express.text({ type: "*/*", limit: "16kb" }), async (req, res) => {
     res.status(204);
     try {
       if (!db) return res.send();
@@ -108,11 +110,13 @@ export function registerMarketingPublicRoutes(app: Express, { supabaseService: d
       if (!UUID.test(id) || !["view", "click", "conversion"].includes(tipo)) return res.send();
       const { data: lp } = await db.from("marketing_landing_pages").select("id,tenant_id,name").eq("id", id).is("deleted_at", null).maybeSingle();
       if (!lp) return res.send();
-      await somar(id, tipo === "view" ? "views" : tipo === "click" ? "clicks" : "conversions");
-      if (tipo === "conversion") {
+      if (tipo !== "conversion") await somar(id, tipo === "view" ? "views" : "clicks");
+      else {
+        // Só conta conversão quando há um contato válido: qualquer outro envio na página (busca, login) não é conversão.
         const v = validarContatoPublico(b);
         if (v.ok === true && !b.website) {
-          await upsertLead(db, lp.tenant_id, { name: v.contato.nome, email: v.contato.email, phone: v.contato.telefone, source: `Landing page: ${lp.name}`, papel: "entrada", nota: notaDosCampos(b) || `Converteu na landing page "${lp.name}".`, customFields: { ...sanitizarUtm(b), pagina_origem: lp.name } });
+          await somar(id, "conversions");
+          await upsertLead(db, lp.tenant_id, { name: v.contato.nome, email: v.contato.email, phone: v.contato.telefone, source: `Landing page: ${lp.name}`, papel: "entrada", publico: true, nota: notaDosCampos(b) || `Converteu na landing page "${lp.name}".`, customFields: { ...sanitizarUtm(b), pagina_origem: lp.name } });
         }
       }
     } catch (e: any) { console.warn("[lp-track]", e?.message); }
@@ -164,7 +168,7 @@ export function registerMarketingPublicRoutes(app: Express, { supabaseService: d
       const conteudo = normalizarConteudoLP(lp.conteudo);
       const r = validarRespostas(conteudo.campos, b);
       if (r.ok === false) return res.status(400).json({ error: r.erro });
-      await upsertLead(db, lp.tenant_id, { name: r.contato.nome, email: r.contato.email, phone: r.contato.telefone, source: `Landing page: ${lp.name}`, papel: "entrada", nota: r.nota || `Converteu na landing page "${lp.name}".`, customFields: { ...sanitizarUtm(b), pagina_origem: lp.name } });
+      await upsertLead(db, lp.tenant_id, { name: r.contato.nome, email: r.contato.email, phone: r.contato.telefone, source: `Landing page: ${lp.name}`, papel: "entrada", publico: true, nota: r.nota || `Converteu na landing page "${lp.name}".`, customFields: { ...sanitizarUtm(b), pagina_origem: lp.name } });
       await somar(id, "conversions");
       res.json({ success: true });
     } catch (e: any) {
@@ -193,7 +197,7 @@ export function registerMarketingPublicRoutes(app: Express, { supabaseService: d
         if (v.ok === false) return res.status(400).json({ error: v.erro });
         contato = v.contato; nota = notaDosCampos(b);
       }
-      await upsertLead(db, form.tenant_id, { name: contato.nome, email: contato.email, phone: contato.telefone, source: form.source || `Formulário: ${form.name}`, papel: "entrada", nota: nota || `Preencheu o formulário "${form.name}".`, customFields: { ...sanitizarUtm(b), pagina_origem: form.name } });
+      await upsertLead(db, form.tenant_id, { name: contato.nome, email: contato.email, phone: contato.telefone, source: form.source || `Formulário: ${form.name}`, papel: "entrada", publico: true, nota: nota || `Preencheu o formulário "${form.name}".`, customFields: { ...sanitizarUtm(b), pagina_origem: form.name } });
       res.json({ success: true });
     } catch (e: any) {
       console.error("[forms/submit]", e?.message);

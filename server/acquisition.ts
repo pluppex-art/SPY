@@ -69,9 +69,14 @@ export function registerAcquisitionRoutes(app: Express, { requireUserOrInternalS
       // Sem lançamento manual: usa o Financeiro (despesas pagas em categorias de marketing/anúncios/tráfego).
       let financeFallback = 0;
       if (!(spend || []).some((s: any) => Number(s.amount) > 0)) {
-        const { data: fin } = await sb.from("finance_entries").select("value")
-          .eq("tenant_id", tenantId).eq("type", "Pagar").eq("status", "Pago").gte("date_normalized", from).lte("date_normalized", to)
-          .or("category.ilike.%marketing%,category.ilike.%anúncio%,category.ilike.%anuncio%,category.ilike.%tráfego%,category.ilike.%trafego%").limit(5000);
+        const fin: any[] = [];
+        for (let de = 0; de < 20_000; de += 1000) { // o banco devolve no máximo 1000 linhas por consulta
+          const { data: pag } = await sb.from("finance_entries").select("value")
+            .eq("tenant_id", tenantId).eq("type", "Pagar").eq("status", "Pago").gte("date_normalized", from).lte("date_normalized", to)
+            .or("category.ilike.%marketing%,category.ilike.%anúncio%,category.ilike.%anuncio%,category.ilike.%tráfego%,category.ilike.%trafego%").order("id", { ascending: true }).range(de, de + 999);
+          fin.push(...(pag || []));
+          if (!pag || pag.length < 1000) break;
+        }
         financeFallback = (fin || []).reduce((s: number, f: any) => s + (Number(f.value) || 0), 0);
       }
       const out = buildAcquisition((agg?.porOrigem || []) as OrigemRow[], (spend || []) as SpendRow[], financeFallback);

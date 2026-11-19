@@ -53,19 +53,23 @@ export async function enviarSmsParaLeads(db: any, tenantId: string, leadIds: str
   let semTelefone = 0;
   for (const l of leads || []) {
     const tel = telefoneE164(l.mobile_wa || l.phone);
-    if (!tel) { semTelefone++; continue; }
+    if (!tel || !/^\+55\d{2}9\d{8}$/.test(tel)) { semTelefone++; continue; } // telefone fixo não recebe SMS
     if (vistos.has(tel)) continue;
     vistos.add(tel);
     alvos.push({ tel, nome: String(l.name || "").trim().split(/\s+/)[0] || "" });
   }
   let enviados = 0, falhas = 0;
-  for (const a of alvos.slice(0, MAX_POR_EXECUCAO)) {
-    try {
-      const msg = String(texto).replace(/\{\{\s*primeiro_nome\s*\}\}/gi, a.nome);
-      const { url, init } = montarRequisicaoSms(cred, a.tel, msg);
-      const r = await fetch(url, { ...init, signal: AbortSignal.timeout(10_000) });
-      if (r.ok) enviados++; else falhas++;
-    } catch { falhas++; }
+  const lista = alvos.slice(0, MAX_POR_EXECUCAO);
+  // Em grupos de 10 ao mesmo tempo: 200 envios em fila, com até 10 s cada, estourariam o tempo da função.
+  for (let i = 0; i < lista.length; i += 10) {
+    await Promise.all(lista.slice(i, i + 10).map(async (a) => {
+      try {
+        const msg = String(texto).replace(/\{\{\s*primeiro_nome\s*\}\}/gi, a.nome);
+        const { url, init } = montarRequisicaoSms(cred, a.tel, msg);
+        const r = await fetch(url, { ...init, signal: AbortSignal.timeout(10_000) });
+        if (r.ok) enviados++; else falhas++;
+      } catch { falhas++; }
+    }));
   }
   return { enviados, falhas, semTelefone, acimaDoLimite: Math.max(0, alvos.length - MAX_POR_EXECUCAO) };
 }

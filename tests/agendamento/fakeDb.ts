@@ -127,7 +127,11 @@ export function criarFakeDb(seed: Record<string, Row[]> = {}, opts: { agoraMs?: 
       lte: (c: string, v: any) => { filtros.push((r) => String(r[c]) <= String(v)); return q; },
       like: (c: string, v: string) => { const re = new RegExp("^" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/%/g, ".*") + "$"); filtros.push((r) => re.test(String(r[c] ?? ""))); return q; },
       ilike: (c: string, v: string) => { filtros.push((r) => String(r[c] ?? "").toLowerCase() === v.toLowerCase().replace(/\\/g, "")); return q; },
-      or: () => q,
+      or: (expr: string) => { // só o formato "coluna.is.null,coluna.lt.valor" (e gt/eq), como o PostgREST
+        const partes = String(expr).split(",").map((x) => x.split("."));
+        filtros.push((r) => partes.some(([c, op, ...v]) => { const val = v.join("."); const x = r[c]; return op === "is" ? (val === "null" ? (x ?? null) === null : false) : op === "lt" ? x != null && String(x) < val : op === "gt" ? x != null && String(x) > val : op === "eq" ? String(x) === val : true; }));
+        return q;
+      },
       order: (c: string, o?: { ascending?: boolean }) => { ordem.push([c, o?.ascending !== false]); return q; },
       limit: (n: number) => { max = n; return q; },
       range: (a: number, b: number) => { deslocar = a; max = b - a + 1; return q; },

@@ -75,11 +75,11 @@ test("rastreio de LP: conta visita/clique/conversão, cria lead só na conversã
   const enviar = (corpo: any) => chamar("POST", "/api/public/lp-track", { body: JSON.stringify(corpo) });
   await enviar({ id, tipo: "view" }); await enviar({ id, tipo: "view" }); await enviar({ id, tipo: "click" });
   await enviar({ id, tipo: "conversion", name: "Beto", email: "beto@x.com", mensagem: "quero" });
-  await enviar({ id, tipo: "conversion", name: "x" }); // conversão sem contato: conta, mas não cria lead
+  await enviar({ id, tipo: "conversion", name: "x" }); // envio sem contato válido (busca, login…): não é conversão, não conta e não cria lead
   await enviar({ id: "lixo", tipo: "view" }); await enviar({ id, tipo: "hack" });
   const lp = db.t.marketing_landing_pages[0];
-  assert.equal(lp.views, 2); assert.equal(lp.clicks, 1); assert.equal(lp.conversions, 2);
-  assert.equal(lp.conversion_rate, 100);
+  assert.equal(lp.views, 2); assert.equal(lp.clicks, 1); assert.equal(lp.conversions, 1);
+  assert.equal(lp.conversion_rate, 50);
   const leads = db.t.leads ?? [];
   assert.equal(leads.length, 1);
   assert.match(leads[0].source, /LP Black/);
@@ -764,4 +764,39 @@ test("revisão: entrada automática lê além de 1000 leads, e nome do lead não
   // marcador interno nunca sobra no HTML, mesmo com link colado a botão
   const { textToHtml } = await import("../../server/emailCampaigns.js");
   assert.ok(!textToHtml("http://a.com[[B|http://b.com]]", "#000").includes("\u0000"));
+});
+
+test("revisão 2: formulário público não reabre lead perdido nem muda de etapa; contador com coluna nula; telefone; SMS só celular", async () => {
+  const { upsertLead } = await import("../../server/leadUpsert.js");
+  const db = criarFakeDb({
+    leads: [{ id: "L1", tenant_id: T, name: "Cliente Real", email: "real@x.com", phone: "63999990000", phone_digits: "5563999990000", status: "Perdido", stageId: "vendas-5", pipelineId: "comercial", notes: "[]", customFields: {} }],
+    funis: [],
+  });
+  const r = await upsertLead(db as any, T, { name: "Mau", email: "real@x.com", source: "Formulário: X", papel: "entrada", publico: true, nota: "texto livre" });
+  assert.equal(r.criado, false);
+  const l = db.t.leads[0];
+  assert.equal(l.status, "Perdido"); assert.equal(l.stageId, "vendas-5"); // não reabriu nem mudou de etapa
+  assert.equal(l.name, "Cliente Real");
+  const { validarContatoPublico } = await import("../../server/marketingPublico.js");
+  assert.equal(validarContatoPublico({ name: "Ana", phone: "(63) 99999-0000" }).ok, true);
+  assert.equal(validarContatoPublico({ name: "Ana", phone: "5563999990000" }).ok, true);
+  assert.equal(validarContatoPublico({ name: "Ana", phone: "123456789012" }).ok, false); // 12 dígitos sem 55
+  const { enviarSmsParaLeads } = await import("../../server/sms.js");
+  const sms = criarFakeDb({
+    app_settings: [{ tenant_id: T, key: "integracoes_catalogo", value: { twilio: { accountSid: "AC1", authToken: "t", fromNumber: "+15550001" } } }],
+    leads: [{ id: "a", tenant_id: T, name: "A", phone: "(63) 99999-0000" }, { id: "b", tenant_id: T, name: "B", phone: "(63) 3222-1000" }],
+  });
+  const orig = globalThis.fetch; let chamadas = 0;
+  (globalThis as any).fetch = async () => { chamadas++; return { ok: true } as any; };
+  try { const out = await enviarSmsParaLeads(sms as any, T, ["a", "b"], "Oi"); assert.equal(out.enviados, 1); assert.equal(out.semTelefone, 1); assert.equal(chamadas, 1); }
+  finally { globalThis.fetch = orig; }
+});
+
+test("revisão 2: gatilho de e-mail/SMS só executa uma vez por vez (reserva atômica)", async () => {
+  const { reservarExecucao } = await import("../../server/messageTriggers.js");
+  const db = criarFakeDb({ tenant_message_triggers: [{ id: "g1", status: "aprovado", executado_em: null }, { id: "g2", status: "aprovado", executado_em: new Date(Date.now() - 3600_000).toISOString() }, { id: "g3", status: "executado", executado_em: null }] });
+  assert.equal(await reservarExecucao(db, "g1"), true);
+  assert.equal(await reservarExecucao(db, "g1"), false); // segundo clique logo em seguida
+  assert.equal(await reservarExecucao(db, "g2"), true); // reserva antiga (função que caiu) pode ser retomada
+  assert.equal(await reservarExecucao(db, "g3"), false); // já executado
 });

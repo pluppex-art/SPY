@@ -39,6 +39,9 @@ export function normalizarCampos(raw: unknown): CampoForm[] {
 export type ResultadoRespostas = { ok: true; contato: { nome: string; email: string; telefone: string }; nota: string } | { ok: false; erro: string };
 
 /** Confere as respostas do visitante contra os campos do formulário e monta contato + nota do lead. */
+/** Telefone brasileiro: 10 ou 11 dígitos (DDD + número) ou 12/13 começando por 55. */
+export const telefoneBrValido = (d: string) => (d.length === 10 || d.length === 11) || ((d.length === 12 || d.length === 13) && d.startsWith("55"));
+
 export function validarRespostas(campos: CampoForm[], corpo: Record<string, unknown>): ResultadoRespostas {
   const limpar = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, max);
   const contato = { nome: "", email: "", telefone: "" };
@@ -48,7 +51,7 @@ export function validarRespostas(campos: CampoForm[], corpo: Record<string, unkn
     const v = limpar(bruto, c.tipo === "longo" ? 2000 : 300);
     if (!v) { if (c.obrigatorio) return { ok: false, erro: `Preencha: ${c.label}.` }; continue; }
     if (c.tipo === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return { ok: false, erro: `E-mail inválido em "${c.label}".` };
-    if (c.tipo === "telefone") { const d = v.replace(/\D/g, ""); if (d.length < 10 || d.length > 13) return { ok: false, erro: `Telefone inválido em "${c.label}".` }; }
+    if (c.tipo === "telefone") { const d = v.replace(/\D/g, ""); if (!telefoneBrValido(d)) return { ok: false, erro: `Telefone inválido em "${c.label}".` }; }
     if (c.tipo === "numero" && !Number.isFinite(Number(v.replace(",", ".")))) return { ok: false, erro: `Informe um número em "${c.label}".` };
     if (c.tipo === "opcoes" && !(c.opcoes ?? []).includes(v)) return { ok: false, erro: `Escolha uma das opções em "${c.label}".` };
     if (c.id === "nome" || (!contato.nome && c.tipo === "texto" && /nome/i.test(c.label))) contato.nome = v;

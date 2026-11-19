@@ -507,6 +507,7 @@ const googleCalendarLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardH
 // público do site de marketing), maior risco de abuso/spam automatizado.
 const publicLeadLimiter = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: true, legacyHeaders: false });
 const publicFormsLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
+const publicTrackLimiter = rateLimit({ windowMs: 60_000, limit: 240, standardHeaders: true, legacyHeaders: false });
 const publicLeadLimiterAgendamento = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
 // Endpoints públicos sem auth: enumeração de tenant e aceite de proposta.
 const publicProposalLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
@@ -537,7 +538,7 @@ registerMessageTriggerRoutes(app, { requireUser, supabaseService });
 // Chatbot por regras (sem IA): conexão de WhatsApp dedicada por bot — ver server/chatbot.ts.
 // Módulo Agendamento (reservas por hora, página pública e pagamento online). Ver server/agendamento.ts.
 registerMarketingAdsRoutes(app, { requireUser, resolveRequestedTenantId, supabaseService });
-registerMarketingPublicRoutes(app, { supabaseService, limiter: publicFormsLimiter });
+registerMarketingPublicRoutes(app, { supabaseService, limiter: publicFormsLimiter, trackLimiter: publicTrackLimiter });
 registerAgendamentoRoutes(app, {
   requireUser, resolveTenant: resolveRequestedTenantId, supabaseService, limiterPublico: publicLeadLimiterAgendamento,
   segredo: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.CRON_SECRET || "", appUrl: (process.env.PUBLIC_APP_URL || "http://localhost:3002").replace(/\/+$/, ""), cronSecret: process.env.CRON_SECRET,

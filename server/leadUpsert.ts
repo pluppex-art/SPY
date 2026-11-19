@@ -87,6 +87,8 @@ export type EntradaLead = {
   city?: string; state?: string;
   /** Dados extras do lead (ex.: parâmetros UTM da campanha). Em lead que já existe, o que já estava gravado vence (primeiro contato). */
   customFields?: Record<string, string>;
+  /** Origem pública (formulário/página aberta a qualquer pessoa): em lead que já existe só soma a nota e completa campos vazios; nunca reabre nem muda de etapa. */
+  publico?: boolean;
 };
 
 const COLS = "id,name,email,phone,company,cnpj,city,state,status,stageId,pipelineId,notes,value,deleted_at,customFields";
@@ -128,8 +130,8 @@ export async function upsertLead(db: SupabaseClient, tenantId: string, e: Entrad
     if (!existente.state && e.state) upd.state = e.state;
     if (e.value && (!existente.value || e.papel === "ganho")) upd.value = e.value;
     if (e.customFields && Object.keys(e.customFields).length) upd.customFields = { ...e.customFields, ...(existente.customFields && typeof existente.customFields === "object" ? existente.customFields : {}) };
-    if (etapa && devePassar(existente, etapa)) { upd.stageId = etapa.stageId; upd.pipelineId = etapa.pipelineId; upd.status = etapa.status; }
-    else if (!etapa && e.papel === "ganho") upd.status = "Fechado";
+    if (!e.publico && etapa && devePassar(existente, etapa)) { upd.stageId = etapa.stageId; upd.pipelineId = etapa.pipelineId; upd.status = etapa.status; }
+    else if (!e.publico && !etapa && e.papel === "ganho") upd.status = "Fechado";
     await db.from("leads").update(upd).eq("id", existente.id);
     return { id: existente.id as string, criado: false };
   };

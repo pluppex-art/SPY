@@ -55,6 +55,17 @@ async function loadVisibleTrigger(supabase: any, id: string) {
   return data as { id: string; status: string };
 }
 
+/**
+ * Reserva a execução de um gatilho de e-mail/SMS: dois cliques (ou uma nova tentativa depois de a função cair) não mandam a
+ * mesma mensagem duas vezes. A reserva vale 10 minutos; ao terminar, `executado_em` é regravado e o status muda.
+ * Só um dos pedidos simultâneos consegue marcar `executado_em` (comparação atômica no banco).
+ */
+export async function reservarExecucao(db: any, id: string): Promise<boolean> {
+  const limite = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { data } = await db.from("tenant_message_triggers").update({ executado_em: new Date().toISOString() }).eq("id", id).eq("status", "aprovado").or(`executado_em.is.null,executado_em.lt.${limite}`).select("id");
+  return !!data && data.length > 0;
+}
+
 export function registerMessageTriggerRoutes(app: Express, { requireUser, supabaseService }: Deps) {
   app.post("/api/message-triggers/:id/interpretar", requireUser, async (req: any, res) => {
     try {
@@ -83,11 +94,14 @@ export function registerMessageTriggerRoutes(app: Express, { requireUser, supaba
 
       // Canal e-mail: o envio é nativo (não passa pelo n8n/WhatsApp) e usa só a lista e o texto que a pessoa aprovou.
       const { data: completo } = await req.supabase.from("tenant_message_triggers").select("tenant_id, canal, leads_encontrados, mensagem_sugerida").eq("id", req.params.id).maybeSingle();
+      if ((completo?.canal === "email" || completo?.canal === "sms") && supabaseService && !(await reservarExecucao(supabaseService, req.params.id))) {
+        return res.status(409).json({ error: "Esse gatilho já está sendo executado. Aguarde alguns minutos antes de tentar de novo." });
+      }
       if (completo?.canal === "email") {
         if (!supabaseService) return res.status(503).json({ error: "Servidor sem acesso ao banco." });
         const ids = (Array.isArray(completo.leads_encontrados) ? completo.leads_encontrados : []).map((l: any) => l?.id).filter(Boolean);
         const texto = String(completo.mensagem_sugerida || "").trim();
-        if (!ids.length || !texto) return res.status(409).json({ error: "O gatilho não tem leads ou mensagem para enviar." });
+        if (!ids.length || !texto) { await supabaseService.from("tenant_message_triggers").update({ executado_em: null }).eq("id", req.params.id); return res.status(409).json({ error: "O gatilho não tem leads ou mensagem para enviar." }); }
         const base = (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, "");
         const r = await enviarEmailParaLeads(supabaseService, completo.tenant_id, base, ids, texto);
         await supabaseService.from("tenant_message_triggers").update({ status: r.enviados > 0 || r.falhas === 0 ? "executado" : "erro", executado_em: new Date().toISOString(), erro: r.falhas || r.bloqueadosPelaCota ? `${r.enviados} enviado(s), ${r.falhas} falha(s)${r.bloqueadosPelaCota ? `, ${r.bloqueadosPelaCota} fora da cota diária` : ""}.` : null }).eq("id", req.params.id);
@@ -99,9 +113,9 @@ export function registerMessageTriggerRoutes(app: Express, { requireUser, supaba
         if (!supabaseService) return res.status(503).json({ error: "Servidor sem acesso ao banco." });
         const ids = (Array.isArray(completo.leads_encontrados) ? completo.leads_encontrados : []).map((l: any) => l?.id).filter(Boolean);
         const texto = String(completo.mensagem_sugerida || "").trim();
-        if (!ids.length || !texto) return res.status(409).json({ error: "O gatilho não tem leads ou mensagem para enviar." });
+        if (!ids.length || !texto) { await supabaseService.from("tenant_message_triggers").update({ executado_em: null }).eq("id", req.params.id); return res.status(409).json({ error: "O gatilho não tem leads ou mensagem para enviar." }); }
         const r = await enviarSmsParaLeads(supabaseService, completo.tenant_id, ids, texto);
-        if (r.erro) return res.status(409).json({ error: r.erro });
+        if (r.erro) { await supabaseService.from("tenant_message_triggers").update({ executado_em: null }).eq("id", req.params.id); return res.status(409).json({ error: r.erro }); }
         const aviso = `${r.enviados} SMS enviado(s), ${r.falhas} falha(s)${r.semTelefone ? `, ${r.semTelefone} sem telefone válido` : ""}${r.acimaDoLimite ? `, ${r.acimaDoLimite} acima do limite de 200 por envio` : ""}.`;
         await supabaseService.from("tenant_message_triggers").update({ status: r.enviados > 0 ? "executado" : "erro", executado_em: new Date().toISOString(), erro: r.falhas || r.semTelefone || r.acimaDoLimite || r.enviados === 0 ? aviso : null }).eq("id", req.params.id);
         return res.json({ ok: true, ...r });
