@@ -3,8 +3,11 @@ import { canalDoLead, normalizarCanal } from "../../lib/canalAquisicao";
 import { supabase } from "../../lib/supabase";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { BarChart2, TrendingUp, Users, Target, Activity, DollarSign, Inbox } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from "recharts";
+import { StatCard } from "../../components/ui/stat-card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
+import { EmptyState } from "../../components/ui/empty-state";
+import { BarChart2, TrendingUp, Users, Target, Activity, DollarSign, Inbox, PieChart as PieChartIcon, Wallet, Mail, Link2, Megaphone, LayoutDashboard } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMemo, useState, useEffect } from "react";
@@ -150,161 +153,135 @@ export default function MarketingAnalytics() {
   }, [leads, gastosLancados]);
 
   const sourceData = (serverSummary?.sourceData ?? clientSourceData).map((s, i) => ({ ...s, color: COLORS[i % COLORS.length] }));
+  const receitaCanais = sourceData.reduce((a, x) => a + x.revenue, 0);
+  const totalLeads = serverSummary?.totalLeads ?? clientTotalLeads;
+  const fechados = serverSummary?.closedLeads ?? clientClosedLeads;
+  const maxLeadsCanal = Math.max(1, ...canais.map((c) => c.leads));
+  const melhorCanal = canais.filter((c) => c.fechados > 0).sort((a, b) => b.taxa - a.taxa)[0];
+  const [aba, setAba] = useState("geral");
+  const tooltipStyle = { backgroundColor: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", borderRadius: 12, fontSize: 12, color: "var(--color-text-primary)", boxShadow: "var(--shadow-panel)" } as const;
+  const eixo = { stroke: "var(--color-text-faint)", fontSize: 11, tickLine: false, axisLine: false } as const;
+  const compacto = (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil` : String(Math.round(v)));
 
   return (
     <PageContainer
-      title="Métricas de Marketing Avançadas"
-      subtitle="Analise o custo e o retorno dos seus canais: CPL (custo por lead), CPLQ (custo por lead qualificado), CAC (custo para conquistar um cliente) e ROAS (retorno sobre o gasto com anúncios)."
+      title="Análises de Marketing"
+      subtitle="De onde vêm seus leads, quanto custam e quanto viram venda. CPL = custo por lead · CAC = custo para conquistar um cliente · ROAS/ROI = retorno sobre o investimento."
     >
-      <AquisicaoPanel />
-      <EmailResumoPanel />
-      <GeradorLinkUtm />
+      <Tabs value={aba} onValueChange={setAba}>
+        <TabsList>
+          <TabsTrigger value="geral" className="gap-1.5"><LayoutDashboard className="w-3.5 h-3.5" /> Visão geral</TabsTrigger>
+          <TabsTrigger value="canais" className="gap-1.5"><Megaphone className="w-3.5 h-3.5" /> Canais</TabsTrigger>
+          <TabsTrigger value="investimento" className="gap-1.5"><Wallet className="w-3.5 h-3.5" /> Investimento</TabsTrigger>
+          <TabsTrigger value="email" className="gap-1.5"><Mail className="w-3.5 h-3.5" /> E-mail</TabsTrigger>
+          <TabsTrigger value="links" className="gap-1.5"><Link2 className="w-3.5 h-3.5" /> Links rastreados</TabsTrigger>
+        </TabsList>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-          <DollarSign className="w-5 h-5 text-emerald-500 mb-4" />
-          <div className="text-2xl font-display font-black text-white mb-1 italic">{formatCurrency(totalRevenue)}</div>
-          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Receita Mkt</div>
-        </Card>
-
-        <Card className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-          <TrendingUp className="w-5 h-5 text-rose-500 mb-4" />
-          <div className="text-2xl font-display font-black text-white mb-1 italic">{formatCurrency(cac)}</div>
-          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custo por lead (CPL)</div>
-        </Card>
-
-        <Card className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-          <Target className="w-5 h-5 text-indigo-500 mb-4" />
-          <div className="text-2xl font-display font-black text-white mb-1 italic">{formatCurrency(avgDeal)}</div>
-          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Valor Médio do Negócio</div>
-        </Card>
-
-        <Card className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-          <Activity className="w-5 h-5 text-blue-500 mb-4" />
-          <div className="text-2xl font-display font-black text-white mb-1 italic">{roi.toFixed(1)}<span className="text-sm text-slate-500">x</span></div>
-          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Retorno (ROI)</div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="p-6 bg-[var(--color-surface-elevated)] border-white/5 lg:col-span-2">
-          <h3 className="text-sm font-black text-white uppercase tracking-wider mb-6 flex items-center gap-2">
-            <BarChart2 className="w-4 h-4 text-blue-500" /> Receita Marketing vs Investimento (custo por lead)
-          </h3>
-          {performanceData.length === 0 ? (
-            <div className="h-72 flex flex-col items-center justify-center gap-4 opacity-40">
-              <Inbox className="w-10 h-10 text-slate-500" />
-              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-center">
-                Sem dados de performance mensal.<br/>Cadastre leads e gastos em campanhas.
-              </p>
-            </div>
-          ) : (
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={performanceData}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorCac" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: 'none', borderRadius: '12px', fontSize: '12px', color: '#fff', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}
-                    formatter={(value: any) => formatCurrency(value)}
-                  />
-                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" name="Receita" />
-                  <Area type="monotone" dataKey="cac" stroke="#f43f5e" strokeWidth={3} fillOpacity={1} fill="url(#colorCac)" name="CAC" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </Card>
-
-        <Card className="p-6 bg-[var(--color-surface-elevated)] border-white/5">
-          <h3 className="text-sm font-black text-white uppercase tracking-wider mb-6 flex items-center gap-2">
-            <Users className="w-4 h-4 text-blue-500" /> Receita p/ Canais (Ganho)
-          </h3>
-          {sourceData.length === 0 ? (
-            <div className="h-72 flex flex-col items-center justify-center gap-4 opacity-40">
-              <PieChart className="w-10 h-10 text-slate-500" />
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">
-                Nenhuma receita atrelada a origens de mkt.
-              </p>
-            </div>
-          ) : (
-            <div className="h-72 flex flex-col justify-center">
-              <ResponsiveContainer width="100%" height="70%">
-                <PieChart>
-                  <Pie
-                    data={sourceData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="revenue"
-                    stroke="none"
-                  >
-                    {sourceData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: 'none', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
-                    formatter={(value: any) => formatCurrency(value)}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                {sourceData.map(source => (
-                  <div key={source.name} className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: source.color }}></div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter truncate">{source.name}</span>
-                    </div>
-                    <span className="text-xs font-black text-white ml-4">
-                      {formatCurrency(source.revenue)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <Card className="p-6 bg-[var(--color-surface-elevated)] border-white/5 mt-6">
-        <h3 className="text-sm font-black text-white uppercase tracking-wider mb-1 flex items-center gap-2">
-          <Users className="w-4 h-4 text-emerald-500" /> Canais de Aquisição
-        </h3>
-        <p className="text-[11px] text-slate-500 mb-4">De onde vêm os leads e quantos viram venda. Leads de páginas e formulários do sistema trazem o canal da campanha (UTM); os demais usam a origem cadastrada. O gasto vem dos valores lançados por canal em Aquisição (o nome do canal precisa bater, ex.: “Meta” ou “Facebook Ads”).</p>
-        {canais.length === 0 ? <p className="text-xs text-slate-500">Ainda não há leads.</p> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[760px]">
-              <thead className="text-[10px] uppercase tracking-wider text-slate-500"><tr>{["Canal", "Leads", "Vendas", "Conversão", "Receita", "Ticket médio", "Gasto", "Custo/lead", "Custo/venda"].map((h, i) => <th key={h} className={`font-black py-2 ${i === 0 ? "text-left" : "text-right"}`}>{h}</th>)}</tr></thead>
-              <tbody>{canais.map((c) => (
-                <tr key={c.nome} className="border-t border-white/5">
-                  <td className="py-2 font-bold text-white">{c.nome}</td>
-                  <td className="py-2 text-right text-slate-300">{c.leads}</td>
-                  <td className="py-2 text-right text-slate-300">{c.fechados}</td>
-                  <td className="py-2 text-right text-slate-300">{c.taxa.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</td>
-                  <td className="py-2 text-right font-bold text-emerald-400">{formatCurrency(c.receita)}</td>
-                  <td className="py-2 text-right text-slate-300">{c.ticket > 0 ? formatCurrency(c.ticket) : "—"}</td>
-                  <td className="py-2 text-right text-slate-300">{c.gasto > 0 ? formatCurrency(c.gasto) : "—"}</td>
-                  <td className="py-2 text-right text-slate-300">{c.cpl > 0 ? formatCurrency(c.cpl) : "—"}</td>
-                  <td className="py-2 text-right text-slate-300">{c.cac > 0 ? formatCurrency(c.cac) : "—"}</td>
-                </tr>))}</tbody>
-            </table>
+        <TabsContent value="geral" className="space-y-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <StatCard icon={DollarSign} color="#10b981" label="Receita do marketing" value={formatCurrency(totalRevenue)} sub={`${fechados} venda(s) fechada(s)`} hint="Soma dos leads com status Fechado." />
+            <StatCard icon={TrendingUp} color="#f43f5e" label="Custo por lead (CPL)" value={formatCurrency(cac)} sub={`${totalLeads} lead(s) · gasto ${formatCurrency(totalSpent)}`} hint="Investimento em marketing dividido pelo total de leads." />
+            <StatCard icon={Target} color="#6366f1" label="Ticket médio" value={formatCurrency(avgDeal)} sub={fechados > 0 ? "por venda fechada" : "sem vendas ainda"} hint="Receita dividida pelo número de vendas fechadas." />
+            <StatCard icon={Activity} color="#3b82f6" label="Retorno (ROI)" value={<>{roi.toFixed(1)}<span className="text-sm text-[var(--color-text-muted)]">x</span></>} sub={roi > 0 ? `cada R$ 1 investido volta R$ ${roi.toFixed(2).replace(".", ",")}` : "lance os gastos para calcular"} hint="Receita dividida pelo investimento em marketing." />
           </div>
-        )}
-      </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-5">
+            <Card className="p-4 sm:p-6 lg:col-span-3 min-w-0">
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-1 flex items-center gap-2"><BarChart2 className="w-4 h-4 text-[var(--color-primary-blue)]" /> Receita e custo por lead, mês a mês</h3>
+              <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Receita no eixo da esquerda; custo por lead no da direita (escalas diferentes).</p>
+              {performanceData.length === 0 ? (
+                <EmptyState icon={Inbox} title="Sem dados mensais ainda" description="Cadastre leads e lance os gastos de marketing para ver a evolução." className="py-10" />
+              ) : (
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={performanceData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} /></linearGradient>
+                        <linearGradient id="colorCac" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f43f5e" stopOpacity={0.25} /><stop offset="95%" stopColor="#f43f5e" stopOpacity={0} /></linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle, rgba(128,128,128,.2))" vertical={false} />
+                      <XAxis dataKey="name" {...eixo} />
+                      <YAxis yAxisId="rev" {...eixo} width={48} tickFormatter={compacto} />
+                      <YAxis yAxisId="cpl" orientation="right" {...eixo} width={48} tickFormatter={compacto} />
+                      <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => formatCurrency(value)} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                      <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2.5} fill="url(#colorRevenue)" name="Receita" />
+                      <Area yAxisId="cpl" type="monotone" dataKey="cac" stroke="#f43f5e" strokeWidth={2.5} fill="url(#colorCac)" name="Custo por lead" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </Card>
+
+            <Card className="p-4 sm:p-6 lg:col-span-2 min-w-0">
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-1 flex items-center gap-2"><PieChartIcon className="w-4 h-4 text-[var(--color-primary-blue)]" /> Receita por canal</h3>
+              <p className="text-[11px] text-[var(--color-text-muted)] mb-4">Vendas fechadas, por origem do lead.</p>
+              {sourceData.length === 0 ? (
+                <EmptyState icon={PieChartIcon} title="Nenhuma venda por canal" description="Quando um lead for fechado, a origem dele aparece aqui." className="py-10" />
+              ) : (
+                <div>
+                  <div className="h-44 relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={sourceData} cx="50%" cy="50%" innerRadius={52} outerRadius={74} paddingAngle={3} dataKey="revenue" stroke="none">
+                          {sourceData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => formatCurrency(value)} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-[10px] font-bold uppercase text-[var(--color-text-faint)]">Total</span>
+                      <span className="text-sm font-black text-[var(--color-text-primary)]">{formatCurrency(receitaCanais)}</span>
+                    </div>
+                  </div>
+                  <ul className="mt-3 space-y-1.5">
+                    {sourceData.slice(0, 6).map((src) => (
+                      <li key={src.name} className="flex items-center gap-2 text-xs">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: src.color }} />
+                        <span className="flex-1 min-w-0 truncate text-[var(--color-text-muted)]">{src.name}</span>
+                        <span className="font-bold text-[var(--color-text-primary)]">{formatCurrency(src.revenue)}</span>
+                        <span className="w-10 text-right text-[var(--color-text-faint)]">{receitaCanais > 0 ? Math.round((src.revenue / receitaCanais) * 100) : 0}%</span>
+                      </li>))}
+                  </ul>
+                </div>
+              )}
+            </Card>
+          </div>
+          {melhorCanal && <p className="text-xs text-[var(--color-text-muted)]">💡 Melhor conversão: <b className="text-[var(--color-text-primary)]">{melhorCanal.nome}</b> ({melhorCanal.taxa.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% dos leads viram venda). Veja todos na aba <button onClick={() => setAba("canais")} className="underline text-[var(--color-primary-blue)] font-bold">Canais</button>.</p>}
+        </TabsContent>
+
+        <TabsContent value="canais">
+          <Card className="p-4 sm:p-6">
+            <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-1 flex items-center gap-2"><Users className="w-4 h-4 text-emerald-500" /> Canais de aquisição</h3>
+            <p className="text-[11px] text-[var(--color-text-muted)] mb-4 max-w-3xl">De onde vêm os leads e quantos viram venda. Leads de páginas, formulários e e-mails do sistema trazem o canal da campanha (UTM); os demais usam a origem cadastrada. O gasto vem dos valores lançados por canal na aba Investimento (o nome do canal precisa bater, ex.: “Meta” ou “Facebook Ads”).</p>
+            {canais.length === 0 ? <EmptyState icon={Users} title="Ainda não há leads" description="Quando os primeiros leads chegarem, os canais aparecem aqui." className="py-8" /> : (
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full text-sm min-w-[820px]">
+                  <thead className="text-[10px] uppercase tracking-wider text-[var(--color-text-faint)]">
+                    <tr>{["Canal", "Leads", "Vendas", "Conversão", "Receita", "Ticket médio", "Gasto", "Custo/lead", "Custo/venda"].map((h, i) => <th key={h} className={`font-black py-2 px-3 ${i === 0 ? "text-left sticky left-0 bg-[var(--color-surface-elevated)]" : "text-right"}`}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>{canais.map((c) => (
+                    <tr key={c.nome} className="border-t border-[var(--color-border-subtle,var(--color-border-default))] hover:bg-[var(--color-surface-sunken)]/60">
+                      <td className="py-2.5 px-3 font-bold text-[var(--color-text-primary)] sticky left-0 bg-[var(--color-surface-elevated)]">{c.nome}</td>
+                      <td className="py-2.5 px-3 text-right"><div className="flex items-center justify-end gap-2"><div className="hidden sm:block w-16 h-1.5 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden"><div className="h-full bg-[var(--color-primary-blue)]" style={{ width: `${(c.leads / maxLeadsCanal) * 100}%` }} /></div><span className="text-[var(--color-text-primary)] tabular-nums">{c.leads}</span></div></td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-[var(--color-text-primary)]">{c.fechados}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-[var(--color-text-muted)]">{c.taxa.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums font-bold text-emerald-500">{formatCurrency(c.receita)}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-[var(--color-text-muted)]">{c.ticket > 0 ? formatCurrency(c.ticket) : "—"}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-[var(--color-text-muted)]">{c.gasto > 0 ? formatCurrency(c.gasto) : "—"}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-[var(--color-text-muted)]">{c.cpl > 0 ? formatCurrency(c.cpl) : "—"}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-[var(--color-text-muted)]">{c.cac > 0 ? formatCurrency(c.cac) : "—"}</td>
+                    </tr>))}</tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="investimento"><AquisicaoPanel /></TabsContent>
+        <TabsContent value="email"><EmailResumoPanel mostrarVazio /></TabsContent>
+        <TabsContent value="links"><GeradorLinkUtm iniciarAberto /></TabsContent>
+      </Tabs>
     </PageContainer>
   );
 }

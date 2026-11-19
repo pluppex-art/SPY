@@ -8,7 +8,7 @@ import { resumirEmail, type ResumoEmail } from "../../lib/resumoEmail";
 const fmt = (v: number | null) => (v === null ? "—" : `${v.toLocaleString("pt-BR")}%`);
 
 /** Desempenho dos e-mails de marketing nos últimos 90 dias (campanhas e sequências). */
-export function EmailResumoPanel() {
+export function EmailResumoPanel({ mostrarVazio = false }: { mostrarVazio?: boolean } = {}) {
   const { activeTenantId } = useAuth();
   const [r, setR] = useState<ResumoEmail | null>(null);
 
@@ -25,7 +25,7 @@ export function EmailResumoPanel() {
     return () => { cancelado = true; };
   }, [activeTenantId]);
 
-  if (!r || r.enviados === 0) return null;
+  if (!r || r.enviados === 0) return mostrarVazio ? <Card className="p-8 text-center space-y-1"><Mail className="w-8 h-8 mx-auto text-[var(--color-primary-blue)]" /><p className="text-sm font-bold text-[var(--color-text-primary)]">Nenhum e-mail enviado nos últimos 90 dias</p><p className="text-xs text-[var(--color-text-muted)]">Em Marketing → E-mail em massa você cria campanhas e sequências; o desempenho aparece aqui.</p></Card> : null;
   const kpis = [
     { l: "E-mails enviados", v: r.enviados.toLocaleString("pt-BR") },
     { l: "Abriram", v: fmt(r.taxaAbertura) },

@@ -106,9 +106,9 @@ export function AquisicaoPanel() {
   const origens = data?.porOrigem.map((o) => o.origem).filter((o) => o !== "(sem origem)") ?? [];
 
   return (
-    <Card className="p-5 mb-8 space-y-4 bg-[var(--color-surface-elevated)]/50 border border-white/5">
+    <Card className="p-4 sm:p-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-black text-white flex items-center gap-2"><Megaphone className="w-4 h-4 text-[var(--color-primary-blue)]" /> Aquisição: custo por lead, lead qualificado e venda</h3>
+        <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2"><Megaphone className="w-4 h-4 text-[var(--color-primary-blue)]" /> Aquisição: custo por lead, lead qualificado e venda</h3>
         <div className="flex flex-wrap items-center gap-2">
           <select value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Período" className="h-8 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]">
             {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}

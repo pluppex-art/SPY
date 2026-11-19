@@ -8,8 +8,8 @@ const FONTES = ["instagram", "facebook", "google", "tiktok", "linkedin", "youtub
 const input = "h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]";
 
 /** Gera links com UTM: quem clicar e virar lead entra no painel de canais com a campanha certa. */
-export function GeradorLinkUtm() {
-  const [aberto, setAberto] = useState(false);
+export function GeradorLinkUtm({ iniciarAberto = false }: { iniciarAberto?: boolean } = {}) {
+  const [aberto, setAberto] = useState(iniciarAberto);
   const [f, setF] = useState({ url: "", source: "", medium: "", campaign: "", content: "" });
   const r = montarLinkUtm(f);
   const set = (k: keyof typeof f) => (e: any) => setF((p) => ({ ...p, [k]: e.target.value }));
