@@ -58,7 +58,6 @@ interface CampanhasServerSummary {
 
 export default function MarketingCampanhas() {
   const navigate = useNavigate();
-  const [mostrarCRM, setMostrarCRM] = useState(false);
   const { leads, financeEntries, appSettings } = useData();
   const { activeTenantId } = useAuth();
   const { formatCurrency } = useLocalization();
@@ -127,8 +126,8 @@ export default function MarketingCampanhas() {
 
   return (
     <PageContainer
-      title="Campanhas"
-      subtitle="As campanhas dos seus canais de anúncio, com o que cada uma gasta e entrega. Clique numa campanha para ver os detalhes, os anúncios e os leads que ela trouxe."
+      title="Gestão de Campanhas & Tráfego"
+      subtitle="Acompanhe o retorno (ROI), as conversões e as conexões ativas do Meta Ads e do Google Ads."
       actions={
         <Button
           onClick={() => navigate("/app/configuracoes/integracoes/apps")}
@@ -139,28 +138,124 @@ export default function MarketingCampanhas() {
         </Button>
       }
     >
-      {/* Conexões: faixa compacta (o detalhe de cada integração fica em Integrações) */}
-      <div className="flex flex-wrap items-center gap-2 mb-5">
-        {([
-          ["Meta Ads", Facebook, metaConfig.connected, metaConfig.connected ? "Pixel ativo" : "desconectado"],
-          ["Google Ads", Globe, googleConfig.connected, googleConfig.connected ? "tag ativa" : "desconectado"],
-        ] as const).map(([nome, Icone, ok, txt]) => (
-          <button key={nome} type="button" onClick={() => navigate("/app/configuracoes/integracoes/apps")} title="Abrir Integrações" className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] hover:border-[var(--color-primary-blue)]/50 text-xs">
-            <Icone className={`w-3.5 h-3.5 ${ok ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-faint)]"}`} />
-            <span className="font-bold text-[var(--color-text-primary)]">{nome}</span>
-            <span className={`flex items-center gap-1 ${ok ? "text-emerald-500" : "text-[var(--color-text-faint)]"}`}><span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-emerald-500" : "bg-[var(--color-text-faint)]"}`} />{txt}</span>
-          </button>))}
-        <button type="button" onClick={() => navigate("/app/configuracoes/integracoes/apps")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dashed border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] hover:border-[var(--color-primary-blue)]/50"><Plus className="w-3.5 h-3.5" /> Nova integração de tráfego<HelpTip label="Sobre Nova Integração de Tráfego">Conecte outras fontes de tráfego pago, como TikTok Ads, LinkedIn, Taboola ou webhooks, para trazer os resultados para dentro do SPY.</HelpTip></button>
+      {/* Channels Status Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+        {/* Meta Ads Card */}
+        <Card
+          className={`p-5 flex flex-col justify-between transition-all duration-200 ${
+            metaConfig.connected
+              ? "border-[var(--color-primary-blue)]/40 shadow-sm"
+              : "opacity-90"
+          }`}
+        >
+          <div>
+            <div className="flex items-center justify-between mb-3.5">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                  metaConfig.connected
+                    ? "bg-blue-600/10 text-blue-500 border-blue-500/20"
+                    : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"
+                }`}
+              >
+                <Facebook className="w-5 h-5" />
+              </div>
+              <Badge
+                variant={metaConfig.connected ? "success" : "neutral"}
+                dot
+                dotPulse={metaConfig.connected}
+              >
+                {metaConfig.connected ? "Pixel Ativo" : "Desconectado"}
+              </Badge>
+            </div>
+            <h4 className="font-bold text-[var(--color-text-primary)] text-base mb-1">
+              Meta Ads (Facebook & Instagram)
+            </h4>
+            <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+              {metaConfig.connected
+                ? `Pixel ${metaConfig.pixelId || "Ativo"} e CAPI sincronizados`
+                : "Conecte sua conta para rastrear visitantes e conversões"}
+            </p>
+          </div>
+          <div className="mt-4 pt-3.5 border-t border-[var(--color-border-subtle)] flex justify-between items-center">
+            <span className="text-[11px] font-mono text-[var(--color-text-faint)]">
+              {metaConfig.connected ? "Rastreamento OK" : "Aguardando conexão"}
+            </span>
+            <Button
+              onClick={() => navigate("/app/configuracoes/integracoes/apps")}
+              variant="outline"
+              size="sm"
+              className="text-xs font-bold h-7"
+            >
+              Configurar
+            </Button>
+          </div>
+        </Card>
+
+        {/* Google Ads Card */}
+        <Card
+          className={`p-5 flex flex-col justify-between transition-all duration-200 ${
+            googleConfig.connected
+              ? "border-emerald-500/40 shadow-sm"
+              : "opacity-90"
+          }`}
+        >
+          <div>
+            <div className="flex items-center justify-between mb-3.5">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                  googleConfig.connected
+                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                    : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"
+                }`}
+              >
+                <Globe className="w-5 h-5" />
+              </div>
+              <Badge
+                variant={googleConfig.connected ? "success" : "neutral"}
+                dot
+                dotPulse={googleConfig.connected}
+              >
+                {googleConfig.connected ? "Tag Ativa" : "Desconectado"}
+              </Badge>
+            </div>
+            <h4 className="font-bold text-[var(--color-text-primary)] text-base mb-1">
+              Google Ads & Analytics
+            </h4>
+            <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+              {googleConfig.connected
+                ? `Tag ${googleConfig.measurementId || "G-Tag"} conectada`
+                : "Acompanhe palavras-chave, conversões e Enhanced Tags"}
+            </p>
+          </div>
+          <div className="mt-4 pt-3.5 border-t border-[var(--color-border-subtle)] flex justify-between items-center">
+            <span className="text-[11px] font-mono text-[var(--color-text-faint)]">
+              {googleConfig.connected ? "Tag OK" : "Aguardando conexão"}
+            </span>
+            <Button
+              onClick={() => navigate("/app/configuracoes/integracoes/apps")}
+              variant="outline"
+              size="sm"
+              className="text-xs font-bold h-7"
+            >
+              Configurar
+            </Button>
+          </div>
+        </Card>
+
+        {/* Nova Conexão Card */}
+        <Card
+          onClick={() => navigate("/app/configuracoes/integracoes/apps")}
+          className="p-5 border-dashed border-[var(--color-border-default)] flex flex-col justify-center items-center text-center cursor-pointer hover:border-[var(--color-primary-blue)]/50 hover:bg-[var(--color-surface-sunken)]/40 transition-all"
+        >
+          <div className="w-10 h-10 rounded-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] flex items-center justify-center mb-2 text-[var(--color-text-muted)]">
+            <Plus className="w-5 h-5" />
+          </div>
+          <h4 className="font-bold text-[var(--color-text-primary)] text-sm mb-0.5">
+            Nova Integração de Tráfego
+           <HelpTip label="Sobre Nova Integração de Tráfego">Conecte outras fontes de tráfego pago, como TikTok Ads, LinkedIn, Taboola ou webhooks, para trazer os resultados para dentro do SPY.</HelpTip></h4>
+        </Card>
       </div>
 
-      <CampanhasLista />
-
-      {/* Resumo dos leads do CRM (antes ocupava a página inteira): fica recolhido para a lista de campanhas ser o foco */}
-      <div className="mt-8">
-        <button type="button" onClick={() => setMostrarCRM((v) => !v)} aria-expanded={mostrarCRM} className="flex items-center gap-2 text-sm font-bold text-[var(--color-text-primary)] mb-4">
-          <TrendingUp className="w-4 h-4 text-emerald-500" /> Resumo dos leads do CRM por origem <span className="text-[var(--color-text-faint)] text-xs font-normal">{mostrarCRM ? "▴ recolher" : "▾ ver"}</span>
-        </button>
-        {mostrarCRM && (<div>
       {/* Real KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
@@ -209,6 +304,9 @@ export default function MarketingCampanhas() {
           </Card>
         ))}
       </div>
+
+      {/* Campanhas do Meta Ads: só busca no Meta quando a pessoa clica no botão */}
+      <div className="mb-8"><CampanhasLista /></div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -363,8 +461,6 @@ export default function MarketingCampanhas() {
           </Table>
         )}
       </Card>
-        </div>)}
-      </div>
     </PageContainer>
   );
 }
