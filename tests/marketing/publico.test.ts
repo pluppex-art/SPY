@@ -800,3 +800,48 @@ test("revisão 2: gatilho de e-mail/SMS só executa uma vez por vez (reserva at�
   assert.equal(await reservarExecucao(db, "g2"), true); // reserva antiga (função que caiu) pode ser retomada
   assert.equal(await reservarExecucao(db, "g3"), false); // já executado
 });
+
+test("Meta Ads: lista de campanhas (status, orçamento, resultado por objetivo, custo por resultado) e rota sem vazar o token", async () => {
+  const { mesclarCampanhas, resultadoDaCampanha, registerMarketingAdsRoutes } = await import("../../server/marketingAds.js");
+  // resultado depende do objetivo; o mesmo lead em dois tipos de ação não conta em dobro
+  assert.deepEqual(resultadoDaCampanha("OUTCOME_LEADS", [{ action_type: "lead", value: "10" }, { action_type: "onsite_conversion.lead_grouped", value: "10" }], 0), { valor: 10, rotulo: "Cadastros" });
+  assert.deepEqual(resultadoDaCampanha("OUTCOME_TRAFFIC", [{ action_type: "link_click", value: "50" }], 0), { valor: 50, rotulo: "Cliques no link" });
+  assert.deepEqual(resultadoDaCampanha("OUTCOME_AWARENESS", [], 1234), { valor: 1234, rotulo: "Alcance" });
+  assert.deepEqual(resultadoDaCampanha("OUTCOME_ENGAGEMENT", [{ action_type: "onsite_conversion.messaging_conversation_started_7d", value: "7" }], 0), { valor: 7, rotulo: "Conversas iniciadas" });
+  const lista = mesclarCampanhas(
+    [{ id: "1", name: "Black Friday", effective_status: "ACTIVE", objective: "OUTCOME_LEADS", daily_budget: "5000" }, { id: "2", name: "Parada", effective_status: "PAUSED", objective: "OUTCOME_TRAFFIC", lifetime_budget: "100000", start_time: "2026-10-01T00:00:00-0300" }],
+    [{ campaign_id: "1", spend: "250.5", impressions: "10000", reach: "8000", clicks: "300", ctr: "3", cpc: "0.835", cpm: "25.05", actions: [{ action_type: "lead", value: "25" }] }, { campaign_id: "9", campaign_name: "Antiga", spend: "10" }],
+  );
+  assert.deepEqual(lista.map((c) => c.nome), ["Black Friday", "Antiga", "Parada"]); // por gasto
+  const bf = lista[0];
+  assert.equal(bf.statusRotulo, "Ativa"); assert.deepEqual(bf.orcamento, { tipo: "diario", valor: 50 });
+  assert.equal(bf.resultados, 25); assert.equal(bf.custoPorResultado, 10.02);
+  assert.deepEqual(lista[2].orcamento, { tipo: "total", valor: 1000 }); assert.equal(lista[2].inicio, "2026-10-01"); assert.equal(lista[2].gasto, 0);
+  // rota: usa as credenciais da empresa, manda o token só no cabeçalho e cacheia
+  const db = criarFakeDb({ app_settings: [{ tenant_id: T, key: "integracoes_meta_ads", value: { accountId: "act_123", adsToken: "SEGREDO" } }] });
+  const app = express();
+  registerMarketingAdsRoutes(app as any, { requireUser: (q: any, _s: any, n: any) => { q.user = { id: "u1" }; n(); }, resolveRequestedTenantId: async () => T, supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  const orig = globalThis.fetch; const chamadas: { url: string; auth: string }[] = [];
+  (globalThis as any).fetch = async (u: any, init: any) => {
+    const url = String(u);
+    if (!url.startsWith("https://graph.facebook.com/")) return orig(u, init);
+    chamadas.push({ url, auth: String(init?.headers?.Authorization || "") });
+    const corpo = url.includes("/campaigns") ? { data: [{ id: "1", name: "C1", effective_status: "ACTIVE", objective: "OUTCOME_LEADS" }] }
+      : url.includes("/insights") ? { data: [{ campaign_id: "1", spend: "10", impressions: "100", clicks: "5", actions: [{ action_type: "lead", value: "2" }] }] } : { currency: "BRL", name: "Conta X" };
+    return { ok: true, json: async () => corpo } as any;
+  };
+  try {
+    const r = await (await fetch(`${base}/api/marketing/meta-campanhas?dias=30`)).json();
+    assert.equal(r.configurado, true); assert.equal(r.campanhas[0].resultados, 2); assert.equal(r.conta, "Conta X");
+    assert.ok(chamadas.length >= 3 && chamadas.every((c) => c.auth === "Bearer SEGREDO" && !c.url.includes("SEGREDO")));
+    assert.ok(chamadas.some((c) => c.url.includes("/act_123/")) && !chamadas.some((c) => c.url.includes("act_act_")));
+    const antes = chamadas.length;
+    await fetch(`${base}/api/marketing/meta-campanhas?dias=30`); // cache
+    assert.equal(chamadas.length, antes);
+  } finally { (globalThis as any).fetch = orig; srv.close(); }
+  const semConta = criarFakeDb({ app_settings: [] });
+  const app2 = express(); registerMarketingAdsRoutes(app2 as any, { requireUser: (q: any, _s: any, n: any) => n(), resolveRequestedTenantId: async () => T, supabaseService: semConta });
+  const s2 = app2.listen(0);
+  try { assert.deepEqual(await (await fetch(`http://127.0.0.1:${(s2.address() as any).port}/api/marketing/meta-campanhas`)).json(), { configurado: false }); } finally { s2.close(); }
+});
