@@ -138,6 +138,8 @@ export default function MarketingCampanhas() {
         </Button>
       }
     >
+      <div className="mb-6"><MetaCampanhasLista /></div>
+
       {/* Channels Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
         {/* Meta Ads Card */}
@@ -255,8 +257,6 @@ export default function MarketingCampanhas() {
            <HelpTip label="Sobre Nova Integração de Tráfego">Conecte outras fontes de tráfego pago, como TikTok Ads, LinkedIn, Taboola ou webhooks, para trazer os resultados para dentro do SPY.</HelpTip></h4>
         </Card>
       </div>
-
-      <div className="mb-8"><MetaCampanhasLista /></div>
 
       {/* Real KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

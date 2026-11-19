@@ -845,3 +845,34 @@ test("Meta Ads: lista de campanhas (status, orçamento, resultado por objetivo, 
   const s2 = app2.listen(0);
   try { assert.deepEqual(await (await fetch(`http://127.0.0.1:${(s2.address() as any).port}/api/marketing/meta-campanhas`)).json(), { configurado: false }); } finally { s2.close(); }
 });
+
+test("Meta Ads: conjuntos e anúncios (nível, filtro por campanha, objetivo herdado, miniatura só https) e ids inválidos ignorados", async () => {
+  const { mesclarCampanhas, registerMarketingAdsRoutes } = await import("../../server/marketingAds.js");
+  const conj = mesclarCampanhas(
+    [{ id: "10", name: "Conj A", effective_status: "ACTIVE", campaign_id: "1", campaign: { id: "1", name: "Camp", objective: "OUTCOME_LEADS" }, daily_budget: "2000", optimization_goal: "LEAD_GENERATION" }],
+    [{ adset_id: "10", campaign_id: "1", spend: "40", impressions: "1000", clicks: "20", actions: [{ action_type: "lead", value: "4" }] }], "BRL", "adset");
+  assert.equal(conj[0].resultados, 4); assert.equal(conj[0].custoPorResultado, 10); assert.equal(conj[0].campanhaNome, "Camp");
+  assert.deepEqual(conj[0].orcamento, { tipo: "diario", valor: 20 }); assert.equal(conj[0].otimizacao, "LEAD_GENERATION");
+  const ads = mesclarCampanhas(
+    [{ id: "100", name: "Anúncio 1", effective_status: "PAUSED", campaign_id: "1", adset_id: "10", campaign: { objective: "OUTCOME_TRAFFIC" }, adset: { name: "Conj A" }, creative: { thumbnail_url: "https://cdn.fb/x.jpg" } },
+     { id: "101", name: "Anúncio 2", creative: { thumbnail_url: "javascript:alert(1)" } }],
+    [{ ad_id: "100", spend: "5", clicks: "50", actions: [{ action_type: "link_click", value: "45" }] }], "BRL", "ad");
+  const a1 = ads.find((x) => x.id === "100")!, a2 = ads.find((x) => x.id === "101")!;
+  assert.equal(a1.miniatura, "https://cdn.fb/x.jpg"); assert.equal(a2.miniatura, null);
+  assert.equal(a1.resultados, 45); assert.equal(a1.conjuntoNome, "Conj A");
+  // rota: nível e filtro vão para o Graph; id com lixo é ignorado
+  const db = criarFakeDb({ app_settings: [{ tenant_id: T, key: "integracoes_meta_ads", value: { accountId: "123", adsToken: "TKN" } }] });
+  const app = express();
+  registerMarketingAdsRoutes(app as any, { requireUser: (q: any, _s: any, n: any) => n(), resolveRequestedTenantId: async () => T, supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  const orig = globalThis.fetch; const urls: string[] = [];
+  (globalThis as any).fetch = async (u: any, init: any) => { const url = String(u); if (!url.startsWith("https://graph.facebook.com/")) return orig(u, init); urls.push(decodeURIComponent(url)); return { ok: true, json: async () => ({ data: [], currency: "BRL" }) } as any; };
+  try {
+    await fetch(`${base}/api/marketing/meta-campanhas?nivel=adset&campanha=555&dias=7`);
+    assert.ok(urls.some((u) => u.includes("/act_123/adsets?") && u.includes('"campaign.id"') && u.includes('"555"')));
+    assert.ok(urls.some((u) => u.includes("/act_123/insights?level=adset") && u.includes("adset_name")));
+    urls.length = 0;
+    await fetch(`${base}/api/marketing/meta-campanhas?nivel=ad&campanha=${encodeURIComponent('1"];drop')}&conjunto=9&dias=14`);
+    assert.ok(urls.some((u) => u.includes("/act_123/ads?") && u.includes('"adset.id"') && !u.includes("drop") && !u.includes("campaign.id")));
+  } finally { (globalThis as any).fetch = orig; srv.close(); }
+});

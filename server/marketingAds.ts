@@ -34,7 +34,11 @@ export interface CampanhaMeta {
   gasto: number; impressoes: number; alcance: number; cliques: number; ctr: number; cpc: number; cpm: number;
   resultados: number; resultadoRotulo: string; custoPorResultado: number;
   inicio: string | null; fim: string | null;
+  /** Só em conjuntos e anúncios: a quem pertencem (para abrir um nível a partir do outro). */
+  campanhaId?: string; campanhaNome?: string; conjuntoId?: string; conjuntoNome?: string; otimizacao?: string; miniatura?: string | null;
 }
+
+export type NivelMeta = "campaign" | "adset" | "ad";
 
 const STATUS_ROTULO: Record<string, string> = {
   ACTIVE: "Ativa", PAUSED: "Pausada", CAMPAIGN_PAUSED: "Pausada", ADSET_PAUSED: "Conjunto pausado", ARCHIVED: "Arquivada", DELETED: "Excluída",
@@ -69,33 +73,39 @@ export function resultadoDaCampanha(objetivo: string, acoes: any[] | undefined, 
 const dinheiro = (v: unknown) => Math.round((Number(v) || 0) * 100) / 100;
 const dataISO = (v: unknown) => { const t = String(v ?? "").slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : null; };
 
-/** Junta a lista de campanhas (status, orçamento) com os números do período. Campanhas sem veiculação no período aparecem com zeros. */
-export function mesclarCampanhas(campanhas: any[], insights: any[], moeda = "BRL"): CampanhaMeta[] {
+/** Junta a lista (campanhas, conjuntos ou anúncios) com os números do período. Itens sem veiculação no período aparecem com zeros. */
+export function mesclarCampanhas(itens: any[], insights: any[], moeda = "BRL", nivel: NivelMeta = "campaign"): CampanhaMeta[] {
+  const chaveId = nivel === "campaign" ? "campaign_id" : nivel === "adset" ? "adset_id" : "ad_id";
+  const chaveNome = nivel === "campaign" ? "campaign_name" : nivel === "adset" ? "adset_name" : "ad_name";
   const porId = new Map<string, any>();
-  for (const i of insights || []) if (i?.campaign_id) porId.set(String(i.campaign_id), i);
+  for (const i of insights || []) if (i?.[chaveId]) porId.set(String(i[chaveId]), i);
   const divisor = SEM_CENTAVOS.has(moeda) ? 1 : 100;
   const vistos = new Set<string>();
   const lista: CampanhaMeta[] = [];
   const montar = (c: any, i: any) => {
-    const objetivo = String(c?.objective ?? "");
+    const objetivo = String(c?.objective ?? c?.campaign?.objective ?? "");
     const alcance = Math.round(Number(i?.reach) || 0);
     const res = resultadoDaCampanha(objetivo, i?.actions, alcance);
     const gasto = dinheiro(i?.spend);
     const diario = Number(c?.daily_budget) || 0, total = Number(c?.lifetime_budget) || 0;
     const status = String(c?.effective_status ?? c?.status ?? "");
+    const miniatura = String(c?.creative?.thumbnail_url ?? "");
     lista.push({
-      id: String(c?.id ?? i?.campaign_id ?? ""), nome: String(c?.name ?? i?.campaign_name ?? "(sem nome)").slice(0, 200),
+      id: String(c?.id ?? i?.[chaveId] ?? ""), nome: String(c?.name ?? i?.[chaveNome] ?? "(sem nome)").slice(0, 200),
       status, statusRotulo: STATUS_ROTULO[status] ?? (status ? status.replace(/_/g, " ").toLowerCase() : "—"),
       objetivo, objetivoRotulo: OBJETIVO_ROTULO[objetivo] ?? (objetivo ? objetivo.replace(/^OUTCOME_/, "").replace(/_/g, " ").toLowerCase() : "—"),
       orcamento: diario > 0 ? { tipo: "diario", valor: dinheiro(diario / divisor) } : total > 0 ? { tipo: "total", valor: dinheiro(total / divisor) } : { tipo: null, valor: 0 },
       gasto, impressoes: Math.round(Number(i?.impressions) || 0), alcance, cliques: Math.round(Number(i?.clicks) || 0),
       ctr: dinheiro(i?.ctr), cpc: dinheiro(i?.cpc), cpm: dinheiro(i?.cpm),
       resultados: Math.round(res.valor), resultadoRotulo: res.rotulo, custoPorResultado: res.valor > 0 ? dinheiro(gasto / res.valor) : 0,
-      inicio: dataISO(c?.start_time), fim: dataISO(c?.stop_time),
+      inicio: dataISO(c?.start_time), fim: dataISO(c?.stop_time ?? c?.end_time),
+      ...(nivel !== "campaign" ? { campanhaId: String(c?.campaign_id ?? c?.campaign?.id ?? i?.campaign_id ?? "") || undefined, campanhaNome: String(c?.campaign?.name ?? i?.campaign_name ?? "") || undefined } : {}),
+      ...(nivel === "ad" ? { conjuntoId: String(c?.adset_id ?? c?.adset?.id ?? i?.adset_id ?? "") || undefined, conjuntoNome: String(c?.adset?.name ?? i?.adset_name ?? "") || undefined, miniatura: /^https:\/\//i.test(miniatura) ? miniatura : null } : {}),
+      ...(nivel === "adset" ? { otimizacao: String(c?.optimization_goal ?? "") || undefined } : {}),
     });
   };
-  for (const c of campanhas || []) { if (!c?.id || vistos.has(String(c.id))) continue; vistos.add(String(c.id)); montar(c, porId.get(String(c.id))); }
-  for (const [id, i] of porId) if (!vistos.has(id)) montar({ id, name: i.campaign_name }, i); // campanha apagada que ainda tem histórico no período
+  for (const c of itens || []) { if (!c?.id || vistos.has(String(c.id))) continue; vistos.add(String(c.id)); montar(c, porId.get(String(c.id))); }
+  for (const [id, i] of porId) if (!vistos.has(id)) montar({ id, name: i[chaveNome] }, i); // apagado, mas com histórico no período
   return lista.sort((a, b) => b.gasto - a.gasto || a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
@@ -157,15 +167,29 @@ export function registerMarketingAdsRoutes(app: Express, { requireUser, resolveR
       const conta = String(s?.value?.accountId ?? "").replace(/\D/g, "");
       const token = String(s?.value?.adsToken ?? "").trim();
       if (!conta || !token) return res.json({ configurado: false });
-      const chave = `camp:${tenantId}:${dias}`;
+      const nivel: NivelMeta = req.query.nivel === "adset" ? "adset" : req.query.nivel === "ad" ? "ad" : "campaign";
+      const idCampanha = /^\d{1,25}$/.test(String(req.query.campanha ?? "")) ? String(req.query.campanha) : "";
+      const idConjunto = nivel === "ad" && /^\d{1,25}$/.test(String(req.query.conjunto ?? "")) ? String(req.query.conjunto) : "";
+      const chave = `camp:${tenantId}:${dias}:${nivel}:${idCampanha}:${idConjunto}`;
       const c = cache.get(chave);
       if (c && req.query.atualizar !== "1" && Date.now() - c.em < CACHE_MS) return res.json(c.dados);
 
       const iso = (d: Date) => d.toISOString().slice(0, 10);
       const faixa = encodeURIComponent(JSON.stringify({ since: iso(new Date(Date.now() - (dias - 1) * 86400_000)), until: iso(new Date()) }));
+      const filtros: any[] = [];
+      if (idCampanha) filtros.push({ field: "campaign.id", operator: "EQUAL", value: idCampanha });
+      if (idConjunto) filtros.push({ field: "adset.id", operator: "EQUAL", value: idConjunto });
+      const filtro = filtros.length ? `&filtering=${encodeURIComponent(JSON.stringify(filtros))}` : "";
+      const CAMPOS_METRICAS = "spend,impressions,reach,clicks,ctr,cpc,cpm,actions";
+      const listaUrl = nivel === "campaign"
+        ? `${GRAPH}/act_${conta}/campaigns?fields=id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time&limit=100${filtro}`
+        : nivel === "adset"
+          ? `${GRAPH}/act_${conta}/adsets?fields=id,name,status,effective_status,campaign_id,campaign{name,objective},daily_budget,lifetime_budget,optimization_goal,start_time,end_time&limit=100${filtro}`
+          : `${GRAPH}/act_${conta}/ads?fields=id,name,status,effective_status,campaign_id,adset_id,campaign{name,objective},adset{name},creative{thumbnail_url}&limit=100${filtro}`;
+      const idsInsights = nivel === "campaign" ? "campaign_id,campaign_name" : nivel === "adset" ? "campaign_id,campaign_name,adset_id,adset_name" : "campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name";
       const [camps, ins, conf] = await Promise.all([
-        lerPaginas(`${GRAPH}/act_${conta}/campaigns?fields=id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time&limit=100`, token),
-        lerPaginas(`${GRAPH}/act_${conta}/insights?level=campaign&fields=campaign_id,campaign_name,spend,impressions,reach,clicks,ctr,cpc,cpm,actions&time_range=${faixa}&limit=100`, token),
+        lerPaginas(listaUrl, token),
+        lerPaginas(`${GRAPH}/act_${conta}/insights?level=${nivel}&fields=${idsInsights},${CAMPOS_METRICAS}&time_range=${faixa}&limit=100${filtro}`, token),
         fetch(`${GRAPH}/act_${conta}?fields=currency,name`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) }).then((r) => r.json()).catch(() => ({})) as Promise<any>,
       ]);
       const erro = camps.erro || ins.erro;
@@ -173,7 +197,7 @@ export function registerMarketingAdsRoutes(app: Express, { requireUser, resolveR
         return res.status(502).json({ configurado: true, error: /token|session|expired|permission|OAuth/i.test(erro) ? "O token do Meta Ads expirou ou não tem permissão de leitura (ads_read). Gere outro em Integrações." : "O Meta não respondeu agora. Tente de novo em instantes." });
       }
       const moeda = String(conf?.currency || "BRL").toUpperCase();
-      const dados = { configurado: true, dias, moeda, conta: String(conf?.name || ""), campanhas: mesclarCampanhas(camps.dados, ins.dados, moeda), parcial: !!erro, atualizadoEm: new Date().toISOString() };
+      const dados = { configurado: true, dias, moeda, conta: String(conf?.name || ""), nivel, campanhas: mesclarCampanhas(camps.dados, ins.dados, moeda, nivel), parcial: !!erro, atualizadoEm: new Date().toISOString() };
       cache.set(chave, { em: Date.now(), dados });
       res.json(dados);
     } catch (e: any) {
