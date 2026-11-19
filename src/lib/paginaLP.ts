@@ -1,5 +1,5 @@
 /** Conteúdo de uma landing page criada dentro do sistema (guardado em marketing_landing_pages.conteudo). */
-import { CAMPOS_PADRAO, normalizarCampos, type CampoForm } from "./formularioCampos";
+import { CAMPOS_PADRAO, normalizarCampos, type CampoForm } from "./formularioCampos.js";
 
 export interface ConteudoLP {
   titulo: string;
