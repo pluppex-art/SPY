@@ -401,3 +401,12 @@ test("planilha de engajamento: marca quem abriu/clicou e neutraliza fórmulas", 
   assert.ok(l[2].includes("'=HYPERLINK"));
   assert.ok(l[2].includes(";Falhou;Não;0;Não;0"));
 });
+
+test("follow-up: só quem clicou, sem descadastrados", async () => {
+  const { selecionarClicaram } = await import("../../server/emailCampaigns.js");
+  const r = selecionarClicaram([
+    { email: "a@x.com", status: "sent", click_count: 1 }, { email: "b@x.com", status: "sent", click_count: 0, open_count: 3 },
+    { email: "c@x.com", status: "sent", click_count: 2 }, { email: "d@x.com", status: "failed", click_count: 1 },
+  ], new Set(["c@x.com"]));
+  assert.deepEqual(r.map((x) => x.email), ["a@x.com"]);
+});

@@ -52,9 +52,9 @@ export default function MarketingEmail() {
       const a = document.createElement("a"); a.href = url; a.download = `${c.name.replace(/[^\w\-]+/g, "_").slice(0, 50) || "campanha"}.csv`; a.click(); URL.revokeObjectURL(url);
     } catch (e: any) { toast.error(e.message); }
   };
-  const reenviar = async (c: Campaign) => {
-    if (!(await confirmDialog({ title: "Reenviar para quem não abriu?", description: `Cria uma nova campanha só com quem recebeu "${c.name}" e não abriu nem clicou. Você confere e dispara em seguida.`, confirmLabel: "Criar reenvio" }))) return;
-    try { const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/reenviar-nao-abriram`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(json); toast.success(`Reenvio criado com ${r.total} pessoa(s). Envie um teste e dispare.`); await load(); }
+  const reenviar = async (c: Campaign, grupo: "nao-abriram" | "clicaram" = "nao-abriram") => {
+    if (!(await confirmDialog({ title: grupo === "clicaram" ? "Follow-up para quem clicou?" : "Reenviar para quem não abriu?", description: grupo === "clicaram" ? `Cria uma nova campanha só com quem clicou em links de "${c.name}". Ela usa o mesmo assunto e texto da original.` : `Cria uma nova campanha só com quem recebeu "${c.name}" e não abriu nem clicou. Você confere e dispara em seguida.`, confirmLabel: grupo === "clicaram" ? "Criar follow-up" : "Criar reenvio" }))) return;
+    try { const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/reenviar-${grupo}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(json); toast.success(`Campanha criada com ${r.total} pessoa(s). Envie um teste e dispare.`); await load(); }
     catch (e: any) { toast.error(e.message); }
   };
   const verAB = async (id: string) => {
@@ -311,6 +311,9 @@ export default function MarketingEmail() {
                 </div>
                 {c.sent > 0 && (
                   <Button variant="outline" onClick={() => void exportar(c)} className="h-8 px-3 text-xs gap-1.5">Exportar planilha (quem abriu/clicou)</Button>
+                )}
+                {c.status === "done" && (c.clicked || 0) > 0 && (
+                  <Button variant="outline" onClick={() => void reenviar(c, "clicaram")} className="h-8 px-3 text-xs gap-1.5"><Send className="w-3.5 h-3.5" /> Follow-up para quem clicou</Button>
                 )}
                 {c.status === "done" && c.sent > 0 && c.opened !== undefined && (c.opened || 0) < c.sent && (
                   <Button variant="outline" onClick={() => void reenviar(c)} className="h-8 px-3 text-xs gap-1.5"><Send className="w-3.5 h-3.5" /> Reenviar para quem não abriu</Button>
