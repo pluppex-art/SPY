@@ -100,6 +100,10 @@ export async function processarSequencias(db: any, base: string, aj: Ajudas, opt
     if ((cotas.get(en.tenant_id) || 0) <= 0) { semCota++; continue; }
     if (!nomes.has(en.tenant_id)) nomes.set(en.tenant_id, await aj.tenantNameOf(en.tenant_id));
     const t = nomes.get(en.tenant_id)!;
+    // Reserva este envio: se a rotina diária e o botão "enviar agora" rodarem juntos, só um deles pega esta pessoa (sem e-mail duplicado).
+    // Se a função morrer no meio, o envio volta à fila em 10 minutos.
+    const { data: reservado } = await db.from("email_sequence_enrollments").update({ next_send_at: new Date(agora + 10 * 60_000).toISOString() }).eq("id", en.id).eq("next_send_at", en.next_send_at).eq("status", "active").select("id");
+    if (!reservado || reservado.length === 0) continue;
     tocadas.add(seq.id);
     // A linha em email_campaign_recipients é o que dá o rastreio de abertura/clique e conta na cota diária.
     const { data: rec } = await db.from("email_campaign_recipients").insert({ campaign_id: seq.campaign_id, tenant_id: en.tenant_id, lead_id: en.lead_id, email: en.email, name: en.name, company: en.company, status: "sending", claimed_at: new Date().toISOString() }).select("id").single();

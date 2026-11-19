@@ -569,3 +569,19 @@ test("sequência: editar troca nome e e-mails e valida", async () => {
     assert.equal(db.t.email_campaigns[0].name, "[Sequência] Nova");
   } finally { srv.close(); }
 });
+
+test("sequência: duas rodadas ao mesmo tempo não mandam o mesmo e-mail duas vezes", async () => {
+  const { processarSequencias } = await import("../../server/emailSequences.js");
+  const SEQ = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CAMP = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const db = criarFakeDb({
+    email_campaigns: [{ id: CAMP, tenant_id: T, name: "[Sequência] Z", status: "done", total: 0, sent: 0, failed: 0 }],
+    email_sequences: [{ id: SEQ, tenant_id: T, name: "Z", status: "active", campaign_id: CAMP, steps: [{ dias: 0, subject: "1", body: "a" }, { dias: 2, subject: "2", body: "b" }] }],
+    email_sequence_enrollments: [{ id: "z1", sequence_id: SEQ, tenant_id: T, email: "z@x.com", name: "Z", step_idx: 0, status: "active", falhas: 0, next_send_at: "2026-11-20T00:00:00Z" }],
+    email_campaign_recipients: [], email_optouts: [],
+  });
+  const enviados: string[] = [];
+  const aj = { cotaRestante: async () => ({ restante: 10 }), tenantNameOf: async () => ({ name: "E", color: null }), enviar: async (_d: any, _t: string, m: any) => { await new Promise((r) => setTimeout(r, 20)); enviados.push(m.to); } };
+  const agora = Date.parse("2026-11-20T12:00:00Z");
+  await Promise.all([processarSequencias(db, "https://a.test", aj as any, { agora }), processarSequencias(db, "https://a.test", aj as any, { agora })]);
+  assert.deepEqual(enviados, ["z@x.com"]);
+});
