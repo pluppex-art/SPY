@@ -35,9 +35,12 @@ export function parseAuto(raw: any, desde: string): { sources: string[]; statuse
 }
 
 /** Coloca nas sequências com entrada automática os leads novos (criados depois da ativação) que combinam com os filtros. */
-export async function inscreverAutomaticos(db: any, opts: { agora?: number } = {}): Promise<{ sequencias: number; entraram: number }> {
+export async function inscreverAutomaticos(db: any, opts: { agora?: number; sequenceId?: string; tenantId?: string } = {}): Promise<{ sequencias: number; entraram: number }> {
   const agora = opts.agora ?? Date.now();
-  const { data: seqs, error } = await db.from("email_sequences").select("*").eq("status", "active").not("auto", "is", null).limit(100);
+  let q = db.from("email_sequences").select("*").eq("status", "active").not("auto", "is", null).limit(100);
+  if (opts.sequenceId) q = q.eq("id", opts.sequenceId);
+  if (opts.tenantId) q = q.eq("tenant_id", opts.tenantId);
+  const { data: seqs, error } = await q;
   if (error) { if (/auto/i.test(error.message)) return { sequencias: 0, entraram: 0 }; throw new Error(error.message); }
   let entraram = 0;
   for (const seq of seqs || []) {
@@ -249,6 +252,9 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     if (!(await aj.liberarMarketing(req, res, tenantId))) return;
     const seq = await carregar(req, res, tenantId); if (!seq) return;
-    try { res.json(await processarSequencias(db, aj.baseUrl(req), aj, { tenantId, sequenceId: seq.id })); } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao enviar." }); }
+    try {
+      if (seq.auto) await inscreverAutomaticos(db, { sequenceId: seq.id, tenantId }).catch(() => undefined); // quem virou lead desde a última rotina entra antes de enviar
+      res.json(await processarSequencias(db, aj.baseUrl(req), aj, { tenantId, sequenceId: seq.id }));
+    } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao enviar." }); }
   });
 }
