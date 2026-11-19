@@ -242,6 +242,22 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
     res.json({ ok: true, ativo });
   });
 
+  // Edita nome e e-mails. Quem já está no meio segue do ponto onde parou (se removerem e-mails, quem passou do fim é concluído).
+  app.post("/api/email-sequences/:id/editar", requireUser, limiter, async (req: any, res: any) => {
+    if (!db) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await aj.liberarMarketing(req, res, tenantId))) return;
+    const seq = await carregar(req, res, tenantId); if (!seq) return;
+    const name = String(req.body?.name || "").trim().slice(0, 120);
+    if (!name) return res.status(400).json({ error: "Dê um nome para a sequência." });
+    const p = parsePassos(req.body?.passos);
+    if (p.ok === false) return res.status(400).json({ error: p.erro });
+    const { error } = await db.from("email_sequences").update({ name, steps: p.passos }).eq("id", seq.id);
+    if (error) return res.status(400).json({ error: error.message });
+    if (seq.campaign_id) await db.from("email_campaigns").update({ name: `[Sequência] ${name}`.slice(0, 120) }).eq("id", seq.campaign_id).eq("tenant_id", tenantId);
+    res.json({ ok: true });
+  });
+
   app.post("/api/email-sequences/:id/status", requireUser, limiter, async (req: any, res: any) => {
     if (!db) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;

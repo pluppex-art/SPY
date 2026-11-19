@@ -549,3 +549,23 @@ test("sequência com 'parar ao clicar': quem clicou sai, quem não clicou segue"
   assert.equal(db.t.email_sequence_enrollments.find((e: any) => e.email === "clicou@x.com").status, "stopped");
   assert.equal(db.t.email_sequence_enrollments.find((e: any) => e.email === "ignorou@x.com").status, "done");
 });
+
+test("sequência: editar troca nome e e-mails e valida", async () => {
+  const SEQ = "88888888-8888-4888-8888-888888888888", CAMP = "99999999-9999-4999-8999-999999999991";
+  const db = criarFakeDb({
+    tenants: [{ id: T, name: "E", modules: { marketing: true } }], users: [{ id: "u1", is_master: false, is_tenant_admin: true, tenant_id: T }],
+    email_campaigns: [{ id: CAMP, tenant_id: T, name: "[Sequência] Velha" }],
+    email_sequences: [{ id: SEQ, tenant_id: T, name: "Velha", status: "active", campaign_id: CAMP, steps: [{ dias: 0, subject: "a", body: "b" }] }],
+  });
+  const app = express(); app.use(express.json());
+  registerEmailCampaignRoutes(app as any, { requireUser: (q: any, _s: any, n: any) => { q.user = { id: "u1" }; n(); }, resolveRequestedTenantId: async () => T, limiter: (_q: any, _s: any, n: any) => n(), supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}`;
+  const post = (body: any) => fetch(`${base}/api/email-sequences/${SEQ}/editar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  try {
+    assert.equal((await post({ name: "Nova", passos: [] })).status, 400);
+    assert.equal((await post({ name: "", passos: [{ dias: 0, subject: "a", body: "b" }] })).status, 400);
+    assert.equal((await post({ name: "Nova", passos: [{ dias: 0, subject: "x", body: "y" }, { dias: 5, subject: "z", body: "w" }] })).status, 200);
+    assert.equal(db.t.email_sequences[0].name, "Nova"); assert.equal(db.t.email_sequences[0].steps.length, 2);
+    assert.equal(db.t.email_campaigns[0].name, "[Sequência] Nova");
+  } finally { srv.close(); }
+});
