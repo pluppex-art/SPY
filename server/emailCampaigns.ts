@@ -83,9 +83,9 @@ const DEFAULT_LINK_COLOR = "#7C3AED";
 const safeColor = (c?: string | null) => (c && /^#[0-9a-fA-F]{6}$/.test(c) ? c : DEFAULT_LINK_COLOR);
 
 /** Texto simples → HTML seguro: parágrafos, quebras de linha e links http(s). `rastrear` troca o destino do link (contagem de cliques). */
-export function textToHtml(text: string, color = DEFAULT_LINK_COLOR, rastrear?: (urlOriginal: string) => string): string {
+export function textToHtml(text: string, color = DEFAULT_LINK_COLOR, rastrear?: (urlOriginal: string) => string, utmCampanha?: string): string {
   const paras = escapeHtml(text.replace(/\u0000/g, "").replace(/\r\n/g, "\n").trim()).split(/\n{2,}/);
-  const href = (m: string) => (rastrear ? rastrear(m.replace(/&amp;/g, "&")) : m);
+  const href = (m: string) => { const real = m.replace(/&amp;/g, "&"); const marcado = utmCampanha ? comUtmEmail(real, utmCampanha) : real; return rastrear ? rastrear(marcado) : escapeHtml(marcado); };
   return paras
     .map((p) => {
       const guardados: string[] = [];
@@ -110,16 +110,32 @@ export function textoSimples(text: string): string {
     .replace(/\*\*([^*\n]{1,200})\*\*/g, "$1");
 }
 
+/**
+ * Marca os links do e-mail com UTM (utm_source=email, utm_medium=email, utm_campaign=<nome>) para o lead que vier do clique
+ * entrar no painel de canais como "E-mail" e com a campanha certa. Links que já têm utm_source não são mexidos.
+ */
+export function comUtmEmail(url: string, campanha: string): string {
+  try {
+    const u = new URL(url);
+    if (u.searchParams.has("utm_source")) return url;
+    const slug = campanha.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^\[sequencia\]\s*/, "sequencia_").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60);
+    u.searchParams.set("utm_source", "email");
+    u.searchParams.set("utm_medium", "email");
+    if (slug) u.searchParams.set("utm_campaign", slug);
+    return u.toString();
+  } catch { return url; }
+}
+
 /** Só endereço https de imagem serve em e-mail (imagem embutida/local não aparece nos apps de e-mail). */
 export const logoSegura = (u: unknown): string | null => { const t = String(u ?? "").trim(); return /^https:\/\/[^\s"'<>]{4,500}$/i.test(t) ? t : null; };
 const logoHtml = (logo: string | null | undefined, nome: string) => { const u = logoSegura(logo); return u ? `<p style="margin:0 0 18px"><img src="${escapeHtml(u)}" alt="${escapeHtml(nome)}" style="max-height:48px;max-width:200px;border:0"></p>` : ""; };
 
-export function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; tenantLogo?: string | null; unsubUrl: string; track?: { base: string; rid: string } }) {
+export function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; tenantLogo?: string | null; utmCampanha?: string; unsubUrl: string; track?: { base: string; rid: string } }) {
   const subject = renderVars(opts.subject, opts).replace(/[\r\n]+/g, " ").trim().slice(0, 200);
   const text = renderVars(opts.body, opts);
   const footerTxt = `\n\n—\nVocê recebeu este e-mail de ${opts.tenantName}. Para não receber mais, acesse: ${opts.unsubUrl}`;
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
-<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${logoHtml(opts.tenantLogo, opts.tenantName)}${textToHtml(text, safeColor(opts.tenantColor), opts.track ? (u) => urlClique(opts.track!.base, opts.track!.rid, u) : undefined)}</div>
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${logoHtml(opts.tenantLogo, opts.tenantName)}${textToHtml(text, safeColor(opts.tenantColor), opts.track ? (u) => urlClique(opts.track!.base, opts.track!.rid, u) : undefined, opts.utmCampanha)}</div>
 <p style="max-width:600px;margin:14px auto 0;font-size:11px;color:#6b7280;text-align:center">Você recebeu este e-mail de ${escapeHtml(opts.tenantName)}.<br><a href="${opts.unsubUrl}" style="color:#6b7280">Não quero mais receber</a></p>
 ${opts.track ? `<img src="${urlAbertura(opts.track.base, opts.track.rid)}" width="1" height="1" alt="" style="display:none;border:0">` : ""}</body></html>`;
   return { subject, text: textoSimples(text) + footerTxt, html };
@@ -422,7 +438,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   };
 
   const mailFor = async (camp: any, tenant: { name: string; color: string | null; logo?: string | null }, base: string, r: { id?: string; variant?: string | null; name?: string | null; company?: string | null; email: string }) =>
-    ({ to: r.email, ...buildMail({ subject: r.variant === "b" && camp.subject_b ? camp.subject_b : camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, tenantLogo: tenant.logo, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) , track: r.id ? { base, rid: r.id } : undefined }),
+    ({ to: r.email, ...buildMail({ subject: r.variant === "b" && camp.subject_b ? camp.subject_b : camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, tenantLogo: tenant.logo, utmCampanha: camp.name, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) , track: r.id ? { base, rid: r.id } : undefined }),
       headers: { "List-Unsubscribe": `<${optoutUrl(base, camp.tenant_id, r.email)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }, replyToEmpresa: true, deParte: tenant.name });
 
   const tenantNameOf = async (tenantId: string) => {

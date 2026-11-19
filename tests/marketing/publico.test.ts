@@ -699,3 +699,22 @@ test("remetente e respostas: nome da empresa como remetente (endereço da plataf
   assert.equal(await emailDaEmpresa(mk('a@b.com>\r\nBcc: x@y.com'), T), null);
   assert.equal(await emailDaEmpresa(mk(undefined), T), null);
 });
+
+test("UTM automático nos links do e-mail: marca origem e campanha, respeita UTM já existente e vai dentro do link rastreado", async () => {
+  const { comUtmEmail, buildMail } = await import("../../server/emailCampaigns.js");
+  const { canalDoLead } = await import("../../src/lib/canalAquisicao.js");
+  const u = new URL(comUtmEmail("https://site.com/oferta?x=1", "Black Friday 2026!"));
+  assert.equal(u.searchParams.get("x"), "1"); assert.equal(u.searchParams.get("utm_source"), "email");
+  assert.equal(u.searchParams.get("utm_medium"), "email"); assert.equal(u.searchParams.get("utm_campaign"), "black_friday_2026");
+  assert.equal(comUtmEmail("https://site.com/?utm_source=instagram", "X"), "https://site.com/?utm_source=instagram");
+  assert.equal(comUtmEmail("não é url", "X"), "não é url");
+  assert.equal(new URL(comUtmEmail("https://a.com", "[Sequência] Boas-vindas")).searchParams.get("utm_campaign"), "sequencia_boas_vindas");
+  assert.equal(canalDoLead({ customFields: { utm_source: "email" } }), "E-mail"); // cai no canal certo do painel
+  // dentro do e-mail: sem rastreio o link já vem marcado; com rastreio o destino assinado é o marcado
+  const sem = buildMail({ subject: "a", body: "veja [aqui](https://site.com/x)", tenantName: "E", unsubUrl: "#", utmCampanha: "Promo" });
+  assert.ok(sem.html.includes("https://site.com/x?utm_source=email&amp;utm_medium=email&amp;utm_campaign=promo"));
+  process.env.EMAIL_OPTOUT_SECRET = "segredo-de-teste";
+  const com = buildMail({ subject: "a", body: "veja https://site.com/x", tenantName: "E", unsubUrl: "#", utmCampanha: "Promo", track: { base: "https://app.test", rid: "44444444-4444-4444-8444-444444444444" } });
+  const u64 = com.html.match(/\/api\/email\/c\/[^?]+\?u=([^&"]+)/)?.[1] || "";
+  assert.ok(Buffer.from(u64, "base64url").toString().includes("utm_campaign=promo"));
+});
