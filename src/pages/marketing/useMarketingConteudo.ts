@@ -38,11 +38,18 @@ function mapRowToTask(row: any) {
     publishDateISO,
     priority: row.priority === "Alta" || row.priority === "Baixa" ? row.priority : "Média",
     value: 0,
+    checklist: Array.isArray(row.extras?.checklist) ? row.extras.checklist : undefined,
+    script: row.extras?.script || "",
+    hashtags: Array.isArray(row.extras?.hashtags) ? row.extras.hashtags : [],
+    refs: Array.isArray(row.extras?.refs) ? row.extras.refs : [],
+    anexos: Array.isArray(row.extras?.anexos) ? row.extras.anexos : [],
   };
 }
 
 // A coluna `priority` vem da migração 20261124_marketing_content_priority; sem ela, grava como antes (sem prioridade) em vez de falhar.
 let gravaPrioridade = true;
+// Checklist, roteiro, links e anexos vão na coluna `extras` (migração 20261124); sem ela, grava só o resto.
+let gravaExtras = true;
 
 function taskToRow(task: any, tenantId?: string) {
   const row: any = {
@@ -55,6 +62,7 @@ function taskToRow(task: any, tenantId?: string) {
   };
   if (task.publishDateISO) row.publish_date = task.publishDateISO;
   if (gravaPrioridade && task.priority) row.priority = task.priority;
+  if (gravaExtras) row.extras = { checklist: task.checklist, script: task.script || "", hashtags: task.hashtags || [], refs: task.refs || [], anexos: task.anexos || [] };
   return row;
 }
 
@@ -93,11 +101,13 @@ export function useMarketingConteudo() {
         let { error } = await supabase
           .from("marketing_content")
           .upsert(taskToRow(task, activeTenantId));
-        if (error && gravaPrioridade && /priority/i.test(error.message)) {
-          gravaPrioridade = false;
+        // Colunas novas ainda não criadas no banco: tira o campo que falta e tenta de novo (no máximo duas vezes).
+        for (let t = 0; t < 2 && error; t++) {
+          if (gravaExtras && /extras/i.test(error.message)) gravaExtras = false;
+          else if (gravaPrioridade && /priority/i.test(error.message)) gravaPrioridade = false;
+          else break;
           ({ error } = await supabase.from("marketing_content").upsert(taskToRow(task, activeTenantId)));
         }
-
         if (error) {
           console.error("Supabase upsert failure:", error.message);
           toast.error("Não foi possível salvar a pauta: " + friendlyError(error));

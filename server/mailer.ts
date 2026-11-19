@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import nodemailer from "nodemailer";
 import { assertSafeSmtpTarget } from "./ssrfGuard.js";
 
@@ -21,6 +22,26 @@ export interface OutgoingEmail {
  * Serve qualquer SMTP (Postal, SES, Brevo, Postfix…). Roda com service role; quem
  * chama TEM que ter resolvido o tenantId da sessão autenticada.
  */
+// Uma conexão SMTP reaproveitada por servidor/usuário (antes abria conexão e TLS novos para cada destinatário).
+const transportadores = new Map<string, ReturnType<typeof nodemailer.createTransport>>();
+function transporterDe(c: { host: string; port: number; user: string; pass: string; encryption: string }) {
+  const chave = `${c.host}|${c.port}|${c.user}|${c.encryption}|${crypto.createHash("sha1").update(c.pass).digest("hex")}`;
+  let t = transportadores.get(chave);
+  if (!t) {
+    if (transportadores.size > 50) transportadores.clear();
+    t = nodemailer.createTransport({
+      host: c.host, port: c.port,
+      secure: c.encryption === "SSL/TLS",
+      requireTLS: c.encryption === "StartTLS",
+      auth: { user: c.user, pass: c.pass },
+      pool: true, maxConnections: 3, maxMessages: 100,
+      connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 15000,
+    });
+    transportadores.set(chave, t);
+  }
+  return t;
+}
+
 export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingEmail): Promise<{ messageId: string; via: "tenant" | "platform" }> {
   const { data } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
   const t = data?.value;
@@ -40,15 +61,7 @@ export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingE
     from = e.SPY_SMTP_FROM; encryption = e.SPY_SMTP_ENCRYPTION || "StartTLS";
   }
 
-  const transporter = nodemailer.createTransport({
-    host, port,
-    secure: encryption === "SSL/TLS",
-    requireTLS: encryption === "StartTLS",
-    auth: { user, pass },
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 15000,
-  });
+  const transporter = transporterDe({ host, port, user, pass, encryption });
   const info = await transporter.sendMail({ from, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments, headers: mail.headers, replyTo: mail.replyTo });
   return { messageId: String(info.messageId || ""), via: tenantReady ? "tenant" : "platform" };
 }

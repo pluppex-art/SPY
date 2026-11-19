@@ -14,6 +14,9 @@ const BATCH_SIZE = 40;
 const CONCURRENCY = 5;
 const TIME_BUDGET_MS = 40_000;
 const STALE_CLAIM_MS = 3 * 60_000;
+/** Teto de envios por empresa nas últimas 24h: com SMTP próprio a reputação é dela; sem ele, o servidor é da plataforma e o teto é bem menor. */
+const COTA_DIARIA_SMTP_PROPRIO = 5_000;
+const COTA_DIARIA_SMTP_PLATAFORMA = 300;
 const PAGE = 1000;
 const EMAIL_RE = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -135,6 +138,35 @@ export function dedupeCandidates(cands: Candidate[], optouts: Set<string>, exclu
     rows.push({ lead_id: c.id, email, name: String(c.name || "").trim().slice(0, 120), company: c.company ? String(c.company).slice(0, 120) : null });
   }
   return { rows, semEmail, descadastrados, repetidos, excluidos };
+}
+
+/**
+ * Envia uma mensagem (já aprovada por uma pessoa) para leads da empresa por e-mail: usado pelos Gatilhos de mensagem.
+ * Mesmas proteções das campanhas: só leads da empresa com e-mail válido, sem repetidos, sem descadastrados, com link de
+ * descadastro e dentro da cota diária.
+ */
+export async function enviarEmailParaLeads(db: any, tenantId: string, base: string, leadIds: string[], texto: string): Promise<{ enviados: number; falhas: number; semEmail: number; descadastrados: number; bloqueadosPelaCota: number }> {
+  const ids = Array.from(new Set(leadIds.map(String))).slice(0, 500);
+  const { data: leads } = await db.from("leads").select("id, name, email, company").eq("tenant_id", tenantId).is("deleted_at", null).in("id", ids);
+  const { data: tn } = await db.from("tenants").select("name, primary_color").eq("id", tenantId).maybeSingle();
+  const { data: smtp } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
+  const t = smtp?.value;
+  const proprio = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
+  const { count } = await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "sent").gte("sent_at", new Date(Date.now() - 24 * 3600_000).toISOString());
+  let restante = Math.max(0, (proprio ? COTA_DIARIA_SMTP_PROPRIO : COTA_DIARIA_SMTP_PLATAFORMA) - (count || 0));
+  const { rows, semEmail, descadastrados } = dedupeCandidates((leads || []).map((l: any) => ({ id: `lead:${l.id}`, email: l.email, name: l.name, company: l.company })), await optoutSet(db, tenantId));
+  const tenantName = String(tn?.name || "nossa equipe");
+  let enviados = 0, falhas = 0, bloqueadosPelaCota = 0;
+  for (const r of rows) {
+    if (restante <= 0) { bloqueadosPelaCota++; continue; }
+    const unsub = optoutUrl(base, tenantId, r.email);
+    const mail = buildMail({ subject: `Uma mensagem de ${tenantName}`, body: texto, name: r.name, company: r.company, tenantName, tenantColor: tn?.primary_color ?? null, unsubUrl: unsub });
+    try {
+      await sendTenantEmail(db, tenantId, { to: r.email, ...mail, headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } });
+      enviados++; restante--;
+    } catch { falhas++; }
+  }
+  return { enviados, falhas, semEmail, descadastrados, bloqueadosPelaCota };
 }
 
 export function selectAudience(leads: any[], aud: Audience, optouts: Set<string>) {
@@ -299,59 +331,96 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     } catch (e: any) { res.status(502).json({ error: `Não foi possível enviar: ${String(e?.message || e).slice(0, 200)}` }); }
   });
 
+  /** Quantos e-mails a empresa ainda pode enviar nas últimas 24h (protege a reputação do remetente e da plataforma). */
+  const cotaRestante = async (db: any, tenantId: string): Promise<{ restante: number; limite: number; proprio: boolean }> => {
+    const { data: smtp } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
+    const t = smtp?.value;
+    const proprio = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
+    const limite = proprio ? COTA_DIARIA_SMTP_PROPRIO : COTA_DIARIA_SMTP_PLATAFORMA;
+    const { count } = await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "sent").gte("sent_at", new Date(Date.now() - 24 * 3600_000).toISOString());
+    return { restante: Math.max(0, limite - (count || 0)), limite, proprio };
+  };
+
+  type ResultadoLote = { done: boolean; status: string; pending: number; sent: number; failed: number; total: number; cota?: { limite: number; proprio: boolean } };
+
+  /** Envia o próximo lote de uma campanha (usado pelo navegador e pela rotina automática). */
+  const processarLote = async (camp: any, tenantId: string, base: string): Promise<ResultadoLote> => {
+    if (camp.status === "cancelled") return { done: true, status: "cancelled", pending: 0, sent: camp.sent, failed: camp.failed, total: camp.total };
+    const started = Date.now();
+    const db = supabaseService;
+    // Lotes que travaram (função interrompida) voltam para a fila.
+    await db.from("email_campaign_recipients").update({ status: "pending", claimed_at: null })
+      .eq("campaign_id", camp.id).eq("status", "sending").lt("claimed_at", new Date(Date.now() - STALE_CLAIM_MS).toISOString());
+    const cota = await cotaRestante(db, tenantId);
+    const tamanho = Math.min(BATCH_SIZE, cota.restante);
+    let claimed: any[] = [];
+    if (tamanho > 0) {
+      const { data: cand } = await db.from("email_campaign_recipients").select("id").eq("campaign_id", camp.id).eq("status", "pending").limit(tamanho);
+      const ids = (cand || []).map((r: any) => r.id);
+      if (ids.length) {
+        const { data } = await db.from("email_campaign_recipients").update({ status: "sending", claimed_at: new Date().toISOString() })
+          .in("id", ids).eq("status", "pending").select("id, email, name, company");
+        claimed = data || [];
+      }
+    }
+    if (camp.status === "ready") await db.from("email_campaigns").update({ status: "sending", started_at: new Date().toISOString() }).eq("id", camp.id);
+
+    const [tenant, optouts] = await Promise.all([tenantNameOf(tenantId), optoutSet(db, tenantId)]);
+    let via: string | null = null;
+    const queue = [...claimed];
+    const worker = async () => {
+      for (let r = queue.shift(); r; r = queue.shift()) {
+        if (Date.now() - started > TIME_BUDGET_MS) { // sem tempo: devolve para a fila
+          await db.from("email_campaign_recipients").update({ status: "pending", claimed_at: null }).eq("id", r.id);
+          continue;
+        }
+        if (optouts.has(r.email)) { await db.from("email_campaign_recipients").update({ status: "skipped", error: "descadastrado" }).eq("id", r.id); continue; }
+        try {
+          const out = await sendTenantEmail(db, tenantId, await mailFor(camp, tenant, base, r));
+          via = out.via;
+          await db.from("email_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", r.id);
+        } catch (e: any) {
+          await db.from("email_campaign_recipients").update({ status: "failed", error: String(e?.message || e).slice(0, 300) }).eq("id", r.id);
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+
+    const count = async (status: string) => (await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", camp.id).eq("status", status)).count || 0;
+    const [sent, failed, pending, sending] = await Promise.all([count("sent"), count("failed"), count("pending"), count("sending")]);
+    const done = pending === 0 && sending === 0;
+    await db.from("email_campaigns").update({
+      sent, failed, ...(via ? { sender: via } : {}), ...(done ? { status: "done", finished_at: new Date().toISOString() } : {}),
+    }).eq("id", camp.id).neq("status", "cancelled");
+    return { done, status: done ? "done" : "sending", pending: pending + sending, sent, failed, total: camp.total, ...(tamanho === 0 && !done ? { cota: { limite: cota.limite, proprio: cota.proprio } } : {}) };
+  };
+
   // Envia o próximo lote. O navegador chama de novo até `pending` chegar a 0 (pode fechar e retomar depois).
   app.post("/api/email-campaigns/:id/send-batch", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     if (!(await liberarMarketing(req, res, tenantId))) return;
     const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
-    if (camp.status === "cancelled") return res.json({ done: true, status: "cancelled", pending: 0, sent: camp.sent, failed: camp.failed });
-    const started = Date.now();
-    const db = supabaseService;
-    try {
-      // Lotes que travaram (função interrompida) voltam para a fila.
-      await db.from("email_campaign_recipients").update({ status: "pending", claimed_at: null })
-        .eq("campaign_id", camp.id).eq("status", "sending").lt("claimed_at", new Date(Date.now() - STALE_CLAIM_MS).toISOString());
-      const { data: cand } = await db.from("email_campaign_recipients").select("id").eq("campaign_id", camp.id).eq("status", "pending").limit(BATCH_SIZE);
-      const ids = (cand || []).map((r: any) => r.id);
-      let claimed: any[] = [];
-      if (ids.length) {
-        const { data } = await db.from("email_campaign_recipients").update({ status: "sending", claimed_at: new Date().toISOString() })
-          .in("id", ids).eq("status", "pending").select("id, email, name, company");
-        claimed = data || [];
-      }
-      if (camp.status === "ready") await db.from("email_campaigns").update({ status: "sending", started_at: new Date().toISOString() }).eq("id", camp.id);
+    try { res.json(await processarLote(camp, tenantId, baseUrl(req))); }
+    catch (e: any) { res.status(500).json({ error: e?.message || "Falha no envio." }); }
+  });
 
-      const [tenant, optouts] = await Promise.all([tenantNameOf(tenantId), optoutSet(db, tenantId)]);
-      const base = baseUrl(req);
-      let via: string | null = null;
-      const queue = [...claimed];
-      const worker = async () => {
-        for (let r = queue.shift(); r; r = queue.shift()) {
-          if (Date.now() - started > TIME_BUDGET_MS) { // sem tempo: devolve para a fila
-            await db.from("email_campaign_recipients").update({ status: "pending", claimed_at: null }).eq("id", r.id);
-            continue;
-          }
-          if (optouts.has(r.email)) { await db.from("email_campaign_recipients").update({ status: "skipped", error: "descadastrado" }).eq("id", r.id); continue; }
-          try {
-            const out = await sendTenantEmail(db, tenantId, await mailFor(camp, tenant, base, r));
-            via = out.via;
-            await db.from("email_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", r.id);
-          } catch (e: any) {
-            await db.from("email_campaign_recipients").update({ status: "failed", error: String(e?.message || e).slice(0, 300) }).eq("id", r.id);
-          }
-        }
-      };
-      await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-
-      const count = async (status: string) => (await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", camp.id).eq("status", status)).count || 0;
-      const [sent, failed, pending, sending] = await Promise.all([count("sent"), count("failed"), count("pending"), count("sending")]);
-      const done = pending === 0 && sending === 0;
-      await db.from("email_campaigns").update({
-        sent, failed, ...(via ? { sender: via } : {}), ...(done ? { status: "done", finished_at: new Date().toISOString() } : {}),
-      }).eq("id", camp.id).neq("status", "cancelled");
-      res.json({ done, status: done ? "done" : "sending", pending: pending + sending, sent, failed, total: camp.total });
-    } catch (e: any) { res.status(500).json({ error: e?.message || "Falha no envio." }); }
+  /**
+   * Rotina automática (Vercel Cron): continua sozinha as campanhas que ficaram "enviando" — por exemplo quando a aba foi
+   * fechada ou a cota diária acabou e liberou de novo. Protegida por CRON_SECRET.
+   */
+  app.get("/api/email-campaigns/cron/continuar", async (req: any, res: any) => {
+    const segredo = process.env.CRON_SECRET;
+    const auth = String(req.headers.authorization || "");
+    if (!segredo || !supabaseService || auth.length !== `Bearer ${segredo}`.length || !crypto.timingSafeEqual(Buffer.from(auth), Buffer.from(`Bearer ${segredo}`))) return res.status(401).json({ error: "Não autorizado." });
+    const inicio = Date.now();
+    const { data: campanhas } = await supabaseService.from("email_campaigns").select("*").eq("status", "sending").order("started_at", { ascending: true }).limit(20);
+    let lotes = 0;
+    for (const camp of campanhas || []) {
+      if (Date.now() - inicio > 45_000) break;
+      try { await processarLote(camp, camp.tenant_id, (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, "")); lotes++; } catch (e: any) { console.warn("[email cron]", camp.id, e?.message); }
+    }
+    res.json({ campanhas: (campanhas || []).length, lotes });
   });
 
   app.post("/api/email-campaigns/:id/cancel", requireUser, limiter, async (req: any, res: any) => {

@@ -1467,6 +1467,31 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
                   />
                 </FormField>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    label="ID da conta de anúncios"
+                    hint="Só números, como aparece no Gerenciador de Anúncios (sem 'act_')"
+                  >
+                    <Input
+                      type="text"
+                      value={metaConfig.accountId}
+                      onChange={(e) => setMetaConfig((prev: any) => ({ ...prev, accountId: e.target.value.replace(/\D/g, "") }))}
+                      placeholder="1234567890"
+                    />
+                  </FormField>
+                  <FormField
+                    label="Token de leitura de anúncios (ads_read)"
+                    hint="Traz o gasto real, impressões e cliques para a tela de Campanhas"
+                  >
+                    <Input
+                      type="password"
+                      value={metaConfig.adsToken}
+                      onChange={(e) => setMetaConfig((prev: any) => ({ ...prev, adsToken: e.target.value }))}
+                      placeholder="EAAB..."
+                    />
+                  </FormField>
+                </div>
+
                 <div className="p-4 rounded-[var(--radius-panel)] border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]/60 flex items-center justify-between">
                   <div className="space-y-0.5">
                     <span className="text-xs font-bold text-[var(--color-text-primary)] block">

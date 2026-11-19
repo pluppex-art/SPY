@@ -52,6 +52,7 @@ import { validarMidiaSaida, rotuloHistorico } from "./server/chatMediaSaida.js";
 import { gravarRetratosRadar } from "./server/radarSnapshots.js";
 import { registerAgendamentoRoutes } from "./server/agendamento.js";
 import { ehGastoMarketing } from "./src/lib/gastoMarketing.js";
+import { registerMarketingAdsRoutes } from "./server/marketingAds.js";
 import { registerMarketingPublicRoutes, corsPublicoMarketing } from "./server/marketingPublico.js";
 import { registerAgentFlowRoutes } from "./server/agentFlow.js";
 import { registerMaxdataWriteRoutes } from "./server/maxdataWrite.js";
@@ -532,9 +533,10 @@ registerTableComparisonResearchRoutes(app, { requireUser, resolveRequestedTenant
 // Relatório financeiro em PDF sob demanda (Aurora/n8n) — ver server/financialReportPdf.ts.
 registerFinancialReportRoutes(app, { supabaseService, hasSupabaseService: Boolean(supabaseServiceKey) });
 // Gatilhos de mensagem em linguagem natural (interpretação + execução rodam no n8n/Júlia) — ver server/messageTriggers.ts.
-registerMessageTriggerRoutes(app, { requireUser });
+registerMessageTriggerRoutes(app, { requireUser, supabaseService });
 // Chatbot por regras (sem IA): conexão de WhatsApp dedicada por bot — ver server/chatbot.ts.
 // Módulo Agendamento (reservas por hora, página pública e pagamento online). Ver server/agendamento.ts.
+registerMarketingAdsRoutes(app, { requireUser, resolveRequestedTenantId, supabaseService });
 registerMarketingPublicRoutes(app, { supabaseService, limiter: publicFormsLimiter });
 registerAgendamentoRoutes(app, {
   requireUser, resolveTenant: resolveRequestedTenantId, supabaseService, limiterPublico: publicLeadLimiterAgendamento,

@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { Card } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import {
   Calendar, Clock, AlignLeft, FileText, Globe, Zap,
-  Image, Plus, Sparkles, Loader2, Copy, CheckCircle2
+  Image, Plus, Sparkles, Loader2, Copy, CheckCircle2, Paperclip, Trash2, Link2, ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../lib/apiClient';
+import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../contexts/AuthContext';
+
+const TIPOS_ANEXO = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+const LIMITE_ANEXO = 25 * 1024 * 1024;
 
 interface TaskDetailsDrawerProps {
   selectedTask: any;
@@ -30,10 +35,72 @@ export function TaskDetailsDrawer({
   setActiveTab,
   updateTaskInDatabase
 }: TaskDetailsDrawerProps) {
-  const [checklist, setChecklist] = useState<boolean[]>([false, false, false, false]);
+  const { activeTenantId } = useAuth();
+  const [checklist, setChecklistLocal] = useState<boolean[]>([false, false, false, false]);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [generatedScript, setGeneratedScript] = useState("");
   const [generatedHashtags, setGeneratedHashtags] = useState<string[]>([]);
+  const [novoLink, setNovoLink] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const arquivoRef = useRef<HTMLInputElement>(null);
+
+  // Cada pauta guarda seu checklist, roteiro, hashtags, links e anexos (antes ficavam só na tela e sumiam ao fechar).
+  useEffect(() => {
+    setChecklistLocal(Array.isArray(selectedTask?.checklist) && selectedTask.checklist.length === 4 ? selectedTask.checklist : [false, false, false, false]);
+    setGeneratedScript(selectedTask?.script || "");
+    setGeneratedHashtags(Array.isArray(selectedTask?.hashtags) ? selectedTask.hashtags : []);
+    setNovoLink("");
+  }, [selectedTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const salvarExtras = (patch: Record<string, any>) => {
+    const updatedTask = { ...selectedTask, ...patch };
+    setTasks(prev => prev.map(t => t.id === selectedTask.id ? updatedTask : t));
+    setSelectedTask(updatedTask);
+    updateTaskInDatabase(updatedTask);
+  };
+  const setChecklist = (fn: (prev: boolean[]) => boolean[]) => {
+    const novo = fn(checklist);
+    setChecklistLocal(novo);
+    salvarExtras({ checklist: novo });
+  };
+  const refs: { id: string; url: string }[] = Array.isArray(selectedTask?.refs) ? selectedTask.refs : [];
+  const anexos: { url: string; nome: string; tamanho: number }[] = Array.isArray(selectedTask?.anexos) ? selectedTask.anexos : [];
+
+  const adicionarLink = () => {
+    let url = novoLink.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    try { new URL(url); } catch { toast.error('Link inválido.'); return; }
+    if (refs.some(r => r.url === url)) { toast.info('Esse link já está na lista.'); return; }
+    salvarExtras({ refs: [...refs, { id: crypto.randomUUID(), url }] });
+    setNovoLink('');
+  };
+
+  const enviarArquivo = async (file: File) => {
+    if (!supabase || !activeTenantId) { toast.error('Sem conexão com o armazenamento.'); return; }
+    if (!TIPOS_ANEXO.includes(file.type)) { toast.error('Tipo não aceito. Use PDF, imagem (PNG/JPG/WebP), Word ou Excel.'); return; }
+    if (file.size > LIMITE_ANEXO) { toast.error('O arquivo passa de 25 MB.'); return; }
+    setEnviando(true);
+    try {
+      const seguro = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '_').slice(-80);
+      const path = `${activeTenantId}/marketing/${selectedTask.id}/${Date.now()}-${seguro}`;
+      const { error } = await supabase.storage.from('products').upload(path, file, { upsert: false, contentType: file.type });
+      if (error) throw error;
+      const { data } = supabase.storage.from('products').getPublicUrl(path);
+      salvarExtras({ anexos: [...anexos, { url: data.publicUrl, nome: file.name, tamanho: file.size, path }] });
+      toast.success('Arquivo anexado.');
+    } catch (e: any) {
+      toast.error(`Não foi possível anexar: ${e?.message || 'erro desconhecido'}`);
+    } finally {
+      setEnviando(false);
+      if (arquivoRef.current) arquivoRef.current.value = '';
+    }
+  };
+
+  const removerAnexo = async (a: any) => {
+    if (a.path && supabase) await supabase.storage.from('products').remove([a.path]).catch(() => {});
+    salvarExtras({ anexos: anexos.filter(x => x.url !== a.url) });
+  };
 
   const handleGenerateScript = async () => {
     setIsGeneratingScript(true);
@@ -47,6 +114,7 @@ export function TaskDetailsDrawer({
       if (!res.ok) throw new Error(data.error || "Falha ao gerar script.");
       setGeneratedScript(data.script || "");
       setGeneratedHashtags(data.hashtags || []);
+      salvarExtras({ script: data.script || "", hashtags: data.hashtags || [] });
       setActiveTab("script");
       toast.success("Script gerado pela IA!");
     } catch (err: any) {
@@ -252,14 +320,21 @@ export function TaskDetailsDrawer({
                   </div>
                </div>
                <div className="space-y-3">
-                  <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Links / Anexos</h4>
-                  <div className="flex flex-wrap gap-2">
-                     <button
-                       onClick={() => toast.info("Upload de anexos ainda não disponível — em breve.")}
-                       className="w-10 h-10 rounded-xl border border-dashed border-white/10 flex items-center justify-center text-slate-500 hover:text-white hover:border-white/30 transition-all bg-transparent cursor-pointer"
-                     >
-                        <Plus className="w-4 h-4" />
-                     </button>
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Anexos</h4>
+                  <input ref={arquivoRef} type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.xlsx" onChange={(e) => { const f = e.target.files?.[0]; if (f) void enviarArquivo(f); }} />
+                  <div className="space-y-2">
+                    {anexos.map(a => (
+                      <div key={a.url} className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/5">
+                        <Paperclip className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        <a href={a.url} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-slate-300 hover:text-white truncate flex-1">{a.nome}</a>
+                        <span className="text-[10px] text-slate-500 shrink-0">{(a.tamanho / 1024 / 1024).toFixed(1)} MB</span>
+                        <button type="button" onClick={() => void removerAnexo(a)} className="text-slate-500 hover:text-rose-400" aria-label="Remover anexo"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ))}
+                    <button type="button" disabled={enviando} onClick={() => arquivoRef.current?.click()}
+                      className="w-full h-10 rounded-xl border border-dashed border-white/10 flex items-center justify-center gap-2 text-[10px] uppercase font-bold text-slate-500 hover:text-white hover:border-white/30 transition-colors cursor-pointer">
+                      {enviando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} {enviando ? 'Enviando…' : 'Anexar arquivo (PDF, imagem, Word, Excel — até 25 MB)'}
+                    </button>
                   </div>
                </div>
              </div>
@@ -285,6 +360,7 @@ export function TaskDetailsDrawer({
             <textarea
               value={generatedScript}
               onChange={(e) => setGeneratedScript(e.target.value)}
+              onBlur={() => { if (generatedScript !== (selectedTask.script || "")) salvarExtras({ script: generatedScript }); }}
               className="w-full bg-white/5 border border-white/5 rounded-2xl p-6 text-slate-300 text-sm leading-relaxed focus:border-blue-500 outline-none transition-all min-h-[300px] shadow-inner font-mono"
               placeholder="Escreva seu roteiro passo-a-passo aqui..."
             ></textarea>
@@ -295,13 +371,20 @@ export function TaskDetailsDrawer({
           <div className="space-y-6 animate-in fade-in duration-200">
             <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Referências Externas</h4>
             <div className="space-y-3">
-              <p className="text-[11px] text-slate-500">Nenhuma referência adicionada ainda.</p>
-              <Button
-                onClick={() => toast.info("Anexar links de referência ainda não disponível — em breve.")}
-                variant="outline" className="w-full border-dashed border-white/10 h-12 text-[10px] uppercase font-bold text-slate-500 gap-2 hover:bg-white/5 cursor-pointer bg-transparent"
-              >
-                 <Plus className="w-3.5 h-3.5" /> Adicionar Link de Ideia
-              </Button>
+              {refs.length === 0 && <p className="text-[11px] text-slate-500">Nenhuma referência adicionada ainda.</p>}
+              {refs.map(r => (
+                <div key={r.id} className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/5">
+                  <Link2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <a href={r.url} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-slate-300 hover:text-white truncate flex-1">{r.url}</a>
+                  <a href={r.url} target="_blank" rel="noreferrer" aria-label="Abrir"><ExternalLink className="w-3.5 h-3.5 text-slate-500 hover:text-white" /></a>
+                  <button type="button" onClick={() => salvarExtras({ refs: refs.filter(x => x.id !== r.id) })} className="text-slate-500 hover:text-rose-400" aria-label="Remover link"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <input value={novoLink} onChange={(e) => setNovoLink(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); adicionarLink(); } }} placeholder="Cole o link de uma ideia ou referência"
+                  className="flex-1 h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-200 outline-none focus:border-blue-500" />
+                <Button onClick={adicionarLink} variant="outline" className="h-10 px-4 text-[10px] uppercase font-bold gap-1.5 cursor-pointer"><Plus className="w-3.5 h-3.5" />Adicionar</Button>
+              </div>
             </div>
           </div>
         )}

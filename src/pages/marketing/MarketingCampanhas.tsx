@@ -66,6 +66,7 @@ export default function MarketingCampanhas() {
   // calculada sobre a base inteira do tenant em vez do array já em memória.
   // Puramente aditivo: cálculo client-side abaixo continua como fallback.
   const [serverSummary, setServerSummary] = useState<CampanhasServerSummary | null>(null);
+  const [metaGasto, setMetaGasto] = useState<{ configurado: boolean; gasto?: number; impressoes?: number; cliques?: number; cpc?: number; ctr?: number; dias?: number; error?: string } | null>(null);
   useEffect(() => {
     setServerSummary(null);
     if (!activeTenantId) return;
@@ -74,6 +75,17 @@ export default function MarketingCampanhas() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (!cancelled && data) setServerSummary(data); })
       .catch(() => { /* silencioso — cálculo client-side abaixo já cobre */ });
+    return () => { cancelled = true; };
+  }, [activeTenantId]);
+
+  // Gasto real do Meta Ads (últimos 30 dias), se a empresa cadastrou a conta e o token de leitura em Integrações.
+  useEffect(() => {
+    if (!activeTenantId) return;
+    let cancelled = false;
+    apiFetch(`/api/marketing/meta-gasto?tenantId=${encodeURIComponent(activeTenantId)}&dias=30`)
+      .then((res) => res.json().catch(() => null))
+      .then((d) => { if (!cancelled && d) setMetaGasto(d); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
@@ -303,6 +315,19 @@ export default function MarketingCampanhas() {
           </Card>
         ))}
       </div>
+
+      {metaGasto?.configurado && (
+        <Card className="p-4 mb-8">
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-muted)] mb-3 flex items-center gap-2"><Target className="w-4 h-4 text-[var(--color-primary-blue)]" /> Meta Ads — últimos {metaGasto.dias ?? 30} dias (dados do Gerenciador de Anúncios)</h3>
+          {metaGasto.error ? <p className="text-sm text-[var(--color-danger)]">{metaGasto.error}</p> : (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {[["Gasto", formatCurrency(metaGasto.gasto ?? 0)], ["Impressões", (metaGasto.impressoes ?? 0).toLocaleString("pt-BR")], ["Cliques", (metaGasto.cliques ?? 0).toLocaleString("pt-BR")], ["Custo por clique", (metaGasto.cpc ?? 0) > 0 ? formatCurrency(metaGasto.cpc ?? 0) : "—"], ["CTR", `${(metaGasto.ctr ?? 0).toLocaleString("pt-BR")}%`]].map(([t, v]) => (
+                <div key={t}><p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-faint)]">{t}</p><p className="text-lg font-display font-black text-[var(--color-text-primary)]">{v}</p></div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

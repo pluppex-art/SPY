@@ -41,6 +41,8 @@ export const DEFAULT_META_CONFIG = {
   pixelId: "",
   pixelStatus: "disconnected" as "active" | "pending" | "disconnected",
   capiToken: "",
+  /** Token com permissão de leitura de anúncios (ads_read): usado só para trazer gasto, impressões e cliques para as Campanhas. */
+  adsToken: "",
   datasetId: "",
   trackingActive: false,
   trackedEvents: {

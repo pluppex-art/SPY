@@ -15,9 +15,12 @@
  * Sem essas variáveis, as rotas abaixo respondem 503.
  */
 import type { Express, RequestHandler } from "express";
+import { enviarEmailParaLeads } from "./emailCampaigns.js";
 
 interface Deps {
   requireUser: RequestHandler;
+  /** Cliente com service role: só para o envio por e-mail (que roda aqui, não no n8n). */
+  supabaseService?: any;
 }
 
 const TIMEOUT_MS = 60_000;
@@ -51,7 +54,7 @@ async function loadVisibleTrigger(supabase: any, id: string) {
   return data as { id: string; status: string };
 }
 
-export function registerMessageTriggerRoutes(app: Express, { requireUser }: Deps) {
+export function registerMessageTriggerRoutes(app: Express, { requireUser, supabaseService }: Deps) {
   app.post("/api/message-triggers/:id/interpretar", requireUser, async (req: any, res) => {
     try {
       const trigger = await loadVisibleTrigger(req.supabase, req.params.id);
@@ -75,6 +78,19 @@ export function registerMessageTriggerRoutes(app: Express, { requireUser }: Deps
       if (!trigger) return res.status(404).json({ error: "Gatilho não encontrado." });
       if (trigger.status !== "aprovado") {
         return res.status(409).json({ error: "Esse gatilho ainda não foi aprovado — aprove antes de executar." });
+      }
+
+      // Canal e-mail: o envio é nativo (não passa pelo n8n/WhatsApp) e usa só a lista e o texto que a pessoa aprovou.
+      const { data: completo } = await req.supabase.from("tenant_message_triggers").select("tenant_id, canal, leads_encontrados, mensagem_sugerida").eq("id", req.params.id).maybeSingle();
+      if (completo?.canal === "email") {
+        if (!supabaseService) return res.status(503).json({ error: "Servidor sem acesso ao banco." });
+        const ids = (Array.isArray(completo.leads_encontrados) ? completo.leads_encontrados : []).map((l: any) => l?.id).filter(Boolean);
+        const texto = String(completo.mensagem_sugerida || "").trim();
+        if (!ids.length || !texto) return res.status(409).json({ error: "O gatilho não tem leads ou mensagem para enviar." });
+        const base = (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, "");
+        const r = await enviarEmailParaLeads(supabaseService, completo.tenant_id, base, ids, texto);
+        await supabaseService.from("tenant_message_triggers").update({ status: r.enviados > 0 || r.falhas === 0 ? "executado" : "erro", executado_em: new Date().toISOString(), erro: r.falhas || r.bloqueadosPelaCota ? `${r.enviados} enviado(s), ${r.falhas} falha(s)${r.bloqueadosPelaCota ? `, ${r.bloqueadosPelaCota} fora da cota diária` : ""}.` : null }).eq("id", req.params.id);
+        return res.json({ ok: true, ...r });
       }
 
       const url = process.env.N8N_EXECUTAR_GATILHO_WEBHOOK_URL;

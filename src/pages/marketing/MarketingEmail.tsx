@@ -138,6 +138,7 @@ export default function MarketingEmail() {
       for (;;) {
         const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/send-batch`, { method: "POST" }).then(json);
         setCampaigns((prev) => prev.map((x) => (x.id === c.id ? { ...x, sent: r.sent, failed: r.failed, status: r.status } : x)));
+        if (r.cota) { toast.warning(`Limite de ${r.cota.limite} e-mails em 24h atingido${r.cota.proprio ? "" : " (SMTP da plataforma — cadastre o seu em Integrações → SMTP para enviar mais)"}. O restante sai sozinho quando liberar.`); break; }
         if (r.done) { toast.success(`Envio concluído: ${r.sent} enviado(s), ${r.failed} falha(s).`); break; }
         if (stopRef.current) { toast.info("Envio pausado. Você pode retomar quando quiser."); break; }
       }

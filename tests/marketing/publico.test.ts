@@ -84,3 +84,16 @@ test("rastreio de LP: conta visita/clique/conversão, cria lead só na conversã
   assert.equal(leads.length, 1);
   assert.match(leads[0].source, /LP Black/);
 });
+
+import { resumirInsights } from "../../server/marketingAds.js";
+test("Meta Ads: soma o gasto por dia, calcula CPC/CTR e ignora linhas inválidas", () => {
+  const r = resumirInsights([
+    { date_start: "2026-11-02", spend: "50.10", impressions: "1000", clicks: "20" },
+    { date_start: "2026-11-01", spend: "49.90", impressions: "3000", clicks: "30" },
+    { date_start: "lixo", spend: "999" }, null,
+  ]);
+  assert.equal(r.gasto, 100); assert.equal(r.impressoes, 4000); assert.equal(r.cliques, 50);
+  assert.equal(r.cpc, 2); assert.equal(r.ctr, 1.25);
+  assert.deepEqual(r.porDia.map((d) => d.data), ["2026-11-01", "2026-11-02"]);
+  assert.deepEqual(resumirInsights([]).porDia, []);
+});
