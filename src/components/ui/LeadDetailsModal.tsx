@@ -22,6 +22,7 @@ import { useLeadDetails } from "./lead-details/useLeadDetails";
 import { LeadCopilot } from "./LeadCopilot";
 import { ProfileSection } from "./lead-details/ProfileSection";
 import { TimelineSection } from "./lead-details/TimelineSection";
+import { EmailsMarketingSection } from "./lead-details/EmailsMarketingSection";
 import { ProductsSection } from "./lead-details/ProductsSection";
 import { LogsSection } from "./lead-details/LogsSection";
 import { NotasSection } from "./lead-details/NotasSection";
@@ -405,6 +406,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
                 {currentTab === "historico" && (
                   <div className="px-5 py-4">
                     <TimelineSection lead={lead} />
+                    <EmailsMarketingSection lead={lead} />
                   </div>
                 )}
 
