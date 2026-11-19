@@ -244,3 +244,26 @@ test("e-mail agendado: data válida de hoje até 90 dias, em horário de Brasíl
   // 01h UTC ainda é "ontem" em Brasília
   assert.equal(parseAgendamento("2026-11-18", new Date("2026-11-19T01:00:00Z")).ok, true);
 });
+
+import { sanitizarUtm, canalDoLead } from "../../src/lib/canalAquisicao.js";
+test("canal de aquisição: UTM só com chaves conhecidas, canais agrupados, e a origem do primeiro contato vence", async () => {
+  assert.deepEqual(sanitizarUtm({ utm: { utm_source: "Facebook", utm_medium: "cpc", lixo: "x" }, gclid: "abc", pagina_origem: "LP X" }), { utm_source: "Facebook", utm_medium: "cpc", veio_do_google_ads: "sim", pagina_origem: "LP X" });
+  assert.deepEqual(sanitizarUtm(null), {});
+  assert.equal(canalDoLead({ source: "Formulário X", customFields: { utm_source: "ig" } }), "Meta");
+  assert.equal(canalDoLead({ source: "Formulário X", customFields: { utm_source: "newsletter" } }), "E-mail");
+  assert.equal(canalDoLead({ source: "Indicação", customFields: {} }), "Indicação");
+  assert.equal(canalDoLead({ source: "", customFields: null }), "Orgânico");
+  assert.equal(canalDoLead({ source: "x", customFields: { veio_do_google_ads: "sim" } }), "Google");
+
+  const db = criarFakeDb({ marketing_forms: [{ id: "f9", tenant_id: T, name: "Contato", source: "form_contato", active: true }] });
+  const { app, chamar } = criarFakeApp();
+  registerMarketingPublicRoutes(app, { supabaseService: db as any, limiter: ((_a: any, _b: any, n: any) => n && n()) as any });
+  const enviar = (corpo: any) => chamar("POST", "/api/public/forms/:formId/submit", { params: { formId: "f9" }, body: { name: "Ana Lima", phone: "63988887777", ...corpo } });
+  await enviar({ utm: { utm_source: "facebook", utm_campaign: "black" } });
+  assert.equal(db.t.leads[0].customFields.utm_source, "facebook");
+  assert.equal(db.t.leads[0].customFields.pagina_origem, "Contato");
+  db.t.leads[0].phone_digits = "63988887777"; // no banco real essa coluna é calculada sozinha
+  await enviar({ utm: { utm_source: "google" } }); // a mesma pessoa volta por outro anúncio: mantém o primeiro contato
+  assert.equal(db.t.leads.length, 1);
+  assert.equal(db.t.leads[0].customFields.utm_source, "facebook");
+});

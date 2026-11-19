@@ -1,4 +1,5 @@
 import { ehGastoMarketing } from "../../lib/gastoMarketing";
+import { canalDoLead } from "../../lib/canalAquisicao";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { BarChart2, TrendingUp, Users, Target, Activity, DollarSign, Inbox } from "lucide-react";
@@ -116,6 +117,20 @@ export default function MarketingAnalytics() {
       .filter(([, revenue]) => revenue > 0)
       .map(([name, revenue]) => ({ name, revenue }))
       .sort((a, b) => b.revenue - a.revenue);
+  }, [leads]);
+
+  // Desempenho por canal de aquisição: de onde os leads vêm (UTM da campanha quando existe, senão a origem cadastrada) e quanto viram venda.
+  const canais = useMemo(() => {
+    const m = new Map<string, { leads: number; fechados: number; receita: number }>();
+    for (const l of leads) {
+      const c = canalDoLead(l as any);
+      const x = m.get(c) ?? { leads: 0, fechados: 0, receita: 0 };
+      x.leads++;
+      if (l.status === 'Fechado') { x.fechados++; x.receita += parseCurrencyBR(l.value); }
+      m.set(c, x);
+    }
+    return [...m.entries()].map(([nome, x]) => ({ nome, ...x, taxa: x.leads > 0 ? (x.fechados / x.leads) * 100 : 0, ticket: x.fechados > 0 ? x.receita / x.fechados : 0 }))
+      .sort((a, b) => b.receita - a.receita || b.leads - a.leads).slice(0, 12);
   }, [leads]);
 
   const sourceData = (serverSummary?.sourceData ?? clientSourceData).map((s, i) => ({ ...s, color: COLORS[i % COLORS.length] }));
@@ -246,6 +261,29 @@ export default function MarketingAnalytics() {
           )}
         </Card>
       </div>
+
+      <Card className="p-6 bg-[var(--color-surface-elevated)] border-white/5 mt-6">
+        <h3 className="text-sm font-black text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+          <Users className="w-4 h-4 text-emerald-500" /> Canais de Aquisição
+        </h3>
+        <p className="text-[11px] text-slate-500 mb-4">De onde vêm os leads e quantos viram venda. Leads de páginas e formulários do sistema trazem o canal da campanha (UTM); os demais usam a origem cadastrada.</p>
+        {canais.length === 0 ? <p className="text-xs text-slate-500">Ainda não há leads.</p> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[560px]">
+              <thead className="text-[10px] uppercase tracking-wider text-slate-500"><tr>{["Canal", "Leads", "Vendas", "Conversão", "Receita", "Ticket médio"].map((h, i) => <th key={h} className={`font-black py-2 ${i === 0 ? "text-left" : "text-right"}`}>{h}</th>)}</tr></thead>
+              <tbody>{canais.map((c) => (
+                <tr key={c.nome} className="border-t border-white/5">
+                  <td className="py-2 font-bold text-white">{c.nome}</td>
+                  <td className="py-2 text-right text-slate-300">{c.leads}</td>
+                  <td className="py-2 text-right text-slate-300">{c.fechados}</td>
+                  <td className="py-2 text-right text-slate-300">{c.taxa.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</td>
+                  <td className="py-2 text-right font-bold text-emerald-400">{formatCurrency(c.receita)}</td>
+                  <td className="py-2 text-right text-slate-300">{c.ticket > 0 ? formatCurrency(c.ticket) : "—"}</td>
+                </tr>))}</tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </PageContainer>
   );
 }

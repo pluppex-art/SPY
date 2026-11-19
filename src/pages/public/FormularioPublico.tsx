@@ -8,6 +8,14 @@ interface Cfg { nome: string; descricao: string; empresa: string; campos: CampoF
 
 const INPUT = "w-full h-12 px-4 rounded-xl text-base border border-[#D9DCE5] bg-[#ffffff] text-[#14162B] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15";
 
+/** Parâmetros da campanha que trouxe a pessoa (UTM e identificadores de anúncio), para o CRM saber de onde o lead veio. */
+function lerUtm(): Record<string, string> {
+  const q = new URLSearchParams(typeof location !== "undefined" ? location.search : "");
+  const out: Record<string, string> = {};
+  for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "gclid", "fbclid"]) { const v = q.get(k); if (v) out[k] = v.slice(0, 100); }
+  return out;
+}
+
 async function api(caminho: string, init?: RequestInit) {
   const r = await fetch(caminho, init);
   const j = await r.json().catch(() => ({}));
@@ -46,7 +54,7 @@ export default function FormularioPublico() {
     if (falta) { setErro(falta); return; }
     setEnviando(true);
     try {
-      await api(`/api/public/forms/${encodeURIComponent(formId)}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...resp, website: isca }) });
+      await api(`/api/public/forms/${encodeURIComponent(formId)}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...resp, website: isca, utm: lerUtm() }) });
       setFeito(true);
     } catch (e: any) { setErro(e.message); }
     setEnviando(false);

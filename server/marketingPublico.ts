@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { upsertLead } from "./leadUpsert.js";
 import { CAMPOS_PADRAO, normalizarCampos, validarRespostas } from "../src/lib/formularioCampos.js";
 import { normalizarConteudoLP } from "../src/lib/paginaLP.js";
+import { sanitizarUtm } from "../src/lib/canalAquisicao.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -55,7 +56,7 @@ document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&
 document.addEventListener('submit',function(e){var f=e.target;if(!f||!f.elements)return;var d={};
 for(var i=0;i<f.elements.length;i++){var el=f.elements[i];if(!el.name||el.type==='password'||el.type==='hidden'||!el.value)continue;
 var n=el.name.toLowerCase();if(/pass|senha|card|cartao|cvv/.test(n))continue;d[n]=String(el.value).slice(0,500);}
-send('conversion',d)},true);
+var q=new URLSearchParams(location.search);['utm_source','utm_medium','utm_campaign','utm_content','utm_term','gclid','fbclid'].forEach(function(k){var v=q.get(k);if(v)d[k]=v});send('conversion',d)},true);
 window.spyConversion=function(d){send('conversion',d||{})};
 })();`;
 
@@ -111,7 +112,7 @@ export function registerMarketingPublicRoutes(app: Express, { supabaseService: d
       if (tipo === "conversion") {
         const v = validarContatoPublico(b);
         if (v.ok === true && !b.website) {
-          await upsertLead(db, lp.tenant_id, { name: v.contato.nome, email: v.contato.email, phone: v.contato.telefone, source: `Landing page: ${lp.name}`, papel: "entrada", nota: notaDosCampos(b) || `Converteu na landing page "${lp.name}".` });
+          await upsertLead(db, lp.tenant_id, { name: v.contato.nome, email: v.contato.email, phone: v.contato.telefone, source: `Landing page: ${lp.name}`, papel: "entrada", nota: notaDosCampos(b) || `Converteu na landing page "${lp.name}".`, customFields: { ...sanitizarUtm(b), pagina_origem: lp.name } });
         }
       }
     } catch (e: any) { console.warn("[lp-track]", e?.message); }
@@ -163,7 +164,7 @@ export function registerMarketingPublicRoutes(app: Express, { supabaseService: d
       const conteudo = normalizarConteudoLP(lp.conteudo);
       const r = validarRespostas(conteudo.campos, b);
       if (r.ok === false) return res.status(400).json({ error: r.erro });
-      await upsertLead(db, lp.tenant_id, { name: r.contato.nome, email: r.contato.email, phone: r.contato.telefone, source: `Landing page: ${lp.name}`, papel: "entrada", nota: r.nota || `Converteu na landing page "${lp.name}".` });
+      await upsertLead(db, lp.tenant_id, { name: r.contato.nome, email: r.contato.email, phone: r.contato.telefone, source: `Landing page: ${lp.name}`, papel: "entrada", nota: r.nota || `Converteu na landing page "${lp.name}".`, customFields: { ...sanitizarUtm(b), pagina_origem: lp.name } });
       await somar(id, "conversions");
       res.json({ success: true });
     } catch (e: any) {
@@ -192,7 +193,7 @@ export function registerMarketingPublicRoutes(app: Express, { supabaseService: d
         if (v.ok === false) return res.status(400).json({ error: v.erro });
         contato = v.contato; nota = notaDosCampos(b);
       }
-      await upsertLead(db, form.tenant_id, { name: contato.nome, email: contato.email, phone: contato.telefone, source: form.source || `Formulário: ${form.name}`, papel: "entrada", nota: nota || `Preencheu o formulário "${form.name}".` });
+      await upsertLead(db, form.tenant_id, { name: contato.nome, email: contato.email, phone: contato.telefone, source: form.source || `Formulário: ${form.name}`, papel: "entrada", nota: nota || `Preencheu o formulário "${form.name}".`, customFields: { ...sanitizarUtm(b), pagina_origem: form.name } });
       res.json({ success: true });
     } catch (e: any) {
       console.error("[forms/submit]", e?.message);

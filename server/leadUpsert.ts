@@ -85,9 +85,11 @@ export type EntradaLead = {
   name: string; email?: string; phone?: string; company?: string; cnpj?: string; source: string;
   value?: number; nota: string; papel: Papel; priority?: string; scoreIA?: number;
   city?: string; state?: string;
+  /** Dados extras do lead (ex.: parâmetros UTM da campanha). Em lead que já existe, o que já estava gravado vence (primeiro contato). */
+  customFields?: Record<string, string>;
 };
 
-const COLS = "id,name,email,phone,company,cnpj,city,state,status,stageId,pipelineId,notes,value,deleted_at";
+const COLS = "id,name,email,phone,company,cnpj,city,state,status,stageId,pipelineId,notes,value,deleted_at,customFields";
 
 /** Acha o lead da empresa pelo telefone (qualquer escrita do numero, inclusive pessoa extra do card) e, se nao, pelo e-mail. */
 export async function acharLead(db: SupabaseClient, tenantId: string, phone?: string, email?: string): Promise<any | null> {
@@ -125,6 +127,7 @@ export async function upsertLead(db: SupabaseClient, tenantId: string, e: Entrad
     if (!existente.city && e.city) upd.city = e.city;
     if (!existente.state && e.state) upd.state = e.state;
     if (e.value && (!existente.value || e.papel === "ganho")) upd.value = e.value;
+    if (e.customFields && Object.keys(e.customFields).length) upd.customFields = { ...e.customFields, ...(existente.customFields && typeof existente.customFields === "object" ? existente.customFields : {}) };
     if (etapa && devePassar(existente, etapa)) { upd.stageId = etapa.stageId; upd.pipelineId = etapa.pipelineId; upd.status = etapa.status; }
     else if (!etapa && e.papel === "ganho") upd.status = "Fechado";
     await db.from("leads").update(upd).eq("id", existente.id);
@@ -141,6 +144,7 @@ export async function upsertLead(db: SupabaseClient, tenantId: string, e: Entrad
     source: e.source, status: etapa?.status ?? (e.papel === "ganho" ? "Fechado" : "Novo"), stageId: etapa?.stageId ?? "", pipelineId: etapa?.pipelineId ?? "comercial",
     priority: e.priority ?? "Média", value: e.value ?? 0, scoreIA: e.scoreIA ?? 50,
     notes: comNota("", e.nota), date: new Date().toISOString().split("T")[0],
+    ...(e.customFields && Object.keys(e.customFields).length ? { customFields: e.customFields } : {}),
   });
   if (error) {
     // Dois envios do mesmo formulário ao mesmo tempo: o outro criou primeiro (índice único de telefone). Atualiza o que ele criou.

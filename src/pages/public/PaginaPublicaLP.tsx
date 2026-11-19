@@ -9,6 +9,14 @@ type Cfg = ConteudoLP & { nome: string; empresa: string };
 
 const INPUT = "w-full h-12 px-4 rounded-xl text-base border border-[#D9DCE5] bg-[#ffffff] text-[#14162B] outline-none focus:border-[#14162B] focus:ring-2 focus:ring-[#14162B]/10";
 
+/** Parâmetros da campanha que trouxe a pessoa (UTM e identificadores de anúncio), para o CRM saber de onde o lead veio. */
+function lerUtm(): Record<string, string> {
+  const q = new URLSearchParams(typeof location !== "undefined" ? location.search : "");
+  const out: Record<string, string> = {};
+  for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "gclid", "fbclid"]) { const v = q.get(k); if (v) out[k] = v.slice(0, 100); }
+  return out;
+}
+
 async function api(caminho: string, init?: RequestInit) {
   const r = await fetch(caminho, init);
   const j = await r.json().catch(() => ({}));
@@ -51,7 +59,7 @@ export default function PaginaPublicaLP() {
     const falta = cfg.campos.find((c) => c.obrigatorio && !(resp[c.id] ?? "").trim());
     if (falta) { setErro(`Preencha: ${falta.label}.`); return; }
     setEnviando(true);
-    try { await api(`/api/public/lp/${encodeURIComponent(id)}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...resp, website: isca }) }); setFeito(true); }
+    try { await api(`/api/public/lp/${encodeURIComponent(id)}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...resp, website: isca, utm: lerUtm() }) }); setFeito(true); }
     catch (er: any) { setErro(er.message); }
     setEnviando(false);
   };
