@@ -24,6 +24,7 @@ import { friendlyError } from "../../lib/friendlyError";
 import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
 import { ClienteModal } from "./pdv/ClienteModal";
 import { SuspenderModal } from "./pdv/SuspenderModal";
+import { NovoClienteModal } from "../../components/ui/modals/crm/NovoClienteModal";
 
 import { HelpTip } from "../../components/ui/help-tip";
 // ─── AUDIO FEEDBACK (WEB AUDIO API) ──────────────────────────────────────────
@@ -223,6 +224,7 @@ export default function VarejoVendas() {
   // Item Avulso Modal
   const [modalAvulsoOpen, setModalAvulsoOpen] = useState(false);
   const [modalClienteOpen, setModalClienteOpen] = useState(false);
+  const [modalNovoClienteOpen, setModalNovoClienteOpen] = useState(false);
   const [modalPagamentoOpen, setModalPagamentoOpen] = useState(false);
   const [suspenderOpen, setSuspenderOpen] = useState<false | "normal" | "cancelar">(false);
   const [avulsoNome, setAvulsoNome] = useState("");
@@ -484,6 +486,37 @@ export default function VarejoVendas() {
     setMistoCartao("");
     if (soundEnabled) playPosSound("alert");
     toast.info("Venda cancelada / Carrinho esvaziado.");
+  };
+
+  // Cadastro completo de cliente novo (mesmo formulário e mesmas regras do CRM > Clientes): cadastra e já usa na venda.
+  const handleSalvarNovoCliente = async (data: Record<string, any>) => {
+    const nome = String(data.nome || "").trim();
+    if (!nome) { toast.error("Nome do cliente é obrigatório."); return; }
+    const documento = data.documento || null;
+    const email = data.email || null;
+    const duplicado = (clienteBase as any[]).find((c: any) =>
+      (documento && c.documento && c.documento === documento) ||
+      (email && c.email && String(c.email).toLowerCase() === String(email).toLowerCase()));
+    if (duplicado) {
+      toast.error(`Já existe um cliente cadastrado com esse ${documento && duplicado.documento === documento ? "documento" : "e-mail"}: ${duplicado.name}.`);
+      return;
+    }
+    const criado = await addClienteBase({
+      name: nome,
+      industry: data.industry || "Varejo",
+      city: data.cidade || null,
+      state: data.estado ? String(data.estado).toUpperCase() : null,
+      phone: data.telefone || null,
+      email,
+      documento,
+      status: "Ativo",
+    });
+    if (!criado) return; // falhou ou duplicado: o contexto já avisou
+    setClienteNome(nome);
+    setClienteCpf(documento || "");
+    setModalNovoClienteOpen(false);
+    setModalClienteOpen(false);
+    toast.success("Cliente cadastrado e adicionado à venda.");
   };
 
   // Remoção/cancelamento já autorizados pela senha de supervisor (SuspenderModal).
@@ -2589,7 +2622,12 @@ export default function VarejoVendas() {
         nomeAtual={clienteNome}
         cpfAtual={clienteCpf}
         onSelect={({ nome, cpf }) => { setClienteNome(nome); setClienteCpf(cpf); }}
-        onCreate={(c) => addClienteBase({ ...c, status: "Ativo" })}
+        onNovoCliente={() => { setModalClienteOpen(false); setModalNovoClienteOpen(true); }}
+      />
+      <NovoClienteModal
+        isOpen={modalNovoClienteOpen}
+        onClose={() => { setModalNovoClienteOpen(false); setModalClienteOpen(true); }}
+        onAction={handleSalvarNovoCliente}
       />
 
       {/* MODAL: SUSPENDER (espera, remover item ou cancelar venda com senha de supervisor) */}
