@@ -996,7 +996,15 @@ export default function VarejoVendas() {
       setMistoCartao("");
 
       if (soundEnabled) playPosSound("success");
-      toast.success(`Venda ${vendaId} concluída com sucesso!`);
+      const qtdItens = vendaSnap.itens.reduce((q, i) => q + i.quantidade, 0);
+      toast.success("Venda concluída", {
+        description: [
+          vendaSnap.cliente_nome || "Consumidor Final",
+          `${qtdItens} ${qtdItens === 1 ? "item" : "itens"} · ${formatPrice(valorFinal)}`,
+          vendaSnap.forma_pagamento,
+        ].filter(Boolean).join("\n"),
+        classNames: { description: "whitespace-pre-line" },
+      });
     } catch (err: any) {
       if (soundEnabled) playPosSound("error");
       toast.error(`Falha ao finalizar venda: ${friendlyError(err)}`);
