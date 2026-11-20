@@ -31,9 +31,9 @@ const BAR_COLORS = ["var(--color-primary-blue)", "#10b981", "#06b6d4", "#f43f5e"
  * Dashboard): ícone solto, variação no canto, valor em itálico, rótulo e gráfico mensal.
  * Cada página passa os seus próprios indicadores.
  */
-export function FinanceKpiGrid({ cards, noDeltaLabel = "Sem período p/ comparação" }: { cards: FinanceKpi[]; noDeltaLabel?: string }) {
+export function FinanceKpiGrid({ cards }: { cards: FinanceKpi[]; noDeltaLabel?: string }) {
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
       {cards.map((k, i) => {
         const Icon = k.icon;
         const up = (k.delta ?? 0) > 0;
@@ -47,27 +47,27 @@ export function FinanceKpiGrid({ cards, noDeltaLabel = "Sem período p/ compara�
           <Card
             key={k.label}
             onClick={k.onClick}
-            style={{ "--bar": k.danger ? "#f43f5e" : BAR_COLORS[i % BAR_COLORS.length] } as React.CSSProperties}
             className={cn(
-              "max-md:border-b-4 max-md:[border-bottom-color:var(--bar)] p-3.5 sm:p-5 min-w-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/40 transition-all shadow-sm",
+              "relative min-w-0 overflow-hidden py-3.5 pl-5 pr-4 transition-all",
               k.onClick && "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
             )}
           >
-            <div className="flex items-center justify-between gap-1 mb-2 sm:mb-3">
-              <Icon className={cn("w-5 h-5", ICON_COLORS[i % ICON_COLORS.length])} />
-              {k.hideDelta ? <span /> : k.delta === null ? (
-                <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase text-right leading-tight">{noDeltaLabel}</span>
-              ) : (
-                <span className={cn("text-xs font-bold flex items-center gap-0.5 tabular-nums", deltaColor)}>
-                  {up ? "+" : ""}{k.delta.toFixed(1)}{k.deltaSuffix ?? "%"} <DIcon className="w-3.5 h-3.5" />
+            <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ background: k.danger ? "#f43f5e" : BAR_COLORS[i % BAR_COLORS.length] }} />
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <Icon className={cn("h-3.5 w-3.5 shrink-0", ICON_COLORS[i % ICON_COLORS.length])} />
+                <span className="truncate">{k.label}</span>
+              </div>
+              {!k.hideDelta && k.delta !== null && (
+                <span className={cn("flex shrink-0 items-center gap-0.5 text-xs font-bold tabular-nums", deltaColor)}>
+                  {up ? "+" : ""}{k.delta.toFixed(1)}{k.deltaSuffix ?? "%"} <DIcon className="h-3.5 w-3.5" />
                 </span>
               )}
             </div>
-            <div className={cn("text-lg sm:text-2xl font-display font-black mb-1 italic break-words sm:whitespace-nowrap", k.danger ? "text-rose-500" : "text-[var(--color-text-primary)]")}>{k.value}</div>
-            <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{k.label}</div>
-            <div className="flex items-center justify-between mt-1 gap-2">
-              <span className="text-[10px] text-[var(--color-text-faint)] font-medium min-w-0">{k.footer ?? ""}</span>
-              {k.series.length >= 2 && <Sparkline data={k.series} className={cn("w-16 h-5 shrink-0", sparkColor)} />}
+            <div className={cn("mt-1.5 truncate text-xl font-black tabular-nums leading-tight sm:text-2xl", k.danger ? "text-rose-600" : "text-[var(--color-text-primary)]")}>{k.value}</div>
+            <div className="mt-0.5 flex min-h-[1.25rem] items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-xs text-[var(--color-text-muted)]">{k.footer ?? ""}</span>
+              {k.series.length >= 2 && <Sparkline data={k.series} className={cn("h-5 w-16 shrink-0", sparkColor)} />}
             </div>
           </Card>
         );
