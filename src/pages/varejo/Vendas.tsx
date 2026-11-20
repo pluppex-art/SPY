@@ -7,7 +7,7 @@ import {
   Share2, RotateCcw, AlertTriangle, Sparkles, DollarSign, Wallet, Store,
   Barcode, Check, ShieldCheck, RefreshCw, X, PauseCircle, PlayCircle,
   UserCheck, HelpCircle, Volume2, VolumeX, FileText, Split, Calendar,
-  Clock, Percent, Hash, Layers, CheckSquare
+  Clock, Percent, Hash, Layers, CheckSquare, LayoutGrid, List as ListIcon
 } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
@@ -192,6 +192,13 @@ export default function VarejoVendas() {
   const [clienteNome, setClienteNome] = useState("");
   const [clienteCpf, setClienteCpf] = useState("");
   const [clienteId, setClienteId] = useState("");
+  const [viewProdutos, setViewProdutos] = useState<"quadro" | "lista">(() => {
+    try { return localStorage.getItem("pdv_view_produtos") === "lista" ? "lista" : "quadro"; } catch { return "quadro"; }
+  });
+  const trocarViewProdutos = (v: "quadro" | "lista") => {
+    setViewProdutos(v);
+    try { localStorage.setItem("pdv_view_produtos", v); } catch { /* sem storage: só não lembra */ }
+  };
   const [vendedorSelecionado, setVendedorSelecionado] = useState(VENDEDOR_BALCAO);
 
   // Pagamento
@@ -1357,7 +1364,8 @@ export default function VarejoVendas() {
               </div>
 
               {/* Categorias em Pílulas */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1 min-w-0">
                 {categories.map((cat) => (
                   <button
                     key={cat}
@@ -1372,14 +1380,84 @@ export default function VarejoVendas() {
                   </button>
                 ))}
               </div>
+              <div className="flex items-center shrink-0 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-0.5 mb-1" role="group" aria-label="Modo de exibição dos produtos">
+                {([["lista", ListIcon, "Lista"], ["quadro", LayoutGrid, "Quadro"]] as const).map(([v, Icon, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    title={label}
+                    aria-label={label}
+                    aria-pressed={viewProdutos === v}
+                    onClick={() => trocarViewProdutos(v)}
+                    className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${viewProdutos === v ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                  </button>
+                ))}
+              </div>
+              </div>
             </div>
 
             {/* Grid de Produtos */}
-            <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 content-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 scrollbar-thin">
+            <div className={`grid ${viewProdutos === "lista" ? "grid-cols-1 gap-1.5" : "grid-cols-2 xl:grid-cols-3 gap-3"} content-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 scrollbar-thin`}>
               {produtosDisponiveis.map((product: any) => {
                 const itemNoCarrinho = cart.find((i) => i.productId === product.id);
                 const estoque = product.currentStock ?? 0;
                 const esgotado = estoque <= 0;
+
+                const controleAdd = itemNoCarrinho ? (
+                  <div className="flex items-center justify-between bg-blue-600/10 rounded-lg p-1 border border-blue-500/30 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => updateCartQty(product.id, itemNoCarrinho.quantidade - 1)}
+                      className="w-6 h-6 rounded bg-[var(--color-surface)] hover:bg-red-500/20 hover:text-red-500 text-[var(--color-text-primary)] flex items-center justify-center font-bold text-xs"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="font-bold text-xs text-blue-500 font-mono">{itemNoCarrinho.quantidade} un.</span>
+                    <button
+                      type="button"
+                      onClick={() => updateCartQty(product.id, itemNoCarrinho.quantidade + 1)}
+                      className="w-6 h-6 rounded bg-[var(--color-surface)] hover:bg-blue-600 hover:text-white text-[var(--color-text-primary)] flex items-center justify-center font-bold text-xs"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  // Botão azul sólido: o texto branco some no tema claro se o fundo também for claro.
+                  <button
+                    type="button"
+                    disabled={esgotado}
+                    onClick={() => addToCart(product)}
+                    className="w-full h-7 px-3 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="w-3 h-3" /> Adicionar
+                  </button>
+                );
+
+                if (viewProdutos === "lista") {
+                  return (
+                    <div
+                      key={product.id}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-xl border transition-all ${
+                        esgotado
+                          ? "opacity-50 border-red-500/20 bg-red-500/5"
+                          : itemNoCarrinho
+                          ? "border-blue-500/50 bg-blue-500/5"
+                          : "border-[var(--color-border-subtle)] bg-[var(--color-surface)] hover:border-blue-500/40"
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{product.name}</p>
+                        <p className="text-[10px] text-[var(--color-text-muted)] truncate">
+                          {product.category || "Geral"}{product.sku ? ` · SKU ${product.sku}` : ""} · {estoque > 0 ? `${estoque} un.` : "Esgotado"}
+                        </p>
+                      </div>
+                      <span className="text-sm font-black font-mono text-[var(--color-text-primary)] shrink-0">{formatPrice(Number(product.price) || 0)}</span>
+                      <div className="w-28 shrink-0">{controleAdd}</div>
+                    </div>
+                  );
+                }
 
                 return (
                   <Card
@@ -1428,36 +1506,7 @@ export default function VarejoVendas() {
                         </span>
                       </div>
 
-                      {itemNoCarrinho ? (
-                        <div className="flex items-center justify-between bg-blue-600/10 rounded-lg p-1 border border-blue-500/30">
-                          <button
-                            type="button"
-                            onClick={() => updateCartQty(product.id, itemNoCarrinho.quantidade - 1)}
-                            className="w-6 h-6 rounded bg-[var(--color-surface)] hover:bg-red-500/20 hover:text-red-500 text-[var(--color-text-primary)] flex items-center justify-center font-bold text-xs"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="font-bold text-xs text-blue-500 font-mono">
-                            {itemNoCarrinho.quantidade} un.
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => updateCartQty(product.id, itemNoCarrinho.quantidade + 1)}
-                            className="w-6 h-6 rounded bg-[var(--color-surface)] hover:bg-blue-600 hover:text-white text-[var(--color-text-primary)] flex items-center justify-center font-bold text-xs"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          disabled={esgotado}
-                          onClick={() => addToCart(product)}
-                          className="w-full text-xs font-bold h-7 gap-1 bg-[var(--color-surface-elevated)] hover:bg-blue-600 hover:text-white text-[var(--color-text-primary)] border border-[var(--color-border-subtle)]"
-                        >
-                          <Plus className="w-3 h-3" /> Adicionar
-                        </Button>
-                      )}
+                      {controleAdd}
                     </div>
                   </Card>
                 );
