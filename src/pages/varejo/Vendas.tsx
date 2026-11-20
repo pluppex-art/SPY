@@ -7,7 +7,7 @@ import {
   Share2, RotateCcw, AlertTriangle, Sparkles, DollarSign, Wallet, Store,
   Barcode, Check, ShieldCheck, RefreshCw, X, PauseCircle, PlayCircle,
   UserCheck, HelpCircle, Volume2, VolumeX, FileText, Split, Calendar,
-  Clock, Percent, Hash, Layers, CheckSquare, LayoutGrid, List as ListIcon
+  Clock, Percent, Hash, Layers, CheckSquare, LayoutGrid, List as ListIcon, Maximize2, Minimize2
 } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
@@ -192,6 +192,22 @@ export default function VarejoVendas() {
   const [clienteNome, setClienteNome] = useState("");
   const [clienteCpf, setClienteCpf] = useState("");
   const [clienteId, setClienteId] = useState("");
+  // Tela cheia do navegador (esconde barras do navegador para o caixa). Sai sozinha ao deixar o PDV.
+  const [telaCheia, setTelaCheia] = useState(false);
+  useEffect(() => {
+    const sync = () => setTelaCheia(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", sync);
+    return () => {
+      document.removeEventListener("fullscreenchange", sync);
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+  const alternarTelaCheia = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch { toast.error("Este navegador não permitiu a tela cheia."); }
+  };
   // Formato da lista de produtos: preferência do usuário (public.users.preferences), vale em qualquer aparelho.
   const viewProdutos: "quadro" | "lista" = user?.preferences?.pdvViewProdutos === "lista" ? "lista" : "quadro";
   const trocarViewProdutos = (v: "quadro" | "lista") => {
@@ -1293,6 +1309,18 @@ export default function VarejoVendas() {
             >
               <Link2 className="w-3.5 h-3.5" /> Catálogo
             </Button>
+          )}
+
+          {document.fullscreenEnabled && (
+            <button
+              type="button"
+              onClick={alternarTelaCheia}
+              title={telaCheia ? "Sair da tela cheia" : "Tela cheia"}
+              aria-label={telaCheia ? "Sair da tela cheia" : "Tela cheia"}
+              className="h-9 w-9 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
+            >
+              {telaCheia ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
           )}
         </div>
       }
