@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, BarChart3, CalendarClock, CheckCircle2, ChevronRight, Inbox, Landmark, TrendingDown, Users, Wallet, type LucideIcon } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { PageContainer } from "../../components/PageContainer";
@@ -9,7 +9,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
 import { SecaoCard } from "./components/SecaoCard";
-import { KpiLinha, KpiTile } from "./components/KpiTile";
+import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
+import { kpiSimples } from "./components/kpiSimples";
 import { LegendaStatusFinanceiro } from "./components/StatusFinanceiroBadge";
 import { hojeISO, statusDoLancamento, useFinanceEntriesResumo, type LancamentoResumo } from "./hooks/useFinanceEntriesResumo";
 import { saldoDaConta, transferenciasDaConta, type FinanceEntryLike } from "./lib/financeEngine";
@@ -84,6 +85,7 @@ export default function FinanceiroPainelGeral() {
   const { activeTenantId: tenantId } = useAuth();
   const { formatCurrency: brl } = useLocalization();
   const [g, setG] = useState<Gestao>(VAZIO);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!supabase || !tenantId) return;
@@ -193,12 +195,14 @@ export default function FinanceiroPainelGeral() {
       <div className="mx-auto max-w-[1700px] space-y-4 pb-12">
         {erro && <SecaoCard titulo="Erro ao carregar"><p className="text-sm text-rose-600">{erro}</p></SecaoCard>}
 
-        <KpiLinha>
-          <KpiTile label="Saldo em contas" value={v(temContas ? brl(saldoContas) : "—")} icon={Landmark} tom={saldoContas < 0 ? "ruim" : "neutro"} apoio={temContas ? "Todas as contas somadas" : "Cadastre em Contas Bancárias"} to={`${base}/bancos`} />
-          <KpiTile label="Entradas do mês" value={v(brl(d.entradas))} icon={ArrowUpCircle} tom="bom" apoio="Recebido até hoje" to={`${base}/receitas`} />
-          <KpiTile label="Saídas do mês" value={v(brl(d.saidas))} icon={ArrowDownCircle} tom="ruim" apoio={`${d.pagoMesN} pagamento(s) feitos`} to={`${base}/despesas`} />
-          <KpiTile label="Resultado do mês" value={v(brl(resultado))} icon={Wallet} tom={resultado < 0 ? "ruim" : "bom"} apoio="Entradas − saídas" to={`${base}/dre`} />
-        </KpiLinha>
+        <FinanceKpiGrid
+          cards={[
+            kpiSimples("Saldo em contas", v(temContas ? brl(saldoContas) : "—"), Landmark, temContas ? "Todas as contas somadas" : "Cadastre em Contas Bancárias", saldoContas < 0, () => navigate(`${base}/bancos`)),
+            kpiSimples("Entradas do mês", v(brl(d.entradas)), ArrowUpCircle, "Recebido até hoje", false, () => navigate(`${base}/receitas`)),
+            kpiSimples("Saídas do mês", v(brl(d.saidas)), ArrowDownCircle, `${d.pagoMesN} pagamento(s) feitos`, false, () => navigate(`${base}/despesas`)),
+            kpiSimples("Resultado do mês", v(brl(resultado)), Wallet, "Entradas − saídas", resultado < 0, () => navigate(`${base}/dre`)),
+          ]}
+        />
 
         <div className="grid gap-4 xl:grid-cols-5">
           <SecaoCard titulo="Entradas × saídas — últimos 6 meses" icon={BarChart3} className="xl:col-span-3" acao={{ label: "Fluxo de caixa", to: `${base}/fluxo-caixa` }}>
