@@ -304,7 +304,7 @@ export default function FinanceiroPainelGeral() {
               <LinhaValor label="Acordos em andamento" value={`${acordosAnd.length} · ${brl(somaK(acordosAnd, "valor"))}`} to={`${base}/acordos`} />
               <LinhaValor label="Metas do mês batidas" value={`${metasMes.filter((m) => Number(m.valor_meta) > 0 && Number(m.valor_realizado) >= Number(m.valor_meta)).length}/${metasMes.length}`} to={`${base}/metas`} />
             </div>
-            <Atalhos itens={[{ label: "Acordos e permutas", to: `${base}/acordos` }, { label: "Comissões", to: `${base}/indicacoes` }, { label: "Equipe", to: "/app/equipe" }]} />
+            <Atalhos itens={[{ label: "Folha", to: `${base}/folha` }, { label: "Comissões", to: `${base}/comissoes` }, { label: "Indicações", to: `${base}/indicacoes` }]} />
           </SecaoCard>
           <SecaoCard titulo="Financeiro geral" icon={Wallet} semPadding>
             <div className="divide-y divide-[var(--color-border-default)]">

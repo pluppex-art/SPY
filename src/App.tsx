@@ -77,11 +77,14 @@ const FinanceiroCentralResumo = lazy(() => import("./pages/finance/FinanceiroCen
 const FinanceiroAgenda = lazy(() => import("./pages/finance/FinanceiroAgenda"));
 const FinanceiroCompras = lazy(() => import("./pages/finance/FinanceiroCompras"));
 const FinanceiroPromessas = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroPromessas })));
-const FinanceiroHistoricoCobrancas = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroHistoricoCobrancas })));
-const FinanceiroAdiantamentos = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroAdiantamentos })));
-const FinanceiroAcordos = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroAcordos })));
+const FinanceiroHistoricoCobrancas = lazy(() => import("./pages/finance/FinanceiroPessoas").then(m => ({ default: m.FinanceiroHistoricoCobrancas })));
+const FinanceiroAdiantamentos = lazy(() => import("./pages/finance/FinanceiroPessoas").then(m => ({ default: m.FinanceiroAdiantamentos })));
+const FinanceiroAcordos = lazy(() => import("./pages/finance/FinanceiroPessoas").then(m => ({ default: m.FinanceiroAcordos })));
 const FinanceiroPatrocinios = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroPatrocinios })));
 const FinanceiroViagens = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroViagens })));
+const FinanceiroFuncionarios = lazy(() => import("./pages/finance/FinanceiroPessoas").then(m => ({ default: m.FinanceiroFuncionarios })));
+const FinanceiroFolha = lazy(() => import("./pages/finance/FinanceiroFolha"));
+const FinanceiroComissoes = lazy(() => import("./pages/finance/FinanceiroComissoes"));
 const FinanceiroMetas = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroMetas })));
 const FinanceiroReservas = lazy(() => import("./pages/finance/FinanceiroGestao").then(m => ({ default: m.FinanceiroReservas })));
 const FinanceiroProjecao = lazy(() => import("./pages/finance/FinanceiroProjecao"));
@@ -392,6 +395,9 @@ function AppContent() {
             <Route path="acordos" element={<FinanceiroAcordos />} />
             <Route path="patrocinios" element={<FinanceiroPatrocinios />} />
             <Route path="viagens" element={<FinanceiroViagens />} />
+            <Route path="funcionarios" element={<FinanceiroFuncionarios />} />
+            <Route path="folha" element={<FinanceiroFolha />} />
+            <Route path="comissoes" element={<FinanceiroComissoes />} />
             <Route path="metas" element={<FinanceiroMetas />} />
             <Route path="reservas" element={<FinanceiroReservas />} />
             <Route path="projecao" element={<FinanceiroProjecao />} />

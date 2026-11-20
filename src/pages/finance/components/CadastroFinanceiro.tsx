@@ -19,7 +19,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
 import { Field, ModalFooter, inputCls, selectCls, textareaCls } from "./ModalKit";
 
-export type TipoCampo = "text" | "money" | "date" | "month" | "select" | "bool" | "textarea";
+export type TipoCampo = "text" | "money" | "int" | "date" | "month" | "select" | "bool" | "textarea";
 
 export interface CampoCadastro {
   key: string;
@@ -31,6 +31,16 @@ export interface CampoCadastro {
   padrao?: string | number | boolean;
   /** Mostra como coluna na lista (default: true, menos textarea). */
   naLista?: boolean;
+  /** Texto de ajuda embaixo do campo no formulário. */
+  ajuda?: string;
+}
+
+/** Ações que um bloco "acima da lista" pode pedir ao cadastro. */
+export interface ApiCadastro {
+  /** Abre o formulário de novo item, já com alguns campos preenchidos. */
+  novo: (inicial?: Record<string, any>) => void;
+  /** Recarrega a lista (depois de uma ação feita fora do formulário). */
+  recarregar: () => void;
 }
 
 export interface ResumoCadastro {
@@ -65,6 +75,12 @@ interface Props {
    */
   enriquecer?: (linhas: any[], tenantId: string) => Promise<any[]>;
   dicaOrigem?: ReactNode;
+  /** Blocos de resumo mostrados entre os indicadores/filtros e a lista (ex.: saldo por pessoa). */
+  acima?: (linhas: any[], api: ApiCadastro) => ReactNode;
+  /** Sugestões (lista de nomes) por campo de texto, carregadas uma vez — viram o autocompletar do formulário. */
+  sugestoes?: (tenantId: string) => Promise<Record<string, string[]>>;
+  /** Botões extras no cabeçalho da página. */
+  acoesExtras?: ReactNode;
 }
 
 const vazio = (campos: CampoCadastro[]) =>
@@ -72,7 +88,7 @@ const vazio = (campos: CampoCadastro[]) =>
     campos.map((c) => [
       c.key,
       c.padrao ??
-        (c.tipo === "bool" ? false : c.tipo === "money" ? "" : c.tipo === "select" ? c.opcoes?.[0] ?? "" : c.tipo === "date" ? new Date().toISOString().slice(0, 10) : c.tipo === "month" ? new Date().toISOString().slice(0, 7) : ""),
+        (c.tipo === "bool" ? false : c.tipo === "money" || c.tipo === "int" ? "" : c.tipo === "select" ? c.opcoes?.[0] ?? "" : c.tipo === "date" ? new Date().toISOString().slice(0, 10) : c.tipo === "month" ? new Date().toISOString().slice(0, 7) : ""),
     ]),
   ) as Record<string, any>;
 
@@ -91,7 +107,7 @@ const dataBR = (iso?: string | null) => (iso ? iso.split("-").reverse().join("/"
  * reservas, adiantamentos, acordos, patrocínios, viagens). Cada tela é só uma
  * configuração: tabela + campos. Tudo isolado por empresa (tenant_id + RLS).
  */
-export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc = false, campos, campoStatus, ordenarPor = "created_at", resumos = [], rodape, progresso, enriquecer, dicaOrigem }: Props) {
+export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc = false, campos, campoStatus, ordenarPor = "created_at", resumos = [], rodape, progresso, enriquecer, dicaOrigem, acima, sugestoes, acoesExtras }: Props) {
   const { activeTenantId: tenantId } = useAuth();
   const { formatCurrency: brl } = useLocalization();
   const [linhas, setLinhas] = useState<any[]>([]);
@@ -101,6 +117,7 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
   const [editando, setEditando] = useState<any | null>(null); // linha existente ou {} (novo)
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
+  const [opcoesTexto, setOpcoesTexto] = useState<Record<string, string[]>>({});
 
   const NOVO = masc ? "Novo" : "Nova";
   const campoLista = campos.filter((c) => c.naLista ?? c.tipo !== "textarea");
@@ -128,6 +145,13 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  useEffect(() => {
+    if (!sugestoes || !tenantId) return;
+    let ativo = true;
+    sugestoes(tenantId).then((o) => ativo && setOpcoesTexto(o)).catch(() => undefined);
+    return () => { ativo = false; };
+  }, [sugestoes, tenantId]);
 
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -157,8 +181,8 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
     }
   };
 
-  const abrirNovo = () => {
-    setForm(vazio(campos));
+  const abrirNovo = (inicial?: Record<string, any>) => {
+    setForm({ ...vazio(campos), ...(inicial ?? {}) });
     setEditando({});
   };
   const abrirEdicao = (linha: any) => {
@@ -189,6 +213,7 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
         const n = t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t;
         payload[c.key] = Number(n.replace(/[^0-9.-]/g, "")) || 0;
       }
+      else if (c.tipo === "int") payload[c.key] = v === "" || v == null ? Number(c.padrao ?? 0) : Math.max(0, Math.round(Number(v)) || 0);
       else if (c.tipo === "date") payload[c.key] = v || null;
       else if (c.tipo === "bool") payload[c.key] = !!v;
       else payload[c.key] = v === "" ? null : v;
@@ -226,9 +251,10 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
       title={titulo}
       description={descricao}
       actions={
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {acoesExtras}
           <Button variant="outline" onClick={exportar} disabled={filtradas.length === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar planilha</Button>
-          <Button onClick={abrirNovo}><Plus className="mr-2 h-4 w-4" />{NOVO} {nomeItem}</Button>
+          <Button onClick={() => abrirNovo()}><Plus className="mr-2 h-4 w-4" />{NOVO} {nomeItem}</Button>
         </div>
       }
     >
@@ -254,6 +280,8 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
         {statusOpcoes.length > 0 && <FilterChips value={filtro} onChange={setFiltro} options={statusOpcoes} />}
       </FinanceKpiFilter>
 
+      {acima?.(linhas, { novo: (i) => abrirNovo(i), recarregar: carregar })}
+
       {loading && linhas.length === 0 ? (
         <Card className="space-y-2 p-4">
           {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
@@ -263,7 +291,7 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
           icon={Inbox}
           title={linhas.length === 0 ? `${masc ? "Nenhum" : "Nenhuma"} ${nomeItem} ${masc ? "cadastrado" : "cadastrada"}` : "Nada encontrado"}
           description={linhas.length === 0 ? `Cadastre ${masc ? "o primeiro" : "a primeira"} ${nomeItem} para começar a acompanhar aqui.` : "Tente limpar a busca ou o filtro."}
-          action={linhas.length === 0 ? <Button onClick={abrirNovo}><Plus className="mr-2 h-4 w-4" />{NOVO} {nomeItem}</Button> : undefined}
+          action={linhas.length === 0 ? <Button onClick={() => abrirNovo()}><Plus className="mr-2 h-4 w-4" />{NOVO} {nomeItem}</Button> : undefined}
         />
       ) : (
         <>
@@ -358,7 +386,7 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
       <Modal isOpen={!!editando} onClose={() => setEditando(null)} title={editando?.id ? `Editar ${nomeItem}` : `${NOVO} ${nomeItem}`} footer={<ModalFooter onCancel={() => setEditando(null)} submitLabel="Salvar" saving={saving} type="button" onSubmit={salvar} />}>
         <div className="space-y-3">
           {campos.map((c) => (
-            <Field key={c.key} label={c.label} required={c.obrigatorio}>
+            <Field key={c.key} label={c.label} required={c.obrigatorio} hint={c.ajuda}>
               {c.tipo === "select" ? (
                 <select className={selectCls()} value={form[c.key] ?? ""} onChange={(e) => setForm({ ...form, [c.key]: e.target.value })}>
                   {c.opcoes?.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -371,14 +399,21 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
               ) : c.tipo === "textarea" ? (
                 <textarea className={textareaCls} rows={3} value={form[c.key] ?? ""} onChange={(e) => setForm({ ...form, [c.key]: e.target.value })} />
               ) : (
-                <input
-                  className={inputCls()}
-                  type={c.tipo === "date" ? "date" : c.tipo === "month" ? "month" : "text"}
-                  inputMode={c.tipo === "money" ? "decimal" : undefined}
-                  placeholder={c.tipo === "money" ? "0,00" : undefined}
-                  value={form[c.key] ?? ""}
-                  onChange={(e) => setForm({ ...form, [c.key]: e.target.value })}
-                />
+                <>
+                  <input
+                    className={inputCls()}
+                    type={c.tipo === "date" ? "date" : c.tipo === "month" ? "month" : c.tipo === "int" ? "number" : "text"}
+                    min={c.tipo === "int" ? 0 : undefined}
+                    inputMode={c.tipo === "money" ? "decimal" : undefined}
+                    placeholder={c.tipo === "money" ? "0,00" : undefined}
+                    list={opcoesTexto[c.key]?.length ? `sug-${tabela}-${c.key}` : undefined}
+                    value={form[c.key] ?? ""}
+                    onChange={(e) => setForm({ ...form, [c.key]: e.target.value })}
+                  />
+                  {opcoesTexto[c.key]?.length ? (
+                    <datalist id={`sug-${tabela}-${c.key}`}>{opcoesTexto[c.key].map((o) => <option key={o} value={o} />)}</datalist>
+                  ) : null}
+                </>
               )}
             </Field>
           ))}

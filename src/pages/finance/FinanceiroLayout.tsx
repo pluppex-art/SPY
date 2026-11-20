@@ -39,6 +39,7 @@ import {
   HandCoins,
   Plane,
   PiggyBank,
+  BadgePercent,
 } from "lucide-react";
 import { SectionSidebar, type SectionNavGroup, type SectionNavItem } from "../../components/layout/SectionSidebar";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
@@ -63,12 +64,15 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
   if (has("educacao")) entradas.splice(1, 0, { title: "Mensalidades de Alunos", path: "/app/educacao/mensalidades", icon: GraduationCap });
   if (has("clinica")) entradas.splice(1, 0, { title: "Faturamento da Clínica", path: "/app/clinica/faturamento", icon: Stethoscope });
 
-  const pessoas: SectionNavItem[] = [];
-  if (has("rh")) pessoas.push({ title: "Equipe & Folha", path: "/app/equipe", icon: Users });
-  pessoas.push({ title: "Adiantamentos", path: "/app/financeiro/adiantamentos", icon: HandCoins });
-  pessoas.push({ title: "Acordos e Permutas", path: "/app/financeiro/acordos", icon: Handshake });
-  if (has("crm")) pessoas.push({ title: "Comissões & Vendedores", path: "/app/financeiro/indicacoes", icon: Handshake });
-  else pessoas.push({ title: "Indicações & Parcerias", path: "/app/financeiro/indicacoes", icon: Handshake });
+  // Folha e comissões ficam no próprio Financeiro (antes o item de equipe levava para o RH).
+  const pessoas: SectionNavItem[] = [
+    { title: "Funcionários e Salários", path: "/app/financeiro/funcionarios", icon: Users },
+    { title: "Folha de Pagamento", path: "/app/financeiro/folha", icon: Wallet },
+    { title: "Adiantamentos", path: "/app/financeiro/adiantamentos", icon: HandCoins },
+    { title: "Acordos e Permutas", path: "/app/financeiro/acordos", icon: Handshake },
+    { title: "Comissões de Vendedores", path: "/app/financeiro/comissoes", icon: BadgePercent },
+    { title: "Indicações e Parcerias", path: "/app/financeiro/indicacoes", icon: Gift },
+  ];
 
   return [
     {
@@ -153,6 +157,9 @@ const PAGINAS_COM_BOTAO_PROPRIO = [
   "/app/financeiro/acordos",
   "/app/financeiro/viagens",
   "/app/financeiro/metas",
+  "/app/financeiro/funcionarios",
+  "/app/financeiro/folha",
+  "/app/financeiro/comissoes",
   "/app/financeiro/reservas",
   "/app/financeiro/resumo",
   "/app/financeiro/agenda",
