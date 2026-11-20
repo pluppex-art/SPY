@@ -146,7 +146,7 @@ function formatPrice(value: number) {
 
 export default function VarejoVendas() {
   const { products, setProducts, colaboradores, appSettings, appSettingsLoaded, clienteBase, addClienteBase } = useData();
-  const { user, activeTenantId } = useAuth();
+  const { user, activeTenantId, updatePreferences } = useAuth();
   const tenantId = activeTenantId || "default";
   // Regras configuráveis da loja (Configurações → Varejo & PDV).
   const cfg = useVarejoConfig();
@@ -192,12 +192,10 @@ export default function VarejoVendas() {
   const [clienteNome, setClienteNome] = useState("");
   const [clienteCpf, setClienteCpf] = useState("");
   const [clienteId, setClienteId] = useState("");
-  const [viewProdutos, setViewProdutos] = useState<"quadro" | "lista">(() => {
-    try { return localStorage.getItem("pdv_view_produtos") === "lista" ? "lista" : "quadro"; } catch { return "quadro"; }
-  });
+  // Formato da lista de produtos: preferência do usuário (public.users.preferences), vale em qualquer aparelho.
+  const viewProdutos: "quadro" | "lista" = user?.preferences?.pdvViewProdutos === "lista" ? "lista" : "quadro";
   const trocarViewProdutos = (v: "quadro" | "lista") => {
-    setViewProdutos(v);
-    try { localStorage.setItem("pdv_view_produtos", v); } catch { /* sem storage: só não lembra */ }
+    if (v !== viewProdutos) void updatePreferences({ pdvViewProdutos: v });
   };
   const [vendedorSelecionado, setVendedorSelecionado] = useState(VENDEDOR_BALCAO);
 
