@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { KeyRound, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../../../components/ui/button";
 import { apiFetch } from "../../../../lib/apiClient";
@@ -14,6 +14,8 @@ export function SupervisorSenhaCard() {
   const podeDefinir = !!(user?.isMaster || user?.isTenantAdmin);
   const q = activeTenantId ? `?tenantId=${encodeURIComponent(activeTenantId)}` : "";
   const [definida, setDefinida] = useState<boolean | null>(null);
+  const [atualizadaEm, setAtualizadaEm] = useState<string | null>(null);
+  const [mostrar, setMostrar] = useState(false);
   const [senha, setSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -23,6 +25,7 @@ export function SupervisorSenhaCard() {
       const r = await apiFetch(`/api/varejo/supervisor-senha${q}`);
       const j = await r.json().catch(() => ({}));
       setDefinida(r.ok ? !!j.definida : null);
+      setAtualizadaEm(r.ok ? j.atualizadaEm ?? null : null);
     } catch { setDefinida(null); }
   }, [q]);
   useEffect(() => { void carregar(); }, [carregar]);
@@ -36,7 +39,8 @@ export function SupervisorSenhaCard() {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { toast.error(j.error || "Não foi possível salvar a senha."); return; }
       toast.success("Senha de supervisor salva.");
-      setSenha(""); setConfirmar(""); setDefinida(true);
+      setSenha(""); setConfirmar(""); setMostrar(false); setDefinida(true);
+      void carregar();
     } catch { toast.error("Não foi possível salvar a senha."); }
     finally { setSalvando(false); }
   };
@@ -52,17 +56,22 @@ export function SupervisorSenhaCard() {
       </div>
       <p className={`text-xs font-semibold flex items-center gap-1.5 ${definida ? "text-emerald-500" : "text-amber-500"}`}>
         <ShieldCheck className="w-3.5 h-3.5" />
-        {definida === null ? "Verificando…" : definida ? "Senha definida." : "Ainda não definida: sem ela, o caixa não consegue remover item nem cancelar venda."}
+        {definida === null ? "Verificando…" : definida ? `Senha definida${atualizadaEm ? ` · última alteração em ${new Date(atualizadaEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}` : ""}.` : "Ainda não definida: sem ela, o caixa não consegue remover item nem cancelar venda."}
       </p>
       {podeDefinir ? (
         <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
           <div>
             <label className="text-xs text-[var(--color-text-muted)] block mb-1">{definida ? "Nova senha" : "Senha"}</label>
-            <input type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} className={inputCls} />
+            <div className="relative">
+              <input type={mostrar ? "text" : "password"} autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} className={`${inputCls} pr-9`} />
+              <button type="button" onClick={() => setMostrar((v) => !v)} aria-label={mostrar ? "Ocultar senha digitada" : "Mostrar senha digitada"} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
+                {mostrar ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           <div>
             <label className="text-xs text-[var(--color-text-muted)] block mb-1">Confirmar senha</label>
-            <input type="password" autoComplete="new-password" value={confirmar} onChange={(e) => setConfirmar(e.target.value)} className={inputCls} />
+            <input type={mostrar ? "text" : "password"} autoComplete="new-password" value={confirmar} onChange={(e) => setConfirmar(e.target.value)} className={inputCls} />
           </div>
           <Button type="button" variant="outline" onClick={salvar} disabled={salvando || !senha}>{salvando ? "Salvando…" : definida ? "Trocar senha" : "Definir senha"}</Button>
         </div>
