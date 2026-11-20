@@ -1201,7 +1201,7 @@ export default function VarejoVendas() {
 
   return (
     <PageContainer
-      title="Frente de Caixa (PDV Comercial)"
+      title="Frente de Caixa"
       description="O terminal de vendas do caixa: leitor de código de barras, vendas em espera, atalhos de teclado e a gestão do caixa."
       actions={
         <div className="flex flex-wrap items-center gap-2">
