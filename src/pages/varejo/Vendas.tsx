@@ -732,35 +732,63 @@ export default function VarejoVendas() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [cart, vendasEmEspera, caixaAberto, soundEnabled, clienteNome, clienteCpf, vendedorSelecionado, descontoTipo, descontoValor, subtotal]);
 
-  // Rascunho da venda em andamento: sobrevive a recarregar a página e só some ao
-  // finalizar, cancelar ou colocar em espera (todos esvaziam o carrinho).
-  // Fica neste aparelho (é o caixa que está sendo usado), separado por empresa e usuário.
+  // Rascunho da venda em andamento: guardado no banco (public.pdv_rascunhos, um por usuário e
+  // empresa), então sobrevive a fechar o sistema ou trocar de computador. Só some ao finalizar,
+  // cancelar ou colocar em espera (todos esvaziam o carrinho). Uma cópia local serve de reserva
+  // se o banco não responder.
   const [rascunhoPronto, setRascunhoPronto] = useState(false);
+  const rascunhoDbOk = useRef(true);
   const rascunhoKey = activeTenantId && user?.id ? `pdv_rascunho:${activeTenantId}:${user.id}` : null;
+  const aplicarRascunho = (d: any) => {
+    if (!d || !Array.isArray(d.cart) || d.cart.length === 0) return;
+    setCart(d.cart);
+    setClienteNome(d.clienteNome || "");
+    setClienteCpf(d.clienteCpf || "");
+    setClienteId(d.clienteId || "");
+    if (d.vendedor) setVendedorSelecionado(d.vendedor);
+    if (d.descontoTipo === "valor" || d.descontoTipo === "porcentagem") setDescontoTipo(d.descontoTipo);
+    setDescontoValor(d.descontoValor || "");
+    toast.info("Venda em andamento recuperada.");
+  };
   useEffect(() => {
     if (!rascunhoKey || rascunhoPronto) return;
-    try {
-      const raw = localStorage.getItem(rascunhoKey);
-      const d = raw ? JSON.parse(raw) : null;
-      if (d && Array.isArray(d.cart) && d.cart.length > 0) {
-        setCart(d.cart);
-        setClienteNome(d.clienteNome || "");
-        setClienteCpf(d.clienteCpf || "");
-        setClienteId(d.clienteId || "");
-        if (d.vendedor) setVendedorSelecionado(d.vendedor);
-        if (d.descontoTipo === "valor" || d.descontoTipo === "porcentagem") setDescontoTipo(d.descontoTipo);
-        setDescontoValor(d.descontoValor || "");
-        toast.info("Venda em andamento recuperada.");
+    let cancelado = false;
+    (async () => {
+      let snap: any = null;
+      let dbOk = false;
+      if (supabase && activeTenantId && user?.id) {
+        const { data, error } = await supabase.from("pdv_rascunhos").select("snapshot").eq("tenant_id", activeTenantId).eq("user_id", user.id).maybeSingle();
+        if (!error) { dbOk = true; snap = data?.snapshot ?? null; }
       }
-    } catch { /* rascunho corrompido: ignora */ }
-    setRascunhoPronto(true);
+      rascunhoDbOk.current = dbOk;
+      try {
+        if (dbOk) localStorage.removeItem(rascunhoKey); // o banco manda: evita ressuscitar rascunho já cancelado em outro lugar
+        else { const raw = localStorage.getItem(rascunhoKey); snap = raw ? JSON.parse(raw) : null; }
+      } catch { /* sem storage ou rascunho corrompido */ }
+      if (cancelado) return;
+      aplicarRascunho(snap);
+      setRascunhoPronto(true);
+    })();
+    return () => { cancelado = true; };
   }, [rascunhoKey, rascunhoPronto]);
   useEffect(() => {
-    if (!rascunhoKey || !rascunhoPronto) return;
+    if (!rascunhoKey || !rascunhoPronto || !activeTenantId || !user?.id) return;
+    const snapshot = { cart, clienteNome, clienteCpf, clienteId, vendedor: vendedorSelecionado, descontoTipo, descontoValor };
     try {
       if (cart.length === 0) localStorage.removeItem(rascunhoKey);
-      else localStorage.setItem(rascunhoKey, JSON.stringify({ cart, clienteNome, clienteCpf, clienteId, vendedor: vendedorSelecionado, descontoTipo, descontoValor }));
+      else localStorage.setItem(rascunhoKey, JSON.stringify(snapshot));
     } catch { /* sem storage: só não guarda */ }
+    if (!supabase || !rascunhoDbOk.current) return;
+    const tenantId = activeTenantId;
+    const userId = user.id;
+    const gravar = async () => {
+      if (cart.length === 0) await supabase!.from("pdv_rascunhos").delete().eq("tenant_id", tenantId).eq("user_id", userId);
+      else await supabase!.from("pdv_rascunhos").upsert({ tenant_id: tenantId, user_id: userId, snapshot, updated_at: new Date().toISOString() }, { onConflict: "tenant_id,user_id" });
+    };
+    // Carrinho vazio apaga na hora (não deixa venda já encerrada voltar); alterações esperam um instante.
+    if (cart.length === 0) { void gravar(); return; }
+    const t = setTimeout(() => { void gravar(); }, 700);
+    return () => clearTimeout(t);
   }, [rascunhoKey, rascunhoPronto, cart, clienteNome, clienteCpf, clienteId, vendedorSelecionado, descontoTipo, descontoValor]);
 
   // Finalizar Venda
