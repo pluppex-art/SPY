@@ -41,7 +41,7 @@ export function KpiTile({
         <Icon className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">{label}</span>
       </div>
-      <p className={cn("mt-1.5 truncate text-2xl font-black tabular-nums leading-tight", VALOR[tom])}>{value}</p>
+      <p className={cn("mt-1.5 whitespace-nowrap text-xl font-black tabular-nums leading-tight sm:text-2xl", VALOR[tom])}>{value}</p>
       {apoio && <p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">{apoio}</p>}
     </Card>
   );
