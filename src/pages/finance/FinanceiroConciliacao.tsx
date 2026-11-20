@@ -18,6 +18,8 @@ import { friendlyError } from "../../lib/friendlyError";
 
 import { HelpTip } from "../../components/ui/help-tip";
 import { SecaoCard } from "./components/SecaoCard";
+import { useConexaoBanco, estadoDaConexao } from "./hooks/useConexaoBanco";
+import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { Link } from "react-router-dom";
 type ExtratoItem = {
   id: string;
@@ -104,6 +106,12 @@ export default function FinanceiroConciliacao() {
   const { financeEntries, financeBankAccounts } = useData() as any;
 
   const [extrato, setExtrato] = useState<ExtratoItem[]>([]);
+  // Sobe o contador para recarregar o extrato depois que a conexão com o banco importar movimentações.
+  const [recarga, setRecarga] = useState(0);
+  const conexao = useConexaoBanco(() => setRecarga((n) => n + 1));
+  const conexoesDa = (contaId: string) => (conexao.status?.connections ?? []).filter((x) => x.conta_bancaria_id === contaId);
+  const itensConectados = [...new Set((conexao.status?.connections ?? []).map((x) => x.item_id))];
+  const ocupado = conexao.ocupado !== null;
   // Conta do extrato que está sendo importado: o nome dela passa a ser o "banco" de cada linha importada.
   const contasAtivas = useMemo(() => (financeBankAccounts as any[]).filter((c) => !c.arquivada), [financeBankAccounts]);
   const [contaExtratoId, setContaExtratoId] = useState("");
@@ -167,7 +175,7 @@ export default function FinanceiroConciliacao() {
     return () => {
       cancelled = true;
     };
-  }, [activeTenantId]);
+  }, [activeTenantId, recarga]);
 
   const conciliados = extrato.filter(e => e.conciliado).length;
   const pendentes = extrato.filter(e => !e.conciliado).length;
@@ -345,7 +353,10 @@ export default function FinanceiroConciliacao() {
         </SecaoCard>
       )}
 
-      <SecaoCard titulo={`Contas e conexão com o banco — ${contasAtivas.length} conta(s)`} icon={Landmark} semPadding className="mb-6">
+      {conexao.widget}
+
+      <SecaoCard titulo={`Contas e conexão com o banco — ${contasAtivas.length} conta(s)`} icon={Landmark} semPadding className="mb-6"
+        direita={itensConectados.length > 0 ? <Button size="sm" variant="outline" onClick={() => conexao.sincronizar()} disabled={ocupado}><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${conexao.ocupado?.startsWith("sync") ? "animate-spin" : ""}`} />Sincronizar tudo</Button> : undefined}>
         {contasAtivas.length === 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm text-[var(--color-text-muted)]">
             <span>Cadastre a conta do banco para importar o extrato dela e conciliar.</span>
@@ -368,16 +379,48 @@ export default function FinanceiroConciliacao() {
                     <tr key={c.id} className="border-b border-[var(--color-border-default)] last:border-0">
                       <td className="px-4 py-2.5"><p className="font-semibold">{c.nome}</p><p className="text-xs text-[var(--color-text-muted)]">{[c.banco, c.agencia && `ag. ${c.agencia}`, c.numero_conta && `cc ${c.numero_conta}`].filter(Boolean).join(" · ") || "Sem dados bancários"}</p></td>
                       <td className="px-3 py-2.5">
-                        {c.conexao_status === "Conectada"
-                          ? <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-600">Conectada</span>
-                          : <span className="inline-flex rounded-full bg-slate-500/15 px-2 py-0.5 text-xs font-semibold text-slate-600">Manual</span>}
+                        {(() => {
+                          const con = conexoesDa(c.id)[0];
+                          if (!con) return <span className="inline-flex rounded-full bg-slate-500/15 px-2 py-0.5 text-xs font-semibold text-slate-600">Manual</span>;
+                          const est = estadoDaConexao(con);
+                          const cor = est.tom === "ok" ? "bg-emerald-500/15 text-emerald-600" : est.tom === "aviso" ? "bg-amber-500/15 text-amber-600" : "bg-red-500/15 text-red-600";
+                          return (
+                            <>
+                              <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${cor}`}>{est.texto}</span>
+                              <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{con.connector_name ?? "Banco"}{con.last_sync_at ? ` · sincronizada ${new Date(con.last_sync_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}</p>
+                              {con.last_error && <p className="mt-0.5 max-w-[16rem] text-[11px] text-red-600">{con.last_error}</p>}
+                            </>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-2.5 text-[var(--color-text-muted)]">{ultima ? String(ultima).split("-").reverse().join("/") : "nenhum importado"}</td>
                       <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{itens.filter((i) => !i.conciliado).length}</td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex justify-end gap-1.5">
                           <Button size="sm" variant="outline" onClick={() => { setContaExtratoId(c.id); setTimeout(() => fileInputRef.current?.click(), 0); }}><Upload className="mr-1.5 h-3.5 w-3.5" />Importar extrato</Button>
-                          <Button size="sm" variant="ghost" disabled title="Conexão automática com o banco: em breve"><Link2 className="mr-1.5 h-3.5 w-3.5" />Conectar</Button>
+                          {(() => {
+                            const con = conexoesDa(c.id)[0];
+                            if (!con) {
+                              const pronto = !!conexao.status?.configured;
+                              return (
+                                <Button size="sm" disabled={!pronto || ocupado} onClick={() => conexao.conectar(c.id)} title={pronto ? "Conectar esta conta ao banco automaticamente" : "A conexão automática ainda não foi ativada neste servidor (faltam as chaves do Pluggy)"}>
+                                  <Link2 className="mr-1.5 h-3.5 w-3.5" />Conectar
+                                </Button>
+                              );
+                            }
+                            const est = estadoDaConexao(con);
+                            return (
+                              <>
+                                {est.precisaReconectar
+                                  ? <Button size="sm" disabled={ocupado} onClick={() => conexao.conectar(c.id, con.item_id)}><Link2 className="mr-1.5 h-3.5 w-3.5" />Reconectar</Button>
+                                  : <Button size="sm" variant="outline" disabled={ocupado} onClick={() => conexao.sincronizar(con.item_id)}><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${conexao.ocupado === `sync:${con.item_id}` ? "animate-spin" : ""}`} />Sincronizar</Button>}
+                                <Button size="sm" variant="ghost" disabled={ocupado} aria-label="Desconectar do banco" title="Desconectar do banco"
+                                  onClick={async () => { if (await confirmDialog({ title: "Desconectar do banco", description: `Parar de sincronizar "${c.nome}"? As movimentações já importadas continuam na Conciliação.` })) conexao.desconectar(con.item_id); }}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            );
+                          })()}
                         </div>
                       </td>
                     </tr>
@@ -388,7 +431,7 @@ export default function FinanceiroConciliacao() {
           </div>
         )}
         <p className="border-t border-[var(--color-border-default)] px-4 py-2.5 text-xs text-[var(--color-text-muted)]">
-          Por enquanto o extrato entra por arquivo (OFX ou CSV) baixado no app do banco. A conexão automática com os bancos ainda não está disponível.
+          {conexao.status?.configured ? "Conectando a conta ao banco, as movimentações chegam sozinhas. Sem conexão, o extrato continua entrando por arquivo (OFX ou CSV) baixado no app do banco." : "A conexão automática com os bancos ainda não foi ativada neste servidor (faltam as chaves do Pluggy). Enquanto isso, o extrato entra por arquivo (OFX ou CSV) baixado no app do banco."}
         </p>
       </SecaoCard>
 

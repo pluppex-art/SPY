@@ -30,6 +30,9 @@ Qualquer variável prefixada com `VITE_` é embutida em texto plano no bundle JS
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_OAUTH_REDIRECT_URI` / `GOOGLE_OAUTH_SUCCESS_ORIGIN` | Integração Google Calendar server-side (`server/googleCalendar.ts`). O secret nunca vai pro navegador. |
 | `GOOGLE_OAUTH_STATE_SECRET` | Chave HMAC do `state` do OAuth. Sem ela cai em `SUPABASE_SERVICE_ROLE_KEY` — defina uma própria para poder rotacionar. |
 | `PUBLIC_APP_URL` / `APP_URL` | URL pública do app (montagem de links/webhooks). |
+| `PLUGGY_CLIENT_ID` / `PLUGGY_CLIENT_SECRET` | Conexão automática com bancos (Open Finance) via Pluggy — `server/pluggy.ts`. Sem as duas a integração fica desligada (o botão "Conectar" da Conciliação aparece desativado e o extrato segue por OFX/CSV). **O secret só existe no servidor**: nunca em `VITE_*` nem no navegador. |
+| `PLUGGY_WEBHOOK_SECRET` | Opcional. Segredo de assinatura dos webhooks do Pluggy (`X-Pluggy-Signature`). Quando definido e o corpo bruto está disponível, chamadas com assinatura inválida levam 401. Na Vercel o corpo já chega interpretado, então a conferência não é possível lá — o webhook é tratado só como sinal (ele nunca grava dados vindos da chamada, só dispara uma nova leitura com as nossas credenciais). |
+| `PLUGGY_SANDBOX` | `true` mostra os conectores de teste (sandbox) no widget. Deixe desligado em produção. |
 | `AURORA_WEBHOOK_URL` | URL do webhook n8n da Aurora. Só o backend a conhece — ver [WEBHOOKS.md](WEBHOOKS.md#aurora-chat--n8n). |
 
 ## Achado desta auditoria: chaves reais no histórico do git

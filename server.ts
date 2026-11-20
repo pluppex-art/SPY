@@ -13,6 +13,7 @@ import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
 import { createGoogleIntegrationsRouter, makeInitialSync } from "./server/googleIntegrations.js";
 import { createSaas, aiContext } from "./server/saas.js";
 import { createCheckoutRouter } from "./server/checkout.js";
+import { createPluggyRouter, createPluggyWebhookHandler } from "./server/pluggy.js";
 import { upsertLead, acharLead } from "./server/leadUpsert.js";
 import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./server/whatsappProvider.js";
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
@@ -459,6 +460,15 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
+// Webhook do Pluggy (conexão com bancos): precisa do corpo BRUTO para conferir X-Pluggy-Signature, então fica ANTES do
+// json() global. Na Vercel o corpo já vem interpretado (req.body definido) e o raw() é pulado — o handler lida com os dois.
+app.post(
+  "/api/pluggy/webhook",
+  rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }),
+  (req: any, res, next) => (req.body !== undefined ? next() : express.raw({ type: "*/*", limit: "1mb" })(req, res, next)),
+  createPluggyWebhookHandler({ supabaseService }),
+);
+
 // Vercel pre-parses the body before passing to Express — skip json() if already parsed
 app.use((req: any, res, next) => {
   if (req.body !== undefined) return next();
@@ -585,6 +595,7 @@ app.use("/api/whatsapp", saas.aiGate({ enforceBudget: false }));
 app.use("/api/billing/webhook", rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }));
 app.use("/api/billing", saas.billingRouter);
 app.use("/api/lgpd", saas.lgpdRouter);
+app.use("/api/pluggy", createPluggyRouter({ requireUser, requireTenantAdmin, supabaseService }));
 app.use("/api/checkout", createCheckoutRouter({
   requireUser, requireMaster, supabaseService, provisionPlan: saas.provisionPlan,
   publicAppUrl: (process.env.PUBLIC_APP_URL || "http://localhost:3002").replace(/\/+$/, ""),
