@@ -732,6 +732,37 @@ export default function VarejoVendas() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [cart, vendasEmEspera, caixaAberto, soundEnabled, clienteNome, clienteCpf, vendedorSelecionado, descontoTipo, descontoValor, subtotal]);
 
+  // Rascunho da venda em andamento: sobrevive a recarregar a página e só some ao
+  // finalizar, cancelar ou colocar em espera (todos esvaziam o carrinho).
+  // Fica neste aparelho (é o caixa que está sendo usado), separado por empresa e usuário.
+  const [rascunhoPronto, setRascunhoPronto] = useState(false);
+  const rascunhoKey = activeTenantId && user?.id ? `pdv_rascunho:${activeTenantId}:${user.id}` : null;
+  useEffect(() => {
+    if (!rascunhoKey || rascunhoPronto) return;
+    try {
+      const raw = localStorage.getItem(rascunhoKey);
+      const d = raw ? JSON.parse(raw) : null;
+      if (d && Array.isArray(d.cart) && d.cart.length > 0) {
+        setCart(d.cart);
+        setClienteNome(d.clienteNome || "");
+        setClienteCpf(d.clienteCpf || "");
+        setClienteId(d.clienteId || "");
+        if (d.vendedor) setVendedorSelecionado(d.vendedor);
+        if (d.descontoTipo === "valor" || d.descontoTipo === "porcentagem") setDescontoTipo(d.descontoTipo);
+        setDescontoValor(d.descontoValor || "");
+        toast.info("Venda em andamento recuperada.");
+      }
+    } catch { /* rascunho corrompido: ignora */ }
+    setRascunhoPronto(true);
+  }, [rascunhoKey, rascunhoPronto]);
+  useEffect(() => {
+    if (!rascunhoKey || !rascunhoPronto) return;
+    try {
+      if (cart.length === 0) localStorage.removeItem(rascunhoKey);
+      else localStorage.setItem(rascunhoKey, JSON.stringify({ cart, clienteNome, clienteCpf, clienteId, vendedor: vendedorSelecionado, descontoTipo, descontoValor }));
+    } catch { /* sem storage: só não guarda */ }
+  }, [rascunhoKey, rascunhoPronto, cart, clienteNome, clienteCpf, clienteId, vendedorSelecionado, descontoTipo, descontoValor]);
+
   // Finalizar Venda
   const handleFinalizarVenda = async () => {
     if (cart.length === 0) {
