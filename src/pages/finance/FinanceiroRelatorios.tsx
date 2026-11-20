@@ -17,6 +17,7 @@ import { parseEntryDate } from "./lib/financeDates";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
 import { cn } from "../../lib/utils";
+import { SecaoCard } from "./components/SecaoCard";
 
 interface ReportLink { title: string; href: string; icon: LucideIcon; }
 interface ReportGroup { title: string; tone: "danger" | "success" | "info" | "neutral"; reports: ReportLink[]; }
@@ -158,15 +159,9 @@ export default function FinanceiroRelatorios() {
           </FilterBar>
         </FinanceKpiFilter>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> Receita x Despesa — Últimos 6 Meses
-            </h3>
-            <Link to="/app/financeiro/dre" className="text-[11px] font-semibold text-[var(--color-primary-blue)] hover:underline flex items-center gap-0.5">
+        <SecaoCard titulo="Receita x Despesa — Últimos 6 Meses" icon={BarChart3} direita={<><Link to="/app/financeiro/dre" className="text-[11px] font-semibold text-[var(--color-primary-blue)] hover:underline flex items-center gap-0.5">
               Ver DRE completo <ChevronRight className="w-3 h-3" />
-            </Link>
-          </div>
+            </Link></>}>
           {mesesComMovimento < 2 && (
             <p className="text-[11px] text-[var(--color-text-faint)] mb-3">
               Ainda há pouco histórico de lançamentos — este gráfico fica mais informativo à medida que os meses passam.
@@ -186,7 +181,7 @@ export default function FinanceiroRelatorios() {
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </SecaoCard>
 
         {gruposVisiveis.map(group => (
           <div key={group.title}>

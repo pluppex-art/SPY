@@ -14,6 +14,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseEntryDate } from "./lib/financeDates";
 import { calcularDRE, categoriesById, getMonthlyDreSeries, pctDelta, type FinanceCategoryLike, type DreResult } from "./lib/financeEngine";
 import { apiFetch } from "../../lib/apiClient";
+import { SecaoCard } from "./components/SecaoCard";
 
 type Periodo = "mensal" | "trimestral" | "semestral" | "anual" | "personalizado";
 
@@ -206,12 +207,7 @@ export default function FinanceiroDRE() {
         </FinanceKpiFilter>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Card className="lg:col-span-2 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> Estrutura de Lucratividade
-              </h3>
-            </div>
+          <SecaoCard titulo="Estrutura de Lucratividade" icon={BarChart3} className="lg:col-span-2">
             <div className="h-40 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} layout="vertical">
@@ -224,7 +220,7 @@ export default function FinanceiroDRE() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </SecaoCard>
 
           <Card className="p-6 flex flex-col justify-between">
             <div>
@@ -241,12 +237,7 @@ export default function FinanceiroDRE() {
           </Card>
         </div>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-              <LineChartIcon className="w-4 h-4 text-[var(--color-text-faint)]" /> Tendência — Últimos 6 Meses
-            </h3>
-          </div>
+        <SecaoCard titulo="Tendência — Últimos 6 Meses" icon={LineChartIcon}>
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthlySeries} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -260,18 +251,11 @@ export default function FinanceiroDRE() {
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </SecaoCard>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6 pb-4 border-b border-[var(--color-border-subtle)]">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-[var(--color-text-faint)]" />
-              Demonstração Consolidada ({periodo === "mensal" ? "Mês Atual" : periodo === "trimestral" ? "Trimestre" : periodo === "semestral" ? "Semestre" : periodo === "anual" ? "Ano" : "Período Personalizado"})
-            </h3>
-            <span className="text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 border border-[var(--color-border-default)] rounded text-[var(--color-text-muted)]">
+        <SecaoCard titulo={<>Demonstração Consolidada ({periodo === "mensal" ? "Mês Atual" : periodo === "trimestral" ? "Trimestre" : periodo === "semestral" ? "Semestre" : periodo === "anual" ? "Ano" : "Período Personalizado"})</>} icon={Calendar} direita={<><span className="text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 border border-[var(--color-border-default)] rounded text-[var(--color-text-muted)]">
               Regime de Competência
-            </span>
-          </div>
+            </span></>}>
 
           <div className="space-y-1">
             {dreLines.map((line, idx) => (
@@ -288,7 +272,7 @@ export default function FinanceiroDRE() {
               </div>
             ))}
           </div>
-        </Card>
+        </SecaoCard>
       </div>
     </PageContainer>
   );

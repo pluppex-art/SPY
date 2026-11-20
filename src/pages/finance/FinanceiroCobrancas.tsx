@@ -26,6 +26,7 @@ import { useRowOpen } from "./components/useRowOpen";
 import { ClienteSelect } from "./components/ClienteSelect";
 
 import { HelpTip } from "../../components/ui/help-tip";
+import { SecaoCard } from "./components/SecaoCard";
 const PAYMENT_METHODS = ["Pix", "Boleto", "Cartão de Crédito", "Cartão de Débito", "Transferência/TED", "Dinheiro", "Cheque", "Outro"];
 const todayIso = () => new Date().toISOString().split("T")[0];
 const emptyCobranca = () => ({
@@ -300,8 +301,7 @@ export default function FinanceiroCobrancas() {
       </FinanceKpiFilter>
 
       {(cobrancasKpis.valorLiquidado > 0 || cobrancasKpis.valorPendente > 0) && (
-        <Card className="p-4 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] mb-6">
-          <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-2">Liquidado x Pendente (por valor)</h3>
+        <SecaoCard titulo="Liquidado x Pendente (por valor)" className="bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] mb-6">
           <div className="h-40 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -324,7 +324,7 @@ export default function FinanceiroCobrancas() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </SecaoCard>
       )}
 
       {/* Table */}

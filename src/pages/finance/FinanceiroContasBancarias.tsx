@@ -17,6 +17,7 @@ import { cn } from "../../lib/utils";
 import { ViewModal } from "./components/ViewModal";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { contaBancariaDrillColumns } from "../../components/ui/drillColumns";
+import { SecaoCard } from "./components/SecaoCard";
 
 const TIPOS: { id: string; label: string }[] = [
   { id: "CONTA_CORRENTE", label: "Conta Corrente" },
@@ -257,10 +258,7 @@ export default function FinanceiroContasBancarias() {
         </FinanceKpiFilter>
 
         {chartData.length > 1 && (
-          <Card className="p-6">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> Saldo por Conta
-            </h3>
+          <SecaoCard titulo="Saldo por Conta" icon={BarChart3}>
             <div className="w-full" style={{ height: Math.max(120, chartData.length * 36) }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
@@ -273,7 +271,7 @@ export default function FinanceiroContasBancarias() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </SecaoCard>
         )}
 
         {listaExibida.length === 0 ? (

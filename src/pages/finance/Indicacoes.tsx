@@ -23,6 +23,7 @@ import { ClienteSelect } from "./components/ClienteSelect";
 import { Field, FormSection, ModalFooter, ModalTitle, inputCls, selectCls, textareaCls } from "./components/ModalKit";
 import { formatPhone } from "../../lib/utils";
 import { ViewModal } from "./components/ViewModal";
+import { SecaoCard } from "./components/SecaoCard";
 
 const DEFAULT_COMMISSION_KEY = "indicacao_comissao_padrao";
 const AFFILIATES_KEY = "afiliados_sistema";
@@ -482,10 +483,7 @@ export default function Indicacoes() {
       </FinanceKpiFilter>
 
       {indicacoes.length > 0 && (
-        <Card className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-          <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> Indicações por Status
-          </h3>
+        <SecaoCard titulo="Indicações por Status" icon={BarChart3} className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
           <div className="h-40 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={statusBreakdown} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -499,7 +497,7 @@ export default function Indicacoes() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </SecaoCard>
       )}
 
       {/* Configuração de Comissão Padrão */}
@@ -534,11 +532,7 @@ export default function Indicacoes() {
       </Card>
 
       {/* Tabela de Indicações */}
-      <Card className="p-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Histórico de Indicações ({indicacoesFiltradas.length === indicacoes.length ? indicacoes.length : `${indicacoesFiltradas.length} de ${indicacoes.length}`})</h3>
-          <span className="text-[10px] text-[var(--color-text-muted)] uppercase font-mono">Clique no status para avançar o fluxo</span>
-        </div>
+      <SecaoCard titulo={<>Histórico de Indicações ({indicacoesFiltradas.length === indicacoes.length ? indicacoes.length : `${indicacoesFiltradas.length} de ${indicacoes.length}`})</>} direita={<><span className="text-[10px] text-[var(--color-text-muted)] uppercase font-mono">Clique no status para avançar o fluxo</span></>} semPadding className="p-0 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
 
         {indicacoes.length === 0 ? (
           <div className="p-12 text-center text-xs text-[var(--color-text-muted)]">
@@ -609,7 +603,7 @@ export default function Indicacoes() {
             </table>
           </div>
         )}
-      </Card>
+      </SecaoCard>
 
       {/* ── MODAL 1: CADASTRAR AFILIADO / INDICADOR ── */}
       <Modal

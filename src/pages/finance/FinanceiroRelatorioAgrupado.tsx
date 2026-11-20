@@ -16,6 +16,7 @@ import { parseEntryDate } from "./lib/financeDates";
 import { dreTipoDe, categoriesById, type FinanceEntryLike, type FinanceCategoryLike } from "./lib/financeEngine";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
+import { SecaoCard } from "./components/SecaoCard";
 
 type Dimension = "description" | "day" | "dreTipo" | "category" | "tags" | "centroCusto" | "counterparty";
 type Periodo = "mes" | "trimestre" | "ano" | "tudo" | "personalizado";
@@ -241,8 +242,7 @@ export default function FinanceiroRelatorioAgrupado() {
         </FinanceKpiFilter>
 
         {chartData.length > 0 && (
-          <Card className="p-6 print:hidden">
-            <h3 className="text-xs font-semibold text-[var(--color-text-primary)] mb-4">Distribuição por {config.groupLabel}</h3>
+          <SecaoCard titulo={<>Distribuição por {config.groupLabel}</>} className="print:hidden">
             <div style={{ height: Math.max(180, chartData.length * 34) }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 24, top: 0, bottom: 0 }}>
@@ -256,7 +256,7 @@ export default function FinanceiroRelatorioAgrupado() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </SecaoCard>
         )}
 
         <Card className="overflow-hidden">

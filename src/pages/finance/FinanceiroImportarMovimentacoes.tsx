@@ -5,6 +5,7 @@ import { Button } from "../../components/ui/button";
 import { Download, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../contexts/DataContext";
+import { SecaoCard } from "./components/SecaoCard";
 
 type TipoLancamento = "Recebimentos" | "Despesas fixas" | "Despesas variáveis" | "Pessoas" | "Impostos";
 
@@ -257,8 +258,7 @@ export default function FinanceiroImportarMovimentacoes() {
       <div className="max-w-3xl mx-auto space-y-6 pb-12">
         {step === 1 && (
           <>
-            <Card className="p-6">
-              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Regras de preenchimento</h3>
+            <SecaoCard titulo="Regras de preenchimento">
               <p className="text-xs text-[var(--color-text-faint)] mb-4">Apenas arquivos .csv, até 2 MB (esta versão não lê .xlsx binário — exporte sua planilha como CSV).</p>
               <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left mb-4">
                 <thead className="text-[10px] uppercase font-semibold text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
@@ -289,7 +289,7 @@ export default function FinanceiroImportarMovimentacoes() {
                 </table></div>
               </details>
               <Button variant="outline" onClick={handleBaixarModelo} className="h-9 px-4 text-xs font-medium gap-1.5"><Download className="w-3.5 h-3.5" /> Baixar modelo</Button>
-            </Card>
+            </SecaoCard>
 
             <Card className="p-8 border-2 border-dashed border-[var(--color-border-default)] text-center">
               <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" />

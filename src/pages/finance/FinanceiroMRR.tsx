@@ -21,6 +21,7 @@ import {
 
 import { useMaxdataStats, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 import { useAuth } from "../../contexts/AuthContext";
+import { SecaoCard } from "./components/SecaoCard";
 
 export default function FinanceiroMRR() {
   const { contracts } = useData();
@@ -81,13 +82,9 @@ export default function FinanceiroMRR() {
           <KpiDrillChips items={[{ label: "MRR perdido (cancelados)", onClick: () => setDrillCanceladosOpen(true) }]} />
         </FinanceKpiFilter>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Projeção de MRR</h3>
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-warning)] border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/10 rounded px-2 py-0.5">
+        <SecaoCard titulo="Projeção de MRR" direita={<><span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-warning)] border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/10 rounded px-2 py-0.5">
               Projetado — não é receita recebida
-            </span>
-          </div>
+            </span></>}>
           {projection.insufficientData ? (
             <p className="text-xs text-[var(--color-text-faint)] mt-4">
               Dados insuficientes para projeção — é preciso pelo menos 2 meses de histórico de contratos.
@@ -124,12 +121,9 @@ export default function FinanceiroMRR() {
               </div>
             </>
           )}
-        </Card>
+        </SecaoCard>
 
-        <Card className="overflow-hidden">
-          <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Contratos Ativos (Realizado)</h3>
-          </div>
+        <SecaoCard titulo="Contratos Ativos (Realizado)" semPadding>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
@@ -156,7 +150,7 @@ export default function FinanceiroMRR() {
               </tbody>
             </table>
           </div>
-        </Card>
+        </SecaoCard>
       </div>
 
       <DrillDownPanel

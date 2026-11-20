@@ -13,6 +13,7 @@ import { getRevenueProjection } from "../../lib/revenueMetrics";
 import { cn } from "../../lib/utils";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
+import { SecaoCard } from "./components/SecaoCard";
 
 const HORIZONTES = [7, 15, 30, 60, 90] as const;
 
@@ -102,12 +103,7 @@ export default function FinanceiroProjecao() {
           <KpiDrillChips items={[{ label: "Recebimentos previstos", onClick: () => setDrillKey("receber") }, { label: "Pagamentos previstos", onClick: () => setDrillKey("pagar") }]} />
         </FinanceKpiFilter>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-              <Waves className="w-4 h-4 text-[var(--color-text-faint)]" /> Saldo Acumulado Projetado ({horizonte}d)
-            </h3>
-          </div>
+        <SecaoCard titulo={<>Saldo Acumulado Projetado ({horizonte}d)</>} icon={Waves}>
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={grupos} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -126,12 +122,9 @@ export default function FinanceiroProjecao() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </SecaoCard>
 
-        <Card className="overflow-hidden">
-          <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Projetado — {horizonte > 30 ? "por Semana" : "por Dia"}</h3>
-          </div>
+        <SecaoCard titulo={<>Projetado — {horizonte > 30 ? "por Semana" : "por Dia"}</>} semPadding>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
@@ -160,15 +153,11 @@ export default function FinanceiroProjecao() {
               </tbody>
             </table>
           </div>
-        </Card>
+        </SecaoCard>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Receita Recorrente Projetada (MRR)</h3>
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-warning)] border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/10 rounded px-2 py-0.5">
+        <SecaoCard titulo="Receita Recorrente Projetada (MRR)" direita={<><span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-warning)] border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/10 rounded px-2 py-0.5">
               Projetado por mês — não some com a tabela acima
-            </span>
-          </div>
+            </span></>}>
           {mrrProjection.insufficientData ? (
             <p className="text-xs text-[var(--color-text-faint)] mt-4">Dados insuficientes para projeção — é preciso pelo menos 2 meses de histórico de contratos.</p>
           ) : (
@@ -181,7 +170,7 @@ export default function FinanceiroProjecao() {
               ))}
             </div>
           )}
-        </Card>
+        </SecaoCard>
       </div>
 
       <DrillDownPanel

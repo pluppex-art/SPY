@@ -17,6 +17,7 @@ import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 import { HelpTip } from "../../components/ui/help-tip";
+import { SecaoCard } from "./components/SecaoCard";
 interface InadimplenciaServerSummary {
   vencidosCount: number; totalVencido: number; clientesUnicos: number; atrasoMedio: number;
   buckets: { id: string; label: string; count: number; value: number }[];
@@ -139,8 +140,7 @@ export default function FinanceiroInadimplencia() {
           <KpiDrillChips items={[{ label: "Cobranças vencidas", onClick: () => setDrillOpen(true) }]} />
         </FinanceKpiFilter>
 
-        <Card className="p-6">
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">Aging de Recebimento</h3>
+        <SecaoCard titulo="Aging de Recebimento">
           {vencidosCount === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)]">Nenhuma cobrança vencida no momento.</p>
           ) : (
@@ -163,12 +163,9 @@ export default function FinanceiroInadimplencia() {
               ))}
             </div>
           )}
-        </Card>
+        </SecaoCard>
 
-        <Card className="overflow-hidden">
-          <div className="p-4 border-b border-[var(--color-border-subtle)]">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Por Cliente</h3>
-          </div>
+        <SecaoCard titulo="Por Cliente" semPadding>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
@@ -201,7 +198,7 @@ export default function FinanceiroInadimplencia() {
               </tbody>
             </table>
           </div>
-        </Card>
+        </SecaoCard>
       </div>
 
       <DrillDownPanel

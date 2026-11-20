@@ -8,6 +8,7 @@ import { Button } from "../../components/ui/button";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { LegendaStatusFinanceiro, StatusFinanceiroBadge } from "./components/StatusFinanceiroBadge";
 import { hojeISO, statusDoLancamento, useFinanceEntriesResumo, type LancamentoResumo } from "./hooks/useFinanceEntriesResumo";
+import { SecaoCard } from "./components/SecaoCard";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -111,8 +112,7 @@ export default function FinanceiroAgenda() {
         </div>
       </Card>
 
-      <Card className="p-4">
-        <h3 className="mb-3 text-sm font-semibold">{diaSel.split("-").reverse().join("/")} — {doDia.length} lançamento(s)</h3>
+      <SecaoCard titulo={<>{diaSel.split("-").reverse().join("/")} — {doDia.length} lançamento(s)</>}>
         {doDia.length === 0 ? (
           <p className="text-sm text-[var(--color-text-muted)]">Nada vence neste dia.</p>
         ) : (
@@ -135,7 +135,7 @@ export default function FinanceiroAgenda() {
             ))}
           </ul>
         )}
-      </Card>
+      </SecaoCard>
 
       <LegendaStatusFinanceiro />
       </div>

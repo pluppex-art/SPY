@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Inbox, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../../components/PageContainer";
 import { Card } from "../../../components/ui/card";
+import { SecaoCard } from "./SecaoCard";
 import { Button } from "../../../components/ui/button";
 import { Modal } from "../../../components/ui/modal";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
@@ -300,7 +301,8 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
           </div>
 
           {/* Computador: tabela */}
-          <Card className="hidden overflow-x-auto md:block">
+          <SecaoCard titulo={`${titulo} · ${filtradas.length} ${filtradas.length === 1 ? "registro" : "registros"}`} semPadding className="hidden md:flex">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border-default)] bg-[var(--color-surface-sunken)]/60 text-left text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
@@ -344,7 +346,8 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
                 })}
               </tbody>
             </table>
-          </Card>
+            </div>
+          </SecaoCard>
         </>
       )}
 

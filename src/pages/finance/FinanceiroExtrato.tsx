@@ -16,6 +16,7 @@ import { saldoDaConta, transferenciasDaConta, type FinanceEntryLike } from "./li
 import { cn } from "../../lib/utils";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 import { Badge } from "../../components/ui/badge";
+import { SecaoCard } from "./components/SecaoCard";
 
 /**
  * Extrato (saldo corrido) — §6.5. "Saldo Anterior" é sempre regime de
@@ -181,8 +182,7 @@ export default function FinanceiroExtrato() {
         ) : (
           <>
             {linhas.length > 0 && (
-              <Card className="p-6 print:hidden">
-                <h3 className="text-xs font-semibold text-[var(--color-text-primary)] mb-4">Evolução do Saldo</h3>
+              <SecaoCard titulo="Evolução do Saldo" className="print:hidden">
                 <div className="h-56 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
@@ -201,7 +201,7 @@ export default function FinanceiroExtrato() {
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
-              </Card>
+              </SecaoCard>
             )}
           </>
         )}

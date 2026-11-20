@@ -24,6 +24,7 @@ import { ViewModal } from "./components/ViewModal";
 import { Field, FormSection, ModalFooter, ModalTitle, inputCls, selectCls } from "./components/ModalKit";
 import { fetchCnpj, formatCepMask, formatCnpjMask, onlyDigits } from "../../lib/brLookup";
 import { formatPhone } from "../../lib/utils";
+import { SecaoCard } from "./components/SecaoCard";
 
 type Tipo = "CLIENTE" | "FORNECEDOR" | "FUNCIONARIO";
 const TIPO_LABEL: Record<Tipo, string> = { CLIENTE: "Cliente", FORNECEDOR: "Fornecedor", FUNCIONARIO: "Funcionário" };
@@ -315,10 +316,7 @@ export default function FinanceiroContatos() {
         </FinanceKpiFilter>
 
         {topContatosChart.length > 0 && (
-          <Card className="p-6">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> Top {aba === "CLIENTE" ? "Clientes (Recebido)" : "Fornecedores (Pago)"}
-            </h3>
+          <SecaoCard titulo={<>Top {aba === "CLIENTE" ? "Clientes (Recebido)" : "Fornecedores (Pago)"}</>} icon={BarChart3}>
             <div className="w-full" style={{ height: Math.max(120, topContatosChart.length * 32) }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topContatosChart} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
@@ -329,7 +327,7 @@ export default function FinanceiroContatos() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </SecaoCard>
         )}
 
         <Card className="overflow-hidden">

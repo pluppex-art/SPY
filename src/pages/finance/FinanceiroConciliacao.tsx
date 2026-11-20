@@ -17,6 +17,7 @@ import { supabase } from "../../lib/supabase";
 import { friendlyError } from "../../lib/friendlyError";
 
 import { HelpTip } from "../../components/ui/help-tip";
+import { SecaoCard } from "./components/SecaoCard";
 type ExtratoItem = {
   id: string;
   data: string;
@@ -323,8 +324,7 @@ export default function FinanceiroConciliacao() {
       </FinanceKpiFilter>
 
       {statusChartData.length > 0 && (
-        <Card className="p-4 bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs mb-6">
-          <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-2">Conciliados x Pendentes</h3>
+        <SecaoCard titulo="Conciliados x Pendentes" className="bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs mb-6">
           <div className="h-40 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -336,7 +336,7 @@ export default function FinanceiroConciliacao() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </SecaoCard>
       )}
 
       {/* Upload Zone */}

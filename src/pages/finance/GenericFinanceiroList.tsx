@@ -37,6 +37,7 @@ import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 import { HelpTip } from "../../components/ui/help-tip";
+import { SecaoCard } from "./components/SecaoCard";
 type RepeatMode = "none" | "recorrente" | "parcelado";
 
 // Converte "dd/mm/aaaa" ou "aaaa-mm-dd" (ou Date) em "aaaa-mm-dd" (coluna competencia_date é do tipo date).
@@ -726,15 +727,8 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     <>
 {kpis.kind === "pipeline" ? (
         <>
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="text-xs font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> {type === "Pagar" ? "Pagamentos" : "Recebimentos"} por Status
-                </h3>
-                <p className="text-[11px] text-[var(--color-text-faint)] mt-0.5 ml-6">Valores {type === "Pagar" ? "pagos e a pagar" : "recebidos e a receber"} {periodoGraficoLabel}.</p>
-              </div>
-            </div>
+          <SecaoCard titulo={<>{type === "Pagar" ? "Pagamentos" : "Recebimentos"} por Status</>} icon={BarChart3}>
+            <p className="mb-3 text-xs text-[var(--color-text-muted)]">Valores {type === "Pagar" ? "pagos e a pagar" : "recebidos e a receber"} {periodoGraficoLabel}.</p>
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={statusMonthly} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -758,14 +752,11 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </SecaoCard>
         </>
       ) : (
         <>
-          <Card className="p-4">
-            <h3 className="text-xs font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[var(--color-text-faint)]" /> {title} — {periodoAtivo ? "Período selecionado" : "Últimos 6 Meses"}
-            </h3>
+          <SecaoCard titulo={<>{title} — {periodoAtivo ? "Período selecionado" : "Últimos 6 Meses"}</>} icon={BarChart3}>
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={monthlySeries} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -783,7 +774,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </SecaoCard>
         </>
       )}
     </>

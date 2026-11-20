@@ -11,6 +11,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { LegendaStatusFinanceiro, StatusFinanceiroBadge } from "./components/StatusFinanceiroBadge";
 import { hojeISO, statusDoLancamento, useFinanceEntriesResumo } from "./hooks/useFinanceEntriesResumo";
+import { SecaoCard } from "./components/SecaoCard";
 
 const soma = (xs: { value: number }[]) => xs.reduce((a, x) => a + x.value, 0);
 const dataBR = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
@@ -148,8 +149,7 @@ export default function FinanceiroCentralResumo() {
         ]}
       />
 
-      <Card className="p-4">
-        <h3 className="mb-1 text-sm font-semibold">Previsão de caixa (30, 60 e 90 dias)</h3>
+      <SecaoCard titulo="Previsão de caixa (30, 60 e 90 dias)">
         <p className="mb-3 text-xs text-[var(--color-text-muted)]">Entradas e saídas em aberto que vencem até cada data (inclui o que já venceu e não foi pago). Não considera o saldo atual das contas.</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {r.previsao.map((p) => (
@@ -163,10 +163,9 @@ export default function FinanceiroCentralResumo() {
             </div>
           ))}
         </div>
-      </Card>
+      </SecaoCard>
 
-      <Card className="p-4">
-        <h3 className="mb-3 text-sm font-semibold">Próximos vencimentos (contas a pagar)</h3>
+      <SecaoCard titulo="Próximos vencimentos (contas a pagar)">
         {r.proximos.length === 0 ? (
           <p className="text-sm text-[var(--color-text-muted)]">{loading ? "Carregando…" : "Nenhuma conta a pagar em aberto."}</p>
         ) : (
@@ -185,12 +184,11 @@ export default function FinanceiroCentralResumo() {
             ))}
           </ul>
         )}
-      </Card>
+      </SecaoCard>
 
-      <Card className="p-4">
-        <h3 className="mb-2 text-sm font-semibold">Texto do resumo (WhatsApp)</h3>
+      <SecaoCard titulo="Texto do resumo (WhatsApp)">
         <pre className="whitespace-pre-wrap rounded-lg bg-[var(--color-surface-muted,transparent)] p-3 text-xs">{texto}</pre>
-      </Card>
+      </SecaoCard>
 
       <LegendaStatusFinanceiro />
       </div>

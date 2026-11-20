@@ -12,13 +12,16 @@ export function SecaoCard({
   titulo,
   icon: Icon,
   acao,
+  direita,
   children,
   semPadding,
   className,
 }: {
-  titulo: string;
+  titulo: ReactNode;
   icon?: LucideIcon;
   acao?: { label: string; to: string };
+  /** Conteúdo livre à direita da faixa (filtros, etiquetas, botões). */
+  direita?: ReactNode;
   children: ReactNode;
   semPadding?: boolean;
   className?: string;
@@ -28,6 +31,7 @@ export function SecaoCard({
       <header className="flex items-center gap-2 border-b border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-4 py-2.5">
         {Icon && <Icon className="h-4 w-4 shrink-0 text-[var(--color-primary-blue)]" />}
         <h3 className="min-w-0 flex-1 truncate text-[11px] font-black uppercase tracking-wide text-[var(--color-text-primary)]">{titulo}</h3>
+        {direita}
         {acao && (
           <Link to={acao.to} className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-[var(--color-primary-blue)] hover:underline">
             {acao.label}

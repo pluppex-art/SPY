@@ -33,7 +33,7 @@ const BAR_COLORS = ["var(--color-primary-blue)", "#10b981", "#06b6d4", "#f43f5e"
  */
 export function FinanceKpiGrid({ cards }: { cards: FinanceKpi[]; noDeltaLabel?: string }) {
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+    <div className={cn("grid grid-cols-2 gap-3", cards.length === 5 ? "xl:grid-cols-5" : cards.length === 3 || cards.length === 6 ? "xl:grid-cols-3" : cards.length === 2 ? "xl:grid-cols-2" : "xl:grid-cols-4")}>
       {cards.map((k, i) => {
         const Icon = k.icon;
         const up = (k.delta ?? 0) > 0;

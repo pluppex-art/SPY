@@ -8,6 +8,7 @@ import { Target, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Wallet } f
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseEntryDate } from "./lib/financeDates";
+import { SecaoCard } from "./components/SecaoCard";
 
 const MONTH_NAMES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -121,19 +122,13 @@ export default function FinanceiroOrcamentos() {
   ) => {
     const Icon = icon;
     return (
-      <Card className="p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xs font-black uppercase tracking-widest text-[var(--color-text-primary)] flex items-center gap-2">
-            <Icon className={`w-4 h-4 ${accentColor}`} /> {titulo}
-          </h3>
-          <div className="text-right">
+      <SecaoCard titulo={<><Icon className={`w-4 h-4 ${accentColor}`} /> {titulo}</>} direita={<><div className="text-right">
             <span className="text-[10px] text-[var(--color-text-faint)] font-bold uppercase block">Orçado / Realizado</span>
             <span className="text-sm font-mono font-black text-[var(--color-text-primary)]">
               {formatCurrency(totalOrcado)} <span className="text-[var(--color-text-faint)]">/</span>{" "}
               <span className={accentColor}>{formatCurrency(totalRealizado)}</span>
             </span>
-          </div>
-        </div>
+          </div></>} className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
 
         {rows.length === 0 ? (
           <p className="text-xs text-[var(--color-text-faint)] py-6 text-center">Nenhuma categoria cadastrada — configure em Financeiro &gt; Plano de Contas.</p>
@@ -191,7 +186,7 @@ export default function FinanceiroOrcamentos() {
             })}
           </div>
         )}
-      </Card>
+      </SecaoCard>
     );
   };
 

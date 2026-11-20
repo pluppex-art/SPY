@@ -14,6 +14,7 @@ import { parseEntryDate } from "./lib/financeDates";
 import { dreTipoDe, categoriesById, saldoDaConta, transferenciasDaConta, type FinanceEntryLike, type FinanceCategoryLike } from "./lib/financeEngine";
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/apiClient";
+import { SecaoCard } from "./components/SecaoCard";
 
 const DRE_TIPO_LABEL: Record<string, string> = { DESPESA_FIXA: "Despesas Fixas", DESPESA_VARIAVEL: "Despesas Variáveis", PESSOAS: "Pessoal", IMPOSTOS: "Impostos" };
 const DONUT_COLORS = ["var(--color-success)", "var(--color-info)", "var(--color-warning)", "var(--color-danger)", "#8b5cf6", "#64748b"];
@@ -152,8 +153,7 @@ export default function FinanceiroPerformanceAnual() {
         </FinanceKpiFilter>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card className="p-6">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">Maiores Receitas</h3>
+          <SecaoCard titulo="Maiores Receitas">
             <div className="space-y-2">
               {dadosAno.maioresReceitas.length === 0 ? <p className="text-xs text-[var(--color-text-faint)]">Nenhuma receita no período.</p> : dadosAno.maioresReceitas.map((e: any) => (
                 <div key={e.id} className="flex justify-between text-xs py-1.5 border-b border-[var(--color-border-subtle)] last:border-0">
@@ -162,9 +162,8 @@ export default function FinanceiroPerformanceAnual() {
                 </div>
               ))}
             </div>
-          </Card>
-          <Card className="p-6">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">Maiores Gastos</h3>
+          </SecaoCard>
+          <SecaoCard titulo="Maiores Gastos">
             <div className="space-y-2">
               {dadosAno.maioresGastos.length === 0 ? <p className="text-xs text-[var(--color-text-faint)]">Nenhum gasto no período.</p> : dadosAno.maioresGastos.map((e: any) => (
                 <div key={e.id} className="flex justify-between text-xs py-1.5 border-b border-[var(--color-border-subtle)] last:border-0">
@@ -173,7 +172,7 @@ export default function FinanceiroPerformanceAnual() {
                 </div>
               ))}
             </div>
-          </Card>
+          </SecaoCard>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -213,8 +212,7 @@ export default function FinanceiroPerformanceAnual() {
           })}
         </div>
 
-        <Card className="overflow-hidden">
-          <div className="p-4 border-b border-[var(--color-border-subtle)]"><h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Movimentações em {ano}</h3></div>
+        <SecaoCard titulo={<>Movimentações em {ano}</>} semPadding>
           <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
             <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
               <tr><th className="px-6 py-3">Linha</th><th className="px-6 py-3 text-right">{ano}</th><th className="px-6 py-3 text-right">{ano - 1}</th><th className="px-6 py-3 text-right">Progresso</th></tr>
@@ -237,13 +235,9 @@ export default function FinanceiroPerformanceAnual() {
             </tbody>
           </table></div>
           <p className="px-6 py-2 text-[10px] text-[var(--color-text-faint)] border-t border-[var(--color-border-subtle)]">Progresso compara o valor pago no ano com o mesmo período do ano anterior.</p>
-        </Card>
+        </SecaoCard>
 
-        <Card className="overflow-hidden">
-          <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Saldo das Contas</h3>
-            <span className="text-[10px] text-[var(--color-text-faint)]">Posição em {new Date().toLocaleString("pt-BR")}</span>
-          </div>
+        <SecaoCard titulo="Saldo das Contas" direita={<><span className="text-[10px] text-[var(--color-text-faint)]">Posição em {new Date().toLocaleString("pt-BR")}</span></>} semPadding>
           {saldosContas.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] p-6">Nenhuma conta bancária cadastrada.</p>
           ) : (
@@ -256,7 +250,7 @@ export default function FinanceiroPerformanceAnual() {
               </tbody>
             </table></div>
           )}
-        </Card>
+        </SecaoCard>
       </div>
     </PageContainer>
   );

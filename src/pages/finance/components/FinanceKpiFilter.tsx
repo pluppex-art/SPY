@@ -73,7 +73,8 @@ export function FinanceKpiFilter({ kpis = [], children, activeCount = 0, onClear
         </Card>
       )}
       {children && !mobileSearch && (
-        <Card className="p-2.5 rounded-xl">
+        // Sem nenhum controle (só abas que vão para a linha abaixo): não mostra um cartão vazio.
+        <Card className="p-2.5 rounded-xl [&:not(:has(input,select,button,textarea))]:hidden">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex-1 min-w-0 space-y-2.5"><FilterVariantContext.Provider value="model"><FilterTabsSlotContext.Provider value={tabsSlot}>{children}</FilterTabsSlotContext.Provider></FilterVariantContext.Provider></div>
             {activeCount > 0 && onClear && (

@@ -17,6 +17,7 @@ import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/apiClient";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
+import { SecaoCard } from "./components/SecaoCard";
 
 const PERIODOS = [30, 60, 90] as const;
 
@@ -139,8 +140,7 @@ export default function FinanceiroFluxoCaixa() {
         </FinanceKpiFilter>
 
         {fluxoDiario.length > 0 && (
-          <Card className="p-6 print:hidden">
-            <h3 className="text-xs font-semibold text-[var(--color-text-primary)] mb-4">Entradas × Saídas × Acumulado</h3>
+          <SecaoCard titulo="Entradas × Saídas × Acumulado" className="print:hidden">
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={fluxoDiario}>
@@ -155,16 +155,10 @@ export default function FinanceiroFluxoCaixa() {
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </SecaoCard>
         )}
 
-        <Card className="overflow-hidden">
-          <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5 text-[var(--color-text-faint)]" /> Movimentações por Dia
-            </h3>
-            <span className="text-[10px] text-[var(--color-text-faint)]">{fluxoDiario.length} dia(s) com movimentação</span>
-          </div>
+        <SecaoCard titulo="Movimentações por Dia" icon={Calendar} direita={<><span className="text-[10px] text-[var(--color-text-faint)]">{fluxoDiario.length} dia(s) com movimentação</span></>} semPadding>
           <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left">
             <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
               <tr>
@@ -189,7 +183,7 @@ export default function FinanceiroFluxoCaixa() {
               ))}
             </tbody>
           </table></div>
-        </Card>
+        </SecaoCard>
       </div>
 
       <DrillDownPanel
