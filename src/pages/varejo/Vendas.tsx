@@ -384,7 +384,8 @@ export default function VarejoVendas() {
     return products.filter((p: any) => {
       if (p.active === false) return false;
       if (selectedCategory !== "Todas" && p.category !== selectedCategory) return false;
-      if (!search.trim()) return true;
+      // Sem estoque só aparece quando o operador pesquisa; na lista padrão ficam só os disponíveis.
+      if (!search.trim()) return (p.currentStock ?? 0) > 0;
       const q = search.toLowerCase();
       const skuMatch = p.sku?.toLowerCase().includes(q);
       const nameMatch = p.name?.toLowerCase().includes(q);
