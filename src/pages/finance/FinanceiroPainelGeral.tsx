@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, BarChart3, CheckCircle2, ChevronRight, Inbox, Landmark, TrendingDown, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, CheckCircle2, ChevronRight, Inbox, Landmark, TrendingDown, Users, Wallet, type LucideIcon } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
 import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import { kpiSimples } from "./components/kpiSimples";
 import { useData } from "../../contexts/DataContext";
@@ -169,12 +168,6 @@ export default function FinanceiroPainelGeral() {
     <PageContainer
       title="Painel Geral"
       description="Saldo, entradas, saídas, contas a pagar e a receber, e os alertas do dia."
-      actions={
-        <div className="flex gap-2">
-          <Link to={`${base}/resumo`}><Button variant="outline">Central de Resumo</Button></Link>
-          <Link to={`${base}/visao-geral`}><Button variant="outline"><BarChart3 className="mr-2 h-4 w-4" />Análise detalhada</Button></Link>
-        </div>
-      }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
       {erro && <Card className="p-4 text-sm text-red-600">{erro}</Card>}
