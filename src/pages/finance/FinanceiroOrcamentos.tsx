@@ -257,7 +257,7 @@ export default function FinanceiroOrcamentos() {
             </SecaoCard>
           )}
 
-          <div className={`grid gap-4 ${tipoFiltro ? "" : "xl:grid-cols-2"}`}>
+          <div className={`grid gap-4 ${tipoFiltro ? "" : "min-[1700px]:grid-cols-2"}`}>
             {tipoFiltro !== "Receita" && tabela("Despesas", TrendingDown, despesasTodas, tD, semCategoria.Despesa, true)}
             {tipoFiltro !== "Despesa" && tabela("Receitas", TrendingUp, receitasTodas, tR, semCategoria.Receita, false)}
           </div>

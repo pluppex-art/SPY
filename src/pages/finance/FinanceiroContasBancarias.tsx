@@ -53,7 +53,19 @@ interface ContaBancaria {
   sinal_saldo_inicial: Sinal;
   is_principal: boolean;
   arquivada: boolean;
+  banco?: string | null;
+  agencia?: string | null;
+  numero_conta?: string | null;
+  titular?: string | null;
+  documento?: string | null;
+  chave_pix?: string | null;
+  conexao_status?: string | null;
+  conexao_provedor?: string | null;
+  ultima_sincronizacao?: string | null;
 }
+
+const BANCOS = ["Banco do Brasil", "Bradesco", "Caixa Econômica Federal", "Itaú", "Santander", "Nubank", "Inter", "C6 Bank", "BTG Pactual", "Sicredi", "Sicoob", "Banrisul", "Mercado Pago", "PagBank", "Stone", "Safra", "Original"];
+const dadosConta = (c: ContaBancaria) => [c.banco, c.agencia ? `ag. ${c.agencia}` : "", c.numero_conta ? `cc ${c.numero_conta}` : ""].filter(Boolean).join(" · ");
 import { useRowOpen } from "./components/useRowOpen";
 
 import { HelpTip } from "../../components/ui/help-tip";
@@ -75,6 +87,12 @@ export default function FinanceiroContasBancarias() {
   const [saldoInicial, setSaldoInicial] = useState("");
   const [sinal, setSinal] = useState<Sinal>("POSITIVO");
   const [principal, setPrincipal] = useState(false);
+  const [banco, setBanco] = useState("");
+  const [agencia, setAgencia] = useState("");
+  const [numeroConta, setNumeroConta] = useState("");
+  const [titular, setTitular] = useState("");
+  const [documento, setDocumento] = useState("");
+  const [chavePix, setChavePix] = useState("");
   const [saving, setSaving] = useState(false);
   const [tentou, setTentou] = useState(false);
 
@@ -124,6 +142,7 @@ export default function FinanceiroContasBancarias() {
   const resetForm = () => {
     setNome(""); setTipo("CONTA_CORRENTE"); setSaldoInicial(""); setSinal("POSITIVO"); setEditingId(null);
     setPrincipal(false); setSaving(false); setTentou(false);
+    setBanco(""); setAgencia(""); setNumeroConta(""); setTitular(""); setDocumento(""); setChavePix("");
   };
   const closeModal = () => { setIsModalOpen(false); resetForm(); };
 
@@ -133,6 +152,7 @@ export default function FinanceiroContasBancarias() {
     setEditingId(c.id); setNome(c.nome); setTipo(c.tipo);
     setSaldoInicial(String(c.saldo_inicial)); setSinal(c.sinal_saldo_inicial);
     setPrincipal(!!c.is_principal);
+    setBanco(c.banco ?? ""); setAgencia(c.agencia ?? ""); setNumeroConta(c.numero_conta ?? ""); setTitular(c.titular ?? ""); setDocumento(c.documento ?? ""); setChavePix(c.chave_pix ?? "");
     setIsModalOpen(true);
   };
 
@@ -166,6 +186,12 @@ export default function FinanceiroContasBancarias() {
       tipo,
       saldo_inicial: saldoInicialNum,
       sinal_saldo_inicial: sinal,
+      banco: banco.trim() || null,
+      agencia: agencia.trim() || null,
+      numero_conta: numeroConta.trim() || null,
+      titular: titular.trim() || null,
+      documento: documento.trim() || null,
+      chave_pix: chavePix.trim() || null,
     };
 
     setSaving(true);
@@ -288,7 +314,8 @@ export default function FinanceiroContasBancarias() {
               <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
                 <tr>
                   <th className="px-6 py-3">Conta</th>
-                  <th className="px-6 py-3">Tipo</th>
+                  <th className="px-6 py-3">Banco e conta</th>
+                  <th className="px-6 py-3">Conexão</th>
                   <th className="px-6 py-3 text-right">Saldo Inicial</th>
                   <th className="px-6 py-3 text-right">Saldo Atual</th>
                   <th className="px-6 py-3 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Estrela: define esta como a conta principal. Olho: vê os detalhes. Lápis: edita. Arquivar ou Reativar: tira a conta de uso sem apagar o histórico, ou a coloca de volta. Lixeira: exclui a conta.</HelpTip></span></th>
@@ -309,7 +336,15 @@ export default function FinanceiroContasBancarias() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-3.5 text-[var(--color-text-muted)]">{tipoLabel(c.tipo)}</td>
+                      <td className="px-6 py-3.5 text-[var(--color-text-muted)]">
+                        <span className="block text-[var(--color-text-primary)]">{dadosConta(c) || "—"}</span>
+                        <span className="block text-[11px]">{tipoLabel(c.tipo)}{c.titular ? ` · ${c.titular}` : ""}</span>
+                      </td>
+                      <td className="px-6 py-3.5">
+                        {c.conexao_status === "Conectada"
+                          ? <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">Conectada</span>
+                          : <span className="inline-flex rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] font-semibold text-slate-600" title="Movimentações entram por extrato (OFX/CSV) na Conciliação">Manual</span>}
+                      </td>
                       <td className="px-6 py-3.5 text-right tabular-nums text-[var(--color-text-muted)]">{formatCurrency(c.saldo_inicial)}</td>
                       <td className={cn("px-6 py-3.5 text-right tabular-nums font-semibold", saldo < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-text-primary)]")}>{formatCurrency(saldo)}</td>
                       <td className="px-6 py-3.5">
@@ -361,6 +396,12 @@ export default function FinanceiroContasBancarias() {
               { label: "Tipo", value: tipoLabel(viewing.tipo) },
               { label: "Situação", value: viewing.arquivada ? "Arquivada" : "Ativa" },
               { label: "Conta principal", value: viewing.is_principal ? "Sim" : null },
+              { label: "Banco", value: viewing.banco ?? null },
+              { label: "Agência / conta", value: [viewing.agencia, viewing.numero_conta].filter(Boolean).join(" / ") || null },
+              { label: "Titular", value: viewing.titular ?? null },
+              { label: "CPF / CNPJ", value: viewing.documento ?? null },
+              { label: "Chave Pix", value: viewing.chave_pix ?? null },
+              { label: "Conexão com o banco", value: viewing.conexao_status === "Conectada" ? "Conectada" : "Manual (extrato OFX/CSV)" },
             ] },
             { icon: DollarSign, title: "Saldo", rows: [
               { label: "Saldo inicial", value: `${formatCurrency(viewing.sinal_saldo_inicial === "NEGATIVO" ? -Math.abs(viewing.saldo_inicial) : viewing.sinal_saldo_inicial === "ZERADO" ? 0 : viewing.saldo_inicial)}`, mono: true },
@@ -423,6 +464,24 @@ export default function FinanceiroContasBancarias() {
               </select>
               <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{TIPO_HINTS[tipo]}</p>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-[var(--color-border-subtle)] p-3 space-y-3">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] flex items-center gap-1.5"><Landmark className="w-3.5 h-3.5" /> Dados bancários</div>
+            <div>
+              <label className={lbl}>Banco</label>
+              <input type="text" value={banco} onChange={(e) => setBanco(e.target.value)} list="bancos-sugeridos" placeholder="Escolha ou digite o banco" className={ctl} />
+              <datalist id="bancos-sugeridos">{BANCOS.map((b) => <option key={b} value={b} />)}</datalist>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className={lbl}>Agência</label><input type="text" value={agencia} onChange={(e) => setAgencia(e.target.value)} placeholder="0000" className={ctl} /></div>
+              <div><label className={lbl}>Número da conta</label><input type="text" value={numeroConta} onChange={(e) => setNumeroConta(e.target.value)} placeholder="00000-0" className={ctl} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className={lbl}>Titular</label><input type="text" value={titular} onChange={(e) => setTitular(e.target.value)} placeholder="Nome ou razão social" className={ctl} /></div>
+              <div><label className={lbl}>CPF / CNPJ</label><input type="text" value={documento} onChange={(e) => setDocumento(e.target.value)} placeholder="Somente números" className={ctl} /></div>
+            </div>
+            <div><label className={lbl}>Chave Pix</label><input type="text" value={chavePix} onChange={(e) => setChavePix(e.target.value)} placeholder="CPF/CNPJ, e-mail, telefone ou chave aleatória" className={ctl} /></div>
           </div>
 
           <div className="rounded-xl border border-[var(--color-border-subtle)] p-3 space-y-3">

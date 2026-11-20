@@ -25,7 +25,10 @@ const lbl = "text-xs font-bold text-[var(--color-text-primary)] mb-1.5 block";
 function toLocalISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+import { Link } from "react-router-dom";
 import { useRowOpen } from "./components/useRowOpen";
+import { SecaoCard } from "./components/SecaoCard";
+
 
 import { HelpTip } from "../../components/ui/help-tip";
 export default function FinanceiroTransferencias() {
@@ -230,6 +233,47 @@ export default function FinanceiroTransferencias() {
             ]} />
           )}
         </FinanceKpiFilter>
+
+        <SecaoCard titulo={`Contas e movimento de transferências — ${contasAtivas.length} conta(s)`} icon={Building2} semPadding>
+          {contasAtivas.length === 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm text-[var(--color-text-muted)]">
+              <span>Cadastre as contas bancárias para transferir dinheiro entre elas.</span>
+              <Link to="/app/financeiro/bancos"><Button size="sm">Cadastrar contas</Button></Link>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--color-border-default)] text-left text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
+                    <th className="px-4 py-2 font-semibold">Conta</th>
+                    <th className="px-3 py-2 text-right font-semibold">Saldo atual</th>
+                    <th className="px-3 py-2 text-right font-semibold">Enviado</th>
+                    <th className="px-3 py-2 text-right font-semibold">Recebido</th>
+                    <th className="px-3 py-2 text-right font-semibold">A enviar</th>
+                    <th className="px-3 py-2 text-right font-semibold">A receber</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contasAtivas.map((c: any) => {
+                    const ts = financeTransfers as any[];
+                    const soma = (xs: any[]) => xs.reduce((a, t) => a + (Number(t.valor) || 0), 0);
+                    const saldo = saldoPorConta.get(c.id) ?? 0;
+                    return (
+                      <tr key={c.id} className="border-b border-[var(--color-border-default)] last:border-0">
+                        <td className="px-4 py-2.5 font-semibold">{c.nome}{c.banco ? <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">{c.banco}</span> : null}</td>
+                        <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${saldo < 0 ? "text-rose-600" : ""}`}>{formatCurrency(saldo)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-rose-600">{formatCurrency(soma(ts.filter((t) => t.pago && t.conta_origem_id === c.id)))}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-emerald-600">{formatCurrency(soma(ts.filter((t) => t.pago && t.conta_destino_id === c.id)))}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{formatCurrency(soma(ts.filter((t) => !t.pago && t.conta_origem_id === c.id)))}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-[var(--color-text-muted)]">{formatCurrency(soma(ts.filter((t) => !t.pago && t.conta_destino_id === c.id)))}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </SecaoCard>
 
         {ordenadas.length === 0 ? (
           <Card className="p-12 text-center">

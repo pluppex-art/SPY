@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/button";
 import {
   CheckCircle2, AlertCircle, RefreshCw, Upload, FileText,
   Building2, ArrowRight, ShieldCheck, Sparkles, Check, X,
-  ArrowDownLeft, ArrowUpRight
+  ArrowDownLeft, ArrowUpRight, Landmark, Link2
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { Card } from "../../components/ui/card";
@@ -18,6 +18,7 @@ import { friendlyError } from "../../lib/friendlyError";
 
 import { HelpTip } from "../../components/ui/help-tip";
 import { SecaoCard } from "./components/SecaoCard";
+import { Link } from "react-router-dom";
 type ExtratoItem = {
   id: string;
   data: string;
@@ -100,9 +101,14 @@ function parseExtratoCsv(text: string, bancoLabel: string): ExtratoItem[] {
 
 export default function FinanceiroConciliacao() {
   const { activeTenantId } = useAuth();
-  const { financeEntries } = useData();
+  const { financeEntries, financeBankAccounts } = useData() as any;
 
   const [extrato, setExtrato] = useState<ExtratoItem[]>([]);
+  // Conta do extrato que está sendo importado: o nome dela passa a ser o "banco" de cada linha importada.
+  const contasAtivas = useMemo(() => (financeBankAccounts as any[]).filter((c) => !c.arquivada), [financeBankAccounts]);
+  const [contaExtratoId, setContaExtratoId] = useState("");
+  const contaExtrato = contasAtivas.find((c) => c.id === contaExtratoId) ?? null;
+  const bancoLabel = contaExtrato ? contaExtrato.nome : "Conta Importada";
 
   const [busca, setBusca] = useState("");
   const [situacaoFilter, setSituacaoFilter] = useState("");
@@ -240,7 +246,7 @@ export default function FinanceiroConciliacao() {
     const reader = new FileReader();
     reader.onload = async () => {
       const text = String(reader.result || "");
-      const newItems = isOfx ? parseOfx(text, "Conta Importada") : parseExtratoCsv(text, "Conta Importada");
+      const newItems = isOfx ? parseOfx(text, bancoLabel) : parseExtratoCsv(text, bancoLabel);
       if (newItems.length === 0) {
         toast.error(
           isOfx
@@ -339,6 +345,53 @@ export default function FinanceiroConciliacao() {
         </SecaoCard>
       )}
 
+      <SecaoCard titulo={`Contas e conexão com o banco — ${contasAtivas.length} conta(s)`} icon={Landmark} semPadding className="mb-6">
+        {contasAtivas.length === 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm text-[var(--color-text-muted)]">
+            <span>Cadastre a conta do banco para importar o extrato dela e conciliar.</span>
+            <Link to="/app/financeiro/bancos"><Button size="sm">Cadastrar conta</Button></Link>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--color-border-default)] text-left text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
+                  <th className="px-4 py-2 font-semibold">Conta</th><th className="px-3 py-2 font-semibold">Conexão</th>
+                  <th className="px-3 py-2 font-semibold">Último extrato</th><th className="px-3 py-2 text-right font-semibold">A conciliar</th><th className="px-4 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {contasAtivas.map((c: any) => {
+                  const itens = extrato.filter((i) => i.banco === c.nome);
+                  const ultima = itens.map((i) => i.data).sort().slice(-1)[0];
+                  return (
+                    <tr key={c.id} className="border-b border-[var(--color-border-default)] last:border-0">
+                      <td className="px-4 py-2.5"><p className="font-semibold">{c.nome}</p><p className="text-xs text-[var(--color-text-muted)]">{[c.banco, c.agencia && `ag. ${c.agencia}`, c.numero_conta && `cc ${c.numero_conta}`].filter(Boolean).join(" · ") || "Sem dados bancários"}</p></td>
+                      <td className="px-3 py-2.5">
+                        {c.conexao_status === "Conectada"
+                          ? <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-600">Conectada</span>
+                          : <span className="inline-flex rounded-full bg-slate-500/15 px-2 py-0.5 text-xs font-semibold text-slate-600">Manual</span>}
+                      </td>
+                      <td className="px-3 py-2.5 text-[var(--color-text-muted)]">{ultima ? String(ultima).split("-").reverse().join("/") : "nenhum importado"}</td>
+                      <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{itens.filter((i) => !i.conciliado).length}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex justify-end gap-1.5">
+                          <Button size="sm" variant="outline" onClick={() => { setContaExtratoId(c.id); setTimeout(() => fileInputRef.current?.click(), 0); }}><Upload className="mr-1.5 h-3.5 w-3.5" />Importar extrato</Button>
+                          <Button size="sm" variant="ghost" disabled title="Conexão automática com o banco: em breve"><Link2 className="mr-1.5 h-3.5 w-3.5" />Conectar</Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="border-t border-[var(--color-border-default)] px-4 py-2.5 text-xs text-[var(--color-text-muted)]">
+          Por enquanto o extrato entra por arquivo (OFX ou CSV) baixado no app do banco. A conexão automática com os bancos ainda não está disponível.
+        </p>
+      </SecaoCard>
+
       {/* Upload Zone */}
       <div className="p-8 border-2 border-dashed border-[var(--color-border-default)] rounded-2xl bg-[var(--color-surface)] text-center mb-6 hover:border-[var(--color-primary-blue)] transition-colors">
         <input
@@ -357,6 +410,15 @@ export default function FinanceiroConciliacao() {
         >
           Selecionar Arquivo OFX / CSV
         </button>
+        {contasAtivas.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-[var(--color-text-muted)]">
+            <label htmlFor="conta-extrato">Extrato da conta:</label>
+            <select id="conta-extrato" value={contaExtratoId} onChange={(e) => setContaExtratoId(e.target.value)} className="h-8 rounded-md border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-2 text-xs">
+              <option value="">Não informar</option>
+              {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Transactions List */}

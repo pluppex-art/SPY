@@ -74,7 +74,7 @@ export function FinanceiroHistoricoCobrancas() {
     const sem = semCobrancaRecente(linhas);
     return (
       <div className="grid gap-4 xl:grid-cols-2">
-        <SecaoCard titulo={`Cobrar agora — ${sem.length} cliente(s) em atraso sem contato nos últimos 7 dias`} icon={AlertTriangle} semPadding>
+        <SecaoCard titulo={`Cobrar agora — ${sem.length} sem contato há 7 dias`} icon={AlertTriangle} semPadding>
           {sem.length === 0 ? (
             <p className="p-4 text-sm text-emerald-600"><CheckCircle2 className="mr-1.5 inline h-4 w-4" />Todos os clientes em atraso foram contatados na última semana.</p>
           ) : (
