@@ -2647,6 +2647,7 @@ export default function VarejoVendas() {
         onClose={() => setSuspenderOpen(false)}
         itens={cart.map((i) => ({ productId: i.productId, name: i.name, quantidade: i.quantidade }))}
         tenantId={activeTenantId}
+        exigirSenha={cfg.pdv.exigirSenhaSupervisor}
         onEspera={handleSuspenderVenda}
         onRemover={removerItensAutorizado}
         onCancelarVenda={clearCart}

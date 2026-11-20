@@ -11,6 +11,7 @@ export function ConfigVarejoPDV() {
       validate={(d) => (d.descontoMaximoPct < 0 || d.descontoMaximoPct > 100 ? "O desconto máximo deve estar entre 0% e 100%." : null)}
       fields={[
         { kind: "toggle", key: "exigirCliente", label: "Exigir cliente na venda", hint: "Impede finalizar sem identificar o cliente." },
+        { kind: "toggle", key: "exigirSenhaSupervisor", label: "Exigir senha para remover item ou cancelar venda", hint: "Ligado: o caixa precisa da senha de supervisor. Desligado: remove e cancela direto, sem pedir senha." },
         { kind: "toggle", key: "exigirVendedor", label: "Exigir vendedor", hint: "Impede finalizar vendas no \"Balcão\" sem escolher um vendedor (comissão e relatórios)." },
         { kind: "toggle", key: "permitirVendaSemEstoque", label: "Permitir vender sem estoque", hint: "Útil para encomendas; o estoque pode ficar negativo." },
         { kind: "toggle", key: "descontoLivre", label: "Desconto livre", hint: "Desligue para limitar o desconto ao teto abaixo." },
