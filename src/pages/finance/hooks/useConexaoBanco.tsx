@@ -22,7 +22,8 @@ export interface ConexaoBanco {
 interface StatusPluggy {
   configured: boolean;
   sandbox: boolean;
-  webhook: boolean;
+  /** url: endereço https que o Pluggy chamaria (null se o app não tem https público); secret: se PLUGGY_WEBHOOK_SECRET está definido. */
+  webhook: { url: string | null; secret: boolean };
   connections: ConexaoBanco[];
 }
 
@@ -54,7 +55,9 @@ async function chamar<T = any>(caminho: string, init?: RequestInit): Promise<T> 
  * `widget` precisa ser renderizado em algum lugar da página; `aoSincronizar` roda depois de importar movimentações.
  */
 export function useConexaoBanco(aoSincronizar?: () => void) {
-  const { activeTenantId } = useAuth();
+  const { activeTenantId, user } = useAuth();
+  // A empresa vai em toda chamada: master e parceiro conectam o banco do cliente que estão vendo, não só o da própria empresa.
+  const rota = useCallback((caminho: string) => `${caminho}${caminho.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(activeTenantId ?? "")}`, [activeTenantId]);
   const [status, setStatus] = useState<StatusPluggy | null>(null);
   const [sessao, setSessao] = useState<SessaoWidget | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -62,12 +65,12 @@ export function useConexaoBanco(aoSincronizar?: () => void) {
   const carregar = useCallback(async () => {
     if (!activeTenantId) return;
     try {
-      setStatus(await chamar<StatusPluggy>("/api/pluggy/status"));
+      setStatus(await chamar<StatusPluggy>(rota("/api/pluggy/status")));
     } catch {
       // Sem permissão (não é admin) ou servidor sem a integração: a tela cai no modo manual (extrato OFX/CSV).
-      setStatus({ configured: false, sandbox: false, webhook: false, connections: [] });
+      setStatus({ configured: false, sandbox: false, webhook: { url: null, secret: false }, connections: [] });
     }
-  }, [activeTenantId]);
+  }, [activeTenantId, rota]);
   useEffect(() => { carregar(); }, [carregar]);
 
   const resumo = (r: any) => {
@@ -80,21 +83,21 @@ export function useConexaoBanco(aoSincronizar?: () => void) {
   const conectar = useCallback(async (contaId: string | null, itemId?: string | null) => {
     setOcupado(`conectar:${contaId ?? itemId}`);
     try {
-      const r = await chamar<{ accessToken: string; sandbox: boolean }>("/api/pluggy/connect-token", { method: "POST", body: JSON.stringify({ contaId, itemId: itemId ?? undefined }) });
+      const r = await chamar<{ accessToken: string; sandbox: boolean }>(rota("/api/pluggy/connect-token"), { method: "POST", body: JSON.stringify({ contaId, itemId: itemId ?? undefined }) });
       setSessao({ accessToken: r.accessToken, sandbox: r.sandbox, contaId, itemId: itemId ?? null });
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setOcupado(null);
     }
-  }, []);
+  }, [rota]);
 
   const finalizar = useCallback(async (itemId: string, contaId: string | null) => {
     setSessao(null);
     setOcupado(`importar:${itemId}`);
     const t = toast.loading("Buscando suas movimentações no banco…");
     try {
-      const r = await chamar("/api/pluggy/items", { method: "POST", body: JSON.stringify({ itemId, contaId }) });
+      const r = await chamar(rota("/api/pluggy/items"), { method: "POST", body: JSON.stringify({ itemId, contaId }) });
       toast.dismiss(t);
       resumo(r);
       await carregar();
@@ -105,12 +108,12 @@ export function useConexaoBanco(aoSincronizar?: () => void) {
     } finally {
       setOcupado(null);
     }
-  }, [carregar, aoSincronizar]);
+  }, [carregar, aoSincronizar, rota]);
 
   const sincronizar = useCallback(async (itemId?: string) => {
     setOcupado(`sync:${itemId ?? "todas"}`);
     try {
-      const r = await chamar("/api/pluggy/sync", { method: "POST", body: JSON.stringify({ itemId }) });
+      const r = await chamar(rota("/api/pluggy/sync"), { method: "POST", body: JSON.stringify({ itemId }) });
       resumo(r);
       await carregar();
       aoSincronizar?.();
@@ -119,12 +122,12 @@ export function useConexaoBanco(aoSincronizar?: () => void) {
     } finally {
       setOcupado(null);
     }
-  }, [carregar, aoSincronizar]);
+  }, [carregar, aoSincronizar, rota]);
 
   const desconectar = useCallback(async (itemId: string) => {
     setOcupado(`desconectar:${itemId}`);
     try {
-      await chamar(`/api/pluggy/connections/${itemId}`, { method: "DELETE" });
+      await chamar(rota(`/api/pluggy/connections/${itemId}`), { method: "DELETE" });
       toast.success("Conta desconectada do banco. As movimentações já importadas continuam na Conciliação.");
       await carregar();
     } catch (e: any) {
@@ -132,7 +135,20 @@ export function useConexaoBanco(aoSincronizar?: () => void) {
     } finally {
       setOcupado(null);
     }
-  }, [carregar]);
+  }, [carregar, rota]);
+
+  /** Só master: liga a atualização automática (o Pluggy passa a avisar o sistema quando o banco tem movimento novo). */
+  const ativarAtualizacaoAutomatica = useCallback(async () => {
+    setOcupado("webhook");
+    try {
+      const r = await chamar<{ criado: boolean }>("/api/pluggy/webhook/register", { method: "POST", body: "{}" });
+      toast.success(r.criado ? "Atualização automática ativada." : "A atualização automática já estava ativa.");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setOcupado(null);
+    }
+  }, []);
 
   const widget: ReactNode = sessao ? (
     <Suspense fallback={null}>
@@ -149,5 +165,5 @@ export function useConexaoBanco(aoSincronizar?: () => void) {
     </Suspense>
   ) : null;
 
-  return { status, ocupado, conectar, sincronizar, desconectar, recarregar: carregar, widget };
+  return { status, ocupado, conectar, sincronizar, desconectar, ativarAtualizacaoAutomatica, souMaster: !!user?.isMaster, recarregar: carregar, widget };
 }

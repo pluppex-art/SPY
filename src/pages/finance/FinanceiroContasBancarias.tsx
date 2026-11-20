@@ -59,6 +59,9 @@ interface ContaBancaria {
   titular?: string | null;
   documento?: string | null;
   chave_pix?: string | null;
+  /** Saldo informado pelo banco na última sincronização (cartão de crédito: dívida, negativo). */
+  saldo_banco?: number | null;
+  saldo_banco_em?: string | null;
   conexao_status?: string | null;
   conexao_provedor?: string | null;
   ultima_sincronizacao?: string | null;
@@ -212,6 +215,26 @@ export default function FinanceiroContasBancarias() {
     }
   };
 
+  /**
+   * "Acertar com o banco": ajusta o SALDO INICIAL da conta para que o saldo do sistema passe a ser igual ao que o banco informou.
+   * Nunca roda sozinho — o saldo do sistema continua vindo dos lançamentos, e a diferença costuma indicar lançamento que falta.
+   */
+  const handleAcertarComBanco = async (c: ContaBancaria) => {
+    if (c.saldo_banco == null) return;
+    const atual = saldoPorConta.get(c.id) ?? 0;
+    const diferenca = Math.round((c.saldo_banco - atual) * 100) / 100;
+    if (Math.abs(diferenca) < 0.01) return;
+    const base = c.sinal_saldo_inicial === "NEGATIVO" ? -Math.abs(c.saldo_inicial) : c.sinal_saldo_inicial === "ZERADO" ? 0 : Math.abs(c.saldo_inicial);
+    const novoBase = Math.round((base + diferenca) * 100) / 100;
+    const ok = await confirmDialog({
+      title: `Acertar "${c.nome}" com o banco`,
+      description: `O banco informa ${formatCurrency(c.saldo_banco)} e o sistema calcula ${formatCurrency(atual)}. O saldo inicial passa de ${formatCurrency(base)} para ${formatCurrency(novoBase)} para os dois baterem. Se a diferença for de lançamentos que faltam, prefira lançá-los na Conciliação.`,
+    });
+    if (!ok) return;
+    await updateFinanceBankAccount(c.id, { saldo_inicial: Math.abs(novoBase), sinal_saldo_inicial: novoBase < 0 ? "NEGATIVO" : novoBase === 0 ? "ZERADO" : "POSITIVO" });
+    toast.success("Saldo inicial ajustado: o saldo do sistema agora bate com o do banco.");
+  };
+
   const handleDelete = async (c: ContaBancaria): Promise<boolean> => {
     if (emUso.has(c.id)) {
       toast.error("Esta conta tem lançamentos vinculados — arquive em vez de excluir.");
@@ -346,7 +369,25 @@ export default function FinanceiroContasBancarias() {
                           : <span className="inline-flex rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] font-semibold text-slate-600" title="Movimentações entram por extrato (OFX/CSV) na Conciliação">Manual</span>}
                       </td>
                       <td className="px-6 py-3.5 text-right tabular-nums text-[var(--color-text-muted)]">{formatCurrency(c.saldo_inicial)}</td>
-                      <td className={cn("px-6 py-3.5 text-right tabular-nums font-semibold", saldo < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-text-primary)]")}>{formatCurrency(saldo)}</td>
+                      <td className={cn("px-6 py-3.5 text-right tabular-nums font-semibold", saldo < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-text-primary)]")}>
+                        {formatCurrency(saldo)}
+                        {c.saldo_banco != null && (() => {
+                          const dif = Math.round((c.saldo_banco - saldo) * 100) / 100;
+                          const bate = Math.abs(dif) < 0.01;
+                          return (
+                            <span className="mt-0.5 block text-[11px] font-normal text-[var(--color-text-muted)]">
+                              Banco: {formatCurrency(c.saldo_banco)}
+                              {c.saldo_banco_em ? ` (${new Date(c.saldo_banco_em).toLocaleDateString("pt-BR")})` : ""}
+                              {bate
+                                ? <span className="ml-1 font-semibold text-emerald-600">· bate</span>
+                                : <>
+                                    <span className="ml-1 font-semibold text-amber-600">· diferença {formatCurrency(dif)}</span>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleAcertarComBanco(c); }} className="ml-1.5 underline decoration-dotted hover:text-[var(--color-primary-blue)]">Acertar com o banco</button>
+                                  </>}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="px-6 py-3.5">
                         <div className="flex items-center justify-end gap-1">
                           {!c.is_principal && !c.arquivada && (
@@ -406,6 +447,7 @@ export default function FinanceiroContasBancarias() {
             { icon: DollarSign, title: "Saldo", rows: [
               { label: "Saldo inicial", value: `${formatCurrency(viewing.sinal_saldo_inicial === "NEGATIVO" ? -Math.abs(viewing.saldo_inicial) : viewing.sinal_saldo_inicial === "ZERADO" ? 0 : viewing.saldo_inicial)}`, mono: true },
               { label: "Saldo atual", value: formatCurrency(viewDetalhes.saldo), mono: true },
+              { label: "Saldo informado pelo banco", value: viewing.saldo_banco != null ? `${formatCurrency(viewing.saldo_banco)}${viewing.saldo_banco_em ? ` em ${new Date(viewing.saldo_banco_em).toLocaleDateString("pt-BR")}` : ""}` : null },
               { label: "Lançamentos vinculados", value: String(viewDetalhes.lanc) },
               { label: "Transferências", value: String(viewDetalhes.transf) },
             ] },

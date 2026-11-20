@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, randomUUID } from "node:crypto";
 import {
-  assinaturaValida, criarClientePluggy, ErroPluggy, lerConfigPluggy, paraLinhaExtrato, proximaPagina, sincronizarItem, webhookUrlDe,
-  type ClientePluggy,
+  assinaturaValida, CABECALHO_SEGREDO, createPluggyWebhookHandler, criarClientePluggy, ErroPluggy, lerConfigPluggy, liberarFinanceiro, paraLinhaExtrato,
+  proximaPagina, registrarWebhook, segredoConfere, sincronizarItem, webhookUrlDe, type ClientePluggy, type PluggyConfig,
 } from "../../server/pluggy.js";
 
 const TENANT = "11111111-1111-1111-1111-111111111111";
@@ -16,7 +16,7 @@ function bancoFalso(tabelas: Record<string, any[]>) {
     const st: any = { op: "select", filtros: [] as ((r: any) => boolean)[], payload: undefined, opts: undefined, quer: false, unico: false };
     const executa = () => {
       const alvo = linhas.filter((r) => st.filtros.every((f: any) => f(r)));
-      if (st.op === "select") return st.unico ? { data: alvo[0] ?? null, error: alvo[0] ? null : { message: "sem linha" } } : { data: alvo, error: null };
+      if (st.op === "select") return st.unico ? { data: alvo[0] ?? null, error: alvo[0] || st.talvez ? null : { message: "sem linha" } } : { data: alvo, error: null };
       if (st.op === "update") { alvo.forEach((r) => Object.assign(r, st.payload)); return { data: alvo, error: null }; }
       if (st.op === "delete") { for (const r of alvo) linhas.splice(linhas.indexOf(r), 1); return { data: alvo, error: null }; }
       const novos: any[] = [];
@@ -36,7 +36,9 @@ function bancoFalso(tabelas: Record<string, any[]>) {
       eq(c: string, v: any) { st.filtros.push((r: any) => r[c] === v); return b; },
       in(c: string, vs: any[]) { st.filtros.push((r: any) => vs.includes(r[c])); return b; },
       not(c: string, op: string, v: string) { if (op === "like") st.filtros.push((r: any) => !String(r[c]).startsWith(v.replace("%", ""))); return b; },
+      is(c: string, v: any) { st.filtros.push((r: any) => (r[c] ?? null) === v); return b; },
       single() { st.unico = true; return b; },
+      maybeSingle() { st.unico = true; st.talvez = true; return b; },
       limit() { return b; },
       then(ok: any, ko: any) { return Promise.resolve(executa()).then(ok, ko); },
     };
@@ -85,7 +87,8 @@ test("assinaturaValida: aceita a assinatura correta e recusa corpo alterado, seg
 
 test("paraLinhaExtrato: crédito/débito, valor absoluto, data BR e descarta pendentes", () => {
   const credito = paraLinhaExtrato(tx("a", 150.5, "CREDIT"), TENANT, "Caixa")!;
-  assert.deepEqual(credito, { id: "pluggy-a", tenant_id: TENANT, data: "10/11/2026", descricao: "Mov a", documento: "a", valor: 150.5, tipo: "credito", banco: "Caixa", conciliado: false });
+  assert.deepEqual(credito, { id: "pluggy-a", tenant_id: TENANT, data: "10/11/2026", descricao: "Mov a", documento: "a", valor: 150.5, tipo: "credito", banco: "Caixa", conta_bancaria_id: null, conciliado: false });
+  assert.equal(paraLinhaExtrato(tx("z", 1, "CREDIT"), TENANT, "Caixa", "c1")!.conta_bancaria_id, "c1", "guarda a conta de origem");
   const debito = paraLinhaExtrato(tx("b", -80, "DEBIT"), TENANT, "Caixa")!;
   assert.equal(debito.tipo, "debito");
   assert.equal(debito.valor, 80);
@@ -155,22 +158,26 @@ test("sincronizarItem: liga a conta escolhida, importa as movimentações (vári
   const agora = () => new Date("2026-11-19T12:00:00Z");
 
   const r1 = await sincronizarItem({ cli, sb, tenantId: TENANT, itemId: ITEM }, { agora });
-  assert.deepEqual({ contas: r1.contas, importadas: r1.importadas, parcial: r1.parcial, status: r1.status }, { contas: 1, importadas: 3, parcial: false, status: "UPDATED" });
+  assert.deepEqual({ contas: r1.contas, importadas: r1.importadas, parcial: r1.parcial, status: r1.status }, { contas: 2, importadas: 3, parcial: false, status: "UPDATED" }, "a conta corrente e o cartão");
 
   const extratos = sb.from("finance_extratos_importados");
   const linhas = (await extratos).data;
   assert.deepEqual(linhas.map((l: any) => l.documento).sort(), ["t1", "t2", "t4"]);
-  assert.ok(linhas.every((l: any) => l.banco === "Caixa" && l.tenant_id === TENANT && l.conciliado === false), "rótulo = nome da conta, para o filtro da Conciliação");
+  assert.ok(linhas.every((l: any) => l.banco === "Caixa" && l.conta_bancaria_id === "c1" && l.tenant_id === TENANT && l.conciliado === false), "rótulo = nome da conta e vínculo com a conta");
 
   const conexoes = (await sb.from("finance_bank_connections")).data;
-  assert.equal(conexoes.length, 1, "o marcador provisório foi trocado pela conta real do banco");
-  assert.equal(conexoes[0].pluggy_account_id, "acc1");
-  assert.equal(conexoes[0].conta_bancaria_id, "c1");
-  assert.equal(conexoes[0].connector_name, "Itaú");
-  assert.equal(conexoes[0].last_sync_at, "2026-11-19T12:00:00.000Z");
+  assert.equal(conexoes.length, 2, "o marcador provisório foi trocado pelas contas reais do banco");
+  const corrente = conexoes.find((c: any) => c.pluggy_account_id === "acc1");
+  assert.equal(corrente.conta_bancaria_id, "c1");
+  assert.equal(corrente.connector_name, "Itaú");
+  assert.equal(corrente.last_sync_at, "2026-11-19T12:00:00.000Z");
+  assert.equal(conexoes.find((c: any) => c.pluggy_account_id === "cc1").pluggy_account_type, "CREDIT");
 
-  const conta = (await sb.from("finance_bank_accounts")).data[0];
+  const contas = (await sb.from("finance_bank_accounts")).data;
+  const conta = contas.find((c: any) => c.id === "c1");
   assert.deepEqual({ s: conta.conexao_status, p: conta.conexao_provedor, b: conta.banco }, { s: "Conectada", p: "Pluggy", b: "Itaú" });
+  const cartao = contas.find((c: any) => c.id !== "c1");
+  assert.deepEqual({ tipo: cartao.tipo, nome: cartao.nome, principal: cartao.is_principal }, { tipo: "CARTAO_CREDITO", nome: "Itaú — Cartão", principal: false }, "cartão vira uma conta do tipo cartão");
 
   // Mesma sincronização de novo: o que já veio não entra duas vezes.
   const r2 = await sincronizarItem({ cli, sb, tenantId: TENANT, itemId: ITEM }, { agora });
@@ -183,7 +190,7 @@ test("sincronizarItem: depois da primeira vez pede só o período novo (última 
   const { cli, chamadas } = pluggyFalso({ transacoes: { acc1: [[tx("t1", 1, "CREDIT")]] } });
   await sincronizarItem({ cli, sb, tenantId: TENANT, itemId: ITEM }, { agora: () => new Date("2026-11-19T12:00:00Z") });
   await sincronizarItem({ cli, sb, tenantId: TENANT, itemId: ITEM }, { agora: () => new Date("2026-11-25T12:00:00Z") });
-  const pedidos = chamadas.filter((c) => c.startsWith("/v2/transactions"));
+  const pedidos = chamadas.filter((c) => c.startsWith("/v2/transactions") && c.includes("accountId=acc1"));
   assert.match(decodeURIComponent(pedidos[0]), /dateFrom=2026-08-21T12:00:00\.000Z/, "1ª vez: 90 dias");
   assert.match(decodeURIComponent(pedidos[1]), /dateFrom=2026-11-16T12:00:00\.000Z/, "2ª vez: desde 19/11 − 3 dias");
 });
@@ -206,7 +213,7 @@ test("sincronizarItem: login recusado → marca o erro e pede para reconectar", 
   assert.match((await sb.from("finance_bank_connections")).data[0].last_error, /Reconecte/);
 });
 
-test("sincronizarItem: segunda conta bancária da mesma conexão vira uma conta nova; cartão de crédito é ignorado", async () => {
+test("sincronizarItem: segunda conta bancária da mesma conexão vira uma conta nova e o cartão também", async () => {
   const sb = cenario();
   const { cli } = pluggyFalso({
     contas: [
@@ -217,11 +224,11 @@ test("sincronizarItem: segunda conta bancária da mesma conexão vira uma conta 
     transacoes: { acc1: [[tx("a", 1, "CREDIT")]], acc2: [[tx("b", 2, "CREDIT")]] },
   });
   const r = await sincronizarItem({ cli, sb, tenantId: TENANT, itemId: ITEM });
-  assert.equal(r.contas, 2);
+  assert.equal(r.contas, 3);
   assert.equal(r.importadas, 2);
   const contas = (await sb.from("finance_bank_accounts")).data;
-  assert.equal(contas.length, 2);
-  const nova = contas.find((c: any) => c.id !== "c1");
+  assert.equal(contas.length, 3);
+  const nova = contas.find((c: any) => c.nome === "Itaú — Poupança");
   assert.equal(nova.tipo, "CONTA_POUPANCA");
   assert.equal(nova.tenant_id, TENANT);
   assert.equal(nova.is_principal, false);
@@ -235,4 +242,173 @@ test("sincronizarItem: conexão de outra empresa não é encontrada", async () =
   const sb = cenario();
   const { cli } = pluggyFalso({});
   await assert.rejects(sincronizarItem({ cli, sb, tenantId: "99999999-9999-9999-9999-999999999999", itemId: ITEM }), (e: any) => e instanceof ErroPluggy && e.status === 404);
+});
+
+test("sincronizarItem: guarda o saldo informado pelo banco (cartão de crédito entra como dívida, negativo)", async () => {
+  const sb = cenario();
+  const { cli } = pluggyFalso({
+    contas: [
+      { id: "acc1", type: "BANK", subtype: "CHECKING_ACCOUNT", name: "Corrente", balance: 1520.75 },
+      { id: "cc1", type: "CREDIT", name: "Cartão", balance: 830.1 },
+    ],
+  });
+  await sincronizarItem({ cli, sb, tenantId: TENANT, itemId: ITEM }, { agora: () => new Date("2026-11-19T12:00:00Z") });
+  const contas = (await sb.from("finance_bank_accounts")).data;
+  const corrente = contas.find((c: any) => c.id === "c1");
+  const cartao = contas.find((c: any) => c.tipo === "CARTAO_CREDITO");
+  assert.equal(corrente.saldo_banco, 1520.75);
+  assert.equal(corrente.saldo_banco_em, "2026-11-19T12:00:00.000Z");
+  assert.equal(cartao.saldo_banco, -830.1);
+});
+
+test("sincronizarItem: conexão feita antes (só a corrente) ganha o cartão no próximo sincronizar, sem duplicar a corrente", async () => {
+  const sb = bancoFalso({
+    finance_bank_accounts: [{ id: "c1", tenant_id: TENANT, nome: "Caixa", banco: "Itaú" }],
+    finance_bank_connections: [{ id: "m1", tenant_id: TENANT, item_id: ITEM, pluggy_account_id: "acc1", pluggy_account_type: "BANK", conta_bancaria_id: "c1" }],
+    finance_extratos_importados: [],
+  });
+  const { cli } = pluggyFalso({});
+  const r = await sincronizarItem({ cli, sb, tenantId: TENANT, itemId: ITEM });
+  assert.equal(r.contas, 2);
+  const conexoes = (await sb.from("finance_bank_connections")).data;
+  assert.deepEqual(conexoes.map((c: any) => c.pluggy_account_id).sort(), ["acc1", "cc1"]);
+  assert.equal(conexoes.find((c: any) => c.pluggy_account_id === "acc1").conta_bancaria_id, "c1");
+});
+
+// ── Segredo, permissões e webhook ───────────────────────────────────────────────
+test("segredoConfere: só aceita o mesmo segredo (e nunca vazio)", () => {
+  assert.equal(segredoConfere("abc", "abc"), true);
+  assert.equal(segredoConfere("abd", "abc"), false);
+  assert.equal(segredoConfere("abc", "abcd"), false);
+  assert.equal(segredoConfere(undefined, "abc"), false);
+  assert.equal(segredoConfere("abc", undefined), false);
+  assert.equal(segredoConfere("", ""), false);
+});
+
+function bancoDePermissoes(o: { modules?: any; user: any; cargos?: any[]; colabCargos?: string[] }) {
+  return bancoFalso({
+    tenants: [{ id: TENANT, modules: o.modules ?? { financeiro: true }, deleted_at: null }],
+    users: [{ id: "u1", ...o.user }],
+    cargos: o.cargos ?? [],
+    colaboradores: o.colabCargos ? [{ id: "col", tenant_id: TENANT, user_id: "u1", cargos: o.colabCargos }] : [],
+  });
+}
+
+test("liberarFinanceiro: qualquer pessoa com o módulo na empresa e no cargo pode; admin não é exigido", async () => {
+  const sb = bancoDePermissoes({ user: { role: "Financeiro", is_master: false, is_tenant_admin: false, tenant_id: TENANT }, cargos: [{ tenant_id: TENANT, nome: "Financeiro", modulos: ["financeiro", "crm"], restringir_aos_proprios_dados: false }] });
+  assert.deepEqual(await liberarFinanceiro(sb, "u1", TENANT), { ok: true });
+});
+
+test("liberarFinanceiro: sem cargo cadastrado = sem restrição (como o menu); admin da empresa passa", async () => {
+  const sem = bancoDePermissoes({ user: { role: "Qualquer", is_master: false, is_tenant_admin: false, tenant_id: TENANT } });
+  assert.equal((await liberarFinanceiro(sem, "u1", TENANT)).ok, true);
+  const adm = bancoDePermissoes({ user: { role: "Vendedor", is_master: false, is_tenant_admin: true, tenant_id: TENANT }, cargos: [{ tenant_id: TENANT, nome: "Vendedor", modulos: ["crm"], restringir_aos_proprios_dados: true }] });
+  assert.equal((await liberarFinanceiro(adm, "u1", TENANT)).ok, true);
+});
+
+test("liberarFinanceiro: bloqueia módulo desligado, cargo sem Financeiro e perfil restrito aos próprios dados", async () => {
+  const desligado = bancoDePermissoes({ modules: { crm: true }, user: { role: "X", is_master: false, is_tenant_admin: false, tenant_id: TENANT } });
+  const r1 = await liberarFinanceiro(desligado, "u1", TENANT);
+  assert.deepEqual({ ok: r1.ok, status: r1.status }, { ok: false, status: 403 });
+  assert.match(r1.erro!, /módulo Financeiro/);
+
+  const semFin = bancoDePermissoes({ user: { role: "Comercial", is_master: false, is_tenant_admin: false, tenant_id: TENANT }, cargos: [{ tenant_id: TENANT, nome: "Comercial", modulos: ["crm"], restringir_aos_proprios_dados: false }] });
+  const r2 = await liberarFinanceiro(semFin, "u1", TENANT);
+  assert.equal(r2.ok, false);
+  assert.match(r2.erro!, /não tem acesso ao Financeiro/);
+
+  const restrito = bancoDePermissoes({ user: { role: "Vendedor", is_master: false, is_tenant_admin: false, tenant_id: TENANT }, cargos: [{ tenant_id: TENANT, nome: "Vendedor", modulos: ["financeiro"], restringir_aos_proprios_dados: true }] });
+  const r3 = await liberarFinanceiro(restrito, "u1", TENANT);
+  assert.equal(r3.ok, false);
+  assert.match(r3.erro!, /próprios dados/);
+});
+
+test("liberarFinanceiro: usa também os cargos do cadastro de colaborador; master passa mesmo sem o módulo", async () => {
+  const porColab = bancoDePermissoes({ user: { role: "Login", is_master: false, is_tenant_admin: false, tenant_id: TENANT }, colabCargos: ["Comercial"], cargos: [{ tenant_id: TENANT, nome: "Comercial", modulos: ["crm"], restringir_aos_proprios_dados: false }] });
+  assert.equal((await liberarFinanceiro(porColab, "u1", TENANT)).ok, false);
+  const master = bancoDePermissoes({ modules: {}, user: { role: "Master", is_master: true, is_tenant_admin: false, tenant_id: "outra" } });
+  assert.equal((await liberarFinanceiro(master, "u1", TENANT)).ok, true);
+});
+
+const cfgWebhook: PluggyConfig = { clientId: "cid", clientSecret: "sec", sandbox: false, publicAppUrl: "https://app.exemplo.com", webhookSecret: "meu-segredo" };
+
+test("registrarWebhook: cria com o cabeçalho secreto, não duplica e exige https + segredo", async () => {
+  const chamadas: any[] = [];
+  const cli = (existentes: any[]) => ({ get: async () => ({ results: existentes }), post: async (c: string, corpo: any) => { chamadas.push([c, corpo]); return {}; }, delete: async () => undefined }) as any;
+
+  const r1 = await registrarWebhook(cli([]), cfgWebhook);
+  assert.deepEqual(r1, { criado: true, url: "https://app.exemplo.com/api/pluggy/webhook" });
+  assert.deepEqual(chamadas[0], ["/webhooks", { event: "all", url: "https://app.exemplo.com/api/pluggy/webhook", headers: { [CABECALHO_SEGREDO]: "meu-segredo" } }]);
+
+  chamadas.length = 0;
+  const r2 = await registrarWebhook(cli([{ url: "https://app.exemplo.com/api/pluggy/webhook" }]), cfgWebhook);
+  assert.equal(r2.criado, false);
+  assert.equal(chamadas.length, 0, "já existe: não cria de novo");
+
+  await assert.rejects(registrarWebhook(cli([]), { ...cfgWebhook, publicAppUrl: "http://localhost:3002" }), (e: any) => e instanceof ErroPluggy && e.status === 400 && /https/.test(e.message));
+  await assert.rejects(registrarWebhook(cli([]), { ...cfgWebhook, webhookSecret: undefined }), (e: any) => e instanceof ErroPluggy && e.status === 400 && /PLUGGY_WEBHOOK_SECRET/.test(e.message));
+});
+
+function respostaFalsa() {
+  const r: any = { codigo: 0, corpo: null, status(c: number) { r.codigo = c; return r; }, json(b: any) { r.corpo = b; return r; } };
+  return r;
+}
+async function dispara(sb: any, req: any, cliFalso?: ClientePluggy) {
+  Object.assign(process.env, { PLUGGY_CLIENT_ID: "cid", PLUGGY_CLIENT_SECRET: "sec", PLUGGY_WEBHOOK_SECRET: "meu-segredo" });
+  delete process.env.PLUGGY_SIGNING_SECRET;
+  const res = respostaFalsa();
+  await createPluggyWebhookHandler({ supabaseService: sb, criarCliente: () => cliFalso as any })(req, res);
+  return res;
+}
+
+test("webhook: sem o cabeçalho secreto (ou com o errado) é 401 e nada é sincronizado", async () => {
+  const sb = cenario();
+  const { cli, chamadas } = pluggyFalso({});
+  const corpo = { event: "item/updated", clientId: "cid", itemId: ITEM };
+  const r1 = await dispara(sb, { body: corpo, headers: {} }, cli);
+  const r2 = await dispara(sb, { body: corpo, headers: { [CABECALHO_SEGREDO]: "errado" } }, cli);
+  assert.deepEqual([r1.codigo, r2.codigo], [401, 401]);
+  assert.equal(chamadas.length, 0);
+});
+
+test("webhook: com o cabeçalho certo, item/updated sincroniza (corpo já interpretado, como na Vercel)", async () => {
+  const sb = cenario();
+  const { cli } = pluggyFalso({ transacoes: { acc1: [[tx("w1", 10, "CREDIT")]] } });
+  const res = await dispara(sb, { body: { event: "item/updated", clientId: "cid", itemId: ITEM }, headers: { [CABECALHO_SEGREDO]: "meu-segredo" } }, cli);
+  assert.equal(res.codigo, 200);
+  assert.deepEqual((await sb.from("finance_extratos_importados")).data.map((l: any) => l.documento), ["w1"]);
+});
+
+test("webhook: clientId de outra aplicação e item desconhecido são ignorados; item/error marca a conexão", async () => {
+  const sb = cenario();
+  const { cli, chamadas } = pluggyFalso({});
+  const h = { [CABECALHO_SEGREDO]: "meu-segredo" };
+  const outro = await dispara(sb, { body: { event: "item/updated", clientId: "OUTRO", itemId: ITEM }, headers: h }, cli);
+  assert.deepEqual([outro.codigo, outro.corpo.ignorado], [200, true]);
+  const desconhecido = await dispara(sb, { body: { event: "item/updated", clientId: "cid", itemId: "33333333-3333-3333-3333-333333333333" }, headers: h }, cli);
+  assert.deepEqual([desconhecido.codigo, desconhecido.corpo.ignorado], [200, true]);
+  assert.equal(chamadas.length, 0);
+
+  const erro = await dispara(sb, { body: { event: "item/error", clientId: "cid", itemId: ITEM }, headers: h }, cli);
+  assert.equal(erro.codigo, 200);
+  const linha = (await sb.from("finance_bank_connections")).data[0];
+  assert.equal(linha.status, "ERROR");
+  assert.match(linha.last_error, /Reconecte/);
+});
+
+test("webhook: com signing secret e corpo bruto, assinatura inválida é 401 e válida passa", async () => {
+  const sb = cenario();
+  const { cli } = pluggyFalso({});
+  Object.assign(process.env, { PLUGGY_CLIENT_ID: "cid", PLUGGY_CLIENT_SECRET: "sec", PLUGGY_WEBHOOK_SECRET: "meu-segredo", PLUGGY_SIGNING_SECRET: "assina" });
+  const corpo = JSON.stringify({ event: "item/waiting_user_input", clientId: "cid", itemId: ITEM });
+  const t = Math.floor(Date.now() / 1000);
+  const boa = `t=${t},v1=${createHmac("sha256", "assina").update(`${t}.${corpo}`).digest("hex")}`;
+  const h = { [CABECALHO_SEGREDO]: "meu-segredo" };
+  const handler = createPluggyWebhookHandler({ supabaseService: sb, criarCliente: () => cli });
+  const ruim = respostaFalsa();
+  await handler({ body: Buffer.from(corpo), headers: { ...h, "x-pluggy-signature": `t=${t},v1=00` } }, ruim);
+  const ok = respostaFalsa();
+  await handler({ body: Buffer.from(corpo), headers: { ...h, "x-pluggy-signature": boa } }, ok);
+  delete process.env.PLUGGY_SIGNING_SECRET;
+  assert.deepEqual([ruim.codigo, ok.codigo], [401, 200]);
 });

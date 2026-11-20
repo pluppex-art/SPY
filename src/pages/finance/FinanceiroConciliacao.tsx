@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/button";
 import {
   CheckCircle2, AlertCircle, RefreshCw, Upload, FileText,
   Building2, ArrowRight, ShieldCheck, Sparkles, Check, X,
-  ArrowDownLeft, ArrowUpRight, Landmark, Link2
+  ArrowDownLeft, ArrowUpRight, Landmark, Link2, FilePlus2
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { Card } from "../../components/ui/card";
@@ -20,6 +20,9 @@ import { HelpTip } from "../../components/ui/help-tip";
 import { SecaoCard } from "./components/SecaoCard";
 import { useConexaoBanco, estadoDaConexao } from "./hooks/useConexaoBanco";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { Modal } from "../../components/ui/modal";
+import { Field, ModalFooter, inputCls, selectCls } from "./components/ModalKit";
+import { acharLancamento, lancamentoDoExtrato } from "./lib/conciliacao";
 import { Link } from "react-router-dom";
 type ExtratoItem = {
   id: string;
@@ -31,6 +34,9 @@ type ExtratoItem = {
   banco: string;
   conciliado: boolean;
   matchSugerido?: string;
+  /** Conta (finance_bank_accounts) de onde a linha veio e lançamento a que foi ligada — nulos em extratos antigos. */
+  contaId?: string | null;
+  lancamentoId?: string | null;
 };
 
 // Parser de OFX (SGML tag-based, o formato que praticamente todo banco
@@ -103,7 +109,7 @@ function parseExtratoCsv(text: string, bancoLabel: string): ExtratoItem[] {
 
 export default function FinanceiroConciliacao() {
   const { activeTenantId } = useAuth();
-  const { financeEntries, financeBankAccounts } = useData() as any;
+  const { financeEntries, financeBankAccounts, financeCategories, addFinanceEntry } = useData() as any;
 
   const [extrato, setExtrato] = useState<ExtratoItem[]>([]);
   // Sobe o contador para recarregar o extrato depois que a conexão com o banco importar movimentações.
@@ -169,6 +175,8 @@ export default function FinanceiroConciliacao() {
         banco: row.banco,
         conciliado: row.conciliado,
         matchSugerido: row.match_sugerido,
+        contaId: row.conta_bancaria_id ?? null,
+        lancamentoId: row.lancamento_id ?? null,
       }));
       setExtrato(mapped);
     })();
@@ -190,41 +198,90 @@ export default function FinanceiroConciliacao() {
   // Concilia comparando cada lançamento do extrato com os lançamentos
   // financeiros reais (mesmo valor, tolerância de 1 centavo, ainda não usado
   // como match de outro item) — não é mais um "toggle tudo pra true".
+  // Lançamentos já ligados a alguma linha do extrato não podem casar de novo.
+  const lancamentosUsados = () => new Set(extrato.map((i) => i.lancamentoId).filter(Boolean) as string[]);
+
+  /** Grava a conciliação da linha (e o lançamento a que ela foi ligada). Devolve se deu certo. */
+  const gravarConciliacao = async (item: ExtratoItem, lancamentoId: string | null, descricao: string): Promise<boolean> => {
+    if (supabase && activeTenantId) {
+      const { error } = await supabase
+        .from("finance_extratos_importados")
+        .update({ conciliado: true, match_sugerido: descricao, lancamento_id: lancamentoId })
+        .eq("id", item.id)
+        .eq("tenant_id", activeTenantId);
+      if (error) { console.error("Erro ao persistir conciliação:", error); return false; }
+    }
+    setExtrato((prev) => prev.map((x) => (x.id === item.id ? { ...x, conciliado: true, matchSugerido: descricao, lancamentoId } : x)));
+    return true;
+  };
+
+  // Concilia só o que casa de verdade: mesmo tipo e valor, data a até 7 dias e lançamento ainda livre.
   const handleConciliarAuto = () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      const usedEntryIds = new Set<string>();
+    setTimeout(async () => {
+      const usados = lancamentosUsados();
       let matched = 0;
-      setExtrato(prev =>
-        prev.map(item => {
-          if (item.conciliado) return item;
-          const entry = (financeEntries || []).find(fe =>
-            !usedEntryIds.has(fe.id) &&
-            Math.abs(Number(fe.value) - item.valor) < 0.01 &&
-            (item.tipo === "credito" ? fe.type === "Receber" : fe.type === "Pagar")
-          );
-          if (!entry) return item;
-          usedEntryIds.add(entry.id);
-          matched++;
-          if (supabase) {
-            supabase
-              .from("finance_extratos_importados")
-              .update({ conciliado: true, match_sugerido: entry.description })
-              .eq("id", item.id)
-              .then(({ error }) => {
-                if (error) console.error("Erro ao persistir conciliação automática:", error);
-              });
-          }
-          return { ...item, conciliado: true, matchSugerido: entry.description };
-        })
-      );
-      setIsProcessing(false);
-      if (matched > 0) {
-        toast.success(`${matched} transação(ões) conciliada(s) automaticamente com o financeiro.`);
-      } else {
-        toast.info("Nenhum lançamento financeiro correspondente foi encontrado para conciliar.");
+      for (const item of extrato) {
+        if (item.conciliado) continue;
+        const entry = acharLancamento(item, (financeEntries || []) as any[], usados);
+        if (!entry) continue;
+        usados.add(entry.id);
+        if (await gravarConciliacao(item, entry.id, entry.description || "Lançamento")) matched++;
       }
-    }, 600);
+      setIsProcessing(false);
+      if (matched > 0) toast.success(`${matched} transação(ões) conciliada(s) automaticamente com o financeiro.`);
+      else toast.info("Nenhum lançamento correspondente (mesmo valor, até 7 dias de diferença) foi encontrado. Use \"Criar lançamento\" nas linhas que faltam.");
+    }, 300);
+  };
+
+  /** Cria o lançamento (pago, na data e no valor do banco) para uma linha do extrato e já concilia. */
+  const criarLancamento = async (item: ExtratoItem, o: { descricao?: string; categoria?: string | null; categoriaId?: string | null; contaId?: string | null } = {}): Promise<boolean> => {
+    const contaId = o.contaId ?? item.contaId ?? contasAtivas.find((c: any) => c.nome === item.banco)?.id ?? null;
+    const novo = lancamentoDoExtrato(item, { ...o, contaId });
+    const id = await addFinanceEntry(novo as any, { silent: true }); // já avisa o erro (ex.: período fechado) e devolve undefined
+    if (!id) return false;
+    return gravarConciliacao(item, id, novo.description);
+  };
+
+  /** Um clique: concilia o que já tem lançamento e lança o que falta (categoria "A classificar" para ajustar depois). */
+  const handleConciliarELancar = async () => {
+    const pend = extrato.filter((i) => !i.conciliado);
+    if (pend.length === 0) return;
+    const usados = lancamentosUsados();
+    const casar: { item: ExtratoItem; entry: any }[] = [];
+    const criar: ExtratoItem[] = [];
+    for (const item of pend) {
+      const entry = acharLancamento(item, (financeEntries || []) as any[], usados);
+      if (entry) { usados.add(entry.id); casar.push({ item, entry }); } else criar.push(item);
+    }
+    const ok = await confirmDialog({
+      title: "Conciliar e lançar o que faltar",
+      description: `${casar.length} movimentação(ões) serão conciliadas com lançamentos que já existem. ${criar.length} não têm lançamento: serão lançadas como pagas em Receitas/Despesas, na categoria "A classificar" (você ajusta a categoria depois).`,
+    });
+    if (!ok) return;
+    setIsProcessing(true);
+    let conciliadas = 0, lancadas = 0;
+    for (const { item, entry } of casar) if (await gravarConciliacao(item, entry.id, entry.description || "Lançamento")) conciliadas++;
+    for (const item of criar) if (await criarLancamento(item)) lancadas++;
+    setIsProcessing(false);
+    toast.success(`${conciliadas} conciliada(s) com lançamentos existentes e ${lancadas} lançada(s) no financeiro.${lancadas < criar.length ? ` ${criar.length - lancadas} não puderam ser lançadas (ex.: período fechado).` : ""}`);
+  };
+
+  const [lancando, setLancando] = useState<ExtratoItem | null>(null);
+  const [formLancar, setFormLancar] = useState({ descricao: "", categoriaId: "", contaId: "" });
+  const [salvandoLancar, setSalvandoLancar] = useState(false);
+  const abrirLancar = (item: ExtratoItem) => {
+    setFormLancar({ descricao: item.descricao, categoriaId: "", contaId: item.contaId ?? contasAtivas.find((c: any) => c.nome === item.banco)?.id ?? "" });
+    setLancando(item);
+  };
+  const categoriasDoItem = lancando ? (financeCategories as any[]).filter((c) => c.tipo === (lancando.tipo === "credito" ? "Receita" : "Despesa")) : [];
+  const confirmarLancar = async () => {
+    if (!lancando) return;
+    const cat = categoriasDoItem.find((c) => c.id === formLancar.categoriaId);
+    setSalvandoLancar(true);
+    const ok = await criarLancamento(lancando, { descricao: formLancar.descricao, categoria: cat?.nome ?? null, categoriaId: cat?.id ?? null, contaId: formLancar.contaId || null });
+    setSalvandoLancar(false);
+    if (ok) { toast.success("Lançamento criado e transação conciliada."); setLancando(null); }
   };
 
   const handleManualMatch = async (id: string) => {
@@ -275,13 +332,14 @@ export default function FinanceiroConciliacao() {
             valor: it.valor,
             tipo: it.tipo,
             banco: it.banco,
+            conta_bancaria_id: contaExtratoId || null,
             conciliado: it.conciliado,
           }))
         );
         if (error) {
           toast.error(`Erro ao salvar extrato importado: ${friendlyError(error)}`, { id: "ofx-import" });
         } else {
-          setExtrato(prev => [...newItems, ...prev]);
+          setExtrato(prev => [...newItems.map(it => ({ ...it, contaId: contaExtratoId || null })), ...prev]);
           toast.success(`Arquivo "${file.name}" importado! ${newItems.length} transação(ões) identificada(s).`, { id: "ofx-import" });
         }
       }
@@ -299,13 +357,18 @@ export default function FinanceiroConciliacao() {
       title="Conciliação Bancária & OFX"
       description="Importe o extrato do banco (OFX ou Excel) e o sistema concilia sozinho as transações do banco com as do sistema."
       actions={
-        <Button
-          onClick={handleConciliarAuto}
-          disabled={isProcessing || pendentes === 0}
-          className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs bg-[var(--color-primary-blue)] !text-white hover:opacity-95"
-        >
-          <Sparkles className="w-3.5 h-3.5" /> {isProcessing ? "Processando..." : "Conciliar Automaticamente (IA)"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleConciliarELancar} disabled={isProcessing || pendentes === 0} className="h-9 px-4 text-xs font-bold gap-1.5" title="Concilia o que já tem lançamento e lança o que falta">
+            <FilePlus2 className="w-3.5 h-3.5" /> Conciliar e lançar o que faltar
+          </Button>
+          <Button
+            onClick={handleConciliarAuto}
+            disabled={isProcessing || pendentes === 0}
+            className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs bg-[var(--color-primary-blue)] !text-white hover:opacity-95"
+          >
+            <Sparkles className="w-3.5 h-3.5" /> {isProcessing ? "Processando..." : "Conciliar Automaticamente (IA)"}
+          </Button>
+        </div>
       }
     >
       <div className="space-y-4">
@@ -356,7 +419,14 @@ export default function FinanceiroConciliacao() {
       {conexao.widget}
 
       <SecaoCard titulo={`Contas e conexão com o banco — ${contasAtivas.length} conta(s)`} icon={Landmark} semPadding className="mb-6"
-        direita={itensConectados.length > 0 ? <Button size="sm" variant="outline" onClick={() => conexao.sincronizar()} disabled={ocupado}><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${conexao.ocupado?.startsWith("sync") ? "animate-spin" : ""}`} />Sincronizar tudo</Button> : undefined}>
+        direita={itensConectados.length > 0 ? (
+          <div className="flex gap-2">
+            {conexao.souMaster && conexao.status?.webhook.url && conexao.status.webhook.secret && (
+              <Button size="sm" variant="ghost" onClick={conexao.ativarAtualizacaoAutomatica} disabled={ocupado} title="Faz o banco avisar o sistema quando há movimento novo (basta ativar uma vez)">Ativar atualização automática</Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => conexao.sincronizar()} disabled={ocupado}><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${conexao.ocupado?.startsWith("sync") ? "animate-spin" : ""}`} />Sincronizar tudo</Button>
+          </div>
+        ) : undefined}>
         {contasAtivas.length === 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm text-[var(--color-text-muted)]">
             <span>Cadastre a conta do banco para importar o extrato dela e conciliar.</span>
@@ -373,7 +443,7 @@ export default function FinanceiroConciliacao() {
               </thead>
               <tbody>
                 {contasAtivas.map((c: any) => {
-                  const itens = extrato.filter((i) => i.banco === c.nome);
+                  const itens = extrato.filter((i) => (i.contaId ? i.contaId === c.id : i.banco === c.nome));
                   const ultima = itens.map((i) => i.data).sort().slice(-1)[0];
                   return (
                     <tr key={c.id} className="border-b border-[var(--color-border-default)] last:border-0">
@@ -517,12 +587,21 @@ export default function FinanceiroConciliacao() {
                         <Check className="w-3 h-3" /> Conciliado
                       </span>
                     ) : (
-                      <button
-                        onClick={() => handleManualMatch(item.id)}
-                        className="px-2.5 py-1 rounded-lg bg-[var(--color-primary-blue)] hover:opacity-90 !text-white text-[11px] font-bold transition-all inline-flex items-center gap-1"
-                      >
-                        Aprovar Match
-                      </button>
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <button
+                          onClick={() => handleManualMatch(item.id)}
+                          className="px-2.5 py-1 rounded-lg bg-[var(--color-primary-blue)] hover:opacity-90 !text-white text-[11px] font-bold transition-all inline-flex items-center gap-1"
+                        >
+                          Aprovar Match
+                        </button>
+                        <button
+                          onClick={() => abrirLancar(item)}
+                          className="px-2.5 py-1 rounded-lg border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)] text-[var(--color-text-primary)] text-[11px] font-bold transition-all inline-flex items-center gap-1"
+                          title="Cria o lançamento no financeiro e concilia esta linha"
+                        >
+                          <FilePlus2 className="w-3 h-3" /> Criar lançamento
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -532,6 +611,33 @@ export default function FinanceiroConciliacao() {
         </div>
       </div>
       </div>
+      <Modal
+        isOpen={!!lancando}
+        onClose={() => setLancando(null)}
+        title="Criar lançamento a partir do extrato"
+        footer={<ModalFooter onCancel={() => setLancando(null)} submitLabel="Criar lançamento" saving={salvandoLancar} type="button" onSubmit={confirmarLancar} />}
+      >
+        {lancando && (
+          <div className="space-y-3">
+            <p className="rounded-lg bg-[var(--color-surface-sunken)] p-3 text-xs text-[var(--color-text-muted)]">
+              {lancando.data} · <b className={lancando.tipo === "credito" ? "text-success" : "text-danger"}>{lancando.tipo === "credito" ? "+" : "−"} R$ {lancando.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b> · {lancando.tipo === "credito" ? "vira uma receita paga" : "vira uma despesa paga"} nesta data.
+            </p>
+            <Field label="Descrição"><input className={inputCls()} value={formLancar.descricao} onChange={(e) => setFormLancar({ ...formLancar, descricao: e.target.value })} /></Field>
+            <Field label={lancando.tipo === "credito" ? "Categoria da receita" : "Categoria da despesa"}>
+              <select className={selectCls()} value={formLancar.categoriaId} onChange={(e) => setFormLancar({ ...formLancar, categoriaId: e.target.value })}>
+                <option value="">A classificar (ajusto depois)</option>
+                {categoriasDoItem.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </Field>
+            <Field label="Conta">
+              <select className={selectCls()} value={formLancar.contaId} onChange={(e) => setFormLancar({ ...formLancar, contaId: e.target.value })}>
+                <option value="">Sem conta</option>
+                {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </Field>
+          </div>
+        )}
+      </Modal>
     </PageContainer>
   );
 }

@@ -595,7 +595,7 @@ app.use("/api/whatsapp", saas.aiGate({ enforceBudget: false }));
 app.use("/api/billing/webhook", rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }));
 app.use("/api/billing", saas.billingRouter);
 app.use("/api/lgpd", saas.lgpdRouter);
-app.use("/api/pluggy", createPluggyRouter({ requireUser, requireTenantAdmin, supabaseService }));
+app.use("/api/pluggy", createPluggyRouter({ requireUser, requireMaster, resolveRequestedTenantId, supabaseService }));
 app.use("/api/checkout", createCheckoutRouter({
   requireUser, requireMaster, supabaseService, provisionPlan: saas.provisionPlan,
   publicAppUrl: (process.env.PUBLIC_APP_URL || "http://localhost:3002").replace(/\/+$/, ""),

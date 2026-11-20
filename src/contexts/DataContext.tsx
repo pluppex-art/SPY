@@ -3273,6 +3273,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
     writeFinanceAuditLog({ tipo_acao: 'CRIACAO', descricao_alvo: newEntry.description || 'Lançamento financeiro', diff: buildFinanceAuditDiff(null, newEntry) });
     if (!options.silent) toast.success(`${entry.type === 'Pagar' ? 'Despesa' : 'Receita'} registrada!`);
+    // Devolve o id do lançamento criado (a Conciliação grava esse vínculo no extrato); quem não usa o retorno não é afetado.
+    return newEntry.id as string;
   };
 
   // Sincroniza o valor de volta no lead vinculado e garante contrato + fatura

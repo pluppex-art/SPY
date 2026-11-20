@@ -8,14 +8,17 @@
 //     (POSTED) em finance_extratos_importados — o mesmo lugar do extrato OFX/CSV, então a Conciliação já funciona;
 //  4. o Pluggy avisa por webhook (item/updated, transactions/created…) e o servidor sincroniza de novo.
 //
-// Segurança: tenant_id NUNCA vem do corpo — é o da empresa do usuário autenticado (requireTenantAdmin). O webhook é só um
-// "sinal": ele nunca grava dados que vieram na chamada, só dispara uma nova leitura feita com as nossas credenciais.
+// Segurança: tenant_id NUNCA vem do corpo — é a empresa do usuário autenticado ou, para master/parceiro, uma empresa a que ele
+// tem acesso (has_tenant_access). Quem conecta: qualquer pessoa com o módulo Financeiro (na empresa e no cargo). O webhook é
+// autenticado por um cabeçalho secreto (criado com POST /webhooks) e ainda assim é só um "sinal": nunca grava dados que vieram
+// na chamada, só dispara uma nova leitura feita com as nossas credenciais.
 // Datas/ids: transações usam GET /v2/transactions (a /transactions antiga acaba em 31/12/2026), paginado por cursor.
 
 import { Router } from "express";
 import type { NextFunction, Response } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { modulosDoCargo, restritoAosProprios } from "../src/lib/cargosUsuario.js";
 import rateLimit from "express-rate-limit";
 
 const API_BASE = "https://api.pluggy.ai";
@@ -26,8 +29,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type PluggyConfig = {
   clientId: string;
   clientSecret: string;
-  /** Segredo de assinatura dos webhooks (opcional). */
+  /** Segredo que o Pluggy devolve no cabeçalho x-spy-webhook-secret de cada webhook (definido por nós ao registrar). */
   webhookSecret?: string;
+  /** Signing secret da aplicação no Pluggy (X-Pluggy-Signature), opcional: só dá para conferir quando o corpo bruto existe. */
+  signingSecret?: string;
   /** Mostra os conectores de teste (sandbox) no widget. */
   sandbox: boolean;
   publicAppUrl: string;
@@ -42,6 +47,7 @@ export function lerConfigPluggy(env: Record<string, string | undefined> = proces
     clientId,
     clientSecret,
     webhookSecret: env.PLUGGY_WEBHOOK_SECRET?.trim() || undefined,
+    signingSecret: env.PLUGGY_SIGNING_SECRET?.trim() || undefined,
     sandbox: env.PLUGGY_SANDBOX === "true",
     publicAppUrl: (env.PUBLIC_APP_URL || env.APP_URL || "").trim().replace(/\/+$/, ""),
   };
@@ -55,6 +61,15 @@ export function webhookUrlDe(cfg: Pick<PluggyConfig, "publicAppUrl">): string | 
 }
 
 // ── Peças puras (testáveis) ────────────────────────────────────────────────────
+
+export const CABECALHO_SEGREDO = "x-spy-webhook-secret";
+
+/** Compara dois segredos em tempo constante (os dois viram SHA-256 antes, para terem sempre o mesmo tamanho). */
+export function segredoConfere(recebido: string | undefined | null, esperado: string | undefined | null): boolean {
+  if (!recebido || !esperado) return false;
+  const h = (x: string) => createHash("sha256").update(x).digest();
+  return timingSafeEqual(h(recebido), h(esperado));
+}
 
 /** Confere o cabeçalho X-Pluggy-Signature: `t=<unix>,v1=<HMAC-SHA256 hex de "<t>.<corpo bruto>">`, tolerância de 5 min. */
 export function assinaturaValida(corpoBruto: string, cabecalho: string | undefined, segredo: string, agoraMs = Date.now(), toleranciaS = 300): boolean {
@@ -85,7 +100,7 @@ export type TransacaoPluggy = {
 };
 
 /** Transação do Pluggy → linha de finance_extratos_importados (mesmo formato do OFX/CSV). Pendentes ficam de fora até serem lançadas. */
-export function paraLinhaExtrato(tx: TransacaoPluggy, tenantId: string, banco: string) {
+export function paraLinhaExtrato(tx: TransacaoPluggy, tenantId: string, banco: string, contaId: string | null = null) {
   if (tx.status === "PENDING") return null;
   const bruto = Number(tx.amount);
   if (!Number.isFinite(bruto) || bruto === 0) return null;
@@ -102,6 +117,7 @@ export function paraLinhaExtrato(tx: TransacaoPluggy, tenantId: string, banco: s
     valor: Math.abs(bruto),
     tipo,
     banco,
+    conta_bancaria_id: contaId,
     conciliado: false,
   };
 }
@@ -216,7 +232,12 @@ export async function sincronizarItem(
 
   // 1) Contas do banco → linhas de mapeamento (a primeira usa a conta que o usuário escolheu; as demais viram contas novas).
   const contasApi: any = await cli.get(`/accounts?itemId=${encodeURIComponent(itemId)}`);
-  const bancarias: any[] = (contasApi?.results ?? []).filter((a: any) => a?.type === "BANK");
+  // Contas correntes/poupanças (BANK) e cartões de crédito (CREDIT). As bancárias vêm primeiro: a conta que o usuário escolheu
+  // no "Conectar" fica com a primeira delas; as demais viram contas novas.
+  const bancarias: any[] = (contasApi?.results ?? [])
+    .filter((a: any) => a?.type === "BANK" || a?.type === "CREDIT")
+    .sort((a: any, b: any) => Number(b.type === "BANK") - Number(a.type === "BANK"));
+  const contaApiPorId = new Map(bancarias.map((a: any) => [a.id, a]));
   const reais = existentes.filter((e: any) => !String(e.pluggy_account_id).startsWith("item:"));
   const marcador = existentes.find((e: any) => String(e.pluggy_account_id).startsWith("item:"));
   const jaMapeadas = new Set(reais.map((e: any) => e.pluggy_account_id));
@@ -232,7 +253,7 @@ export async function sincronizarItem(
       const { data: criada, error } = await sb.from("finance_bank_accounts").insert({
         tenant_id: tenantId,
         nome: `${conector ?? "Banco"} — ${acc.name || acc.number || "conta"}`.slice(0, 80),
-        tipo: acc.subtype === "SAVINGS_ACCOUNT" ? "CONTA_POUPANCA" : "CONTA_CORRENTE",
+        tipo: acc.type === "CREDIT" ? "CARTAO_CREDITO" : acc.subtype === "SAVINGS_ACCOUNT" ? "CONTA_POUPANCA" : "CONTA_CORRENTE",
         saldo_inicial: 0, sinal_saldo_inicial: "ZERADO", is_principal: false, arquivada: false,
         banco: conector, numero_conta: acc.number ?? null, titular: acc.owner ?? null, documento: acc.taxNumber ?? null,
       }).select("id").single();
@@ -267,7 +288,7 @@ export async function sincronizarItem(
     while (url) {
       if (Date.now() > limite || paginas >= 40) { completo = false; parcial = true; break; }
       const pagina: any = await cli.get(url);
-      const linhas = (pagina?.results ?? []).map((t: TransacaoPluggy) => paraLinhaExtrato(t, tenantId, rotulo)).filter(Boolean) as any[];
+      const linhas = (pagina?.results ?? []).map((t: TransacaoPluggy) => paraLinhaExtrato(t, tenantId, rotulo, m.conta_bancaria_id ?? null)).filter(Boolean) as any[];
       for (let i = 0; i < linhas.length; i += 500) {
         // ignoreDuplicates: o que já veio antes (e talvez já foi conciliado) não é sobrescrito.
         const { data: novas, error } = await sb.from("finance_extratos_importados").upsert(linhas.slice(i, i + 500), { onConflict: "id", ignoreDuplicates: true }).select("id");
@@ -280,7 +301,15 @@ export async function sincronizarItem(
     const agoraIso = agora().toISOString();
     await sb.from("finance_bank_connections").update({ status, connector_name: conector, last_error: null, ...(completo ? { last_sync_at: agoraIso } : {}) }).eq("id", m.id).eq("tenant_id", tenantId);
     if (m.conta_bancaria_id) {
-      await sb.from("finance_bank_accounts").update({ conexao_status: "Conectada", conexao_provedor: "Pluggy", ultima_sincronizacao: agoraIso, ...(conta && !conta.banco && conector ? { banco: conector } : {}) }).eq("id", m.conta_bancaria_id).eq("tenant_id", tenantId);
+      // Saldo que o banco informa. Cartão de crédito: o Pluggy devolve o valor devido (positivo) — no sistema é uma dívida (negativo).
+      const acc: any = contaApiPorId.get(m.pluggy_account_id);
+      const bruto = acc && Number.isFinite(Number(acc.balance)) ? Number(acc.balance) : null;
+      const saldoBanco = bruto === null ? null : acc.type === "CREDIT" ? -Math.abs(bruto) : bruto;
+      await sb.from("finance_bank_accounts").update({
+        conexao_status: "Conectada", conexao_provedor: "Pluggy", ultima_sincronizacao: agoraIso,
+        ...(saldoBanco !== null ? { saldo_banco: saldoBanco, saldo_banco_em: agoraIso } : {}),
+        ...(conta && !conta.banco && conector ? { banco: conector } : {}),
+      }).eq("id", m.conta_bancaria_id).eq("tenant_id", tenantId);
     }
   }
   return { status, contas: (mapa ?? []).length, importadas, parcial };
@@ -290,9 +319,46 @@ export async function sincronizarItem(
 
 type Deps = {
   requireUser: (req: any, res: Response, next: NextFunction) => any;
-  requireTenantAdmin: (req: any, res: Response, next: NextFunction) => any;
+  requireMaster: (req: any, res: Response, next: NextFunction) => any;
+  /** Empresa pedida em ?tenantId= (a do usuário, ou uma a que master/parceiro tem acesso). Já responde o erro e devolve null se não puder. */
+  resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>;
   supabaseService: SupabaseClient | null;
 };
+
+/**
+ * Quem pode conectar banco: qualquer pessoa com acesso ao Financeiro — o módulo ligado na empresa e no cargo (mesma regra do menu),
+ * sem exigir administrador. Master não depende do módulo. Perfis restritos aos próprios dados (ex.: vendedor) não acessam contas.
+ */
+export async function liberarFinanceiro(sb: SupabaseClient, userId: string, tenantId: string): Promise<{ ok: boolean; status?: number; erro?: string }> {
+  const { data: t } = await sb.from("tenants").select("modules").eq("id", tenantId).is("deleted_at", null).maybeSingle();
+  const { data: u } = await sb.from("users").select("role, email, is_master, is_tenant_admin, tenant_id").eq("id", userId).maybeSingle();
+  if (!u) return { ok: false, status: 403, erro: "Não foi possível verificar permissões." };
+  if (u.is_master !== true && t?.modules?.financeiro !== true) return { ok: false, status: 403, erro: "O módulo Financeiro não está ativo nesta empresa." };
+  if (u.is_master === true || (u.is_tenant_admin === true && u.tenant_id === tenantId)) return { ok: true };
+  const [{ data: cargos }, { data: colabs }] = await Promise.all([
+    sb.from("cargos").select("nome, modulos, restringir_aos_proprios_dados").eq("tenant_id", tenantId),
+    sb.from("colaboradores").select("cargos").eq("tenant_id", tenantId).eq("user_id", userId),
+  ]);
+  const roles = (colabs ?? []).flatMap((c: any) => (Array.isArray(c.cargos) ? c.cargos : [])).filter(Boolean);
+  const pessoa = { role: u.role, roles };
+  const mods = modulosDoCargo(pessoa, cargos ?? []);
+  if (mods && !mods.includes("financeiro")) return { ok: false, status: 403, erro: "Seu perfil não tem acesso ao Financeiro." };
+  if (restritoAosProprios(pessoa, cargos ?? [])) return { ok: false, status: 403, erro: "Seu perfil só acessa os próprios dados, então não pode conectar contas bancárias." };
+  return { ok: true };
+}
+
+/** Registra UMA vez o webhook da aplicação no Pluggy, com o cabeçalho secreto que o handler exige (o webhookUrl do connect token não envia cabeçalhos). */
+export async function registrarWebhook(cli: ClientePluggy, cfg: PluggyConfig): Promise<{ criado: boolean; url: string }> {
+  const url = webhookUrlDe(cfg);
+  if (!url) throw new ErroPluggy("webhook", 400, "PUBLIC_APP_URL precisa ser um endereço https público");
+  if (!cfg.webhookSecret) throw new ErroPluggy("webhook", 400, "defina PLUGGY_WEBHOOK_SECRET");
+  try {
+    const lista: any = await cli.get("/webhooks");
+    if ((lista?.results ?? []).some((w: any) => w?.url === url)) return { criado: false, url };
+  } catch { /* sem listagem: cria mesmo assim — evento repetido é inofensivo, a sincronização é idempotente */ }
+  await cli.post("/webhooks", { event: "all", url, headers: { [CABECALHO_SEGREDO]: cfg.webhookSecret } });
+  return { criado: true, url };
+}
 
 const SEM_CONFIG = { error: "A conexão com bancos ainda não foi ativada neste servidor (faltam as chaves do Pluggy).", code: "pluggy_not_configured" };
 
@@ -311,7 +377,32 @@ export function createPluggyRouter(deps: Deps): Router {
     return res.status(status).json({ error: "Não foi possível falar com o banco agora. Tente de novo em instantes.", code: "pluggy_error" });
   };
 
-  router.use(deps.requireUser, deps.requireTenantAdmin);
+  // Ativação do webhook: só master (é da aplicação inteira, não de uma empresa).
+  router.post("/webhook/register", deps.requireUser, deps.requireMaster, async (_req: any, res) => {
+    const c = cfg();
+    if (!c) return res.status(503).json(SEM_CONFIG);
+    try {
+      res.json(await registrarWebhook(clienteDe(c), c));
+    } catch (e: any) {
+      if (e instanceof ErroPluggy && e.status === 400) return res.status(400).json({ error: `Não foi possível ativar: ${e.message.split(": ").slice(1).join(": ")}.` });
+      erro(res, e, "webhook-register");
+    }
+  });
+
+  router.use(deps.requireUser, async (req: any, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = await deps.resolveRequestedTenantId(req, res);
+      if (!tenantId) return;
+      if (!deps.supabaseService) return res.status(503).json({ error: "Banco de dados não configurado no servidor." });
+      const lib = await liberarFinanceiro(deps.supabaseService, req.user.id, tenantId);
+      if (!lib.ok) return res.status(lib.status ?? 403).json({ error: lib.erro });
+      req.tenantId = tenantId;
+      next();
+    } catch (e: any) {
+      console.error("[pluggy:acesso]", e?.message);
+      res.status(500).json({ error: "Não foi possível conferir a permissão." });
+    }
+  });
 
   router.get("/status", async (req: any, res) => {
     const c = cfg();
@@ -321,7 +412,7 @@ export function createPluggyRouter(deps: Deps): Router {
       .select("id,item_id,connector_name,pluggy_account_id,pluggy_account_name,pluggy_account_type,conta_bancaria_id,status,last_sync_at,last_error")
       .eq("tenant_id", req.tenantId);
     if (error) return res.status(500).json({ error: "Não foi possível carregar as conexões." });
-    res.json({ configured: !!c, sandbox: !!c?.sandbox, webhook: !!(c && webhookUrlDe(c)), connections: data ?? [] });
+    res.json({ configured: !!c, sandbox: !!c?.sandbox, webhook: { url: c ? webhookUrlDe(c) ?? null : null, secret: !!c?.webhookSecret }, connections: data ?? [] });
   });
 
   router.post("/connect-token", async (req: any, res) => {
@@ -341,10 +432,11 @@ export function createPluggyRouter(deps: Deps): Router {
         const { data } = await deps.supabaseService.from("finance_bank_connections").select("id").eq("item_id", itemId).eq("tenant_id", req.tenantId).limit(1);
         if (!data?.length) return res.status(404).json({ error: "Conexão não encontrada." });
       }
-      const hook = webhookUrlDe(c);
+      // Sem webhookUrl aqui: esse caminho não envia cabeçalhos, então não dá para autenticar. O webhook da aplicação (registrado uma vez,
+      // com cabeçalho secreto) cobre todos os itens.
       const r: any = await clienteDe(c).post("/connect_token", {
         ...(itemId ? { itemId } : {}),
-        options: { clientUserId: req.tenantId, avoidDuplicates: true, ...(hook ? { webhookUrl: hook } : {}) },
+        options: { clientUserId: req.tenantId, avoidDuplicates: true },
       });
       if (!r?.accessToken) throw new ErroPluggy("connect_token", 502, "resposta sem accessToken");
       res.json({ accessToken: r.accessToken, sandbox: c.sandbox });
@@ -440,15 +532,20 @@ const EVENTOS_ESTADO: Record<string, { status: string; erro?: string }> = {
 };
 
 /** POST /api/pluggy/webhook — público (o Pluggy não manda login). Trata o aviso só como sinal e relê tudo com as nossas credenciais. */
-export function createPluggyWebhookHandler(deps: { supabaseService: SupabaseClient | null }) {
+export function createPluggyWebhookHandler(deps: { supabaseService: SupabaseClient | null; criarCliente?: (c: PluggyConfig) => ClientePluggy }) {
   return async (req: any, res: Response) => {
     const c = lerConfigPluggy();
     const sb = deps.supabaseService;
     if (!c || !sb) return res.status(503).json({ error: "indisponível" });
     try {
+      // 1) Autenticação: o Pluggy devolve o cabeçalho secreto que registramos (funciona também na Vercel, onde o corpo bruto não existe).
+      //    Sem PLUGGY_WEBHOOK_SECRET configurado ninguém é aceito.
+      if (!segredoConfere(req.headers[CABECALHO_SEGREDO] as string | undefined, c.webhookSecret)) {
+        return res.status(401).json({ error: "não autorizado" });
+      }
+      // 2) Integridade (opcional): assinatura do corpo, quando há signing secret e o corpo bruto está disponível.
       const bruto: string | null = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : null;
-      // Na Vercel o corpo já chega interpretado (sem o texto bruto): a assinatura só dá para conferir quando o bruto existe.
-      if (c.webhookSecret && bruto !== null && !assinaturaValida(bruto, req.headers["x-pluggy-signature"] as string | undefined, c.webhookSecret)) {
+      if (c.signingSecret && bruto !== null && !assinaturaValida(bruto, req.headers["x-pluggy-signature"] as string | undefined, c.signingSecret)) {
         return res.status(401).json({ error: "assinatura inválida" });
       }
       let payload: any = req.body;
@@ -474,7 +571,7 @@ export function createPluggyWebhookHandler(deps: { supabaseService: SupabaseClie
         return res.status(200).json({ ok: true });
       }
       if (EVENTOS_SYNC.has(evento)) {
-        await sincronizarItem({ cli: criarClientePluggy(c), sb, tenantId, itemId: alvo }, { orcamentoMs: 7000 });
+        await sincronizarItem({ cli: (deps.criarCliente ?? criarClientePluggy)(c), sb, tenantId, itemId: alvo }, { orcamentoMs: 7000 });
       }
       res.status(200).json({ ok: true });
     } catch (e: any) {
