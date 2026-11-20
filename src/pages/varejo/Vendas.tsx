@@ -7,9 +7,8 @@ import {
   Share2, RotateCcw, AlertTriangle, Sparkles, DollarSign, Wallet, Store,
   Barcode, Check, ShieldCheck, RefreshCw, X, PauseCircle, PlayCircle,
   UserCheck, HelpCircle, Volume2, VolumeX, FileText, Split, Calendar,
-  Clock, Percent, Hash, Layers, CheckSquare
+  Clock, Percent, Hash, Layers, CheckSquare, Maximize2, Minimize2
 } from "lucide-react";
-import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -170,6 +169,22 @@ export default function VarejoVendas() {
   }, [colaboradores]);
 
   const [tab, setTab] = useState<"pdv" | "historico">("pdv");
+  // Tela cheia: o PDV cobre a janela inteira (menu e barra superior somem) e, quando o navegador deixa, usa a tela cheia de verdade.
+  const [telaCheia, setTelaCheia] = useState(false);
+  const alternarTelaCheia = async () => {
+    if (!telaCheia) {
+      setTelaCheia(true);
+      try { await document.documentElement.requestFullscreen?.(); } catch { /* sem tela cheia do navegador: fica só a cobertura da janela */ }
+    } else {
+      setTelaCheia(false);
+      try { if (document.fullscreenElement) await document.exitFullscreen(); } catch { /* já saiu */ }
+    }
+  };
+  useEffect(() => {
+    const aoMudar = () => { if (!document.fullscreenElement) setTelaCheia(false); }; // Esc do navegador sai da tela cheia
+    document.addEventListener("fullscreenchange", aoMudar);
+    return () => { document.removeEventListener("fullscreenchange", aoMudar); if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined); };
+  }, []);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todas");
   const [barcodeInput, setBarcodeInput] = useState("");
@@ -1028,11 +1043,27 @@ export default function VarejoVendas() {
   const catalogUrl = activeTenantId ? `${window.location.origin}/catalogo/${activeTenantId}` : "";
 
   return (
-    <PageContainer
-      title="Frente de Caixa (PDV Comercial)"
-      description="O terminal de vendas do caixa: leitor de código de barras, vendas em espera, atalhos de teclado e a gestão do caixa."
-      actions={
+    <div className={`flex flex-col gap-3 ${telaCheia ? "fixed inset-0 z-[60] bg-[var(--color-surface)] p-3 md:p-4 overflow-y-auto lg:overflow-hidden" : "lg:flex-1 lg:min-h-0"}`}>
+      {/* Cabeçalho compacto: título + ações (os atalhos de teclado ficam no botão "Atalhos (F1)") */}
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl md:text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2 min-w-0">
+          Frente de Caixa (PDV Comercial)
+          <HelpTip label="Sobre a Frente de Caixa">O terminal de vendas do caixa: leitor de código de barras, vendas em espera, atalhos de teclado e a gestão do caixa.</HelpTip>
+        </h1>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Tela cheia */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void alternarTelaCheia()}
+            className="h-9 px-3 text-xs font-semibold gap-1.5"
+            title={telaCheia ? "Sair da tela cheia (Esc)" : "Frente de caixa em tela cheia"}
+            aria-pressed={telaCheia}
+          >
+            {telaCheia ? <Minimize2 className="w-3.5 h-3.5 text-blue-500" /> : <Maximize2 className="w-3.5 h-3.5 text-blue-500" />}
+            <span className="hidden sm:inline">{telaCheia ? "Sair da tela cheia" : "Tela cheia"}</span>
+          </Button>
+
           {/* Som de bip do leitor */}
           <Button
             variant="outline"
@@ -1124,10 +1155,9 @@ export default function VarejoVendas() {
             </Button>
           )}
         </div>
-      }
-    >
+      </div>
       {/* Resumo do Turno / Status Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+      <div className="shrink-0 grid grid-cols-2 sm:grid-cols-5 gap-3">
         <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Status do Terminal</span>
           <div className="flex items-center gap-1.5">
@@ -1157,24 +1187,8 @@ export default function VarejoVendas() {
         </Card>
       </div>
 
-      {/* Barra Rápida de Teclas de Atalho */}
-      <div className="hidden md:flex items-center justify-between px-3 py-1.5 bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] rounded-xl text-[11px] text-[var(--color-text-muted)] mb-4">
-        <div className="flex items-center gap-4">
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F2</kbd> Leitor / Buscar</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F3</kbd> Cliente</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F4</kbd> Desconto</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F7</kbd> Item Avulso</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F8</kbd> Limpar Carrinho</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F9</kbd> Suspender Venda</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-emerald-500">F10</kbd> Finalizar</span>
-        </div>
-        <button onClick={() => setModalAtalhosOpen(true)} className="text-blue-500 hover:underline font-bold text-[10px]">
-          Ver todos os atalhos
-        </button>
-      </div>
-
       {/* Tabs Switcher: PDV vs Histórico */}
-      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap mb-4 shadow-xs">
+      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full shrink-0 overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-xs">
         <button
           onClick={() => setTab("pdv")}
           className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
@@ -1204,11 +1218,11 @@ export default function VarejoVendas() {
 
       {/* ABA 1: PDV FRENTE DE CAIXA */}
       {tab === "pdv" && (
-        <div className="grid lg:grid-cols-12 gap-5 items-start">
+        <div className="grid lg:grid-cols-12 gap-4 items-start lg:items-stretch lg:flex-1 lg:min-h-0 lg:grid-rows-1">
           {/* LADO ESQUERDO: CATÁLOGO, LEITOR E PRODUTOS (Colunas 7 de 12) */}
-          <div className="lg:col-span-7 space-y-4">
+          <div className="lg:col-span-7 flex flex-col gap-3 lg:min-h-0">
             {/* Barra de Leitor de Código de Barras / SKU com Bip */}
-            <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
+            <form onSubmit={handleBarcodeSubmit} className="flex gap-2 shrink-0">
               <div className="relative flex-1">
                 <Barcode className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-blue-500" />
                 <input
@@ -1234,7 +1248,7 @@ export default function VarejoVendas() {
             </form>
 
             {/* Busca textual e categorias */}
-            <div className="space-y-2.5">
+            <div className="space-y-2.5 shrink-0">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
                 <input
@@ -1264,8 +1278,8 @@ export default function VarejoVendas() {
               </div>
             </div>
 
-            {/* Grid de Produtos */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {/* Grid de Produtos: é a única área que rola na tela do PDV */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 content-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 scrollbar-thin">
               {produtosDisponiveis.map((product: any) => {
                 const itemNoCarrinho = cart.find((i) => i.productId === product.id);
                 const estoque = product.currentStock ?? 0;
@@ -1364,10 +1378,10 @@ export default function VarejoVendas() {
           </div>
 
           {/* LADO DIREITO: CARRINHO E CHECKOUT (Colunas 5 de 12) */}
-          <div className="lg:col-span-5 space-y-4">
-            <Card className="p-4 border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md space-y-4">
+          <div className="lg:col-span-5 flex flex-col lg:min-h-0">
+            <Card className="p-4 border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md flex flex-col gap-2.5 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:p-3">
               {/* Header do Carrinho */}
-              <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border-subtle)]">
+              <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border-subtle)] shrink-0">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-4 h-4 text-blue-500" />
                   <h3 className="text-sm font-black text-[var(--color-text-primary)]">
@@ -1385,24 +1399,22 @@ export default function VarejoVendas() {
                 )}
               </div>
 
-              {/* Vendedor / Atendente da Venda */}
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1 flex items-center gap-1">
-                  <UserCheck className="w-3 h-3 text-blue-500" /> Vendedor / Atendente Responsável
-                </label>
-                <select
-                  value={vendedorSelecionado}
-                  onChange={(e) => setVendedorSelecionado(e.target.value)}
-                  className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
-                >
-                  {vendedoresDisponiveis.map((v) => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Dados do Cliente (Opcional - F3) */}
-              <div className="grid grid-cols-2 gap-2">
+              {/* Vendedor, cliente e CPF: uma linha só no computador (economiza altura para a tela não rolar) */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 shrink-0">
+                <div className="col-span-2 lg:col-span-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] mb-1 flex items-center gap-1">
+                    <UserCheck className="w-3 h-3 text-blue-500" /> Vendedor
+                  </label>
+                  <select
+                    value={vendedorSelecionado}
+                    onChange={(e) => setVendedorSelecionado(e.target.value)}
+                    className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
+                  >
+                    {vendedoresDisponiveis.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
                     Cliente (F3)
@@ -1429,7 +1441,7 @@ export default function VarejoVendas() {
               </div>
 
               {/* Lista de Itens no Carrinho */}
-              <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
+              <div className="space-y-2 max-h-56 lg:max-h-none lg:flex-1 lg:min-h-[88px] overflow-y-auto pr-1 scrollbar-thin">
                 {cart.map((item) => (
                   <div
                     key={item.productId}
@@ -1496,7 +1508,7 @@ export default function VarejoVendas() {
               </div>
 
               {/* Desconto (F4) */}
-              <div className="pt-2 border-t border-[var(--color-border-subtle)]">
+              <div className="pt-2 border-t border-[var(--color-border-subtle)] shrink-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] flex items-center gap-1">
                     <Percent className="w-3 h-3 text-emerald-500" /> Desconto (F4)
@@ -1532,7 +1544,7 @@ export default function VarejoVendas() {
               </div>
 
               {/* Seletor de Forma de Pagamento */}
-              <div className="space-y-2 pt-2 border-t border-[var(--color-border-subtle)]">
+              <div className="space-y-2 pt-2 border-t border-[var(--color-border-subtle)] shrink-0">
                 <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block">
                   Forma de Pagamento
                 </label>
@@ -1797,7 +1809,7 @@ export default function VarejoVendas() {
               </div>
 
               {/* Totalizadores e Finalizar Venda */}
-              <div className="pt-3 border-t border-[var(--color-border-subtle)] space-y-2.5">
+              <div className="pt-2 border-t border-[var(--color-border-subtle)] space-y-2 shrink-0">
                 <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
                   <span>Subtotal dos itens:</span>
                   <span className="font-mono">{formatPrice(subtotal)}</span>
@@ -1808,12 +1820,12 @@ export default function VarejoVendas() {
                     <span className="font-mono">-{formatPrice(descontoCalculado)}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between text-base font-black text-[var(--color-text-primary)] pt-1">
+                <div className="flex items-center justify-between text-base font-black text-[var(--color-text-primary)]">
                   <span>Total a Pagar:</span>
                   <span className="text-2xl font-mono text-blue-500 font-black">{formatPrice(total)}</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="grid grid-cols-2 gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -1843,7 +1855,7 @@ export default function VarejoVendas() {
 
       {/* ABA 2: HISTÓRICO DE VENDAS */}
       {tab === "historico" && (
-        <div className="space-y-4">
+        <div className="space-y-4 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
           <KpiFilterCard
             id="varejoVendas"
             activeCount={histActiveFilters}
@@ -2512,6 +2524,6 @@ export default function VarejoVendas() {
           ))}
         </div>
       </Modal>
-    </PageContainer>
+    </div>
   );
 }
