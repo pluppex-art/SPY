@@ -1046,10 +1046,39 @@ export default function VarejoVendas() {
     <div className={`flex flex-col gap-3 ${telaCheia ? "fixed inset-0 z-[60] bg-[var(--color-surface)] p-3 md:p-4 overflow-y-auto lg:overflow-hidden" : "lg:flex-1 lg:min-h-0"}`}>
       {/* Cabeçalho compacto: título + ações (os atalhos de teclado ficam no botão "Atalhos (F1)") */}
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl md:text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2 min-w-0">
-          Frente de Caixa (PDV Comercial)
-          <HelpTip label="Sobre a Frente de Caixa">O terminal de vendas do caixa: leitor de código de barras, vendas em espera, atalhos de teclado e a gestão do caixa.</HelpTip>
-        </h1>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-w-0">
+          <h1 className="text-xl md:text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2 min-w-0">
+            Frente de Caixa (PDV Comercial)
+            <HelpTip label="Sobre a Frente de Caixa">O terminal de vendas do caixa: leitor de código de barras, vendas em espera, atalhos de teclado e a gestão do caixa.</HelpTip>
+          </h1>
+          <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full shrink-0 overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-xs">
+        <button
+          onClick={() => setTab("pdv")}
+          className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+            tab === "pdv"
+              ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+          }`}
+        >
+          <ShoppingCart className="w-3.5 h-3.5" /> Frente de Caixa (PDV)
+          {cart.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 text-[10px] bg-white text-blue-600 rounded-full font-black">
+              {cart.reduce((s, i) => s + i.quantidade, 0)}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setTab("historico")}
+          className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+            tab === "historico"
+              ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+          }`}
+        >
+          <History className="w-3.5 h-3.5" /> Histórico de Vendas ({historico.length})
+        </button>
+      </div>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* Tela cheia */}
           <Button
@@ -1158,7 +1187,7 @@ export default function VarejoVendas() {
       </div>
       {/* Resumo do Turno / Status Bar */}
       <div className="shrink-0 grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
+        <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Status do Terminal</span>
           <div className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${caixaAberto ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
@@ -1166,54 +1195,25 @@ export default function VarejoVendas() {
           </div>
         </Card>
 
-        <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
+        <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Vendas Hoje</span>
           <div className="text-sm font-black text-[var(--color-text-primary)]">{vendasHoje.length} pedidos</div>
         </Card>
 
-        <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
+        <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Faturamento Hoje</span>
           <div className="text-sm font-black text-emerald-500 font-mono">{formatPrice(faturamentoHoje)}</div>
         </Card>
 
-        <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
+        <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Ticket Médio</span>
           <div className="text-sm font-black text-blue-500 font-mono">{formatPrice(ticketMedioHoje)}</div>
         </Card>
 
-        <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] col-span-2 sm:col-span-1">
+        <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] col-span-2 sm:col-span-1">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Saldo em Dinheiro</span>
           <div className="text-sm font-black text-amber-500 font-mono">{formatPrice(saldoCaixaCalculado)}</div>
         </Card>
-      </div>
-
-      {/* Tabs Switcher: PDV vs Histórico */}
-      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full shrink-0 overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-xs">
-        <button
-          onClick={() => setTab("pdv")}
-          className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-            tab === "pdv"
-              ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-          }`}
-        >
-          <ShoppingCart className="w-3.5 h-3.5" /> Frente de Caixa (PDV)
-          {cart.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.2 text-[10px] bg-white text-blue-600 rounded-full font-black">
-              {cart.reduce((s, i) => s + i.quantidade, 0)}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTab("historico")}
-          className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-            tab === "historico"
-              ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-          }`}
-        >
-          <History className="w-3.5 h-3.5" /> Histórico de Vendas ({historico.length})
-        </button>
       </div>
 
       {/* ABA 1: PDV FRENTE DE CAIXA */}
@@ -1355,6 +1355,7 @@ export default function VarejoVendas() {
                       ) : (
                         <Button
                           size="sm"
+                          variant="outline"
                           disabled={esgotado}
                           onClick={() => addToCart(product)}
                           className="w-full text-xs font-bold h-7 gap-1 bg-[var(--color-surface-elevated)] hover:bg-blue-600 hover:text-white text-[var(--color-text-primary)] border border-[var(--color-border-subtle)]"
@@ -1441,7 +1442,7 @@ export default function VarejoVendas() {
               </div>
 
               {/* Lista de Itens no Carrinho */}
-              <div className="space-y-2 max-h-56 lg:max-h-none lg:flex-1 lg:min-h-[88px] overflow-y-auto pr-1 scrollbar-thin">
+              <div className="space-y-2 max-h-56 lg:max-h-none lg:flex-1 lg:min-h-[64px] overflow-y-auto pr-1 scrollbar-thin">
                 {cart.map((item) => (
                   <div
                     key={item.productId}
@@ -1500,8 +1501,8 @@ export default function VarejoVendas() {
                 ))}
 
                 {cart.length === 0 && (
-                  <div className="py-8 text-center text-xs text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)]/40 rounded-xl border border-dashed border-[var(--color-border-subtle)]">
-                    <ShoppingCart className="w-7 h-7 mx-auto mb-1.5 opacity-30" />
+                  <div className="py-4 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-center text-center text-xs text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)]/40 rounded-xl border border-dashed border-[var(--color-border-subtle)]">
+                    <ShoppingCart className="w-6 h-6 mx-auto mb-1 opacity-30" />
                     Carrinho vazio. Bipe ou selecione um produto ao lado.
                   </div>
                 )}
@@ -1575,8 +1576,8 @@ export default function VarejoVendas() {
 
                 {/* Sub-painel específico por forma de pagamento */}
                 {formaPagamento === "Dinheiro" && (
-                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-2">
-                    <div className="flex items-center justify-between text-xs">
+                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-2">
+                    <div className="flex items-center justify-between gap-2 text-xs">
                       <span className="font-bold text-[var(--color-text-muted)]">Valor Recebido:</span>
                       <input
                         type="number"
@@ -1586,32 +1587,9 @@ export default function VarejoVendas() {
                         placeholder="R$ 0,00"
                         className="w-28 px-2 py-1 text-right font-mono font-bold bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-xs"
                       />
-                    </div>
-                    {/* Botões Rápidos de Cédulas */}
-                    <div className="flex gap-1 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setValorRecebido(total.toFixed(2))}
-                        className="px-2 py-0.5 text-[10px] font-bold rounded bg-[var(--color-surface)] border hover:border-blue-500"
-                      >
-                        Exato
-                      </button>
-                      {[20, 50, 100, 200].map((ced) => (
-                        <button
-                          key={ced}
-                          type="button"
-                          onClick={() => setValorRecebido(String(ced))}
-                          className="px-2 py-0.5 text-[10px] font-bold rounded bg-[var(--color-surface)] border hover:border-blue-500"
-                        >
-                          R$ {ced}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Alerta de Troco */}
-                    <div className="flex items-center justify-between pt-1 border-t border-[var(--color-border-subtle)] text-xs">
                       <span className="font-black text-[var(--color-text-primary)]">Troco:</span>
                       <span
-                        className={`font-black font-mono text-sm ${
+                        className={`font-black font-mono text-sm min-w-[72px] text-right ${
                           troco > 0
                             ? "text-emerald-500"
                             : valorFaltanteDinheiro > 0
@@ -1624,56 +1602,77 @@ export default function VarejoVendas() {
                           : formatPrice(troco)}
                       </span>
                     </div>
+                    {/* Botões Rápidos de Cédulas */}
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setValorRecebido(total.toFixed(2))}
+                        className="flex-1 px-2 py-1 text-[10px] font-bold rounded bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:border-blue-500"
+                      >
+                        Exato
+                      </button>
+                      {[20, 50, 100, 200].map((ced) => (
+                        <button
+                          key={ced}
+                          type="button"
+                          onClick={() => setValorRecebido(String(ced))}
+                          className="flex-1 px-2 py-1 text-[10px] font-bold rounded bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:border-blue-500"
+                        >
+                          R$ {ced}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
                 {formaPagamento === "Pix" && (
-                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-blue-500/30 space-y-2 text-center">
-                    <div className="w-20 h-20 mx-auto bg-white p-1.5 rounded-xl flex items-center justify-center shadow-inner">
-                      <QrCode className="w-16 h-16 text-slate-900" />
+                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-blue-500/30 flex items-center gap-3">
+                    <div className="w-16 h-16 shrink-0 bg-white p-1 rounded-xl flex items-center justify-center shadow-inner">
+                      <QrCode className="w-14 h-14 text-slate-900" />
                     </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
-                      Chave Pix Aleatória gerada para esta venda:
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <input
-                        readOnly
-                        value={`00020126580014br.gov.bcb.pix0136${tenantId.substring(0, 12)}5204000053039865802BR`}
-                        className="text-[9px] font-mono bg-[var(--color-surface)] border rounded px-2 py-1 flex-1 text-[var(--color-text-muted)] truncate"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="text-[10px] text-[var(--color-text-muted)]">Chave Pix gerada para esta venda:</div>
+                      <div className="flex items-center gap-1">
+                        <input
+                          readOnly
+                          value={`00020126580014br.gov.bcb.pix0136${tenantId.substring(0, 12)}5204000053039865802BR`}
+                          className="text-[9px] font-mono bg-[var(--color-surface)] border rounded px-2 py-1 flex-1 min-w-0 text-[var(--color-text-muted)] truncate"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            navigator.clipboard.writeText("00020126580014br.gov.bcb.pix");
+                            toast.success("Código Pix Copia e Cola copiado!");
+                          }}
+                          className="h-7 text-[10px] font-bold shrink-0"
+                          title="Copiar código Pix"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <button
+                        type="button"
                         onClick={() => {
-                          navigator.clipboard.writeText("00020126580014br.gov.bcb.pix");
-                          toast.success("Código Pix Copia e Cola copiado!");
+                          setPixConfirmado(true);
+                          if (soundEnabled) playPosSound("success");
+                          toast.success("Pagamento Pix confirmado!");
                         }}
-                        className="h-7 text-[10px] font-bold shrink-0"
+                        className={`w-full py-1 rounded-lg text-xs font-bold transition-all ${
+                          pixConfirmado
+                            ? "bg-emerald-600 text-white flex items-center justify-center gap-1.5"
+                            : "bg-blue-600/10 text-blue-500 hover:bg-blue-600/20 border border-blue-500/30"
+                        }`}
                       >
-                        <Copy className="w-3 h-3" />
-                      </Button>
+                        {pixConfirmado ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Pix Confirmado pelo Banco
+                          </>
+                        ) : (
+                          "Simular Confirmação Instantânea"
+                        )}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPixConfirmado(true);
-                        if (soundEnabled) playPosSound("success");
-                        toast.success("Pagamento Pix confirmado!");
-                      }}
-                      className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        pixConfirmado
-                          ? "bg-emerald-600 text-white flex items-center justify-center gap-1.5"
-                          : "bg-blue-600/10 text-blue-500 hover:bg-blue-600/20 border border-blue-500/30"
-                      }`}
-                    >
-                      {pixConfirmado ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Pix Confirmado pelo Banco
-                        </>
-                      ) : (
-                        "Simular Confirmação Instantânea"
-                      )}
-                    </button>
                   </div>
                 )}
 
@@ -1730,9 +1729,9 @@ export default function VarejoVendas() {
                 )}
 
                 {formaPagamento === "Misto" && (
-                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-purple-500/30 space-y-2">
+                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-purple-500/30 space-y-1.5">
                     <p className="text-[10px] text-[var(--color-text-muted)] font-semibold">
-                      Divida o pagamento em múltiplos meios até cobrir o total de <strong>{formatPrice(total)}</strong>:
+                      Divida em vários meios até cobrir <strong>{formatPrice(total)}</strong>:
                     </p>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
@@ -1831,7 +1830,7 @@ export default function VarejoVendas() {
                     variant="outline"
                     onClick={handleSuspenderVenda}
                     disabled={cart.length === 0}
-                    className="h-11 font-bold text-xs gap-1.5 border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                    className="h-10 font-bold text-xs gap-1.5 border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
                     title="Suspender Venda (F9)"
                   >
                     <PauseCircle className="w-4 h-4" /> Suspender (F9)
@@ -1841,7 +1840,7 @@ export default function VarejoVendas() {
                     onClick={handleFinalizarVenda}
                     loading={finalizando}
                     disabled={cart.length === 0 || !caixaAberto}
-                    className="h-11 font-black text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md gap-1.5"
+                    className="h-10 font-black text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md gap-1.5"
                     title="Finalizar Venda (F10)"
                   >
                     <CheckCircle2 className="w-4 h-4" /> Finalizar (F10)
