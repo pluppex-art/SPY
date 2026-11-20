@@ -21,6 +21,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
+import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
 
 import { HelpTip } from "../../components/ui/help-tip";
 // ─── AUDIO FEEDBACK (WEB AUDIO API) ──────────────────────────────────────────
@@ -170,6 +171,16 @@ export default function VarejoVendas() {
   }, [colaboradores]);
 
   const [tab, setTab] = useState<"pdv" | "historico">("pdv");
+  // PDV sem rolagem da página: no desktop (lg+) o terminal ocupa só o que sobra da tela e cada
+  // área (produtos, itens/pagamento) rola por dentro. Abaixo de lg a página rola normalmente.
+  const { ref: pdvRef, height: pdvHeight } = useFillViewportHeight<HTMLDivElement>(360, [tab]);
+  const [isLg, setIsLg] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const on = () => setIsLg(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todas");
   const [barcodeInput, setBarcodeInput] = useState("");
@@ -1157,24 +1168,9 @@ export default function VarejoVendas() {
         </Card>
       </div>
 
-      {/* Barra Rápida de Teclas de Atalho */}
-      <div className="hidden md:flex items-center justify-between px-3 py-1.5 bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] rounded-xl text-[11px] text-[var(--color-text-muted)] mb-4">
-        <div className="flex items-center gap-4">
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F2</kbd> Leitor / Buscar</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F3</kbd> Cliente</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F4</kbd> Desconto</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F7</kbd> Item Avulso</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F8</kbd> Limpar Carrinho</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F9</kbd> Suspender Venda</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-emerald-500">F10</kbd> Finalizar</span>
-        </div>
-        <button onClick={() => setModalAtalhosOpen(true)} className="text-blue-500 hover:underline font-bold text-[10px]">
-          Ver todos os atalhos
-        </button>
-      </div>
-
+      <div className="flex flex-wrap items-center gap-3 mb-4">
       {/* Tabs Switcher: PDV vs Histórico */}
-      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap mb-4 shadow-xs">
+      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-xs">
         <button
           onClick={() => setTab("pdv")}
           className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
@@ -1202,13 +1198,31 @@ export default function VarejoVendas() {
         </button>
       </div>
 
+      {/* Barra Rápida de Teclas de Atalho */}
+      <div className="hidden md:flex items-center justify-between px-3 py-1.5 bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] rounded-xl text-[11px] text-[var(--color-text-muted)] flex-1 min-w-0 overflow-hidden">
+        <div className="flex items-center gap-3 whitespace-nowrap">
+          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F2</kbd> Buscar</span>
+          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F3</kbd> Cliente</span>
+          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F4</kbd> Desconto</span>
+          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F7</kbd> Avulso</span>
+          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F8</kbd> Limpar</span>
+          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F9</kbd> Suspender</span>
+          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-emerald-500">F10</kbd> Finalizar</span>
+        </div>
+        <button onClick={() => setModalAtalhosOpen(true)} className="text-blue-500 hover:underline font-bold text-[10px]">
+          Todos
+        </button>
+      </div>
+
+      </div>
+
       {/* ABA 1: PDV FRENTE DE CAIXA */}
       {tab === "pdv" && (
-        <div className="grid lg:grid-cols-12 gap-5 items-start">
+        <div ref={pdvRef} style={isLg && pdvHeight ? { height: pdvHeight } : undefined} className="grid lg:grid-cols-12 lg:grid-rows-1 gap-5 items-start lg:items-stretch">
           {/* LADO ESQUERDO: CATÁLOGO, LEITOR E PRODUTOS (Colunas 7 de 12) */}
-          <div className="lg:col-span-7 space-y-4">
+          <div className="lg:col-span-7 flex flex-col gap-4 lg:min-h-0">
             {/* Barra de Leitor de Código de Barras / SKU com Bip */}
-            <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
+            <form onSubmit={handleBarcodeSubmit} className="flex gap-2 shrink-0">
               <div className="relative flex-1">
                 <Barcode className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-blue-500" />
                 <input
@@ -1234,7 +1248,7 @@ export default function VarejoVendas() {
             </form>
 
             {/* Busca textual e categorias */}
-            <div className="space-y-2.5">
+            <div className="space-y-2.5 shrink-0">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
                 <input
@@ -1265,7 +1279,7 @@ export default function VarejoVendas() {
             </div>
 
             {/* Grid de Produtos */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 content-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 scrollbar-thin">
               {produtosDisponiveis.map((product: any) => {
                 const itemNoCarrinho = cart.find((i) => i.productId === product.id);
                 const estoque = product.currentStock ?? 0;
@@ -1364,10 +1378,10 @@ export default function VarejoVendas() {
           </div>
 
           {/* LADO DIREITO: CARRINHO E CHECKOUT (Colunas 5 de 12) */}
-          <div className="lg:col-span-5 space-y-4">
-            <Card className="p-4 border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md space-y-4">
+          <div className="lg:col-span-5 lg:min-h-0">
+            <Card className="p-0 overflow-hidden flex flex-col lg:h-full border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md">
               {/* Header do Carrinho */}
-              <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border-subtle)]">
+              <div className="flex items-center justify-between px-4 pt-4 pb-3 shrink-0 border-b border-[var(--color-border-subtle)]">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-4 h-4 text-blue-500" />
                   <h3 className="text-sm font-black text-[var(--color-text-primary)]">
@@ -1385,6 +1399,8 @@ export default function VarejoVendas() {
                 )}
               </div>
 
+              {/* Corpo rolável: vendedor, cliente, itens, desconto e pagamento */}
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-thin">
               {/* Vendedor / Atendente da Venda */}
               <div>
                 <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1 flex items-center gap-1">
@@ -1796,8 +1812,10 @@ export default function VarejoVendas() {
                 )}
               </div>
 
-              {/* Totalizadores e Finalizar Venda */}
-              <div className="pt-3 border-t border-[var(--color-border-subtle)] space-y-2.5">
+              </div>
+
+              {/* Totalizadores e Finalizar Venda — fixos no rodapé do painel */}
+              <div className="shrink-0 p-4 border-t border-[var(--color-border-default)] bg-[var(--color-surface)] space-y-2.5">
                 <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
                   <span>Subtotal dos itens:</span>
                   <span className="font-mono">{formatPrice(subtotal)}</span>
