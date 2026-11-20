@@ -22,6 +22,8 @@ import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
 import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
+import { ClienteModal } from "./pdv/ClienteModal";
+import { SuspenderModal } from "./pdv/SuspenderModal";
 
 import { HelpTip } from "../../components/ui/help-tip";
 // ─── AUDIO FEEDBACK (WEB AUDIO API) ──────────────────────────────────────────
@@ -141,7 +143,7 @@ function formatPrice(value: number) {
 }
 
 export default function VarejoVendas() {
-  const { products, setProducts, colaboradores, appSettings, appSettingsLoaded } = useData();
+  const { products, setProducts, colaboradores, appSettings, appSettingsLoaded, clienteBase, addClienteBase } = useData();
   const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId || "default";
   // Regras configuráveis da loja (Configurações → Varejo & PDV).
@@ -220,6 +222,9 @@ export default function VarejoVendas() {
 
   // Item Avulso Modal
   const [modalAvulsoOpen, setModalAvulsoOpen] = useState(false);
+  const [modalClienteOpen, setModalClienteOpen] = useState(false);
+  const [modalPagamentoOpen, setModalPagamentoOpen] = useState(false);
+  const [suspenderOpen, setSuspenderOpen] = useState<false | "normal" | "cancelar">(false);
   const [avulsoNome, setAvulsoNome] = useState("");
   const [avulsoPreco, setAvulsoPreco] = useState("");
   const [avulsoQtd, setAvulsoQtd] = useState("1");
@@ -445,7 +450,9 @@ export default function VarejoVendas() {
 
   const updateCartQty = (productId: string, newQty: number) => {
     if (newQty <= 0) {
-      removeFromCart(productId);
+      // Remover item é ação protegida: passa pelo Suspender (F9), que pede a senha de supervisor.
+      if (soundEnabled) playPosSound("alert");
+      toast.info("Para remover o item, use Suspender (F9): a remoção pede a senha de supervisor.");
       return;
     }
     setCart((prev) =>
@@ -464,12 +471,6 @@ export default function VarejoVendas() {
     );
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((i) => i.productId !== productId));
-    if (soundEnabled) playPosSound("alert");
-    toast.info("Item removido do carrinho.");
-  };
-
   const clearCart = () => {
     if (cart.length === 0) return;
     setCart([]);
@@ -483,6 +484,42 @@ export default function VarejoVendas() {
     setMistoCartao("");
     if (soundEnabled) playPosSound("alert");
     toast.info("Venda cancelada / Carrinho esvaziado.");
+  };
+
+  // Remoção/cancelamento já autorizados pela senha de supervisor (SuspenderModal).
+  const removerItensAutorizado = (ids: string[]) => {
+    if (ids.length === 0) return;
+    setCart((prev) => prev.filter((i) => !ids.includes(i.productId)));
+    if (soundEnabled) playPosSound("alert");
+    toast.info(ids.length === 1 ? "Item removido da venda." : `${ids.length} itens removidos da venda.`);
+  };
+
+  // Confere o que não depende da forma de pagamento antes de abrir o modal de pagamento.
+  const bloqueioAntesDoPagamento = () =>
+    descontoAcimaDoTeto ? `Desconto acima do limite da loja (${cfg.pdv.descontoMaximoPct}%).`
+    : cfg.pdv.exigirCliente && !clienteNome.trim() ? "Informe o cliente para finalizar a venda."
+    : cfg.fiscal.exigirCpfNaNota && !clienteCpf.replace(/\D/g, "") ? "Informe o CPF/CNPJ do cliente para emitir a nota."
+    : cfg.pdv.exigirVendedor && vendedorSelecionado === VENDEDOR_BALCAO ? "Escolha o vendedor para finalizar a venda."
+    : null;
+
+  const abrirPagamento = () => {
+    if (cart.length === 0) {
+      if (soundEnabled) playPosSound("error");
+      toast.error("Adicione ao menos um produto ao carrinho.");
+      return;
+    }
+    if (!caixaAberto) {
+      if (soundEnabled) playPosSound("error");
+      toast.error("O caixa está fechado. Reabra o turno para registrar vendas.");
+      return;
+    }
+    const bloqueio = bloqueioAntesDoPagamento();
+    if (bloqueio) {
+      if (soundEnabled) playPosSound("error");
+      toast.error(bloqueio);
+      return;
+    }
+    setModalPagamentoOpen(true);
   };
 
   // Leitor de Código de Barras / SKU rápido
@@ -623,7 +660,7 @@ export default function VarejoVendas() {
         barcodeInputRef.current?.focus();
       } else if (e.key === "F3") {
         e.preventDefault();
-        document.getElementById("input-cliente-nome")?.focus();
+        setModalClienteOpen(true);
       } else if (e.key === "F4") {
         e.preventDefault();
         document.getElementById("input-desconto")?.focus();
@@ -632,18 +669,18 @@ export default function VarejoVendas() {
         setModalAvulsoOpen(true);
       } else if (e.key === "F8") {
         e.preventDefault();
-        clearCart();
+        if (cart.length > 0) setSuspenderOpen("cancelar");
       } else if (e.key === "F9") {
         e.preventDefault();
         if (cart.length > 0) {
-          handleSuspenderVenda();
+          setSuspenderOpen("normal");
         } else if (vendasEmEspera.length > 0) {
           setModalEsperaOpen(true);
         }
       } else if (e.key === "F10") {
         e.preventDefault();
         if (cart.length > 0 && caixaAberto) {
-          handleFinalizarVenda();
+          abrirPagamento();
         }
       }
     };
@@ -823,6 +860,7 @@ export default function VarejoVendas() {
       setReceiptTab("termico");
 
       // Limpar carrinho
+      setModalPagamentoOpen(false);
       setCart([]);
       setClienteNome("");
       setClienteCpf("");
@@ -1044,6 +1082,21 @@ export default function VarejoVendas() {
       description="O terminal de vendas do caixa: leitor de código de barras, vendas em espera, atalhos de teclado e a gestão do caixa."
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          {/* Vendedor / atendente da venda */}
+          <div className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)]" title="Vendedor / atendente responsável">
+            <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+            <select
+              aria-label="Vendedor / atendente responsável"
+              value={vendedorSelecionado}
+              onChange={(e) => setVendedorSelecionado(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-[var(--color-text-primary)] focus:outline-none max-w-[170px] truncate"
+            >
+              {vendedoresDisponiveis.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Som de bip do leitor */}
           <Button
             variant="outline"
@@ -1220,7 +1273,7 @@ export default function VarejoVendas() {
       {tab === "pdv" && (
         <div ref={pdvRef} style={isLg && pdvHeight ? { height: pdvHeight } : undefined} className="grid lg:grid-cols-12 lg:grid-rows-1 gap-5 items-start lg:items-stretch">
           {/* LADO ESQUERDO: CATÁLOGO, LEITOR E PRODUTOS (Colunas 7 de 12) */}
-          <div className="lg:col-span-7 flex flex-col gap-4 lg:min-h-0">
+          <div className="lg:col-span-5 flex flex-col gap-4 lg:min-h-0">
             {/* Barra de Leitor de Código de Barras / SKU com Bip */}
             <form onSubmit={handleBarcodeSubmit} className="flex gap-2 shrink-0">
               <div className="relative flex-1">
@@ -1279,7 +1332,7 @@ export default function VarejoVendas() {
             </div>
 
             {/* Grid de Produtos */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 content-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 scrollbar-thin">
+            <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 content-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 scrollbar-thin">
               {produtosDisponiveis.map((product: any) => {
                 const itemNoCarrinho = cart.find((i) => i.productId === product.id);
                 const estoque = product.currentStock ?? 0;
@@ -1377,10 +1430,9 @@ export default function VarejoVendas() {
             </div>
           </div>
 
-          {/* LADO DIREITO: CARRINHO E CHECKOUT (Colunas 5 de 12) */}
-          <div className="lg:col-span-5 lg:min-h-0">
+          {/* COLUNA 2: ITENS DA VENDA */}
+          <div className="lg:col-span-4 lg:min-h-0">
             <Card className="p-0 overflow-hidden flex flex-col lg:h-full border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md">
-              {/* Header do Carrinho */}
               <div className="flex items-center justify-between px-4 pt-4 pb-3 shrink-0 border-b border-[var(--color-border-subtle)]">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-4 h-4 text-blue-500" />
@@ -1390,7 +1442,7 @@ export default function VarejoVendas() {
                 </div>
                 {cart.length > 0 && (
                   <button
-                    onClick={clearCart}
+                    onClick={() => setSuspenderOpen("cancelar")}
                     className="text-[11px] font-bold text-red-500 hover:underline flex items-center gap-1"
                     title="Limpar Venda (F8)"
                   >
@@ -1399,53 +1451,8 @@ export default function VarejoVendas() {
                 )}
               </div>
 
-              {/* Corpo rolável: vendedor, cliente, itens, desconto e pagamento */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-thin">
-              {/* Vendedor / Atendente da Venda */}
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1 flex items-center gap-1">
-                  <UserCheck className="w-3 h-3 text-blue-500" /> Vendedor / Atendente Responsável
-                </label>
-                <select
-                  value={vendedorSelecionado}
-                  onChange={(e) => setVendedorSelecionado(e.target.value)}
-                  className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
-                >
-                  {vendedoresDisponiveis.map((v) => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Dados do Cliente (Opcional - F3) */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
-                    Cliente (F3)
-                  </label>
-                  <input
-                    id="input-cliente-nome"
-                    value={clienteNome}
-                    onChange={(e) => setClienteNome(e.target.value)}
-                    placeholder="Nome completo..."
-                    className="w-full px-2.5 py-1.5 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
-                    CPF na Nota
-                  </label>
-                  <input
-                    value={clienteCpf}
-                    onChange={(e) => setClienteCpf(e.target.value)}
-                    placeholder="000.000.000-00"
-                    className="w-full px-2.5 py-1.5 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Lista de Itens no Carrinho */}
-              <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
+              
+              <div className="space-y-2 flex-1 min-h-0 max-h-72 lg:max-h-none overflow-y-auto p-4 scrollbar-thin">
                 {cart.map((item) => (
                   <div
                     key={item.productId}
@@ -1491,14 +1498,6 @@ export default function VarejoVendas() {
                       <span className="text-xs font-black font-mono text-[var(--color-text-primary)] w-16 text-right">
                         {formatPrice(item.price * item.quantidade)}
                       </span>
-
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.productId)}
-                        className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/25 p-1 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -1511,7 +1510,33 @@ export default function VarejoVendas() {
                 )}
               </div>
 
-              {/* Desconto (F4) */}
+              
+            </Card>
+          </div>
+
+          {/* COLUNA 3: RESUMO DA COMPRA */}
+          <div className="lg:col-span-3 lg:min-h-0">
+            <Card className="p-0 overflow-hidden flex flex-col lg:h-full border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-3 shrink-0 border-b border-[var(--color-border-subtle)]">
+                <Receipt className="w-4 h-4 text-blue-500" />
+                <h3 className="text-sm font-black text-[var(--color-text-primary)]">Resumo da compra</h3>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">Cliente (F3)</label>
+                  <button
+                    type="button"
+                    id="btn-cliente"
+                    onClick={() => setModalClienteOpen(true)}
+                    className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] hover:border-blue-500/40 text-left transition-colors"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold text-[var(--color-text-primary)] truncate">{clienteNome.trim() || "Consumidor final"}</span>
+                      <span className="block text-[10px] text-[var(--color-text-muted)] truncate">{clienteCpf.trim() ? `CPF/CNPJ ${clienteCpf}` : "Selecionar ou cadastrar cliente"}</span>
+                    </span>
+                    <UserCheck className="w-4 h-4 text-blue-500 shrink-0" />
+                  </button>
+                </div>
               <div className="pt-2 border-t border-[var(--color-border-subtle)]">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] flex items-center gap-1">
@@ -1547,271 +1572,7 @@ export default function VarejoVendas() {
                 </div>
               </div>
 
-              {/* Seletor de Forma de Pagamento */}
-              <div className="space-y-2 pt-2 border-t border-[var(--color-border-subtle)]">
-                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block">
-                  Forma de Pagamento
-                </label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {(
-                    FORMAS_PAGAMENTO.filter((f) => cfg.pagamentos.habilitadas.includes(f))
-                  ).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setFormaPagamento(m)}
-                      className={`p-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 text-center ${
-                        formaPagamento === m
-                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                          : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                      }`}
-                    >
-                      {m === "Dinheiro" && <Banknote className="w-3 h-3" />}
-                      {m === "Pix" && <QrCode className="w-3 h-3" />}
-                      {m === "Cartão de Crédito" && <CreditCard className="w-3 h-3" />}
-                      {m === "Cartão de Débito" && <Wallet className="w-3 h-3" />}
-                      {m === "Misto" && <Split className="w-3 h-3" />}
-                      {m === "A Prazo (Crediário)" && <Calendar className="w-3 h-3" />}
-                      <span className="truncate">{m === "A Prazo (Crediário)" ? "A Prazo" : m}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Sub-painel específico por forma de pagamento */}
-                {formaPagamento === "Dinheiro" && (
-                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-[var(--color-text-muted)]">Valor Recebido:</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={valorRecebido}
-                        onChange={(e) => setValorRecebido(e.target.value)}
-                        placeholder="R$ 0,00"
-                        className="w-28 px-2 py-1 text-right font-mono font-bold bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-xs"
-                      />
-                    </div>
-                    {/* Botões Rápidos de Cédulas */}
-                    <div className="flex gap-1 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setValorRecebido(total.toFixed(2))}
-                        className="px-2 py-0.5 text-[10px] font-bold rounded bg-[var(--color-surface)] border hover:border-blue-500"
-                      >
-                        Exato
-                      </button>
-                      {[20, 50, 100, 200].map((ced) => (
-                        <button
-                          key={ced}
-                          type="button"
-                          onClick={() => setValorRecebido(String(ced))}
-                          className="px-2 py-0.5 text-[10px] font-bold rounded bg-[var(--color-surface)] border hover:border-blue-500"
-                        >
-                          R$ {ced}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Alerta de Troco */}
-                    <div className="flex items-center justify-between pt-1 border-t border-[var(--color-border-subtle)] text-xs">
-                      <span className="font-black text-[var(--color-text-primary)]">Troco:</span>
-                      <span
-                        className={`font-black font-mono text-sm ${
-                          troco > 0
-                            ? "text-emerald-500"
-                            : valorFaltanteDinheiro > 0
-                            ? "text-amber-500"
-                            : "text-[var(--color-text-primary)]"
-                        }`}
-                      >
-                        {valorFaltanteDinheiro > 0
-                          ? `Faltam ${formatPrice(valorFaltanteDinheiro)}`
-                          : formatPrice(troco)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {formaPagamento === "Pix" && (
-                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-blue-500/30 space-y-2 text-center">
-                    <div className="w-20 h-20 mx-auto bg-white p-1.5 rounded-xl flex items-center justify-center shadow-inner">
-                      <QrCode className="w-16 h-16 text-slate-900" />
-                    </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
-                      Chave Pix Aleatória gerada para esta venda:
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <input
-                        readOnly
-                        value={`00020126580014br.gov.bcb.pix0136${tenantId.substring(0, 12)}5204000053039865802BR`}
-                        className="text-[9px] font-mono bg-[var(--color-surface)] border rounded px-2 py-1 flex-1 text-[var(--color-text-muted)] truncate"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          navigator.clipboard.writeText("00020126580014br.gov.bcb.pix");
-                          toast.success("Código Pix Copia e Cola copiado!");
-                        }}
-                        className="h-7 text-[10px] font-bold shrink-0"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPixConfirmado(true);
-                        if (soundEnabled) playPosSound("success");
-                        toast.success("Pagamento Pix confirmado!");
-                      }}
-                      className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        pixConfirmado
-                          ? "bg-emerald-600 text-white flex items-center justify-center gap-1.5"
-                          : "bg-blue-600/10 text-blue-500 hover:bg-blue-600/20 border border-blue-500/30"
-                      }`}
-                    >
-                      {pixConfirmado ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Pix Confirmado pelo Banco
-                        </>
-                      ) : (
-                        "Simular Confirmação Instantânea"
-                      )}
-                    </button>
-                  </div>
-                )}
-
-                {formaPagamento === "Cartão de Crédito" && (
-                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-2">
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">
-                          Parcelamento:
-                        </label>
-                        <select
-                          value={parcelasCartao}
-                          onChange={(e) => setParcelasCartao(Number(e.target.value))}
-                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
-                        >
-                          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                            <option key={n} value={n}>
-                              {n}x de {formatPrice(total / n)} {n === 1 ? "(à vista)" : "sem juros"}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">
-                          Bandeira:
-                        </label>
-                        <select
-                          value={bandeiraCartao}
-                          onChange={(e) => setBandeiraCartao(e.target.value)}
-                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
-                        >
-                          {["Mastercard", "Visa", "Elo", "Hipercard", "Amex"].map((b) => (
-                            <option key={b} value={b}>{b}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {formaPagamento === "Cartão de Débito" && (
-                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] text-xs flex items-center justify-between">
-                    <span className="text-[var(--color-text-muted)] font-bold">Bandeira do Débito:</span>
-                    <select
-                      value={bandeiraCartao}
-                      onChange={(e) => setBandeiraCartao(e.target.value)}
-                      className="bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1 text-xs font-bold text-[var(--color-text-primary)]"
-                    >
-                      {["Mastercard Débito", "Visa Electron", "Elo Débito"].map((b) => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {formaPagamento === "Misto" && (
-                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-purple-500/30 space-y-2">
-                    <p className="text-[10px] text-[var(--color-text-muted)] font-semibold">
-                      Divida o pagamento em múltiplos meios até cobrir o total de <strong>{formatPrice(total)}</strong>:
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">Em Dinheiro</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={mistoDinheiro}
-                          onChange={(e) => setMistoDinheiro(e.target.value)}
-                          placeholder="0,00"
-                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">No Pix</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={mistoPix}
-                          onChange={(e) => setMistoPix(e.target.value)}
-                          placeholder="0,00"
-                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">No Cartão</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={mistoCartao}
-                          onChange={(e) => setMistoCartao(e.target.value)}
-                          placeholder="0,00"
-                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center text-xs pt-1 border-t border-[var(--color-border-subtle)]">
-                      <span className="text-[var(--color-text-muted)]">Informado: <strong>{formatPrice(totalMistoInformado)}</strong></span>
-                      <span className={`font-bold font-mono ${faltaMisto > 0 ? "text-amber-500" : "text-emerald-500"}`}>
-                        {faltaMisto > 0 ? `Faltam ${formatPrice(faltaMisto)}` : "Valor 100% coberto"}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {formaPagamento === "A Prazo (Crediário)" && (
-                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-amber-500/30 space-y-2">
-                    <p className="text-[10px] text-amber-500 font-bold">
-                      Venda faturada a prazo na conta do cliente:
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <label className="text-[10px] text-[var(--color-text-muted)] block mb-1">Prazo de Pagamento:</label>
-                        <select
-                          value={prazoDias}
-                          onChange={(e) => setPrazoDias(e.target.value)}
-                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
-                        >
-                          <option value="15">15 dias</option>
-                          <option value="30">30 dias</option>
-                          <option value="45">45 dias</option>
-                          <option value="60">60 dias</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-[var(--color-text-muted)] block mb-1">Status no Financeiro:</label>
-                        <span className="block p-1.5 bg-amber-500/10 text-amber-500 rounded-lg text-center font-bold text-xs">
-                          Conta a Receber
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
+              
               </div>
 
               {/* Totalizadores e Finalizar Venda — fixos no rodapé do painel */}
@@ -1831,11 +1592,11 @@ export default function VarejoVendas() {
                   <span className="text-2xl font-mono text-blue-500 font-black">{formatPrice(total)}</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="grid grid-cols-1 gap-2 pt-1">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleSuspenderVenda}
+                    onClick={() => setSuspenderOpen("normal")}
                     disabled={cart.length === 0}
                     className="h-11 font-bold text-xs gap-1.5 border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
                     title="Suspender Venda (F9)"
@@ -1844,8 +1605,7 @@ export default function VarejoVendas() {
                   </Button>
 
                   <Button
-                    onClick={handleFinalizarVenda}
-                    loading={finalizando}
+                    onClick={abrirPagamento}
                     disabled={cart.length === 0 || !caixaAberto}
                     className="h-11 font-black text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md gap-1.5"
                     title="Finalizar Venda (F10)"
@@ -2530,6 +2290,319 @@ export default function VarejoVendas() {
           ))}
         </div>
       </Modal>
+
+      {/* MODAL: FORMA DE PAGAMENTO (aberto pelo Finalizar) */}
+      <Modal
+        isOpen={modalPagamentoOpen}
+        onClose={() => { if (!finalizando) setModalPagamentoOpen(false); }}
+        title="Forma de pagamento"
+        description={`${cart.reduce((q, i) => q + i.quantidade, 0)} un. · ${clienteNome.trim() || "Consumidor final"}`}
+        maxWidth="max-w-lg"
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Total a pagar</span>
+              <span className="text-xl font-mono font-black text-blue-500">{formatPrice(total)}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setModalPagamentoOpen(false)} disabled={finalizando}>Voltar</Button>
+              <Button onClick={handleFinalizarVenda} loading={finalizando} className="bg-emerald-600 hover:bg-emerald-700 text-white font-black gap-1.5">
+                <CheckCircle2 className="w-4 h-4" /> Confirmar pagamento
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+              <div className="space-y-2 pt-2 border-t border-[var(--color-border-subtle)]">
+                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block">
+                  Forma de Pagamento
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(
+                    FORMAS_PAGAMENTO.filter((f) => cfg.pagamentos.habilitadas.includes(f))
+                  ).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setFormaPagamento(m)}
+                      className={`p-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 text-center ${
+                        formaPagamento === m
+                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                          : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                      }`}
+                    >
+                      {m === "Dinheiro" && <Banknote className="w-3 h-3" />}
+                      {m === "Pix" && <QrCode className="w-3 h-3" />}
+                      {m === "Cartão de Crédito" && <CreditCard className="w-3 h-3" />}
+                      {m === "Cartão de Débito" && <Wallet className="w-3 h-3" />}
+                      {m === "Misto" && <Split className="w-3 h-3" />}
+                      {m === "A Prazo (Crediário)" && <Calendar className="w-3 h-3" />}
+                      <span className="truncate">{m === "A Prazo (Crediário)" ? "A Prazo" : m}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sub-painel específico por forma de pagamento */}
+                {formaPagamento === "Dinheiro" && (
+                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-[var(--color-text-muted)]">Valor Recebido:</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={valorRecebido}
+                        onChange={(e) => setValorRecebido(e.target.value)}
+                        placeholder="R$ 0,00"
+                        className="w-28 px-2 py-1 text-right font-mono font-bold bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-xs"
+                      />
+                    </div>
+                    {/* Botões Rápidos de Cédulas */}
+                    <div className="flex gap-1 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setValorRecebido(total.toFixed(2))}
+                        className="px-2 py-0.5 text-[10px] font-bold rounded bg-[var(--color-surface)] border hover:border-blue-500"
+                      >
+                        Exato
+                      </button>
+                      {[20, 50, 100, 200].map((ced) => (
+                        <button
+                          key={ced}
+                          type="button"
+                          onClick={() => setValorRecebido(String(ced))}
+                          className="px-2 py-0.5 text-[10px] font-bold rounded bg-[var(--color-surface)] border hover:border-blue-500"
+                        >
+                          R$ {ced}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Alerta de Troco */}
+                    <div className="flex items-center justify-between pt-1 border-t border-[var(--color-border-subtle)] text-xs">
+                      <span className="font-black text-[var(--color-text-primary)]">Troco:</span>
+                      <span
+                        className={`font-black font-mono text-sm ${
+                          troco > 0
+                            ? "text-emerald-500"
+                            : valorFaltanteDinheiro > 0
+                            ? "text-amber-500"
+                            : "text-[var(--color-text-primary)]"
+                        }`}
+                      >
+                        {valorFaltanteDinheiro > 0
+                          ? `Faltam ${formatPrice(valorFaltanteDinheiro)}`
+                          : formatPrice(troco)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {formaPagamento === "Pix" && (
+                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-blue-500/30 space-y-2 text-center">
+                    <div className="w-20 h-20 mx-auto bg-white p-1.5 rounded-xl flex items-center justify-center shadow-inner">
+                      <QrCode className="w-16 h-16 text-slate-900" />
+                    </div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                      Chave Pix Aleatória gerada para esta venda:
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input
+                        readOnly
+                        value={`00020126580014br.gov.bcb.pix0136${tenantId.substring(0, 12)}5204000053039865802BR`}
+                        className="text-[9px] font-mono bg-[var(--color-surface)] border rounded px-2 py-1 flex-1 text-[var(--color-text-muted)] truncate"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText("00020126580014br.gov.bcb.pix");
+                          toast.success("Código Pix Copia e Cola copiado!");
+                        }}
+                        className="h-7 text-[10px] font-bold shrink-0"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPixConfirmado(true);
+                        if (soundEnabled) playPosSound("success");
+                        toast.success("Pagamento Pix confirmado!");
+                      }}
+                      className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        pixConfirmado
+                          ? "bg-emerald-600 text-white flex items-center justify-center gap-1.5"
+                          : "bg-blue-600/10 text-blue-500 hover:bg-blue-600/20 border border-blue-500/30"
+                      }`}
+                    >
+                      {pixConfirmado ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Pix Confirmado pelo Banco
+                        </>
+                      ) : (
+                        "Simular Confirmação Instantânea"
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {formaPagamento === "Cartão de Crédito" && (
+                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-2">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">
+                          Parcelamento:
+                        </label>
+                        <select
+                          value={parcelasCartao}
+                          onChange={(e) => setParcelasCartao(Number(e.target.value))}
+                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                            <option key={n} value={n}>
+                              {n}x de {formatPrice(total / n)} {n === 1 ? "(à vista)" : "sem juros"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">
+                          Bandeira:
+                        </label>
+                        <select
+                          value={bandeiraCartao}
+                          onChange={(e) => setBandeiraCartao(e.target.value)}
+                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
+                        >
+                          {["Mastercard", "Visa", "Elo", "Hipercard", "Amex"].map((b) => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {formaPagamento === "Cartão de Débito" && (
+                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] text-xs flex items-center justify-between">
+                    <span className="text-[var(--color-text-muted)] font-bold">Bandeira do Débito:</span>
+                    <select
+                      value={bandeiraCartao}
+                      onChange={(e) => setBandeiraCartao(e.target.value)}
+                      className="bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1 text-xs font-bold text-[var(--color-text-primary)]"
+                    >
+                      {["Mastercard Débito", "Visa Electron", "Elo Débito"].map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {formaPagamento === "Misto" && (
+                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-purple-500/30 space-y-2">
+                    <p className="text-[10px] text-[var(--color-text-muted)] font-semibold">
+                      Divida o pagamento em múltiplos meios até cobrir o total de <strong>{formatPrice(total)}</strong>:
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">Em Dinheiro</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={mistoDinheiro}
+                          onChange={(e) => setMistoDinheiro(e.target.value)}
+                          placeholder="0,00"
+                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">No Pix</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={mistoPix}
+                          onChange={(e) => setMistoPix(e.target.value)}
+                          placeholder="0,00"
+                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">No Cartão</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={mistoCartao}
+                          onChange={(e) => setMistoCartao(e.target.value)}
+                          placeholder="0,00"
+                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-xs pt-1 border-t border-[var(--color-border-subtle)]">
+                      <span className="text-[var(--color-text-muted)]">Informado: <strong>{formatPrice(totalMistoInformado)}</strong></span>
+                      <span className={`font-bold font-mono ${faltaMisto > 0 ? "text-amber-500" : "text-emerald-500"}`}>
+                        {faltaMisto > 0 ? `Faltam ${formatPrice(faltaMisto)}` : "Valor 100% coberto"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {formaPagamento === "A Prazo (Crediário)" && (
+                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-amber-500/30 space-y-2">
+                    <p className="text-[10px] text-amber-500 font-bold">
+                      Venda faturada a prazo na conta do cliente:
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-[10px] text-[var(--color-text-muted)] block mb-1">Prazo de Pagamento:</label>
+                        <select
+                          value={prazoDias}
+                          onChange={(e) => setPrazoDias(e.target.value)}
+                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
+                        >
+                          <option value="15">15 dias</option>
+                          <option value="30">30 dias</option>
+                          <option value="45">45 dias</option>
+                          <option value="60">60 dias</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[var(--color-text-muted)] block mb-1">Status no Financeiro:</label>
+                        <span className="block p-1.5 bg-amber-500/10 text-amber-500 rounded-lg text-center font-bold text-xs">
+                          Conta a Receber
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+</div>
+      </Modal>
+
+      {/* MODAL: CLIENTE (selecionar ou cadastrar) */}
+      <ClienteModal
+        isOpen={modalClienteOpen}
+        onClose={() => setModalClienteOpen(false)}
+        clientes={clienteBase as any[]}
+        nomeAtual={clienteNome}
+        cpfAtual={clienteCpf}
+        onSelect={({ nome, cpf }) => { setClienteNome(nome); setClienteCpf(cpf); }}
+        onCreate={(c) => addClienteBase({ ...c, status: "Ativo" })}
+      />
+
+      {/* MODAL: SUSPENDER (espera, remover item ou cancelar venda com senha de supervisor) */}
+      <SuspenderModal
+        isOpen={suspenderOpen !== false}
+        modoInicial={suspenderOpen === "cancelar" ? "cancelar" : "normal"}
+        onClose={() => setSuspenderOpen(false)}
+        itens={cart.map((i) => ({ productId: i.productId, name: i.name, quantidade: i.quantidade }))}
+        tenantId={activeTenantId}
+        onEspera={handleSuspenderVenda}
+        onRemover={removerItensAutorizado}
+        onCancelarVenda={clearCart}
+      />
     </PageContainer>
   );
 }

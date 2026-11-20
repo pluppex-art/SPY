@@ -25,6 +25,7 @@ import { registerEmailCampaignRoutes } from "./server/emailCampaigns.js";
 import { registerAcquisitionRoutes } from "./server/acquisition.js";
 import { registerAdsConversionRoutes } from "./server/adsConversions.js";
 import { registerLoyaltyRoutes } from "./server/loyalty.js";
+import { registerVarejoSupervisorRoutes } from "./server/varejoSupervisor.js";
 import { registerTenantSocialProofRoutes } from "./server/tenantSocialProof.js";
 import { runNotificationReminders } from "./server/notificationCron.js";
 import { registerDeepHealthRoute } from "./server/healthDeep.js";
@@ -6950,6 +6951,9 @@ registerAdsConversionRoutes(app, { supabaseService, requireUser, resolveRequeste
 
 // Fidelidade do cliente (Bronze/Prata/Ouro) por empresa.
 registerLoyaltyRoutes(app, { requireUser, resolveRequestedTenantId, limiter: emailCampaignLimiter });
+
+// Senha de supervisor do PDV (remover item / cancelar venda): só o hash fica no banco, conferido aqui.
+registerVarejoSupervisorRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService });
 
 // Prova social das páginas públicas de cada empresa (catálogo e proposta): só responde se a empresa ligou.
 const tenantProofLimiter = rateLimit({ windowMs: 60_000, limit: 40, standardHeaders: true, legacyHeaders: false });

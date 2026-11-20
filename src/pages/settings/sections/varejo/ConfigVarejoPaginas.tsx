@@ -1,5 +1,6 @@
 import { FORMAS_PAGAMENTO } from "../../../../lib/varejoConfig";
 import { VarejoConfigForm } from "./VarejoConfigForm";
+import { SupervisorSenhaCard } from "./SupervisorSenhaCard";
 
 export function ConfigVarejoPDV() {
   return (
@@ -16,6 +17,7 @@ export function ConfigVarejoPDV() {
         { kind: "number", key: "descontoMaximoPct", label: "Desconto máximo por venda", suffix: "%", min: 0, max: 100, hint: "Só vale com o desconto livre desligado." },
         { kind: "toggle", key: "sons", label: "Sons do PDV", hint: "Bipes de confirmação e erro no caixa." },
       ]}
+      footer={<SupervisorSenhaCard />}
     />
   );
 }
