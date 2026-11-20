@@ -40,8 +40,7 @@ import {
   Plane,
   PiggyBank,
 } from "lucide-react";
-import { type SectionNavGroup, type SectionNavItem } from "../../components/layout/SectionSidebar";
-import { FinanceiroNav } from "./components/FinanceiroNav";
+import { SectionSidebar, type SectionNavGroup, type SectionNavItem } from "../../components/layout/SectionSidebar";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
 import { FinanceiroFilterProvider } from "./FinanceiroFilterContext";
 
@@ -177,13 +176,10 @@ export default function FinanceiroLayout() {
   const tipoPadrao = /receb|receita|cobranca|inadimpl|mrr/.test(location.pathname) ? "Receber" : "Pagar";
 
   return (
-    <div className="relative -m-4 flex h-full flex-col overflow-hidden md:-m-8">
-      <FinanceiroNav areas={groups} />
-      <div className="relative w-full min-w-0 flex-1 overflow-y-auto p-4 lg:p-8">
-        <FinanceiroFilterProvider>
-          <Outlet />
-        </FinanceiroFilterProvider>
-      </div>
+    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groups}>
+      <FinanceiroFilterProvider>
+        <Outlet />
+      </FinanceiroFilterProvider>
 
       {mostrarFab && (
         <button
@@ -197,6 +193,6 @@ export default function FinanceiroLayout() {
       )}
 
       <NovaOperacaoModal isOpen={novaOperacaoOpen} onClose={() => setNovaOperacaoOpen(false)} defaultType={tipoPadrao} />
-    </div>
+    </SectionSidebar>
   );
 }
