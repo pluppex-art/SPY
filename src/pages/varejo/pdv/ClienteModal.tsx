@@ -10,7 +10,7 @@ interface Props {
   clientes: any[];
   nomeAtual: string;
   cpfAtual: string;
-  onSelect: (c: { nome: string; cpf: string }) => void;
+  onSelect: (c: { nome: string; cpf: string; id?: string }) => void;
   /** Abre o cadastro completo de cliente (o mesmo modal do CRM). */
   onNovoCliente: () => void;
 }
@@ -34,7 +34,7 @@ export function ClienteModal({ isOpen, onClose, clientes, nomeAtual, cpfAtual, o
     return filtrados.slice(0, 30);
   }, [clientes, busca]);
 
-  const escolher = (c: any) => { onSelect({ nome: String(c.name), cpf: String(c.documento || "") }); onClose(); };
+  const escolher = (c: any) => { onSelect({ nome: String(c.name), cpf: String(c.documento || ""), id: c.id ? String(c.id) : undefined }); onClose(); };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Cliente da venda" description="Selecione um cliente da base ou cadastre um novo." maxWidth="max-w-lg">

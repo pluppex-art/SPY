@@ -121,6 +121,7 @@ interface VendaEmEspera {
   cart: CartItem[];
   clienteNome: string;
   clienteCpf: string;
+  clienteId?: string;
   vendedor: string;
   descontoTipo: "valor" | "porcentagem";
   descontoValor: string;
@@ -190,6 +191,7 @@ export default function VarejoVendas() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [clienteNome, setClienteNome] = useState("");
   const [clienteCpf, setClienteCpf] = useState("");
+  const [clienteId, setClienteId] = useState("");
   const [vendedorSelecionado, setVendedorSelecionado] = useState(VENDEDOR_BALCAO);
 
   // Pagamento
@@ -478,6 +480,7 @@ export default function VarejoVendas() {
     setCart([]);
     setClienteNome("");
     setClienteCpf("");
+    setClienteId("");
     setDescontoValor("");
     setValorRecebido("");
     setPixConfirmado(false);
@@ -514,6 +517,7 @@ export default function VarejoVendas() {
     if (!criado) return; // falhou ou duplicado: o contexto já avisou
     setClienteNome(nome);
     setClienteCpf(documento || "");
+    setClienteId(String((criado as any)?.id || ""));
     setModalNovoClienteOpen(false);
     setModalClienteOpen(false);
     toast.success("Cliente cadastrado e adicionado à venda.");
@@ -620,7 +624,7 @@ export default function VarejoVendas() {
 
     const ident = clienteNome.trim() || `Cliente Fila #${vendasEmEspera.length + 1}`;
     const id = `esp-${Date.now()}`;
-    const snapshot = { cart, clienteNome, clienteCpf, vendedor: vendedorSelecionado, descontoTipo, descontoValor, subtotal };
+    const snapshot = { cart, clienteNome, clienteCpf, clienteId, vendedor: vendedorSelecionado, descontoTipo, descontoValor, subtotal };
     const { error } = await supabase.from("vendas_em_espera").insert({
       id,
       tenant_id: activeTenantId,
@@ -662,6 +666,7 @@ export default function VarejoVendas() {
     setCart(espera.cart);
     setClienteNome(espera.clienteNome);
     setClienteCpf(espera.clienteCpf);
+    setClienteId(espera.clienteId || "");
     setVendedorSelecionado(espera.vendedor);
     setDescontoTipo(espera.descontoTipo);
     setDescontoValor(espera.descontoValor);
@@ -833,6 +838,10 @@ export default function VarejoVendas() {
         id: vendaId,
         tenant_id: activeTenantId,
         cliente_nome: vendaSnap.cliente_nome,
+        // clientes.id é text, mas guarda uuid; só vincula se for uuid válido.
+        cliente_id: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clienteId) ? clienteId : null,
+        // Informativo: o total já sai certo porque o desconto é diluído nos itens abaixo.
+        valor_desconto: descontoCalculado > 0 ? Math.round(descontoCalculado * 100) / 100 : 0,
         vendedor_id: vendedorColaborador?.user_id || null,
         forma_pagamento: formaDesc,
         status: "aberta",
@@ -897,6 +906,7 @@ export default function VarejoVendas() {
       setCart([]);
       setClienteNome("");
       setClienteCpf("");
+      setClienteId("");
       setDescontoValor("");
       setValorRecebido("");
       setPixConfirmado(false);
@@ -2621,7 +2631,7 @@ export default function VarejoVendas() {
         clientes={clienteBase as any[]}
         nomeAtual={clienteNome}
         cpfAtual={clienteCpf}
-        onSelect={({ nome, cpf }) => { setClienteNome(nome); setClienteCpf(cpf); }}
+        onSelect={({ nome, cpf, id }) => { setClienteNome(nome); setClienteCpf(cpf); setClienteId(id || ""); }}
         onNovoCliente={() => { setModalClienteOpen(false); setModalNovoClienteOpen(true); }}
       />
       <NovoClienteModal
