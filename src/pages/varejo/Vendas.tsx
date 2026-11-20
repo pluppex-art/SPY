@@ -230,6 +230,7 @@ export default function VarejoVendas() {
 
   // Modal de Ajuda / Atalhos
   const [modalAtalhosOpen, setModalAtalhosOpen] = useState(false);
+  const [modalClienteOpen, setModalClienteOpen] = useState(false);
 
   // Cupom Modal & Tab de NFC-e
   const [receiptVenda, setReceiptVenda] = useState<VendaHistorico | null>(null);
@@ -615,6 +616,7 @@ export default function VarejoVendas() {
         setModalAvulsoOpen(false);
         setModalEsperaOpen(false);
         setModalAtalhosOpen(false);
+        setModalClienteOpen(false);
         setReceiptVenda(null);
         return;
       }
@@ -627,7 +629,7 @@ export default function VarejoVendas() {
         barcodeInputRef.current?.focus();
       } else if (e.key === "F3") {
         e.preventDefault();
-        document.getElementById("input-cliente-nome")?.focus();
+        setModalClienteOpen(true);
       } else if (e.key === "F4") {
         e.preventDefault();
         document.getElementById("input-desconto")?.focus();
@@ -1051,35 +1053,22 @@ export default function VarejoVendas() {
             Frente de Caixa (PDV Comercial)
             <HelpTip label="Sobre a Frente de Caixa">O terminal de vendas do caixa: leitor de código de barras, vendas em espera, atalhos de teclado e a gestão do caixa.</HelpTip>
           </h1>
-          <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full shrink-0 overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-xs">
-        <button
-          onClick={() => setTab("pdv")}
-          className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-            tab === "pdv"
-              ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-          }`}
-        >
-          <ShoppingCart className="w-3.5 h-3.5" /> Frente de Caixa (PDV)
-          {cart.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.2 text-[10px] bg-white text-blue-600 rounded-full font-black">
-              {cart.reduce((s, i) => s + i.quantidade, 0)}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTab("historico")}
-          className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-            tab === "historico"
-              ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-          }`}
-        >
-          <History className="w-3.5 h-3.5" /> Histórico de Vendas ({historico.length})
-        </button>
-      </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Vendedor / atendente responsável pela venda */}
+          <div className="relative" title="Vendedor / atendente responsável">
+            <UserCheck className="w-3.5 h-3.5 text-blue-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <select
+              value={vendedorSelecionado}
+              onChange={(e) => setVendedorSelecionado(e.target.value)}
+              aria-label="Vendedor / atendente responsável"
+              className="h-9 pl-8 pr-7 max-w-[200px] text-xs font-semibold rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
+            >
+              {vendedoresDisponiveis.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
           {/* Tela cheia */}
           <Button
             variant="outline"
@@ -1090,7 +1079,7 @@ export default function VarejoVendas() {
             aria-pressed={telaCheia}
           >
             {telaCheia ? <Minimize2 className="w-3.5 h-3.5 text-blue-500" /> : <Maximize2 className="w-3.5 h-3.5 text-blue-500" />}
-            <span className="hidden sm:inline">{telaCheia ? "Sair da tela cheia" : "Tela cheia"}</span>
+            <span className="hidden 2xl:inline">{telaCheia ? "Sair da tela cheia" : "Tela cheia"}</span>
           </Button>
 
           {/* Som de bip do leitor */}
@@ -1102,7 +1091,7 @@ export default function VarejoVendas() {
             title={soundEnabled ? "Desativar Bip Sonoro" : "Ativar Bip Sonoro"}
           >
             {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-500" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
-            <span className="hidden sm:inline">{soundEnabled ? "Bip Ativo" : "Mudo"}</span>
+            <span className="hidden 2xl:inline">{soundEnabled ? "Bip Ativo" : "Mudo"}</span>
           </Button>
 
           {/* Atalhos F1 */}
@@ -1111,9 +1100,11 @@ export default function VarejoVendas() {
             size="sm"
             onClick={() => setModalAtalhosOpen(true)}
             className="h-9 px-3 text-xs font-semibold gap-1.5"
+            title="Atalhos de teclado (F1)"
+            aria-label="Atalhos de teclado (F1)"
           >
             <HelpCircle className="w-3.5 h-3.5 text-blue-500" />
-            <span className="hidden sm:inline">Atalhos (F1)</span>
+            <span className="hidden 2xl:inline">Atalhos (F1)</span>
           </Button>
 
           {/* Vendas em Espera */}
@@ -1179,14 +1170,16 @@ export default function VarejoVendas() {
                 toast.success("Link do catálogo público copiado!");
               }}
               className="h-9 px-3 text-xs font-semibold gap-1.5"
+              title="Copiar o link do catálogo público"
+              aria-label="Copiar o link do catálogo público"
             >
-              <Link2 className="w-3.5 h-3.5" /> Catálogo
+              <Link2 className="w-3.5 h-3.5" /> <span className="hidden 2xl:inline">Catálogo</span>
             </Button>
           )}
         </div>
       </div>
       {/* Resumo do Turno / Status Bar */}
-      <div className="shrink-0 grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="shrink-0 grid grid-cols-2 sm:grid-cols-5 gap-3 [@media(max-height:800px)]:lg:hidden">
         <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Status do Terminal</span>
           <div className="flex items-center gap-1.5">
@@ -1216,11 +1209,48 @@ export default function VarejoVendas() {
         </Card>
       </div>
 
+      {/* Abas + lembrete curto das teclas (a lista completa abre em "Todos") */}
+      <div className="shrink-0 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full shrink-0 overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-xs">
+        <button
+          onClick={() => setTab("pdv")}
+          className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+            tab === "pdv"
+              ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+          }`}
+        >
+          <ShoppingCart className="w-3.5 h-3.5" /> Frente de Caixa (PDV)
+          {cart.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 text-[10px] bg-white text-blue-600 rounded-full font-black">
+              {cart.reduce((s, i) => s + i.quantidade, 0)}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setTab("historico")}
+          className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+            tab === "historico"
+              ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+          }`}
+        >
+          <History className="w-3.5 h-3.5" /> Histórico de Vendas ({historico.length})
+        </button>
+      </div>
+        <div className="hidden xl:flex items-center gap-x-3 text-[11px] text-[var(--color-text-muted)] min-w-0 flex-1">
+          {([["F2", "Buscar"], ["F3", "Cliente"], ["F4", "Desconto"], ["F7", "Avulso"], ["F8", "Limpar"], ["F9", "Suspender"], ["F10", "Finalizar"]] as const).map(([k, t]) => (
+            <span key={k} className="whitespace-nowrap"><kbd className={`px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold ${k === "F10" ? "text-emerald-500" : "text-[var(--color-text-primary)]"}`}>{k}</kbd> {t}</span>
+          ))}
+          <button type="button" onClick={() => setModalAtalhosOpen(true)} className="ml-auto text-blue-500 hover:underline font-bold text-[10px] whitespace-nowrap">Todos</button>
+        </div>
+      </div>
+
       {/* ABA 1: PDV FRENTE DE CAIXA */}
       {tab === "pdv" && (
         <div className="grid lg:grid-cols-12 gap-4 items-start lg:items-stretch lg:flex-1 lg:min-h-0 lg:grid-rows-1">
           {/* LADO ESQUERDO: CATÁLOGO, LEITOR E PRODUTOS (Colunas 7 de 12) */}
-          <div className="lg:col-span-7 flex flex-col gap-3 lg:min-h-0">
+          <div className="lg:col-span-5 flex flex-col gap-3 lg:min-h-0">
             {/* Barra de Leitor de Código de Barras / SKU com Bip */}
             <form onSubmit={handleBarcodeSubmit} className="flex gap-2 shrink-0">
               <div className="relative flex-1">
@@ -1279,7 +1309,7 @@ export default function VarejoVendas() {
             </div>
 
             {/* Grid de Produtos: é a única área que rola na tela do PDV */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 content-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 scrollbar-thin">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3 content-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 scrollbar-thin">
               {produtosDisponiveis.map((product: any) => {
                 const itemNoCarrinho = cart.find((i) => i.productId === product.id);
                 const estoque = product.currentStock ?? 0;
@@ -1378,9 +1408,9 @@ export default function VarejoVendas() {
             </div>
           </div>
 
-          {/* LADO DIREITO: CARRINHO E CHECKOUT (Colunas 5 de 12) */}
-          <div className="lg:col-span-5 flex flex-col lg:min-h-0">
-            <Card className="p-4 border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md flex flex-col gap-2.5 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:p-3">
+          {/* COLUNA DO MEIO: ITENS DA VENDA */}
+          <div className="lg:col-span-4 flex flex-col lg:min-h-0">
+            <Card className="p-4 border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md flex flex-col gap-3 lg:flex-1 lg:min-h-0">
               {/* Header do Carrinho */}
               <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border-subtle)] shrink-0">
                 <div className="flex items-center gap-2">
@@ -1400,49 +1430,8 @@ export default function VarejoVendas() {
                 )}
               </div>
 
-              {/* Vendedor, cliente e CPF: uma linha só no computador (economiza altura para a tela não rolar) */}
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 shrink-0">
-                <div className="col-span-2 lg:col-span-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] mb-1 flex items-center gap-1">
-                    <UserCheck className="w-3 h-3 text-blue-500" /> Vendedor
-                  </label>
-                  <select
-                    value={vendedorSelecionado}
-                    onChange={(e) => setVendedorSelecionado(e.target.value)}
-                    className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl px-2.5 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
-                  >
-                    {vendedoresDisponiveis.map((v) => (
-                      <option key={v} value={v}>{v}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
-                    Cliente (F3)
-                  </label>
-                  <input
-                    id="input-cliente-nome"
-                    value={clienteNome}
-                    onChange={(e) => setClienteNome(e.target.value)}
-                    placeholder="Nome completo..."
-                    className="w-full px-2.5 py-1.5 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
-                    CPF na Nota
-                  </label>
-                  <input
-                    value={clienteCpf}
-                    onChange={(e) => setClienteCpf(e.target.value)}
-                    placeholder="000.000.000-00"
-                    className="w-full px-2.5 py-1.5 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
               {/* Lista de Itens no Carrinho */}
-              <div className="space-y-2 max-h-56 lg:max-h-none lg:flex-1 lg:min-h-[64px] overflow-y-auto pr-1 scrollbar-thin">
+              <div className="space-y-2 max-h-72 lg:max-h-none lg:flex-1 lg:min-h-[120px] overflow-y-auto pr-1 scrollbar-thin">
                 {cart.map((item) => (
                   <div
                     key={item.productId}
@@ -1508,6 +1497,33 @@ export default function VarejoVendas() {
                 )}
               </div>
 
+            </Card>
+          </div>
+
+          {/* COLUNA DA DIREITA: RESUMO DA COMPRA (cliente, desconto, pagamento e fechamento) */}
+          <div className="lg:col-span-3 flex flex-col lg:min-h-0">
+            <Card className="p-4 border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md flex flex-col gap-2.5 lg:flex-1 lg:min-h-0">
+              <div className="flex items-center gap-2 pb-2 border-b border-[var(--color-border-subtle)] shrink-0">
+                <Receipt className="w-4 h-4 text-blue-500" />
+                <h3 className="text-sm font-black text-[var(--color-text-primary)]">Resumo da compra</h3>
+              </div>
+
+              {/* Cliente (F3): abre a janela para informar nome e CPF na nota */}
+              <div className="shrink-0">
+                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">Cliente (F3)</label>
+                <button
+                  type="button"
+                  onClick={() => setModalClienteOpen(true)}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] hover:border-blue-500/50 text-left"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-xs font-bold text-[var(--color-text-primary)] truncate">{clienteNome.trim() || "Consumidor final"}</span>
+                    <span className="block text-[10px] text-[var(--color-text-muted)] truncate">{clienteCpf.trim() ? `CPF ${clienteCpf.trim()}` : "Selecionar ou cadastrar cliente"}</span>
+                  </span>
+                  <UserCheck className="w-4 h-4 text-blue-500 shrink-0" />
+                </button>
+              </div>
+
               {/* Desconto (F4) */}
               <div className="pt-2 border-t border-[var(--color-border-subtle)] shrink-0">
                 <div className="flex items-center justify-between gap-2">
@@ -1544,12 +1560,14 @@ export default function VarejoVendas() {
                 </div>
               </div>
 
+              {/* Pagamento: a única parte que pode rolar dentro do resumo (os totais ficam sempre à vista) */}
+              <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto pr-0.5 scrollbar-thin">
               {/* Seletor de Forma de Pagamento */}
               <div className="space-y-2 pt-2 border-t border-[var(--color-border-subtle)] shrink-0">
                 <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block">
                   Forma de Pagamento
                 </label>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
                   {(
                     FORMAS_PAGAMENTO.filter((f) => cfg.pagamentos.habilitadas.includes(f))
                   ).map((m) => (
@@ -1557,7 +1575,9 @@ export default function VarejoVendas() {
                       key={m}
                       type="button"
                       onClick={() => setFormaPagamento(m)}
-                      className={`p-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 text-center ${
+                      title={m}
+                      aria-label={m}
+                      className={`p-1.5 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 text-center ${
                         formaPagamento === m
                           ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                           : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
@@ -1569,7 +1589,7 @@ export default function VarejoVendas() {
                       {m === "Cartão de Débito" && <Wallet className="w-3 h-3" />}
                       {m === "Misto" && <Split className="w-3 h-3" />}
                       {m === "A Prazo (Crediário)" && <Calendar className="w-3 h-3" />}
-                      <span className="truncate">{m === "A Prazo (Crediário)" ? "A Prazo" : m}</span>
+                      <span className="truncate">{m === "A Prazo (Crediário)" ? "A Prazo" : m.replace("Cartão de ", "")}</span>
                     </button>
                   ))}
                 </div>
@@ -1587,9 +1607,32 @@ export default function VarejoVendas() {
                         placeholder="R$ 0,00"
                         className="w-28 px-2 py-1 text-right font-mono font-bold bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-xs"
                       />
+                    </div>
+                    {/* Botões Rápidos de Cédulas */}
+                    <div className="grid grid-cols-5 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setValorRecebido(total.toFixed(2))}
+                        className="px-1 py-1 text-[10px] font-bold rounded bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:border-blue-500 whitespace-nowrap"
+                      >
+                        Exato
+                      </button>
+                      {[20, 50, 100, 200].map((ced) => (
+                        <button
+                          key={ced}
+                          type="button"
+                          onClick={() => setValorRecebido(String(ced))}
+                          className="px-1 py-1 text-[10px] font-bold rounded bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:border-blue-500 whitespace-nowrap"
+                        >
+                          {ced}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Alerta de Troco */}
+                    <div className="flex items-center justify-between pt-1 border-t border-[var(--color-border-subtle)] text-xs">
                       <span className="font-black text-[var(--color-text-primary)]">Troco:</span>
                       <span
-                        className={`font-black font-mono text-sm min-w-[72px] text-right ${
+                        className={`font-black font-mono text-sm ${
                           troco > 0
                             ? "text-emerald-500"
                             : valorFaltanteDinheiro > 0
@@ -1602,35 +1645,15 @@ export default function VarejoVendas() {
                           : formatPrice(troco)}
                       </span>
                     </div>
-                    {/* Botões Rápidos de Cédulas */}
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setValorRecebido(total.toFixed(2))}
-                        className="flex-1 px-2 py-1 text-[10px] font-bold rounded bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:border-blue-500"
-                      >
-                        Exato
-                      </button>
-                      {[20, 50, 100, 200].map((ced) => (
-                        <button
-                          key={ced}
-                          type="button"
-                          onClick={() => setValorRecebido(String(ced))}
-                          className="flex-1 px-2 py-1 text-[10px] font-bold rounded bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:border-blue-500"
-                        >
-                          R$ {ced}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 )}
 
                 {formaPagamento === "Pix" && (
-                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-blue-500/30 flex items-center gap-3">
+                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-blue-500/30 flex flex-col items-center gap-2 text-center">
                     <div className="w-16 h-16 shrink-0 bg-white p-1 rounded-xl flex items-center justify-center shadow-inner">
                       <QrCode className="w-14 h-14 text-slate-900" />
                     </div>
-                    <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="w-full min-w-0 space-y-1.5">
                       <div className="text-[10px] text-[var(--color-text-muted)]">Chave Pix gerada para esta venda:</div>
                       <div className="flex items-center gap-1">
                         <input
@@ -1807,6 +1830,8 @@ export default function VarejoVendas() {
                 )}
               </div>
 
+              </div>
+
               {/* Totalizadores e Finalizar Venda */}
               <div className="pt-2 border-t border-[var(--color-border-subtle)] space-y-2 shrink-0">
                 <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
@@ -1824,7 +1849,7 @@ export default function VarejoVendas() {
                   <span className="text-2xl font-mono text-blue-500 font-black">{formatPrice(total)}</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -2278,6 +2303,49 @@ export default function VarejoVendas() {
       </Modal>
 
       {/* ─── MODAL 3: VENDAS EM ESPERA (FILA / PARKED SALES) ──────────────── */}
+      {/* MODAL: CLIENTE E CPF NA NOTA (F3) */}
+      <Modal
+        isOpen={modalClienteOpen}
+        onClose={() => setModalClienteOpen(false)}
+        maxWidth="max-w-md"
+        title={
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0"><UserCheck className="w-4 h-4" /></div>
+            <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cliente da venda</h3>
+          </div>
+        }
+      >
+        <form
+          className="space-y-3 py-1"
+          onSubmit={(e) => { e.preventDefault(); setModalClienteOpen(false); }}
+        >
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">Nome do cliente</label>
+            <input
+              id="input-cliente-nome"
+              autoFocus
+              value={clienteNome}
+              onChange={(e) => setClienteNome(e.target.value)}
+              placeholder="Deixe em branco para consumidor final"
+              className="w-full px-3 py-2 text-sm bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">CPF na nota</label>
+            <input
+              value={clienteCpf}
+              onChange={(e) => setClienteCpf(e.target.value)}
+              placeholder="000.000.000-00"
+              className="w-full px-3 py-2 text-sm bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <button type="button" onClick={() => { setClienteNome(""); setClienteCpf(""); setModalClienteOpen(false); }} className="text-xs font-bold text-[var(--color-text-muted)] hover:text-red-500">Consumidor final</button>
+            <Button type="submit" className="h-9 px-4 text-xs font-bold">Confirmar</Button>
+          </div>
+        </form>
+      </Modal>
+
       <Modal
         isOpen={modalEsperaOpen}
         onClose={() => setModalEsperaOpen(false)}
