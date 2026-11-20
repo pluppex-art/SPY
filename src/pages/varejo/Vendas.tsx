@@ -73,9 +73,14 @@ function playPosSound(type: "beep" | "success" | "alert" | "error" = "beep") {
   }
 }
 
+// Número curto da venda (#0012); sem número (venda antiga/importada) cai no começo do código.
+const rotuloVenda = (numero: number | null | undefined, id: string) =>
+  numero ? `#${String(numero).padStart(4, "0")}` : `#${id.slice(0, 8)}`;
+
 // ─── INTERFACES ──────────────────────────────────────────────────────────────
 interface VendaHistorico {
   id: string;
+  numero?: number | null;
   cliente_nome: string | null;
   forma_pagamento: string | null;
   status: string;
@@ -290,14 +295,17 @@ export default function VarejoVendas() {
       setHistorico(
         vendasRows.map((v: any): VendaHistorico => ({
           id: v.id,
+          numero: v.numero,
           cliente_nome: v.cliente_nome,
           forma_pagamento: v.forma_pagamento,
-          status: v.status,
-          subtotal: v.valor_total,
-          desconto: 0,
+          status: v.status === "cancelada" ? "estornada" : v.status,
+          subtotal: Number(v.valor_total) + Number(v.valor_desconto || 0),
+          desconto: Number(v.valor_desconto || 0),
           valor_total: v.valor_total,
-          operador: undefined,
-          vendedor: undefined,
+          troco: v.troco != null ? Number(v.troco) : undefined,
+          valor_recebido: v.valor_recebido != null ? Number(v.valor_recebido) : undefined,
+          operador: v.operador_nome || undefined,
+          vendedor: v.vendedor_nome || undefined,
           created_at: v.created_at,
           itens: (v.venda_items || []).map((it: any): CartItemSnapshot => ({
             productId: it.product_id,
@@ -545,9 +553,35 @@ export default function VarejoVendas() {
     toast.success("Cliente cadastrado e adicionado à venda.");
   };
 
-  // Remoção/cancelamento já autorizados pela senha de supervisor (SuspenderModal).
-  const removerItensAutorizado = (ids: string[]) => {
+  // Trilha de auditoria: quem removeu item ou cancelou a venda, quando e por quê.
+  const registrarAuditoriaPdv = async (acao: "remover_item" | "cancelar_venda", motivo: string, itens: CartItem[]) => {
+    if (!supabase || !activeTenantId || !user?.id) return;
+    const { error } = await supabase.from("pdv_auditoria").insert({
+      tenant_id: activeTenantId,
+      usuario_id: user.id,
+      usuario_nome: user.name || null,
+      acao,
+      motivo: motivo.trim() || null,
+      detalhes: {
+        itens: itens.map((i) => ({ nome: i.name, quantidade: i.quantidade, preco: i.price })),
+        cliente: clienteNome.trim() || "Consumidor Final",
+        total_antes: subtotal,
+        senha_exigida: !!cfg.pdv.exigirSenhaSupervisor,
+      },
+    });
+    if (error) console.error("[PDV] Falha ao registrar auditoria:", error.message);
+  };
+
+  // Cancelamento total já autorizado (SuspenderModal).
+  const cancelarVendaAutorizado = (motivo: string) => {
+    void registrarAuditoriaPdv("cancelar_venda", motivo, cart);
+    clearCart();
+  };
+
+  // Remoção já autorizada pela senha de supervisor (SuspenderModal).
+  const removerItensAutorizado = (ids: string[], motivo: string) => {
     if (ids.length === 0) return;
+    void registrarAuditoriaPdv("remover_item", motivo, cart.filter((i) => ids.includes(i.productId)));
     setCart((prev) => prev.filter((i) => !ids.includes(i.productId)));
     if (soundEnabled) playPosSound("alert");
     toast.info(ids.length === 1 ? "Item removido da venda." : `${ids.length} itens removidos da venda.`);
@@ -915,7 +949,8 @@ export default function VarejoVendas() {
       // colaborador selecionado, não pelo `id` (text) usado só como chave local.
       const vendedorColaborador = (colaboradores as any[]).find((c: any) => c.nome === vendedorSelecionado);
 
-      const { error: vendaError } = await supabase.from("vendas").insert({
+      const comissaoPct = vendedorSelecionado !== VENDEDOR_BALCAO ? Number(cfg.pdv.comissaoVendedorPct) || 0 : 0;
+      const { data: vendaCriada, error: vendaError } = await supabase.from("vendas").insert({
         id: vendaId,
         tenant_id: activeTenantId,
         cliente_nome: vendaSnap.cliente_nome,
@@ -924,10 +959,32 @@ export default function VarejoVendas() {
         // Informativo: o total já sai certo porque o desconto é diluído nos itens abaixo.
         valor_desconto: descontoCalculado > 0 ? Math.round(descontoCalculado * 100) / 100 : 0,
         vendedor_id: vendedorColaborador?.user_id || null,
+        vendedor_nome: vendedorSelecionado,
+        operador_nome: operadorNome,
+        valor_recebido: formaPagamento === "Dinheiro" ? recNumber : null,
+        troco: troco > 0 ? troco : null,
+        comissao_valor: comissaoPct > 0 ? Math.round(total * comissaoPct) / 100 : null,
         forma_pagamento: formaDesc,
         status: "aberta",
-      });
+      }).select("numero").single();
       if (vendaError) throw new Error(`Falha ao registrar venda: ${vendaError.message}`);
+      vendaSnap.numero = vendaCriada?.numero ?? null;
+
+      // Como o cliente pagou (a divisão do "Misto" é o que permite fechar o caixa por forma).
+      const pagamentos: { forma: string; valor: number }[] =
+        formaPagamento === "Misto"
+          ? [
+              { forma: "Dinheiro", valor: Number(mistoDinheiro) || 0 },
+              { forma: "Pix", valor: Number(mistoPix) || 0 },
+              { forma: "Cartão", valor: Number(mistoCartao) || 0 },
+            ].filter((x) => x.valor > 0)
+          : [{ forma: formaPagamento as string, valor: total }];
+      if (pagamentos.length > 0) {
+        const { error: pagError } = await supabase.from("venda_pagamentos").insert(
+          pagamentos.map((x) => ({ tenant_id: activeTenantId, venda_id: vendaId, forma: x.forma, valor: Math.round(x.valor * 100) / 100 }))
+        );
+        if (pagError) throw new Error(`Falha ao registrar pagamento: ${pagError.message}`);
+      }
 
       // Distribui o desconto proporcionalmente no preço unitário de cada item,
       // para que a soma dos itens bata com o total realmente cobrado.
@@ -944,7 +1001,11 @@ export default function VarejoVendas() {
       );
       if (itemsError) throw new Error(`Falha ao registrar itens da venda: ${itemsError.message}`);
 
-      const { data: rpcResult, error: rpcError } = await supabase.rpc("finalizar_venda", { p_venda_id: vendaId });
+      const { data: rpcResult, error: rpcError } = await supabase.rpc("finalizar_venda", {
+        p_venda_id: vendaId,
+        p_permitir_sem_estoque: !!cfg.pdv.permitirVendaSemEstoque,
+        p_prazo_dias: formaPagamento === "A Prazo (Crediário)" ? Math.max(0, Number(prazoDias) || 0) : null,
+      });
       if (rpcError) throw new Error(`Falha ao finalizar venda: ${rpcError.message}`);
 
       const valorFinal = Number((rpcResult as any)?.valor_total ?? total);
@@ -963,7 +1024,8 @@ export default function VarejoVendas() {
       // Lançar nos Pedidos Varejo (painel de separação/entrega)
       try {
         const itensDesc = cart.map((i) => `${i.quantidade}x ${i.name}`).join(", ");
-        await supabase!.from("varejo_pedidos").insert({
+        const { error: pedidoErr } = await supabase!.from("varejo_pedidos").insert({
+          venda_id: vendaId,
           // M3 (auditoria 2026-09-21): id aleatório numérico colidia com o
           // esquema usado em PedidosVarejo.tsx. UUID como o resto do sistema.
           id: `PED-${crypto.randomUUID()}`,
@@ -975,7 +1037,10 @@ export default function VarejoVendas() {
           forma_pagto: vendaSnap.forma_pagamento || "Dinheiro",
           status: "Entregue / Concluído",
         });
-      } catch {}
+        if (pedidoErr) toast.warning(`Venda registrada, mas o pedido em "Pedidos Varejo" não foi criado: ${friendlyError(pedidoErr)}`);
+      } catch {
+        toast.warning('Venda registrada, mas o pedido em "Pedidos Varejo" não foi criado.');
+      }
 
       // Atualizar histórico e exibir comprovante
       setHistorico((prev) => [vendaSnap, ...prev]);
@@ -997,7 +1062,7 @@ export default function VarejoVendas() {
 
       if (soundEnabled) playPosSound("success");
       const qtdItens = vendaSnap.itens.reduce((q, i) => q + i.quantidade, 0);
-      toast.success("Venda concluída", {
+      toast.success(`Venda ${rotuloVenda(vendaSnap.numero, vendaId)} concluída`, {
         description: [
           vendaSnap.cliente_nome || "Consumidor Final",
           `${qtdItens} ${qtdItens === 1 ? "item" : "itens"} · ${formatPrice(valorFinal)}`,
@@ -1017,7 +1082,7 @@ export default function VarejoVendas() {
   const handleEstornarVenda = async (venda: VendaHistorico) => {
     const ok = await confirmDialog({
       title: "Estornar Venda do PDV?",
-      description: `Tem certeza que deseja estornar a venda ${venda.id} no valor de ${formatPrice(venda.valor_total)}? Os itens retornarão automaticamente ao estoque.`,
+      description: `Tem certeza que deseja estornar a venda ${rotuloVenda(venda.numero, venda.id)} no valor de ${formatPrice(venda.valor_total)}? Os itens retornarão automaticamente ao estoque.`,
       confirmLabel: "Sim, Estornar Venda",
       variant: "danger",
     });
@@ -1033,34 +1098,12 @@ export default function VarejoVendas() {
     setEstornandoIds((prev) => new Set(prev).add(venda.id));
 
     try {
-      // M4: `.eq("status", "paga")` garante que só a PRIMEIRA execução
-      // concorrente encontra a linha nesse status e de fato a atualiza — a
-      // segunda (duplo clique, outra aba) recebe 0 linhas afetadas e aborta
-      // antes de devolver o estoque de novo.
-      const { data: updData, error: updError } = await supabase
-        .from("vendas")
-        .update({ status: "cancelada" })
-        .eq("id", venda.id)
-        .eq("status", "paga")
-        .select("id");
-      if (updError) throw new Error(updError.message);
-      if (!updData || updData.length === 0) {
-        toast.error("Esta venda já foi estornada.");
-        return;
-      }
+      // Estorno inteiro no banco, numa transação só (status, estoque, financeiro e pedido):
+      // a própria função recusa um segundo estorno da mesma venda (duplo clique, outra aba).
+      const { error: estornoError } = await supabase.rpc("estornar_venda", { p_venda_id: venda.id, p_motivo: null });
+      if (estornoError) throw new Error(estornoError.message);
 
-      // Devolve ao estoque real (banco) cada item que veio do catálogo (ignora avulsos)
       const realItems = (venda.itens || []).filter((it) => it.productId && !it.isAvulso);
-      for (const item of realItems) {
-        const { error: movError } = await supabase.rpc("registrar_movimentacao_estoque", {
-          p_product_id: item.productId,
-          p_tipo: "entrada",
-          p_quantidade: item.quantidade,
-          p_motivo: `Estorno da venda ${venda.id}`,
-        });
-        if (movError) console.error("Falha ao devolver estoque do item:", item.productId, movError);
-      }
-
       setProducts(
         products.map((prod: any) => {
           const item = realItems.find((it) => it.productId === prod.id);
@@ -1844,7 +1887,7 @@ export default function VarejoVendas() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-black font-mono text-[var(--color-text-primary)]">{venda.id}</h4>
+                            <h4 className="text-sm font-black font-mono text-[var(--color-text-primary)]">{rotuloVenda(venda.numero, venda.id)}</h4>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isEstornada ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"}`}>
                               {isEstornada ? "Venda Estornada" : "Paga / Concluída"}
                             </span>
@@ -1957,7 +2000,7 @@ export default function VarejoVendas() {
               variant="outline"
               onClick={() => {
                 if (!receiptVenda) return;
-                const msg = encodeURIComponent(`Olá! Segue comprovante da sua compra ${receiptVenda.id} no valor de ${formatPrice(receiptVenda.valor_total)}.`);
+                const msg = encodeURIComponent(`Olá! Segue comprovante da sua compra ${rotuloVenda(receiptVenda.numero, receiptVenda.id)} no valor de ${formatPrice(receiptVenda.valor_total)}.`);
                 window.open(`https://wa.me/?text=${msg}`, "_blank");
               }}
               className="h-9 px-3 text-xs font-semibold gap-1.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10"
@@ -2033,7 +2076,7 @@ export default function VarejoVendas() {
 
                 <div className="text-[10px] space-y-0.5 border-b border-dashed border-slate-300 pb-2">
                   <div className="flex justify-between">
-                    <span>PEDIDO: <strong>{receiptVenda.id}</strong></span>
+                    <span>PEDIDO: <strong>{rotuloVenda(receiptVenda.numero, receiptVenda.id)}</strong></span>
                     <span>DATA: {new Date(receiptVenda.created_at).toLocaleDateString("pt-BR")}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
@@ -2793,7 +2836,7 @@ export default function VarejoVendas() {
         exigirSenha={cfg.pdv.exigirSenhaSupervisor}
         onEspera={handleSuspenderVenda}
         onRemover={removerItensAutorizado}
-        onCancelarVenda={clearCart}
+        onCancelarVenda={cancelarVendaAutorizado}
       />
     </PageContainer>
   );

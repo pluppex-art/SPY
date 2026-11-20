@@ -20,6 +20,7 @@ interface VendaFinalizada {
   data: string;
   cliente: string;
   vendedor?: string;
+  numero?: number | null;
   itens: Array<{
     id: string;
     name: string;
@@ -108,7 +109,8 @@ export default function PainelVarejo() {
             timestamp: v.created_at,
             data: new Date(v.created_at).toLocaleDateString("pt-BR"),
             cliente: v.cliente_nome || "Consumidor Final",
-            vendedor: undefined,
+            vendedor: v.vendedor_nome || undefined,
+            numero: v.numero,
             itens: (v.venda_items || []).map((it: any) => ({
               id: it.id,
               name: it.product_name || "Item",
@@ -117,8 +119,8 @@ export default function PainelVarejo() {
               qty: it.quantidade,
               total: Number(it.preco_unitario) * it.quantidade,
             })),
-            subtotal: Number(v.valor_total) || 0,
-            desconto: 0,
+            subtotal: (Number(v.valor_total) || 0) + (Number(v.valor_desconto) || 0),
+            desconto: Number(v.valor_desconto) || 0,
             total: Number(v.valor_total) || 0,
             metodo: v.forma_pagamento || "Outro",
             status: v.status === "cancelada" ? "cancelada" : "concluida",
@@ -493,7 +495,7 @@ export default function PainelVarejo() {
                 <div key={v.id} className="p-3 rounded-xl bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] flex items-center justify-between hover:bg-[var(--color-surface-sunken)] transition-colors">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono font-bold text-[var(--color-primary-blue)]">{v.id}</span>
+                      <span className="text-[10px] font-mono font-bold text-[var(--color-primary-blue)]">{v.numero ? `#${String(v.numero).padStart(4, "0")}` : `#${v.id.slice(0, 8)}`}</span>
                       <p className="text-xs font-bold text-[var(--color-text-primary)]">{v.cliente || "Consumidor"}</p>
                     </div>
                     <p className="text-[10px] text-[var(--color-text-muted)]">

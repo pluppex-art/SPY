@@ -16,8 +16,8 @@ interface Props {
   /** false = o gestor desligou a senha: remover e cancelar executam direto. */
   exigirSenha: boolean;
   onEspera: () => void;
-  onRemover: (productIds: string[]) => void;
-  onCancelarVenda: () => void;
+  onRemover: (productIds: string[], motivo: string) => void;
+  onCancelarVenda: (motivo: string) => void;
 }
 
 const inputCls = "w-full px-3 py-2 text-sm bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500";
@@ -28,24 +28,25 @@ export function SuspenderModal({ isOpen, modoInicial, onClose, itens, tenantId, 
   const [acao, setAcao] = useState<"remover" | "cancelar">("remover");
   const [sel, setSel] = useState<string[]>([]);
   const [senha, setSenha] = useState("");
+  const [motivo, setMotivo] = useState("");
   const [erro, setErro] = useState<{ msg: string; semSenha?: boolean } | null>(null);
   const [verificando, setVerificando] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    setSel([]); setSenha(""); setErro(null); setVerificando(false);
+    setSel([]); setSenha(""); setMotivo(""); setErro(null); setVerificando(false);
     if (modoInicial === "cancelar") { setAcao("cancelar"); setEtapa("senha"); } else { setEtapa("escolher"); }
   }, [isOpen, modoInicial]);
 
   const alternar = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const irParaSenha = (a: "remover" | "cancelar") => {
     // Sem senha exigida: remover executa direto; cancelar pede só uma confirmação.
-    if (!exigirSenha && a === "remover") { onRemover(sel); onClose(); return; }
+    if (!exigirSenha && a === "remover") { onRemover(sel, ""); onClose(); return; }
     setAcao(a); setSenha(""); setErro(null); setEtapa("senha");
   };
 
   const confirmar = async () => {
-    if (!exigirSenha) { onCancelarVenda(); onClose(); return; }
+    if (!exigirSenha) { onCancelarVenda(motivo); onClose(); return; }
     if (!senha) { setErro({ msg: "Digite a senha de supervisor." }); return; }
     setVerificando(true); setErro(null);
     try {
@@ -53,7 +54,7 @@ export function SuspenderModal({ isOpen, modoInicial, onClose, itens, tenantId, 
       const r = await apiFetch(`/api/varejo/supervisor-senha/verificar${q}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ senha }) });
       const j = await r.json().catch(() => ({}));
       if (r.ok && j.ok) {
-        if (acao === "remover") onRemover(sel); else onCancelarVenda();
+        if (acao === "remover") onRemover(sel, motivo); else onCancelarVenda(motivo);
         onClose();
         return;
       }
@@ -111,6 +112,10 @@ export function SuspenderModal({ isOpen, modoInicial, onClose, itens, tenantId, 
               ? `Isso cancela a venda inteira (${itens.length} ${itens.length === 1 ? "item" : "itens"}).${exigirSenha ? " Peça a senha de supervisor para confirmar." : ""}`
               : `Isso remove ${qtdSel} ${qtdSel === 1 ? "item" : "itens"} da venda. Peça a senha de supervisor para confirmar.`}
           </p>
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">Motivo (opcional)</label>
+            <input type="text" maxLength={200} value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: cliente desistiu, erro de digitação" className={inputCls} />
+          </div>
           {exigirSenha && <div>
             <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1 flex items-center gap-1"><Lock className="w-3 h-3" /> Senha de supervisor</label>
             <input autoFocus type="password" autoComplete="off" value={senha} onChange={(e) => { setSenha(e.target.value); setErro(null); }}

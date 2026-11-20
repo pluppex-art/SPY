@@ -8,7 +8,7 @@ export function ConfigVarejoPDV() {
       section="pdv"
       title="Caixa & PDV"
       subtitle="Regras da frente de caixa: o que é obrigatório numa venda e até onde o operador pode ir."
-      validate={(d) => (d.descontoMaximoPct < 0 || d.descontoMaximoPct > 100 ? "O desconto máximo deve estar entre 0% e 100%." : null)}
+      validate={(d) => (d.descontoMaximoPct < 0 || d.descontoMaximoPct > 100 ? "O desconto máximo deve estar entre 0% e 100%." : d.comissaoVendedorPct < 0 || d.comissaoVendedorPct > 100 ? "A comissão deve estar entre 0% e 100%." : null)}
       fields={[
         { kind: "toggle", key: "exigirCliente", label: "Exigir cliente na venda", hint: "Impede finalizar sem identificar o cliente." },
         { kind: "toggle", key: "exigirSenhaSupervisor", label: "Exigir senha para remover item ou cancelar venda", hint: "Ligado: o caixa precisa da senha de supervisor. Desligado: remove e cancela direto, sem pedir senha." },
@@ -16,6 +16,7 @@ export function ConfigVarejoPDV() {
         { kind: "toggle", key: "permitirVendaSemEstoque", label: "Permitir vender sem estoque", hint: "Útil para encomendas; o estoque pode ficar negativo." },
         { kind: "toggle", key: "descontoLivre", label: "Desconto livre", hint: "Desligue para limitar o desconto ao teto abaixo." },
         { kind: "number", key: "descontoMaximoPct", label: "Desconto máximo por venda", suffix: "%", min: 0, max: 100, hint: "Só vale com o desconto livre desligado." },
+        { kind: "number", key: "comissaoVendedorPct", label: "Comissão do vendedor", suffix: "%", min: 0, max: 100, hint: "Percentual do total da venda registrado como comissão do vendedor escolhido. 0 = sem comissão." },
         { kind: "toggle", key: "sons", label: "Sons do PDV", hint: "Bipes de confirmação e erro no caixa." },
       ]}
       footer={<SupervisorSenhaCard />}
