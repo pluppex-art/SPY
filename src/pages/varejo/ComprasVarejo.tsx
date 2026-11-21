@@ -19,6 +19,7 @@ import { FornecedorModal, rowToFornecedor, type FornecedorItem } from "./Fornece
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
 import { HelpTip } from "../../components/ui/help-tip";
+import { margemPct } from "../../lib/tabelaPrecos";
 // Status exibido na UI. No banco (`compras.status`) só existem
 // 'Pendente' | 'Em Transporte' | 'Recebido no Estoque' | 'Cancelado' — os
 // dois primeiros valores da UI ('Emitida...', 'Faturada') mapeiam para 'Pendente'.
@@ -427,7 +428,7 @@ export default function ComprasVarejo() {
       type: "Físico",
       price: preco,
       cost: custo,
-      margin: preco > 0 ? parseFloat((((preco - custo) / preco) * 100).toFixed(1)) : 0,
+      margin: margemPct(preco, custo),
       commission: 0,
       active: true,
       stockMin: cfgVarejo.estoque.estoqueMinimoPadrao,

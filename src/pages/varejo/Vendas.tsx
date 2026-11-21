@@ -21,6 +21,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
+import { custoParaVenda, eanDoProduto, produtoTemCodigo } from "../../lib/tabelaPrecos";
 import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
 import { ClienteModal } from "./pdv/ClienteModal";
 import { SuspenderModal } from "./pdv/SuspenderModal";
@@ -122,6 +123,8 @@ interface CartItem {
   descontoItemPct?: number;
   /** % de comissão do cadastro do produto (0/ausente = produto sem comissão). */
   comissaoPct?: number;
+  /** Custo do cadastro no momento da venda (foto do dia). Vai para venda_items.custo_unitario e alimenta o CMV. */
+  custo?: number | null;
   /** Pessoa da equipe que recebe a comissão deste item. */
   comissaoVendedor?: { nome: string; userId?: string | null } | null;
 }
@@ -514,9 +517,10 @@ export default function VarejoVendas() {
           quantidade: 1,
           estoqueDisponivel: estoque,
           sku: product.sku,
-          barcode: product.typeAttributes?.barcode || product.typeAttributes?.ean,
+          barcode: eanDoProduto(product) || undefined,
           category: product.category,
           comissaoPct: Number(product.commission) > 0 ? Number(product.commission) : undefined,
+          custo: custoParaVenda(product),
           // Vendedor já escolhido no topo do PDV vira sugestão; o pop-up confirma ou troca.
           comissaoVendedor: null,
         },
@@ -688,9 +692,7 @@ export default function VarejoVendas() {
     const code = barcodeInput.trim().toLowerCase();
     const found = products.find(
       (p: any) =>
-        p.sku?.toLowerCase() === code ||
-        p.typeAttributes?.barcode?.toLowerCase() === code ||
-        p.typeAttributes?.ean?.toLowerCase() === code ||
+        produtoTemCodigo(p, code) ||
         p.name?.toLowerCase().includes(code)
     );
 
@@ -1074,6 +1076,7 @@ export default function VarejoVendas() {
           quantidade: item.quantidade,
           // preço líquido: desconto do item e fatia do desconto geral já aplicados
           preco_unitario: Math.round((linhaLiquida(item) / item.quantidade) * discountRatio * 100) / 100,
+          custo_unitario: item.isAvulso ? null : (item.custo ?? null), // foto do custo no dia da venda (null = produto sem custo cadastrado)
           valor_desconto: descontoDoItem(item) > 0 ? descontoDoItem(item) : null,
           comissao_vendedor_id: item.comissaoVendedor && uuidOk(item.comissaoVendedor.userId) ? item.comissaoVendedor.userId : null,
           comissao_vendedor_nome: item.comissaoVendedor?.nome || null,
