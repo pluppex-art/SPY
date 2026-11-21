@@ -31,6 +31,7 @@ import { useLocalization } from "./LocalizationContext";
 import { friendlyError } from "../lib/friendlyError";
 import { normalizarStatusLead } from "../lib/leadStatus";
 import { mapaPapelPorEtapa, statusPelaEtapa } from "../lib/statusPelaEtapa";
+import { vendasDiretasComoContratos } from "../lib/vendasDiretas";
 import { completarBaixa } from '../pages/finance/lib/baixa';
 import { montarEstorno, podeEstornar } from '../pages/finance/lib/estorno';
 import { deveLancarGanho, idLancamentoDoGanho, montarLancamentoDoGanho } from '../pages/finance/lib/ganho';
@@ -514,6 +515,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // duplicado — rejeitado pela constraint única do banco (erro 409 visto
   // em produção), mas ainda assim uma falha real toda vez que acontecia.
   const [contractsLoaded, setContractsLoaded] = useState(false);
+  // Propostas: declaradas aqui porque a venda direta (negócio ganho sem proposta) depende delas.
+  const [proposalsRaw, setProposals] = useState<any[]>([]);
   // Mesmo motivo do contractsLoaded acima, pro lado de `proposals`: sem
   // isso, a reconciliação podia rodar com `proposals` ainda contendo dados
   // do tenant ANTERIOR (troca de tenant, carregamento independente).
@@ -586,27 +589,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const contracts = useMemo(() => {
     const reais = filterByFilial(contractsRaw);
     if (!contractsLoaded || reais.length > 0) return reais;
-    const virtuais: Contract[] = [];
-    for (const l of leads as any[]) {
-      if (l.status !== 'Fechado' || l.source !== 'Max Data') continue;
-      const v = parseCurrencyBR(l.value);
-      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(l.date || '');
-      virtuais.push({
-        id: `venda-${l.id}`,
-        client: l.clientName || l.name || 'Consumidor final',
-        plan: 'Venda',
-        mrr: v,
-        totalValue: v,
-        status: 'Ativo',
-        date: m ? `${m[3]}/${m[2]}/${m[1]}` : '',
-        progress: 100,
-        proposalId: null,
-        cancelledAt: null,
-        seller: l.seller,
-      } as Contract);
-    }
+    // Venda direta: negócio ganho sem proposta (Max Data ou qualquer outra origem) — ver src/lib/vendasDiretas.ts.
+    const virtuais = vendasDiretasComoContratos(leads as any[], proposalsRaw) as Contract[];
     return virtuais.length ? virtuais : reais;
-  }, [contractsRaw, contractsLoaded, leads, activeFilialId]);
+  }, [contractsRaw, contractsLoaded, leads, proposalsRaw, activeFilialId]);
   const appointments = useMemo(() => filterByFilial(appointmentsRaw), [appointmentsRaw, activeFilialId, filialAtivaEhPrincipal]);
 
   const [squads, setSquads] = useState<Squad[]>(defaultSquads);
@@ -973,7 +959,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [marketingForms, setMarketingForms] = useState<any[]>([]);
   const [productsRaw, setProducts] = useState<any[]>(defaultProducts);
 
-  const [proposalsRaw, setProposals] = useState<any[]>([]);
   const [proposalItems, setProposalItems] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [turmas, setTurmas] = useState<any[]>([]);

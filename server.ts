@@ -842,6 +842,35 @@ async function fetchAllRowsPaginated(
   return all;
 }
 
+// Vendas do PDV (venda paga = negócio ganho) no período: entram nos cards de vendas do dashboard junto com os negócios ganhos.
+// Só as nativas do PDV (venda importada de outro sistema já aparece como negócio fechado).
+app.get("/api/dashboard/vendas-pdv", requireUserOrInternalService, async (req: any, res) => {
+  try {
+    const tenantId = await resolveRequestedTenantId(req, res);
+    if (!tenantId) return;
+    const iso = /^\d{4}-\d{2}-\d{2}$/;
+    const from = typeof req.query.from === "string" && iso.test(req.query.from) ? req.query.from : null;
+    const to = typeof req.query.to === "string" && iso.test(req.query.to) ? req.query.to : null;
+    const cacheKey = `dashboard-vendas-pdv:tenant:${tenantId}:${from ?? "-"}:${to ?? "-"}`;
+    const cached = await cacheGet<Record<string, unknown>>(cacheKey);
+    if (cached) { res.setHeader("X-Cache", "HIT"); return res.json(cached); }
+
+    const rows = await fetchAllRowsPaginated(req.supabase, "vendas", "valor_total,status,created_at,paid_at,cancelada_em",
+      (q) => q.eq("tenant_id", tenantId).in("status", ["paga", "cancelada"]).is("externo_sistema", null)) as { valor_total: number | null; status: string; created_at: string; paid_at: string | null; cancelada_em: string | null }[];
+    const noPeriodo = (d: string | null | undefined) => { const dia = d?.slice(0, 10); return !!dia && (!from || dia >= from) && (!to || dia <= to); };
+    const pagas = rows.filter((r) => r.status === "paga" && noPeriodo(r.paid_at || r.created_at));
+    const canceladas = rows.filter((r) => r.status === "cancelada" && noPeriodo(r.cancelada_em || r.created_at));
+    const soma = (l: typeof rows) => round2(l.reduce((t, r) => t + (Number(r.valor_total) || 0), 0));
+    const resposta = { quantidade: pagas.length, valor: soma(pagas), perdidas: canceladas.length, valorPerdidas: soma(canceladas), cachedAt: new Date().toISOString() };
+    await cacheSet(cacheKey, resposta, 60);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(resposta);
+  } catch (err: any) {
+    console.error("[dashboard/vendas-pdv]", err?.message);
+    return res.status(500).json({ error: "Erro ao calcular as vendas do PDV." });
+  }
+});
+
 app.get("/api/dashboard/summary", requireUserOrInternalService, async (req: any, res) => {
   try {
     const tenantId = await resolveRequestedTenantId(req, res);

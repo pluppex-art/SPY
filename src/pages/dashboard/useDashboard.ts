@@ -219,6 +219,22 @@ export function useDashboard() {
     return () => { off = true; };
   }, [temVendasVirtuais, activeTenantId, dateFrom, dateTo, unidade]);
 
+  // Vendas do PDV no período (venda paga = negócio ganho): não passam pelo funil, então vêm de uma rota própria.
+  const [vendasPdv, setVendasPdv] = useState<{ quantidade: number; valor: number; perdidas: number; valorPerdidas: number } | null>(null);
+  useEffect(() => {
+    setVendasPdv(null);
+    if (!activeTenantId) return;
+    let cancelled = false;
+    const q = new URLSearchParams({ tenantId: activeTenantId });
+    if (dateFrom) q.set('from', dateFrom);
+    if (dateTo) q.set('to', dateTo);
+    apiFetch(`/api/dashboard/vendas-pdv?${q.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => { if (!cancelled && d) setVendasPdv(d); })
+      .catch(() => { /* sem o PDV, os cards seguem só com os negócios ganhos */ });
+    return () => { cancelled = true; };
+  }, [activeTenantId, dateFrom, dateTo]);
+
   // Empresa sem contratos (loja/varejo): a receita é o valor dos negócios Ganhos no período, não MRR de contrato.
   const vendasGanhas = useMemo(() => {
     if ((contracts as any[]).some((c) => !String(c.id).startsWith('venda-'))) return undefined;
@@ -226,11 +242,13 @@ export function useDashboard() {
     const ganhos = comerciais.filter((l) => l.status === 'Fechado');
     const perdidos = comerciais.filter((l) => l.status === 'Perdido');
     if (panorama) return { valor: Number(panorama.faturamento) || 0, qtd: Number(panorama.vendas) || 0, perdidas: Number(panorama.canceladas) || 0, valorPerdidas: Number(panorama.canceladas_valor) || 0 };
-    if (ganhos.length === 0 && perdidos.length === 0) return undefined;
+    const pdv = vendasPdv ?? { quantidade: 0, valor: 0, perdidas: 0, valorPerdidas: 0 };
+    if (ganhos.length === 0 && perdidos.length === 0 && pdv.quantidade === 0 && pdv.perdidas === 0) return undefined;
     const ctx = prepararValor(proposals as any[], products as any[]);
     const soma = (arr: any[]) => somarLeads(arr, ctx).total;   // regra única de valor (src/lib/valorDoLead.ts)
-    return { valor: soma(ganhos), qtd: ganhos.length, perdidas: perdidos.length, valorPerdidas: soma(perdidos) };
-  }, [contracts, leads, panorama, proposals, products]);
+    // Ganho = negócio ganho (Fechado/Ganho) + venda do PDV: a mesma coisa para o dashboard.
+    return { valor: soma(ganhos) + pdv.valor, qtd: ganhos.length + pdv.quantidade, perdidas: perdidos.length + pdv.perdidas, valorPerdidas: soma(perdidos) + pdv.valorPerdidas };
+  }, [contracts, leads, panorama, proposals, products, vendasPdv]);
 
   const totalRevenue = serverSummary?.totalRevenue ?? totalRevenueClient;
   const conversionRate = (serverSummary?.conversionRate ?? Number(conversionRateClient)).toFixed(1);
