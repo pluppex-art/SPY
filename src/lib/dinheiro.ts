@@ -42,7 +42,7 @@ export function formatBRLCompacto(v: unknown): string {
 
 /** Valor digitado em texto -> número POSITIVO (sinal ignorado). Entende "1.500,50", "1,500.50", "1500,50", "15.000" (milhar) e "1500.5". */
 function magnitudeBR(val: unknown): number {
-  const str = String(val ?? "").trim();
+  const str = String(val ?? "").replace(/[^\d.,]/g, "");   // só dígitos, ponto e vírgula: símbolos (R$, espaço, sinal, letras) não enganam a conta
   if (!str) return 0;
 
   if (str.includes(".") && str.includes(",")) {
@@ -80,4 +80,18 @@ export function lerValor(v: unknown): number {
 /** Igual a lerValor, mas texto sempre positivo (campos que nunca aceitam negativo: preço, meta, quantia). */
 export function lerValorPositivo(v: unknown): number {
   return typeof v === "number" ? (Number.isFinite(v) ? v : 0) : magnitudeBR(v);
+}
+
+/** Como lerValor, mas devolve null quando não há valor legível (vazio, só símbolo, sem dígito): para campos onde "não informado" é diferente de zero. */
+export function lerValorOuNulo(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const s = String(v ?? "").trim();
+  if (!/\d/.test(s)) return null;
+  return lerValor(s);
+}
+
+/** Valor digitado em reais -> centavos inteiros (nunca negativo; 0 se não der para ler). Usado nos campos de preço de plano e checkout. */
+export function lerCentavos(input: unknown): number {
+  const n = Math.round(lerValorPositivo(input) * 100);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }

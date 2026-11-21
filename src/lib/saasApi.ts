@@ -1,5 +1,5 @@
 import { apiFetch } from "./apiClient";
-import { formatBRLCentavos } from "./dinheiro";
+import { formatBRLCentavos, lerCentavos } from "./dinheiro";
 
 export type Plan = {
   id: string; code: string; name: string; price_cents: number; billing_interval: "monthly" | "yearly";
@@ -79,13 +79,6 @@ export const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDat
 export const STATUS_LABEL: Record<string, string> = { trial: "Em teste", active: "Ativa", past_due: "Em atraso", suspended: "Suspensa", canceled: "Cancelada", none: "Sem assinatura" };
 
 /** "1.997,50" / "1997.5" / "997" -> centavos (NaN-safe, nunca negativo). */
-export function parseMoneyToCents(input: string): number {
-  let s = String(input ?? "").replace(/[^\d.,]/g, "");
-  if (!s) return 0;
-  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
-  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
-  const n = Math.round(parseFloat(s) * 100);
-  return Number.isFinite(n) && n > 0 ? n : 0;
-}
+export const parseMoneyToCents = (input: string): number => lerCentavos(input);
 /** centavos -> "1.997,50" (sem R$), para preencher inputs. */
 export const centsToInput = (c: number) => (c / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { formatBRL } from "../../../lib/dinheiro";
+import { formatBRL, lerValorPositivo } from "../../../lib/dinheiro";
 import { margemPct } from "../../../lib/tabelaPrecos";
 import { createPortal } from "react-dom";
 import { X, Package, DollarSign, Layers, Info, Pencil } from "lucide-react";
@@ -50,11 +50,10 @@ export function ProdutoVisualizarModal({ produto, onClose, podeEditar, tenantId,
       .catch(() => { if (!off) setVivo("erro"); });
     return () => { off = true; };
   }, [produto?.id, tenantId]);
-  const num2 = (v: string) => Number(String(v).replace(/\./g, "").replace(",", ".")) ;
   const salvar = async () => {
     if (!produto || !tenantId) return;
-    const venda = String(f.valorVenda).includes(",") ? num2(f.valorVenda) : Number(f.valorVenda);
-    const custo = String(f.valorCusto).includes(",") ? num2(f.valorCusto) : Number(f.valorCusto);
+    const venda = lerValorPositivo(f.valorVenda);
+    const custo = lerValorPositivo(f.valorCusto);
     if (!f.descricao.trim()) return toast.error("A descrição é obrigatória.");
     if (!Number.isFinite(venda) || venda < 0 || !Number.isFinite(custo) || custo < 0) return toast.error("Preço e custo precisam ser números válidos.");
     setSalvando(true);

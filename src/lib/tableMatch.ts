@@ -1,3 +1,4 @@
+import { lerValorOuNulo } from "./dinheiro.js";
 /**
  * Comparação de tabelas (Clínica & Saúde): normalização + matching determinístico + regras
  * financeiras. Puro (sem rede/DB) — roda no servidor (processamento) e no cliente (prévia).
@@ -395,14 +396,7 @@ const num = (v: unknown): number | null => {
 
 /** Converte "R$ 1.234,56" / "1234.56" / 1234.56 em número (ou null). */
 export function parseMoney(v: unknown): number | null {
-  if (typeof v === "number") return Number.isFinite(v) ? v : null;
-  const s = String(v ?? "").trim().replace(/[^\d,.-]/g, "");
-  if (!s) return null;
-  if (s.includes(",") && s.includes(".")) {
-    return s.lastIndexOf(",") > s.lastIndexOf(".") ? num(s) : parseFloat(s.replace(/,/g, "")) || null;
-  }
-  if (s.includes(",")) return parseFloat(s.replace(",", "."));
-  return parseFloat(s);
+  return lerValorOuNulo(v);
 }
 
 export function computeFinance(

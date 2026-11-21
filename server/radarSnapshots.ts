@@ -4,17 +4,14 @@
  * da tela (src/lib/radarRetrato.ts). Idempotente: rodar de novo no mesmo dia só atualiza a linha do dia.
  */
 import { calcularRetrato } from "../src/lib/radarRetrato.js";
+import { lerValor } from "../src/lib/dinheiro.js";
 
 const PAGINA = 1000;
 const TETO_LEADS_POR_EMPRESA = 50_000; // trava de segurança: nenhuma empresa estoura o tempo da função
 
 /** Valor do lead (coluna numérica; aceita texto "R$ 1.234,56" por segurança). */
 export function valorDoLead(v: unknown): number {
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  const t = String(v ?? "").replace(/[^\d,.-]/g, "");
-  if (!t) return 0;
-  const n = t.includes(",") ? Number(t.replace(/\./g, "").replace(",", ".")) : Number(t);
-  return Number.isFinite(n) ? n : 0;
+  return lerValor(v);
 }
 
 /** Linha do banco → o formato que a regra do Radar espera (timeIdle = dias desde a última atualização; nota padrão 50, como na tela). */

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { lerValorPositivo } from "../../lib/dinheiro";
 import { Loader2, Plus, Trash2, Megaphone, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../../components/ui/card";
@@ -74,7 +75,7 @@ export function AquisicaoPanel() {
   useEffect(() => { setData(null); setSpend([]); void load(); void loadSpend(); }, [load, loadSpend]);
 
   const addSpend = async () => {
-    const amount = Number(String(fAmount).replace(/\./g, "").replace(",", "."));
+    const amount = lerValorPositivo(fAmount);
     if (!supabase || !activeTenantId) return;
     if (!/^\d{4}-\d{2}$/.test(fMonth) || !Number.isFinite(amount) || amount <= 0) { toast.error("Informe o mês e um valor maior que zero."); return; }
     setSaving(true);

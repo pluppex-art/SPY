@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { lerValorOuNulo } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -87,8 +88,8 @@ function parseExtratoCsv(text: string, bancoLabel: string): ExtratoItem[] {
     const cols = line.split(/[,;]/).map(c => c.trim().replace(/^"|"$/g, ""));
     if (cols.length < 3) continue;
     const [dataRaw, descricao, valorRaw, tipoRaw] = cols;
-    const valorNum = parseFloat(valorRaw.replace(/\./g, "").replace(",", "."));
-    if (!descricao || isNaN(valorNum)) continue;
+    const valorNum = lerValorOuNulo(valorRaw);
+    if (!descricao || valorNum === null) continue;
     const tipo: "credito" | "debito" =
       tipoRaw?.toLowerCase().startsWith("d") ? "debito"
       : tipoRaw?.toLowerCase().startsWith("c") ? "credito"

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { lerValor } from "../../../lib/dinheiro";
 import { Plus, Edit2, Trash2, Inbox, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../../components/PageContainer";
@@ -208,10 +209,7 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
     for (const c of campos) {
       const v = form[c.key];
       if (c.tipo === "money") {
-        const t = String(v ?? "").trim();
-        // "1.500,50" (pt-BR) → 1500.50; "1500.50" (ponto decimal, sem vírgula) → 1500.50
-        const n = t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t;
-        payload[c.key] = Number(n.replace(/[^0-9.-]/g, "")) || 0;
+        payload[c.key] = lerValor(v);
       }
       else if (c.tipo === "int") payload[c.key] = v === "" || v == null ? Number(c.padrao ?? 0) : Math.max(0, Math.round(Number(v)) || 0);
       else if (c.tipo === "date") payload[c.key] = v || null;

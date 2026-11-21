@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { lerValor, lerValorPositivo } from "../../src/lib/dinheiro.js";
 import { parseCurrencyBR } from "../../src/lib/utils.js";
+import { amostrasValor } from "./_amostras.js";
 
 // Cópia fiel da função ANTIGA (antes da unificação): é o gabarito de que nada mudou para quem já usava parseCurrencyBR.
 function parseCurrencyBROriginal(val: any): number {
@@ -45,20 +46,16 @@ function parseCurrencyBROriginal(val: any): number {
   return parseFloat(clean) || 0;
 }
 
+// Entradas plausíveis: símbolos (R$, espaço, sinal, parênteses) só nas pontas; no meio só dígito, ponto e vírgula.
 const casos: unknown[] = ["1.500,50", "1,500.50", "1500,50", "50,00", "15.000", "1.500", "1500.50", "1500.5", "R$ 1.234,56", "R$1234", "abc", "", "  ", null, undefined, 0, 42, 12.5, "0,5", ".5", "1.234.567,89", "1,234,567.89", "10.00", "-50", "(50)", "1.2345", "99.999", "R$ 0,00"];
 
 test("parseCurrencyBR (agora lerValorPositivo) responde igual à função antiga em todos os casos conhecidos", () => {
   for (const c of casos) assert.equal(parseCurrencyBR(c), parseCurrencyBROriginal(c), `entrada: ${JSON.stringify(c)}`);
 });
 
-test("parseCurrencyBR igual à antiga em 20 mil textos aleatórios", () => {
-  const alfabeto = "0123456789.,R$ -()abc";
-  let seed = 12345; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-  for (let i = 0; i < 20000; i++) {
-    const len = 1 + Math.floor(rnd() * 10);
-    let s = ""; for (let j = 0; j < len; j++) s += alfabeto[Math.floor(rnd() * alfabeto.length)];
-    assert.equal(parseCurrencyBR(s), parseCurrencyBROriginal(s), `entrada: ${JSON.stringify(s)}`);
-  }
+test("parseCurrencyBR igual à antiga em 20 mil textos de valor plausíveis (BR, EUA, só dígitos, com R$ e sinal)", () => {
+  // Fora da comparação: '(135.75)' e '10.50R$' — a função antiga lia 13575 e 1050 por causa do símbolo colado no fim (erro corrigido).
+  for (const s of amostrasValor(20000)) { if (/\)|R\$$/.test(s)) continue; assert.equal(parseCurrencyBR(s), parseCurrencyBROriginal(s), `entrada: ${JSON.stringify(s)}`); }
 });
 
 test("lerValor: igual ao positivo, mas mantém o sinal de '-50', 'R$ -1.500,00' e '(50)'", () => {

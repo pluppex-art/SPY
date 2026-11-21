@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { lerValor } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -46,8 +47,7 @@ function parseCsv(text: string): string[][] {
 }
 
 function parseValorBR(raw: string): number {
-  const n = parseFloat(raw.replace(/\./g, "").replace(",", "."));
-  return isNaN(n) ? 0 : Math.abs(n); // negativo é convertido pra positivo, por regra
+  return Math.abs(lerValor(raw)); // negativo é convertido pra positivo, por regra
 }
 
 interface ImportRow {
