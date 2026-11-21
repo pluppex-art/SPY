@@ -118,7 +118,15 @@ interface CartItem {
   barcode?: string;
   category?: string;
   isAvulso?: boolean;
+  /** Desconto individual deste item, em % do valor da linha (escala com a quantidade). */
+  descontoItemPct?: number;
 }
+
+/** Desconto individual do item, em R$ (sobre a linha inteira). */
+const descontoDoItem = (i: { price: number; quantidade: number; descontoItemPct?: number }) =>
+  Math.round(i.price * i.quantidade * Math.min(Math.max(i.descontoItemPct || 0, 0), 100)) / 100;
+const linhaLiquida = (i: { price: number; quantidade: number; descontoItemPct?: number }) =>
+  Math.max(0, i.price * i.quantidade - descontoDoItem(i));
 
 interface VendaEmEspera {
   id: string;
@@ -150,7 +158,7 @@ function formatPrice(value: number) {
 }
 
 export default function VarejoVendas() {
-  const { products, setProducts, colaboradores, appSettings, appSettingsLoaded, clienteBase, addClienteBase } = useData();
+  const { products, setProducts, colaboradores, appSettings, appSettingsLoaded, clienteBase, addClienteBase, leads } = useData();
   const { user, activeTenantId, updatePreferences } = useAuth();
   const tenantId = activeTenantId || "default";
   // Regras configuráveis da loja (Configurações → Varejo & PDV).
@@ -180,6 +188,19 @@ export default function VarejoVendas() {
   }, [colaboradores]);
 
   const [tab, setTab] = useState<"pdv" | "historico">("pdv");
+  // Edição do desconto individual de um item do carrinho (campo inline na linha).
+  const [descItemEdit, setDescItemEdit] = useState<{ id: string; valor: string; tipo: "valor" | "pct" } | null>(null);
+  const aplicarDescontoItem = () => {
+    if (!descItemEdit) return;
+    const raw = parseFloat(descItemEdit.valor.replace(",", ".")) || 0;
+    setCart((prev) => prev.map((i) => {
+      if (i.productId !== descItemEdit.id) return i;
+      const linha = i.price * i.quantidade;
+      const pct = descItemEdit.tipo === "pct" ? raw : linha > 0 ? (raw / linha) * 100 : 0;
+      return { ...i, descontoItemPct: Math.min(Math.max(pct, 0), 100) || undefined };
+    }));
+    setDescItemEdit(null);
+  };
   // PDV sem rolagem da página: no desktop (lg+) o terminal ocupa só o que sobra da tela e cada
   // área (produtos, itens/pagamento) rola por dentro. Abaixo de lg a página rola normalmente.
   const { ref: pdvRef, height: pdvHeight } = useFillViewportHeight<HTMLDivElement>(360, [tab]);
@@ -403,9 +424,12 @@ export default function VarejoVendas() {
   }, [products, search, selectedCategory]);
 
   // Cálculos do Carrinho
+  // `subtotal` já considera o desconto individual de cada item; o desconto geral incide sobre ele.
   const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.price * item.quantidade, 0);
+    return cart.reduce((sum, item) => sum + linhaLiquida(item), 0);
   }, [cart]);
+  const subtotalBruto = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.quantidade, 0), [cart]);
+  const descontoItens = Math.max(0, subtotalBruto - subtotal);
 
   const descontoCalculado = useMemo(() => {
     const rawVal = parseFloat(descontoValor.replace(",", ".")) || 0;
@@ -417,7 +441,8 @@ export default function VarejoVendas() {
     return Math.min(rawVal, subtotal);
   }, [descontoValor, descontoTipo, subtotal]);
 
-  const descontoPctEfetivo = subtotal > 0 ? (descontoCalculado / subtotal) * 100 : 0;
+  // O teto de desconto vale para o conjunto (individual + geral) sobre o valor bruto.
+  const descontoPctEfetivo = subtotalBruto > 0 ? ((descontoItens + descontoCalculado) / subtotalBruto) * 100 : 0;
   const descontoAcimaDoTeto = !cfg.pdv.descontoLivre && descontoPctEfetivo > cfg.pdv.descontoMaximoPct + 0.0001;
 
   const total = Math.max(0, subtotal - descontoCalculado);
@@ -551,6 +576,26 @@ export default function VarejoVendas() {
     setModalNovoClienteOpen(false);
     setModalClienteOpen(false);
     toast.success("Cliente cadastrado e adicionado à venda.");
+  };
+
+  // Cliente escolhido a partir de um lead: reaproveita o cadastro existente (vínculo ou telefone) ou cria um a partir do lead.
+  const handleSelecionarLead = async (lead: any) => {
+    const nome = String(lead.name || "").trim();
+    const documento = String(lead.cnpj || lead.customFields?.cpf || lead.customFields?.documento || "") || null;
+    const fone = String(lead.phone || "").replace(/\D/g, "");
+    const existente = (clienteBase as any[]).find((c: any) =>
+      (lead.clientId && String(c.id) === String(lead.clientId)) || (fone.length >= 8 && String(c.phone || "").replace(/\D/g, "") === fone));
+    if (existente) {
+      setClienteNome(String(existente.name)); setClienteCpf(String(existente.documento || "")); setClienteId(String(existente.id));
+      return;
+    }
+    const criado = await addClienteBase({
+      name: nome, industry: "Varejo", phone: lead.phone || null, email: lead.email || null,
+      documento, status: "Ativo", city: null, state: null,
+    });
+    if (!criado) { setClienteNome(nome); setClienteCpf(documento || ""); setClienteId(""); return; }
+    setClienteNome(nome); setClienteCpf(documento || ""); setClienteId(String((criado as any)?.id || ""));
+    toast.success("Lead vinculado à venda como cliente.");
   };
 
   // Trilha de auditoria: quem removeu item ou cancelou a venda, quando e por quê.
@@ -917,8 +962,8 @@ export default function VarejoVendas() {
         cliente_nome: clienteNome.trim() ? `${clienteNome.trim()}${clienteCpf ? ` (${clienteCpf})` : ""}` : "Consumidor Final",
         forma_pagamento: formaDesc,
         status: "paga",
-        subtotal,
-        desconto: descontoCalculado,
+        subtotal: subtotalBruto,
+        desconto: descontoItens + descontoCalculado,
         valor_total: total,
         troco: troco > 0 ? troco : undefined,
         valor_recebido: formaPagamento === "Dinheiro" ? recNumber : undefined,
@@ -932,7 +977,7 @@ export default function VarejoVendas() {
           name: i.name,
           price: i.price,
           quantidade: i.quantidade,
-          subtotal: i.price * i.quantidade,
+          subtotal: linhaLiquida(i),
           sku: i.sku,
           isAvulso: i.isAvulso,
         })),
@@ -957,7 +1002,7 @@ export default function VarejoVendas() {
         // clientes.id é text, mas guarda uuid; só vincula se for uuid válido.
         cliente_id: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clienteId) ? clienteId : null,
         // Informativo: o total já sai certo porque o desconto é diluído nos itens abaixo.
-        valor_desconto: descontoCalculado > 0 ? Math.round(descontoCalculado * 100) / 100 : 0,
+        valor_desconto: descontoItens + descontoCalculado > 0 ? Math.round((descontoItens + descontoCalculado) * 100) / 100 : 0,
         vendedor_id: vendedorColaborador?.user_id || null,
         vendedor_nome: vendedorSelecionado,
         operador_nome: operadorNome,
@@ -996,7 +1041,9 @@ export default function VarejoVendas() {
           product_id: item.isAvulso ? null : item.productId,
           product_name: item.name,
           quantidade: item.quantidade,
-          preco_unitario: Math.round(item.price * discountRatio * 100) / 100,
+          // preço líquido: desconto do item e fatia do desconto geral já aplicados
+          preco_unitario: Math.round((linhaLiquida(item) / item.quantidade) * discountRatio * 100) / 100,
+          valor_desconto: descontoDoItem(item) > 0 ? descontoDoItem(item) : null,
         }))
       );
       if (itemsError) throw new Error(`Falha ao registrar itens da venda: ${itemsError.message}`);
@@ -1703,6 +1750,37 @@ export default function VarejoVendas() {
                       <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
                         {item.quantidade} x {formatPrice(item.price)}
                       </span>
+                      {descItemEdit?.id === item.productId ? (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <div className="flex rounded-md overflow-hidden border border-[var(--color-border-subtle)] text-[10px] font-bold">
+                            {(["valor", "pct"] as const).map((t) => (
+                              <button key={t} type="button" onClick={() => setDescItemEdit({ ...descItemEdit, tipo: t })}
+                                className={`px-1.5 h-6 ${descItemEdit.tipo === t ? "bg-[var(--color-primary-blue)] text-white" : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"}`}>
+                                {t === "valor" ? "R$" : "%"}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            autoFocus
+                            inputMode="decimal"
+                            value={descItemEdit.valor}
+                            onChange={(e) => setDescItemEdit({ ...descItemEdit, valor: e.target.value })}
+                            onKeyDown={(e) => { if (e.key === "Enter") aplicarDescontoItem(); if (e.key === "Escape") setDescItemEdit(null); }}
+                            placeholder="0"
+                            className="w-16 h-6 px-1.5 text-[11px] font-mono rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
+                          />
+                          <button type="button" onClick={aplicarDescontoItem} className="h-6 px-2 rounded-md text-[10px] font-bold bg-[var(--color-primary-blue)] text-white">OK</button>
+                          <button type="button" onClick={() => setDescItemEdit(null)} className="h-6 px-1.5 rounded-md text-[10px] font-bold text-[var(--color-text-muted)]">Cancelar</button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setDescItemEdit({ id: item.productId, valor: item.descontoItemPct ? String(Math.round(item.descontoItemPct * 100) / 100) : "", tipo: "pct" })}
+                          className="mt-1 block text-[10px] font-bold text-[var(--color-primary-blue)] hover:underline"
+                        >
+                          {item.descontoItemPct ? `Desconto no item: -${formatPrice(descontoDoItem(item))} (${Math.round(item.descontoItemPct * 100) / 100}%)` : "+ Desconto no item"}
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1727,7 +1805,7 @@ export default function VarejoVendas() {
                       </div>
 
                       <span className="text-xs font-black font-mono text-[var(--color-text-primary)] w-16 text-right">
-                        {formatPrice(item.price * item.quantidade)}
+                        {formatPrice(linhaLiquida(item))}
                       </span>
                     </div>
                   </div>
@@ -1810,8 +1888,14 @@ export default function VarejoVendas() {
               <div className="shrink-0 p-4 border-t border-[var(--color-border-default)] bg-[var(--color-surface)] space-y-2.5">
                 <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
                   <span>Subtotal dos itens:</span>
-                  <span className="font-mono">{formatPrice(subtotal)}</span>
+                  <span className="font-mono">{formatPrice(subtotalBruto)}</span>
                 </div>
+                {descontoItens > 0 && (
+                  <div className="flex items-center justify-between text-xs text-emerald-500 font-bold">
+                    <span>Descontos nos itens:</span>
+                    <span className="font-mono">-{formatPrice(descontoItens)}</span>
+                  </div>
+                )}
                 {descontoCalculado > 0 && (
                   <div className="flex items-center justify-between text-xs text-emerald-500 font-bold">
                     <span>Desconto aplicado:</span>
@@ -2824,6 +2908,8 @@ export default function VarejoVendas() {
         isOpen={modalClienteOpen}
         onClose={() => setModalClienteOpen(false)}
         clientes={clienteBase as any[]}
+        leads={leads as any[]}
+        onSelectLead={handleSelecionarLead}
         nomeAtual={clienteNome}
         cpfAtual={clienteCpf}
         onSelect={({ nome, cpf, id }) => { setClienteNome(nome); setClienteCpf(cpf); setClienteId(id || ""); }}
