@@ -82,9 +82,17 @@ function ItemCombobox({
   produtos: any[];
 }) {
   const [aberto, setAberto] = useState(false);
-  const q = value.trim().toLowerCase();
-  const opcoes = produtos.filter(p => !q || String(p.name || "").toLowerCase().includes(q)).slice(0, 30);
-  const exato = produtos.some(p => String(p.name || "").trim().toLowerCase() === q);
+  // Busca sem acento e por palavras: "trafego pago" acha "Tráfego Pago | Mensal".
+  const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const q = norm(value.trim());
+  const palavras = q.split(/\s+/).filter(Boolean);
+  const opcoes = produtos
+    .filter(p => {
+      const alvo = norm(`${p.name || ""} ${p.sku || ""} ${p.category || ""}`);
+      return palavras.every(w => alvo.includes(w));
+    })
+    .slice(0, 30);
+  const exato = produtos.some(p => norm(String(p.name || "").trim()) === q);
   return (
     <div className="flex-1 min-w-0">
       <input
@@ -109,9 +117,9 @@ function ItemCombobox({
               onMouseDown={e => { e.preventDefault(); onPick(p); setAberto(false); }}
               className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--color-surface-sunken)] flex items-center justify-between gap-2"
             >
-              <span className="truncate text-[var(--color-text-primary)]">{p.name}</span>
+              <span className="truncate text-[var(--color-text-primary)]">{p.name}{p.type && p.type !== "Físico" ? <span className="ml-1.5 text-[9px] font-semibold text-[var(--color-text-muted)]">{p.type}</span> : null}</span>
               <span className="shrink-0 text-[10px] text-[var(--color-text-muted)]">
-                Saldo {Number(p.currentStock) || 0}{Number(p.cost) > 0 ? ` • R$ ${Number(p.cost).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}
+                {(!p.type || p.type === "Físico") ? `Saldo ${Number(p.currentStock) || 0}` : ""}{Number(p.cost) > 0 ? ` • R$ ${Number(p.cost).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}
               </span>
             </button>
           ))}
@@ -584,7 +592,7 @@ export default function ComprasVarejo() {
               value={eNome}
               onChange={v => { setENome(v); setEProdId(null); }}
               onPick={p => { setENome(p.name); setEProdId(p.id); if (!eCusto && Number(p.cost) > 0) setECusto(String(Number(p.cost))); }}
-              produtos={(products || []).filter((p: any) => !p.type || p.type === "Físico")}
+              produtos={(products || []).filter((p: any) => p.active !== false)}
             />
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -676,7 +684,7 @@ export default function ComprasVarejo() {
                       value={l.nome}
                       onChange={v => setLinha(i, { nome: v, productId: undefined })}
                       onPick={p => setLinha(i, { productId: p.id, nome: p.name, custo: l.custo || (Number(p.cost) > 0 ? String(Number(p.cost)) : ""), qtd: l.qtd || "1" })}
-                      produtos={(products || []).filter((p: any) => !p.type || p.type === "Físico")}
+                      produtos={(products || []).filter((p: any) => p.active !== false)}
                     />
                     <input type="number" min={1} placeholder="0" value={l.qtd} onChange={e => setLinha(i, { qtd: e.target.value })} className={`w-20 text-right ${inputBase}`} />
                     <input type="text" inputMode="decimal" placeholder="0,00" value={l.custo} onChange={e => setLinha(i, { custo: e.target.value })} className={`w-28 text-right ${inputBase}`} />
