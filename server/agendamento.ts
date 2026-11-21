@@ -12,6 +12,7 @@
 import axios from "axios";
 import type { Express, Request, RequestHandler, Response } from "express";
 import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
+import { criarEstorno } from "./financeEstorno.js";
 import {
   PERMISSOES_PADRAO, assinar, conferirAssinatura, configParaEngine, decidirAcaoFinanceira, linhaParaLite, aplicarPrecos, externoIdPreco, ORIGEM_PRECO, PRECOS_RESERVA, type CampoPreco, montarLancamento, montarPreferenciaMP,
   planejarPagamento, repartirMisto, slugDe, validarConfig, SLUG_REGEX,
@@ -150,15 +151,8 @@ export function registerAgendamentoRoutes(app: Express, deps: AgendamentoDeps) {
       // Valor zero só para retratar um lançamento que já existia (reserva paga que foi cancelada/estornada).
       if (acao === "estornar") {
         // Pagamento confirmado não se edita (M2): a devolução vira um lançamento de estorno ligado ao original.
-        const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-        const { data: cat } = await db.from("finance_categories").select("id").eq("tenant_id", tenantId).eq("codigo", "2.02").maybeSingle();
-        const { error } = await db.from("finance_entries").upsert({
-          id: `estorno_${l.id}`, tenant_id: tenantId, description: `Estorno - ${existente.description ?? l.description}`, value: Number(existente.value), type: "Pagar", status: "Pago",
-          date: hoje, competencia_date: hoje, category: "Devoluções e estornos de vendas", ...(cat?.id ? { category_id: cat.id } : {}),
-          counterparty: l.counterparty, numero_documento: l.numero_documento, tags: ["Reserva", "Estorno"], estorno_de: l.id,
-          ...(existente.conta_bancaria_id ? { conta_bancaria_id: existente.conta_bancaria_id } : {}),
-        }, { onConflict: "id" });
-        if (error) console.warn("[agendamento] estorno:", error.message);
+        const { error } = await criarEstorno(db, tenantId, existente as any, { counterparty: l.counterparty, numero_documento: l.numero_documento, tags: ["Reserva"] });
+        if (error) console.warn("[agendamento] estorno:", error);
       } else if (acao === "revisar") {
         console.warn(`[agendamento] lançamento ${l.id} já está pago com outro valor; não dá para editar, precisa de estorno manual.`);
       } else if (acao === "inserir" || acao === "atualizar") {

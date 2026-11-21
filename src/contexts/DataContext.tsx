@@ -3618,11 +3618,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     toast.info('Lançamento financeiro removido.');
   };
 
-  const updateFinanceEntry = async (id: string, updates: Partial<FinanceEntry>) => {
+  /** Devolve `true` quando o lançamento foi atualizado. Se o banco recusar (ex.: pagamento confirmado não se edita), a tela volta ao que era e devolve `false`. */
+  const updateFinanceEntry = async (id: string, updates: Partial<FinanceEntry>): Promise<boolean> => {
     const before = financeEntries.find(f => f.id === id);
     if (checkFinanceEntryLock(before)) {
       toast.error("Este lançamento está pago dentro de um período bloqueado — não pode ser editado.");
-      return;
+      return false;
     }
     updates = completarBaixa({ ...updates } as any, financeBankAccounts, before?.status, new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })) as Partial<FinanceEntry>;
     setFinanceEntries(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
@@ -3631,10 +3632,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error("Supabase update finance_entries failed:", error.message);
         toast.error(`Erro ao atualizar lançamento: ${friendlyError(error)}`);
-        return;
+        if (before) setFinanceEntries(prev => prev.map(f => f.id === id ? before : f));   // desfaz a mudança que a tela já tinha mostrado
+        return false;
       }
     }
     if (before) writeFinanceAuditLog({ tipo_acao: 'ATUALIZACAO', descricao_alvo: before.description || 'Lançamento financeiro', diff: buildFinanceAuditDiff(before, { ...before, ...updates }) });
+    return true;
   };
 
   const addAppointment = async (apt: Omit<Appointment, 'id'>) => {

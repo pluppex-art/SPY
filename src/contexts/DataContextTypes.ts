@@ -223,7 +223,7 @@ export interface DataContextType {
   getSmartInsight: (context: string, data: any) => Promise<string>;
   addFinanceEntry: (entry: Omit<FinanceEntry, 'id'>, options?: { silent?: boolean }) => void;
   deleteFinanceEntry: (id: string) => void;
-  updateFinanceEntry: (id: string, updates: Partial<FinanceEntry>) => void;
+  updateFinanceEntry: (id: string, updates: Partial<FinanceEntry>) => Promise<boolean>;
   addAppointment: (apt: Omit<Appointment, 'id'>) => void;
   updateAppointment: (id: string, updates: Partial<Appointment>) => void;
   deleteAppointment: (id: string) => void;

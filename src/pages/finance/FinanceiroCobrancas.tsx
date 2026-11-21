@@ -165,10 +165,10 @@ export default function FinanceiroCobrancas() {
     toast.success("Cliente de e-mail aberto com a cobrança pronta para enviar.");
   };
 
-  const handleToggleStatus = (id: string, currentStatus: string) => {
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
     const nextStatus: "Pago" | "A Vencer" = currentStatus === "Liquidada" || currentStatus === "Pago" ? "A Vencer" : "Pago";
-    updateFinanceEntry(id, { status: nextStatus });
-    toast.success(nextStatus === "Pago" ? "Cobrança marcada como Liquidada!" : "Cobrança retornada para A Vencer.");
+    const ok = await updateFinanceEntry(id, { status: nextStatus });
+    if (ok) toast.success(nextStatus === "Pago" ? "Cobrança marcada como Liquidada!" : "Cobrança retornada para A Vencer.");
   };
 
   const handleDelete = async (id: string) => {

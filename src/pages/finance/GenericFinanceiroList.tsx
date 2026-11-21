@@ -565,7 +565,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     }
 
     const categoriaSelecionada = categoriasDoTipo.find(c => c.id === editCategoryId);
-    updateFinanceEntry(editingItem.id, {
+    const salvou = await updateFinanceEntry(editingItem.id, {
       // Nenhum campo é obrigatório na edição: nome vazio vira "Sem descrição", valor vazio vira 0, categoria pode ficar em branco.
       description: editDesc.trim() || "Sem descrição",
       notes: editNotes || null,
@@ -586,6 +586,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       is_recurring: editIsRecurring,
       recurring_frequency: editIsRecurring ? editFrequency : null,
     });
+    if (!salvou) return;   // o banco recusou (a mensagem já apareceu): mantém a janela aberta para corrigir
     toast.success("Lançamento atualizado.");
     setEditingItem(null);
     setTimeout(refetchEntries, 300);

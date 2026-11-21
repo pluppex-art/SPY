@@ -15,6 +15,11 @@ export function friendlyError(error: unknown): string {
   if (msg.includes("plan_limit_leads")) return "Limite de leads do plano atingido. Peça ao responsável para ampliar o plano.";
   if (msg.includes("plan_limit_users")) return "Limite de usuários do plano atingido. Peça ao responsável para ampliar o plano.";
 
+  if (msg.includes("pagamento confirmado não se apaga")) return "Pagamento confirmado não pode ser apagado. Para corrigir, faça um estorno.";
+  if (msg.includes("pagamento confirmado não se edita")) return "Pagamento confirmado não pode ser editado. Para corrigir, faça um estorno e lance de novo.";
+  if (msg.includes("lançamento antigo não muda")) return "Este lançamento é anterior à regra nova e não pode mudar de regra.";
+  if (msg.includes("só dá para estornar")) return "Só dá para estornar um pagamento confirmado desta empresa.";
+  if (msg.includes("período está bloqueado")) return "Este período está bloqueado para fechamento. Peça a um administrador para reabrir.";
   if (msg.includes("finance_entries_baixa_spy_check")) return "Informe a conta bancária para registrar o pagamento (cadastre uma conta em Financeiro > Contas, se ainda não houver).";
 
   if (msg.includes("row-level security") || msg.includes("permission denied")) {

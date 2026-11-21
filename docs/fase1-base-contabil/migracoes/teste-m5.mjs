@@ -1,0 +1,16 @@
+import { PGlite } from "@electric-sql/pglite"; import fs from "node:fs";
+const sql = fs.readFileSync(new URL("./M5_nao_apagar_pagamento.sql", import.meta.url), "utf8");
+const corpo = sql.slice(sql.indexOf("begin;"), sql.indexOf("commit;") + 7);
+let f = 0; const ok = (c, m) => { if (!c) f++; console.log(c ? "  ✔" : "  ✖", m); };
+let db = new PGlite(); await db.exec(`create table finance_entries(id text primary key, status text);`);
+await db.exec(corpo); ok((await db.query(`select count(*)::int n from pg_trigger where tgname='trg_finance_entries_nao_apagar_pago'`)).rows[0].n === 0, "sem o M2: roda sem erro e não cria nada");
+db = new PGlite(); await db.exec(`create table finance_entries(id text primary key, status text, origem_registro text);
+insert into finance_entries values ('antigo-pago','Pago',null),('novo-pago','Pago','spy'),('novo-aberto','A Vencer','spy'),('api-pago','Pago','api');`);
+await db.exec(corpo); await db.exec(corpo);
+ok((await db.query(`select count(*)::int n from pg_trigger where tgname='trg_finance_entries_nao_apagar_pago'`)).rows[0].n === 1, "com o M2: cria o gatilho, e rodar de novo não duplica");
+const tenta = async (id) => { try { await db.exec(`delete from finance_entries where id='${id}'`); return "apagou"; } catch (e) { return /faça o estorno/.test(e.message) ? "barrou" : e.message; } };
+ok(await tenta("novo-pago") === "barrou", "pagamento novo (tela) não se apaga");
+ok(await tenta("api-pago") === "barrou", "pagamento novo (API) não se apaga");
+ok(await tenta("antigo-pago") === "apagou", "lançamento antigo continua apagável");
+ok(await tenta("novo-aberto") === "apagou", "lançamento novo ainda aberto continua apagável");
+console.log(f ? "FALHAS" : "TUDO OK"); process.exit(f ? 1 : 0);

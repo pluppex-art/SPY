@@ -4,6 +4,7 @@
 // chegam injetadas de verdade no processo.
 import "dotenv/config";
 import { round2 } from "./src/lib/dinheiro.js";
+import { criarEstorno, decidirEscritaExterna, soCamposPermitidos } from "./server/financeEstorno.js";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -2836,8 +2837,21 @@ app.post("/api/v1/finance-entries", requireApiKey, async (req, res) => {
 
   // Lançamento já existente (se houver): serve pra não sobrescrever campos que a requisição não enviou
   // e pra só definir competencia_date padrão na criação.
-  const { data: atual } = await supabaseService.from("finance_entries").select("id, competencia_date")
+  const { data: atual } = await supabaseService.from("finance_entries").select("id, competencia_date, description, status, value, type, origem_registro, conta_bancaria_id")
     .eq("tenant_id", tenantId).eq("id", id).limit(1).maybeSingle();
+
+  // Pagamento confirmado de lançamento novo não se edita (M2): valor 0 gera estorno; mudar valor/status/tipo é conflito claro (409), não erro 500.
+  const decisao = decidirEscritaExterna(atual as any, { value: Number(rawValue) || 0, status: String(status), type: entryType });
+  if (decisao.acao === "conflito") {
+    logApiKeyUsage(req, 409);
+    return res.status(409).json({ error: decisao.motivo, code: "pagamento_confirmado" });
+  }
+  if (decisao.acao === "estornar") {
+    const { error: errEstorno } = await criarEstorno(supabaseService, tenantId, atual as any, { counterparty: has(counterparty) ? String(counterparty).trim() : null });
+    if (errEstorno) { console.error("[API v1] estorno:", errEstorno); logApiKeyUsage(req, 500); return res.status(500).json({ error: "Falha ao registrar o estorno." }); }
+    logApiKeyUsage(req, 201);
+    return res.status(201).json({ success: true, estornado: true, estornoId: `estorno_${id}` });
+  }
 
   // Payload só com as chaves enviadas: o upsert (ON CONFLICT DO UPDATE) só altera as colunas presentes.
   const payload: Record<string, any> = {
@@ -2896,7 +2910,7 @@ app.post("/api/v1/finance-entries", requireApiKey, async (req, res) => {
     logApiKeyUsage(req, 409);
     return res.status(409).json({ error: "Este externalId já está em uso. Use um identificador único." });
   }
-  const { error } = await supabaseService.from("finance_entries").upsert(payload, { onConflict: "id" });
+  const { error } = await supabaseService.from("finance_entries").upsert(decisao.acao === "so_permitidos" ? soCamposPermitidos(payload) as Record<string, any> : payload, { onConflict: "id" });
 
   if (error) {
     console.error("[API v1] Erro ao criar finance_entry:", error.message);
