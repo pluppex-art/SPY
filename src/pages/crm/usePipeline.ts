@@ -1,3 +1,4 @@
+import { uniqueSellers, sameSeller } from "../../lib/sellerNames";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { prepararValor, somarLeads } from "../../lib/valorDoLead";
 import { useSearchParams } from "react-router-dom";
@@ -193,7 +194,7 @@ export function usePipeline() {
 
   // ─── Lists for dropdowns ──────────────────────────────────────────────────────
   // Dropdowns mostram apenas vendedores/empresas do pipeline atual
-  const sellers      = useMemo(() => ["Todos", ...Array.from(new Set(pipelineLeads.map((l: any) => l.seller).filter(Boolean)))], [pipelineLeads]);
+  const sellers      = useMemo(() => ["Todos", ...uniqueSellers(pipelineLeads.map((l: any) => l.seller), colaboradores as any[])], [pipelineLeads, colaboradores]);
   const companiesList = useMemo(() => [
     "Todos",
     ...Array.from(new Set(pipelineLeads.map((l: any) => l.company).filter(Boolean))).sort() as string[],
@@ -224,7 +225,7 @@ export function usePipeline() {
       const matchesPipeline = currentPipeline === "sdr"
         ? item.pipelineId === "sdr"
         : !item.pipelineId || item.pipelineId === "comercial";
-      const matchesSeller  = sellerFilter  === "Todos" || item.seller  === sellerFilter;
+      const matchesSeller  = sellerFilter  === "Todos" || sameSeller(item.seller, sellerFilter);
       const matchesCompany = companyFilter === "Todos" || item.company === companyFilter;
       const matchesCity    = cityFilter    === "Todos" || cityKey(leadCity(item)) === cityKey(cityFilter);
       const clientId = clientNameToId[clientFilter];

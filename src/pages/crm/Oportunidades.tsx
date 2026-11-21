@@ -1,3 +1,4 @@
+import { uniqueSellers, sameSeller } from "../../lib/sellerNames";
 import { useState, useMemo, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -47,14 +48,14 @@ export default function Oportunidades() {
         normalizeText(op.seller).includes(q) ||
         normalizeText(op.nicho).includes(q);
       const matchStage = stageFilter === "Todos" || op.status === stageFilter;
-      const matchSeller = !sellerFilter || op.seller === sellerFilter;
+      const matchSeller = !sellerFilter || sameSeller(op.seller, sellerFilter);
       const matchTemp = !tempFilter || (op.temperature || "normal") === tempFilter;
       return matchSearch && matchStage && matchSeller && matchTemp;
     });
   }, [oportunidades, search, stageFilter, sellerFilter, tempFilter]);
 
   const stagesList = useMemo(() => Array.from(new Set(oportunidades.map(o => o.status).filter(Boolean))).sort() as string[], [oportunidades]);
-  const sellersList = useMemo(() => Array.from(new Set(oportunidades.map(o => o.seller).filter(Boolean))).sort() as string[], [oportunidades]);
+  const sellersList = useMemo(() => uniqueSellers(oportunidades.map(o => o.seller)), [oportunidades]);
   const activeCount = (search ? 1 : 0) + (stageFilter !== "Todos" ? 1 : 0) + (sellerFilter ? 1 : 0) + (tempFilter ? 1 : 0);
   const clearFilters = () => { setSearch(""); setStageFilter("Todos"); setSellerFilter(""); setTempFilter(""); };
 

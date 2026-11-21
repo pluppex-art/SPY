@@ -1,3 +1,4 @@
+import { uniqueSellers, sameSeller } from "../../lib/sellerNames";
 import { useState, useMemo, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -45,13 +46,13 @@ export default function FollowUps() {
       (normalizeText(l.name).includes(q) ||
       normalizeText(l.company).includes(q) ||
       normalizeText(l.seller).includes(q)) &&
-      (!sellerFilter || l.seller === sellerFilter) &&
+      (!sellerFilter || sameSeller(l.seller, sellerFilter)) &&
       (!urgenciaFilter || (urgenciaFilter === "urgente" ? l.isUrgent : !l.isUrgent))
     );
   }, [followUpList, search, sellerFilter, urgenciaFilter]);
 
   const urgentCount = useMemo(() => filtered.filter(l => l.isUrgent).length, [filtered]);
-  const sellersList = useMemo(() => Array.from(new Set(followUpList.map(l => l.seller).filter(Boolean))).sort() as string[], [followUpList]);
+  const sellersList = useMemo(() => uniqueSellers(followUpList.map(l => l.seller)), [followUpList]);
   const activeCount = (search ? 1 : 0) + (sellerFilter ? 1 : 0) + (urgenciaFilter ? 1 : 0);
   const clearFilters = () => { setSearch(""); setSellerFilter(""); setUrgenciaFilter(""); };
 
