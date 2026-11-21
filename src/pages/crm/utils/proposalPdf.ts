@@ -1,4 +1,5 @@
 import { resumoValorProposta } from "../../../lib/propostaValor";
+import { formatBRL } from "../../../lib/dinheiro";
 
 export interface Proposta {
   id: string;
@@ -26,7 +27,7 @@ export interface PropostaItemPdf {
 export const INITIAL_PROPOSTAS: Proposta[] = [];
 
 const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-const fmtCurrency = (v: number) => (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtCurrency = (v: number) => formatBRL(v);
 
 export interface PropostaBranding {
   logoUrl?: string;

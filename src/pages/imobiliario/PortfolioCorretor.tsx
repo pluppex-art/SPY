@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatBRLCompacto } from "../../lib/dinheiro";
 import { useParams } from "react-router-dom";
 import { Building2, Phone, Mail, Star, MapPin, Bed, Bath, Car, Home, MessageCircle, ChevronLeft } from "lucide-react";
 import { Card } from "../../components/ui/card";
@@ -16,8 +17,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function formatValor(operacao: string, valor: number) {
   if (operacao === "Locação") return `R$ ${valor.toLocaleString("pt-BR")}/mês`;
-  if (valor >= 1000000) return `R$ ${(valor / 1000000).toFixed(1).replace(".", ",")}M`;
-  return `R$ ${(valor / 1000).toFixed(0)}k`;
+  return formatBRLCompacto(valor);
 }
 
 export default function PortfolioCorretor() {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { somar } from "../../../../lib/dinheiro";
+import { somar, formatBRL } from "../../../../lib/dinheiro";
 import { Card } from '../../../../components/ui/card';
 import { Button } from '../../../../components/ui/button';
 import { ResponsiveContainer, BarChart, XAxis, Tooltip, Bar, Cell } from 'recharts';
@@ -36,7 +36,7 @@ export function PipelineAnalytics({
                 formatter={(v: any) => {
                   const n = Number(v) || 0;
                   const pct = totalValue > 0 ? Math.round((n / totalValue) * 1000) / 10 : 0;
-                  return [`${n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} · ${pct}%`, "Valor"];
+                  return [`${formatBRL(n)} · ${pct}%`, "Valor"];
                 }}
                 contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-default)', borderRadius: '12px' }}
               />

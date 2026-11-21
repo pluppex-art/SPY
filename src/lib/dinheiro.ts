@@ -30,3 +30,12 @@ export function somar<T>(lista: readonly T[] | null | undefined, pegar: (item: T
   for (const item of lista || []) total += valorNum(pegar(item));
   return round2(total);
 }
+
+/** Valor grande em forma curta: "R$ 1,2M", "R$ 850k"; abaixo de mil mostra o valor inteiro em reais. Para cards e listas de VGV. */
+export function formatBRLCompacto(v: unknown): string {
+  const n = valorNum(v);
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return `R$ ${(n / 1e6).toFixed(1).replace(".", ",")}M`;
+  if (abs >= 1e3) return `R$ ${(n / 1e3).toFixed(0)}k`;
+  return formatBRL(n);
+}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -232,10 +233,10 @@ export default function PedidosVarejo() {
         onClear={limparFiltros}
         kpis={[
           { label: "Pedidos", value: filtered.length, icon: ShoppingBag, tone: "primary" },
-          { label: "Faturamento", value: `R$ ${faturamentoTotal.toFixed(2)}`, icon: DollarSign, tone: "success", hint: "Exclui cancelados" },
+          { label: "Faturamento", value: formatBRL(faturamentoTotal), icon: DollarSign, tone: "success", hint: "Exclui cancelados" },
           { label: "Em separação / envio", value: emAberto, icon: Truck, tone: emAberto > 0 ? "warning" : "neutral" },
           { label: "Concluídos", value: concluidos, icon: CheckCircle2, tone: "info" },
-          { label: "Ticket médio", value: `R$ ${ticketMedio.toFixed(2)}`, icon: Package, tone: "accent" },
+          { label: "Ticket médio", value: formatBRL(ticketMedio), icon: Package, tone: "accent" },
         ]}
       >
         <FilterBar>

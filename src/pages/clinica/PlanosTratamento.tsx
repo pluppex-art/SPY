@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -240,7 +241,7 @@ export default function PlanosTratamento() {
         kpis={[
           { label: "Planos", value: filtered.length, icon: FileHeart, tone: "primary" },
           { label: "Em Andamento", value: filtered.filter(p => p.status === "Em Andamento").length, icon: Clock, tone: "warning" },
-          { label: "Valor Total", value: `R$ ${filtered.reduce((sum, p) => sum + p.valorTotal, 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "success" },
+          { label: "Valor Total", value: formatBRL(filtered.reduce((sum, p) => sum + p.valorTotal, 0)), icon: DollarSign, tone: "success" },
           { label: "Concluídos", value: filtered.filter(p => p.status === "Concluído").length, icon: CheckCircle2, tone: "info" },
         ]}
         activeCount={activeFilters}

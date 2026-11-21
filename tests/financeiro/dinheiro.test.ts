@@ -31,3 +31,13 @@ test("somar: ignora vazio/texto/NaN, aceita texto numérico do banco e fecha em 
   assert.equal(somar(null), 0); assert.equal(somar([]), 0);
   assert.equal(valorNum(Infinity), 0);
 });
+
+import { formatBRLCompacto } from "../../src/lib/dinheiro.js";
+test("formatBRLCompacto: mesmo texto de antes para milhão e mil; abaixo de mil mostra o valor em reais", () => {
+  assert.equal(formatBRLCompacto(2_500_000), "R$ 2,5M");
+  assert.equal(formatBRLCompacto(1_000_000), "R$ 1,0M");
+  assert.equal(formatBRLCompacto(850_000), "R$ 850k");
+  assert.equal(formatBRLCompacto(1500), "R$ 2k");
+  assert.equal(formatBRLCompacto(500), antigo(500));
+  assert.equal(formatBRLCompacto(null), antigo(0));
+});

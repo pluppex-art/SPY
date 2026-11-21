@@ -1,4 +1,5 @@
 import { useNicheProfiles } from "./produtos/useNicheProfiles";
+import { formatBRL } from "../../lib/dinheiro";
 import VarejoEstoque from "../varejo/Estoque";
 import { useUnidadeMax } from "../../lib/unidadeMaxdata";
 import { useMemo, useState, useEffect } from "react";
@@ -228,8 +229,8 @@ function Catalog() {
             { label: "Inativos", value: (mxStats.stats?.inativos ?? 0).toLocaleString("pt-BR"), icon: TrendingUp, tone: "warning" },
             { label: "Com saldo em estoque", value: (mxStats.stats?.comEstoque ?? 0).toLocaleString("pt-BR"), icon: Sparkles, tone: "info" },
             ...(mxValor ? [
-              { label: "Valor em estoque (custo)", value: mxValor.custo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }), icon: Package, tone: "primary" as const },
-              { label: "Valor em estoque (venda)", value: mxValor.venda.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }), icon: TrendingUp, tone: "success" as const },
+              { label: "Valor em estoque (custo)", value: formatBRL(mxValor.custo), icon: Package, tone: "primary" as const },
+              { label: "Valor em estoque (venda)", value: formatBRL(mxValor.venda), icon: TrendingUp, tone: "success" as const },
             ] : []),
           ] : [
             { label: "Total de SKUs", value: totalSkuCount, icon: Package, tone: "primary" },

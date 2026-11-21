@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
+import { formatBRL } from "./dinheiro";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -121,12 +122,7 @@ export function parseCurrencyBR(val: any): number {
 }
 
 export function formatCurrencyBR(value: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value || 0);
+  return formatBRL(value || 0);
 }
 
 /**

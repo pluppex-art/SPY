@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { formatBRL } from "./dinheiro";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Info, AlertTriangle, XCircle, CircleDollarSign, X } from "lucide-react";
 import type { ReactNode } from "react";
@@ -130,14 +131,14 @@ export function showNewLeadPopup(lead: { id: string; name?: string | null }) {
 /** "R$ 1.500,00" a partir de número ou texto livre do campo `value` do lead (que não é padronizado). */
 export function formatLeadValue(value: unknown): string | undefined {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    return formatBRL(value);
   }
   if (typeof value === "string") {
     const text = value.trim();
     if (!/\d/.test(text)) return undefined;
     const digits = Number(text.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
     if (Number.isFinite(digits) && digits === 0) return undefined; // "R$ 0,00" não vale um destaque
-    return /^R\$/i.test(text) ? text : Number.isFinite(digits) ? digits.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : undefined;
+    return /^R\$/i.test(text) ? text : Number.isFinite(digits) ? formatBRL(digits) : undefined;
   }
   return undefined;
 }

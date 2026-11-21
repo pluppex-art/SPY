@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -181,7 +182,7 @@ export default function ImobiliarioComissoes() {
   }, [comissoes, search, statusFilter, corretorFilter]);
 
   const corretoresList = Array.from(new Set(comissoes.map(c => c.corretor).filter(Boolean))).sort();
-  const brl = (n: number) => `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+  const brl = (n: number) => formatBRL(n);
 
   const totalAReceber = filtered
     .filter(c => c.status !== "Liquidada")

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { somar } from "../../lib/dinheiro";
+import { somar, formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -89,7 +89,7 @@ export default function PainelAutomotivo() {
     { header: "Veículo", render: (v: VeiculoSummary) => <span className="font-bold text-[var(--color-text-primary)]">{v.marca} {v.modelo}</span> },
     { header: "Ano", render: (v: VeiculoSummary) => v.anoModelo || "—" },
     { header: "Status", render: (v: VeiculoSummary) => v.status || "—" },
-    { header: "Valor", render: (v: VeiculoSummary) => `R$ ${Number(v.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, className: "text-right" },
+    { header: "Valor", render: (v: VeiculoSummary) => formatBRL(Number(v.valor)), className: "text-right" },
   ];
 
   const kpis = useMemo(() => {

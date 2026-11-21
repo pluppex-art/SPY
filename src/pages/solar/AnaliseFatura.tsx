@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { formatBRL } from "../../lib/dinheiro";
 import { useNavigate } from "react-router-dom";
 import { Sun, Upload, Zap, TrendingDown, Loader2, Trash2, CheckCircle2 } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
@@ -176,7 +177,7 @@ export default function AnaliseFatura() {
           `Proposta de sistema fotovoltaico para ${a.cliente}.`,
           a.consumoMedioKwh ? `Consumo médio: ${a.consumoMedioKwh} kWh/mês.` : null,
           a.potenciaEstimadaKwp ? `Potência estimada do sistema: ${a.potenciaEstimadaKwp} kWp.` : null,
-          a.economiaMensalEstimada ? `Economia mensal estimada: R$ ${a.economiaMensalEstimada.toFixed(2)}.` : null,
+          a.economiaMensalEstimada ? `Economia mensal estimada: ${formatBRL(a.economiaMensalEstimada)}.` : null,
           "Estimativa baseada em irradiação solar média nacional — valor real varia por região, orientação do telhado e tarifa vigente.",
         ].filter(Boolean).join("\n"),
       });
@@ -306,7 +307,7 @@ export default function AnaliseFatura() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[var(--color-text-muted)] flex items-center gap-1"><TrendingDown className="w-3 h-3 text-emerald-500" />Economia mensal estimada</span>
-                    <span className="font-black text-emerald-500">{resultado.economiaMensalEstimada ? `R$ ${resultado.economiaMensalEstimada.toFixed(2)}` : "—"}</span>
+                    <span className="font-black text-emerald-500">{resultado.economiaMensalEstimada ? formatBRL(resultado.economiaMensalEstimada) : "—"}</span>
                   </div>
                   <p className="text-[9px] text-[var(--color-text-faint)] pt-1">
                     Estimativa baseada em irradiação solar média ({String(params.hsp).replace(".", ",")} HSP) e eficiência de sistema de {params.eficienciaPct}%. Valor real varia por região, orientação do telhado e tarifa vigente. Potência e economia acima são recalculadas a partir do consumo revisado só ao salvar.

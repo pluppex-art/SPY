@@ -1,5 +1,6 @@
 /** Ponte entre as telas e o servidor do Agendamento: tipos, conversão de linhas do banco e chamadas autenticadas. */
 import { apiFetch } from "../apiClient";
+import { formatBRL } from "../dinheiro";
 import type { ConfigAgenda, ReservaLite, StatusPagamento, StatusReserva } from "./engine";
 
 export interface ConfigLinha {
@@ -31,7 +32,7 @@ export function configParaEngine(c: ConfigLinha): ConfigAgenda {
     horarios: c.horarios, datasBloqueadas: c.datas_bloqueadas ?? [], expiracaoPendenteMin: c.expiracao_pendente_min, mesasMaxPorDia: c.mesas_max_por_dia, cadeirasMax: c.cadeiras_max };
 }
 
-export const reaisBR = (v: number) => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export const reaisBR = (v: number) => formatBRL(v);
 export const dataBR = (iso: string) => iso.split("-").reverse().join("/");
 export const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 export const FORMAS = [{ id: "DINHEIRO", rotulo: "Dinheiro" }, { id: "PIX", rotulo: "Pix" }, { id: "DEBITO", rotulo: "Débito" }, { id: "CREDITO", rotulo: "Crédito" }] as const;

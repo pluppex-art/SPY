@@ -1,3 +1,4 @@
+import { formatBRL } from "../../../lib/dinheiro";
 
 export interface DevProjectPdfData {
   id: string;
@@ -44,7 +45,7 @@ export const handleDownloadDevProjectPdf = async (project: DevProjectPdfData) =>
   doc.setFontSize(14);
   const valorTexto =
     project.valor_estimado != null
-      ? project.valor_estimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+      ? formatBRL(project.valor_estimado)
       : "A definir";
   doc.text(valorTexto, 80, 94);
 

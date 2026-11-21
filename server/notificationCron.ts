@@ -1,4 +1,5 @@
 import { emailNotifyTenant } from "./emailNotify.js";
+import { formatBRL } from "../src/lib/dinheiro.js";
 import { getWhatsAppProvider, isWahaConfigured } from "./whatsappProvider.js";
 
 const MIN = 60_000;
@@ -15,7 +16,7 @@ async function forEachBudgeted<T>(items: T[], deadline: number, fn: (item: T) =>
 }
 const fmtWhen = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-const fmtMoney = (v: any) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtMoney = (v: any) => formatBRL(v);
 
 export interface ReminderSummary {
   tarefasProximas: number;

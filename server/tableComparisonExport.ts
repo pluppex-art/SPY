@@ -13,6 +13,7 @@
  * o navegador só baixa o arquivo pronto.
  */
 import { buscarExames } from "../src/lib/examesBase.js";
+import { formatBRL } from "../src/lib/dinheiro.js";
 import type { Express, RequestHandler } from "express";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
@@ -59,7 +60,7 @@ const num = (v: unknown): number | null => {
 };
 const brl = (v: unknown) => {
   const n = num(v);
-  return n === null ? "—" : n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return n === null ? "—" : formatBRL(n);
 };
 const pct = (v: unknown, digits = 1) => {
   const n = num(v);

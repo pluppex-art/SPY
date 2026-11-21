@@ -7,6 +7,7 @@
 // rotas de administracao exigem super admin; o pedido e acessado por um token aleatorio (nao adivinhavel).
 
 import { socialProofItems, type SocialProofItem } from "./socialProof.js";
+import { formatBRLCentavos } from "../src/lib/dinheiro.js";
 import { Router } from "express";
 import type { NextFunction, Response } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -85,7 +86,7 @@ export function documentoValido(raw: string): boolean {
   return false;
 }
 
-const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = (c: number) => formatBRLCentavos(c);
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Escapa % _ \\ para usar o e-mail em ilike como igualdade case-insensitive. */

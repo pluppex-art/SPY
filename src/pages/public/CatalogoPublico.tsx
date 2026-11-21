@@ -1,11 +1,12 @@
 import { TenantSocialProofPopup } from "../../components/TenantSocialProofPopup";
+import { formatBRL } from "../../lib/dinheiro";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Package, ChevronLeft, ShoppingBag, CheckCircle2, XCircle } from "lucide-react";
 import { fetchPublicCatalog, PublicCatalog } from "../../lib/publicCatalog";
 
 function formatPrice(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return formatBRL(value);
 }
 
 export default function CatalogoPublico() {

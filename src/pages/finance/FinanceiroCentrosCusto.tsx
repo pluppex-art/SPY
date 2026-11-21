@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { somar } from "../../lib/dinheiro";
+import { somar, formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -219,9 +219,9 @@ export default function FinanceiroCentrosCusto() {
       <FinanceKpiFilter className="mb-4"
         id="finCentrosCusto"
         kpis={[
-          { label: "Orçamento Total", value: `R$ ${totalOrcado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "primary" },
-          { label: "Total Consumido", value: `R$ ${totalGasto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: TrendingUp, tone: "warning", hint: `${percGeral}% do teto global` },
-          { label: "Saldo Disponível", value: `R$ ${saldoGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "success" },
+          { label: "Orçamento Total", value: formatBRL(totalOrcado), icon: DollarSign, tone: "primary" },
+          { label: "Total Consumido", value: formatBRL(totalGasto), icon: TrendingUp, tone: "warning", hint: `${percGeral}% do teto global` },
+          { label: "Saldo Disponível", value: formatBRL(saldoGeral), icon: DollarSign, tone: "success" },
           { label: "Unidades de Custo", value: centros.length, icon: Layers, tone: "neutral" },
         ]}
         activeCount={(search ? 1 : 0) + (consumoFilter ? 1 : 0) + (gestorFilter ? 1 : 0)}

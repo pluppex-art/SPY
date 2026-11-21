@@ -1,4 +1,5 @@
 import { LandingPageEditorModal } from "./components/LandingPages/LandingPageEditorModal";
+import { formatBRL } from "../../lib/dinheiro";
 import { friendlyError } from "../../lib/friendlyError";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -286,7 +287,7 @@ export default function MarketingLandingPages() {
             { label: "Total Visitas", value: totalViews.toLocaleString("pt-BR"), icon: Globe, tone: "info" },
             { label: "Total Cliques", value: totalClicks.toLocaleString("pt-BR"), icon: MousePointer2, tone: "accent" },
             { label: "Conversões (Leads)", value: totalConversions.toLocaleString("pt-BR"), icon: TrendingUp, tone: "success" },
-            { label: "Vendas Geradas", value: `R$ ${totalSalesVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "warning" },
+            { label: "Vendas Geradas", value: formatBRL(totalSalesVal), icon: DollarSign, tone: "warning" },
           ]}
           activeCount={(busca.trim() ? 1 : 0) + (statusFiltro ? 1 : 0)}
           onClear={() => { setBusca(""); setStatusFiltro(""); }}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { formatBRL } from "../../../../lib/dinheiro";
 import {
   X, Check, Building2, Target, ListChecks, Calendar, CreditCard,
   ClipboardCheck, Search, Plus, Trash2, Pencil, BarChart3,
@@ -1412,7 +1413,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 }
 
 function formatCurrencyBR(v: number): string {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return formatBRL(v);
 }
 function formatDateBR(iso: string): string {
   if (!iso) return "—";

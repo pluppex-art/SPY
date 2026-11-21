@@ -1,4 +1,5 @@
 import { DollarSign, Coins, Percent, TrendingUp, RotateCw, Wrench, Calendar, Sparkles, Lock, AlertTriangle } from "lucide-react";
+import { formatBRL } from "../../../../lib/dinheiro";
 import { cn } from "../../../../lib/utils";
 import { isUniqueAssetType } from "../typeSchemas";
 import { useNicheProfiles } from "../useNicheProfiles";
@@ -429,13 +430,13 @@ export function ProdutoTabComercial({
           {[
             {
               label: formIsRecurring ? "Mensalidade (MRR)" : "Faturamento Bruto",
-              value: `R$ ${p.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+              value: formatBRL(p),
               cls: "text-white",
             },
             {
               label: "Taxa de Implantação",
               value: formHasImplementation
-                ? `R$ ${implFeeNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                ? formatBRL(implFeeNum)
                 : "Sem taxa",
               cls: formHasImplementation ? "text-indigo-400 font-bold" : "text-slate-500",
             },
@@ -443,12 +444,12 @@ export function ProdutoTabComercial({
               label: formIsRecurring ? `Duração (${contractMonthsNum} meses)` : "Custo Origem",
               value: formIsRecurring
                 ? `${contractMonthsNum} meses`
-                : `-R$ ${c.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+                : `-${formatBRL(c)}`,
               cls: formIsRecurring ? "text-blue-400 font-bold" : "text-rose-400",
             },
             {
               label: formIsRecurring ? "LTV Total do Contrato" : "Lucro Estimado",
-              value: `R$ ${totalContractLtv.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+              value: formatBRL(totalContractLtv),
               cls: "text-emerald-400 font-black",
               highlight: true,
             },

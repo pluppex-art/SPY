@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -266,7 +267,7 @@ export default function PainelVarejo() {
     { header: "Cliente", render: (v: VendaFinalizada) => <span className="font-bold text-[var(--color-text-primary)]">{v.cliente || "—"}</span> },
     { header: "Método", render: (v: VendaFinalizada) => v.metodo || "—" },
     { header: "Itens", render: (v: VendaFinalizada) => (v.itens || []).length },
-    { header: "Total", render: (v: VendaFinalizada) => `R$ ${(Number(v.total) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, className: "text-right" },
+    { header: "Total", render: (v: VendaFinalizada) => formatBRL((Number(v.total) || 0)), className: "text-right" },
   ];
   const productColumns: DrillColumn[] = [
     { header: "Produto", render: (p: any) => <span className="font-bold text-[var(--color-text-primary)]">{p.name || "—"}</span> },

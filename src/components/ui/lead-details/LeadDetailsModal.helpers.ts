@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { formatBRL } from "../../../lib/dinheiro";
 
 export function formatLeadValueBRL(value: unknown, formatCurrency?: (v: number) => string) {
   const cleaned = String(value ?? "0").replace(/[^\d,.]/g, "");
@@ -6,7 +7,7 @@ export function formatLeadValueBRL(value: unknown, formatCurrency?: (v: number) 
   const normalized = cleaned.replace(/\./g, "").replace(",", ".");
   const num = parseFloat(normalized) || 0;
   if (formatCurrency) return formatCurrency(num);
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(num);
+  return formatBRL(num);
 }
 
 export function safeParseTimeIdle(timeIdle: unknown) {

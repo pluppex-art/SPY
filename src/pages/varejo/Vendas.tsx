@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { somar } from "../../lib/dinheiro";
+import { somar, formatBRL } from "../../lib/dinheiro";
 import { toast } from "sonner";
 import {
   ShoppingCart, Plus, Minus, Trash2, Search, Package, Link2, Copy,
@@ -160,7 +160,7 @@ interface CaixaOperacao {
 const VENDEDOR_BALCAO = "Loja Geral (Balcão)";
 
 function formatPrice(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return formatBRL(value);
 }
 
 export default function VarejoVendas() {

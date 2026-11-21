@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { somar } from "../../lib/dinheiro";
+import { somar, formatBRL } from "../../lib/dinheiro";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -130,7 +130,7 @@ function ItemCombobox({
             >
               <span className="truncate text-[var(--color-text-primary)]">{i.nome}<span className="ml-1.5 text-[9px] font-bold text-[var(--color-primary-blue)]">Catálogo do fornecedor</span></span>
               <span className="shrink-0 text-[10px] text-[var(--color-text-muted)]">
-                {i.codigo}{i.custo != null ? `${i.codigo ? " • " : ""}R$ ${i.custo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}
+                {i.codigo}{i.custo != null ? `${i.codigo ? " • " : ""}${formatBRL(i.custo)}` : ""}
               </span>
             </button>
           ))}
@@ -143,7 +143,7 @@ function ItemCombobox({
             >
               <span className="truncate text-[var(--color-text-primary)]">{p.name}{p.type && p.type !== "Físico" ? <span className="ml-1.5 text-[9px] font-semibold text-[var(--color-text-muted)]">{p.type}</span> : null}</span>
               <span className="shrink-0 text-[10px] text-[var(--color-text-muted)]">
-                {(!p.type || p.type === "Físico") ? `Saldo ${Number(p.currentStock) || 0}` : ""}{Number(p.cost) > 0 ? ` • R$ ${Number(p.cost).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}
+                {(!p.type || p.type === "Físico") ? `Saldo ${Number(p.currentStock) || 0}` : ""}{Number(p.cost) > 0 ? ` • ${formatBRL(Number(p.cost))}` : ""}
               </span>
             </button>
           ))}
@@ -522,7 +522,7 @@ export default function ComprasVarejo() {
         onClear={limparFiltros}
         kpis={[
           { label: "Ordens de compra", value: filtered.length, icon: ClipboardList, tone: "primary" },
-          { label: "Total em reposição", value: `R$ ${totalReposicao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "success", hint: "Exclui canceladas" },
+          { label: "Total em reposição", value: formatBRL(totalReposicao), icon: DollarSign, tone: "success", hint: "Exclui canceladas" },
           { label: "Aguardando fornecedor", value: aguardando, icon: Clock, tone: aguardando > 0 ? "warning" : "neutral" },
           { label: "Cargas em trânsito", value: emTransito, icon: Truck, tone: "info" },
           { label: "Recebidas", value: recebidas, icon: CheckCircle2, tone: "accent" },
