@@ -49,6 +49,27 @@ export interface PermissoesEquipe {
 
 export const PERMISSOES_PADRAO: PermissoesEquipe = { criar: true, editar: true, cancelar: false, receber: true, sem_contato: false };
 
+/** Preço da hora de reserva vive em public.products (type 'Reserva'): uma linha para dia útil e outra para fim de semana. */
+export const ORIGEM_PRECO = "agendamento_config";
+export const PRECOS_RESERVA = {
+  preco_dia_util: { sufixo: "dia_util", nome: "Reserva — hora em dia útil" },
+  preco_fim_semana: { sufixo: "fim_semana", nome: "Reserva — hora em fim de semana" },
+} as const;
+export type CampoPreco = keyof typeof PRECOS_RESERVA;
+export const externoIdPreco = (tenantId: string, campo: CampoPreco) => `${tenantId}:${PRECOS_RESERVA[campo].sufixo}`;
+
+/** Sobrepõe à configuração os preços vindos de products. Sem a linha em products, vale o valor antigo da própria configuração. */
+export function aplicarPrecos<T extends { tenant_id: string; preco_dia_util: number | string; preco_fim_semana: number | string }>(
+  cfg: T, produtos: Array<{ externo_id: string | null; price: number | string | null }>,
+): T {
+  const out = { ...cfg };
+  for (const campo of Object.keys(PRECOS_RESERVA) as CampoPreco[]) {
+    const p = produtos.find((x) => x.externo_id === externoIdPreco(cfg.tenant_id, campo));
+    if (p && p.price !== null && p.price !== undefined && Number.isFinite(Number(p.price))) out[campo] = Number(p.price) as any;
+  }
+  return out;
+}
+
 export function configParaEngine(c: LinhaConfig): ConfigAgenda {
   return {
     qtdRecursos: c.qtd_recursos,
