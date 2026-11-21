@@ -3,14 +3,26 @@ const sql = fs.readFileSync(new URL("./M4_exigir_conta_na_baixa.sql", import.met
 const corpo = sql.slice(sql.indexOf("begin;"), sql.indexOf("commit;") + 7);
 let f = 0; const ok = (c, m) => { if (!c) f++; console.log(c ? "  ✔" : "  ✖", m); };
 const tem = async (db) => (await db.query(`select count(*)::int n from pg_constraint where conname='finance_entries_baixa_spy_check'`)).rows[0].n;
-let db = new PGlite(); await db.exec(`create table finance_entries(id text primary key, status text, conta_bancaria_id uuid);`);
+let db = new PGlite(); await db.exec(`create schema auth; create function auth.uid() returns uuid language sql as $$ select '99999999-9999-4999-8999-999999999999'::uuid $$;
+create table finance_entries(id text primary key, status text, conta_bancaria_id uuid);`);
 await db.exec(corpo); ok(await tem(db) === 0, "sem o M2: roda sem erro e não cria nada");
-db = new PGlite(); await db.exec(`create table finance_entries(id text primary key, status text, conta_bancaria_id uuid, data_pagamento date, origem_registro text);
-insert into finance_entries values ('velho','Pago',null,null,'spy');`);
+db = new PGlite(); await db.exec(`create schema auth; create function auth.uid() returns uuid language sql as $$ select '99999999-9999-4999-8999-999999999999'::uuid $$;
+create table finance_bank_accounts(id uuid primary key, tenant_id uuid, is_principal boolean, arquivada boolean default false);
+insert into finance_bank_accounts values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111',true,false);
+create table finance_entries(id text primary key, tenant_id uuid, status text, conta_bancaria_id uuid, data_pagamento date, origem_registro text);
+create function m2_stub() returns trigger language plpgsql as $$ begin if tg_op='INSERT' then new.origem_registro := coalesce(new.origem_registro,'spy'); end if; if new.status='Pago' and new.data_pagamento is null then new.data_pagamento := current_date; end if; return new; end $$;
+create trigger z_m2_stub before insert or update on finance_entries for each row execute function m2_stub();
+insert into finance_entries values ('velho','11111111-1111-4111-8111-111111111111','Pago',null,null,'spy');`);
 await db.exec(corpo); ok(await tem(db) === 1, "com o M2: cria a regra, mesmo havendo linha antiga que a violaria (NOT VALID)");
 await db.exec(corpo); ok(await tem(db) === 1, "rodar de novo não dá erro");
-let err = ""; try { await db.exec(`insert into finance_entries values ('n1','Pago',null,null,'spy')`); } catch (e) { err = e.message; }
-ok(/baixa_spy_check/.test(err), "baixa nova pela tela sem conta é barrada");
-await db.exec(`insert into finance_entries values ('n2','Pago','11111111-1111-4111-8111-111111111111','2026-11-21','spy'), ('n3','Pago',null,null,'api'), ('n4','Pendente',null,null,'spy'), ('n5','Pago',null,null,null)`);
-ok(true, "baixa com conta, baixa por API, pendente e legado passam");
+const T = "11111111-1111-4111-8111-111111111111", T2 = "22222222-2222-4222-8222-222222222222";
+await db.exec(`insert into finance_entries values ('n1','${T}','Pago',null,null,null)`);
+ok((await db.query(`select conta_bancaria_id::text c from finance_entries where id='n1'`)).rows[0].c === "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "baixa nova pela tela sem conta cai na conta principal");
+let err = ""; try { await db.exec(`insert into finance_entries values ('n2','${T2}','Pago',null,null,null)`); } catch (e) { err = e.message; }
+ok(/baixa_spy_check/.test(err), "empresa sem conta principal: baixa barrada pela regra");
+await db.exec(`insert into finance_entries values ('n3','${T}','Pago','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','2026-11-21','spy'), ('n4','${T}','Pago',null,null,'api'), ('n5','${T}','Pendente',null,null,'spy')`);
+ok((await db.query(`select conta_bancaria_id::text c from finance_entries where id='n3'`)).rows[0].c === "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "conta escolhida pelo usuário não é trocada");
+await db.exec(`insert into finance_entries values ('l1','${T}','Pendente',null,null,null)`);
+await db.exec(`update finance_entries set status='Pago' where id='n5'`);
+ok((await db.query(`select conta_bancaria_id is not null ok from finance_entries where id='n5'`)).rows[0].ok, "pendente que vira Pago também recebe a conta principal");
 console.log(f ? "FALHAS" : "TUDO OK"); process.exit(f ? 1 : 0);

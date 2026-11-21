@@ -29,6 +29,7 @@ import { isDateLocked } from "../pages/finance/lib/financeEngine";
 import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
 import { friendlyError } from "../lib/friendlyError";
+import { completarBaixa } from '../pages/finance/lib/baixa';
 import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio, getProposalHeadlineFromItems, addMonthsClamped, splitInstallments } from "../lib/saleCalculator";
 import { isSellerRestricted, scopeToSeller } from "../lib/sellerScope";
 
@@ -3259,7 +3260,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toast.error("Este período está bloqueado para fechamento — não é possível lançar transações pagas nessa data.");
       return;
     }
-    const newEntry: any = { ...entry, id: crypto.randomUUID() };
+    const newEntry: any = { ...completarBaixa(entry as any, financeBankAccounts), id: crypto.randomUUID() };
     if (tenantId) newEntry.tenant_id = tenantId;
     newEntry.filial_id = activeFilialId;
     setFinanceEntries(prev => [newEntry, ...prev]);
@@ -3623,6 +3624,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toast.error("Este lançamento está pago dentro de um período bloqueado — não pode ser editado.");
       return;
     }
+    updates = completarBaixa({ ...updates } as any, financeBankAccounts, before?.status) as Partial<FinanceEntry>;
     setFinanceEntries(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
     if (supabase) {
       const { error } = await supabase.from('finance_entries').update(updates).eq('id', id);
