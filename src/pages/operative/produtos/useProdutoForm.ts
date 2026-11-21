@@ -7,6 +7,7 @@ import { BASE_TYPES, isUniqueAssetType, statusToStock } from "./typeSchemas";
 import { useNicheProfiles } from "./useNicheProfiles";
 import { resolveTypeOptions, getDefaultType, getDefaultCategory, profileCategories, hidesSubscription, persistDefaultsFor } from "./nicheProfiles";
 import { friendlyError } from "../../../lib/friendlyError";
+import { margemPct } from "../../../lib/tabelaPrecos";
 
 export function useProdutoForm() {
   // A visualização escolhida (cards ou lista) fica salva por usuário em users.preferences.
@@ -257,7 +258,7 @@ export function useProdutoForm() {
     const commNum = parseFloat(formCommission) || 0;
     const stockMinNum = parseInt(formStockMin) || 0;
     const stockMaxNum = parseInt(formStockMax) || 0;
-    const marginRatio = priceNum > 0 ? parseFloat((((priceNum - costNum) / priceNum) * 100).toFixed(1)) : 0;
+    const marginRatio = margemPct(priceNum, costNum);
     const parsedTags = formTags.split(",").map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
 
     const contractMonthsNum = parseInt(formContractMonths) || 12;
