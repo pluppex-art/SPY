@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { somar } from "../../lib/dinheiro";
 import { supabase } from "../../lib/supabase";
 import { limpaBusca, fetchAllRows } from "../../lib/pgrst";
 import { friendlyError } from "../../lib/friendlyError";
@@ -157,8 +158,8 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
         return pd && !isNaN(pd.getTime()) && pd.getFullYear() === y && pd.getMonth() === m;
       });
       const aceitas = doMes.filter((p) => p.status === "Aceita");
-      const valorTotal = doMes.reduce((s, p) => s + (Number(p.valor) || 0), 0);
-      const valorConvertido = aceitas.reduce((s, p) => s + (Number(p.valor) || 0), 0);
+      const valorTotal = somar(doMes, (p) => p.valor);
+      const valorConvertido = somar(aceitas, (p) => p.valor);
       return {
         label: d.toLocaleDateString("pt-BR", { month: "short" }),
         count: doMes.length,
@@ -194,7 +195,7 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
       taxaConversaoSparkline: monthlyBuckets.map((b) => b.taxaConversao),
       // Mantido pro filtro da lista (aba Propostas Comerciais usa o
       // dateFrom/dateTo aplicado na tela, diferente dos cards acima).
-      aguardandoAceite: kpiFilteredRows.filter((p) => p.status === "Enviada").reduce((s, p) => s + (Number(p.valor) || 0), 0),
+      aguardandoAceite: somar(kpiFilteredRows.filter((p) => p.status === "Enviada"), (p) => p.valor),
     };
   }, [monthlyBuckets, kpiAllRows, kpiFilteredRows]);
 

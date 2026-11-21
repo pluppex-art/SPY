@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { somar } from "../../lib/dinheiro";
 import { supabase } from "../../lib/supabase";
 import { limpaBusca, fetchAllRows } from "../../lib/pgrst";
 import { useAuth } from "../../contexts/AuthContext";
@@ -104,7 +105,7 @@ export function useFinanceEntriesList(filters: FinanceEntriesFilters) {
     if (!supabase || !tenantId) return;
     let query = applyFilters(supabase.from("finance_entries").select("value").eq("tenant_id", tenantId));
     const { data } = await query;
-    if (data) setTotalValue((data as any[]).reduce((acc, r) => acc + (Number(r.value) || 0), 0));
+    if (data) setTotalValue(somar(data as any[], (r) => r.value));
   };
 
   // Contagem por status sob os demais filtros (alimenta as abas Todos/Pago/A Vencer/...).

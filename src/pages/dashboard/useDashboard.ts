@@ -1,4 +1,5 @@
 import { useUnidadeMax } from "../../lib/unidadeMaxdata";
+import { somar } from "../../lib/dinheiro";
 import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -225,7 +226,7 @@ export function useDashboard() {
     const perdidos = comerciais.filter((l) => l.status === 'Perdido');
     if (panorama) return { valor: Number(panorama.faturamento) || 0, qtd: Number(panorama.vendas) || 0, perdidas: Number(panorama.canceladas) || 0, valorPerdidas: Number(panorama.canceladas_valor) || 0 };
     if (ganhos.length === 0 && perdidos.length === 0) return undefined;
-    const soma = (arr: any[]) => arr.reduce((t, l) => t + (Number(l.value) || 0), 0);
+    const soma = (arr: any[]) => somar(arr, (l) => l.value);
     return { valor: soma(ganhos), qtd: ganhos.length, perdidas: perdidos.length, valorPerdidas: soma(perdidos) };
   }, [contracts, leads, panorama]);
 

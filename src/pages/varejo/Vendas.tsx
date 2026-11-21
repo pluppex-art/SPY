@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { somar } from "../../lib/dinheiro";
 import { toast } from "sonner";
 import {
   ShoppingCart, Plus, Minus, Trash2, Search, Package, Link2, Copy,
@@ -1281,7 +1282,7 @@ export default function VarejoVendas() {
   const vendasHoje = historico.filter(
     (v) => v.status === "paga" && v.created_at.startsWith(hojeStr)
   );
-  const faturamentoHoje = vendasHoje.reduce((s, v) => s + Number(v.valor_total), 0);
+  const faturamentoHoje = somar(vendasHoje, (v) => v.valor_total);
   const ticketMedioHoje = vendasHoje.length > 0 ? faturamentoHoje / vendasHoje.length : 0;
   const itensVendidosHoje = vendasHoje.reduce(
     (acc, v) => acc + (v.itens?.reduce((sub, it) => sub + it.quantidade, 0) || 0),
@@ -1303,7 +1304,7 @@ export default function VarejoVendas() {
     );
   });
   const histPagas = historicoFiltrado.filter((v) => v.status === "paga");
-  const histFaturamento = histPagas.reduce((s, v) => s + (Number(v.valor_total) || 0), 0);
+  const histFaturamento = somar(histPagas, (v) => v.valor_total);
   const histTicket = histPagas.length > 0 ? histFaturamento / histPagas.length : 0;
   const histEstornadas = historicoFiltrado.filter((v) => v.status === "estornada").length;
   const histPagtoOpts = Array.from(new Set(historico.map((v) => v.forma_pagamento).filter(Boolean) as string[])).sort();

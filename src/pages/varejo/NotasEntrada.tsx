@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { somar } from "../../lib/dinheiro";
 import { Link, useNavigate } from "react-router-dom";
 import { FileUp, Plus, FileText, Loader2, CheckCircle2, Clock, Send, Wallet, Database, Truck } from "lucide-react";
 import { toast } from "sonner";
@@ -83,7 +84,7 @@ export default function NotasEntrada() {
       rascunhos: list.filter((n) => n.status === "Rascunho").length,
       emFluxo: list.filter((n) => ["Pronta para envio", "Enviada", "Validada"].includes(n.status)).length,
       noEstoqueMes: doMes.length,
-      valorMes: doMes.reduce((s, n) => s + (Number(n.valor_total) || 0), 0),
+      valorMes: somar(doMes, (n) => n.valor_total),
     };
   }, [filtradas]);
 

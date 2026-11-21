@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { somar } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
@@ -355,7 +356,7 @@ export default function Corretores() {
           return !isNaN(d.getTime()) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         });
         const ativos = meus.filter(im => im.status === "Disponível" || im.status === "Reservado").length;
-        const vgvMesReais = vendidosMes.reduce((s, im) => s + Number(im.valor ?? 0), 0);
+        const vgvMesReais = somar(vendidosMes, (im) => im.valor);
 
         return {
           id: r.id, nome: r.nome, creci: r.creci ?? "", telefone: r.telefone ?? "",

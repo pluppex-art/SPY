@@ -1,4 +1,5 @@
 import React from 'react';
+import { somar } from "../../../../lib/dinheiro";
 import { Card } from '../../../../components/ui/card';
 import { Button } from '../../../../components/ui/button';
 import { ResponsiveContainer, BarChart, XAxis, Tooltip, Bar, Cell } from 'recharts';
@@ -19,7 +20,7 @@ export function PipelineAnalytics({
   hotLeadsCount,
 }: PipelineAnalyticsProps) {
   if (!showAnalytics) return null;
-  const totalValue = analyticsData.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+  const totalValue = somar(analyticsData, (d) => d.value);
 
   return (
     <div className="overflow-hidden text-left">

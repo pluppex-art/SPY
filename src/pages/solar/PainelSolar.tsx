@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { somar } from "../../lib/dinheiro";
 import {
   Sun, Users, FileText, TrendingUp, Zap, DollarSign, Clock, Target,
   Plus, Calculator, MapPin, ArrowRight, ShieldCheck, CheckCircle2, Wrench
@@ -74,15 +75,15 @@ export default function PainelSolar() {
     const taxaConversao = totalProjetos > 0 ? (vendasFechadas / totalProjetos) * 100 : 0;
 
     const abertos = rows.filter(r => r.status !== "Concluído");
-    const valorPipeline = abertos.reduce((s, r) => s + Number(r.valorContrato || r.valor_proposta || 0), 0);
+    const valorPipeline = somar(abertos, (r) => r.valorContrato || r.valor_proposta);
 
     const potenciaTotal = rows.reduce((s, r) => s + Number(r.potenciaKwp || r.potencia_estimada_kwp || 0), 0);
     const potenciaInstalada = conectados.reduce((s, r) => s + Number(r.potenciaKwp || r.potencia_estimada_kwp || 0), 0);
 
-    const receitaFechada = conectados.reduce((s, r) => s + Number(r.valorContrato || r.valor_proposta || 0), 0);
+    const receitaFechada = somar(conectados, (r) => r.valorContrato || r.valor_proposta);
 
     const ticketMedio = totalProjetos > 0
-      ? rows.reduce((s, r) => s + Number(r.valorContrato || r.valor_proposta || 0), 0) / totalProjetos
+      ? somar(rows, (r) => r.valorContrato || r.valor_proposta) / totalProjetos
       : 0;
 
     // Economia anual estimada para os clientes (~R$ 1.150 por kWp instalado ao ano)

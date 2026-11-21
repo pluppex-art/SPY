@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { somar } from "../../lib/dinheiro";
 import { toast } from "sonner";
 import { BadgePercent, CheckCircle2, ChevronLeft, ChevronRight, Clock, FileSpreadsheet, Plus, Target, Trophy, Wand2, X } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
@@ -91,8 +92,8 @@ export default function FinanceiroComissoes() {
   }, [vendasDoMes, regras, regraDe, jaGeradas]);
 
   const vendidoMes = vendasDoMes.reduce((a, v) => a + v.valor, 0);
-  const aPagar = comissoes.filter((c) => c.status === "Pendente" || c.status === "Aprovada").reduce((a, c) => a + Number(c.valor_comissao), 0);
-  const pagoMes = comissoesDoMes.filter((c) => c.status === "Paga").reduce((a, c) => a + Number(c.valor_comissao), 0);
+  const aPagar = somar(comissoes.filter((c) => c.status === "Pendente" || c.status === "Aprovada"), (c) => c.valor_comissao);
+  const pagoMes = somar(comissoesDoMes.filter((c) => c.status === "Paga"), (c) => c.valor_comissao);
   const metasBatidas = resumo.filter((r) => r.meta > 0 && r.vendido >= r.meta).length;
 
   const gerar = async () => {

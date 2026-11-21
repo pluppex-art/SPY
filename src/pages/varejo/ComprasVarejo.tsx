@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { somar } from "../../lib/dinheiro";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -301,7 +302,7 @@ export default function ComprasVarejo() {
         c.itens.split(/,\s*(?=\d+x )/).join("\n"), c.previsaoEntrega, c.status,
         Number(c.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
       ]),
-      foot: [["", "", "", "", "", "Total (sem canceladas)", ativasPdf.reduce((t, c) => t + Number(c.valor), 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })]],
+      foot: [["", "", "", "", "", "Total (sem canceladas)", somar(ativasPdf, (c) => c.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })]],
       styles: { fontSize: 8, cellPadding: 2, valign: "top" },
       headStyles: { fillColor: [91, 33, 182] },
       footStyles: { fillColor: [243, 244, 246], textColor: 20 },
@@ -486,7 +487,7 @@ export default function ComprasVarejo() {
     [compras],
   );
   const ativas = filtered.filter(c => c.status !== "Cancelada");
-  const totalReposicao = ativas.reduce((s, c) => s + (Number(c.valor) || 0), 0);
+  const totalReposicao = somar(ativas, (c) => c.valor);
   const emTransito = filtered.filter(c => c.status === "Em Transporte").length;
   const aguardando = filtered.filter(c => c.status === "Emitida / Aguardando Fornecedor" || c.status === "Faturada").length;
   const recebidas = filtered.filter(c => c.status === "Recebido no Estoque").length;

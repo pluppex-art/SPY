@@ -1,4 +1,5 @@
 import { useData } from '../../../../contexts/DataContext';
+import { somar } from "../../../../lib/dinheiro";
 import { useLocalization } from '../../../../contexts/LocalizationContext';
 import { Card } from '../../../../components/ui/card';
 import {
@@ -145,7 +146,7 @@ export function LeadCard({
   // só uma ESTIMATIVA (mesmo tratamento visual de avgWonTicket, com "~").
   const hasRealValue = leadInterestEstimate(item, proposals as any[], products as any[]) !== null || parseCurrencyBR(item.value) > 0 || !!linkedProposalValue;
   const estimateFromInterest = !hasRealValue && produtosInteresse.length > 0
-    ? produtosInteresse.reduce((s, p) => s + (Number(p.price) || 0), 0)
+    ? somar(produtosInteresse, (p) => p.price)
     : 0;
   // Lead genuinamente sem venda/produto/proposta ainda (ex.: cliente cadastrado
   // que nunca reservou) — em vez de "R$ 0" (parece erro/dado quebrado), mostra

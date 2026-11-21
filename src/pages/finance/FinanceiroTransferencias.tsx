@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { somar } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -256,7 +257,7 @@ export default function FinanceiroTransferencias() {
                 <tbody>
                   {contasAtivas.map((c: any) => {
                     const ts = financeTransfers as any[];
-                    const soma = (xs: any[]) => xs.reduce((a, t) => a + (Number(t.valor) || 0), 0);
+                    const soma = (xs: any[]) => somar(xs, (t) => t.valor);
                     const saldo = saldoPorConta.get(c.id) ?? 0;
                     return (
                       <tr key={c.id} className="border-b border-[var(--color-border-default)] last:border-0">

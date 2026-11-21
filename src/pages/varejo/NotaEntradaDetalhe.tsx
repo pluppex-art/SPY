@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { somar } from "../../lib/dinheiro";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Boxes, Braces, Download, Link2, Loader2, PackagePlus, Save, Send, Trash2, XCircle, AlertTriangle, Copy } from "lucide-react";
 import { toast } from "sonner";
@@ -94,7 +95,7 @@ export default function NotaEntradaDetalhe() {
 
   const locked = nota ? isNotaLocked(nota.status) : true;
   const blockers = useMemo(() => stockBlockers(itens), [itens]);
-  const somaItens = useMemo(() => itens.reduce((s, i) => s + (Number(i.valor_total) || 0), 0), [itens]);
+  const somaItens = useMemo(() => somar(itens, (i) => i.valor_total), [itens]);
   const unidades = useMemo(() => itens.reduce((s, i) => s + (Number(i.qtd_estoque) || 0), 0), [itens]);
 
   if (nota === undefined) {

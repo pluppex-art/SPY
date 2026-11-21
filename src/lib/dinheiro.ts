@@ -17,3 +17,16 @@ export function formatBRLCentavos(c: unknown): string {
   const n = Number(c);
   return formatBRL((Number.isFinite(n) ? n : 0) / 100);
 }
+
+/** Valor numérico seguro: texto, null, undefined e NaN viram 0. */
+export function valorNum(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Soma de valores em reais, fechada em centavos. `pegar` escolhe o campo de cada item (padrão: o próprio item). */
+export function somar<T>(lista: readonly T[] | null | undefined, pegar: (item: T) => unknown = (x) => x): number {
+  let total = 0;
+  for (const item of lista || []) total += valorNum(pegar(item));
+  return round2(total);
+}

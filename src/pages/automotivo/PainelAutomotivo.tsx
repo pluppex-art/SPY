@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { somar } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -93,8 +94,8 @@ export default function PainelAutomotivo() {
 
   const kpis = useMemo(() => {
     const disponiveis = veiculos.filter(v => v.status === "Disponível");
-    const totalEstoqueValor = veiculos.reduce((s, v) => s + (Number(v.valor) || 0), 0);
-    const totalDisponivelValor = disponiveis.reduce((s, v) => s + (Number(v.valor) || 0), 0);
+    const totalEstoqueValor = somar(veiculos, (v) => v.valor);
+    const totalDisponivelValor = somar(disponiveis, (v) => v.valor);
     const testDrivesAtivos = testDrives.filter(t => t.status !== "Cancelado").length;
     const ticketMedio = veiculos.length > 0 ? totalEstoqueValor / veiculos.length : 0;
 

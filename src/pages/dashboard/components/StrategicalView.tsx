@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { somar } from "../../../lib/dinheiro";
 import { motion } from 'motion/react';
 import { Card } from '../../../components/ui/card';
 import { StatCard } from '../../../components/ui/stat-card';
@@ -103,11 +104,11 @@ export function StrategicalView({
     };
     const entries = financeEntries as any[];
     const pagosNoPeriodo = entries.filter(f => f.status === 'Pago' && inPeriod(f.date));
-    const receita = pagosNoPeriodo.filter(f => f.type === 'Receber').reduce((s, f) => s + (Number(f.value) || 0), 0);
-    const despesas = pagosNoPeriodo.filter(f => f.type === 'Pagar').reduce((s, f) => s + (Number(f.value) || 0), 0);
+    const receita = somar(pagosNoPeriodo.filter(f => f.type === 'Receber'), f => f.value);
+    const despesas = somar(pagosNoPeriodo.filter(f => f.type === 'Pagar'), f => f.value);
     const novasVendas = pagosNoPeriodo.filter(f => f.type === 'Receber').length;
-    const contasAReceber = entries.filter(f => f.type === 'Receber' && (f.status === 'A Vencer' || f.status === 'Atrasado')).reduce((s, f) => s + (Number(f.value) || 0), 0);
-    const contasAPagar = entries.filter(f => f.type === 'Pagar' && (f.status === 'A Vencer' || f.status === 'Atrasado')).reduce((s, f) => s + (Number(f.value) || 0), 0);
+    const contasAReceber = somar(entries.filter(f => f.type === 'Receber' && (f.status === 'A Vencer' || f.status === 'Atrasado')), f => f.value);
+    const contasAPagar = somar(entries.filter(f => f.type === 'Pagar' && (f.status === 'A Vencer' || f.status === 'Atrasado')), f => f.value);
     const clientes = clienteBase as any[];
     const clientesAtivos = clientes.filter(c => c.status === 'Ativo').length;
     const clientesPerdidos = clientes.filter(c => c.status === 'Inativo').length;

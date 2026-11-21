@@ -22,3 +22,12 @@ test("round2: fecha em centavos sem erro de ponto flutuante", () => {
   assert.equal(round2(1.005), 1.01);
   assert.equal(round2(-2.345), -2.34); // comportamento de sempre (meio centavo negativo arredonda para cima); mantido para não mudar nenhum total
 });
+
+import { somar, valorNum } from "../../src/lib/dinheiro.js";
+test("somar: ignora vazio/texto/NaN, aceita texto numérico do banco e fecha em centavos", () => {
+  assert.equal(somar([{ v: 0.1 }, { v: 0.2 }], (x) => x.v), 0.3);                    // sem 0.30000000000000004
+  assert.equal(somar([{ v: "10.50" }, { v: null }, { v: undefined }, { v: "abc" }, { v: 4 }], (x) => x.v), 14.5);
+  assert.equal(somar([1, 2, 3]), 6);
+  assert.equal(somar(null), 0); assert.equal(somar([]), 0);
+  assert.equal(valorNum(Infinity), 0);
+});

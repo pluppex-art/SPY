@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { somar } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -84,14 +85,14 @@ export default function FinanceiroCentrosCusto() {
   const vinculados = useMemo(() => {
     if (!editingId) return null;
     const rows = (financeEntries as any[]).filter(e => e.centro_custo_id === editingId);
-    const pagos = rows.filter(e => e.status === "Pago" && e.type === "Pagar").reduce((s, e) => s + (Number(e.value) || 0), 0);
+    const pagos = somar(rows.filter(e => e.status === "Pago" && e.type === "Pagar"), e => e.value);
     return { count: rows.length, pagos };
   }, [editingId, financeEntries]);
 
   const viewVinculados = useMemo(() => {
     if (!viewing) return null;
     const rows = (financeEntries as any[]).filter(e => e.centro_custo_id === viewing.id);
-    const pagos = rows.filter(e => e.status === "Pago" && e.type === "Pagar").reduce((s, e) => s + (Number(e.value) || 0), 0);
+    const pagos = somar(rows.filter(e => e.status === "Pago" && e.type === "Pagar"), e => e.value);
     return { count: rows.length, pagos };
   }, [viewing, financeEntries]);
 
