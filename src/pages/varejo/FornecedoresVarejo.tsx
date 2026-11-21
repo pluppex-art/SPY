@@ -4,13 +4,14 @@ import { PageContainer } from "../../components/PageContainer";
 import { BotaoImportar } from "../../components/ImportadorPlanilha";
 import { fornecedoresSpec } from "../../lib/importSpecs";
 import { Button } from "../../components/ui/button";
-import { Truck, Plus, Phone, Mail, Package, Trash2, Pencil, FileDown, ShoppingCart } from "lucide-react";
+import { Truck, Plus, Phone, Mail, Package, Trash2, Pencil, FileDown, ShoppingCart, BookOpen } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { HelpTip } from "../../components/ui/help-tip";
+import { CatalogoFornecedorModal } from "./CatalogoFornecedorModal";
 import { FornecedorModal, rowToFornecedor, formatDoc, formatFone, type FornecedorItem } from "./FornecedorModal";
 
 type Resumo = { ordens: number; total: number };
@@ -51,6 +52,7 @@ export default function FornecedoresVarejo() {
   const [statusFiltro, setStatusFiltro] = useState("Ativos");
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<FornecedorItem | null>(null);
+  const [catalogoDe, setCatalogoDe] = useState<FornecedorItem | null>(null);
 
   const abrirNovo = () => { setEditando(null); setModalOpen(true); };
   const abrirEdicao = (f: FornecedorItem) => { setEditando(f); setModalOpen(true); };
@@ -203,6 +205,9 @@ export default function FornecedoresVarejo() {
                   <td className="py-3 px-3 text-right font-mono font-bold text-emerald-500">{r.total > 0 ? `R$ ${brl(r.total)}` : "—"}</td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setCatalogoDe(f)} className="h-8 px-2.5 text-[11px] font-bold gap-1 rounded-xl">
+                        <BookOpen className="w-3.5 h-3.5" /> Catálogo
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => navigate("/app/varejo/compras", { state: { rascunho: { fornecedor: f.razaoSocial, linhas: [] } } })} className="h-8 px-2.5 text-[11px] font-bold gap-1 rounded-xl">
                         <ShoppingCart className="w-3.5 h-3.5" /> Novo Pedido
                       </Button>
@@ -223,6 +228,8 @@ export default function FornecedoresVarejo() {
           <div className="p-8 text-center text-xs text-[var(--color-text-muted)]">Nenhum fornecedor encontrado.</div>
         )}
       </div>
+
+      <CatalogoFornecedorModal fornecedor={catalogoDe} tenantId={activeTenantId} onClose={() => setCatalogoDe(null)} />
 
       <FornecedorModal
         isOpen={modalOpen}

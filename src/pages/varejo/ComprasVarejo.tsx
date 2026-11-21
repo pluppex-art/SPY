@@ -13,6 +13,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
+import { carregarCatalogo, rowToCatalogoItem, type CatalogoItem } from "../../lib/fornecedorCatalogo";
 import { AjusteEstoqueModal } from "./AjusteEstoqueModal";
 import { FornecedorModal, rowToFornecedor, type FornecedorItem } from "./FornecedorModal";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -32,6 +33,7 @@ interface CompraItem {
   itemNome: string;
   quantidade: number | null;
   custoUnitario: number | null;
+  catalogoItemId: string | null;
   data: string;
   previsaoEntrega: string;
   previsaoISO: string;
@@ -62,6 +64,7 @@ function rowToCompra(row: any): CompraItem {
     itemNome: row.item_nome || "",
     quantidade: row.quantidade != null ? Number(row.quantidade) : null,
     custoUnitario: row.custo_unitario != null ? Number(row.custo_unitario) : null,
+    catalogoItemId: row.catalogo_item_id || null,
     data: new Date(row.data + "T00:00:00").toLocaleDateString("pt-BR"),
     previsaoEntrega: row.previsao_entrega ? new Date(row.previsao_entrega + "T00:00:00").toLocaleDateString("pt-BR") : "A combinar",
     previsaoISO: row.previsao_entrega || "",
@@ -74,12 +77,15 @@ const inputBase =
 
 /** Campo de item: abre a lista do catálogo ao focar, filtra enquanto digita e aceita texto livre (item que ainda não existe no estoque). */
 function ItemCombobox({
-  value, onChange, onPick, produtos,
+  value, onChange, onPick, produtos, catalogo = [],
 }: {
   value: string;
   onChange: (v: string) => void;
+  /** Recebe um produto do cadastro ou, com `_cat: true`, um item do catálogo do fornecedor. */
   onPick: (p: any) => void;
   produtos: any[];
+  /** Itens do catálogo do fornecedor escolhido: aparecem primeiro na busca. */
+  catalogo?: CatalogoItem[];
 }) {
   const [aberto, setAberto] = useState(false);
   // Busca sem acento e por palavras: "trafego pago" acha "Tráfego Pago | Mensal".
@@ -92,7 +98,10 @@ function ItemCombobox({
       return palavras.every(w => alvo.includes(w));
     })
     .slice(0, 30);
-  const exato = produtos.some(p => norm(String(p.name || "").trim()) === q);
+  const opcoesCat = catalogo
+    .filter(i => { const alvo = norm(`${i.nome} ${i.codigo} ${i.ean} ${i.categoria}`); return palavras.every(w => alvo.includes(w)); })
+    .slice(0, 30);
+  const exato = produtos.some(p => norm(String(p.name || "").trim()) === q) || catalogo.some(i => norm(i.nome.trim()) === q);
   return (
     <div className="flex-1 min-w-0">
       <input
@@ -103,13 +112,26 @@ function ItemCombobox({
         onChange={e => { onChange(e.target.value); setAberto(true); }}
         className={`w-full ${inputBase}`}
       />
-      {aberto && (opcoes.length > 0 || q) && (
+      {aberto && (opcoes.length > 0 || opcoesCat.length > 0 || q) && (
         <div className="mt-1 max-h-40 overflow-y-auto rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface)] shadow-sm">
           {q && !exato && (
             <div className="px-3 py-1.5 text-[11px] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
               Usar <strong className="text-[var(--color-text-primary)]">“{value.trim()}”</strong> como item novo (fora do estoque)
             </div>
           )}
+          {opcoesCat.map(i => (
+            <button
+              type="button"
+              key={`cat-${i.id}`}
+              onMouseDown={e => { e.preventDefault(); onPick({ _cat: true, id: i.id, name: i.nome, cost: i.custo, productId: i.productId }); setAberto(false); }}
+              className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--color-surface-sunken)] flex items-center justify-between gap-2"
+            >
+              <span className="truncate text-[var(--color-text-primary)]">{i.nome}<span className="ml-1.5 text-[9px] font-bold text-[var(--color-primary-blue)]">Catálogo do fornecedor</span></span>
+              <span className="shrink-0 text-[10px] text-[var(--color-text-muted)]">
+                {i.codigo}{i.custo != null ? `${i.codigo ? " • " : ""}R$ ${i.custo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}
+              </span>
+            </button>
+          ))}
           {opcoes.map(p => (
             <button
               type="button"
@@ -131,7 +153,7 @@ function ItemCombobox({
 
 export default function ComprasVarejo() {
   const { activeTenantId, activeTenantName } = useAuth();
-  const { products } = useData();
+  const { products, addProduct } = useData();
   const cfgVarejo = useVarejoConfig();
   const location = useLocation();
   const navigate = useNavigate();
@@ -162,7 +184,7 @@ export default function ComprasVarejo() {
   // Form state para Nova Ordem
   const [fornecedor, setFornecedor] = useState("");
   const [valor, setValor] = useState("");
-  type Linha = { nome: string; qtd: string; custo: string; productId?: string };
+  type Linha = { nome: string; qtd: string; custo: string; productId?: string; catalogoItemId?: string };
   const linhaVazia = (): Linha => ({ nome: "", qtd: "", custo: "" });
   const [linhas, setLinhas] = useState<Linha[]>([linhaVazia()]);
   const [fornecedoresCad, setFornecedoresCad] = useState<FornecedorItem[]>([]);
@@ -172,6 +194,15 @@ export default function ComprasVarejo() {
     supabase.from("varejo_fornecedores").select("*").eq("tenant_id", activeTenantId).order("razao_social")
       .then(({ data }) => { if (data) setFornecedoresCad(data.map(rowToFornecedor)); });
   }, [activeTenantId]);
+  // Catálogo do fornecedor escolhido na Nova Ordem: a busca de item procura nele primeiro.
+  const [catalogoForn, setCatalogoForn] = useState<CatalogoItem[]>([]);
+  useEffect(() => {
+    const forn = fornecedoresCad.find(f => f.razaoSocial === fornecedor);
+    if (!forn || !activeTenantId) { setCatalogoForn([]); return; }
+    let cancelado = false;
+    carregarCatalogo(activeTenantId, forn.id).then(r => { if (!cancelado) setCatalogoForn(r); }).catch(() => { if (!cancelado) setCatalogoForn([]); });
+    return () => { cancelado = true; };
+  }, [fornecedor, fornecedoresCad, activeTenantId]);
   const setLinha = (i: number, patch: Partial<Linha>) => setLinhas(prev => prev.map((l, k) => (k === i ? { ...l, ...patch } : l)));
   const totalLinhas = linhas.reduce((t, l) => t + (parseInt(l.qtd, 10) || 0) * (parseFloat(l.custo.replace(",", ".")) || 0), 0);
   const [previsaoEntrega, setPrevisaoEntrega] = useState("");
@@ -181,6 +212,10 @@ export default function ComprasVarejo() {
   const [entradaCompra, setEntradaCompra] = useState<CompraItem | null>(null);
   const [entradaProduto, setEntradaProduto] = useState<any | null>(null);
   const [semProdutoOpen, setSemProdutoOpen] = useState(false);
+  // Item que veio do catálogo do fornecedor e ainda não é produto: cadastra na hora da entrada.
+  const [entradaCatItem, setEntradaCatItem] = useState<CatalogoItem | null>(null);
+  const [precoVendaNovo, setPrecoVendaNovo] = useState("");
+  const [cadastrando, setCadastrando] = useState(false);
 
   // Rascunho vindo do Painel de Vendas (Estoque Crítico → Nova Compra): abre a Nova Ordem já preenchida.
   useEffect(() => {
@@ -224,6 +259,7 @@ export default function ComprasVarejo() {
         item_nome: l.nome.trim(),
         quantidade: qtd,
         custo_unitario: parseFloat(l.custo.replace(",", ".")) || null,
+        ...(l.catalogoItemId ? { catalogo_item_id: l.catalogoItemId } : {}),
         previsao_entrega: previsaoEntrega || null,
         status: uiStatusToDb(status),
       };
@@ -357,9 +393,61 @@ export default function ComprasVarejo() {
         setCompras(prev => prev.map(x => x.id === c.id ? { ...x, productId: produto.id } : x));
       }
     }
+    // Ordem feita a partir do catálogo do fornecedor: o item pode já ter virado produto em outra entrada.
+    let catItem: CatalogoItem | null = null;
+    if (!produto && c.catalogoItemId && supabase) {
+      const { data } = await supabase.from("fornecedor_catalogo_itens").select("*").eq("id", c.catalogoItemId).maybeSingle();
+      if (data) {
+        catItem = rowToCatalogoItem(data);
+        if (catItem.productId) produto = lista.find(p => p.id === catItem!.productId);
+        if (produto) {
+          await supabase.from("compras").update({ product_id: produto.id }).eq("id", c.id);
+          setCompras(prev => prev.map(x => x.id === c.id ? { ...x, productId: produto.id } : x));
+        }
+      }
+    }
     setEntradaCompra(c);
-    if (produto) setEntradaProduto(produto);
-    else setSemProdutoOpen(true);
+    if (produto) { setEntradaProduto(produto); return; }
+    setEntradaCatItem(catItem);
+    setPrecoVendaNovo("");
+    setSemProdutoOpen(true);
+  };
+
+  // Cadastra o produto a partir do item do catálogo e segue direto para a entrada no estoque.
+  const cadastrarDoCatalogoEEntrar = async () => {
+    if (!entradaCompra || !entradaCatItem || !supabase || cadastrando) return;
+    const custo = entradaCompra.custoUnitario ?? entradaCatItem.custo ?? 0;
+    const preco = parseFloat(precoVendaNovo.replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
+    setCadastrando(true);
+    const novo: any = await (addProduct as (p: any) => Promise<any>)({
+      id: crypto.randomUUID(),
+      sku: entradaCatItem.codigo || entradaCatItem.ean || "PROD-" + Math.floor(1000 + Math.random() * 9000),
+      name: entradaCatItem.nome,
+      category: entradaCatItem.categoria || "Geral",
+      type: "Físico",
+      price: preco,
+      cost: custo,
+      margin: preco > 0 ? parseFloat((((preco - custo) / preco) * 100).toFixed(1)) : 0,
+      commission: 0,
+      active: true,
+      stockMin: cfgVarejo.estoque.estoqueMinimoPadrao,
+      stockMax: 0,
+      currentStock: 0,
+      provider: entradaCompra.fornecedor !== "A definir" ? entradaCompra.fornecedor : "",
+      tags: [],
+      typeAttributes: entradaCatItem.ean ? { ean: entradaCatItem.ean } : {},
+    });
+    if (!novo) { setCadastrando(false); return; } // addProduct já avisou do erro
+    await Promise.all([
+      supabase.from("fornecedor_catalogo_itens").update({ product_id: novo.id }).eq("id", entradaCatItem.id),
+      supabase.from("compras").update({ product_id: novo.id }).eq("id", entradaCompra.id),
+    ]);
+    setCompras(prev => prev.map(x => x.id === entradaCompra.id ? { ...x, productId: novo.id } : x));
+    setCadastrando(false);
+    setSemProdutoOpen(false);
+    setEntradaCatItem(null);
+    toast.success(`"${novo.name}" cadastrado nos seus produtos.`);
+    setEntradaProduto(novo);
   };
 
   const cadastrarProdutoDaOrdem = () => {
@@ -541,13 +629,17 @@ export default function ComprasVarejo() {
       {/* Produto ainda não cadastrado */}
       <Modal
         isOpen={semProdutoOpen}
-        onClose={() => { setSemProdutoOpen(false); setEntradaCompra(null); }}
+        onClose={() => { setSemProdutoOpen(false); setEntradaCompra(null); setEntradaCatItem(null); }}
         maxWidth="max-w-md"
         title={<h3 className="text-base font-bold text-[var(--color-text-primary)]">Produto ainda não cadastrado</h3>}
         footer={
           <div className="flex justify-end gap-2 w-full">
-            <Button variant="outline" size="sm" onClick={() => { setSemProdutoOpen(false); setEntradaCompra(null); }}>Fechar</Button>
-            {entradaCompra?.itemNome && (
+            <Button variant="outline" size="sm" onClick={() => { setSemProdutoOpen(false); setEntradaCompra(null); setEntradaCatItem(null); }}>Fechar</Button>
+            {entradaCatItem ? (
+              <Button size="sm" onClick={cadastrarDoCatalogoEEntrar} disabled={cadastrando} className="font-bold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
+                {cadastrando ? "Cadastrando..." : "Cadastrar e dar entrada"}
+              </Button>
+            ) : entradaCompra?.itemNome && (
               <Button size="sm" onClick={cadastrarProdutoDaOrdem} className="font-bold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
                 Cadastrar produto
               </Button>
@@ -555,11 +647,23 @@ export default function ComprasVarejo() {
           </div>
         }
       >
-        <p className="text-xs text-[var(--color-text-muted)] py-1">
-          {entradaCompra?.itemNome
-            ? <>Não achei “<strong className="text-[var(--color-text-primary)]">{entradaCompra.itemNome}</strong>” no catálogo. Cadastre o produto (nome, custo e fornecedor já vão preenchidos) e depois volte aqui e clique em Dar Entrada.</>
-            : "Esta ordem não tem um item identificado, então não dá para ligar a um produto. Exclua e lance de novo informando o item."}
-        </p>
+        {entradaCatItem ? (
+          <div className="space-y-3 py-1">
+            <p className="text-xs text-[var(--color-text-muted)]">
+              “<strong className="text-[var(--color-text-primary)]">{entradaCatItem.nome}</strong>” veio do catálogo do fornecedor e ainda não é um produto seu. Vou cadastrar com o nome, o código, o custo e o fornecedor da ordem, e abrir a entrada no estoque em seguida.
+            </p>
+            <div>
+              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Preço de venda (R$) <span className="text-[var(--color-text-muted)] font-normal">(opcional, dá para definir depois)</span></label>
+              <input type="text" inputMode="decimal" placeholder="0,00" value={precoVendaNovo} onChange={e => setPrecoVendaNovo(e.target.value)} className={`w-full text-right ${inputBase}`} />
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-[var(--color-text-muted)] py-1">
+            {entradaCompra?.itemNome
+              ? <>Não achei “<strong className="text-[var(--color-text-primary)]">{entradaCompra.itemNome}</strong>” no catálogo. Cadastre o produto (nome, custo e fornecedor já vão preenchidos) e depois volte aqui e clique em Dar Entrada.</>
+              : "Esta ordem não tem um item identificado, então não dá para ligar a um produto. Exclua e lance de novo informando o item."}
+          </p>
+        )}
       </Modal>
 
       {/* Editar ordem */}
@@ -687,8 +791,9 @@ export default function ComprasVarejo() {
                   <div key={i} className="flex items-start gap-2">
                     <ItemCombobox
                       value={l.nome}
-                      onChange={v => setLinha(i, { nome: v, productId: undefined })}
-                      onPick={p => setLinha(i, { productId: p.id, nome: p.name, custo: l.custo || (Number(p.cost) > 0 ? String(Number(p.cost)) : ""), qtd: l.qtd || "1" })}
+                      onChange={v => setLinha(i, { nome: v, productId: undefined, catalogoItemId: undefined })}
+                      catalogo={catalogoForn}
+                      onPick={p => setLinha(i, { productId: p._cat ? (p.productId || undefined) : p.id, catalogoItemId: p._cat ? p.id : undefined, nome: p.name, custo: l.custo || (Number(p.cost) > 0 ? String(Number(p.cost)) : ""), qtd: l.qtd || "1" })}
                       produtos={(products || []).filter((p: any) => p.active !== false)}
                     />
                     <input type="number" min={1} placeholder="0" value={l.qtd} onChange={e => setLinha(i, { qtd: e.target.value })} className={`w-20 text-right ${inputBase}`} />
