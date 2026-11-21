@@ -147,7 +147,7 @@ export default function ComprasVarejo() {
   }, [activeTenantId]);
 
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState("Emitida / Aguardando Fornecedor");
   const [filterFornecedor, setFilterFornecedor] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
