@@ -21,6 +21,7 @@ interface VendaFinalizada {
   cliente: string;
   vendedor?: string;
   numero?: number | null;
+  comissao?: number;
   itens: Array<{
     id: string;
     name: string;
@@ -111,6 +112,7 @@ export default function PainelVarejo() {
             cliente: v.cliente_nome || "Consumidor Final",
             vendedor: v.vendedor_nome || undefined,
             numero: v.numero,
+            comissao: Number(v.comissao_valor) || 0,
             itens: (v.venda_items || []).map((it: any) => ({
               id: it.id,
               name: it.product_name || "Item",
@@ -227,6 +229,21 @@ export default function PainelVarejo() {
       });
   }, [products]);
 
+  // Comissão do dia por vendedor (só vendas concluídas; valor já gravado na venda pelo PDV)
+  const comissoesPorVendedor = useMemo(() => {
+    const mapa = new Map<string, { vendedor: string; vendas: number; total: number; comissao: number }>();
+    for (const v of vendas) {
+      if (v.status !== "concluida") continue;
+      const nome = v.vendedor || "Sem vendedor";
+      const atual = mapa.get(nome) || { vendedor: nome, vendas: 0, total: 0, comissao: 0 };
+      atual.vendas += 1;
+      atual.total += v.total;
+      atual.comissao += v.comissao || 0;
+      mapa.set(nome, atual);
+    }
+    return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
+  }, [vendas]);
+
   return (
     <PageContainer
       title="Painel de Vendas"
@@ -234,7 +251,7 @@ export default function PainelVarejo() {
       actions={
         <div className="flex items-center gap-2">
           <Link
-            to="/app/varejo/estoque"
+            to="/app/produtos?vista=estoque"
             className="h-9 px-3.5 text-xs font-semibold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
           >
             <Boxes className="w-3.5 h-3.5 text-[var(--color-text-muted)]" /> Estoque
@@ -254,6 +271,34 @@ export default function PainelVarejo() {
         </div>
       }
     >
+      {comissoesPorVendedor.length > 0 && (
+        <div className="mb-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs">
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-3">Vendas e comissão de hoje por vendedor</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                  <th className="py-2 pr-3">Vendedor</th>
+                  <th className="py-2 px-3 text-right">Vendas</th>
+                  <th className="py-2 px-3 text-right">Total vendido</th>
+                  <th className="py-2 pl-3 text-right">Comissão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comissoesPorVendedor.map((c) => (
+                  <tr key={c.vendedor} className="border-t border-[var(--color-border-subtle)]">
+                    <td className="py-2 pr-3 font-semibold text-[var(--color-text-primary)]">{c.vendedor}</td>
+                    <td className="py-2 px-3 text-right font-mono">{c.vendas}</td>
+                    <td className="py-2 px-3 text-right font-mono">R$ {c.total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="py-2 pl-3 text-right font-mono font-bold">R$ {c.comissao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner: Status do Caixa */}
       <div className="mb-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
