@@ -21,6 +21,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
+import { custoParaVenda, eanDoProduto, produtoTemCodigo } from "../../lib/tabelaPrecos";
 import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
 import { ClienteModal } from "./pdv/ClienteModal";
 import { SuspenderModal } from "./pdv/SuspenderModal";
@@ -91,8 +92,6 @@ interface VendaHistorico {
   valor_recebido?: number;
   operador?: string;
   vendedor?: string;
-  nfce_chave?: string;
-  nfce_protocolo?: string;
   created_at: string;
   itens?: CartItemSnapshot[];
   pagamento_detalhe?: string;
@@ -122,6 +121,8 @@ interface CartItem {
   descontoItemPct?: number;
   /** % de comissão do cadastro do produto (0/ausente = produto sem comissão). */
   comissaoPct?: number;
+  /** Custo do cadastro no momento da venda (foto do dia). Vai para venda_items.custo_unitario e alimenta o CMV. */
+  custo?: number | null;
   /** Pessoa da equipe que recebe a comissão deste item. */
   comissaoVendedor?: { nome: string; userId?: string | null } | null;
 }
@@ -297,9 +298,8 @@ export default function VarejoVendas() {
   // Modal de Ajuda / Atalhos
   const [modalAtalhosOpen, setModalAtalhosOpen] = useState(false);
 
-  // Cupom Modal & Tab de NFC-e
+  // Cupom Modal
   const [receiptVenda, setReceiptVenda] = useState<VendaHistorico | null>(null);
-  const [receiptTab, setReceiptTab] = useState<"termico" | "nfce">("termico");
 
   // Caixa Operations State — só fica "aberto" quando uma abertura real for
   // encontrada no banco (ver efeito de carregamento de caixa_operacoes abaixo).
@@ -514,9 +514,10 @@ export default function VarejoVendas() {
           quantidade: 1,
           estoqueDisponivel: estoque,
           sku: product.sku,
-          barcode: product.typeAttributes?.barcode || product.typeAttributes?.ean,
+          barcode: eanDoProduto(product) || undefined,
           category: product.category,
           comissaoPct: Number(product.commission) > 0 ? Number(product.commission) : undefined,
+          custo: custoParaVenda(product),
           // Vendedor já escolhido no topo do PDV vira sugestão; o pop-up confirma ou troca.
           comissaoVendedor: null,
         },
@@ -657,7 +658,7 @@ export default function VarejoVendas() {
   const bloqueioAntesDoPagamento = () =>
     descontoAcimaDoTeto ? `Desconto acima do limite da loja (${cfg.pdv.descontoMaximoPct}%).`
     : cfg.pdv.exigirCliente && !clienteNome.trim() ? "Informe o cliente para finalizar a venda."
-    : cfg.fiscal.exigirCpfNaNota && !clienteCpf.replace(/\D/g, "") ? "Informe o CPF/CNPJ do cliente para emitir a nota."
+    : cfg.fiscal.exigirCpfNaNota && !clienteCpf.replace(/\D/g, "") ? "Informe o CPF/CNPJ do cliente para finalizar a venda."
     : cfg.pdv.exigirVendedor && vendedorSelecionado === VENDEDOR_BALCAO ? "Escolha o vendedor para finalizar a venda."
     : null;
 
@@ -688,9 +689,7 @@ export default function VarejoVendas() {
     const code = barcodeInput.trim().toLowerCase();
     const found = products.find(
       (p: any) =>
-        p.sku?.toLowerCase() === code ||
-        p.typeAttributes?.barcode?.toLowerCase() === code ||
-        p.typeAttributes?.ean?.toLowerCase() === code ||
+        produtoTemCodigo(p, code) ||
         p.name?.toLowerCase().includes(code)
     );
 
@@ -925,7 +924,7 @@ export default function VarejoVendas() {
     const bloqueio =
       descontoAcimaDoTeto ? `Desconto acima do limite da loja (${cfg.pdv.descontoMaximoPct}%).`
       : cfg.pdv.exigirCliente && !clienteNome.trim() ? "Informe o cliente para finalizar a venda."
-      : cfg.fiscal.exigirCpfNaNota && !clienteCpf.replace(/\D/g, "") ? "Informe o CPF/CNPJ do cliente para emitir a nota."
+      : cfg.fiscal.exigirCpfNaNota && !clienteCpf.replace(/\D/g, "") ? "Informe o CPF/CNPJ do cliente para finalizar a venda."
       : cfg.pdv.exigirVendedor && vendedorSelecionado === VENDEDOR_BALCAO ? "Escolha o vendedor para finalizar a venda."
       : formaPagamento === "A Prazo (Crediário)" && cfg.pagamentos.crediarioExigeCliente && !clienteNome.trim() ? "O crediário exige o cliente identificado."
       : null;
@@ -959,10 +958,6 @@ export default function VarejoVendas() {
       const operadorNome = user?.name || "Operador Caixa";
       const recNumber = parseFloat(valorRecebido.replace(",", ".")) || total;
 
-      // Gerar chave NFC-e simulada de 44 dígitos
-      const randomKeyDigits = Array.from({ length: 11 }, () => Math.floor(1000 + Math.random() * 9000)).join(" ");
-      const randomProtocol = `1352600${Math.floor(10000000 + Math.random() * 90000000)}`;
-
       let formaDesc = formaPagamento as string;
       if (formaPagamento === "Cartão de Crédito") {
         formaDesc = `Cartão Crédito (${parcelasCartao}x - ${bandeiraCartao})`;
@@ -990,8 +985,6 @@ export default function VarejoVendas() {
         valor_recebido: formaPagamento === "Dinheiro" ? recNumber : undefined,
         operador: operadorNome,
         vendedor: vendedorSelecionado,
-        nfce_chave: randomKeyDigits,
-        nfce_protocolo: randomProtocol,
         created_at: new Date().toISOString(),
         itens: cart.map((i) => ({
           productId: i.productId,
@@ -1074,6 +1067,7 @@ export default function VarejoVendas() {
           quantidade: item.quantidade,
           // preço líquido: desconto do item e fatia do desconto geral já aplicados
           preco_unitario: Math.round((linhaLiquida(item) / item.quantidade) * discountRatio * 100) / 100,
+          custo_unitario: item.isAvulso ? null : (item.custo ?? null), // foto do custo no dia da venda (null = produto sem custo cadastrado)
           valor_desconto: descontoDoItem(item) > 0 ? descontoDoItem(item) : null,
           comissao_vendedor_id: item.comissaoVendedor && uuidOk(item.comissaoVendedor.userId) ? item.comissaoVendedor.userId : null,
           comissao_vendedor_nome: item.comissaoVendedor?.nome || null,
@@ -1127,7 +1121,6 @@ export default function VarejoVendas() {
       // Atualizar histórico e exibir comprovante
       setHistorico((prev) => [vendaSnap, ...prev]);
       setReceiptVenda(vendaSnap);
-      setReceiptTab("termico");
 
       // Limpar carrinho
       setModalPagamentoOpen(false);
@@ -2038,7 +2031,6 @@ export default function VarejoVendas() {
                             variant="outline"
                             onClick={() => {
                               setReceiptVenda(venda);
-                              setReceiptTab("termico");
                             }}
                             className="h-8 px-2.5 text-xs font-bold gap-1"
                             title="Reimprimir Comprovante / Cupom"
@@ -2099,7 +2091,7 @@ export default function VarejoVendas() {
         </div>
       )}
 
-      {/* ─── MODAL 1: CUPOM TÉRMICO (80mm) & SIMULAÇÃO FISCAL NFC-e ───────── */}
+      {/* ─── MODAL 1: CUPOM TÉRMICO (80mm), documento NÃO-fiscal ───────── */}
       <Modal
         isOpen={Boolean(receiptVenda)}
         onClose={() => setReceiptVenda(null)}
@@ -2110,7 +2102,7 @@ export default function VarejoVendas() {
               <Receipt className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Comprovante de Venda / Cupom <HelpTip label="Sobre Comprovante de Venda / Cupom">Comprovante de venda para impressora térmica de 80 mm, com espelho fiscal de NFC-e.</HelpTip></h3>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Comprovante de Venda / Cupom <HelpTip label="Sobre Comprovante de Venda / Cupom">Comprovante de venda (documento não fiscal) para impressora térmica de 80 mm.</HelpTip></h3>
             </div>
           </div>
         }
@@ -2150,34 +2142,8 @@ export default function VarejoVendas() {
       >
         {receiptVenda && (
           <div className="space-y-3">
-            {/* Chaveador de Visualização: Cupom Térmico vs NFC-e */}
-            <div className="flex rounded-xl bg-[var(--color-surface-sunken)] p-1 gap-1 border border-[var(--color-border-subtle)] text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setReceiptTab("termico")}
-                className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                  receiptTab === "termico"
-                    ? "bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-xs"
-                    : "text-[var(--color-text-muted)]"
-                }`}
-              >
-                <Printer className="w-3.5 h-3.5" /> Cupom Balcão 80mm
-              </button>
-              {cfg.fiscal.mostrarEspelhoNfce && <button
-                type="button"
-                onClick={() => setReceiptTab("nfce")}
-                className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                  receiptTab === "nfce"
-                    ? "bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-xs"
-                    : "text-[var(--color-text-muted)]"
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> NFC-e (simulação)
-              </button>}
-            </div>
-
             {/* ABA TÉRMICA 80mm */}
-            {receiptTab === "termico" && (
+            {(
               <div id="thermal-receipt" className="bg-white text-slate-900 rounded-xl p-4 font-mono text-xs shadow-inner space-y-2.5 border border-slate-200">
                 <div className="text-center border-b border-dashed border-slate-300 pb-2">
                   {cfg.cupom.cabecalho && <p className="text-[10px] text-slate-700 whitespace-pre-line">{cfg.cupom.cabecalho}</p>}
@@ -2266,51 +2232,6 @@ export default function VarejoVendas() {
                   <div className="pt-1 flex justify-center">
                     <Barcode className="w-32 h-6 opacity-70" />
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* ABA NFC-e AUTORIZADA SEFAZ */}
-            {receiptTab === "nfce" && cfg.fiscal.mostrarEspelhoNfce && (
-              <div className="p-4 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-3 text-xs">
-                <div className="flex items-center gap-2 text-emerald-500 font-bold pb-2 border-b border-[var(--color-border-subtle)]">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>SIMULAÇÃO — sem validade fiscal</span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase block mb-1">Chave de Acesso (44 dígitos)</span>
-                  <div className="p-2 bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg font-mono text-[10px] text-blue-500 font-bold break-all flex items-center justify-between">
-                    <span>{receiptVenda.nfce_chave || "3526 0912 3456 7800 0190 6500 1000 0098 4210 2345 6789"}</span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(receiptVenda.nfce_chave || "35260912345678000190650010000098421023456789");
-                        toast.success("Chave da NFC-e copiada!");
-                      }}
-                      className="p-1 hover:text-white"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div>
-                    <span className="text-[10px] text-[var(--color-text-muted)] block">Protocolo (simulado)</span>
-                    <strong className="font-mono text-[var(--color-text-primary)]">{receiptVenda.nfce_protocolo || "135260089234812"}</strong>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-[var(--color-text-muted)] block">Ambiente</span>
-                    <strong className="text-amber-500">Simulação</strong>
-                  </div>
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-white p-2 text-slate-900 flex items-center justify-between gap-2">
-                  <div className="text-[10px]">
-                    <p className="font-bold">Consulta via Leitor QR Code:</p>
-                    <p className="text-[9px] text-slate-600">Simulação: este QR Code não consulta nenhuma nota real.</p>
-                  </div>
-                  <QrCode className="w-12 h-12 shrink-0 text-slate-900" />
                 </div>
               </div>
             )}

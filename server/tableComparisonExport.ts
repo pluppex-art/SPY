@@ -12,6 +12,7 @@
  * O processamento pesado (leitura de milhares de itens, montagem do arquivo) fica no servidor —
  * o navegador só baixa o arquivo pronto.
  */
+import { buscarExames } from "../src/lib/examesBase.js";
 import type { Express, RequestHandler } from "express";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
@@ -82,7 +83,7 @@ async function loadComparison(sb: any, tenantId: string, id: string): Promise<Lo
   if (!comp) return null;
 
   const items = await fetchAll(sb, "saude_comparacao_itens", "*", (q) => q.eq("tenant_id", tenantId).eq("comparacao_id", id).order("linha", { ascending: true }));
-  const bases = await fetchAll(sb, "saude_exames_base", "id,nome,codigo_interno", (q) => q.eq("tenant_id", tenantId));
+  const bases = await buscarExames(sb, tenantId);
   const baseMap = new Map(bases.map((b: any) => [b.id, { nome: b.nome, codigo: b.codigo_interno ?? null }]));
 
   // Nome de quem revisou e da empresa: melhor esforço (a RLS pode esconder — cai para o id/vazio).

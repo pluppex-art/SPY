@@ -36,7 +36,6 @@ export interface VarejoConfig {
     mostrarVendedor: boolean;
   };
   fiscal: {
-    mostrarEspelhoNfce: boolean;     // aba "NFC-e" (espelho) no cupom
     exigirCpfNaNota: boolean;        // CPF/CNPJ do cliente obrigatório para finalizar a venda
     vincularItensAutomaticamente: boolean; // notas de entrada: casar itens com o catálogo por EAN/SKU/nome
   };
@@ -53,7 +52,7 @@ export const DEFAULT_VAREJO_CONFIG: VarejoConfig = {
   pagamentos: { habilitadas: [...FORMAS_PAGAMENTO], padrao: "Dinheiro", crediarioPrazoPadraoDias: 30, crediarioExigeCliente: true },
   estoque: { estoqueMinimoPadrao: 5, alertaEstoqueBaixo: true },
   cupom: { mostrarDadosEmpresa: true, cabecalho: "", rodape: "Obrigado pela preferência!", mensagemTroca: "", mostrarVendedor: true },
-  fiscal: { mostrarEspelhoNfce: false, exigirCpfNaNota: false, vincularItensAutomaticamente: true },
+  fiscal: { exigirCpfNaNota: false, vincularItensAutomaticamente: true },
   compras: { prazoEntregaPadraoDias: 7, margemMinimaPct: 0 },
 };
 

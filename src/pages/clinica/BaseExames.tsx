@@ -1,3 +1,4 @@
+import { buscarExames, produtoDeExame, TIPO_EXAME } from "../../lib/examesBase";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileUp, FlaskConical, Loader2, Pencil, Plus, Trash2, Tag, Wallet, Layers, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -48,14 +49,8 @@ export default function BaseExames() {
 
   const carregar = async () => {
     if (!supabase || !activeTenantId) return;
-    const all: any[] = [];
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await supabase.from("saude_exames_base").select("*").eq("tenant_id", activeTenantId).order("nome").range(from, from + 999);
-      if (error) { toast.error("Não foi possível carregar a base de exames."); setExames([]); return; }
-      all.push(...(data || []));
-      if (!data || data.length < 1000) break;
-    }
-    setExames(all);
+    try { setExames(await buscarExames(supabase, activeTenantId)); }
+    catch { toast.error("Não foi possível carregar a base de exames."); setExames([]); }
   };
   useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [activeTenantId]);
 
@@ -95,11 +90,17 @@ export default function BaseExames() {
       material: form.material.trim() || null, unidade: form.unidade.trim() || null, custo, valor,
       parceiro: form.parceiro.trim() || null, observacoes: form.observacoes.trim() || null, ativo: form.ativo,
     };
+    const cod = (row.codigo_interno || "").toLowerCase();
+    if (cod && (exames || []).some((x) => x.id !== form.id && (x.codigo_interno || "").toLowerCase() === cod)) {
+      setSalvando(false); toast.error("Já existe um exame com esse código interno."); return;
+    }
+    const taAtual = (exames || []).find((x) => x.id === form.id)?.ta || {};
+    const prod = produtoDeExame(row, taAtual);
     const { error } = form.id
-      ? await supabase.from("saude_exames_base").update(row).eq("id", form.id).eq("tenant_id", activeTenantId)
-      : await supabase.from("saude_exames_base").insert({ ...row, tenant_id: activeTenantId, origem: "manual" });
+      ? await supabase.from("products").update(prod).eq("id", form.id).eq("tenant_id", activeTenantId).eq("type", TIPO_EXAME)
+      : await supabase.from("products").insert({ ...prod, tenant_id: activeTenantId });
     setSalvando(false);
-    if (error) { toast.error(error.code === "23505" ? "Já existe um exame com esse código interno." : "Não foi possível salvar."); return; }
+    if (error) { toast.error("Não foi possível salvar."); return; }
     toast.success("Exame salvo.");
     setForm(null);
     carregar();
@@ -108,7 +109,7 @@ export default function BaseExames() {
   const excluir = async (e: any) => {
     if (!supabase || !activeTenantId) return;
     if (!(await confirmDialog({ description: `Excluir "${e.nome}" da base? Equivalências confirmadas ligadas a ele também são removidas.` }))) return;
-    const { error } = await supabase.from("saude_exames_base").delete().eq("id", e.id).eq("tenant_id", activeTenantId);
+    const { error } = await supabase.from("products").delete().eq("id", e.id).eq("tenant_id", activeTenantId).eq("type", TIPO_EXAME);
     if (error) { toast.error("Não foi possível excluir."); return; }
     setExames((prev) => (prev || []).filter((x) => x.id !== e.id));
   };
@@ -156,9 +157,9 @@ export default function BaseExames() {
         if (k && seenCode.has(k)) return { ...n, codigo_interno: null };
         if (k) seenCode.add(k);
         return n;
-      }).map((n) => ({ ...n, tenant_id: activeTenantId, origem: "importacao" as const }));
+      }).map((n) => ({ ...produtoDeExame({ ...n, ativo: true }), tenant_id: activeTenantId, externo_sistema: "importacao_exames" }));
       for (let i = 0; i < rows.length; i += 500) {
-        const { error } = await supabase.from("saude_exames_base").insert(rows.slice(i, i + 500));
+        const { error } = await supabase.from("products").insert(rows.slice(i, i + 500));
         if (error) throw error;
       }
       toast.success(`${rows.length} exames importados para a base.`);

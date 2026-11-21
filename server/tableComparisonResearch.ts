@@ -12,6 +12,7 @@
  *
  * A IA e a busca rodam no n8n (server/tableComparisonN8n.ts); nenhuma chave de IA vive neste servidor.
  */
+import { buscarExames } from "../src/lib/examesBase.js";
 import type { Express, RequestHandler } from "express";
 import {
   DEFAULT_FINANCE_RULES, DEFAULT_MATCH_CONFIG, buildBaseIndex, computeFinance, criticalDiff, matchItem, tokenize,
@@ -146,7 +147,7 @@ export async function runResearchPass(opts: { sb: any; tenantId: string; compari
 
   const matchCfg: MatchConfig = { ...DEFAULT_MATCH_CONFIG, ...(comp.config?.match || {}) };
   const rules: FinanceRules = comp.config?.rules || DEFAULT_FINANCE_RULES;
-  const baseRows = await fetchAll(sb, "saude_exames_base", "id,nome,codigo_interno,codigo_externo,nomes_alternativos,custo,valor", (q) => q.eq("tenant_id", tenantId).eq("ativo", true));
+  const baseRows = await buscarExames(sb, tenantId, (q) => q.eq("active", true));
   const mem = await fetchAll(sb, "saude_equivalencias", "exame_base_id,nome_parceiro_norm,codigo_parceiro,parceiro", (q) => q.eq("tenant_id", tenantId).eq("status", "ativa").in("parceiro", ["", comp.parceiro]));
   const baseById = new Map<string, BaseItem>(baseRows.map((b: any) => [b.id, { ...b, custo: toNum(b.custo), valor: toNum(b.valor) }]));
   const index = buildBaseIndex([...baseById.values()], mem as Equivalence[], matchCfg);

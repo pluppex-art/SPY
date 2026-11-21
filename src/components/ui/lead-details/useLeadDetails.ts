@@ -10,6 +10,7 @@ import { getStageId, findWonStage } from "../../../lib/funilStages";
 import { FUNIS_DEFAULT } from "../../../pages/settings/sections/crm/funisTypes";
 import { WIN_FUNIL_CONFIG_KEY } from "../../../lib/implementationStage";
 import { statusFromStageName } from "../../../lib/leadStatus";
+import { margemPct } from "../../../lib/tabelaPrecos";
 
 // ─── Stage helpers ────────────────────────────────────────────────────────────
 
@@ -475,7 +476,7 @@ export function useLeadDetails(lead: any, onClose: () => void) {
     const priceNum = Number(data.price) || 0;
     const costNum = Number(data.cost) || 0;
     const commNum = Number(data.commission) || 0;
-    const marginRatio = priceNum > 0 ? parseFloat((((priceNum - costNum) / priceNum) * 100).toFixed(1)) : 0;
+    const marginRatio = margemPct(priceNum, costNum);
 
     const newProd = {
       id: crypto.randomUUID(),

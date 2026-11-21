@@ -38,7 +38,7 @@ export function useIAOverview() {
       if (f) q = f(q);
       return q.then((r: any) => r.count ?? 0, () => 0);
     };
-    const rows = <T,>(p: PromiseLike<any>): Promise<T[]> => p.then((r: any) => (r.data as T[]) || [], () => []);
+    const rows = <T,>(p: PromiseLike<any>): Promise<T[]> => Promise.resolve(p).then((r: any) => (r.data as T[]) || [], () => []);
     const [interacoes7d, handoffs7d, erros7d, falhasModelo7d, aprendizados, conhecimentoTotal, promptsPersonalizados,
       recentes, insights, conhecimento, gatilhos, cfg] = await Promise.all([
       count("julia_interaction_log", (q) => q.gte("created_at", since7d())),

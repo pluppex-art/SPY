@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  Receipt, Plus, QrCode, Copy, CheckCircle2, Clock,
+  Receipt, Plus, QrCode, CheckCircle2, Clock,
   AlertTriangle, ExternalLink, DollarSign, X, Trash2, Check, Download,
   Send, MessageCircle, Mail, Eye, User, FolderOpen, Landmark, Wallet, CreditCard, Hash, AlignLeft, Calendar, FileText, Save, Info, Loader2
 } from "lucide-react";
@@ -123,12 +123,6 @@ export default function FinanceiroCobrancas() {
   useEffect(() => { setPage(0); }, [search, statusFilter, metodoFilter]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-
-  const handleCopyPix = (cliente: string, valor: number) => {
-    const pixPayload = `00020126580014br.gov.bcb.pix0136${Math.random().toString(36).substring(2, 15)}520400005303986540${valor.toFixed(2)}5802BR5913SPY GESTAO6009SAO PAULO62070503***6304${Math.floor(1000 + Math.random() * 9000)}`;
-    navigator.clipboard.writeText(pixPayload);
-    toast.success(`Chave Copia e Cola Pix gerada para ${cliente}!`);
-  };
 
   const openSendCobranca = (c: { id: string; cliente: string; valor: number; vencimento: string; contatoId?: string | null }) => {
     setSendingCobranca(c);
@@ -260,7 +254,7 @@ export default function FinanceiroCobrancas() {
   return (
     <PageContainer
       title="Gestão de Cobranças & Faturamento"
-      description="Emita e acompanhe faturas, boletos e cobranças por Pix, com conciliação automática dos pagamentos."
+      description="Registre e acompanhe as cobranças e faturas, e envie o lembrete ao cliente por WhatsApp ou e-mail."
       actions={
         <div className="flex items-center gap-2">
           <FinancePeriodFilter />
@@ -375,12 +369,6 @@ export default function FinanceiroCobrancas() {
                       className="p-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] transition-colors"
                     >
                       <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleCopyPix(c.cliente, c.valor)}
-                      className="px-2.5 py-1 rounded-lg bg-[var(--color-surface-sunken)] hover:bg-[var(--color-primary-blue)] hover:text-white border border-[var(--color-border-default)] text-[11px] font-bold transition-all inline-flex items-center gap-1"
-                    >
-                      <Copy className="w-3 h-3" /> Pix
                     </button>
                     <button
                       onClick={() => openSendCobranca(c)}
@@ -551,7 +539,6 @@ export default function FinanceiroCobrancas() {
                 </Button>
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="outline" onClick={() => { setDetalhe(null); setShowModal(true); }} className="h-9 px-3 text-xs font-bold gap-1.5"><Plus className="w-3.5 h-3.5" /> Nova cobrança</Button>
-                  <Button type="button" variant="outline" onClick={() => handleCopyPix(detalhe.cliente, detalhe.valor)} className="h-9 px-3 text-xs font-bold gap-1.5"><Copy className="w-3.5 h-3.5" /> Pix</Button>
                   <Button type="button" onClick={() => { const c = detalhe; setDetalhe(null); openSendCobranca(c); }} className="h-9 px-4 text-xs font-bold gap-1.5"><Send className="w-3.5 h-3.5" /> Enviar</Button>
                 </div>
               </div>

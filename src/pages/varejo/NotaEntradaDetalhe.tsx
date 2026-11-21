@@ -18,6 +18,7 @@ import {
 } from "../../lib/notaEntrada";
 import { cn } from "../../lib/utils";
 import { friendlyError } from "../../lib/friendlyError";
+import { margemPct } from "../../lib/tabelaPrecos";
 
 const inputCls =
   "w-full bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)] disabled:opacity-60";
@@ -192,7 +193,7 @@ export default function NotaEntradaDetalhe() {
     const productId = crypto.randomUUID();
     await addProduct({
       id: productId, name: novoProd.name.trim(), sku: novoProd.sku.trim(), category: "Geral", type: "Físico",
-      price: preco, cost: custo, margin: preco > 0 ? Math.round(((preco - custo) / preco) * 1000) / 10 : 0, commission: 5, active: true,
+      price: preco, cost: custo, margin: margemPct(preco, custo), commission: 5, active: true,
       currentStock: 0, stockMin: 5, stockMax: 25, provider: nota.fornecedor_nome || "", tags: ["varejo"],
       typeAttributes: { barcode: novoProdItem.ean || "", ean: novoProdItem.ean || "" },
     });
@@ -222,7 +223,7 @@ export default function NotaEntradaDetalhe() {
       }
       setProducts(products.map((p: any) => {
         const add = porProduto.get(p.id);
-        return add ? { ...p, currentStock: (p.currentStock ?? 0) + add.qtd, ...(atualizarCusto && add.custo > 0 ? { cost: add.custo } : {}) } : p;
+        return add ? { ...p, currentStock: (p.currentStock ?? 0) + add.qtd, ...(atualizarCusto && add.custo > 0 ? { cost: add.custo, margin: margemPct(p.price, add.custo) } : {}) } : p;
       }));
       toast.success(`Entrada confirmada: +${unidades} unidade(s) no estoque.`);
       carregar();

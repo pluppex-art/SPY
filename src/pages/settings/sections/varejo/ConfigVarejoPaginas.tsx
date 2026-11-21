@@ -97,7 +97,6 @@ export function ConfigVarejoFiscal() {
       fields={[
         { kind: "toggle", key: "vincularItensAutomaticamente", label: "Vincular itens das notas ao catálogo", hint: "Ao importar uma nota, casa cada item com o produto por código de barras, SKU ou nome (só quando não há dúvida)." },
         { kind: "toggle", key: "exigirCpfNaNota", label: "Exigir CPF/CNPJ do cliente na venda", hint: "O caixa só finaliza a venda com o documento preenchido, para a nota sair com o cliente identificado." },
-        { kind: "toggle", key: "mostrarEspelhoNfce", label: "Mostrar o espelho da NFC-e no cupom", hint: "Aba de pré-visualização depois da venda. É uma simulação do layout, não uma nota emitida." },
       ]}
       footer={<p className="text-xs text-[var(--color-text-muted)]">A conexão com a Max Data (chaves e teste) fica em <strong>Conexões (Max Data)</strong>, neste mesmo grupo.</p>}
     />
