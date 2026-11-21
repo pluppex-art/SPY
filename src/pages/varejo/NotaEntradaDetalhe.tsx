@@ -101,7 +101,7 @@ export default function NotaEntradaDetalhe() {
   }
   if (nota === null) {
     return (
-      <PageContainer title="Nota de Entrada" breadcrumb={[{ label: "Varejo" }, { label: "Notas de Entrada", path: "/app/varejo/notas-entrada" }, { label: "Detalhe" }]}>
+      <PageContainer title="Nota de Entrada" breadcrumb={[{ label: "Operações & Catálogo" }, { label: "Notas de Entrada", path: "/app/varejo/notas-entrada" }, { label: "Detalhe" }]}>
         <EmptyState icon={Boxes} title="Nota não encontrada" action={<Link to="/app/varejo/notas-entrada"><Button variant="outline" className="h-9 px-4 text-xs gap-1.5"><ArrowLeft className="w-3.5 h-3.5" /> Voltar</Button></Link>} />
       </PageContainer>
     );
@@ -254,7 +254,7 @@ export default function NotaEntradaDetalhe() {
     <PageContainer
       title={`NF ${nota.numero || "s/n"}${nota.serie ? `/${nota.serie}` : ""} — ${nota.fornecedor_nome || "Fornecedor"}`}
       description="Confira os dados, ligue cada item a um produto e dê entrada no estoque."
-      breadcrumb={[{ label: "Varejo" }, { label: "Notas de Entrada", path: "/app/varejo/notas-entrada" }, { label: `NF ${nota.numero || "s/n"}` }]}
+      breadcrumb={[{ label: "Operações & Catálogo" }, { label: "Notas de Entrada", path: "/app/varejo/notas-entrada" }, { label: `NF ${nota.numero || "s/n"}` }]}
       actions={
         <div className="flex items-center gap-2 flex-wrap">
           {!locked ? (

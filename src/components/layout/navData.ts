@@ -123,6 +123,9 @@ export const navSections = [
     items: [
       { name: "Catálogo de Produtos", path: "/app/produtos", icon: FolderOpen, reqModule: "catalogo-produtos" },
       { name: "Ordens de Serviço", path: "/app/ordens-servico", icon: Wrench, reqModule: "catalogo" },
+      { name: "Fornecedores", path: "/app/varejo/fornecedores", icon: Truck, reqModule: "varejo" },
+      { name: "Pedidos de Compra", path: "/app/varejo/compras", icon: ClipboardList, reqModule: "varejo" },
+      { name: "Notas de Entrada", path: "/app/varejo/notas-entrada", icon: FileText, reqModule: "varejo" },
     ],
   },
   {
@@ -184,15 +187,11 @@ export const navSections = [
     ],
   },
   {
-    title: "Varejo",
+    title: "Frente de Caixa",
     reqModule: "varejo",
     items: [
-      { name: "Painel de Varejo", path: "/app/varejo/dashboard", icon: LayoutDashboard },
-      { name: "Frente de Caixa (PDV)", path: "/app/varejo/vendas", icon: ShoppingCart },
-      { name: "Movimentações de Estoque", path: "/app/varejo/estoque", icon: Boxes },
-      { name: "Fornecedores", path: "/app/varejo/fornecedores", icon: Truck },
-      { name: "Pedidos de Compra", path: "/app/varejo/compras", icon: ClipboardList },
-      { name: "Notas de Entrada", path: "/app/varejo/notas-entrada", icon: FileText },
+      { name: "Painel de Vendas", path: "/app/varejo/dashboard", icon: LayoutDashboard },
+      { name: "PDV", path: "/app/varejo/vendas", icon: ShoppingCart },
     ],
   },
   {
