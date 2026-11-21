@@ -21,6 +21,7 @@
  * que o allowlist não previu.
  */
 import type { Express, RequestHandler } from "express";
+import { formatBRL } from "../src/lib/dinheiro.js";
 import { createHmac, timingSafeEqual } from "crypto";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -174,7 +175,7 @@ const num = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-const brl = (v: unknown) => num(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = (v: unknown) => formatBRL(num(v));
 
 async function buildPdf(sb: any, payload: ReportTokenPayload): Promise<Buffer> {
   const entity = REPORT_ENTITIES[payload.e];

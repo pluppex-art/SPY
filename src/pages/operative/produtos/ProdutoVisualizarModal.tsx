@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
+import { formatBRL } from "../../../lib/dinheiro";
 import { margemPct } from "../../../lib/tabelaPrecos";
 import { createPortal } from "react-dom";
 import { X, Package, DollarSign, Layers, Info, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "../../../lib/apiClient";
 
-const brl = (n: any) => (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = (n: any) => formatBRL(n);
 const num = (n: any) => (Number(n) || 0).toLocaleString("pt-BR");
 const ORIGEM: Record<string, string> = { "maxdata:estoque": "Casa São Paulo (principal)", "maxdata:notas": "SR (filial)" };
 

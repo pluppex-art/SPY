@@ -3,6 +3,7 @@
 // vazia em dev local. Em produção (Vercel) isso é um no-op inofensivo, já que as variáveis já
 // chegam injetadas de verdade no processo.
 import "dotenv/config";
+import { round2 } from "./src/lib/dinheiro.js";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -1681,7 +1682,6 @@ app.get("/api/finance/fluxo-caixa-summary", requireUserOrInternalService, async 
       buckets.set(r.date_normalized, cur);
     }
 
-    const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
     let acumulado = 0;
     const fluxoDiario = Array.from(buckets.keys()).sort().map((key) => {
       const b = buckets.get(key)!;

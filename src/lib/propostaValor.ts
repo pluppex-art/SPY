@@ -1,4 +1,5 @@
 import { getProposalMonthlyTotal, getProposalOneTimeTotal, getProposalDiscountRatio } from "./saleCalculator";
+import { formatBRL } from "./dinheiro";
 
 /** Como o valor de uma proposta é APRESENTADO ao cliente (página pública, documento e PDFs).
  *  Regra do produto: recorrente (mensalidade, tipo Netflix) mostra o valor do MÊS — nunca o
@@ -25,7 +26,7 @@ export interface ResumoValorProposta {
   adicional?: { rotulo: string; valor: number };
 }
 
-const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = (n: number) => formatBRL(n);
 
 export function resumoValorProposta(
   valorProposta: number | null | undefined,

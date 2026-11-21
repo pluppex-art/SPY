@@ -1,11 +1,12 @@
-// Módulo único do DRE (decisão 8 da Fase 1): tela e servidor importam ESTE arquivo. Sem imports (o servidor roda em Node ESM).
+// Módulo único do DRE (decisão 8 da Fase 1): tela e servidor importam ESTE arquivo. Único import: ../dinheiro.js (com .js, o servidor roda em Node ESM).
 //
 // Dois cálculos convivem:
 //  • calcularDRELegado  — exatamente o DRE de hoje (4 linhas por subtipo). Vale para lançamentos antigos e para a tela atual.
 //  • calcularDreCompleto — o DRE da Fase 1 (10 grupos do plano de contas): receita bruta, deduções, CMV, EBITDA, depreciação,
 //                          resultado financeiro, IR/CSLL. Linha vem de finance_categories.linha_dre.
 
-export const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
+import { round2 } from "../dinheiro.js";
+export { round2 };
 const num = (v: unknown): number => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 
 // ─────────────────────────── DRE legado (comportamento de hoje, sem mudança) ───────────────────────────

@@ -1,4 +1,5 @@
 import { resumoValorProposta } from "../../lib/propostaValor";
+import { formatBRL } from "../../lib/dinheiro";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { Calendar, CreditCard, ShieldCheck, CheckCircle2, Mail, MapPin, Phone, Pencil } from "lucide-react";
 import { Card } from "../ui/card";
@@ -81,7 +82,7 @@ interface PropostaDocumentoProps {
 }
 
 export function formatMoney(v: number | null | undefined) {
-  return (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return formatBRL(v);
 }
 
 export function formatDate(v: string | null | undefined) {

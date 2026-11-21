@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { formatBRLCentavos } from "../../lib/dinheiro";
 import { Link, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import { supabase } from "../../lib/supabase";
@@ -21,7 +22,7 @@ const POLITICA_VERSAO = "2026-11";
 const lsGet = () => { try { return localStorage.getItem(LS_TOKEN) || ""; } catch { return ""; } };
 const lsSet = (v: string) => { try { if (v) localStorage.setItem(LS_TOKEN, v); else localStorage.removeItem(LS_TOKEN); } catch { /* sem armazenamento: segue sem */ } };
 
-const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = (c: number) => formatBRLCentavos(c);
 
 const maskDoc = (v: string) => {
   const d = v.replace(/\D/g, "").slice(0, 14);

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { formatBRL } from "../../../lib/dinheiro";
 import { Receipt } from "lucide-react";
 import { Card } from "../card";
 import { EmptyState } from "../empty-state";
@@ -19,7 +20,7 @@ interface Venda {
   value: number;
 }
 
-const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = formatBRL;
 
 const formatDate = (raw: string) => {
   if (!raw) return "—";

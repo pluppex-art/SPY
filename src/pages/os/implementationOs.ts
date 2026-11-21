@@ -5,6 +5,7 @@
 // implementação) e a ETAPA da implementação passa a ser a etapa dessa OS no funil
 // configurado — a página de Implementações e o quadro da OS mostram o mesmo dado.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { formatBRL } from "../../lib/dinheiro";
 import { rowToDepartamento, rowToFunil, rowToOrdem } from "./osMappers";
 import { dadosDoCliente } from "./clienteOs";
 import { statusDaEtapa, type OrdemServico, type OsDepartamento, type OsEtapa, type OsFunil } from "./osTypes";
@@ -63,7 +64,7 @@ export async function carregarFonteImplementacao(supabase: SupabaseClient, tenan
   return { departamento: dep, funis, ordens: (ordens ?? []).map(rowToOrdem) };
 }
 
-const brl = (v: any) => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = (v: any) => formatBRL(v);
 
 /** Produtos do negócio (lead.productIds) que existem no catálogo. */
 export function produtosDoNegocio(lead: any, produtos: any[] = []): any[] {

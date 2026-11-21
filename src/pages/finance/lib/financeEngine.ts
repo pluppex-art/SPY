@@ -1,4 +1,5 @@
 import { parseEntryDate } from "./financeDates";
+import { round2 } from "../../../lib/dinheiro";
 import { calcularDRELegado } from "../../../lib/dre/dre";
 
 /**
@@ -42,9 +43,7 @@ export const isPendente = (e: FinanceEntryLike) => e.status !== "Pago";
 /** Arredonda pra 2 casas evitando o acúmulo de erro de ponto flutuante do
  * JS puro (0.1 + 0.2 !== 0.3) — não é decimal de precisão arbitrária, mas
  * garante que toda soma/exibição de dinheiro feche em centavos exatos. */
-export function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
+export { round2 };
 
 export function isInMonth(dateStr: string | undefined, year: number, month: number): boolean {
   const d = parseEntryDate(dateStr);

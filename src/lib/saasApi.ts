@@ -1,4 +1,5 @@
 import { apiFetch } from "./apiClient";
+import { formatBRLCentavos } from "./dinheiro";
 
 export type Plan = {
   id: string; code: string; name: string; price_cents: number; billing_interval: "monthly" | "yearly";
@@ -73,7 +74,7 @@ export const tierPayload = (t: CreditTier, over: Record<string, any> = {}) => ({
   productId: t.product_id ?? null, showOnSite: t.show_on_site !== false, ...over,
 });
 
-export const brl = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export const brl = (cents: number) => formatBRLCentavos(cents);
 export const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
 export const STATUS_LABEL: Record<string, string> = { trial: "Em teste", active: "Ativa", past_due: "Em atraso", suspended: "Suspensa", canceled: "Cancelada", none: "Sem assinatura" };
 
