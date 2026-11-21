@@ -62,21 +62,23 @@ function loadImg(src: string): Promise<HTMLImageElement> {
   }));
 }
 
-/** Favicon = ícone oficial do espião, pintado com a cor da empresa (a mesma dos botões), sobre um disco escuro. */
-export async function updateFaviconColor(hex: string) {
-  if (typeof document === "undefined" || !isValidBrandHex(hex)) return;
-  const seq = ++faviconSeq;
+const iconeCache = new Map<string, string>();
+
+/** Ícone oficial do espião pintado com a cor da empresa, sobre um disco escuro (PNG em data URL). Mesmo desenho do favicon. */
+export async function gerarIconeMarca(hex: string, N = 128, redondo = true): Promise<string | null> {
+  if (typeof document === "undefined" || !isValidBrandHex(hex)) return null;
+  const chave = `${hex.toLowerCase()}:${N}:${redondo ? "r" : "q"}`;
+  const guardado = iconeCache.get(chave);
+  if (guardado) return guardado;
   try {
     const [white, mask] = await Promise.all([loadImg("/logo-icon-white.webp"), loadImg("/logo-icon-color.webp")]);
-    if (seq !== faviconSeq) return; // uma troca de cor mais nova já está a caminho
-    const N = 128;
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = N;
     const g = canvas.getContext("2d");
-    if (!g) return;
+    if (!g) return null;
     g.fillStyle = "#0B1120";
     g.beginPath();
-    g.arc(N / 2, N / 2, N / 2, 0, Math.PI * 2);
+    if (redondo) g.arc(N / 2, N / 2, N / 2, 0, Math.PI * 2); else g.rect(0, 0, N, N);
     g.fill();
     g.drawImage(white, 0, 0, N, N);
     const tint = document.createElement("canvas");
@@ -87,15 +89,33 @@ export async function updateFaviconColor(hex: string) {
     t.fillStyle = hex;
     t.fillRect(0, 0, N, N);
     g.drawImage(tint, 0, 0);
-    document.querySelectorAll('link[rel~="icon"]').forEach((el) => el.remove());
-    const link = document.createElement("link");
-    link.rel = "icon";
-    link.type = "image/png";
-    link.href = canvas.toDataURL("image/png");
-    document.head.appendChild(link);
+    const url = canvas.toDataURL("image/png");
+    iconeCache.set(chave, url);
+    return url;
   } catch {
-    /* sem canvas/imagem: fica o favicon estático do index.html */
+    return null;   // sem canvas/imagem: quem chama usa o ícone padrão
   }
+}
+
+/** Cor da empresa que está aplicada agora no tema (a mesma dos botões). */
+export function corDaEmpresaAtual(): string | null {
+  if (typeof document === "undefined") return null;
+  const v = getComputedStyle(document.documentElement).getPropertyValue("--color-primary-blue").trim();
+  return isValidBrandHex(v) ? v : null;
+}
+
+/** Favicon = ícone oficial do espião, pintado com a cor da empresa (a mesma dos botões), sobre um disco escuro. */
+export async function updateFaviconColor(hex: string) {
+  if (typeof document === "undefined" || !isValidBrandHex(hex)) return;
+  const seq = ++faviconSeq;
+  const url = await gerarIconeMarca(hex, 128, true);
+  if (!url || seq !== faviconSeq) return; // uma troca de cor mais nova já está a caminho
+  document.querySelectorAll('link[rel~="icon"]').forEach((el) => el.remove());
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.type = "image/png";
+  link.href = url;
+  document.head.appendChild(link);
 }
 
 function whiteContrast(hex: string): number {

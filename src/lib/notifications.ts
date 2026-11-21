@@ -1,3 +1,4 @@
+import { corDaEmpresaAtual, gerarIconeMarca } from "./theme";
 export const isPushSupported = (): boolean => {
   return typeof window !== "undefined" && "Notification" in window;
 };
@@ -18,13 +19,16 @@ export const requestNotificationPermission = async (): Promise<NotificationPermi
   }
 };
 
-export const sendPushNotification = (title: string, body: string, icon = "/pwa-192.png") => {
+export const sendPushNotification = async (title: string, body: string, icon?: string) => {
   if (isPushSupported() && Notification.permission === "granted") {
     try {
+      // Sem ícone informado: o logo do S.P.Y. na cor da empresa (cai no ícone padrão se não der para gerar).
+      const cor = corDaEmpresaAtual();
+      const marca = icon ?? (cor ? await gerarIconeMarca(cor, 192, false) : null) ?? "/pwa-192.png";
       new Notification(title, {
         body,
-        icon,
-        badge: icon,
+        icon: marca,
+        badge: marca,
         silent: true, // som é tratado separadamente pelo app
       });
     } catch (e) {

@@ -2,7 +2,8 @@ import { toast } from "sonner";
 import { formatBRL } from "./dinheiro";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Info, AlertTriangle, XCircle, CircleDollarSign, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { corDaEmpresaAtual, gerarIconeMarca } from "./theme";
 import { isSaleSoundEnabled, playSaleSound } from "./notifications";
 
 // Pop-ups do S.P.Y. no formato de notificação de app (banner do Instagram/TikTok/YouTube): logo do S.P.Y. com um
@@ -38,6 +39,15 @@ interface CardProps {
 
 function PopupCard({ toastId, badge, color, title, description, meta, highlight, linkUrl, celebratory }: CardProps) {
   const navigate = useNavigate();
+  // Logo na cor da empresa (a mesma dos botões e do favicon); até gerar, ou sem canvas, fica o ícone padrão.
+  const [iconeMarca, setIconeMarca] = useState("/pwa-192.png");
+  useEffect(() => {
+    const cor = corDaEmpresaAtual();
+    if (!cor) return;
+    let vivo = true;
+    gerarIconeMarca(cor, 96, false).then((url) => { if (vivo && url) setIconeMarca(url); });
+    return () => { vivo = false; };
+  }, []);
   // Só segue links internos do app (nunca um endereço externo vindo de uma notificação).
   const internalLink = linkUrl && linkUrl.startsWith("/") && !linkUrl.startsWith("//") ? linkUrl : null;
   const open = () => { if (internalLink) navigate(internalLink); toast.dismiss(toastId); };
@@ -52,7 +62,7 @@ function PopupCard({ toastId, badge, color, title, description, meta, highlight,
         style={{ background: `color-mix(in srgb, ${celebratory ? color : "var(--color-surface-elevated)"} ${celebratory ? 9 : 0}%, color-mix(in srgb, var(--color-surface-elevated) 92%, transparent))` }}
       >
         <span className="relative shrink-0 mt-0.5">
-          <img src="/pwa-192.png" alt="" aria-hidden="true" width={40} height={40} className="w-10 h-10 rounded-[10px] object-cover" />
+          <img src={iconeMarca} alt="" aria-hidden="true" width={40} height={40} className="w-10 h-10 rounded-[10px] object-cover" />
           <span
             className="absolute -right-1.5 -bottom-1.5 w-[18px] h-[18px] rounded-full flex items-center justify-center text-white ring-2 ring-[var(--color-surface-elevated)]"
             style={{ background: color }}

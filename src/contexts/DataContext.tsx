@@ -29,12 +29,12 @@ import { isDateLocked } from "../pages/finance/lib/financeEngine";
 import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
 import { friendlyError } from "../lib/friendlyError";
-import { normalizarStatusLead } from "../lib/leadStatus";
+import { isLeadWon, normalizarStatusLead } from "../lib/leadStatus";
 import { mapaPapelPorEtapa, statusPelaEtapa } from "../lib/statusPelaEtapa";
 import { vendasDiretasComoContratos } from "../lib/vendasDiretas";
 import { completarBaixa } from '../pages/finance/lib/baixa';
 import { montarEstorno, podeEstornar } from '../pages/finance/lib/estorno';
-import { deveLancarGanho, idLancamentoDoGanho, montarLancamentoDoGanho } from '../pages/finance/lib/ganho';
+import { deveLancarGanho, ehGanhoDoAgente, idLancamentoDoGanho, montarLancamentoDoGanho } from '../pages/finance/lib/ganho';
 import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio, getProposalHeadlineFromItems, addMonthsClamped, splitInstallments } from "../lib/saleCalculator";
 import { isSellerRestricted, scopeToSeller } from "../lib/sellerScope";
 
@@ -317,7 +317,7 @@ const normalizeFinanceEntry = (r: any): FinanceEntry => ({
 });
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const { user, authLoading, updatePreferences, activeTenantId, activeFilialId } = useAuth();
+  const { user, authLoading, updatePreferences, activeTenantId, activeFilialId, isModuleEnabled } = useAuth();
   // Os pop-ups em tempo real rodam em callbacks de longa vida: leem o usuário atual por ref (preferências e vendedor).
   const userRef = React.useRef(user);
   userRef.current = user;
@@ -2266,6 +2266,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setFinanceEntries(prev => (prev.some((f: any) => f.id === lanc.id) ? prev : [lanc, ...prev]));
     } catch (e: any) { console.warn('[ganho] financeiro:', e?.message); }
   };
+
+  // Reconciliação: ganho que o Agente Secreto (ou uma integração) levou para a etapa Ganho sem passar pela tela também cai
+  // no financeiro. Espera propostas e leads carregarem (para não lançar quem já tem proposta) e só lança o que tem valor.
+  const ganhosAgenteLancadosRef = React.useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!leadsAuthoritativeLoadedRef.current || !proposalsLoaded || !isModuleEnabled('financeiro')) return;
+    const agora = Date.now();
+    const candidatos = (leads as any[]).filter(
+      (l) => isLeadWon(l.status) && ehGanhoDoAgente(l, agora) && !ganhosAgenteLancadosRef.current.has(l.id),
+    );
+    for (const l of candidatos) {
+      ganhosAgenteLancadosRef.current.add(l.id);
+      void lancarFinanceiroDoGanho(l);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads, proposalsLoaded]);
 
   const deleteLead = async (id: string): Promise<boolean> => {
     const removed = leads.find(l => l.id === id);

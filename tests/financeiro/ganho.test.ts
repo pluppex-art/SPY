@@ -20,3 +20,15 @@ test("lançamento do ganho: conta a receber pendente, id fixo por negócio, cate
   const sem = montarLancamentoDoGanho({ id: "L2", name: "Maria" }, 10, "2026-11-21", []);
   assert.equal(sem.category, "Vendas"); assert.equal(sem.category_id, null); assert.equal(sem.description, "Venda - Maria");
 });
+
+import { ehGanhoDoAgente } from "../../src/pages/finance/lib/ganho.js";
+test("ganho do Agente Secreto: só o dele e só recente (histórico importado e reservas ficam de fora)", () => {
+  const agora = new Date("2026-11-21T18:00:00Z").getTime();
+  assert.equal(ehGanhoDoAgente({ source: "Agente Secreto SPY", updated_at: "2026-11-21T17:00:00Z" }, agora), true);
+  assert.equal(ehGanhoDoAgente({ source: "agente  secreto", date: "2026-10-01" }, agora), true);
+  assert.equal(ehGanhoDoAgente({ source: "Agente Secreto SPY", updated_at: "2026-06-01T00:00:00Z" }, agora), false);   // antigo demais
+  assert.equal(ehGanhoDoAgente({ source: "Max Data", updated_at: "2026-11-21T17:00:00Z" }, agora), false);
+  assert.equal(ehGanhoDoAgente({ source: "Instagram", updated_at: "2026-11-21T17:00:00Z" }, agora), false);
+  assert.equal(ehGanhoDoAgente({ source: "Agente Secreto SPY" }, agora), false);                                       // sem data não dá para saber
+  assert.equal(ehGanhoDoAgente({ source: null, updated_at: "2026-11-21T17:00:00Z" }, agora), false);
+});
