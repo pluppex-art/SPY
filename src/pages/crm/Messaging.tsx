@@ -1,3 +1,4 @@
+import { uniqueSellers, sameSeller } from "../../lib/sellerNames";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { MessageCircle, Users, Bot, Loader2 } from "lucide-react";
@@ -117,14 +118,14 @@ export default function Messaging() {
   });
   const iaOptions = iasPermitidas.map((a) => ({ id: a.id, label: a.label, count: contatosVisiveis.filter((c) => iaDoContato(c) === a.id).length }));
 
-  const vendedorOptions = Array.from(
-    contatosVisiveis.reduce((m, c) => { const v = vendedorDoContato(c); if (v) m.set(v, (m.get(v) ?? 0) + 1); return m; }, new Map<string, number>()),
-  ).map(([nome, count]) => ({ nome, count })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  const nomesVendedores = uniqueSellers(contatosVisiveis.map((c) => vendedorDoContato(c)));
+  const vendedorOptions = nomesVendedores
+    .map((nome) => ({ nome, count: contatosVisiveis.filter((c) => sameSeller(vendedorDoContato(c), nome)).length }));
 
   const filteredContacts = contatosVisiveis.filter(c => {
     if (iaFiltro !== "todas" && iaDoContato(c) !== iaFiltro) return false;
     if (vendedorFiltro === "sem" && vendedorDoContato(c)) return false;
-    if (vendedorFiltro !== "todos" && vendedorFiltro !== "sem" && vendedorDoContato(c) !== vendedorFiltro) return false;
+    if (vendedorFiltro !== "todos" && vendedorFiltro !== "sem" && !sameSeller(vendedorDoContato(c), vendedorFiltro)) return false;
     if (activeTab === "Não lidas" && c.unread === 0) return false;
     if (activeTab === "WhatsApp" && c.channel !== "WhatsApp") return false;
     if (activeTab === "Instagram" && c.channel !== "Instagram") return false;

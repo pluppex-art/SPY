@@ -1,3 +1,4 @@
+import { uniqueSellers, sameSeller } from "../../lib/sellerNames";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
@@ -173,7 +174,7 @@ export default function TestDrives() {
     toast.success(`Status do test-drive: ${newStatus}`);
   };
 
-  const filterVendedorOpcoes = Array.from(new Set(testDrives.map(t => t.vendedor).filter(Boolean))).sort();
+  const filterVendedorOpcoes = uniqueSellers(testDrives.map(t => t.vendedor));
   const filtered = testDrives.filter(t => {
     const matchSearch = (
       t.cliente.toLowerCase().includes(search.toLowerCase()) ||
@@ -181,7 +182,7 @@ export default function TestDrives() {
       t.vendedor.toLowerCase().includes(search.toLowerCase())
     );
     const matchStatus = filterStatus === "Todos" || t.status === filterStatus;
-    const matchExtra = !filterVendedor || t.vendedor === filterVendedor;
+    const matchExtra = !filterVendedor || sameSeller(t.vendedor, filterVendedor);
     return matchSearch && matchStatus && matchExtra;
   });
 

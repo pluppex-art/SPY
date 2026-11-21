@@ -1,3 +1,4 @@
+import { uniqueSellers, sameSeller } from "../../lib/sellerNames";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -214,12 +215,12 @@ export default function Radar() {
     return { critico: pct("critico_count"), alto: pct("alto_count"), atencao: pct("atencao_count"), total: pct("total_count") };
   }, [historico]);
 
-  const vendedores = useMemo(() => Array.from(new Set(allStalled.map((r) => r.l.seller).filter(Boolean))).sort(), [allStalled]);
+  const vendedores = useMemo(() => uniqueSellers(allStalled.map((r) => r.l.seller)), [allStalled]);
 
   const visibleRows = useMemo(() => allStalled
     .filter((r) => r.idle >= days)
     .filter((r) => !riskFiltro || r.risk === riskFiltro)
-    .filter((r) => vendedor === "todos" || r.l.seller === vendedor)
+    .filter((r) => vendedor === "todos" || sameSeller(r.l.seller, vendedor))
     .filter((r) => funilFiltro === "todos" || r.funilNome === funilFiltro)
     .filter((r) => {
       if (!busca.trim()) return true;

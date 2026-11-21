@@ -1,3 +1,4 @@
+import { uniqueSellers, sameSeller } from "../../../../lib/sellerNames";
 import { useMemo, useState } from "react";
 import {
   Flame, ThermometerSun, TrendingUp, Target, Trophy, Phone, MessageCircle, ExternalLink, Users, Clock, ListTree, Download, Send,
@@ -102,7 +103,7 @@ export function RadarBoasPainel({ boas, stageNames, funilNomeByTipo, formatCurre
     return { chamas: pct("chamas_count"), quente: pct("quente_count"), esquentando: pct("esquentando_count"), total: pct("total_boas_count") } as Record<string, number | null>;
   }, [hist]);
 
-  const vendedores = useMemo(() => Array.from(new Set(base.map((r) => r.l.seller).filter(Boolean))).sort() as string[], [base]);
+  const vendedores = useMemo(() => uniqueSellers(base.map((r) => r.l.seller)), [base]);
   const funis = useMemo(() => Array.from(new Set(base.map((r) => r.funilNome))).sort(), [base]);
 
   const linhas = useMemo(() => {
@@ -110,7 +111,7 @@ export function RadarBoasPainel({ boas, stageNames, funilNomeByTipo, formatCurre
     return base
       .filter((r) => !dias || r.idle <= dias)
       .filter((r) => !nivelFiltro || r.nivel === nivelFiltro)
-      .filter((r) => vendedor === "todos" || r.l.seller === vendedor)
+      .filter((r) => vendedor === "todos" || sameSeller(r.l.seller, vendedor))
       .filter((r) => funilFiltro === "todos" || r.funilNome === funilFiltro)
       .filter((r) => !q || [r.l.name, r.l.company, r.l.title, r.l.seller].some((v) => String(v || "").toLowerCase().includes(q)));
   }, [base, dias, nivelFiltro, vendedor, funilFiltro, busca]);

@@ -1,3 +1,4 @@
+import { uniqueSellers, sellerKey } from "../../lib/sellerNames";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { somar } from "../../lib/dinheiro";
 import { supabase } from "../../lib/supabase";
@@ -58,6 +59,15 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
 
   const [kpiFilteredRows, setKpiFilteredRows] = useState<any[]>([]);
   const [kpiAllRows, setKpiAllRows] = useState<any[]>([]);
+  // Grafias do mesmo vendedor (acento/espaço/maiúscula) para o filtro do servidor pegar todas.
+  const kpiRowsRef = useRef<any[]>([]);
+  kpiRowsRef.current = kpiAllRows;
+  const variantesDe = (nome: string): string[] => {
+    const k = sellerKey(nome);
+    const out = new Set<string>([nome]);
+    kpiRowsRef.current.forEach((p) => { if (p.vendedor && sellerKey(p.vendedor) === k) out.add(p.vendedor); });
+    return [...out];
+  };
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -84,7 +94,7 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
       if (dateFrom) query = query.gte("created_at", dateFrom);
       if (dateTo) query = query.lte("created_at", `${dateTo}T23:59:59`);
       if (statusFiltro !== "todos") query = query.eq("status", statusFiltro);
-      if (vendedorFiltro !== "todos") query = query.eq("vendedor", vendedorFiltro);
+      if (vendedorFiltro !== "todos") query = query.in("vendedor", variantesDe(vendedorFiltro));
 
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -200,7 +210,7 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
   }, [monthlyBuckets, kpiAllRows, kpiFilteredRows]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const vendedores = useMemo(() => Array.from(new Set(kpiAllRows.map((p) => p.vendedor).filter(Boolean))).sort(), [kpiAllRows]);
+  const vendedores = useMemo(() => uniqueSellers(kpiAllRows.map((p) => p.vendedor)), [kpiAllRows]);
 
   return {
     propostas: rows,
