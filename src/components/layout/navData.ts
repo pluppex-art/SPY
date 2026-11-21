@@ -4,7 +4,6 @@ import {
   Users,
   Columns3,
   Radar as RadarIcon,
-  Search,
   CheckSquare,
   Settings,
   Mail,
@@ -82,7 +81,6 @@ export const navSections = [
     items: [
       { name: "Central de Vendas", path: "/app/crm/pipeline", icon: Columns3 },
       { name: "Radar", path: "/app/crm/radar", icon: RadarIcon },
-      { name: "Prospecção", path: "/app/crm/prospeccao", icon: Search },
       { name: "Propostas Comerciais", path: "/app/crm/propostas", icon: FileText },
       { name: "Base de Clientes", path: "/app/crm/clientes", icon: Users },
     ],
