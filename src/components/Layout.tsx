@@ -56,6 +56,8 @@ export default function Layout() {
   });
   const [isSDRWebhookOpen, setIsSDRWebhookOpen] = useState(false);
   const isBlocked = useIsBlocked();
+  // PDV abre em tela única: sem menu lateral nem barra de navegação do celular. A volta é pelo botão "Painel de Vendas" no topo.
+  const modoPdv = location.pathname.startsWith("/app/varejo/vendas");
 
   useEffect(() => {
     if (!user) navigate("/login");
@@ -63,13 +65,15 @@ export default function Layout() {
 
   return (
     <div className="h-dvh overflow-hidden bg-[var(--color-surface)] text-[var(--color-text-primary)] font-sans flex transition-all">
-      <Sidebar
-        isSidebarCollapsed={isSidebarCollapsed}
-        setIsSidebarCollapsed={setIsSidebarCollapsed}
-        isMobileSidebarOpen={isMobileSidebarOpen}
-        setIsMobileSidebarOpen={setIsMobileSidebarOpen}
-        setIsSDRWebhookOpen={setIsSDRWebhookOpen}
-      />
+      {!modoPdv && (
+        <Sidebar
+          isSidebarCollapsed={isSidebarCollapsed}
+          setIsSidebarCollapsed={setIsSidebarCollapsed}
+          isMobileSidebarOpen={isMobileSidebarOpen}
+          setIsMobileSidebarOpen={setIsMobileSidebarOpen}
+          setIsSDRWebhookOpen={setIsSDRWebhookOpen}
+        />
+      )}
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <div className="absolute top-[-300px] right-[-100px] w-[800px] h-[800px] bg-blue-600/5 blur-[150px] rounded-full pointer-events-none"></div>
@@ -79,6 +83,7 @@ export default function Layout() {
           setIsSidebarCollapsed={setIsSidebarCollapsed}
           isMobileSidebarOpen={isMobileSidebarOpen}
           setIsMobileSidebarOpen={setIsMobileSidebarOpen}
+          modoPdv={modoPdv}
         />
 
         <BillingBanner />
@@ -93,11 +98,13 @@ export default function Layout() {
         </div>
       </main>
 
-      <MobileNav
-        isMobileMoreOpen={isMobileMoreOpen}
-        setIsMobileMoreOpen={setIsMobileMoreOpen}
-        setIsSDRWebhookOpen={setIsSDRWebhookOpen}
-      />
+      {!modoPdv && (
+        <MobileNav
+          isMobileMoreOpen={isMobileMoreOpen}
+          setIsMobileMoreOpen={setIsMobileMoreOpen}
+          setIsSDRWebhookOpen={setIsSDRWebhookOpen}
+        />
+      )}
       <SDRWebhookModal isOpen={isSDRWebhookOpen} onClose={() => setIsSDRWebhookOpen(false)} />
 
       {/* Aurora era restrita a usuários master (G-TECH) porque as ferramentas de escrita
