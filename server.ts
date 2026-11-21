@@ -5,6 +5,7 @@
 import "dotenv/config";
 import { round2 } from "./src/lib/dinheiro.js";
 import { criarEstorno, decidirEscritaExterna, soCamposPermitidos } from "./server/financeEstorno.js";
+import { prepararValor, valorDoLead } from "./src/lib/valorDoLead.js";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -1076,9 +1077,9 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
     const monthKey = (d: string) => d.slice(0, 7);
     const sumBy = (rows: { value: number | null }[]) => rows.reduce((s, r) => s + (Number(r.value) || 0), 0);
 
-    const [leadsAll, contracts, entries, clientesAll, tasksAll, reunioesAll] = await Promise.all([
-      fetchAllRowsPaginated(sb, "leads", '"id",status,value,source,seller,"stageId","pipelineId",created_at', (q) => q.eq("tenant_id", tenantId)) as Promise<
-        { id: string; status: string; value: number | null; source: string | null; seller: string | null; stageId: string | null; pipelineId: string | null; created_at: string }[]
+    const [leadsAll, contracts, entries, clientesAll, tasksAll, reunioesAll, propostasAll, produtosAll] = await Promise.all([
+      fetchAllRowsPaginated(sb, "leads", '"id",status,value,source,seller,"stageId","pipelineId",created_at,"productIds",interesseIds:customFields->produtosInteresseIds', (q) => q.eq("tenant_id", tenantId)) as Promise<
+        { id: string; status: string; value: number | null; source: string | null; seller: string | null; stageId: string | null; pipelineId: string | null; created_at: string; productIds?: string[] | null; interesseIds?: unknown }[]
       >,
       fetchAllRowsPaginated(sb, "contracts", "mrr_value,status", (q) => q.eq("tenant_id", tenantId)) as Promise<{ mrr_value: number | null; status: string }[]>,
       fetchAllRowsPaginated(sb, "finance_entries", "type,status,value,date_normalized,data_pagamento", (q) => q.eq("tenant_id", tenantId)) as Promise<
@@ -1091,7 +1092,13 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
       fetchAllRowsPaginated(sb, "reunioes", '"status","scheduledAt","closerName"', (q) => q.eq("tenant_id", tenantId)) as Promise<
         { status: string; scheduledAt: string | null; closerName: string | null }[]
       >,
+      fetchAllRowsPaginated(sb, "proposals", "lead_id,valor,created_at", (q) => q.eq("tenant_id", tenantId)) as Promise<{ lead_id: string | null; valor: number | null; created_at: string | null }[]>,
+      fetchAllRowsPaginated(sb, "products", "id,price", (q) => q.eq("tenant_id", tenantId).is("deleted_at", null)) as Promise<{ id: string; price: number | null }[]>,
     ]);
+
+    // Valor de cada negócio pela regra única (src/lib/valorDoLead.ts): a mesma do Pipeline, dos cards e dos dashboards da tela.
+    const ctxValor = prepararValor(propostasAll, produtosAll);
+    for (const l of leadsAll) l.value = valorDoLead(l, ctxValor).valor;
 
     // ── CRM / Vendas ──────────────────────────────────────────────────────
     const leadsNoPeriodo = leadsAll.filter((l) => inRange(l.created_at?.slice(0, 10), from, to));

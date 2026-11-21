@@ -1,4 +1,5 @@
 import { useData } from '../../../../contexts/DataContext';
+import { isLeadOpen } from "../../../../lib/leadStatus";
 import { somar } from "../../../../lib/dinheiro";
 import { useLocalization } from '../../../../contexts/LocalizationContext';
 import { Card } from '../../../../components/ui/card';
@@ -154,7 +155,9 @@ export function LeadCard({
   // "~" e estilo diferenciado. Não é valor real — só um sinal de potencial.
   // Sem valor real e sem produto de interesse o card mostra R$ 0 — nada de "ticket médio"
   // inventado (o "~R$ 149,33" em leads novos parecia um valor negativo/errado).
-  const isEstimated = !hasRealValue && estimateFromInterest > 0;
+  // Mesma regra do resto do sistema (src/lib/valorDoLead.ts): sem valor real nem interesse, o preço de tabela dos produtos da venda aparece como estimado (~).
+  const catalogoEstimado = !hasRealValue && estimateFromInterest === 0 && isLeadOpen(item.status) ? somar(linkedProducts, (p) => p.price) : 0;
+  const isEstimated = !hasRealValue && (estimateFromInterest > 0 || catalogoEstimado > 0);
   const interestValue = leadInterestEstimate(item, proposals as any[], products as any[]);
   // Valor numérico real por trás do card (mesma prioridade de sempre) —
   // extraído à parte do texto formatado pra poder derivar o valor MENSAL
@@ -170,7 +173,9 @@ export function LeadCard({
     ? formatCurrency(realNumericValue)
     : estimateFromInterest > 0
       ? `~${formatCurrency(estimateFromInterest)}`
-      : 'R$ 0';
+      : catalogoEstimado > 0
+        ? `~${formatCurrency(catalogoEstimado)}`
+        : 'R$ 0';
   // Achado real (pedido do usuário): pra produto recorrente, o valor do card
   // é o TOTAL do contrato inteiro (proposals.valor = totalProjectedAmount,
   // ver saleCalculator.ts — nunca o valor de uma cobrança individual), mas

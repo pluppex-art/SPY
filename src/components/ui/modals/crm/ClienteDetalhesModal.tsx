@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { prepararValor, somarLeads } from "../../../../lib/valorDoLead";
 import {
   Building2, Mail, Phone, MapPin, FileText, Users, TrendingUp,
   Package, Calendar, ExternalLink,
@@ -37,7 +38,7 @@ function statusBadgeVariant(status?: string): "success" | "warning" | "secondary
 }
 
 export function ClienteDetalhesModal({ isOpen, onClose, cliente, onManageContatos }: ClienteDetalhesModalProps) {
-  const { leads, products } = useData();
+  const { leads, products, proposals } = useData();
   const { formatCurrency } = useLocalization();
 
   // Origem deste cliente: todo lead que fechou negócio e foi vinculado a ele
@@ -49,9 +50,10 @@ export function ClienteDetalhesModal({ isOpen, onClose, cliente, onManageContato
     [leads, cliente?.id]
   );
 
+  // Regra única de valor do negócio (src/lib/valorDoLead.ts): valor lançado, senão o da proposta.
   const totalWonValue = useMemo(
-    () => dealLeads.reduce((sum: number, l: any) => sum + (Number(l.value) || 0), 0),
-    [dealLeads]
+    () => somarLeads(dealLeads, prepararValor(proposals as any[], products as any[])).total,
+    [dealLeads, proposals, products]
   );
 
   const productNameById = useMemo(() => {

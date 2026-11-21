@@ -1,4 +1,5 @@
 import { useUnidadeMax } from "../../lib/unidadeMaxdata";
+import { prepararValor, somarLeads, valorDoLead } from "../../lib/valorDoLead";
 import { somar } from "../../lib/dinheiro";
 import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
@@ -56,7 +57,7 @@ function getStageId(funilId: string, idx: number): string {
 }
 
 export function useDashboard() {
-  const { leads: allLeads, contracts, squads, leadActivities, appointments, funis, proposals } = useData();
+  const { leads: allLeads, contracts, squads, leadActivities, appointments, funis, proposals, products } = useData();
   const { isModuleEnabled, user, activeTenantId } = useAuth();
   const [activeTab, setActiveTab] = useState<'executivo' | 'comercial' | 'sucesso' | 'marketing' | 'bi'>('executivo');
 
@@ -226,9 +227,10 @@ export function useDashboard() {
     const perdidos = comerciais.filter((l) => l.status === 'Perdido');
     if (panorama) return { valor: Number(panorama.faturamento) || 0, qtd: Number(panorama.vendas) || 0, perdidas: Number(panorama.canceladas) || 0, valorPerdidas: Number(panorama.canceladas_valor) || 0 };
     if (ganhos.length === 0 && perdidos.length === 0) return undefined;
-    const soma = (arr: any[]) => somar(arr, (l) => l.value);
+    const ctx = prepararValor(proposals as any[], products as any[]);
+    const soma = (arr: any[]) => somarLeads(arr, ctx).total;   // regra única de valor (src/lib/valorDoLead.ts)
     return { valor: soma(ganhos), qtd: ganhos.length, perdidas: perdidos.length, valorPerdidas: soma(perdidos) };
-  }, [contracts, leads, panorama]);
+  }, [contracts, leads, panorama, proposals, products]);
 
   const totalRevenue = serverSummary?.totalRevenue ?? totalRevenueClient;
   const conversionRate = (serverSummary?.conversionRate ?? Number(conversionRateClient)).toFixed(1);
@@ -357,14 +359,8 @@ export function useDashboard() {
   // (sincronizada com a proposta aceita); só cai pra proposta vinculada
   // quando o lead genuinamente não tem valor nenhum gravado ainda.
   const salesRanking = useMemo(() => {
-    const getLeadValue = (l: any) => {
-      const parsed = parseCurrencyBR(l.value ?? l.valor);
-      if (parsed > 0) return parsed;
-      const linkedProposal = (proposals as any[] || [])
-        .filter((p: any) => p.lead_id === l.id)
-        .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0];
-      return linkedProposal?.valor ? Number(linkedProposal.valor) || 0 : 0;
-    };
+    const ctx = prepararValor(proposals as any[], products as any[]);
+    const getLeadValue = (l: any) => valorDoLead(l, ctx).valor;   // regra única, igual ao Pipeline
 
     const bySellerMap: Record<string, { name: string; deals: number; total: number }> = {};
     leads.filter(l => l.status === 'Fechado').forEach(l => {
@@ -387,7 +383,7 @@ export function useDashboard() {
       deals: s.deals,
       rate: Math.round((s.deals / Math.max(leads.filter(l => l.seller === s.name).length, 1)) * 100),
     }));
-  }, [leads, proposals]);
+  }, [leads, proposals, products]);
 
   // Funnel data: count leads by real pipeline stage (stageId), não por um
   // vocabulário fixo de `status`. O Kanban (PipelineKanbanBoard.handleDrop)

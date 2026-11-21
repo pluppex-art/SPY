@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useLocalization } from "../../contexts/LocalizationContext";
 import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard, FilterSearch } from "../../components/ui/kpi-filter-card";
 import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
@@ -76,11 +77,12 @@ export default function Pipeline() {
     companiesList,
     activePipelineStages, sellers,
     filteredItemsList, analyticsData, hotLeadsCount,
-    formattedTotalValue, winRate,
+    formattedTotalValue, formattedOpenValue, estimadoGanhos, estimadoAbertos, winRate,
     triggerCelebration, exportPDF,
     handleExportIAResume, handleTransferToComercial,
     handleWinStageDrop,
   } = usePipeline();
+  const { formatCurrency } = useLocalization();
 
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
@@ -215,7 +217,8 @@ export default function Pipeline() {
             { label: "Alta Prior.", value: kpis.hot, icon: Flame, tone: "warning" },
             { label: "Ganhos", value: kpis.closed, icon: CheckCircle2, tone: "success" },
             { label: "Win Rate", value: `${winRate}%`, icon: Target, tone: "info" },
-            { label: "Total de Ganhos", value: formattedTotalValue, icon: BarChart3, tone: "accent" },
+            { label: "Total de Ganhos", value: formattedTotalValue, icon: BarChart3, tone: "accent", hint: estimadoGanhos > 0 ? `Inclui ${formatCurrency(estimadoGanhos)} estimados pelo preço de tabela (negócios sem valor lançado)` : undefined },
+            { label: "Valor em aberto", value: formattedOpenValue, icon: BarChart3, tone: "info", hint: estimadoAbertos > 0 ? `Inclui ${formatCurrency(estimadoAbertos)} estimados pelo preço de tabela (negócios sem valor lançado)` : "Soma dos negócios ainda em andamento" },
           ]}
         >
           <PipelineFilterBar

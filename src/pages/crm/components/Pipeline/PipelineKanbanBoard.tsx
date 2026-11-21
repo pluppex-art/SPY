@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { prepararValor, valorDoLead } from "../../../../lib/valorDoLead";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { LeadCard } from "./LeadCard";
 import { Task } from "../../../../types";
-import { leadInterestEstimate } from "../../../../components/ui/lead-details/LeadDetailsModal.helpers";
 import { useData } from "../../../../contexts/DataContext";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
 
@@ -128,20 +128,9 @@ export function PipelineKanbanBoard({
   // realizadas/aceitas pro mesmo lead) — só cai pra soma de preço de catálogo
   // dos produtos vinculados quando o lead genuinamente não tem valor nenhum
   // ainda (produto vinculado sem sincronização de valor completa).
-  const getLeadValue = (l: any) => {
-    // Sem proposta e com tags de interesse em uso: soma das tags (igual ao card).
-    const interest = leadInterestEstimate(l, proposals as any[], products as any[]);
-    if (interest !== null) return interest;
-    const parsed = parseCurrencyBR(l.value ?? l.valor);
-    if (parsed > 0) return parsed;
-    // SEM fallback pro preço de catálogo dos productIds: um lead ganho por R$ 0 (proposta aceita
-    // com valor 0) passava a contar o preço de tabela na coluna e o total da coluna deixava de
-    // bater com o "Total de Ganhos" do topo (que soma só `value`) — ex.: R$ 18.943 x R$ 17.946.
-    const linkedProposal = (proposals as any[] || [])
-      .filter((p) => p.lead_id === l.id)
-      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0];
-    return linkedProposal?.valor ? Number(linkedProposal.valor) || 0 : 0;
-  };
+  // Regra única (src/lib/valorDoLead.ts): igual ao card e aos totais do topo.
+  const ctxValor = useMemo(() => prepararValor(proposals as any[], products as any[]), [proposals, products]);
+  const getLeadValue = (l: any) => valorDoLead(l, ctxValor).valor;
 
   // Ao soltar um lead em Perdido/Desqualificado, pergunta o motivo (pode pular).
   const [motivoLeadId, setMotivoLeadId] = useState<string | null>(null);

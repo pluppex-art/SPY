@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { prepararValor, somarLeads } from "../../lib/valorDoLead";
 import { useSearchParams } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -30,7 +31,7 @@ export function usePipeline() {
   const [tempDropdownId, setTempDropdownId] = useState<string | null>(null);
   const [webhookModalLead, setWebhookModalLead] = useState<any>(null);
   const [webhookUrl, setWebhookUrl] = useState("");
-  const { leads, updateLead, tasks, addTask, products, clienteBase, funis: dataFunis, colaboradores, appSettings, addImplementation, updateClienteBase } = useData();
+  const { leads, updateLead, tasks, addTask, products, proposals, clienteBase, funis: dataFunis, colaboradores, appSettings, addImplementation, updateClienteBase } = useData();
   const { user, activeTenantId } = useAuth();
   const { formatCurrency } = useLocalization();
 
@@ -304,11 +305,16 @@ export function usePipeline() {
   // R$997 sem multiplicar pela quantidade real vendida). item.value já é a
   // fonte de verdade (sincronizada com a proposta aceita, ver
   // syncAcceptedProposal em DataContext.tsx) — usa direto, sem esse fallback.
-  const totalValueSum = filteredItemsList
-    .filter((item: any) => item.status === 'Fechado')
-    .reduce((sum, item) => sum + parseCurrencyBR(item.value ?? (item as any).valor), 0);
-
+  // Regra única de valor do negócio (src/lib/valorDoLead.ts): a mesma do card, da coluna do Kanban e dos dashboards.
+  // Ganho = leads Fechado; pendente (em aberto) = leads ainda em andamento (nem Fechado nem Perdido).
+  const ctxValor = useMemo(() => prepararValor(proposals as any[], products as any[]), [proposals, products]);
+  const somaGanhos = useMemo(() => somarLeads(filteredItemsList.filter((item: any) => item.status === 'Fechado'), ctxValor), [filteredItemsList, ctxValor]);
+  const somaAbertos = useMemo(() => somarLeads(filteredItemsList.filter((item: any) => isLeadOpen(item.status)), ctxValor), [filteredItemsList, ctxValor]);
+  const totalValueSum = somaGanhos.total;
   const formattedTotalValue = formatCurrency(totalValueSum);
+  const formattedOpenValue = formatCurrency(somaAbertos.total);
+  // Quanto de cada total veio do preço de tabela (estimado), para a tela avisar em vez de esconder.
+  const estimadoGanhos = somaGanhos.estimado, estimadoAbertos = somaAbertos.estimado;
 
   const totalLeadsCount = filteredItemsList.length;
 
@@ -517,7 +523,7 @@ export function usePipeline() {
     filteredItemsList,
     analyticsData,
     hotLeadsCount,
-    formattedTotalValue,
+    formattedTotalValue, formattedOpenValue, estimadoGanhos, estimadoAbertos,
     winRate,
     triggerCelebration,
     exportPDF,
