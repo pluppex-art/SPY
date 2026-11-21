@@ -339,6 +339,10 @@ export default function PainelVarejo() {
           fornecedor: (repForn[i.id] || "").trim() || "A definir",
           valor: qtd * i.custo,
           itens: `${qtd}x ${i.name}`,
+          product_id: i.id,
+          item_nome: i.name,
+          quantidade: qtd,
+          custo_unitario: i.custo || null,
           previsao_entrega: previsao,
           status: "Pendente",
         };

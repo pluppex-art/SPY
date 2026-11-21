@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  ClipboardList, FileDown, Plus, Truck, DollarSign,
+  ClipboardList, FileDown, Pencil, Plus, Truck, DollarSign,
   CheckCircle2, Clock, Package, Trash2, X, Boxes, ArrowDownCircle
 } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
@@ -13,6 +13,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
+import { AjusteEstoqueModal } from "./AjusteEstoqueModal";
 import { FornecedorModal, rowToFornecedor, type FornecedorItem } from "./FornecedorModal";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
@@ -27,8 +28,13 @@ interface CompraItem {
   fornecedor: string;
   valor: number;
   itens: string;
+  productId: string | null;
+  itemNome: string;
+  quantidade: number | null;
+  custoUnitario: number | null;
   data: string;
   previsaoEntrega: string;
+  previsaoISO: string;
   status: CompraStatusUI;
 }
 
@@ -52,8 +58,13 @@ function rowToCompra(row: any): CompraItem {
     fornecedor: row.fornecedor,
     valor: Number(row.valor) || 0,
     itens: row.itens || "",
+    productId: row.product_id || null,
+    itemNome: row.item_nome || "",
+    quantidade: row.quantidade != null ? Number(row.quantidade) : null,
+    custoUnitario: row.custo_unitario != null ? Number(row.custo_unitario) : null,
     data: new Date(row.data + "T00:00:00").toLocaleDateString("pt-BR"),
     previsaoEntrega: row.previsao_entrega ? new Date(row.previsao_entrega + "T00:00:00").toLocaleDateString("pt-BR") : "A combinar",
+    previsaoISO: row.previsao_entrega || "",
     status: dbStatusToUi(row.status),
   };
 }
@@ -112,7 +123,7 @@ function ItemCombobox({
 
 export default function ComprasVarejo() {
   const { activeTenantId, activeTenantName } = useAuth();
-  const { products, setProducts } = useData();
+  const { products } = useData();
   const cfgVarejo = useVarejoConfig();
   const location = useLocation();
   const navigate = useNavigate();
@@ -143,7 +154,7 @@ export default function ComprasVarejo() {
   // Form state para Nova Ordem
   const [fornecedor, setFornecedor] = useState("");
   const [valor, setValor] = useState("");
-  type Linha = { nome: string; qtd: string; custo: string };
+  type Linha = { nome: string; qtd: string; custo: string; productId?: string };
   const linhaVazia = (): Linha => ({ nome: "", qtd: "", custo: "" });
   const [linhas, setLinhas] = useState<Linha[]>([linhaVazia()]);
   const [fornecedoresCad, setFornecedoresCad] = useState<FornecedorItem[]>([]);
@@ -158,11 +169,10 @@ export default function ComprasVarejo() {
   const [previsaoEntrega, setPrevisaoEntrega] = useState("");
   const [status, setStatus] = useState<CompraItem["status"]>("Emitida / Aguardando Fornecedor");
 
-  // Estado para Dar Entrada no Estoque
-  const [modalRecebimentoOpen, setModalRecebimentoOpen] = useState(false);
-  const [compraRecebimento, setCompraRecebimento] = useState<CompraItem | null>(null);
-  const [recebimentoProductId, setRecebimentoProductId] = useState<string>("");
-  const [recebimentoQtd, setRecebimentoQtd] = useState<string>("50");
+  // Dar Entrada: abre o mesmo modal de "Ajustar Estoque" para o produto da ordem.
+  const [entradaCompra, setEntradaCompra] = useState<CompraItem | null>(null);
+  const [entradaProduto, setEntradaProduto] = useState<any | null>(null);
+  const [semProdutoOpen, setSemProdutoOpen] = useState(false);
 
   // Rascunho vindo do Painel de Vendas (Estoque Crítico → Nova Compra): abre a Nova Ordem já preenchida.
   useEffect(() => {
@@ -202,6 +212,10 @@ export default function ComprasVarejo() {
         fornecedor: fornecedor.trim() || "A definir",
         valor: validas.length === 1 && valorManual !== null ? valorManual : custo,
         itens: `${qtd}x ${l.nome.trim()}`,
+        product_id: l.productId || (products || []).find((p: any) => String(p.name || "").trim().toLowerCase() === l.nome.trim().toLowerCase())?.id || null,
+        item_nome: l.nome.trim(),
+        quantidade: qtd,
+        custo_unitario: parseFloat(l.custo.replace(",", ".")) || null,
         previsao_entrega: previsaoEntrega || null,
         status: uiStatusToDb(status),
       };
@@ -272,54 +286,88 @@ export default function ComprasVarejo() {
     toast.success(`Status da ordem: ${newStatus}`);
   };
 
-  const handleAbrirRecebimento = (c: CompraItem) => {
-    setCompraRecebimento(c);
-    setRecebimentoProductId(products[0]?.id || "");
-    setRecebimentoQtd("50");
-    setModalRecebimentoOpen(true);
+  // Edição de uma ordem existente
+  const [editando, setEditando] = useState<CompraItem | null>(null);
+  const [eForn, setEForn] = useState("");
+  const [eNome, setENome] = useState("");
+  const [eProdId, setEProdId] = useState<string | null>(null);
+  const [eQtd, setEQtd] = useState("");
+  const [eCusto, setECusto] = useState("");
+  const [eValor, setEValor] = useState("");
+  const [ePrev, setEPrev] = useState("");
+  const [eSalvando, setESalvando] = useState(false);
+  const abrirEdicao = (c: CompraItem) => {
+    setEditando(c);
+    setEForn(c.fornecedor === "A definir" ? "" : c.fornecedor);
+    setENome(c.itemNome || c.itens);
+    setEProdId(c.productId);
+    setEQtd(c.quantidade != null ? String(c.quantidade) : "");
+    setECusto(c.custoUnitario != null ? String(c.custoUnitario) : "");
+    const auto = (c.quantidade || 0) * (c.custoUnitario || 0);
+    setEValor(c.valor && Math.abs(c.valor - auto) > 0.005 ? String(c.valor) : "");
+    setEPrev(c.previsaoISO);
+  };
+  const eTotalAuto = (parseInt(eQtd, 10) || 0) * (parseFloat(eCusto.replace(",", ".")) || 0);
+  const salvarEdicao = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!editando || !supabase) return;
+    const qtd = parseInt(eQtd, 10) || 0;
+    if (!eNome.trim() || qtd <= 0) { toast.error("Informe o nome e a quantidade do item."); return; }
+    const custo = parseFloat(eCusto.replace(",", ".")) || 0;
+    const valorManual = eValor.trim() ? (parseFloat(eValor.replace(/[^\d.,]/g, "").replace(",", ".")) || 0) : null;
+    const produto = eProdId
+      ? (products || []).find((p: any) => p.id === eProdId)
+      : (products || []).find((p: any) => String(p.name || "").trim().toLowerCase() === eNome.trim().toLowerCase());
+    setESalvando(true);
+    const { data, error } = await supabase.from("compras").update({
+      fornecedor: eForn.trim() || "A definir",
+      itens: `${qtd}x ${eNome.trim()}`,
+      item_nome: eNome.trim(),
+      quantidade: qtd,
+      custo_unitario: custo || null,
+      product_id: produto?.id || null,
+      valor: valorManual !== null && valorManual !== eTotalAuto ? valorManual : (custo > 0 ? eTotalAuto : (valorManual ?? 0)),
+      previsao_entrega: ePrev || null,
+    }).eq("id", editando.id).select().maybeSingle();
+    setESalvando(false);
+    if (error || !data) { toast.error("Erro ao salvar a ordem."); return; }
+    setCompras(prev => prev.map(c => c.id === editando.id ? rowToCompra(data) : c));
+    toast.success("Ordem atualizada.");
+    setEditando(null);
   };
 
-  const handleConfirmarRecebimento = async () => {
-    if (!compraRecebimento) return;
-    const qtdNum = parseInt(recebimentoQtd, 10) || 0;
-    if (qtdNum <= 0) {
-      toast.error("Informe uma quantidade válida para entrada.");
-      return;
-    }
-    if (!supabase) {
-      toast.error("Sem conexão com o banco de dados.");
-      return;
-    }
+  const codigoOC = (c: CompraItem) => `OC-${c.id.slice(0, 6).toUpperCase()}`;
 
-    // 1. Dar entrada real no estoque (RPC atômica: atualiza products + grava estoque_movimentacoes)
-    if (recebimentoProductId) {
-      const { error: movError } = await supabase.rpc("registrar_movimentacao_estoque", {
-        p_product_id: recebimentoProductId,
-        p_tipo: "entrada",
-        p_quantidade: qtdNum,
-        p_motivo: `Recebimento Ordem ${compraRecebimento.id} - ${compraRecebimento.fornecedor}`,
-      });
-      if (movError) {
-        toast.error("Erro ao registrar entrada no estoque.");
-        return;
+  // Acha o produto pelo ID gravado na ordem; se não houver, pelo nome (e grava o vínculo para as próximas vezes).
+  const handleAbrirRecebimento = async (c: CompraItem) => {
+    const lista = (products || []) as any[];
+    let produto = c.productId ? lista.find(p => p.id === c.productId) : undefined;
+    if (!produto && c.itemNome) {
+      produto = lista.find(p => String(p.name || "").trim().toLowerCase() === c.itemNome.trim().toLowerCase());
+      if (produto && supabase) {
+        await supabase.from("compras").update({ product_id: produto.id }).eq("id", c.id);
+        setCompras(prev => prev.map(x => x.id === c.id ? { ...x, productId: produto.id } : x));
       }
-      setProducts(
-        products.map((p: any) => (p.id === recebimentoProductId ? { ...p, currentStock: (p.currentStock ?? 0) + qtdNum } : p))
-      );
     }
+    setEntradaCompra(c);
+    if (produto) setEntradaProduto(produto);
+    else setSemProdutoOpen(true);
+  };
 
-    // 2. Atualizar status da ordem para "Recebido no Estoque"
-    const { error: statusError } = await supabase
-      .from("compras")
-      .update({ status: "Recebido no Estoque" })
-      .eq("id", compraRecebimento.id);
-    if (statusError) {
-      toast.error("Entrada registrada, mas falhou ao atualizar status da ordem.");
-    }
-    setCompras(prev => prev.map(c => c.id === compraRecebimento.id ? { ...c, status: "Recebido no Estoque" } : c));
+  const cadastrarProdutoDaOrdem = () => {
+    if (!entradaCompra) return;
+    const qs = new URLSearchParams({ novo: "1", type: "Físico", nome: entradaCompra.itemNome });
+    if (entradaCompra.custoUnitario) qs.set("custo", String(entradaCompra.custoUnitario));
+    if (entradaCompra.fornecedor && entradaCompra.fornecedor !== "A definir") qs.set("fornecedor", entradaCompra.fornecedor);
+    navigate(`/app/produtos?${qs.toString()}`);
+  };
 
-    toast.success(`Entrada de +${qtdNum} un. confirmada no estoque com sucesso!`);
-    setModalRecebimentoOpen(false);
+  const marcarRecebida = async () => {
+    if (!entradaCompra || !supabase) return;
+    const id = entradaCompra.id;
+    const { error } = await supabase.from("compras").update({ status: "Recebido no Estoque" }).eq("id", id);
+    if (error) { toast.error("Entrada registrada, mas falhou ao atualizar o status da ordem."); return; }
+    setCompras(prev => prev.map(c => c.id === id ? { ...c, status: "Recebido no Estoque" } : c));
   };
 
   const filtered = compras.filter(c => {
@@ -386,149 +434,179 @@ export default function ComprasVarejo() {
         </FilterBar>
       </KpiFilterCard>
 
-      {/* List */}
-      <div className="space-y-3">
-        {filtered.map(c => (
-          <div key={c.id} className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[var(--color-surface-sunken)] text-[var(--color-primary-blue)] border border-[var(--color-border-subtle)]">
-                  OC-{c.id.slice(0, 6).toUpperCase()}
-                </span>
-                <h4 className="text-xs font-bold text-[var(--color-text-primary)]">{c.fornecedor}</h4>
-                <span className="text-[10px] text-[var(--color-text-muted)]">• Emitido em: {c.data}</span>
-              </div>
-              <ul className="text-[11px] text-[var(--color-text-primary)] mt-1.5 space-y-0.5">
-                {c.itens.split(/,\s*(?=\d+x )/).filter(Boolean).map((it, k) => (
-                  <li key={k} className="flex items-center gap-1.5"><span className="text-[var(--color-primary-blue)]">•</span> {it}</li>
-                ))}
-              </ul>
-              <p className="text-[11px] text-[var(--color-text-muted)] mt-1.5">
-                Previsão: {c.previsaoEntrega} • Total: <strong className="text-emerald-500 font-bold font-mono">R$ {Number(c.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong>
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {c.status !== "Recebido no Estoque" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleAbrirRecebimento(c)}
-                  className="h-8 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl"
-                >
-                  <Boxes className="w-3.5 h-3.5" /> Dar Entrada
-                </Button>
-              )}
-
-              <select
-                value={c.status}
-                onChange={e => handleUpdateStatus(c.id, e.target.value as any)}
-                className="text-[10px] font-bold uppercase px-2.5 py-1.5 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none"
-              >
-                <option value="Emitida / Aguardando Fornecedor">Emitida</option>
-                <option value="Faturada">Faturada</option>
-                <option value="Em Transporte">Em Transporte</option>
-                {/* M8 (auditoria 2026-09-21): "Recebido no Estoque" só pode ser
-                    alcançado pelo fluxo real de "Dar Entrada" (RPC
-                    registrar_movimentacao_estoque) — escolher direto aqui
-                    marcava a compra como recebida sem incrementar o estoque
-                    de verdade. Mantido como `disabled` só pra exibir
-                    corretamente o status já atingido pelo fluxo correto. */}
-                <option value="Recebido no Estoque" disabled>Recebido no Estoque</option>
-                <option value="Cancelada">Cancelada</option>
-              </select>
-
-              <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id)} className="h-8 w-8 p-0 text-red-500 hover:bg-red-500/10 rounded-xl">
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
-        ))}
+      {/* Lista em colunas */}
+      <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
+              <th className="py-3 px-4">Código</th>
+              <th className="py-3 px-3">Emissão</th>
+              <th className="py-3 px-3">Fornecedor</th>
+              <th className="py-3 px-3">Item</th>
+              <th className="py-3 px-3 text-right">Qtd</th>
+              <th className="py-3 px-3 text-right">Custo un.</th>
+              <th className="py-3 px-3 text-right">Total</th>
+              <th className="py-3 px-3">Previsão</th>
+              <th className="py-3 px-3">Status</th>
+              <th className="py-3 px-4 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(c => (
+              <tr key={c.id} className="border-b border-[var(--color-border-subtle)] last:border-0 align-middle">
+                <td className="py-3 px-4">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[var(--color-surface-sunken)] text-[var(--color-primary-blue)] border border-[var(--color-border-subtle)]">{codigoOC(c)}</span>
+                </td>
+                <td className="py-3 px-3 text-[var(--color-text-muted)]">{c.data}</td>
+                <td className="py-3 px-3 font-bold text-[var(--color-text-primary)]">{c.fornecedor}</td>
+                <td className="py-3 px-3 text-[var(--color-text-primary)] max-w-[260px]">
+                  <span className="block truncate" title={c.itemNome || c.itens}>{c.itemNome || c.itens}</span>
+                  {c.itemNome && !c.productId && <span className="text-[9px] text-amber-500 font-semibold">Produto não vinculado</span>}
+                </td>
+                <td className="py-3 px-3 text-right font-mono">{c.quantidade ?? "—"}</td>
+                <td className="py-3 px-3 text-right font-mono">{c.custoUnitario ? c.custoUnitario.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "—"}</td>
+                <td className="py-3 px-3 text-right font-mono font-bold text-emerald-500">R$ {Number(c.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                <td className="py-3 px-3 text-[var(--color-text-muted)]">{c.previsaoEntrega}</td>
+                <td className="py-3 px-3">
+                  <select
+                    value={c.status}
+                    onChange={e => handleUpdateStatus(c.id, e.target.value as any)}
+                    className="text-[10px] font-bold uppercase px-2 py-1.5 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none"
+                  >
+                    <option value="Emitida / Aguardando Fornecedor">Emitida</option>
+                    <option value="Faturada">Faturada</option>
+                    <option value="Em Transporte">Em Transporte</option>
+                    <option value="Recebido no Estoque" disabled>Recebido no Estoque</option>
+                    <option value="Cancelada">Cancelada</option>
+                  </select>
+                </td>
+                <td className="py-3 px-4">
+                  <div className="flex items-center justify-end gap-2">
+                    {c.status !== "Recebido no Estoque" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAbrirRecebimento(c)}
+                        className="h-8 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl"
+                      >
+                        <Boxes className="w-3.5 h-3.5" /> Dar Entrada
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => abrirEdicao(c)} title="Editar ordem" className="h-8 w-8 p-0 text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-xl">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id)} className="h-8 w-8 p-0 text-red-500 hover:bg-red-500/10 rounded-xl">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
         {filtered.length === 0 && (
-          <div className="p-8 text-center text-xs text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-border-default)] rounded-2xl">
+          <div className="p-8 text-center text-xs text-[var(--color-text-muted)]">
             Nenhuma ordem de compra encontrada para este filtro.
           </div>
         )}
       </div>
 
-      {/* Modal de Entrada no Estoque */}
-      {compraRecebimento && (
-        <Modal
-          isOpen={modalRecebimentoOpen}
-          onClose={() => setModalRecebimentoOpen(false)}
-          maxWidth="max-w-md"
-          title={
+      {/* Dar Entrada = mesmo modal de Ajustar Estoque */}
+      <AjusteEstoqueModal
+        product={entradaProduto}
+        isOpen={!!entradaProduto}
+        onClose={() => { setEntradaProduto(null); setEntradaCompra(null); }}
+        initialTipo="entrada"
+        initialQtd={entradaCompra?.quantidade ? String(entradaCompra.quantidade) : ""}
+        initialMotivo="Compra de Fornecedor"
+        referencia={entradaCompra ? `${codigoOC(entradaCompra)} • ${entradaCompra.fornecedor}` : undefined}
+        confirmLabel="Confirmar Entrada"
+        onApplied={marcarRecebida}
+      />
+
+      {/* Produto ainda não cadastrado */}
+      <Modal
+        isOpen={semProdutoOpen}
+        onClose={() => { setSemProdutoOpen(false); setEntradaCompra(null); }}
+        maxWidth="max-w-md"
+        title={<h3 className="text-base font-bold text-[var(--color-text-primary)]">Produto ainda não cadastrado</h3>}
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <Button variant="outline" size="sm" onClick={() => { setSemProdutoOpen(false); setEntradaCompra(null); }}>Fechar</Button>
+            {entradaCompra?.itemNome && (
+              <Button size="sm" onClick={cadastrarProdutoDaOrdem} className="font-bold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
+                Cadastrar produto
+              </Button>
+            )}
+          </div>
+        }
+      >
+        <p className="text-xs text-[var(--color-text-muted)] py-1">
+          {entradaCompra?.itemNome
+            ? <>Não achei “<strong className="text-[var(--color-text-primary)]">{entradaCompra.itemNome}</strong>” no catálogo. Cadastre o produto (nome, custo e fornecedor já vão preenchidos) e depois volte aqui e clique em Dar Entrada.</>
+            : "Esta ordem não tem um item identificado, então não dá para ligar a um produto. Exclua e lance de novo informando o item."}
+        </p>
+      </Modal>
+
+      {/* Editar ordem */}
+      <Modal
+        isOpen={!!editando}
+        onClose={() => setEditando(null)}
+        maxWidth="max-w-lg"
+        title={<h3 className="text-base font-bold text-[var(--color-text-primary)]">Editar ordem {editando ? codigoOC(editando) : ""}</h3>}
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button type="button" variant="outline" onClick={() => setEditando(null)} className="h-9 px-4 text-xs font-semibold">Cancelar</Button>
+            <Button type="submit" form="form-editar-compra" disabled={eSalvando} className="h-9 px-4 text-xs font-semibold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
+              {eSalvando ? "Salvando..." : "Salvar alterações"}
+            </Button>
+          </div>
+        }
+      >
+        <form id="form-editar-compra" onSubmit={salvarEdicao} className="space-y-3.5 py-1">
+          <div>
+            <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Fornecedor</label>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-                <Boxes className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-[var(--color-text-primary)]">Dar Entrada no Estoque</h3>
-                <p className="text-xs text-[var(--color-text-muted)]">Ordem: {compraRecebimento.id} • {compraRecebimento.fornecedor}</p>
-              </div>
-            </div>
-          }
-          footer={
-            <div className="flex items-center justify-end gap-2 w-full">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setModalRecebimentoOpen(false)}
-                className="h-9 px-4 text-xs font-semibold"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                onClick={handleConfirmarRecebimento}
-                className="h-9 px-4 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                Confirmar Recebimento
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-3.5 py-1">
-            <div className="p-3 rounded-xl bg-[var(--color-surface-sunken)]/70 border border-[var(--color-border-subtle)] text-xs">
-              <span className="font-semibold text-[var(--color-text-primary)] block mb-1">Itens Descritos na Ordem:</span>
-              <p className="text-[var(--color-text-muted)] font-mono">{compraRecebimento.itens}</p>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">
-                Vincular Entrada ao Produto (Opcional):
-              </label>
-              <select
-                value={recebimentoProductId}
-                onChange={e => setRecebimentoProductId(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              >
-                <option value="">Entrada Geral / Não Vincular a SKU Específico</option>
-                {products.map((p: any) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} (Saldo atual: {p.currentStock ?? 0} un.)
-                  </option>
-                ))}
+              <select value={eForn} onChange={e => setEForn(e.target.value)} className="flex-1 w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]">
+                <option value="">A definir</option>
+                {eForn && !fornecedoresCad.some(f => f.razaoSocial === eForn) && <option value={eForn}>{eForn}</option>}
+                {fornecedoresCad.map(f => <option key={f.id} value={f.razaoSocial}>{f.razaoSocial}</option>)}
               </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">
-                Quantidade Total Recebida (Unidades):
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={recebimentoQtd}
-                onChange={e => setRecebimentoQtd(e.target.value)}
-                placeholder="50"
-                className="w-full px-3 py-2 text-xs font-mono font-bold bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
+              <button type="button" onClick={() => setNovoFornecedorOpen(true)} title="Cadastrar novo fornecedor" className="h-[34px] w-[34px] shrink-0 rounded-xl bg-[var(--color-primary-blue)] text-white flex items-center justify-center">
+                <Plus className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        </Modal>
-      )}
+          <div>
+            <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Item <span className="text-rose-500">*</span></label>
+            <ItemCombobox
+              value={eNome}
+              onChange={v => { setENome(v); setEProdId(null); }}
+              onPick={p => { setENome(p.name); setEProdId(p.id); if (!eCusto && Number(p.cost) > 0) setECusto(String(Number(p.cost))); }}
+              produtos={(products || []).filter((p: any) => !p.type || p.type === "Físico")}
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Quantidade <span className="text-rose-500">*</span></label>
+              <input type="number" min={1} value={eQtd} onChange={e => setEQtd(e.target.value)} className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] text-right" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Custo un. (R$)</label>
+              <input type="text" inputMode="decimal" value={eCusto} onChange={e => setECusto(e.target.value)} placeholder="0,00" className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] text-right" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Total (R$)</label>
+              <input type="text" value={eValor} onChange={e => setEValor(e.target.value)} placeholder={eTotalAuto > 0 ? eTotalAuto.toFixed(2) : "0,00"} className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] text-right" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Previsão de Entrega</label>
+            <input type="date" value={ePrev} onChange={e => setEPrev(e.target.value)} className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
+          </div>
+        </form>
+      </Modal>
 
       {/* Standardized Modal: Nova Ordem */}
       <Modal
@@ -596,8 +674,8 @@ export default function ComprasVarejo() {
                   <div key={i} className="flex items-start gap-2">
                     <ItemCombobox
                       value={l.nome}
-                      onChange={v => setLinha(i, { nome: v })}
-                      onPick={p => setLinha(i, { nome: p.name, custo: l.custo || (Number(p.cost) > 0 ? String(Number(p.cost)) : ""), qtd: l.qtd || "1" })}
+                      onChange={v => setLinha(i, { nome: v, productId: undefined })}
+                      onPick={p => setLinha(i, { productId: p.id, nome: p.name, custo: l.custo || (Number(p.cost) > 0 ? String(Number(p.cost)) : ""), qtd: l.qtd || "1" })}
                       produtos={(products || []).filter((p: any) => !p.type || p.type === "Físico")}
                     />
                     <input type="number" min={1} placeholder="0" value={l.qtd} onChange={e => setLinha(i, { qtd: e.target.value })} className={`w-20 text-right ${inputBase}`} />
@@ -643,7 +721,7 @@ export default function ComprasVarejo() {
         isOpen={novoFornecedorOpen}
         onClose={() => setNovoFornecedorOpen(false)}
         tenantId={activeTenantId}
-        onSaved={f => { setFornecedoresCad(prev => [...prev, f].sort((a, b) => a.razaoSocial.localeCompare(b.razaoSocial))); setFornecedor(f.razaoSocial); }}
+        onSaved={f => { setFornecedoresCad(prev => [...prev, f].sort((a, b) => a.razaoSocial.localeCompare(b.razaoSocial))); if (editando) setEForn(f.razaoSocial); else setFornecedor(f.razaoSocial); }}
       />
     </PageContainer>
   );

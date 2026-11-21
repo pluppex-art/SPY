@@ -47,9 +47,13 @@ function Catalog() {
     if (novo) {
       f.handleOpenAddModal();
       if (t) f.setFormType(t as any);
+      // Vindo de uma ordem de compra: já preenche o que a ordem sabe.
+      const nome = searchParams.get("nome"); if (nome) f.setFormName(nome);
+      const custo = searchParams.get("custo"); if (custo) f.setFormCost(custo);
+      const forn = searchParams.get("fornecedor"); if (forn) f.setFormProvider(forn);
     }
     const next = new URLSearchParams(searchParams);
-    next.delete("novo");
+    next.delete("novo"); next.delete("nome"); next.delete("custo"); next.delete("fornecedor");
     setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
