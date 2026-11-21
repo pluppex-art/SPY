@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { somar } from "../../lib/dinheiro";
+import { somar, lerValor } from "../../lib/dinheiro";
 import { toast } from "sonner";
 import { BadgePercent, CheckCircle2, ChevronLeft, ChevronRight, Clock, FileSpreadsheet, Plus, Target, Trophy, Wand2, X } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
@@ -21,10 +21,7 @@ const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julh
 const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
 const comp = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 const labelComp = (c: string) => `${MESES[Number(c.slice(5, 7)) - 1]} de ${c.slice(0, 4)}`;
-const paraNumero = (t: string) => {
-  const s = t.trim();
-  return Number((s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s).replace(/[^0-9.-]/g, "")) || 0;
-};
+const paraNumero = (t: string) => lerValor(t);
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 const TOM: Record<string, string> = {

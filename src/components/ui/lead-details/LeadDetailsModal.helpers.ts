@@ -1,11 +1,10 @@
 import { toast } from "sonner";
-import { formatBRL } from "../../../lib/dinheiro";
+import { formatBRL, lerValorPositivo } from "../../../lib/dinheiro";
 
 export function formatLeadValueBRL(value: unknown, formatCurrency?: (v: number) => string) {
   const cleaned = String(value ?? "0").replace(/[^\d,.]/g, "");
   // pt-BR: dots = thousands separator, comma = decimal → remove dots first, then swap comma
-  const normalized = cleaned.replace(/\./g, "").replace(",", ".");
-  const num = parseFloat(normalized) || 0;
+  const num = lerValorPositivo(cleaned);
   if (formatCurrency) return formatCurrency(num);
   return formatBRL(num);
 }

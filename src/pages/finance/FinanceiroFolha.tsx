@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { lerValor } from "../../lib/dinheiro";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { CheckCircle2, ChevronLeft, ChevronRight, Clock, FileSpreadsheet, HandCoins, Inbox, Users, Wallet, Wand2 } from "lucide-react";
@@ -22,10 +23,7 @@ const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
 const comp = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 const labelComp = (c: string) => `${MESES[Number(c.slice(5, 7)) - 1]} de ${c.slice(0, 4)}`;
 const dataBR = (iso?: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
-const paraNumero = (t: string) => {
-  const s = t.trim();
-  return Number((s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s).replace(/[^0-9.-]/g, "")) || 0;
-};
+const paraNumero = (t: string) => lerValor(t);
 const liquidoDe = (r: { salario: number; adicionais: number; descontos: number; adiantamentos: number }) =>
   Math.max(0, (Number(r.salario) || 0) + (Number(r.adicionais) || 0) - (Number(r.descontos) || 0) - (Number(r.adiantamentos) || 0));
 

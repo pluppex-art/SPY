@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { formatBRL } from "../../../../lib/dinheiro";
+import { formatBRL, lerValor } from "../../../../lib/dinheiro";
 import {
   X, Check, Building2, Target, ListChecks, Calendar, CreditCard,
   ClipboardCheck, Search, Plus, Trash2, Pencil, BarChart3,
@@ -757,8 +757,7 @@ export function NovaPropostaWizard({
 }
 
 function parseCurrencyValue(v: any): number {
-  if (typeof v === "number") return v;
-  return Number(String(v ?? "0").replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+  return lerValor(v);
 }
 
 // ─── Etapa 1: Contexto ──────────────────────────────────────────────────────

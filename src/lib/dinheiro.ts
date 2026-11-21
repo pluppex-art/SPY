@@ -39,3 +39,45 @@ export function formatBRLCompacto(v: unknown): string {
   if (abs >= 1e3) return `R$ ${(n / 1e3).toFixed(0)}k`;
   return formatBRL(n);
 }
+
+/** Valor digitado em texto -> número POSITIVO (sinal ignorado). Entende "1.500,50", "1,500.50", "1500,50", "15.000" (milhar) e "1500.5". */
+function magnitudeBR(val: unknown): number {
+  const str = String(val ?? "").trim();
+  if (!str) return 0;
+
+  if (str.includes(".") && str.includes(",")) {
+    if (str.lastIndexOf(",") > str.lastIndexOf(".")) {
+      const clean = str.replace(/[^\d,]/g, "").replace(",", ".");   // 1.500,50 (Brasil)
+      return parseFloat(clean) || 0;
+    }
+    const clean = str.replace(/[^\d.]/g, "");                        // 1,500.50 (EUA)
+    return parseFloat(clean) || 0;
+  }
+  if (str.includes(",")) {                                            // 1500,50
+    const clean = str.replace(/[^\d,]/g, "").replace(",", ".");
+    return parseFloat(clean) || 0;
+  }
+  if (str.includes(".")) {
+    const parts = str.split(".");
+    if (parts.length > 1 && parts[parts.length - 1].length === 3) {   // 15.000 = milhar
+      return parseFloat(str.replace(/\D/g, "")) || 0;
+    }
+    return parseFloat(str.replace(/[^\d.]/g, "")) || 0;              // 1500.50
+  }
+  return parseFloat(str.replace(/\D/g, "")) || 0;
+}
+
+/** Leitura única de valor digitado/importado. Número passa direto; texto vira número (0 se não der para ler); "-50" e "(50)" ficam negativos. */
+export function lerValor(v: unknown): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  const str = String(v ?? "").trim();
+  if (!str) return 0;
+  const negativo = /^(R\$\s*)?-/.test(str) || /^\(.*\)$/.test(str);
+  const m = magnitudeBR(str);
+  return negativo ? -m : m;
+}
+
+/** Igual a lerValor, mas texto sempre positivo (campos que nunca aceitam negativo: preço, meta, quantia). */
+export function lerValorPositivo(v: unknown): number {
+  return typeof v === "number" ? (Number.isFinite(v) ? v : 0) : magnitudeBR(v);
+}

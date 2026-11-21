@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { formatBRL } from "../../../lib/dinheiro";
+import { formatBRL, lerValor } from "../../../lib/dinheiro";
 import { Receipt } from "lucide-react";
 import { Card } from "../card";
 import { EmptyState } from "../empty-state";
@@ -29,11 +29,7 @@ const formatDate = (raw: string) => {
 };
 
 const isPago = (status?: string) => /pago|receb|ganho/i.test(status || "");
-const toNumber = (v: unknown) => {
-  if (typeof v === "number") return v;
-  const n = parseFloat(String(v ?? "").replace(/[^\d.,-]/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : 0;
-};
+const toNumber = (v: unknown) => lerValor(v);
 const join = (...parts: Array<string | null | undefined | false>) => parts.filter(Boolean).join(" · ");
 
 // Convenção do endpoint /api/v1/finance-entries: o lançamento de cada item

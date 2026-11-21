@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { lerValorPositivo } from "../../../lib/dinheiro";
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, CartesianGrid, XAxis, YAxis, Legend,
 } from "recharts";
@@ -35,7 +36,7 @@ function MetaEditavel({ valor, editavel, onSalvar, formatCurrency }: {
   const [editando, setEditando] = useState(false);
   const [txt, setTxt] = useState("");
   const salvar = () => {
-    const n = Number(txt.replace(/\./g, "").replace(",", ".")) || 0;
+    const n = lerValorPositivo(txt);
     onSalvar(Math.max(0, n));
     setEditando(false);
   };

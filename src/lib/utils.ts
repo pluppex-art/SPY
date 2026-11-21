@@ -1,5 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
-import { formatBRL } from "./dinheiro";
+import { formatBRL, lerValorPositivo } from "./dinheiro";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -81,44 +81,7 @@ export function validateCNPJ(cnpj: string): boolean {
 }
 
 export function parseCurrencyBR(val: any): number {
-  if (typeof val === "number") return isNaN(val) ? 0 : val;
-  if (!val) return 0;
-  const str = String(val).trim();
-  if (!str) return 0;
-
-  // Handles both dot and comma e.g. "1.500,50" vs "1,500.50"
-  if (str.includes(".") && str.includes(",")) {
-    if (str.lastIndexOf(",") > str.lastIndexOf(".")) {
-      // Brazilian format (1.500,50) -> remove non-digits except comma -> replace comma with dot
-      const clean = str.replace(/[^\d,]/g, "").replace(",", ".");
-      return parseFloat(clean) || 0;
-    } else {
-      // US format (1,500.50) -> remove non-digits except dot
-      const clean = str.replace(/[^\d.]/g, "");
-      return parseFloat(clean) || 0;
-    }
-  }
-
-  // Only comma: "1500,50" or "50,00"
-  if (str.includes(",")) {
-    const clean = str.replace(/[^\d,]/g, "").replace(",", ".");
-    return parseFloat(clean) || 0;
-  }
-
-  // Only dot: "1.500" (thousands) vs "1500.50" (decimal)
-  if (str.includes(".")) {
-    const parts = str.split(".");
-    if (parts.length > 1 && parts[parts.length - 1].length === 3) {
-      // Thousands separator: "15.000" or "1.500"
-      const clean = str.replace(/\D/g, "");
-      return parseFloat(clean) || 0;
-    }
-    const clean = str.replace(/[^\d.]/g, "");
-    return parseFloat(clean) || 0;
-  }
-
-  const clean = str.replace(/\D/g, "");
-  return parseFloat(clean) || 0;
+  return lerValorPositivo(val);
 }
 
 export function formatCurrencyBR(value: number): string {

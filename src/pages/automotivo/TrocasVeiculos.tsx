@@ -1,4 +1,5 @@
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { lerValorPositivo } from "../../lib/dinheiro";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -119,14 +120,7 @@ export default function TrocasVeiculos() {
       return;
     }
 
-    const cleanMoney = (val: string) => {
-      const s = val.trim().replace("R$", "").trim();
-      if (s.includes(",") && s.includes(".")) {
-        return parseFloat(s.replace(/\./g, "").replace(",", ".")) || 0;
-      }
-      if (s.includes(",")) return parseFloat(s.replace(",", ".")) || 0;
-      return parseFloat(s.replace(/[^\d.]/g, "")) || 0;
-    };
+    const cleanMoney = (val: string) => lerValorPositivo(val);
     const vEntrada = cleanMoney(valorEntrada);
     const veiculoSaida = veiculosOptions.find(v => v.id === veiculoSaidaId);
     const vSaida = veiculoSaida?.valor || 0;

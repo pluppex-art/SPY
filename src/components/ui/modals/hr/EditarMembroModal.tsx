@@ -1,4 +1,5 @@
 import { CargosMultiSelect, cargosIniciais } from "../../CargosMultiSelect";
+import { lerValorPositivo } from "../../../../lib/dinheiro";
 import React, { useEffect, useState } from "react";
 import { Pencil } from "lucide-react";
 import { Modal } from "../../modal";
@@ -56,7 +57,7 @@ export function EditarMembroModal({ isOpen, onClose, onSave, member, squads }: E
         cargos: cargosSel,
         status,
         squad,
-        metaMensal: Number(String(metaMensal).replace(/\./g, "").replace(",", ".")) || 0,
+        metaMensal: lerValorPositivo(metaMensal),
       });
       onClose();
     } finally {
