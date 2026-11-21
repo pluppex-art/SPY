@@ -13,7 +13,7 @@ import axios from "axios";
 import type { Express, Request, RequestHandler, Response } from "express";
 import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
 import {
-  PERMISSOES_PADRAO, assinar, conferirAssinatura, configParaEngine, linhaParaLite, montarLancamento, montarPreferenciaMP,
+  PERMISSOES_PADRAO, assinar, conferirAssinatura, configParaEngine, linhaParaLite, aplicarPrecos, externoIdPreco, ORIGEM_PRECO, PRECOS_RESERVA, type CampoPreco, montarLancamento, montarPreferenciaMP,
   planejarPagamento, repartirMisto, slugDe, validarConfig, SLUG_REGEX,
   type LinhaConfig, type LinhaReserva, type PedidoPagamento, type PermissoesEquipe,
 } from "./agendamentoPuro.js";
@@ -67,9 +67,25 @@ export function registerAgendamentoRoutes(app: Express, deps: AgendamentoDeps) {
     const { data } = await db.from("tenants").select("modules").eq("id", tenantId).is("deleted_at", null).maybeSingle();
     return data?.modules?.agendamento === true;
   };
+  /** Preços da hora de reserva (dia útil / fim de semana): vêm de products; sem linha lá, vale o valor antigo da configuração. */
+  const comPrecos = async (cfg: LinhaConfig): Promise<LinhaConfig> => {
+    const ids = (Object.keys(PRECOS_RESERVA) as CampoPreco[]).map((c) => externoIdPreco(cfg.tenant_id, c));
+    const { data } = await db.from("products").select("externo_id, price").eq("tenant_id", cfg.tenant_id).eq("externo_sistema", ORIGEM_PRECO).in("externo_id", ids).is("deleted_at", null);
+    return aplicarPrecos(cfg, (data ?? []) as any[]);
+  };
+  /** Grava o preço no produto da reserva (cria a linha na primeira vez). */
+  const gravarPreco = async (tenantId: string, campo: CampoPreco, valor: number) => {
+    const externoId = externoIdPreco(tenantId, campo);
+    const { data: ex } = await db.from("products").select("id").eq("tenant_id", tenantId).eq("externo_sistema", ORIGEM_PRECO).eq("externo_id", externoId).maybeSingle();
+    const r = ex
+      ? await db.from("products").update({ price: valor, active: true, deleted_at: null, updated_at: new Date().toISOString() }).eq("id", ex.id).eq("tenant_id", tenantId)
+      : await db.from("products").insert({ tenant_id: tenantId, name: PRECOS_RESERVA[campo].nome, type: "Reserva", category: "Agendamento", price: valor, cost: 0,
+          externo_sistema: ORIGEM_PRECO, externo_id: externoId, type_attributes: { unidade: "h" } });
+    if (r.error) throw new Error(r.error.message);
+  };
   const carregarConfig = async (tenantId: string): Promise<LinhaConfig | null> => {
     const { data } = await db.from("agendamento_config").select("*").eq("tenant_id", tenantId).maybeSingle();
-    return (data as LinhaConfig) ?? null;
+    return data ? await comPrecos(data as LinhaConfig) : null;
   };
   /** Cria a configuração padrão na primeira vez (endereço público a partir do nome da empresa). */
   const garantirConfig = async (tenantId: string): Promise<LinhaConfig> => {
@@ -169,7 +185,18 @@ export function registerAgendamentoRoutes(app: Express, deps: AgendamentoDeps) {
     const v = validarConfig(req.body);
     if (v.ok === false) return res.status(400).json({ error: v.erro });
     if (Object.keys(v.patch).length === 0) return res.json({ config: c.cfg });
-    const { data, error } = await db.from("agendamento_config").update({ ...v.patch, updated_at: new Date().toISOString() }).eq("tenant_id", c.tenantId).select("*").maybeSingle();
+    // Preços vão para products; o resto continua na configuração.
+    const patch: Record<string, any> = { ...v.patch };
+    const precos: Array<[CampoPreco, number]> = [];
+    for (const campo of Object.keys(PRECOS_RESERVA) as CampoPreco[]) { if (campo in patch) { precos.push([campo, Number(patch[campo])]); delete patch[campo]; } }
+    try { for (const [campo, valor] of precos) await gravarPreco(c.tenantId, campo, valor); }
+    catch (e: any) { console.error("[agendamento] preço:", e?.message); return res.status(500).json({ error: "Não foi possível salvar o preço." }); }
+    if (Object.keys(patch).length === 0) {
+      await auditar(c.tenantId, null, c.op, "CONFIG", `Alterou: ${Object.keys(v.patch).join(", ")}`);
+      return res.json({ config: await carregarConfig(c.tenantId) });
+    }
+    const { data: dataBruta, error } = await db.from("agendamento_config").update({ ...patch, updated_at: new Date().toISOString() }).eq("tenant_id", c.tenantId).select("*").maybeSingle();
+    const data = dataBruta ? await comPrecos(dataBruta as LinhaConfig) : dataBruta;
     if (error) {
       if ((error as any).code === "23505") return res.status(409).json({ error: "Esse endereço público já está em uso. Escolha outro." });
       console.error("[agendamento] config:", error.message);
@@ -446,7 +473,7 @@ export function registerAgendamentoRoutes(app: Express, deps: AgendamentoDeps) {
     if (!SLUG_REGEX.test(s)) { res.status(404).json({ error: "Página não encontrada." }); return null; }
     const { data: cfg } = await db.from("agendamento_config").select("*").ilike("slug", s).maybeSingle();
     if (!cfg || !(await moduloLigado(cfg.tenant_id))) { res.status(404).json({ error: "Página não encontrada." }); return null; }
-    return cfg as LinhaConfig;
+    return await comPrecos(cfg as LinhaConfig);
   };
   const tokenMp = async (tenantId: string): Promise<string | null> => {
     const { data } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_payments").maybeSingle();

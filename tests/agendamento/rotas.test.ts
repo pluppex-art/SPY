@@ -476,6 +476,27 @@ test("equipe: configuração só pelo administrador, com validação e endereço
   assert.equal(g.corpo.linkPublico, "https://spy.test/agendar/to-na-pista");
 });
 
+test("preços da hora: gravados em products (dia útil e fim de semana), valem na API e na página pública; sem linha em products vale o valor antigo", async () => {
+  const { admin, chamar, db } = montar();
+  db.t.products = db.t.products ?? [];
+  // antes de gravar: vale o que está na configuração (100 / 140)
+  const antes = await chamar("GET", "/api/agendar/:slug/config", { params: { slug: "to-na-pista" } });
+  assert.equal(antes.corpo.precoDiaUtil, 100);
+  const r = await admin("PUT", "/api/agendamento/config", { body: { precoDiaUtil: 110, precoFimSemana: 150.5 } });
+  assert.equal(r.status, 200);
+  assert.equal(r.corpo.config.preco_dia_util, 110);
+  const linhas = db.t.products.filter((p: any) => p.tenant_id === T1 && p.externo_sistema === "agendamento_config");
+  assert.equal(linhas.length, 2);
+  assert.deepEqual(linhas.map((p: any) => [p.type, p.price]).sort(), [["Reserva", 110], ["Reserva", 150.5]].sort());
+  assert.equal(db.t.agendamento_config.find((c: any) => c.tenant_id === T1).preco_dia_util, 100, "a coluna antiga não é mais gravada");
+  const pub = await chamar("GET", "/api/agendar/:slug/config", { params: { slug: "to-na-pista" } });
+  assert.equal(pub.corpo.precoDiaUtil, 110); assert.equal(pub.corpo.precoFimSemana, 150.5);
+  // alterar de novo atualiza a mesma linha (não duplica)
+  await admin("PUT", "/api/agendamento/config", { body: { precoDiaUtil: 120 } });
+  assert.equal(db.t.products.filter((p: any) => p.tenant_id === T1 && p.externo_sistema === "agendamento_config").length, 2);
+  assert.equal((await chamar("GET", "/api/agendar/:slug/config", { params: { slug: "to-na-pista" } })).corpo.precoDiaUtil, 120);
+});
+
 test("rotina diária: exige a chave e libera as pendentes vencidas", async () => {
   const { chamar, db } = montar();
   await db.rpc("agendamento_reservar", { p_tenant: T1, p_itens: [{ data: TERCA, hora: "19:00", duracao: 1, qtd_recursos: 2, contato_nome: "Velha", status: "Pendente" }] });

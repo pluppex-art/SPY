@@ -1,0 +1,13 @@
+import { PGlite } from "@electric-sql/pglite"; import fs from "node:fs";
+const sql = fs.readFileSync(new URL("./P4_agendamento_precos_para_products.sql", import.meta.url), "utf8");
+const corpo = sql.slice(sql.indexOf("begin;"), sql.indexOf("commit;") + 7);
+const db = new PGlite(); let f = 0; const ok = (c, m) => { if (!c) f++; console.log(c ? "  ✔" : "  ✖", m); };
+await db.exec(`create table products(id uuid primary key default gen_random_uuid(), tenant_id uuid, name text, type text, category text, price numeric default 0, cost numeric default 0, externo_sistema text, externo_id text, type_attributes jsonb default '{}');
+create table agendamento_config(tenant_id uuid primary key, preco_dia_util numeric, preco_fim_semana numeric);
+insert into agendamento_config values ('11111111-1111-4111-8111-111111111111', 100, 140), ('22222222-2222-4222-8222-222222222222', 0, null);`);
+await db.exec(corpo); await db.exec(corpo);
+const n = (await db.query(`select count(*)::int n from products`)).rows[0].n; ok(n === 4, "2 empresas x 2 produtos, e rodar duas vezes não duplica");
+const r = (await db.query(`select price::float p from products where externo_id='11111111-1111-4111-8111-111111111111:fim_semana'`)).rows[0]; ok(r.p === 140, "preço copiado da configuração");
+ok((await db.query(`select price::float p from products where externo_id='22222222-2222-4222-8222-222222222222:fim_semana'`)).rows[0].p === 0, "preço nulo vira 0");
+ok((await db.query(`select count(*)::int n from agendamento_config`)).rows[0].n === 2, "agendamento_config intacta");
+console.log(f ? "FALHAS" : "TUDO OK"); process.exit(f ? 1 : 0);
