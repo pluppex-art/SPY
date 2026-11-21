@@ -34,3 +34,15 @@ test("soma: mesmo critério em qualquer tela; mostra quanto do total é estimado
   assert.deepEqual(r, { total: 1800, estimado: 100, quantidade: 5, quantidadeEstimados: 1, semValor: 2 });
   assert.deepEqual(somarLeads(null, ctx), { total: 0, estimado: 0, quantidade: 0, quantidadeEstimados: 0, semValor: 0 });
 });
+
+import { isLeadWon, isLeadOpen, normalizarStatusLead } from "../../src/lib/leadStatus.js";
+test("Fechado, Ganho e Ganhou são a mesma coisa: ganho nunca conta como aberto", () => {
+  for (const s of ["Fechado", "Ganho", "Ganhou"]) { assert.equal(isLeadWon(s), true, s); assert.equal(isLeadOpen(s), false, s); assert.equal(normalizarStatusLead(s), "Fechado"); }
+  for (const s of ["Novo", "Em Aberto", "Em Negociacao", "Perdido", "Desqualificado", null, undefined, ""]) assert.equal(isLeadWon(s as any), false, String(s));
+  assert.equal(normalizarStatusLead("Perdido"), "Perdido");
+  assert.equal(isLeadOpen("Novo"), true); assert.equal(isLeadOpen("Perdido"), false);
+  // o valor do negócio em aberto só usa preço de tabela quando NÃO é ganho em nenhum dos nomes
+  const ctx2 = prepararValor([], [{ id: "p", price: 100 }]);
+  assert.equal(valorDoLead({ id: "x", status: "Ganho", value: 0, productIds: ["p"] }, ctx2).valor, 0);
+  assert.equal(valorDoLead({ id: "x", status: "Em Aberto", value: 0, productIds: ["p"] }, ctx2).valor, 100);
+});

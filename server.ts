@@ -6,6 +6,7 @@ import "dotenv/config";
 import { round2 } from "./src/lib/dinheiro.js";
 import { criarEstorno, decidirEscritaExterna, soCamposPermitidos } from "./server/financeEstorno.js";
 import { prepararValor, valorDoLead } from "./src/lib/valorDoLead.js";
+import { isLeadWon } from "./src/lib/leadStatus.js";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -860,7 +861,7 @@ app.get("/api/dashboard/summary", requireUserOrInternalService, async (req: any,
     // verdade — sem isso, o PostgREST trunca silenciosamente em 1000 linhas.
     const leadsAll = await fetchAllRowsPaginated(sb, "leads", 'status,value,"scoreIA"', (q) => q.eq("tenant_id", tenantId)) as { status: string; value: number | null; scoreIA: number | null }[];
     const leadsTotal = leadsAll.length;
-    const leadsWon = leadsAll.filter((l) => l.status === "Fechado").length;
+    const leadsWon = leadsAll.filter((l) => isLeadWon(l.status)).length;
     const leadsOpenRows = leadsAll.filter((l) => isLeadOpen(l.status));
     const conversionRate = leadsTotal > 0 ? Math.round((leadsWon / leadsTotal) * 1000) / 10 : 0;
     // "Ativo" = não perdido/desqualificado (Fechado conta como ativo —
@@ -1077,7 +1078,7 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
     const monthKey = (d: string) => d.slice(0, 7);
     const sumBy = (rows: { value: number | null }[]) => rows.reduce((s, r) => s + (Number(r.value) || 0), 0);
 
-    const [leadsAll, contracts, entries, clientesAll, tasksAll, reunioesAll, propostasAll, produtosAll] = await Promise.all([
+    const [leadsAll, contracts, entries, clientesAll, tasksAll, reunioesAll, propostasAll, produtosAll, vendasPdvAll] = await Promise.all([
       fetchAllRowsPaginated(sb, "leads", '"id",status,value,source,seller,"stageId","pipelineId",created_at,"productIds",interesseIds:customFields->produtosInteresseIds', (q) => q.eq("tenant_id", tenantId)) as Promise<
         { id: string; status: string; value: number | null; source: string | null; seller: string | null; stageId: string | null; pipelineId: string | null; created_at: string; productIds?: string[] | null; interesseIds?: unknown }[]
       >,
@@ -1094,6 +1095,8 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
       >,
       fetchAllRowsPaginated(sb, "proposals", "lead_id,valor,created_at", (q) => q.eq("tenant_id", tenantId)) as Promise<{ lead_id: string | null; valor: number | null; created_at: string | null }[]>,
       fetchAllRowsPaginated(sb, "products", "id,price", (q) => q.eq("tenant_id", tenantId).is("deleted_at", null)) as Promise<{ id: string; price: number | null }[]>,
+      // Venda do PDV = negócio ganho (mesma coisa que "Fechado"). Só as nativas: venda importada de outro sistema já entra como lead fechado.
+      fetchAllRowsPaginated(sb, "vendas", "id,valor_total,created_at,paid_at,vendedor_nome", (q) => q.eq("tenant_id", tenantId).eq("status", "paga").is("externo_sistema", null)) as Promise<{ id: string; valor_total: number | null; created_at: string; paid_at: string | null; vendedor_nome: string | null }[]>,
     ]);
 
     // Valor de cada negócio pela regra única (src/lib/valorDoLead.ts): a mesma do Pipeline, dos cards e dos dashboards da tela.
@@ -1102,12 +1105,14 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
 
     // ── CRM / Vendas ──────────────────────────────────────────────────────
     const leadsNoPeriodo = leadsAll.filter((l) => inRange(l.created_at?.slice(0, 10), from, to));
-    const leadsGanhos = leadsNoPeriodo.filter((l) => l.status === "Fechado");
+    const leadsGanhos = leadsNoPeriodo.filter((l) => isLeadWon(l.status));
     const leadsPerdidos = leadsNoPeriodo.filter((l) => l.status === "Perdido");
-    const valorGanho = sumBy(leadsGanhos);
+    const vendasPdv = vendasPdvAll.filter((v) => inRange((v.paid_at || v.created_at)?.slice(0, 10), from, to));
+    const valorPdv = vendasPdv.reduce((s, v) => s + (Number(v.valor_total) || 0), 0);
+    const valorGanho = sumBy(leadsGanhos) + valorPdv;   // ganho = lead Fechado/Ganho + venda do PDV
     const valorTotalOportunidades = sumBy(leadsNoPeriodo);
     const taxaConversao = leadsNoPeriodo.length > 0 ? Math.round((leadsGanhos.length / leadsNoPeriodo.length) * 1000) / 10 : 0;
-    const ticketMedio = leadsGanhos.length > 0 ? valorGanho / leadsGanhos.length : 0;
+    const ticketMedio = leadsGanhos.length + vendasPdv.length > 0 ? valorGanho / (leadsGanhos.length + vendasPdv.length) : 0;
 
     const porEtapa = new Map<string, number>();
     for (const l of leadsAll) { // etapa = estado ATUAL do pipeline, não do período (snapshot de hoje)
@@ -1126,7 +1131,14 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
       const key = l.seller?.trim() || "Não atribuído";
       const cur = porVendedor.get(key) || { leads: 0, ganhos: 0, valorGanho: 0 };
       cur.leads += 1;
-      if (l.status === "Fechado") { cur.ganhos += 1; cur.valorGanho += Number(l.value) || 0; }
+      if (isLeadWon(l.status)) { cur.ganhos += 1; cur.valorGanho += Number(l.value) || 0; }
+      porVendedor.set(key, cur);
+    }
+
+    for (const v of vendasPdv) {   // vendedor da venda do PDV entra no ranking como negócio ganho
+      const key = v.vendedor_nome?.trim() || "Não atribuído";
+      const cur = porVendedor.get(key) || { leads: 0, ganhos: 0, valorGanho: 0 };
+      cur.ganhos += 1; cur.valorGanho += Number(v.valor_total) || 0;
       porVendedor.set(key, cur);
     }
 
@@ -1135,7 +1147,14 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
       const key = monthKey(l.created_at.slice(0, 10));
       const cur = evolucaoVendas.get(key) || { valorGanho: 0, negociosGanhos: 0, leadsNovos: 0 };
       cur.leadsNovos += 1;
-      if (l.status === "Fechado") { cur.negociosGanhos += 1; cur.valorGanho += Number(l.value) || 0; }
+      if (isLeadWon(l.status)) { cur.negociosGanhos += 1; cur.valorGanho += Number(l.value) || 0; }
+      evolucaoVendas.set(key, cur);
+    }
+
+    for (const v of vendasPdv) {
+      const key = monthKey((v.paid_at || v.created_at).slice(0, 10));
+      const cur = evolucaoVendas.get(key) || { valorGanho: 0, negociosGanhos: 0, leadsNovos: 0 };
+      cur.negociosGanhos += 1; cur.valorGanho += Number(v.valor_total) || 0;
       evolucaoVendas.set(key, cur);
     }
 
@@ -1199,7 +1218,8 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
         leadsCadastrados: leadsAll.length,
         leadsNovosNoPeriodo: leadsNoPeriodo.length,
         leadsPorEtapa: Object.fromEntries(porEtapa),
-        negociosGanhos: leadsGanhos.length,
+        negociosGanhos: leadsGanhos.length + vendasPdv.length,
+        vendasPdv: { quantidade: vendasPdv.length, valor: valorPdv },
         negociosPerdidos: leadsPerdidos.length,
         taxaConversao,
         valorTotalOportunidades,
@@ -1271,9 +1291,9 @@ app.get("/api/marketing/campanhas-summary", requireUserOrInternalService, async 
     ]);
 
     const totalLeads = leadsAll.length;
-    const closedLeads = leadsAll.filter(l => l.status === "Fechado").length;
+    const closedLeads = leadsAll.filter(l => isLeadWon(l.status)).length;
     // Mesma definição da tela Análises de Marketing: receita = negócios fechados; investimento = só despesas de marketing/anúncios.
-    const totalRevenue = leadsAll.filter(l => l.status === "Fechado").reduce((s, l) => s + (Number(l.value) || 0), 0);
+    const totalRevenue = leadsAll.filter(l => isLeadWon(l.status)).reduce((s, l) => s + (Number(l.value) || 0), 0);
     const totalSpent = entries.filter(f => f.type === "Pagar" && f.status === "Pago" && ehGastoMarketing(f.category)).reduce((s, f) => s + (Number(f.value) || 0), 0);
     const cpa = totalLeads > 0 ? totalSpent / totalLeads : 0;
 
@@ -1291,7 +1311,7 @@ app.get("/api/marketing/campanhas-summary", requireUserOrInternalService, async 
       const src = l.source || "Orgânico / Direto";
       if (!bySourceMap[src]) bySourceMap[src] = { leads: 0, closed: 0 };
       bySourceMap[src].leads++;
-      if (l.status === "Fechado") bySourceMap[src].closed++;
+      if (isLeadWon(l.status)) bySourceMap[src].closed++;
     }
     const bySource = Object.entries(bySourceMap)
       .sort((a, b) => b[1].leads - a[1].leads)
@@ -1743,7 +1763,7 @@ app.get("/api/marketing/analytics-summary", requireUserOrInternalService, async 
       fetchAllRowsPaginated(sb, "finance_entries", "type,status,value,category", (q) => q.eq("tenant_id", tenantId)) as Promise<{ type: string; status: string; value: number; category: string | null }[]>,
     ]);
 
-    const closedLeadsRows = leadsAll.filter((l) => l.status === "Fechado");
+    const closedLeadsRows = leadsAll.filter((l) => isLeadWon(l.status));
     const totalRevenue = closedLeadsRows.reduce((s, l) => s + (Number(l.value) || 0), 0);
     const totalSpent = entries
       .filter((f) => f.type === "Pagar" && f.status === "Pago" && ehGastoMarketing(f.category))
@@ -1838,7 +1858,7 @@ app.get("/api/crm/relatorios-executivos-summary", requireUserOrInternalService, 
     const pTasks = tasksAll.filter((t) => isWithin(t.due_date));
 
     const totalLeads = pLeads.length;
-    const closedLeads = pLeads.filter((l) => l.status === "Fechado" || l.status === "Ganho").length;
+    const closedLeads = pLeads.filter((l) => isLeadWon(l.status)).length;
     const leadConversion = totalLeads > 0 ? Math.round((closedLeads / totalLeads) * 100) : 0;
 
     const totalReceitas = pFinance.filter((f) => f.type === "Receber" && f.status === "Pago").reduce((s, f) => s + (Number(f.value) || 0), 0);
@@ -1858,7 +1878,7 @@ app.get("/api/crm/relatorios-executivos-summary", requireUserOrInternalService, 
       const seller = l.seller || "Sem atribuição";
       const cur = sellerMap.get(seller) || { leads: 0, closed: 0, revenue: 0 };
       cur.leads += 1;
-      if (l.status === "Fechado" || l.status === "Ganho") {
+      if (isLeadWon(l.status)) {
         cur.closed += 1;
         cur.revenue += parseValLike(l.value);
       }
@@ -1925,7 +1945,7 @@ app.get("/api/crm/dashboard-performance-summary", requireUserOrInternalService, 
       const avgScore = monthLeads.length > 0
         ? Math.round(monthLeads.reduce((s, l) => s + (l.scoreIA || 0), 0) / monthLeads.length)
         : 0;
-      const won = monthLeads.filter((l) => l.status === "Fechado").length;
+      const won = monthLeads.filter((l) => isLeadWon(l.status)).length;
       const conversionRate = monthLeads.length > 0 ? Math.round((won / monthLeads.length) * 100) : 0;
       return { month, avgScore, conversionRate, leads: monthLeads.length };
     });
@@ -1936,7 +1956,7 @@ app.get("/api/crm/dashboard-performance-summary", requireUserOrInternalService, 
       const v = parseFloat(String(l.value || "").replace(/[^\d]/g, "")) || 0;
       return a + v;
     }, 0);
-    const wonLeads = leadsAll.filter((l) => l.status === "Fechado").length;
+    const wonLeads = leadsAll.filter((l) => isLeadWon(l.status)).length;
     const winRate = totalLeads > 0 ? (wonLeads / totalLeads) * 100 : 0;
 
     const summary = { performanceData, totalLeads, avgScore, totalValue, winRate, cachedAt: new Date().toISOString() };
@@ -4123,7 +4143,7 @@ app.post("/api/leads/calculate-score", requireUser, async (req, res) => {
   else if (lead.status === "Prospecção") score += 10;
   else if (lead.status === "Qualificado") score += 20;
   else if (lead.status === "Em Negociação") score += 30;
-  else if (lead.status === "Fechado") score += 50;
+  else if (isLeadWon(lead.status)) score += 50;
   else if (lead.status === "Perdido") score -= 30;
   if (lead.priority === "Alta") score += 15;
   else if (lead.priority === "Média") score += 5;

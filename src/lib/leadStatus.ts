@@ -9,8 +9,21 @@ export function isLeadLost(status?: string | null): boolean {
   return !!status && (LOST_LEAD_STATUSES as readonly string[]).includes(status);
 }
 
+// "Fechado", "Ganho" (e "Ganhou") são a MESMA coisa: negócio ganho = venda fechada. O sistema grava "Fechado"; os outros
+// nomes chegam por integrações/importações antigas e passam a valer igual em toda conta, soma e filtro.
+export const WON_LEAD_STATUSES = ["Fechado", "Ganho", "Ganhou"] as const;
+
+export function isLeadWon(status?: string | null): boolean {
+  return !!status && (WON_LEAD_STATUSES as readonly string[]).includes(status);
+}
+
+/** Nome único gravado/mostrado para qualquer sinônimo de "ganho". Outros status passam como vieram. */
+export function normalizarStatusLead<T extends string | null | undefined>(status: T): T | "Fechado" {
+  return isLeadWon(status) ? "Fechado" : status;
+}
+
 export function isLeadOpen(status?: string | null): boolean {
-  return status !== "Fechado" && !isLeadLost(status);
+  return !isLeadWon(status) && !isLeadLost(status);
 }
 
 // Classifica o status do lead a partir do NOME da etapa de destino (drag no

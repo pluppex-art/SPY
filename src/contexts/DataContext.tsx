@@ -29,6 +29,7 @@ import { isDateLocked } from "../pages/finance/lib/financeEngine";
 import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
 import { friendlyError } from "../lib/friendlyError";
+import { normalizarStatusLead } from "../lib/leadStatus";
 import { completarBaixa } from '../pages/finance/lib/baixa';
 import { montarEstorno, podeEstornar } from '../pages/finance/lib/estorno';
 import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio, getProposalHeadlineFromItems, addMonthsClamped, splitInstallments } from "../lib/saleCalculator";
@@ -549,8 +550,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [activeFilialId, appSettings]);
   useEffect(() => { setUnidadeMax(unidadeFilial); }, [unidadeFilial]);
   const leads = useMemo(() => {
-    if (!activeFilialId) return leadsRaw;
-    return leadsRaw.filter((l: any) => l.customFields?.origin === 'maxdata' ? l.customFields?.fonte === unidadeFilial : (l.filial_id === activeFilialId || (filialAtivaEhPrincipal && !l.filial_id)));
+    // "Ganho" e "Fechado" são a mesma coisa (ver leadStatus.ts): em memória todo sinônimo vira "Fechado", então
+    // Pipeline, dashboards, totais e filtros tratam igual. Só clona o lead que de fato tem outro nome.
+    const base = leadsRaw.some((l: any) => l.status !== normalizarStatusLead(l.status))
+      ? leadsRaw.map((l: any) => (l.status !== normalizarStatusLead(l.status) ? { ...l, status: 'Fechado' } : l))
+      : leadsRaw;
+    if (!activeFilialId) return base;
+    return base.filter((l: any) => l.customFields?.origin === 'maxdata' ? l.customFields?.fonte === unidadeFilial : (l.filial_id === activeFilialId || (filialAtivaEhPrincipal && !l.filial_id)));
   }, [leadsRaw, activeFilialId, unidadeFilial, filialAtivaEhPrincipal]);
   // Ticket médio dos leads Fechado do tenant — usado só como ESTIMATIVA de
   // exibição pra leads "Novo" sem valor/produto ainda (ex.: cliente cadastrado
