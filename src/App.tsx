@@ -109,6 +109,7 @@ const ConfigEmpresaDados = lazy(() => import("./pages/settings/ConfigEmpresaDado
 const ConfigPlanoUso = lazy(() => import("./pages/settings/sections/ConfigPlanoUso"));
 const ConfigLGPD = lazy(() => import("./pages/settings/sections/ConfigLGPD"));
 const Radar = lazy(() => import("./pages/crm/Radar"));
+const Prospeccao = lazy(() => import("./pages/crm/Prospeccao"));
 const ConfigEmpresaFiliais = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaFiliais })));
 const ConfigEmpresaEquipe = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaEquipe })));
 const ConfigEmpresaPermissoes = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEmpresaPermissoes })));
@@ -297,6 +298,7 @@ function AppContent() {
             <Route index element={<Navigate to="pipeline" replace />} />
             <Route path="pipeline" element={<Pipeline />} />
             <Route path="radar" element={<Radar />} />
+            <Route path="prospeccao" element={<Prospeccao />} />
             <Route path="leads" element={<Navigate to="/app/crm/pipeline" replace />} />
             <Route path="contatos" element={<Contatos />} />
             <Route path="clientes" element={<Clientes />} />
