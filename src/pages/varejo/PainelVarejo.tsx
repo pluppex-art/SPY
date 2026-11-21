@@ -7,6 +7,7 @@ import {
   QrCode, Banknote, Clock, ArrowUpRight, BarChart3, RefreshCw
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
+import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { Modal } from "../../components/ui/modal";
 import { useAuth } from "../../contexts/AuthContext";
@@ -287,6 +288,7 @@ export default function PainelVarejo() {
           id: String(p.id),
           name: p.name || "Item em estoque",
           provider: (p.provider || "").trim(),
+          custo: Number(p.cost) || 0,
           stock,
           min,
           sugerido: Math.max((max > 0 ? max : min * 2) - stock, 1),
@@ -307,17 +309,28 @@ export default function PainelVarejo() {
     setRepSel(sel); setRepQtd(qtd); setRepOpen(true);
   };
   const escolhidos = itensCriticosTodos.filter(i => repSel[i.id] && (parseInt(repQtd[i.id], 10) || 0) > 0);
-  const criarRascunhoCompra = () => {
-    if (escolhidos.length === 0) return;
-    const provs = Array.from(new Set(escolhidos.map(i => i.provider).filter(Boolean)));
-    navigate("/app/varejo/compras", {
-      state: {
-        rascunho: {
-          fornecedor: provs.length === 1 ? provs[0] : "",
-          linhas: escolhidos.map(i => ({ nome: i.name, qtd: parseInt(repQtd[i.id], 10) })),
-        },
-      },
+  const [lancando, setLancando] = useState(false);
+  const lancarOrdemCompra = async () => {
+    if (escolhidos.length === 0 || lancando) return;
+    if (!supabase || !activeTenantId) { toast.error("Sem conexão com o banco de dados."); return; }
+    const provs = Array.from(new Set(escolhidos.map(i => i.provider).filter(p => p && p.toLowerCase() !== "interno")));
+    const prazo = cfgVarejo.compras.prazoEntregaPadraoDias;
+    let previsao: string | null = null;
+    if (prazo > 0) { const d = new Date(); d.setDate(d.getDate() + prazo); previsao = d.toISOString().slice(0, 10); }
+    setLancando(true);
+    const { error } = await supabase.from("compras").insert({
+      tenant_id: activeTenantId,
+      fornecedor: provs.length === 1 ? provs[0] : "A definir",
+      valor: escolhidos.reduce((t, i) => t + (parseInt(repQtd[i.id], 10) || 0) * i.custo, 0),
+      itens: escolhidos.map(i => `${parseInt(repQtd[i.id], 10)}x ${i.name}`).join(", "),
+      previsao_entrega: previsao,
+      status: "Pendente",
     });
+    setLancando(false);
+    if (error) { toast.error("Erro ao lançar a ordem de compra."); return; }
+    toast.success("Ordem de compra lançada!");
+    setRepOpen(false);
+    navigate("/app/varejo/compras");
   };
 
   // Comissão do dia por pessoa. Vem dos itens (cada produto tem a sua pessoa e o seu %);
@@ -730,13 +743,13 @@ export default function PainelVarejo() {
         footer={
           <div className="flex items-center justify-end gap-2 w-full">
             <Button type="button" variant="outline" onClick={() => setRepOpen(false)} className="h-9 px-4 text-xs font-semibold">Cancelar</Button>
-            <Button type="button" onClick={criarRascunhoCompra} disabled={escolhidos.length === 0} className="h-9 px-4 text-xs font-semibold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
-              Criar rascunho da ordem ({escolhidos.length})
+            <Button type="button" onClick={lancarOrdemCompra} disabled={escolhidos.length === 0 || lancando} className="h-9 px-4 text-xs font-semibold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
+              {lancando ? "Lançando..." : `Lançar ordem de compra (${escolhidos.length})`}
             </Button>
           </div>
         }
       >
-        <p className="text-xs text-[var(--color-text-muted)] mb-3">Marque o que precisa comprar e ajuste a quantidade. A ordem abre em Compras como rascunho, só vale depois que você emitir.</p>
+        <p className="text-xs text-[var(--color-text-muted)] mb-3">Marque o que precisa comprar e ajuste a quantidade. A ordem é lançada direto em Compras, aguardando o fornecedor. O valor usa o custo cadastrado de cada produto.</p>
         <div className="space-y-2 max-h-[50vh] overflow-y-auto">
           {itensCriticosTodos.map(i => (
             <label key={i.id} className="p-2.5 rounded-xl bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] flex items-center gap-3 cursor-pointer">

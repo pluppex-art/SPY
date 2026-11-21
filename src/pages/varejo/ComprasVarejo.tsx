@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  ClipboardList, Plus, Truck, DollarSign,
+  ClipboardList, FileDown, Plus, Truck, DollarSign,
   CheckCircle2, Clock, Package, Trash2, X, Boxes, ArrowDownCircle
 } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
@@ -59,7 +59,7 @@ function rowToCompra(row: any): CompraItem {
 }
 
 export default function ComprasVarejo() {
-  const { activeTenantId } = useAuth();
+  const { activeTenantId, activeTenantName } = useAuth();
   const { products, setProducts } = useData();
   const cfgVarejo = useVarejoConfig();
   const location = useLocation();
@@ -171,6 +171,33 @@ export default function ComprasVarejo() {
     setPrevisaoEntrega("");
   };
 
+  const exportarPdf = async () => {
+    if (filtered.length === 0) { toast.error("Nenhuma ordem para exportar."); return; }
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.setFontSize(14);
+    doc.text("Ordens de Compra & Reposição", 14, 16);
+    doc.setFontSize(9);
+    doc.text(`${activeTenantName || ""}  •  Gerado em ${new Date().toLocaleString("pt-BR")}`, 14, 22);
+    const ativasPdf = filtered.filter(c => c.status !== "Cancelada");
+    autoTable(doc, {
+      startY: 27,
+      head: [["Código", "Emissão", "Fornecedor", "Itens", "Previsão", "Status", "Total (R$)"]],
+      body: filtered.map(c => [
+        `OC-${c.id.slice(0, 6).toUpperCase()}`, c.data, c.fornecedor,
+        c.itens.split(/,\s*(?=\d+x )/).join("\n"), c.previsaoEntrega, c.status,
+        Number(c.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 }),
+      ]),
+      foot: [["", "", "", "", "", "Total (sem canceladas)", ativasPdf.reduce((t, c) => t + Number(c.valor), 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })]],
+      styles: { fontSize: 8, cellPadding: 2, valign: "top" },
+      headStyles: { fillColor: [91, 33, 182] },
+      footStyles: { fillColor: [243, 244, 246], textColor: 20 },
+      columnStyles: { 3: { cellWidth: 80 }, 6: { halign: "right" } },
+    });
+    doc.save(`ordens-de-compra-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
   const handleDelete = async (id: string) => {
     if (!supabase) return;
     const compra = compras.find(c => c.id === id);
@@ -270,6 +297,10 @@ export default function ComprasVarejo() {
       title="Ordens de Compra & Reposição"
       description="Emita pedidos aos fornecedores, registre a entrada das mercadorias e alimente o saldo do estoque."
       actions={
+        <div className="flex items-center gap-2">
+        <Button variant="outline" onClick={exportarPdf} className="h-9 px-4 text-xs font-bold gap-1.5">
+          <FileDown className="w-3.5 h-3.5" /> Exportar PDF
+        </Button>
         <Button onClick={() => {
           if (!previsaoEntrega && cfgVarejo.compras.prazoEntregaPadraoDias > 0) {
             const d = new Date(); d.setDate(d.getDate() + cfgVarejo.compras.prazoEntregaPadraoDias);
@@ -279,6 +310,7 @@ export default function ComprasVarejo() {
         }} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
           <Plus className="w-3.5 h-3.5" /> Nova Ordem de Compra
         </Button>
+        </div>
       }
     >
       <KpiFilterCard
@@ -308,13 +340,18 @@ export default function ComprasVarejo() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[var(--color-surface-sunken)] text-[var(--color-primary-blue)] border border-[var(--color-border-subtle)]">
-                  {c.id}
+                  OC-{c.id.slice(0, 6).toUpperCase()}
                 </span>
                 <h4 className="text-xs font-bold text-[var(--color-text-primary)]">{c.fornecedor}</h4>
                 <span className="text-[10px] text-[var(--color-text-muted)]">• Emitido em: {c.data}</span>
               </div>
-              <p className="text-[11px] text-[var(--color-text-muted)]">
-                Itens: <strong className="text-[var(--color-text-primary)]">{c.itens}</strong> • Previsão: {c.previsaoEntrega} • Total: <strong className="text-emerald-500 font-bold font-mono">R$ {Number(c.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong>
+              <ul className="text-[11px] text-[var(--color-text-primary)] mt-1.5 space-y-0.5">
+                {c.itens.split(/,\s*(?=\d+x )/).filter(Boolean).map((it, k) => (
+                  <li key={k} className="flex items-center gap-1.5"><span className="text-[var(--color-primary-blue)]">•</span> {it}</li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-[var(--color-text-muted)] mt-1.5">
+                Previsão: {c.previsaoEntrega} • Total: <strong className="text-emerald-500 font-bold font-mono">R$ {Number(c.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong>
               </p>
             </div>
 
