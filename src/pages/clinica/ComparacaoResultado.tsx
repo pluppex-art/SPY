@@ -1,3 +1,4 @@
+import { buscarExames, exameDeProduto, COLUNAS_PRODUTO_EXAME, TIPO_EXAME } from "../../lib/examesBase";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Check, Sparkles, ChevronLeft, ChevronRight, GitCompare, Loader2, Percent, ArrowUpDown, TrendingDown, Wallet, X, Replace, Layers } from "lucide-react";
@@ -91,7 +92,7 @@ export default function ComparacaoResultado() {
     setTotal(count || 0);
     const ids = [...new Set(list.flatMap((it: any) => [it.exame_base_id, ...(it.candidatos || []).map((c: any) => c.exame_base_id)]).filter(Boolean))] as string[];
     if (ids.length) {
-      const { data: bases } = await supabase.from("saude_exames_base").select("id,nome,codigo_interno,custo,valor").eq("tenant_id", activeTenantId).in("id", ids);
+      const bases = await buscarExames(supabase, activeTenantId, (q: any) => q.in("id", ids));
       setBaseMap((prev) => ({ ...prev, ...Object.fromEntries((bases || []).map((b: any) => [b.id, b])) }));
     }
     setLoadingItens(false);
@@ -104,9 +105,10 @@ export default function ComparacaoResultado() {
     if (!detalhe || !supabase || !activeTenantId || trocaBusca.trim().length < 2) { setTrocaRes([]); return; }
     const t = window.setTimeout(async () => {
       const termo = limpaBusca(trocaBusca);
-      const { data } = await supabase!.from("saude_exames_base").select("id,nome,codigo_interno,custo,valor")
-        .eq("tenant_id", activeTenantId).eq("ativo", true).or(`nome.ilike.%${termo}%,codigo_interno.ilike.%${termo}%`).limit(8);
-      setTrocaRes(data || []);
+      const { data } = await supabase!.from("products").select(COLUNAS_PRODUTO_EXAME)
+        .eq("tenant_id", activeTenantId).eq("type", TIPO_EXAME).eq("active", true).is("deleted_at", null)
+        .or(`name.ilike.%${termo}%,sku.ilike.%${termo}%`).limit(8);
+      setTrocaRes((data || []).map(exameDeProduto));
     }, 250);
     return () => window.clearTimeout(t);
   }, [trocaBusca, detalhe, activeTenantId]);

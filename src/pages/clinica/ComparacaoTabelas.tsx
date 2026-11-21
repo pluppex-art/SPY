@@ -69,7 +69,7 @@ export default function ComparacaoTabelas() {
     if (!supabase || !activeTenantId) return;
     const [{ data, error }, { count }] = await Promise.all([
       supabase.from("saude_comparacoes").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }).limit(200),
-      supabase.from("saude_exames_base").select("id", { count: "exact", head: true }).eq("tenant_id", activeTenantId).eq("ativo", true),
+      supabase.from("products").select("id", { count: "exact", head: true }).eq("tenant_id", activeTenantId).eq("type", "Exame").eq("active", true).is("deleted_at", null),
     ]);
     if (error) { toast.error("Não foi possível carregar o histórico."); setLista([]); return; }
     setLista(data || []);

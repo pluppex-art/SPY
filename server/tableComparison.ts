@@ -12,6 +12,7 @@
  * Nada aqui expõe chaves de IA ou prompts ao navegador. A Aurora entra sempre DEPOIS das regras
  * determinísticas e sob as travas de server/tableComparisonAi.ts.
  */
+import { buscarExames } from "../src/lib/examesBase.js";
 import type { Express, RequestHandler } from "express";
 import {
   DEFAULT_FINANCE_RULES, DEFAULT_MATCH_CONFIG, MATCH_ENGINE_VERSION,
@@ -109,9 +110,7 @@ export function registerTableComparisonRoutes(app: Express, { requireUser, resol
       };
 
       // ── Base do tenant + memória ──
-      const baseRows = await fetchAll(sb, "saude_exames_base",
-        "id,nome,codigo_interno,codigo_externo,nomes_alternativos,custo,valor",
-        (q) => q.eq("tenant_id", tenantId).eq("ativo", true));
+      const baseRows = await buscarExames(sb, tenantId, (q) => q.eq("active", true));
       if (baseRows.length === 0) {
         return res.status(400).json({ error: "A base de exames está vazia. Cadastre ou importe a base antes de comparar." });
       }
@@ -193,7 +192,7 @@ export function registerTableComparisonRoutes(app: Express, { requireUser, resol
 
       let base: any = null;
       if (baseId) {
-        const { data } = await sb.from("saude_exames_base").select("id,nome,custo,valor").eq("id", baseId).eq("tenant_id", tenantId).maybeSingle();
+        const [data] = await buscarExames(sb, tenantId, (q) => q.eq("id", baseId));
         if (!data) return res.status(404).json({ error: "Exame da base não encontrado." });
         base = data;
       }
@@ -276,8 +275,7 @@ export function registerTableComparisonRoutes(app: Express, { requireUser, resol
       }
 
       const candIds = [...new Set(batchItems.flatMap((it: any) => it.candidatos.map((c: any) => c.exame_base_id)))] as string[];
-      const baseRows = await fetchAll(sb, "saude_exames_base", "id,nome,codigo_interno,codigo_externo,nomes_alternativos,categoria,material,unidade,custo,valor",
-        (q) => q.eq("tenant_id", tenantId).in("id", candIds));
+      const baseRows = await buscarExames(sb, tenantId, (q) => q.in("id", candIds));
       const baseById = new Map<string, any>(baseRows.map((b: any) => [b.id, { ...b, custo: toNum(b.custo), valor: toNum(b.valor) }]));
 
       const counts = { analisados: 0, sugeridos: 0, rebaixados: 0, incertos: 0, falhas: 0 };
@@ -323,8 +321,7 @@ export function registerTableComparisonRoutes(app: Express, { requireUser, resol
       let expandCtx: { index: any; baseById: Map<string, any> } | null = null;
       const getExpandCtx = async () => {
         if (expandCtx) return expandCtx;
-        const all = await fetchAll(sb, "saude_exames_base", "id,nome,codigo_interno,codigo_externo,nomes_alternativos,custo,valor",
-          (q) => q.eq("tenant_id", tenantId).eq("ativo", true));
+        const all = await buscarExames(sb, tenantId, (q) => q.eq("active", true));
         const mem = await fetchAll(sb, "saude_equivalencias", "exame_base_id,nome_parceiro_norm,codigo_parceiro,parceiro",
           (q) => q.eq("tenant_id", tenantId).eq("status", "ativa").in("parceiro", ["", comp.parceiro]));
         const byId = new Map<string, any>(all.map((b: any) => [b.id, { ...b, custo: toNum(b.custo), valor: toNum(b.valor) }]));
