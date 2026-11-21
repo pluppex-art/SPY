@@ -1563,12 +1563,12 @@ export default function VarejoVendas() {
                     </button>
                   </div>
                 ) : (
-                  // Botão azul sólido: o texto branco some no tema claro se o fundo também for claro.
+                  // Fundo via var(--color-primary-blue): é a única forma que o CSS do tema claro (index.css) não força o texto para escuro.
                   <button
                     type="button"
                     disabled={esgotado}
                     onClick={() => addToCart(product)}
-                    className="w-full h-7 px-3 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-full h-7 px-3 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1 bg-[var(--color-primary-blue)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <Plus className="w-3 h-3" /> Adicionar
                   </button>
