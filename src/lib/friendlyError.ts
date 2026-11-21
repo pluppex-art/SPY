@@ -12,6 +12,9 @@ export function friendlyError(error: unknown): string {
 
   if (!msg) return "Não foi possível concluir a ação agora. Tente novamente.";
 
+  if (msg.includes("plan_limit_leads")) return "Limite de leads do plano atingido. Peça ao responsável para ampliar o plano.";
+  if (msg.includes("plan_limit_users")) return "Limite de usuários do plano atingido. Peça ao responsável para ampliar o plano.";
+
   if (msg.includes("row-level security") || msg.includes("permission denied")) {
     return "Você não tem permissão para fazer essa ação.";
   }
