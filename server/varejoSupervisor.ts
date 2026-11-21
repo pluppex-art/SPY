@@ -49,7 +49,6 @@ export function registerVarejoSupervisorRoutes(app: Express, { requireUser, requ
   const verificarLimiter = rateLimit({
     windowMs: 60_000, limit: 8, standardHeaders: true, legacyHeaders: false,
     keyGenerator: (req: any) => `varejo-sup:${req.user?.id || "anon"}`,
-    validate: { keyGeneratorIpFallback: false } as any,
     message: { error: "Muitas tentativas. Aguarde um minuto e tente de novo." },
   });
   const salvarLimiter = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false });
