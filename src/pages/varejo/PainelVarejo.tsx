@@ -584,6 +584,34 @@ export default function PainelVarejo() {
         </div>
       </div>
 
+      {comissoesPorVendedor.length > 0 && (
+        <div className="mb-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs">
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-3">Vendas e comissão por vendedor · {periodoLabel}</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                  <th className="py-2 pr-3">Vendedor</th>
+                  <th className="py-2 px-3 text-right">Vendas</th>
+                  <th className="py-2 px-3 text-right">Total vendido</th>
+                  <th className="py-2 pl-3 text-right">Comissão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comissoesPorVendedor.map((c) => (
+                  <tr key={c.vendedor} className="border-t border-[var(--color-border-subtle)]">
+                    <td className="py-2 pr-3 font-semibold text-[var(--color-text-primary)]">{c.vendedor}</td>
+                    <td className="py-2 px-3 text-right font-mono">{c.vendas}</td>
+                    <td className="py-2 px-3 text-right font-mono">R$ {c.total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="py-2 pl-3 text-right font-mono font-bold">R$ {c.comissao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Bottom Row: Vendas Recentes & Compras com Fornecedores */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Vendas Recentes */}
@@ -662,34 +690,6 @@ export default function PainelVarejo() {
         rows={drillKey === "vendas" ? (vendas || []).filter((v) => v.status !== "cancelada") : drillKey === "catalogo" ? (products || []) : []}
         columns={drillKey === "vendas" ? vendaColumns : productColumns}
       />
-      {comissoesPorVendedor.length > 0 && (
-        <div className="mt-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs">
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-3">Vendas e comissão por vendedor · {periodoLabel}</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-                  <th className="py-2 pr-3">Vendedor</th>
-                  <th className="py-2 px-3 text-right">Vendas</th>
-                  <th className="py-2 px-3 text-right">Total vendido</th>
-                  <th className="py-2 pl-3 text-right">Comissão</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comissoesPorVendedor.map((c) => (
-                  <tr key={c.vendedor} className="border-t border-[var(--color-border-subtle)]">
-                    <td className="py-2 pr-3 font-semibold text-[var(--color-text-primary)]">{c.vendedor}</td>
-                    <td className="py-2 px-3 text-right font-mono">{c.vendas}</td>
-                    <td className="py-2 px-3 text-right font-mono">R$ {c.total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="py-2 pl-3 text-right font-mono font-bold">R$ {c.comissao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
     </PageContainer>
   );
 }
