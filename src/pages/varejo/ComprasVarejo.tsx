@@ -58,6 +58,58 @@ function rowToCompra(row: any): CompraItem {
   };
 }
 
+const inputBase =
+  "px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]";
+
+/** Campo de item: abre a lista do catálogo ao focar, filtra enquanto digita e aceita texto livre (item que ainda não existe no estoque). */
+function ItemCombobox({
+  value, onChange, onPick, produtos,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onPick: (p: any) => void;
+  produtos: any[];
+}) {
+  const [aberto, setAberto] = useState(false);
+  const q = value.trim().toLowerCase();
+  const opcoes = produtos.filter(p => !q || String(p.name || "").toLowerCase().includes(q)).slice(0, 30);
+  const exato = produtos.some(p => String(p.name || "").trim().toLowerCase() === q);
+  return (
+    <div className="flex-1 min-w-0">
+      <input
+        value={value}
+        placeholder="Digite ou escolha da lista"
+        onFocus={() => setAberto(true)}
+        onBlur={() => setAberto(false)}
+        onChange={e => { onChange(e.target.value); setAberto(true); }}
+        className={`w-full ${inputBase}`}
+      />
+      {aberto && (opcoes.length > 0 || q) && (
+        <div className="mt-1 max-h-40 overflow-y-auto rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface)] shadow-sm">
+          {q && !exato && (
+            <div className="px-3 py-1.5 text-[11px] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
+              Usar <strong className="text-[var(--color-text-primary)]">“{value.trim()}”</strong> como item novo (fora do estoque)
+            </div>
+          )}
+          {opcoes.map(p => (
+            <button
+              type="button"
+              key={p.id}
+              onMouseDown={e => { e.preventDefault(); onPick(p); setAberto(false); }}
+              className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--color-surface-sunken)] flex items-center justify-between gap-2"
+            >
+              <span className="truncate text-[var(--color-text-primary)]">{p.name}</span>
+              <span className="shrink-0 text-[10px] text-[var(--color-text-muted)]">
+                Saldo {Number(p.currentStock) || 0}{Number(p.cost) > 0 ? ` • R$ ${Number(p.cost).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ComprasVarejo() {
   const { activeTenantId, activeTenantName } = useAuth();
   const { products, setProducts } = useData();
@@ -481,7 +533,7 @@ export default function ComprasVarejo() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        maxWidth="max-w-md"
+        maxWidth="max-w-2xl"
         title={
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center shrink-0">
@@ -529,20 +581,36 @@ export default function ComprasVarejo() {
 
           <div>
             <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Itens a comprar <span className="text-rose-500">*</span></label>
-            <datalist id="lista-produtos-compra">
-              {(products || []).filter((p: any) => !p.type || p.type === "Físico").map((p: any) => <option key={p.id} value={p.name} />)}
-            </datalist>
-            <div className="space-y-2">
-              {linhas.map((l, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input list="lista-produtos-compra" placeholder="O que comprar" value={l.nome} onChange={e => setLinha(i, { nome: e.target.value })} className="flex-1 min-w-0 w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
-                  <input type="number" min={1} placeholder="Qtd" value={l.qtd} onChange={e => setLinha(i, { qtd: e.target.value })} className="w-16 text-right px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
-                  <input type="text" inputMode="decimal" placeholder="Custo un." value={l.custo} onChange={e => setLinha(i, { custo: e.target.value })} className="w-20 text-right px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
-                  <button type="button" disabled={linhas.length === 1} onClick={() => setLinhas(prev => prev.filter((_, k) => k !== i))} className="text-rose-500 disabled:opacity-30 text-sm px-1" title="Remover item">×</button>
-                </div>
-              ))}
+            <div className="flex items-center gap-2 px-0.5 mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <span className="flex-1">Item</span>
+              <span className="w-20 text-right">Qtd</span>
+              <span className="w-28 text-right">Custo un. (R$)</span>
+              <span className="w-24 text-right">Subtotal</span>
+              <span className="w-4" />
             </div>
-            <button type="button" onClick={() => setLinhas(prev => [...prev, linhaVazia()])} className="mt-2 text-[11px] font-bold text-[var(--color-primary-blue)] hover:underline">+ Adicionar item</button>
+            <div className="space-y-2">
+              {linhas.map((l, i) => {
+                const sub = (parseInt(l.qtd, 10) || 0) * (parseFloat(l.custo.replace(",", ".")) || 0);
+                return (
+                  <div key={i} className="flex items-start gap-2">
+                    <ItemCombobox
+                      value={l.nome}
+                      onChange={v => setLinha(i, { nome: v })}
+                      onPick={p => setLinha(i, { nome: p.name, custo: l.custo || (Number(p.cost) > 0 ? String(Number(p.cost)) : ""), qtd: l.qtd || "1" })}
+                      produtos={(products || []).filter((p: any) => !p.type || p.type === "Físico")}
+                    />
+                    <input type="number" min={1} placeholder="0" value={l.qtd} onChange={e => setLinha(i, { qtd: e.target.value })} className={`w-20 text-right ${inputBase}`} />
+                    <input type="text" inputMode="decimal" placeholder="0,00" value={l.custo} onChange={e => setLinha(i, { custo: e.target.value })} className={`w-28 text-right ${inputBase}`} />
+                    <span className="w-24 text-right text-xs font-mono text-[var(--color-text-primary)] pt-2">{sub > 0 ? sub.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "—"}</span>
+                    <button type="button" disabled={linhas.length === 1} onClick={() => setLinhas(prev => prev.filter((_, k) => k !== i))} className="w-4 pt-1.5 text-rose-500 disabled:opacity-30 text-sm" title="Remover item">×</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <button type="button" onClick={() => setLinhas(prev => [...prev, linhaVazia()])} className="text-[11px] font-bold text-[var(--color-primary-blue)] hover:underline">+ Adicionar item</button>
+              <span className="text-[11px] text-[var(--color-text-muted)]">Total estimado: <strong className="font-mono text-[var(--color-text-primary)]">R$ {totalLinhas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
