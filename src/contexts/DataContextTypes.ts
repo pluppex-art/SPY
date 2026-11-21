@@ -62,6 +62,11 @@ export interface FinanceEntry {
   competencia_date?: string | null;
   /** Dia em que o dinheiro se moveu (caixa). Preenchido na baixa; lançamento antigo não tem. */
   data_pagamento?: string | null;
+  /** 'spy' | 'api' | 'importacao' | 'externo'; vazio = lançamento antigo (anterior à regra nova). */
+  origem_registro?: string | null;
+  /** id do pagamento que este lançamento estorna. */
+  estorno_de?: string | null;
+  nao_operacional?: boolean;
   conta_bancaria_id?: string | null;
   numero_documento?: string | null;
   /** Vínculo opcional com um Contato completo (tabela `clientes`, reaproveitada
@@ -224,6 +229,8 @@ export interface DataContextType {
   addFinanceEntry: (entry: Omit<FinanceEntry, 'id'>, options?: { silent?: boolean }) => void;
   deleteFinanceEntry: (id: string) => void;
   updateFinanceEntry: (id: string, updates: Partial<FinanceEntry>) => Promise<boolean>;
+  /** Estorna um pagamento confirmado da regra nova: cria o lançamento de estorno ligado ao original. */
+  estornarFinanceEntry: (id: string) => Promise<boolean>;
   addAppointment: (apt: Omit<Appointment, 'id'>) => void;
   updateAppointment: (id: string, updates: Partial<Appointment>) => void;
   deleteAppointment: (id: string) => void;

@@ -1,9 +1,10 @@
 import { PageContainer } from "../../components/PageContainer";
+import { pagamentoTravado } from "./lib/estorno";
 import { Card } from "../../components/ui/card";
 import { EmptyState } from "../../components/ui/empty-state";
 import {
   Download, Calendar, CheckCircle2,
-  Clock, AlertTriangle, Plus, Trash2, DollarSign, Pencil, Lock, Repeat, Layers, User, Landmark, HelpCircle,
+  Clock, AlertTriangle, Plus, Trash2, Undo2, DollarSign, Pencil, Lock, Repeat, Layers, User, Landmark, HelpCircle,
   TrendingUp, TrendingDown, BarChart3, HourglassIcon, Copy, ArrowUpRight, ArrowDownRight, Tag, Search, X, ArrowUpDown, LayoutGrid, List as ListIcon, FileText, AlignLeft, FolderOpen, CreditCard, ArrowLeftRight, Save, Paperclip, Info, Activity, Eye,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -68,7 +69,7 @@ interface GenericProps {
 }
 
 export default function GenericFinanceiroList({ title, desc, type, statusFilter, defaultStatus }: GenericProps) {
-  const { financeEntries, addFinanceEntry, deleteFinanceEntry, updateFinanceEntry, financeCategories, addFinanceCategory, financeBankAccounts, financeCentrosCusto, clienteBase, financeAttachments } = useData();
+  const { financeEntries, addFinanceEntry, deleteFinanceEntry, updateFinanceEntry, estornarFinanceEntry, financeCategories, addFinanceCategory, financeBankAccounts, financeCentrosCusto, clienteBase, financeAttachments } = useData();
   const { formatCurrency } = useLocalization();
   const [isModalOpen, setIsModalOpen] = useState(false);
   // Período global da tela (seletor "Período: Tudo" do cabeçalho): filtra a tabela (servidor), os cards e o gráfico.
@@ -506,6 +507,19 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
     setTimeout(refetchEntries, 300);
   };
 
+  // Pagamento confirmado da regra nova não se apaga nem se edita: o botão vira "Estornar".
+  const estornadosIds = useMemo(() => new Set((financeEntries as any[]).filter((f) => f.estorno_de).map((f) => f.estorno_de as string)), [financeEntries]);
+  const handleEstornar = async (item: (typeof financeEntries)[number]) => {
+    if (!(await confirmDialog({
+      title: "Estornar pagamento",
+      description: `Estornar "${item.description}"? Será criado um lançamento oposto de ${formatCurrency(Number(item.value) || 0)} ligado a este pagamento. O pagamento original permanece no histórico.`,
+      confirmText: "Estornar",
+    }))) return;
+    if (await estornarFinanceEntry(item.id)) setTimeout(refetchEntries, 300);
+  };
+  const handleRemover = (item: (typeof financeEntries)[number]) => (pagamentoTravado(item as any) ? handleEstornar(item) : handleDelete(item));
+  const tituloRemover = (item: (typeof financeEntries)[number]) => (pagamentoTravado(item as any) ? "Estornar pagamento" : "Excluir lançamento");
+
   // Duplicar: novo lançamento "A Vencer" com os mesmos dados (sem herdar parcelas/recorrência/rateio).
   const handleDuplicate = async (item: (typeof financeEntries)[number]) => {
     await addFinanceEntry({
@@ -664,6 +678,12 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const filtrosAtivosCount = [filtroContraparte, filtroBusca, filtroCategoriaId, filtroStatus, filtroContaBancariaId, filtroCentroCustoId, filtroDataInicio, filtroDataFim].filter(Boolean).length;
 
   const RepeatBadge = ({ item }: { item: (typeof financeEntries)[number] }) => {
+    if ((item as any).estorno_de) {
+      return <span title="Lançamento de estorno" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-md bg-amber-500/10 text-amber-600 border border-amber-500/25"><Undo2 className="w-2.5 h-2.5" /> Estorno</span>;
+    }
+    if (estornadosIds.has(item.id)) {
+      return <span title="Este pagamento foi estornado" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-md bg-amber-500/10 text-amber-600 border border-amber-500/25"><Undo2 className="w-2.5 h-2.5" /> Estornado</span>;
+    }
     if (item.is_recurring) {
       return (
         <span title={`Recorrente (${item.recurring_frequency})`} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-md bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border border-[var(--color-primary-blue)]/25">
@@ -1047,11 +1067,11 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(item)}
+                          onClick={() => handleRemover(item)}
                           className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 rounded-lg transition-colors cursor-pointer"
-                          title="Excluir lançamento"
+                          title={tituloRemover(item)}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          {pagamentoTravado(item as any) ? <Undo2 className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </td>
@@ -1106,11 +1126,11 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(item)}
+                    onClick={() => handleRemover(item)}
                     className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger hover:bg-danger/10 hover:border-danger/25 p-1 transition-colors"
-                    title="Excluir lançamento"
+                    title={tituloRemover(item)}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    {pagamentoTravado(item as any) ? <Undo2 className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
                   </button>
                 </div>
                 <div>
@@ -1160,7 +1180,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                 <button type="button" onClick={() => setViewingItem(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Visualizar lançamento"><Eye className="w-3.5 h-3.5" /></button>
                 <button type="button" onClick={() => openEdit(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Editar lançamento"><Pencil className="w-3.5 h-3.5" /></button>
                 <button type="button" onClick={() => handleDuplicate(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Duplicar lançamento"><Copy className="w-3.5 h-3.5" /></button>
-                <button type="button" onClick={() => handleDelete(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger rounded-lg cursor-pointer" title="Excluir lançamento"><Trash2 className="w-3.5 h-3.5" /></button>
+                <button type="button" onClick={() => handleRemover(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger rounded-lg cursor-pointer" title={tituloRemover(item)}>{pagamentoTravado(item as any) ? <Undo2 className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}</button>
               </div>
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -1541,6 +1561,12 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
           <FinanceiroAnexosTab transacaoId={editingItem.id} />
         ) : (
         <form onSubmit={handleSaveEdit} className="space-y-4">
+          {editingItem && pagamentoTravado(editingItem as any) && (
+            <div className="flex items-start gap-2 px-3 py-2 text-[11px] rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25">
+              <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>Pagamento confirmado: valor, categoria, conta, status e datas não podem mais ser alterados. Para corrigir, use <b>Estornar</b> e lance de novo.</span>
+            </div>
+          )}
           {editingItem?.recurring_group_id && (
             <div className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase rounded-md bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border border-[var(--color-primary-blue)]/25">
               <Repeat className="w-2.5 h-2.5" /> Faz parte de uma recorrência {editingItem.recurring_frequency} — editar aqui só afeta esta ocorrência.
@@ -1750,10 +1776,10 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
             <Button
               type="button"
               variant="outline"
-              onClick={async () => { if (editingItem) { const item = editingItem; setEditingItem(null); await handleDelete(item); } }}
+              onClick={async () => { if (editingItem) { const item = editingItem; setEditingItem(null); await handleRemover(item); } }}
               className="h-10 px-4 text-xs font-bold gap-1.5 text-rose-500 border-rose-500/30 hover:bg-rose-500/10"
             >
-              <Trash2 className="w-4 h-4" /> Excluir
+              {editingItem && pagamentoTravado(editingItem as any) ? <><Undo2 className="w-4 h-4" /> Estornar</> : <><Trash2 className="w-4 h-4" /> Excluir</>}
             </Button>
             <div className="flex items-center gap-2">
               <Button
@@ -1805,7 +1831,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
           onEdit={() => { const it = viewingItem; setViewingItem(null); openEdit(it); }}
           onNew={openNewFromView}
           newLabel={type === "Pagar" ? "Nova despesa" : "Nova receita"}
-          onDelete={() => { const it = viewingItem; setViewingItem(null); handleDelete(it); }}
+          onDelete={() => { const it = viewingItem; setViewingItem(null); handleRemover(it); }}
         />
       )}
 

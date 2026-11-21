@@ -30,6 +30,7 @@ import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
 import { friendlyError } from "../lib/friendlyError";
 import { completarBaixa } from '../pages/finance/lib/baixa';
+import { montarEstorno, podeEstornar } from '../pages/finance/lib/estorno';
 import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio, getProposalHeadlineFromItems, addMonthsClamped, splitInstallments } from "../lib/saleCalculator";
 import { isSellerRestricted, scopeToSeller } from "../lib/sellerScope";
 
@@ -3640,6 +3641,34 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  /** Estorna um pagamento confirmado: pagamento da regra nova não se edita nem se apaga (M2/M5), a correção é um lançamento oposto ligado ao original. */
+  const estornarFinanceEntry = async (id: string): Promise<boolean> => {
+    const orig = financeEntries.find(f => f.id === id) as any;
+    if (!orig) { toast.error('Lançamento não encontrado.'); return false; }
+    const check = podeEstornar(orig, financeEntries as any[]);
+    if (check.ok === false) { toast.error(check.motivo); return false; }
+    const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const estorno: any = montarEstorno(orig, hoje, financeCategories);
+    if (checkFinanceEntryLock({ ...estorno } as any)) {
+      toast.error("Este período está bloqueado para fechamento — não é possível lançar o estorno nessa data.");
+      return false;
+    }
+    if (tenantId) estorno.tenant_id = tenantId;
+    estorno.filial_id = activeFilialId;
+    if (supabase) {
+      const { error } = await supabase.from('finance_entries').insert(estorno);
+      if (error) {
+        console.error('Supabase estorno finance_entries failed:', error.message);
+        toast.error(`Não foi possível estornar: ${friendlyError(error)}`);
+        return false;
+      }
+    }
+    setFinanceEntries(prev => [estorno, ...prev]);
+    writeFinanceAuditLog({ tipo_acao: 'CRIACAO', descricao_alvo: estorno.description, diff: buildFinanceAuditDiff(null, estorno) });
+    toast.success('Pagamento estornado.');
+    return true;
+  };
+
   const addAppointment = async (apt: Omit<Appointment, 'id'>) => {
     const newApt: any = { ...apt, id: crypto.randomUUID() };
     if (tenantId) newApt.tenant_id = tenantId;
@@ -3712,7 +3741,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addNotification, markNotificationAsRead, markAllNotificationsAsRead, deleteNotifications, clearAllNotifications,
       addLeadActivity,
       getSmartInsight,
-      addFinanceEntry, deleteFinanceEntry, updateFinanceEntry,
+      addFinanceEntry, deleteFinanceEntry, updateFinanceEntry, estornarFinanceEntry,
       addAppointment, updateAppointment, deleteAppointment,
       simulateNewLeadAssignment,
       simulateOverdueTask,
