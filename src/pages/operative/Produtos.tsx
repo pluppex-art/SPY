@@ -1,3 +1,5 @@
+import { useNicheProfiles } from "./produtos/useNicheProfiles";
+import VarejoEstoque from "../varejo/Estoque";
 import { useUnidadeMax } from "../../lib/unidadeMaxdata";
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -29,7 +31,7 @@ import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS,
 
 const PAGE_SIZE = 60;
 
-export default function Catalog() {
+function Catalog() {
   const f = useProdutoForm();
   const { createProposalWithItems, products } = useData();
   const { user, activeTenantId } = useAuth();
@@ -395,5 +397,35 @@ export default function Catalog() {
       </div>
     <ProdutoVisualizarModal produto={verProduto} onClose={() => setVerProduto(null)} podeEditar={escritaMax} tenantId={activeTenantId} onSalvo={() => setMaxReload((n) => n + 1)} />
     </PageContainer>
+  );
+}
+
+/**
+ * Entrada única "Produtos & Estoque": o cadastro (catálogo) e o saldo/movimentações
+ * ficam na mesma página. A aba de Estoque só existe quando o tenant tem o módulo
+ * varejo — nos demais nichos (imobiliária, automotivo…) a tela segue só com o catálogo.
+ */
+export default function Produtos() {
+  const profiles = useNicheProfiles();
+  const varejoOn = profiles.some(p => p.key === "varejo");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const vista = varejoOn && searchParams.get("vista") === "estoque" ? "estoque" : "catalogo";
+  const trocar = (v: "catalogo" | "estoque") => {
+    const next = new URLSearchParams(searchParams);
+    if (v === "estoque") next.set("vista", "estoque"); else next.delete("vista");
+    setSearchParams(next, { replace: true });
+  };
+  const tabCls = (ativo: boolean) =>
+    `px-4 h-9 text-xs font-bold rounded-[var(--radius-control)] transition-colors ${ativo ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)]"}`;
+  return (
+    <div className="space-y-4">
+      {varejoOn && (
+        <div role="tablist" aria-label="Produtos e Estoque" className="inline-flex items-center gap-1 p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]">
+          <button role="tab" aria-selected={vista === "catalogo"} onClick={() => trocar("catalogo")} className={tabCls(vista === "catalogo")}>Catálogo</button>
+          <button role="tab" aria-selected={vista === "estoque"} onClick={() => trocar("estoque")} className={tabCls(vista === "estoque")}>Estoque & Movimentações</button>
+        </div>
+      )}
+      {vista === "estoque" ? <VarejoEstoque embedded /> : <Catalog />}
+    </div>
   );
 }

@@ -35,7 +35,7 @@ interface Movimentacao {
   operador?: string;
 }
 
-export default function VarejoEstoque() {
+export default function VarejoEstoque({ embedded = false }: { embedded?: boolean } = {}) {
   const { products, setProducts } = useData();
   const cfg = useVarejoConfig();
   const minPadrao = cfg.estoque.estoqueMinimoPadrao;
@@ -276,8 +276,8 @@ export default function VarejoEstoque() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
-            Movimentações de Estoque <Boxes className="w-6 h-6 text-blue-500" />
+          <h1 className={`${embedded ? "text-lg" : "text-2xl"} font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5`}>
+            {embedded ? "Estoque & Movimentações" : "Movimentações de Estoque"} <Boxes className="w-6 h-6 text-blue-500" />
            <HelpTip label="Sobre Movimentações de Estoque">Veja as entradas, saídas e ajustes de saldo, os alertas de estoque baixo e o histórico das movimentações. O cadastro de produtos fica em Produtos.</HelpTip></h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -460,7 +460,7 @@ export default function VarejoEstoque() {
                               </Button>
 
                               <Link
-                                to="/app/produtos"
+                                to={`/app/produtos?editar=${encodeURIComponent(p.id)}`}
                                 className="h-7 px-2 inline-flex items-center gap-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] text-[11px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
                                 title="Editar cadastro em Produtos"
                               >

@@ -219,7 +219,6 @@ const AgendarPublico = lazy(() => import("./pages/public/AgendarPublico"));
 const AgendamentoAgenda = lazy(() => import("./pages/agendamento/AgendamentoAgenda"));
 const AgendamentoConfig = lazy(() => import("./pages/agendamento/AgendamentoConfig"));
 const VarejoVendas = lazy(() => import("./pages/varejo/Vendas"));
-const VarejoEstoque = lazy(() => import("./pages/varejo/Estoque"));
 const PainelDev = lazy(() => import("./pages/dev/PainelDev"));
 const ProjetosDev = lazy(() => import("./pages/dev/Projetos"));
 const SprintsDev = lazy(() => import("./pages/dev/Sprints"));
@@ -495,7 +494,7 @@ function AppContent() {
             <Route path="painel" element={<PainelVarejo />} />
             <Route path="vendas" element={<VarejoVendas />} />
             <Route path="pedidos" element={<PedidosVarejo />} />
-            <Route path="estoque" element={<VarejoEstoque />} />
+            <Route path="estoque" element={<Navigate to="/app/produtos?vista=estoque" replace />} />
             <Route path="compras" element={<ComprasVarejo />} />
             <Route path="notas-entrada" element={<NotasEntrada />} />
             <Route path="notas-entrada/:id" element={<NotaEntradaDetalhe />} />
