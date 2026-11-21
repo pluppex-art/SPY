@@ -13,6 +13,9 @@ export interface AjusteAplicado {
   quantidadeMovimentada: number;
   motivo: string;
   novoSaldo: number;
+  /** Só preenchidos quando o modal pede o valor da compra (Dar Entrada). */
+  custoUnitario?: number;
+  total?: number;
 }
 
 /**
@@ -22,7 +25,7 @@ export interface AjusteAplicado {
  */
 export function AjusteEstoqueModal({
   product, isOpen, onClose, initialTipo = "entrada", initialQtd = "", initialMotivo = "Compra de Fornecedor",
-  referencia, confirmLabel = "Confirmar Ajuste", onApplied,
+  referencia, confirmLabel = "Confirmar Ajuste", onApplied, pedirCusto = false, initialCusto = "",
 }: {
   product: any | null;
   isOpen: boolean;
@@ -34,19 +37,27 @@ export function AjusteEstoqueModal({
   referencia?: string;
   confirmLabel?: string;
   onApplied?: (r: AjusteAplicado) => void | Promise<void>;
+  /** Mostra o valor unitário da compra e o total (usado em Dar Entrada). */
+  pedirCusto?: boolean;
+  initialCusto?: string;
 }) {
   const { products, setProducts } = useData();
   const [tipo, setTipo] = useState<TipoAjuste>(initialTipo);
   const [qtd, setQtd] = useState(initialQtd);
   const [motivo, setMotivo] = useState(initialMotivo);
+  const [custo, setCusto] = useState(initialCusto);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (isOpen) { setTipo(initialTipo); setQtd(initialQtd); setMotivo(initialMotivo); }
+    if (isOpen) { setTipo(initialTipo); setQtd(initialQtd); setMotivo(initialMotivo); setCusto(initialCusto); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, product?.id]);
 
   if (!product) return null;
+
+  const custoNum = parseFloat(custo.replace(",", ".")) || 0;
+  const totalCompra = (Number(qtd) || 0) * custoNum;
+  const mostrarCusto = pedirCusto && tipo === "entrada";
 
   const salvar = async () => {
     const n = Number(qtd);
@@ -73,7 +84,10 @@ export function AjusteEstoqueModal({
       if (error) { toast.error("Erro ao registrar a movimentação no estoque."); return; }
       setProducts(products.map((p: any) => (p.id === product.id ? { ...p, currentStock: novoSaldo } : p)));
       toast.success(`Estoque de "${product.name}" atualizado para ${novoSaldo} unidades!`);
-      await onApplied?.({ tipo, quantidadeMovimentada: movimentada, motivo: motivoFinal, novoSaldo });
+      await onApplied?.({
+        tipo, quantidadeMovimentada: movimentada, motivo: motivoFinal, novoSaldo,
+        ...(mostrarCusto ? { custoUnitario: custoNum, total: totalCompra } : {}),
+      });
       onClose();
     } catch (err: any) {
       toast.error(err?.message || "Erro ao atualizar estoque.");
@@ -136,6 +150,21 @@ export function AjusteEstoqueModal({
           </label>
           <Input type="number" min={1} value={qtd} onChange={(e) => setQtd(e.target.value)} placeholder="0" className="font-mono font-bold text-sm" />
         </div>
+
+        {mostrarCusto && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">Valor unitário da compra (R$)</label>
+              <Input type="text" inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} placeholder="0,00" className="font-mono font-bold text-sm text-right" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">Valor total (R$)</label>
+              <div className="h-[38px] px-3 flex items-center justify-end rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] font-mono font-bold text-sm text-emerald-500">
+                {totalCompra.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">Motivo da Movimentação</label>

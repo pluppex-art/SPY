@@ -370,12 +370,15 @@ export default function ComprasVarejo() {
     navigate(`/app/produtos?${qs.toString()}`);
   };
 
-  const marcarRecebida = async () => {
+  // Depois da entrada no estoque: marca a ordem como recebida e grava o que foi realmente comprado (quantidade, custo e total).
+  const marcarRecebida = async (r: { quantidadeMovimentada: number; custoUnitario?: number; total?: number }) => {
     if (!entradaCompra || !supabase) return;
     const id = entradaCompra.id;
-    const { error } = await supabase.from("compras").update({ status: "Recebido no Estoque" }).eq("id", id);
-    if (error) { toast.error("Entrada registrada, mas falhou ao atualizar o status da ordem."); return; }
-    setCompras(prev => prev.map(c => c.id === id ? { ...c, status: "Recebido no Estoque" } : c));
+    const patch: Record<string, any> = { status: "Recebido no Estoque", quantidade: r.quantidadeMovimentada };
+    if (r.custoUnitario && r.custoUnitario > 0) { patch.custo_unitario = r.custoUnitario; patch.valor = r.total ?? r.quantidadeMovimentada * r.custoUnitario; }
+    const { data, error } = await supabase.from("compras").update(patch).eq("id", id).select().maybeSingle();
+    if (error || !data) { toast.error("Entrada registrada, mas falhou ao atualizar a ordem."); return; }
+    setCompras(prev => prev.map(c => c.id === id ? rowToCompra(data) : c));
   };
 
   const filtered = compras.filter(c => {
@@ -530,6 +533,8 @@ export default function ComprasVarejo() {
         initialMotivo="Compra de Fornecedor"
         referencia={entradaCompra ? `${codigoOC(entradaCompra)} • ${entradaCompra.fornecedor}` : undefined}
         confirmLabel="Confirmar Entrada"
+        pedirCusto
+        initialCusto={entradaCompra?.custoUnitario ? String(entradaCompra.custoUnitario) : ""}
         onApplied={marcarRecebida}
       />
 
