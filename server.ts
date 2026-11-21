@@ -9,6 +9,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
+import { calcularDRELegado } from "./src/lib/dre/dre.js";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
 import { createGoogleIntegrationsRouter, makeInitialSync } from "./server/googleIntegrations.js";
 import { createSaas, aiContext } from "./server/saas.js";
@@ -1413,23 +1414,9 @@ app.get("/api/finance/dre-summary", requireUserOrInternalService, async (req: an
 
     const categoriesMap = new Map((categoryRows || []).map((c: any) => [c.id, c]));
 
-    const dreTipoDe = (e: (typeof entries)[number]) => {
-      if (e.type === "Receber") return "RECEBIMENTO";
-      const cat = e.category_id ? categoriesMap.get(e.category_id) : undefined;
-      return (cat as any)?.subtipo ?? "DESPESA_VARIAVEL";
-    };
-    const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-    const somaPorTipo = (tipo: string) =>
-      round2(entries.filter((e) => e.type === "Pagar" && dreTipoDe(e) === tipo).reduce((s, e) => s + (Number(e.value) || 0), 0));
-
-    const receitaBruta = round2(entries.filter((e) => e.type === "Receber").reduce((s, e) => s + (Number(e.value) || 0), 0));
-    const impostos = somaPorTipo("IMPOSTOS");
-    const lucroBruto = round2(receitaBruta - impostos);
-    const despesasVariaveis = somaPorTipo("DESPESA_VARIAVEL");
-    const lucroOperacional = round2(lucroBruto - despesasVariaveis);
-    const despesasFixas = somaPorTipo("DESPESA_FIXA");
-    const gastosComPessoal = somaPorTipo("PESSOAS");
-    const lucroLiquido = round2(lucroOperacional - despesasFixas - gastosComPessoal);
+    // Mesmo cálculo da tela: módulo único src/lib/dre/dre.ts
+    const { receitaBruta, impostos, lucroBruto, despesasVariaveis, lucroOperacional, despesasFixas, gastosComPessoal, lucroLiquido } =
+      calcularDRELegado(entries, categoriesMap as Map<string, { id: string; subtipo?: string | null }>);
 
     const summary = {
       receitaBruta, impostos, lucroBruto, despesasVariaveis, lucroOperacional,
