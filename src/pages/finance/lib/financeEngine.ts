@@ -1,4 +1,5 @@
 import { parseEntryDate } from "./financeDates";
+import { calcularDRELegado } from "../../../lib/dre/dre";
 
 /**
  * Serviço único de cálculo financeiro. Todo número que aparece em qualquer
@@ -357,19 +358,6 @@ export function calcularDRE(
   categoriesMap: Map<string, FinanceCategoryLike>,
   opts?: { apenasPagos?: boolean }
 ): DreResult {
-  const base = opts?.apenasPagos ? entries.filter(isPago) : entries;
-
-  const receitaBruta = round2(base.filter(e => e.type === "Receber").reduce((s, e) => s + e.value, 0));
-  const somaPorTipo = (tipo: DreTipo) =>
-    round2(base.filter(e => e.type === "Pagar" && dreTipoDe(e, categoriesMap) === tipo).reduce((s, e) => s + e.value, 0));
-
-  const impostos = somaPorTipo("IMPOSTOS");
-  const lucroBruto = round2(receitaBruta - impostos);
-  const despesasVariaveis = somaPorTipo("DESPESA_VARIAVEL");
-  const lucroOperacional = round2(lucroBruto - despesasVariaveis);
-  const despesasFixas = somaPorTipo("DESPESA_FIXA");
-  const gastosComPessoal = somaPorTipo("PESSOAS");
-  const lucroLiquido = round2(lucroOperacional - despesasFixas - gastosComPessoal);
-
-  return { receitaBruta, impostos, lucroBruto, despesasVariaveis, lucroOperacional, despesasFixas, gastosComPessoal, lucroLiquido };
+  // Cálculo único, compartilhado com o servidor (src/lib/dre/dre.ts).
+  return calcularDRELegado(entries, categoriesMap, opts);
 }
