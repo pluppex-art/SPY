@@ -14,6 +14,41 @@ import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 
+type PeriodoId = "hoje" | "ontem" | "7d" | "30d" | "mes" | "mes_passado" | "ano" | "custom";
+const PERIODOS: { id: PeriodoId; label: string }[] = [
+  { id: "hoje", label: "Hoje" },
+  { id: "ontem", label: "Ontem" },
+  { id: "7d", label: "Últimos 7 dias" },
+  { id: "30d", label: "Últimos 30 dias" },
+  { id: "mes", label: "Mês atual" },
+  { id: "mes_passado", label: "Mês passado" },
+  { id: "ano", label: "Ano atual" },
+  { id: "custom", label: "Personalizado" },
+];
+const isoDia = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** Intervalo [inicio, fim) no horário do navegador; `fim` é exclusivo (início do dia seguinte ao último). */
+function intervaloDoPeriodo(id: PeriodoId, de: string, ate: string): { inicio: Date; fim: Date } | null {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
+  const diasAtras = (n: number) => { const d = new Date(hoje); d.setDate(d.getDate() - n); return d; };
+  switch (id) {
+    case "hoje": return { inicio: hoje, fim: amanha };
+    case "ontem": return { inicio: diasAtras(1), fim: hoje };
+    case "7d": return { inicio: diasAtras(6), fim: amanha };
+    case "30d": return { inicio: diasAtras(29), fim: amanha };
+    case "mes": return { inicio: new Date(hoje.getFullYear(), hoje.getMonth(), 1), fim: amanha };
+    case "mes_passado": return { inicio: new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1), fim: new Date(hoje.getFullYear(), hoje.getMonth(), 1) };
+    case "ano": return { inicio: new Date(hoje.getFullYear(), 0, 1), fim: amanha };
+    case "custom": {
+      if (!de || !ate) return null;
+      const inicio = new Date(`${de}T00:00:00`), ultimo = new Date(`${ate}T00:00:00`);
+      if (isNaN(inicio.getTime()) || isNaN(ultimo.getTime()) || ultimo < inicio) return null;
+      const fim = new Date(ultimo); fim.setDate(fim.getDate() + 1);
+      return { inicio, fim };
+    }
+  }
+}
+
 interface VendaFinalizada {
   id: string;
   timestamp: string;
@@ -51,6 +86,17 @@ export default function PainelVarejo() {
   const tenantId = activeTenantId || user?.tenantId || (user as any)?.tenant_id || "default";
   const { products } = useData();
   const cfgVarejo = useVarejoConfig();
+
+  // Período do painel (padrão: mês atual). O status do caixa segue sempre o dia de hoje.
+  const [periodo, setPeriodo] = useState<PeriodoId>("mes");
+  const [customDe, setCustomDe] = useState(() => isoDia(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [customAte, setCustomAte] = useState(() => isoDia(new Date()));
+  const intervalo = useMemo(() => intervaloDoPeriodo(periodo, customDe, customAte), [periodo, customDe, customAte]);
+  const inicioISO = intervalo?.inicio.toISOString() ?? null;
+  const fimISO = intervalo?.fim.toISOString() ?? null;
+  const periodoLabel = periodo === "custom"
+    ? (intervalo ? `${new Date(`${customDe}T00:00:00`).toLocaleDateString("pt-BR")} a ${new Date(`${customAte}T00:00:00`).toLocaleDateString("pt-BR")}` : "intervalo inválido")
+    : PERIODOS.find((x) => x.id === periodo)!.label;
 
   // 1. Vendas do PDV (banco real: vendas + venda_items)
   const [vendas, setVendas] = useState<VendaFinalizada[]>([]);
@@ -95,15 +141,24 @@ export default function PainelVarejo() {
     if (!supabase || !activeTenantId) return;
     let cancelled = false;
     (async () => {
-      const hojeInicio = new Date();
-      hojeInicio.setHours(0, 0, 0, 0);
-
-      const { data: vendasRows, error: vendasError } = await supabase
-        .from("vendas")
-        .select("*, venda_items(*)")
-        .eq("tenant_id", activeTenantId)
-        .gte("created_at", hojeInicio.toISOString())
-        .order("created_at", { ascending: false });
+      // Intervalo inválido (personalizado incompleto): não consulta nem mostra dado de outro período.
+      let vendasRows: any[] | null = inicioISO && fimISO ? [] : null;
+      let vendasError: { message: string } | null = null;
+      if (!inicioISO || !fimISO) { if (!cancelled) setVendas([]); }
+      // A API devolve no máximo 1000 linhas por chamada: pagina para o total do período não sair cortado.
+      for (let pagina = 0; vendasRows && pagina < 20; pagina++) {
+        const { data, error } = await supabase
+          .from("vendas")
+          .select("*, venda_items(*)")
+          .eq("tenant_id", activeTenantId)
+          .gte("created_at", inicioISO)
+          .lt("created_at", fimISO)
+          .order("created_at", { ascending: false })
+          .range(pagina * 1000, pagina * 1000 + 999);
+        if (error) { vendasError = error; vendasRows = null; break; }
+        vendasRows.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
       if (vendasError) console.error("[Supabase] fetch vendas (painel varejo) error:", vendasError.message);
       if (!cancelled && vendasRows) {
         setVendas(
@@ -152,7 +207,7 @@ export default function PainelVarejo() {
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTenantId]);
+  }, [activeTenantId, inicioISO, fimISO]);
 
   // Métricas Consolidadas
   const metrics = useMemo(() => {
@@ -269,7 +324,24 @@ export default function PainelVarejo() {
       title="Painel de Vendas"
       description="Visão geral da frente de caixa (PDV), do giro de produtos, das reposições e da lucratividade."
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <select
+            aria-label="Período do painel"
+            value={periodo}
+            onChange={(e) => setPeriodo(e.target.value as PeriodoId)}
+            className="h-9 px-3 text-xs font-semibold rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
+          >
+            {PERIODOS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+          </select>
+          {periodo === "custom" && (
+            <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+              <input type="date" aria-label="Data inicial" value={customDe} max={customAte || undefined} onChange={(e) => setCustomDe(e.target.value)}
+                className="h-9 px-2 text-xs rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
+              <span>a</span>
+              <input type="date" aria-label="Data final" value={customAte} min={customDe || undefined} onChange={(e) => setCustomAte(e.target.value)}
+                className="h-9 px-2 text-xs rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
+            </div>
+          )}
           <Link
             to="/app/produtos?vista=estoque"
             className="h-9 px-3.5 text-xs font-semibold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
@@ -323,7 +395,7 @@ export default function PainelVarejo() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <Card onClick={() => setDrillKey("vendas")} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-emerald-500/20 shadow-xs cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Faturamento Hoje</span>
+            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Faturamento · {periodoLabel}</span>
             <DollarSign className="w-4 h-4 text-emerald-500" />
           </div>
           <p className="text-2xl font-black text-emerald-500 font-mono">
@@ -414,7 +486,7 @@ export default function PainelVarejo() {
 
               {metrics.topProdutos.length === 0 && (
                 <div className="text-xs text-[var(--color-text-muted)] py-6 text-center">
-                  Nenhuma venda computada ainda hoje.
+                  Nenhuma venda no período selecionado.
                 </div>
               )}
             </div>
@@ -586,13 +658,13 @@ export default function PainelVarejo() {
       <DrillDownPanel
         isOpen={drillKey !== null}
         onClose={() => setDrillKey(null)}
-        title={drillKey === "vendas" ? "Faturamento Hoje" : drillKey === "catalogo" ? "Catálogo Ativo" : undefined}
+        title={drillKey === "vendas" ? `Faturamento · ${periodoLabel}` : drillKey === "catalogo" ? "Catálogo Ativo" : undefined}
         rows={drillKey === "vendas" ? (vendas || []).filter((v) => v.status !== "cancelada") : drillKey === "catalogo" ? (products || []) : []}
         columns={drillKey === "vendas" ? vendaColumns : productColumns}
       />
       {comissoesPorVendedor.length > 0 && (
         <div className="mt-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs">
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-3">Vendas e comissão de hoje por vendedor</h3>
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-3">Vendas e comissão por vendedor · {periodoLabel}</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
