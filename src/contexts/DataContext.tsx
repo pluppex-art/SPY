@@ -32,6 +32,7 @@ import { friendlyError } from "../lib/friendlyError";
 import { normalizarStatusLead } from "../lib/leadStatus";
 import { completarBaixa } from '../pages/finance/lib/baixa';
 import { montarEstorno, podeEstornar } from '../pages/finance/lib/estorno';
+import { deveLancarGanho, idLancamentoDoGanho, montarLancamentoDoGanho } from '../pages/finance/lib/ganho';
 import { OPEN_ENDED_BATCH_CYCLES, getProposalDiscountRatio, getProposalHeadlineFromItems, addMonthsClamped, splitInstallments } from "../lib/saleCalculator";
 import { isSellerRestricted, scopeToSeller } from "../lib/sellerScope";
 
@@ -2218,6 +2219,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (saved && becameWon && mergedLead && !reconciledWonLeadIdsRef.current.has(mergedLead.id)) {
       reconciledWonLeadIdsRef.current.add(mergedLead.id);
       createClientFromWonLead(mergedLead);
+      lancarFinanceiroDoGanho(mergedLead);
     }
     return saved;
   };
@@ -2254,6 +2256,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leads, clienteBase]);
+
+  /** Negócio ganho SEM proposta: já cai no financeiro como conta a receber (uma vez só, id fixo por negócio). */
+  const lancarFinanceiroDoGanho = async (lead: Lead) => {
+    try {
+      const valor = parseCurrencyBR((lead as any).value);
+      const temProposta = (proposals as any[] || []).some((p: any) => p.lead_id === lead.id);
+      const jaExiste = (financeEntries as any[]).some((f: any) => f.id === idLancamentoDoGanho(lead.id));
+      if (!deveLancarGanho(valor, temProposta, jaExiste)) return;
+      const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+      const lanc: any = montarLancamentoDoGanho(lead as any, valor, hoje, financeCategories);
+      if (checkFinanceEntryLock({ ...lanc, status: 'A Vencer' } as any)) return;
+      if (tenantId) lanc.tenant_id = tenantId;
+      lanc.filial_id = activeFilialId;
+      if (supabase) {
+        const { error } = await supabase.from('finance_entries').upsert(lanc, { onConflict: 'id', ignoreDuplicates: true });
+        if (error) { console.warn('[ganho] financeiro:', error.message); return; }
+      }
+      setFinanceEntries(prev => (prev.some((f: any) => f.id === lanc.id) ? prev : [lanc, ...prev]));
+    } catch (e: any) { console.warn('[ganho] financeiro:', e?.message); }
+  };
 
   const deleteLead = async (id: string): Promise<boolean> => {
     const removed = leads.find(l => l.id === id);

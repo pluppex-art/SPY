@@ -36,3 +36,7 @@ export function paginasDoModulo(moduloId: string): { name: string; path: string 
   }
   return lista;
 }
+
+/** Rotas das partes que uma empresa pode desligar quando não usa (venda rápida, sem proposta/contrato/OS). */
+export const ROTA_PROPOSTAS = "/app/crm/propostas";
+export const ROTA_ORDENS_SERVICO = "/app/ordens-servico";

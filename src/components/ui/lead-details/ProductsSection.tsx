@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRecursoAtivo } from "../../../lib/useRecursoAtivo";
+import { ROTA_PROPOSTAS } from "../../../lib/paginasOcultas";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useMaxdataPage, useMaxdataStats, MAXDATA_TODAS } from "../../../lib/useMaxdataPage";
@@ -189,6 +191,7 @@ export function ProductsSection({
     );
   }, [availableProducts, searchTerm]);
 
+  const propostasAtivas = useRecursoAtivo(ROTA_PROPOSTAS);
   const openAddModal = (productId?: string, toExistingProposal = false) => {
     setPrefillProductId(productId);
     setPrefillProductIds(undefined);
@@ -465,6 +468,7 @@ export function ProductsSection({
                   </span>
                 )}
               </div>
+              {propostasAtivas && (
               <Button
                 type="button"
                 size="sm"
@@ -473,6 +477,7 @@ export function ProductsSection({
               >
                 <FilePlus2 className="w-3.5 h-3.5" /> Criar Proposta ({produtosInteresse.length})
               </Button>
+              )}
             </div>
           </>
         )}
