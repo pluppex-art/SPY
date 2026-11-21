@@ -281,6 +281,49 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
         </div>
       </Card>
 
+      {/* Como esta empresa vende: com ou sem proposta, contrato e ordem de serviço. Desligar esconde a página, os botões e o acesso. */}
+      <Card className="p-5 sm:p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-3xl space-y-3 shadow-xs">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-primary-blue)]">Como {selectedTenant || "a empresa"} vende</span>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-3xl">
+            Empresa que vende rápido não precisa de proposta nem contrato: desligue e o negócio vai direto para <strong>Ganho</strong>, já lançando a conta a receber no financeiro.
+            Ligue de novo quando quiser; nada é apagado.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { path: "/app/crm/propostas", nome: "Propostas comerciais", desc: "Página de propostas e os botões “Criar Proposta” / “Vender”." },
+            { path: "/app/crm/contratos", nome: "Contratos", desc: "Página de contratos (nascem das propostas aceitas)." },
+            { path: "/app/ordens-servico", nome: "Ordens de serviço", desc: "Página e fluxo de ordens de serviço." },
+          ].map((r) => {
+            const ligado = !paginaOculta(activeModules, r.path);
+            return (
+              <button
+                key={r.path}
+                type="button"
+                role="switch"
+                aria-checked={ligado}
+                disabled={!selectedTenant}
+                onClick={() => handleTogglePagina(r.path, r.nome)}
+                className={`p-3.5 rounded-2xl border text-left flex items-start justify-between gap-3 transition-all ${
+                  ligado
+                    ? "bg-[var(--color-surface)] border-[var(--color-primary-blue)]/50 ring-1 ring-[var(--color-primary-blue)]/20"
+                    : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] opacity-75"
+                }`}
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-[var(--color-text-primary)]">{r.nome}</span>
+                  <span className="block text-[11px] text-[var(--color-text-muted)] mt-0.5 leading-snug">{r.desc}</span>
+                </span>
+                <span className={`shrink-0 mt-0.5 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${ligado ? "bg-emerald-500/15 text-emerald-600" : "bg-[var(--color-border-subtle)] text-[var(--color-text-muted)]"}`}>
+                  {ligado ? "Ligado" : "Desligado"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
       {/* Modules Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
         {MODULE_DEFINITIONS.map(mod => {

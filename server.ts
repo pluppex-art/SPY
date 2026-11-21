@@ -7,6 +7,7 @@ import { round2 } from "./src/lib/dinheiro.js";
 import { criarEstorno, decidirEscritaExterna, soCamposPermitidos } from "./server/financeEstorno.js";
 import { prepararValor, valorDoLead } from "./src/lib/valorDoLead.js";
 import { isLeadWon } from "./src/lib/leadStatus.js";
+import { diaDoGanhoISO } from "./src/lib/vendasDiretas.js";
 import { mapaPapelPorEtapa, statusPelaEtapa } from "./src/lib/statusPelaEtapa.js";
 import express from "express";
 import rateLimit from "express-rate-limit";
@@ -1109,8 +1110,8 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
     const sumBy = (rows: { value: number | null }[]) => rows.reduce((s, r) => s + (Number(r.value) || 0), 0);
 
     const [leadsAll, contracts, entries, clientesAll, tasksAll, reunioesAll, propostasAll, produtosAll, vendasPdvAll, funisAll] = await Promise.all([
-      fetchAllRowsPaginated(sb, "leads", '"id",status,value,source,seller,"stageId","pipelineId",created_at,"productIds",interesseIds:customFields->produtosInteresseIds', (q) => q.eq("tenant_id", tenantId)) as Promise<
-        { id: string; status: string; value: number | null; source: string | null; seller: string | null; stageId: string | null; pipelineId: string | null; created_at: string; productIds?: string[] | null; interesseIds?: unknown }[]
+      fetchAllRowsPaginated(sb, "leads", '"id",status,value,source,seller,"stageId","pipelineId",created_at,"productIds",interesseIds:customFields->produtosInteresseIds,closed_at,updated_at', (q) => q.eq("tenant_id", tenantId)) as Promise<
+        { id: string; status: string; value: number | null; source: string | null; seller: string | null; stageId: string | null; pipelineId: string | null; created_at: string; productIds?: string[] | null; interesseIds?: unknown; closed_at?: string | null; updated_at?: string | null; ganhoPelaEtapa?: boolean }[]
       >,
       fetchAllRowsPaginated(sb, "contracts", "mrr_value,status", (q) => q.eq("tenant_id", tenantId)) as Promise<{ mrr_value: number | null; status: string }[]>,
       fetchAllRowsPaginated(sb, "finance_entries", "type,status,value,date_normalized,data_pagamento", (q) => q.eq("tenant_id", tenantId)) as Promise<
@@ -1132,14 +1133,20 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
 
     // A coluna do Kanban manda: negócio aberto que está na etapa Ganho/Perdido/Desqualificado conta como tal (mesma regra da tela).
     const papelPorEtapa = mapaPapelPorEtapa(funisAll);
-    for (const l of leadsAll) l.status = (statusPelaEtapa(l.status, l.stageId, papelPorEtapa) ?? l.status) as string;
+    for (const l of leadsAll) {
+      const novo = (statusPelaEtapa(l.status, l.stageId, papelPorEtapa) ?? l.status) as string;
+      if (novo !== l.status && isLeadWon(novo)) l.ganhoPelaEtapa = true;
+      l.status = novo;
+    }
+    // Negócio ganho entra no período pelo dia em que foi ganho; os demais, pelo dia do cadastro.
+    const diaDoLead = (l: (typeof leadsAll)[number]) => (isLeadWon(l.status) ? diaDoGanhoISO(l) : (l.created_at || "")).slice(0, 10);
 
     // Valor de cada negócio pela regra única (src/lib/valorDoLead.ts): a mesma do Pipeline, dos cards e dos dashboards da tela.
     const ctxValor = prepararValor(propostasAll, produtosAll);
     for (const l of leadsAll) l.value = valorDoLead(l, ctxValor).valor;
 
     // ── CRM / Vendas ──────────────────────────────────────────────────────
-    const leadsNoPeriodo = leadsAll.filter((l) => inRange(l.created_at?.slice(0, 10), from, to));
+    const leadsNoPeriodo = leadsAll.filter((l) => inRange(diaDoLead(l), from, to));
     const leadsGanhos = leadsNoPeriodo.filter((l) => isLeadWon(l.status));
     const leadsPerdidos = leadsNoPeriodo.filter((l) => l.status === "Perdido");
     const vendasPdv = vendasPdvAll.filter((v) => inRange((v.paid_at || v.created_at)?.slice(0, 10), from, to));
@@ -1179,7 +1186,7 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
 
     const evolucaoVendas = new Map<string, { valorGanho: number; negociosGanhos: number; leadsNovos: number }>();
     for (const l of leadsNoPeriodo) {
-      const key = monthKey(l.created_at.slice(0, 10));
+      const key = monthKey(diaDoLead(l));
       const cur = evolucaoVendas.get(key) || { valorGanho: 0, negociosGanhos: 0, leadsNovos: 0 };
       cur.leadsNovos += 1;
       if (isLeadWon(l.status)) { cur.negociosGanhos += 1; cur.valorGanho += Number(l.value) || 0; }

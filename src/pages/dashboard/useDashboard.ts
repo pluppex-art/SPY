@@ -10,6 +10,7 @@ import { FUNIS_DEFAULT } from '../settings/sections/crm/funisTypes';
 import { apiFetch } from '../../lib/apiClient';
 import { supabase } from '../../lib/supabase';
 import { leadDateIso } from '../../lib/leadDate';
+import { diaDoGanhoISO } from '../../lib/vendasDiretas';
 import { thisMonthRange } from '../../components/ui/DateRangeFilter';
 
 export interface DashboardSummary {
@@ -85,7 +86,8 @@ export function useDashboard() {
   const leads = useMemo(() => {
     if (!dateFrom && !dateTo) return allLeads;
     return (allLeads as any[]).filter((l) => {
-      const iso = leadDateIso(l).slice(0, 10);
+      // Negócio ganho entra pelo dia em que foi GANHO; os demais, pelo dia do cadastro.
+      const iso = (l.status === 'Fechado' ? diaDoGanhoISO(l) : leadDateIso(l)).slice(0, 10);
       if (!iso) return false;
       if (dateFrom && iso < dateFrom) return false;
       if (dateTo && iso > dateTo) return false;

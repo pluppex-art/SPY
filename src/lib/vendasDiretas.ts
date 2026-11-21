@@ -7,18 +7,31 @@ import { isLeadWon } from "./leadStatus.js";
 
 export interface LeadVenda {
   id: string; status?: string | null; source?: string | null; value?: unknown; valor?: unknown;
-  date?: string | null; closed_at?: string | null; created_at?: string | null;
+  date?: string | null; closed_at?: string | null; created_at?: string | null; updated_at?: string | null;
+  /** O status "Fechado" veio da ETAPA (o Agente Secreto moveu o card e o status gravado ficou "Novo"): a data do ganho é a da última atualização. */
+  ganhoPelaEtapa?: boolean;
   clientName?: string | null; name?: string | null; seller?: string | null;
 }
 
 const ISO = /^(\d{4})-(\d{2})-(\d{2})/;
-/** Dia da venda no formato dos contratos (DD/MM/AAAA): data do fechamento; sem ela, a do cadastro. */
-export function diaDaVenda(l: LeadVenda): string {
-  for (const bruto of [l.closed_at, l.date, l.created_at]) {
+/**
+ * Dia em que o negócio FOI GANHO (AAAA-MM-DD): data do fechamento; se o Agente Secreto levou o card para Ganho sem marcar o fechamento,
+ * a data da última atualização; senão, a do cadastro. Os painéis por período usam este dia para negócio ganho (e o cadastro só para o resto):
+ * negócio criado em outubro e ganho em novembro é venda de novembro.
+ */
+export function diaDoGanhoISO(l: LeadVenda): string {
+  const candidatos = [l.closed_at, l.ganhoPelaEtapa ? l.updated_at : null, l.date, l.created_at];
+  for (const bruto of candidatos) {
     const m = typeof bruto === "string" ? ISO.exec(bruto) : null;
-    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
   }
   return "";
+}
+
+/** Dia da venda no formato dos contratos (DD/MM/AAAA). */
+export function diaDaVenda(l: LeadVenda): string {
+  const iso = diaDoGanhoISO(l);
+  return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "";
 }
 
 export function vendasDiretasComoContratos(leads: readonly LeadVenda[] | null | undefined, proposals: ReadonlyArray<{ lead_id?: string | null }> | null | undefined) {

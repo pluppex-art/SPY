@@ -563,7 +563,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const papelPorEtapa = mapaPapelPorEtapa(funis);
     const statusDe = (l: any) => statusPelaEtapa(normalizarStatusLead(l.status), l.stageId, papelPorEtapa);
     const base = leadsRaw.some((l: any) => l.status !== statusDe(l))
-      ? leadsRaw.map((l: any) => (l.status !== statusDe(l) ? { ...l, status: statusDe(l) } : l))
+      ? leadsRaw.map((l: any) => (l.status !== statusDe(l) ? { ...l, status: statusDe(l), ...(statusDe(l) === 'Fechado' && !isLeadWon(l.status) ? { ganhoPelaEtapa: true } : {}) } : l))
       : leadsRaw;
     if (!activeFilialId) return base;
     return base.filter((l: any) => l.customFields?.origin === 'maxdata' ? l.customFields?.fonte === unidadeFilial : (l.filial_id === activeFilialId || (filialAtivaEhPrincipal && !l.filial_id)));

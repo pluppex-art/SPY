@@ -27,3 +27,12 @@ test("data da venda: fechamento, senão cadastro; sem data fica vazia", () => {
   assert.equal(diaDaVenda({ id: "x" }), "");
   assert.deepEqual(vendasDiretasComoContratos(null, null), []);
 });
+
+import { diaDoGanhoISO } from "../../src/lib/vendasDiretas.js";
+test("dia do ganho: fechamento; se o Agente Secreto só moveu o card, a última atualização; senão o cadastro", () => {
+  assert.equal(diaDoGanhoISO({ id: "1", closed_at: "2026-11-20T10:00:00Z", updated_at: "2026-11-21T10:00:00Z", date: "2026-09-01" }), "2026-11-20");
+  assert.equal(diaDoGanhoISO({ id: "2", ganhoPelaEtapa: true, updated_at: "2026-11-21T18:26:48Z", date: "2026-11-18" }), "2026-11-21");
+  assert.equal(diaDoGanhoISO({ id: "3", updated_at: "2026-11-21T18:26:48Z", date: "2026-10-05" }), "2026-10-05");     // sem marca de etapa: updated_at NÃO vale (qualquer edição mexe nele)
+  assert.equal(diaDoGanhoISO({ id: "4", created_at: "2025-07-04T10:00:00Z" }), "2025-07-04");
+  assert.equal(diaDoGanhoISO({ id: "5" }), "");
+});
