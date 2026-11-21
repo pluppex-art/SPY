@@ -1522,22 +1522,6 @@ export default function VarejoVendas() {
         </button>
       </div>
 
-      {/* Barra Rápida de Teclas de Atalho */}
-      <div className="hidden md:flex items-center justify-between px-3 py-1.5 bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] rounded-xl text-[11px] text-[var(--color-text-muted)] flex-1 min-w-0 overflow-hidden">
-        <div className="flex items-center gap-3 whitespace-nowrap">
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F2</kbd> Buscar</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F3</kbd> Cliente</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F4</kbd> Desconto</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F7</kbd> Avulso</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F8</kbd> Limpar</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-[var(--color-text-primary)]">F9</kbd> Suspender</span>
-          <span><kbd className="px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold text-emerald-500">F10</kbd> Finalizar</span>
-        </div>
-        <button onClick={() => setModalAtalhosOpen(true)} className="text-blue-500 hover:underline font-bold text-[10px]">
-          Todos
-        </button>
-      </div>
-
       </div>
 
       {/* ABA 1: PDV FRENTE DE CAIXA */}
