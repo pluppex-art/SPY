@@ -7,7 +7,8 @@ import {
   QrCode, Banknote, Clock, ArrowUpRight, BarChart3, RefreshCw
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Modal } from "../../components/ui/modal";
 import { useAuth } from "../../contexts/AuthContext";
 import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useData } from "../../contexts/DataContext";
@@ -85,6 +86,7 @@ export default function PainelVarejo() {
   const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId || user?.tenantId || (user as any)?.tenant_id || "default";
   const { products } = useData();
+  const navigate = useNavigate();
   const cfgVarejo = useVarejoConfig();
 
   // Período do painel (padrão: mês atual). O status do caixa segue sempre o dia de hoje.
@@ -270,23 +272,53 @@ export default function PainelVarejo() {
     { header: "Estoque Mín.", render: (p: any) => Number(p.minStock ?? p.min_stock) || 0 },
   ];
 
-  // Itens com estoque crítico
-  const itensCriticos = useMemo(() => {
+  // Itens com estoque crítico. Só produto físico entra: serviço, assinatura e item digital não se compra de fornecedor.
+  const itensCriticosTodos = useMemo(() => {
     if (!cfgVarejo.estoque.alertaEstoqueBaixo) return [];
     return (products || [])
-      .filter(p => (Number(p.currentStock ?? p.current_stock ?? p.stock) || 0) <= (Number(p.minStock ?? p.min_stock) || cfgVarejo.estoque.estoqueMinimoPadrao))
-      .slice(0, 4)
+      .filter(p => !p.type || p.type === "Físico")
+      .filter(p => p.active !== false)
+      .filter(p => (Number(p.currentStock ?? p.current_stock ?? p.stock) || 0) <= (Number(p.minStock ?? p.min_stock ?? p.stockMin) || cfgVarejo.estoque.estoqueMinimoPadrao))
       .map(p => {
         const stock = Number(p.currentStock ?? p.current_stock ?? p.stock) || 0;
-        const min = Number(p.minStock ?? p.min_stock) || 10;
+        const min = Number(p.minStock ?? p.min_stock ?? p.stockMin) || cfgVarejo.estoque.estoqueMinimoPadrao;
+        const max = Number(p.stockMax) || 0;
         return {
+          id: String(p.id),
           name: p.name || "Item em estoque",
+          provider: (p.provider || "").trim(),
           stock,
           min,
+          sugerido: Math.max((max > 0 ? max : min * 2) - stock, 1),
           status: stock <= 2 ? "Crítico" : "Atenção",
         };
       });
-  }, [products]);
+  }, [products, cfgVarejo]);
+  const itensCriticos = useMemo(() => itensCriticosTodos.slice(0, 4), [itensCriticosTodos]);
+
+  // Modal de reposição: escolhe o que comprar e a quantidade, e leva para Compras como rascunho de ordem.
+  const [repOpen, setRepOpen] = useState(false);
+  const [repSel, setRepSel] = useState<Record<string, boolean>>({});
+  const [repQtd, setRepQtd] = useState<Record<string, string>>({});
+  const abrirReposicao = () => {
+    const sel: Record<string, boolean> = {};
+    const qtd: Record<string, string> = {};
+    itensCriticosTodos.forEach(i => { sel[i.id] = true; qtd[i.id] = String(i.sugerido); });
+    setRepSel(sel); setRepQtd(qtd); setRepOpen(true);
+  };
+  const escolhidos = itensCriticosTodos.filter(i => repSel[i.id] && (parseInt(repQtd[i.id], 10) || 0) > 0);
+  const criarRascunhoCompra = () => {
+    if (escolhidos.length === 0) return;
+    const provs = Array.from(new Set(escolhidos.map(i => i.provider).filter(Boolean)));
+    navigate("/app/varejo/compras", {
+      state: {
+        rascunho: {
+          fornecedor: provs.length === 1 ? provs[0] : "",
+          itens: escolhidos.map(i => `${parseInt(repQtd[i.id], 10)}x ${i.name}`).join(", "),
+        },
+      },
+    });
+  };
 
   // Comissão do dia por pessoa. Vem dos itens (cada produto tem a sua pessoa e o seu %);
   // vendas antigas, sem comissão por item, caem no vendedor da venda com o valor gravado nela.
@@ -549,9 +581,9 @@ export default function PainelVarejo() {
               <h4 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-500" /> Estoque Crítico
               </h4>
-              <Link to="/app/varejo/compras" className="text-[11px] font-bold text-[var(--color-primary-blue)] hover:underline flex items-center gap-1">
+              <button type="button" onClick={abrirReposicao} disabled={itensCriticosTodos.length === 0} className="text-[11px] font-bold text-[var(--color-primary-blue)] hover:underline flex items-center gap-1 disabled:opacity-40 disabled:no-underline">
                 Nova Compra <ArrowRight className="w-3 h-3" />
-              </Link>
+              </button>
             </div>
 
             <div className="space-y-2.5">
@@ -576,7 +608,7 @@ export default function PainelVarejo() {
           </div>
 
           <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
-            <span className="text-[10px] text-[var(--color-text-muted)]">Itens necessitando reposição</span>
+            <span className="text-[10px] text-[var(--color-text-muted)]">{itensCriticosTodos.length > 4 ? `+${itensCriticosTodos.length - 4} itens necessitando reposição` : "Itens necessitando reposição"}</span>
             <Link to="/app/varejo/estoque" className="text-xs font-bold text-[var(--color-primary-blue)] hover:underline">
               Gerenciar Saldo
             </Link>
@@ -690,6 +722,40 @@ export default function PainelVarejo() {
         rows={drillKey === "vendas" ? (vendas || []).filter((v) => v.status !== "cancelada") : drillKey === "catalogo" ? (products || []) : []}
         columns={drillKey === "vendas" ? vendaColumns : productColumns}
       />
+      <Modal
+        isOpen={repOpen}
+        onClose={() => setRepOpen(false)}
+        maxWidth="max-w-lg"
+        title={<h3 className="text-base font-bold text-[var(--color-text-primary)]">Reposição de estoque</h3>}
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button type="button" variant="outline" onClick={() => setRepOpen(false)} className="h-9 px-4 text-xs font-semibold">Cancelar</Button>
+            <Button type="button" onClick={criarRascunhoCompra} disabled={escolhidos.length === 0} className="h-9 px-4 text-xs font-semibold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
+              Criar rascunho da ordem ({escolhidos.length})
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-xs text-[var(--color-text-muted)] mb-3">Marque o que precisa comprar e ajuste a quantidade. A ordem abre em Compras como rascunho, só vale depois que você emitir.</p>
+        <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+          {itensCriticosTodos.map(i => (
+            <label key={i.id} className="p-2.5 rounded-xl bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={!!repSel[i.id]} onChange={e => setRepSel(prev => ({ ...prev, [i.id]: e.target.checked }))} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{i.name}</p>
+                <p className="text-[10px] text-[var(--color-text-muted)]">Saldo: <strong className="text-rose-500">{i.stock}</strong> • Mín: {i.min}{i.provider ? ` • ${i.provider}` : ""}</p>
+              </div>
+              <input
+                type="number" min={1}
+                value={repQtd[i.id] ?? ""}
+                onChange={e => setRepQtd(prev => ({ ...prev, [i.id]: e.target.value }))}
+                onClick={e => e.stopPropagation()}
+                className="w-20 px-2 py-1.5 text-xs text-right bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
+              />
+            </label>
+          ))}
+        </div>
+      </Modal>
     </PageContainer>
   );
 }

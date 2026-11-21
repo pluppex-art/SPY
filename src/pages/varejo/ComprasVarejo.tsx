@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
@@ -60,6 +61,8 @@ export default function ComprasVarejo() {
   const { activeTenantId } = useAuth();
   const { products, setProducts } = useData();
   const cfgVarejo = useVarejoConfig();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [compras, setCompras] = useState<CompraItem[]>([]);
 
@@ -96,6 +99,20 @@ export default function ComprasVarejo() {
   const [compraRecebimento, setCompraRecebimento] = useState<CompraItem | null>(null);
   const [recebimentoProductId, setRecebimentoProductId] = useState<string>("");
   const [recebimentoQtd, setRecebimentoQtd] = useState<string>("50");
+
+  // Rascunho vindo do Painel de Vendas (Estoque Crítico → Nova Compra): abre a Nova Ordem já preenchida.
+  useEffect(() => {
+    const r = (location.state as any)?.rascunho;
+    if (!r) return;
+    setFornecedor(r.fornecedor || "");
+    setItens(r.itens || "");
+    if (cfgVarejo.compras.prazoEntregaPadraoDias > 0) {
+      const d = new Date(); d.setDate(d.getDate() + cfgVarejo.compras.prazoEntregaPadraoDias);
+      setPrevisaoEntrega(d.toISOString().slice(0, 10));
+    }
+    setModalOpen(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
