@@ -1,3 +1,4 @@
+import { paginaOculta } from "../../lib/paginasOcultas";
 import { useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useSwipeToDismiss } from "../../hooks/useSwipeGestures";
@@ -25,7 +26,8 @@ interface MobileNavProps {
 export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebhookOpen }: MobileNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, user, isModuleEnabled } = useAuth();
+  const { logout, user, isModuleEnabled, getTenantModules, activeTenantName } = useAuth();
+  const modulosEmpresa = getTenantModules(activeTenantName || user?.tenantName || "") as Record<string, any>;
   const { cargos } = useData();
   const usaOsImplementacao = useUsaOsImplementacao();
 
@@ -140,6 +142,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
                     if (item.reqModule === 'master' && !user?.isMaster) return false;
                     if (item.reqCondition && !conditionCheckers[item.reqCondition as NavReqCondition](user)) return false;
                     if (item.hideWhen === 'os-implementacao' && usaOsImplementacao) return false;
+                    if (item.path && paginaOculta(modulosEmpresa, item.path)) return false;
                     return true;
                   });
 

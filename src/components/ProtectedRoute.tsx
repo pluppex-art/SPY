@@ -1,3 +1,4 @@
+import { rotaOculta } from "../lib/paginasOcultas";
 import React, { useEffect } from "react";
 import { toast } from "sonner";
 import { Navigate, useLocation } from "react-router-dom";
@@ -83,6 +84,16 @@ export function ProtectedRoute({
   // profundidade equivalente no frontend.
   if (requireTenantAdmin && !user.isMaster && !user.isTenantAdmin) {
     return <Navigate to="/app" replace />;
+  }
+
+  // Página ocultada para a empresa na tela de módulos: além de sumir do menu, a rota não abre
+  // (o operador da plataforma continua entrando, para conferir e dar suporte).
+  if (!user.isMaster && !user.partnerId) {
+    const nomeEmpresa = (activeTenantName || user.tenantName || "").toLowerCase();
+    const chave = Object.keys(allTenantModules).find((k) => k.toLowerCase() === nomeEmpresa);
+    if (chave && rotaOculta(allTenantModules[chave] as Record<string, any>, location.pathname)) {
+      return <Navigate to="/app" replace />;
+    }
   }
 
   if (requireModule && !user.isMaster && !user.partnerId) {
