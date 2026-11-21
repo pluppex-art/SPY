@@ -9,7 +9,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
-import { calcularDRELegado } from "./src/lib/dre/dre.js";
+import { calcularDRELegado, calcularDreCompleto, cmvDosItens, filtrarPeriodo, quantidadeDoItem, separarLegado, type LancamentoDre, type RegimeDre } from "./src/lib/dre/dre.js";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
 import { createGoogleIntegrationsRouter, makeInitialSync } from "./server/googleIntegrations.js";
 import { createSaas, aiContext } from "./server/saas.js";
@@ -1432,6 +1432,70 @@ app.get("/api/finance/dre-summary", requireUserOrInternalService, async (req: an
   } catch (err: any) {
     console.error("[finance/dre-summary]", err?.message);
     return res.status(500).json({ error: "Erro ao calcular DRE." });
+  }
+});
+
+// DRE COMPLETO (Fase 1): 10 grupos do plano de contas, CMV dos itens vendidos, EBITDA. Só lançamentos da regra nova
+// (origem_registro preenchida); os antigos continuam no /dre-summary e aparecem aqui apenas como contagem em "legado".
+// regime=competencia (padrão) filtra por competencia_date; regime=caixa só pagos, por data_pagamento.
+app.get("/api/finance/dre-completo", requireUserOrInternalService, async (req: any, res) => {
+  try {
+    const tenantId = await resolveRequestedTenantId(req, res);
+    if (!tenantId) return;
+    const startDate = typeof req.query.startDate === "string" ? req.query.startDate : null;
+    const endDate = typeof req.query.endDate === "string" ? req.query.endDate : null;
+    const regime: RegimeDre = req.query.regime === "caixa" ? "caixa" : "competencia";
+    const isoDateRe = /^\d{4}-\d{2}-\d{2}$/;
+    if (!startDate || !endDate || !isoDateRe.test(startDate) || !isoDateRe.test(endDate) || startDate > endDate) {
+      return res.status(400).json({ error: "Parâmetros startDate/endDate (YYYY-MM-DD) são obrigatórios." });
+    }
+    const cacheKey = `finance-dre-completo:tenant:${tenantId}:${regime}:${startDate}:${endDate}`;
+    const cached = await cacheGet<Record<string, unknown>>(cacheKey);
+    if (cached) { res.setHeader("X-Cache", "HIT"); return res.json(cached); }
+
+    const sb = req.supabase;
+    // Janela larga no banco (±1 mês) e o filtro exato no módulo, porque a data certa depende do regime e da linha ser nova ou antiga.
+    const ini = new Date(startDate + "T00:00:00Z"); ini.setUTCMonth(ini.getUTCMonth() - 1);
+    const fim = new Date(endDate + "T00:00:00Z"); fim.setUTCMonth(fim.getUTCMonth() + 1);
+    const colunas = "type,status,value,category_id,nao_operacional,estorno_de,origem_registro,competencia_date,data_pagamento,date_normalized";
+    const [todas, categoryRows, vendas] = await Promise.all([
+      fetchAllRowsPaginated(sb, "finance_entries", colunas,
+        (q) => q.eq("tenant_id", tenantId).not("origem_registro", "is", null).gte("date_normalized", ini.toISOString().slice(0, 10)).lte("date_normalized", fim.toISOString().slice(0, 10))) as Promise<LancamentoDre[]>,
+      fetchAllRowsPaginated(sb, "finance_categories", "id,linha_dre", (q) => q.eq("tenant_id", tenantId)) as Promise<{ id: string; linha_dre: string | null }[]>,
+      fetchAllRowsPaginated(sb, "vendas", "id",
+        (q) => q.eq("tenant_id", tenantId).eq("status", "paga").gte("paid_at", `${startDate}T00:00:00-03:00`).lte("paid_at", `${endDate}T23:59:59-03:00`)) as Promise<{ id: string }[]>,
+    ]);
+
+    const { count: legadoQtd } = await sb.from("finance_entries").select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId).is("origem_registro", null).gte("date_normalized", startDate).lte("date_normalized", endDate);
+    const legado = { quantidade: legadoQtd ?? 0 };
+    const { novos } = separarLegado(todas);
+    const doPeriodo = filtrarPeriodo(novos, startDate, endDate, regime);
+    const categoriasMap = new Map((categoryRows || []).map((c) => [c.id, c]));
+
+    // CMV de mercadoria: custo gravado no item no dia da venda (venda_items.custo_unitario); sem custo = contado à parte, nunca zero.
+    const itens: Array<{ quantidade: number | null; quantidade_decimal: number | null; custo_unitario: number | null }> = [];
+    const ids = vendas.map((v) => v.id);
+    for (let i = 0; i < ids.length; i += 200) {
+      const lote = await fetchAllRowsPaginated(sb, "venda_items", "quantidade,quantidade_decimal,custo_unitario",
+        (q) => q.eq("tenant_id", tenantId).in("venda_id", ids.slice(i, i + 200))) as typeof itens;
+      itens.push(...lote);
+    }
+    const { cmv, itensSemCusto } = cmvDosItens(itens.map((it) => ({ quantidade: quantidadeDoItem(it), custo_unitario: it.custo_unitario })));
+
+    const dre = calcularDreCompleto(doPeriodo, categoriasMap, { cmvMercadoria: cmv });
+    const resposta = {
+      regime, startDate, endDate, ...dre,
+      lancamentos: doPeriodo.length, itensSemCusto, vendasNoPeriodo: vendas.length,
+      legado,   // lançamentos antigos NÃO incluídos aqui (estão no /dre-summary)
+      cachedAt: new Date().toISOString(),
+    };
+    await cacheSet(cacheKey, resposta, 60);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(resposta);
+  } catch (err: any) {
+    console.error("[finance/dre-completo]", err?.message);
+    return res.status(500).json({ error: "Erro ao calcular o DRE completo." });
   }
 });
 

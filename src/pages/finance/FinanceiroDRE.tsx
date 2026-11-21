@@ -15,6 +15,7 @@ import { parseEntryDate } from "./lib/financeDates";
 import { calcularDRE, categoriesById, getMonthlyDreSeries, pctDelta, type FinanceCategoryLike, type DreResult } from "./lib/financeEngine";
 import { apiFetch } from "../../lib/apiClient";
 import { SecaoCard } from "./components/SecaoCard";
+import { DreCompletoCard } from "./components/DreCompletoCard";
 
 type Periodo = "mensal" | "trimestral" | "semestral" | "anual" | "personalizado";
 
@@ -273,6 +274,8 @@ export default function FinanceiroDRE() {
             ))}
           </div>
         </SecaoCard>
+
+        <DreCompletoCard tenantId={activeTenantId} startDate={rangeStart} endDate={rangeEnd} />
       </div>
     </PageContainer>
   );

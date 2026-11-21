@@ -139,3 +139,14 @@ export function cmvDosItens(itens: Array<{ quantidade: number | string; custo_un
   }
   return { cmv: round2(cmv), itensSemCusto: sem };
 }
+
+/** Lançamentos antigos (sem origem_registro) não entram no DRE completo: ficam no DRE legado. Devolve os novos e um resumo dos antigos. */
+export function separarLegado<T extends LancamentoDre>(entries: T[]): { novos: T[]; legado: { quantidade: number; valor: number } } {
+  const novos: T[] = []; let q = 0; let v = 0;
+  for (const e of entries) { if (e.origem_registro) novos.push(e); else { q++; v += num(e.value); } }
+  return { novos, legado: { quantidade: q, valor: round2(v) } };
+}
+
+/** Quantidade efetiva de um item vendido (quantidade_decimal para produto pesado/fracionado, senão a inteira). */
+export const quantidadeDoItem = (i: { quantidade?: number | string | null; quantidade_decimal?: number | string | null }): number =>
+  i.quantidade_decimal !== null && i.quantidade_decimal !== undefined ? num(i.quantidade_decimal) : num(i.quantidade);

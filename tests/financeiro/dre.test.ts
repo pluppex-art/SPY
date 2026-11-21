@@ -87,3 +87,11 @@ test("período: competência usa competencia_date (cai em date_normalized no leg
   assert.deepEqual(filtrarPeriodo([a, b, velho], "2026-11-01", "2026-11-30", "competencia"), [b, velho]);
   assert.deepEqual(filtrarPeriodo([a, b, velho], "2026-11-01", "2026-11-30", "caixa"), [a, velho]);
 });
+
+import { separarLegado, quantidadeDoItem } from "../../src/lib/dre/dre.js";
+test("legado fica fora do DRE completo; quantidade usa a decimal quando existe", () => {
+  const r = separarLegado([{ type: "Receber", status: "Pago", value: 10 }, { type: "Receber", status: "Pago", value: 5, origem_registro: "spy" }]);
+  assert.equal(r.novos.length, 1); assert.deepEqual(r.legado, { quantidade: 1, valor: 10 });
+  assert.equal(quantidadeDoItem({ quantidade: 1, quantidade_decimal: 0.35 }), 0.35);
+  assert.equal(quantidadeDoItem({ quantidade: 3, quantidade_decimal: null }), 3);
+});
