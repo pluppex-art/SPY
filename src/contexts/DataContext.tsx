@@ -2262,7 +2262,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (!deveLancarGanho(valor, temProposta, jaExiste)) return;
       const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
       const lanc: any = montarLancamentoDoGanho(lead as any, valor, hoje, financeCategories);
-      if (checkFinanceEntryLock({ ...lanc, status: 'A Vencer' } as any)) return;
+      if (checkFinanceEntryLock(lanc as any)) return;
       if (tenantId) lanc.tenant_id = tenantId;
       lanc.filial_id = activeFilialId;
       if (supabase) {

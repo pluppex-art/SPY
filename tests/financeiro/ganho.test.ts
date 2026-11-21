@@ -9,13 +9,13 @@ test("ganho sem proposta lança no financeiro: só com valor, sem proposta e uma
   assert.equal(deveLancarGanho(500, false, true), false);     // já lançado (status foi e voltou)
 });
 
-test("lançamento do ganho: conta a receber pendente, id fixo por negócio, categoria de vendas do plano quando existe", () => {
+test("lançamento do ganho: venda recebida (Pago), id fixo por negócio, categoria de vendas do plano quando existe", () => {
   const lead = { id: "L1", name: "João", title: "Plano anual", clientName: "João Silva", clientId: "c1" };
   const l = montarLancamentoDoGanho(lead, 1500.5, "2026-11-21", [{ id: "cat11", nome: "Venda de produtos", tipo: "Receita", codigo: "1.01" }]);
   assert.equal(l.id, idLancamentoDoGanho("L1")); assert.equal(l.id, "ganho_L1");
-  assert.equal(l.type, "Receber"); assert.equal(l.status, "A Vencer"); assert.equal(l.value, 1500.5);
+  assert.equal(l.type, "Receber"); assert.equal(l.status, "Pago"); assert.equal(l.value, 1500.5);
   assert.equal(l.date, "2026-11-21"); assert.equal(l.competencia_date, "2026-11-21");
-  assert.equal(l.category_id, "cat11"); assert.equal(l.counterparty, "João Silva"); assert.equal(l.contato_id, "c1");
+  assert.equal(l.category_id, "cat11"); assert.equal(l.counterparty, "João"); assert.equal(l.contato_id, "c1"); assert.equal(l.payment_method, null);
   assert.equal(l.description, "Venda - Plano anual");
   const sem = montarLancamentoDoGanho({ id: "L2", name: "Maria" }, 10, "2026-11-21", []);
   assert.equal(sem.category, "Vendas"); assert.equal(sem.category_id, null); assert.equal(sem.description, "Venda - Maria");
@@ -31,4 +31,17 @@ test("ganho do Agente Secreto: só o dele e só recente (histórico importado e 
   assert.equal(ehGanhoDoAgente({ source: "Instagram", updated_at: "2026-11-21T17:00:00Z" }, agora), false);
   assert.equal(ehGanhoDoAgente({ source: "Agente Secreto SPY" }, agora), false);                                       // sem data não dá para saber
   assert.equal(ehGanhoDoAgente({ source: null, updated_at: "2026-11-21T17:00:00Z" }, agora), false);
+});
+
+import { formaDePagamentoDoLead } from "../../src/pages/finance/lib/ganho.js";
+test("cliente do lançamento é a pessoa do negócio (não a empresa dela) e a forma de pagamento só vem do que o negócio já tem", () => {
+  const cicero = { id: "L9", name: "Cícero Divino", clientName: "Luminar Loja Eletrica", clientId: "emp1", title: "caixa trifásica - Cícero Divino" };
+  const l = montarLancamentoDoGanho(cicero, 2244, "2026-11-21", []);
+  assert.equal(l.counterparty, "Cícero Divino");            // antes saía "Luminar Loja Eletrica"
+  assert.equal(l.contato_id, "emp1");
+  assert.equal(l.payment_method, null);                      // sem forma informada: fica vazio, não vira "Boleto"
+  assert.equal(montarLancamentoDoGanho({ ...cicero, customFields: { forma_pagamento: " Pix " } }, 10, "2026-11-21", []).payment_method, "Pix");
+  assert.equal(formaDePagamentoDoLead({ customFields: { ultima_intencao: "quer_comprar" } }), null);
+  assert.equal(formaDePagamentoDoLead({ customFields: { metodoPagamento: "Cartão de Crédito" } }), "Cartão de Crédito");
+  assert.equal(formaDePagamentoDoLead({}), null);
 });

@@ -73,10 +73,10 @@ export default function FinanceiroCobrancas() {
       .filter(f => f.type === "Receber")
       .map(f => ({
         id: f.id,
-        cliente: f.description,
+        cliente: f.counterparty || f.description,   // quem comprou; sem cliente informado, a descrição como sempre foi
         valor: f.value,
         vencimento: f.date,
-        metodo: f.payment_method || (f.value > 2000 ? "Boleto" : "Pix"),
+        metodo: f.payment_method || "Não informado",   // nunca inventa a forma de pagamento (antes: acima de R$ 2.000 virava "Boleto")
         status: f.status === "Pago" ? "Liquidada" : "Pendente",
         categoria: f.category,
         contatoId: f.contato_id || null,
