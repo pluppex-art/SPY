@@ -314,7 +314,7 @@ export default function PainelVarejo() {
       state: {
         rascunho: {
           fornecedor: provs.length === 1 ? provs[0] : "",
-          itens: escolhidos.map(i => `${parseInt(repQtd[i.id], 10)}x ${i.name}`).join(", "),
+          linhas: escolhidos.map(i => ({ nome: i.name, qtd: parseInt(repQtd[i.id], 10) })),
         },
       },
     });

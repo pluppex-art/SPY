@@ -13,6 +13,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
+import { FornecedorModal, rowToFornecedor, type FornecedorItem } from "./FornecedorModal";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
 import { HelpTip } from "../../components/ui/help-tip";
@@ -90,7 +91,18 @@ export default function ComprasVarejo() {
   // Form state para Nova Ordem
   const [fornecedor, setFornecedor] = useState("");
   const [valor, setValor] = useState("");
-  const [itens, setItens] = useState("");
+  type Linha = { nome: string; qtd: string; custo: string };
+  const linhaVazia = (): Linha => ({ nome: "", qtd: "", custo: "" });
+  const [linhas, setLinhas] = useState<Linha[]>([linhaVazia()]);
+  const [fornecedoresCad, setFornecedoresCad] = useState<FornecedorItem[]>([]);
+  const [novoFornecedorOpen, setNovoFornecedorOpen] = useState(false);
+  useEffect(() => {
+    if (!supabase || !activeTenantId) return;
+    supabase.from("varejo_fornecedores").select("*").eq("tenant_id", activeTenantId).order("razao_social")
+      .then(({ data }) => { if (data) setFornecedoresCad(data.map(rowToFornecedor)); });
+  }, [activeTenantId]);
+  const setLinha = (i: number, patch: Partial<Linha>) => setLinhas(prev => prev.map((l, k) => (k === i ? { ...l, ...patch } : l)));
+  const totalLinhas = linhas.reduce((t, l) => t + (parseInt(l.qtd, 10) || 0) * (parseFloat(l.custo.replace(",", ".")) || 0), 0);
   const [previsaoEntrega, setPrevisaoEntrega] = useState("");
   const [status, setStatus] = useState<CompraItem["status"]>("Emitida / Aguardando Fornecedor");
 
@@ -105,7 +117,9 @@ export default function ComprasVarejo() {
     const r = (location.state as any)?.rascunho;
     if (!r) return;
     setFornecedor(r.fornecedor || "");
-    setItens(r.itens || "");
+    setLinhas(Array.isArray(r.linhas) && r.linhas.length > 0
+      ? r.linhas.map((l: any) => ({ nome: l.nome, qtd: String(l.qtd), custo: "" }))
+      : [linhaVazia()]);
     if (cfgVarejo.compras.prazoEntregaPadraoDias > 0) {
       const d = new Date(); d.setDate(d.getDate() + cfgVarejo.compras.prazoEntregaPadraoDias);
       setPrevisaoEntrega(d.toISOString().slice(0, 10));
@@ -116,24 +130,26 @@ export default function ComprasVarejo() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fornecedor.trim() || !itens.trim()) {
-      toast.error("Preencha o fornecedor e a lista de itens.");
+    const validas = linhas.filter(l => l.nome.trim() || l.qtd.trim());
+    if (validas.length === 0 || validas.some(l => !l.nome.trim() || (parseInt(l.qtd, 10) || 0) <= 0)) {
+      toast.error("Informe o nome e a quantidade de cada item.");
       return;
     }
+    const itens = validas.map(l => `${parseInt(l.qtd, 10)}x ${l.nome.trim()}`).join(", ");
     if (!supabase || !activeTenantId) {
       toast.error("Sem conexão com o banco de dados.");
       return;
     }
 
-    const numVal = parseFloat(valor.replace(/[^\d.]/g, "").replace(",", ".")) || 0;
+    const numVal = valor.trim() ? (parseFloat(valor.replace(/[^\d.,]/g, "").replace(",", ".")) || 0) : totalLinhas;
 
     const { data, error } = await supabase
       .from("compras")
       .insert({
         tenant_id: activeTenantId,
-        fornecedor: fornecedor.trim(),
+        fornecedor: fornecedor.trim() || "A definir",
         valor: numVal,
-        itens: itens.trim(),
+        itens,
         previsao_entrega: previsaoEntrega || null,
         status: uiStatusToDb(status),
       })
@@ -151,7 +167,7 @@ export default function ComprasVarejo() {
 
     setFornecedor("");
     setValor("");
-    setItens("");
+    setLinhas([linhaVazia()]);
     setPrevisaoEntrega("");
   };
 
@@ -461,36 +477,43 @@ export default function ComprasVarejo() {
       >
         <form id="form-compras" onSubmit={handleCreate} className="space-y-3.5 py-1">
           <div>
-            <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Fornecedor / Distribuidora</label>
-            <input
-              type="text"
-              required
-              placeholder="Nome do fornecedor"
-              value={fornecedor}
-              onChange={e => setFornecedor(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-            />
+            <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Fornecedor <span className="text-[var(--color-text-muted)] font-normal">(opcional)</span></label>
+            <div className="flex items-center gap-2">
+              <select value={fornecedor} onChange={e => setFornecedor(e.target.value)} className="flex-1 w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]">
+                <option value="">A definir</option>
+                {fornecedor && !fornecedoresCad.some(f => f.razaoSocial === fornecedor) && <option value={fornecedor}>{fornecedor}</option>}
+                {fornecedoresCad.map(f => <option key={f.id} value={f.razaoSocial}>{f.razaoSocial}</option>)}
+              </select>
+              <button type="button" onClick={() => setNovoFornecedorOpen(true)} title="Cadastrar novo fornecedor" className="h-[34px] w-[34px] shrink-0 rounded-xl bg-[var(--color-primary-blue)] text-white flex items-center justify-center">
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Itens & Quantidades</label>
-            <textarea
-              rows={2}
-              required
-              placeholder="Ex: 50x Fone Bluetooth Pro, 100x Cabo Tipo-C"
-              value={itens}
-              onChange={e => setItens(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] resize-none"
-            />
+            <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Itens a comprar <span className="text-rose-500">*</span></label>
+            <datalist id="lista-produtos-compra">
+              {(products || []).filter((p: any) => !p.type || p.type === "Físico").map((p: any) => <option key={p.id} value={p.name} />)}
+            </datalist>
+            <div className="space-y-2">
+              {linhas.map((l, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input list="lista-produtos-compra" placeholder="O que comprar" value={l.nome} onChange={e => setLinha(i, { nome: e.target.value })} className="flex-1 min-w-0 w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
+                  <input type="number" min={1} placeholder="Qtd" value={l.qtd} onChange={e => setLinha(i, { qtd: e.target.value })} className="w-16 text-right px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
+                  <input type="text" inputMode="decimal" placeholder="Custo un." value={l.custo} onChange={e => setLinha(i, { custo: e.target.value })} className="w-20 text-right px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
+                  <button type="button" disabled={linhas.length === 1} onClick={() => setLinhas(prev => prev.filter((_, k) => k !== i))} className="text-rose-500 disabled:opacity-30 text-sm px-1" title="Remover item">×</button>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => setLinhas(prev => [...prev, linhaVazia()])} className="mt-2 text-[11px] font-bold text-[var(--color-primary-blue)] hover:underline">+ Adicionar item</button>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Valor Total (R$)</label>
+              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Valor Total (R$) <span className="text-[var(--color-text-muted)] font-normal">(opcional)</span></label>
               <input
                 type="text"
-                required
-                placeholder="Ex: 7500.00"
+                placeholder={totalLinhas > 0 ? totalLinhas.toFixed(2) : "Soma dos custos"}
                 value={valor}
                 onChange={e => setValor(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
@@ -508,6 +531,12 @@ export default function ComprasVarejo() {
           </div>
         </form>
       </Modal>
+      <FornecedorModal
+        isOpen={novoFornecedorOpen}
+        onClose={() => setNovoFornecedorOpen(false)}
+        tenantId={activeTenantId}
+        onSaved={f => { setFornecedoresCad(prev => [...prev, f].sort((a, b) => a.razaoSocial.localeCompare(b.razaoSocial))); setFornecedor(f.razaoSocial); }}
+      />
     </PageContainer>
   );
 }

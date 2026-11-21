@@ -8,39 +8,17 @@ import {
   Truck, Plus, Phone, Mail, Package, Trash2, Clock
 } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
-import { Modal } from "../../components/ui/modal";
+import { FornecedorModal, rowToFornecedor, type FornecedorItem } from "./FornecedorModal";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 
 import { HelpTip } from "../../components/ui/help-tip";
-interface FornecedorItem {
-  id: string;
-  razaoSocial: string;
-  cnpj: string;
-  contato: string;
-  telefone: string;
-  email: string;
-  prazoEntrega: string;
-  categorias: string;
-}
-
-function rowToFornecedor(row: any): FornecedorItem {
-  return {
-    id: row.id,
-    razaoSocial: row.razao_social,
-    cnpj: row.cnpj || "",
-    contato: row.contato || "",
-    telefone: row.telefone || "",
-    email: row.email || "",
-    prazoEntrega: row.prazo_entrega || "3 dias úteis",
-    categorias: row.categorias || "",
-  };
-}
-
 export default function FornecedoresVarejo() {
   const { activeTenantId } = useAuth();
+  const navigate = useNavigate();
   const [reloadKey, setReloadKey] = useState(0);
 
   const [fornecedores, setFornecedores] = useState<FornecedorItem[]>([]);
@@ -65,58 +43,6 @@ export default function FornecedoresVarejo() {
   const [categoriaFiltro, setCategoriaFiltro] = useState("");
   const [prazoFiltro, setPrazoFiltro] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-
-  // Form state
-  const [razaoSocial, setRazaoSocial] = useState("");
-  const [cnpj, setCnpj] = useState("");
-  const [contato, setContato] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [email, setEmail] = useState("");
-  const [prazoEntrega, setPrazoEntrega] = useState("3 dias úteis");
-  const [categorias, setCategorias] = useState("");
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!razaoSocial.trim()) {
-      toast.error("Informe a Razão Social do fornecedor.");
-      return;
-    }
-    if (!supabase || !activeTenantId) {
-      toast.error("Sem conexão com o banco de dados.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("varejo_fornecedores")
-      .insert({
-        tenant_id: activeTenantId,
-        razao_social: razaoSocial.trim(),
-        cnpj: cnpj.trim() || "00.000.000/0001-00",
-        contato: contato.trim() || "Comercial",
-        telefone: telefone.trim(),
-        email: email.trim(),
-        prazo_entrega: prazoEntrega.trim() || "3 dias úteis",
-        categorias: categorias.trim() || "Geral",
-      })
-      .select()
-      .single();
-
-    if (error || !data) {
-      toast.error("Erro ao cadastrar fornecedor.");
-      return;
-    }
-
-    setFornecedores(prev => [rowToFornecedor(data), ...prev]);
-    toast.success("Fornecedor cadastrado com sucesso!");
-    setModalOpen(false);
-
-    setRazaoSocial("");
-    setCnpj("");
-    setContato("");
-    setTelefone("");
-    setEmail("");
-    setCategorias("");
-  };
 
   const handleDelete = async (id: string) => {
     if (!supabase) return;
@@ -200,20 +126,24 @@ export default function FornecedoresVarejo() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <h4 className="text-xs font-bold text-[var(--color-text-primary)]">{f.razaoSocial}</h4>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]">
-                  {f.cnpj}
-                </span>
+                {f.cnpj && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]">
+                    {f.cnpj}
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-[var(--color-text-muted)]">
-                Contato: <strong className="text-[var(--color-text-primary)]">{f.contato}</strong> {f.telefone && `(${f.telefone})`} {f.email && `• ${f.email}`} • Prazo: {f.prazoEntrega}
+                {f.contato && <>Contato: <strong className="text-[var(--color-text-primary)]">{f.contato}</strong> </>}{f.telefone && `${f.contato ? "(" : ""}${f.telefone}${f.contato ? ")" : ""}`} {f.email && `• ${f.email}`}{f.prazoEntrega && ` • Prazo: ${f.prazoEntrega}`}
               </p>
-              <p className="text-[10px] text-[var(--color-primary-blue)] font-bold mt-1">
-                Linhas: {f.categorias}
-              </p>
+              {f.categorias && (
+                <p className="text-[10px] text-[var(--color-primary-blue)] font-bold mt-1">
+                  Linhas: {f.categorias}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <Button size="sm" variant="outline" onClick={() => toast.success(`Pedido para ${f.razaoSocial} iniciado.`)} className="h-8 text-xs font-bold rounded-xl">
+              <Button size="sm" variant="outline" onClick={() => navigate("/app/varejo/compras", { state: { rascunho: { fornecedor: f.razaoSocial, linhas: [] } } })} className="h-8 text-xs font-bold rounded-xl">
                 Novo Pedido de Compra
               </Button>
               <Button size="sm" variant="ghost" onClick={() => handleDelete(f.id)} className="h-8 w-8 p-0 text-red-500 hover:bg-red-500/10 rounded-xl">
@@ -230,124 +160,12 @@ export default function FornecedoresVarejo() {
         )}
       </div>
 
-      {/* Standardized Modal */}
-      <Modal
+      <FornecedorModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        maxWidth="max-w-md"
-        title={
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] flex items-center justify-center shrink-0">
-              <Truck className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cadastrar Novo Fornecedor <HelpTip label="Sobre Cadastrar Novo Fornecedor">Cadastre os dados e o contato comercial do fornecedor parceiro.</HelpTip></h3>
-            </div>
-          </div>
-        }
-        footer={
-          <div className="flex items-center justify-end gap-2 w-full">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setModalOpen(false)}
-              className="h-9 px-4 text-xs font-semibold"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              form="form-fornecedores"
-              className="h-9 px-4 text-xs font-semibold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white"
-            >
-              Salvar Fornecedor
-            </Button>
-          </div>
-        }
-      >
-        <form id="form-fornecedores" onSubmit={handleCreate} className="space-y-3.5 py-1">
-          <div>
-            <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Razão Social / Nome Fantasia</label>
-            <input
-              type="text"
-              required
-              placeholder="Ex: Distribuidora Nacional de Peças SA"
-              value={razaoSocial}
-              onChange={e => setRazaoSocial(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">CNPJ</label>
-              <input
-                type="text"
-                placeholder="00.000.000/0001-00"
-                value={cnpj}
-                onChange={e => setCnpj(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Nome do Contato</label>
-              <input
-                type="text"
-                placeholder="Nome completo"
-                value={contato}
-                onChange={e => setContato(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Telefone / WhatsApp</label>
-              <input
-                type="text"
-                placeholder="(11) 90000-0000"
-                value={telefone}
-                onChange={e => setTelefone(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">E-mail Comercial</label>
-              <input
-                type="email"
-                placeholder="pedidos@empresa.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Prazo de Entrega</label>
-              <input
-                type="text"
-                placeholder="Ex: 3 dias úteis"
-                value={prazoEntrega}
-                onChange={e => setPrazoEntrega(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Linhas / Categorias</label>
-              <input
-                type="text"
-                placeholder="Ex: Acessórios, Cabos"
-                value={categorias}
-                onChange={e => setCategorias(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
-            </div>
-          </div>
-        </form>
-      </Modal>
+        tenantId={activeTenantId}
+        onSaved={f => setFornecedores(prev => [f, ...prev])}
+      />
     </PageContainer>
   );
 }
