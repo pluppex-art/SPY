@@ -255,13 +255,13 @@ export default function ComprasVarejo() {
     if (!supabase) return;
     const compra = compras.find(c => c.id === id);
     if (!(await confirmDialog({
-      title: "Cancelar ordem de compra",
-      description: `Cancelar a ordem de compra de "${compra?.fornecedor || "este fornecedor"}"? Essa ação não pode ser desfeita.`,
+      title: "Excluir ordem de compra",
+      description: `Excluir definitivamente a ordem de compra "${compra?.itens || ""}" de "${compra?.fornecedor || "este fornecedor"}"? Essa ação não pode ser desfeita. Para apenas cancelar, mude o status da ordem.`,
     }))) return;
-    const { error } = await supabase.from("compras").update({ status: "Cancelado" }).eq("id", id);
-    if (error) { toast.error("Erro ao cancelar ordem."); return; }
-    setCompras(prev => prev.map(c => c.id === id ? { ...c, status: "Cancelada" } : c));
-    toast.info("Ordem de compra cancelada.");
+    const { data, error } = await supabase.from("compras").delete().eq("id", id).select("id");
+    if (error || !data || data.length === 0) { toast.error("Erro ao excluir ordem."); return; }
+    setCompras(prev => prev.filter(c => c.id !== id));
+    toast.info("Ordem de compra excluída.");
   };
 
   const handleUpdateStatus = async (id: string, newStatus: CompraItem["status"]) => {

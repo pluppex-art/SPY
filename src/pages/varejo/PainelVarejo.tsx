@@ -10,6 +10,7 @@ import { Card } from "../../components/ui/card";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { Modal } from "../../components/ui/modal";
+import { FornecedorModal, rowToFornecedor, type FornecedorItem } from "./FornecedorModal";
 import { useAuth } from "../../contexts/AuthContext";
 import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useData } from "../../contexts/DataContext";
@@ -305,10 +306,22 @@ export default function PainelVarejo() {
   const abrirReposicao = () => {
     const sel: Record<string, boolean> = {};
     const qtd: Record<string, string> = {};
-    itensCriticosTodos.forEach(i => { sel[i.id] = true; qtd[i.id] = String(i.sugerido); });
-    setRepSel(sel); setRepQtd(qtd); setRepOpen(true);
+    const forn: Record<string, string> = {};
+    itensCriticosTodos.forEach(i => {
+      sel[i.id] = true; qtd[i.id] = String(i.sugerido);
+      forn[i.id] = i.provider && i.provider.toLowerCase() !== "interno" ? i.provider : "";
+    });
+    setRepSel(sel); setRepQtd(qtd); setRepForn(forn); setRepOpen(true);
   };
   const escolhidos = itensCriticosTodos.filter(i => repSel[i.id] && (parseInt(repQtd[i.id], 10) || 0) > 0);
+  const [fornecedoresCad, setFornecedoresCad] = useState<FornecedorItem[]>([]);
+  const [repForn, setRepForn] = useState<Record<string, string>>({});
+  const [novoFornPara, setNovoFornPara] = useState<string | null>(null);
+  useEffect(() => {
+    if (!repOpen || !supabase || !activeTenantId) return;
+    supabase.from("varejo_fornecedores").select("*").eq("tenant_id", activeTenantId).order("razao_social")
+      .then(({ data }) => { if (data) setFornecedoresCad(data.map(rowToFornecedor)); });
+  }, [repOpen, activeTenantId]);
   const [lancando, setLancando] = useState(false);
   const lancarOrdemCompra = async () => {
     if (escolhidos.length === 0 || lancando) return;
@@ -317,13 +330,13 @@ export default function PainelVarejo() {
     let previsao: string | null = null;
     if (prazo > 0) { const d = new Date(); d.setDate(d.getDate() + prazo); previsao = d.toISOString().slice(0, 10); }
     setLancando(true);
-    // Uma ordem por item, cada uma com o fornecedor cadastrado no próprio produto.
+    // Uma ordem por item, cada uma com o fornecedor escolhido na linha.
     const { error } = await supabase.from("compras").insert(
       escolhidos.map(i => {
         const qtd = parseInt(repQtd[i.id], 10) || 0;
         return {
           tenant_id: activeTenantId,
-          fornecedor: i.provider && i.provider.toLowerCase() !== "interno" ? i.provider : "A definir",
+          fornecedor: (repForn[i.id] || "").trim() || "A definir",
           valor: qtd * i.custo,
           itens: `${qtd}x ${i.name}`,
           previsao_entrega: previsao,
@@ -757,23 +770,46 @@ export default function PainelVarejo() {
         <p className="text-xs text-[var(--color-text-muted)] mb-3">Marque o que precisa comprar e ajuste a quantidade. Cada item vira uma ordem própria em Compras, aguardando o fornecedor. O valor usa o custo cadastrado de cada produto.</p>
         <div className="space-y-2 max-h-[50vh] overflow-y-auto">
           {itensCriticosTodos.map(i => (
-            <label key={i.id} className="p-2.5 rounded-xl bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={!!repSel[i.id]} onChange={e => setRepSel(prev => ({ ...prev, [i.id]: e.target.checked }))} />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{i.name}</p>
-                <p className="text-[10px] text-[var(--color-text-muted)]">Saldo: <strong className="text-rose-500">{i.stock}</strong> • Mín: {i.min}{i.provider ? ` • ${i.provider}` : ""}</p>
+            <div key={i.id} className="p-2.5 rounded-xl bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] space-y-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={!!repSel[i.id]} onChange={e => setRepSel(prev => ({ ...prev, [i.id]: e.target.checked }))} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{i.name}</p>
+                  <p className="text-[10px] text-[var(--color-text-muted)]">Saldo: <strong className="text-rose-500">{i.stock}</strong> • Mín: {i.min}</p>
+                </div>
+                <input
+                  type="number" min={1}
+                  value={repQtd[i.id] ?? ""}
+                  onChange={e => setRepQtd(prev => ({ ...prev, [i.id]: e.target.value }))}
+                  onClick={e => e.stopPropagation()}
+                  className="w-20 px-2 py-1.5 text-xs text-right bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
+                />
+              </label>
+              <div className="flex items-center gap-2 pl-6">
+                <select
+                  value={repForn[i.id] ?? ""}
+                  onChange={e => setRepForn(prev => ({ ...prev, [i.id]: e.target.value }))}
+                  className="flex-1 min-w-0 px-2 py-1.5 text-xs bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
+                >
+                  <option value="">Fornecedor: a definir</option>
+                  {repForn[i.id] && !fornecedoresCad.some(f => f.razaoSocial === repForn[i.id]) && <option value={repForn[i.id]}>{repForn[i.id]}</option>}
+                  {fornecedoresCad.map(f => <option key={f.id} value={f.razaoSocial}>{f.razaoSocial}</option>)}
+                </select>
+                <button type="button" onClick={() => setNovoFornPara(i.id)} title="Cadastrar novo fornecedor" className="h-7 w-7 shrink-0 rounded-lg bg-[var(--color-primary-blue)] text-white text-sm font-bold flex items-center justify-center">+</button>
               </div>
-              <input
-                type="number" min={1}
-                value={repQtd[i.id] ?? ""}
-                onChange={e => setRepQtd(prev => ({ ...prev, [i.id]: e.target.value }))}
-                onClick={e => e.stopPropagation()}
-                className="w-20 px-2 py-1.5 text-xs text-right bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              />
-            </label>
+            </div>
           ))}
         </div>
       </Modal>
+      <FornecedorModal
+        isOpen={novoFornPara !== null}
+        onClose={() => setNovoFornPara(null)}
+        tenantId={activeTenantId}
+        onSaved={f => {
+          setFornecedoresCad(prev => [...prev, f].sort((a, b) => a.razaoSocial.localeCompare(b.razaoSocial)));
+          if (novoFornPara) setRepForn(prev => ({ ...prev, [novoFornPara]: f.razaoSocial }));
+        }}
+      />
     </PageContainer>
   );
 }
