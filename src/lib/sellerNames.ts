@@ -26,3 +26,9 @@ export function uniqueSellers(names: unknown[], colaboradores: { nome?: string }
 }
 
 export const sameSeller = (a: unknown, b: unknown): boolean => sellerKey(a) === sellerKey(b);
+
+/** Tira repetições por nome (mesma chave de `sellerKey`), mantendo o primeiro de cada — serve para listas de objetos (ex.: {name, email}). */
+export function dedupeBySeller<T>(items: T[], nome: (t: T) => string): T[] {
+  const vistos = new Set<string>();
+  return items.filter((i) => { const k = sellerKey(nome(i)); if (!k || vistos.has(k)) return false; vistos.add(k); return true; });
+}

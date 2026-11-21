@@ -1,3 +1,4 @@
+import { uniqueSellers, sameSeller, dedupeBySeller } from "../../../../lib/sellerNames";
 import { useState, useEffect } from "react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
@@ -59,13 +60,13 @@ export function AgendarReuniaoModal({ isOpen, onClose, lead, onConfirm }: Agenda
       .map((c: any) => ({ name: c.nome || c.name || "", email: c.email || "" }))
       .filter((c) => c.name);
     if (fromColab.length === 0) {
-      const sellers = [...new Set((leads as any[]).map((l: any) => l.seller).filter(Boolean))];
+      const sellers = uniqueSellers((leads as any[]).map((l: any) => l.seller));
       fromColab = (sellers as string[]).map((s) => ({ name: s, email: "" }));
     }
-    if (user?.name && !fromColab.some((c) => c.name === user.name)) {
+    if (user?.name && !fromColab.some((c) => sameSeller(c.name, user.name))) {
       fromColab = [{ name: user.name, email: user.email || "" }, ...fromColab];
     }
-    return fromColab;
+    return dedupeBySeller(fromColab, (c) => c.name);
   })();
 
   useEffect(() => {

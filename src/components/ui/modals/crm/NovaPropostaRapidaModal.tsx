@@ -1,3 +1,4 @@
+import { uniqueSellers } from "../../../../lib/sellerNames";
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, FileText, User, DollarSign, Calendar, Briefcase, Loader2 } from "lucide-react";
@@ -25,7 +26,7 @@ export function NovaPropostaRapidaModal({ isOpen, onClose, onSubmit }: NovaPropo
   const { user } = useAuth();
   const vendedores = useMemo(() => {
     const nomes = colaboradores.filter((c: any) => c.status === "Ativo").map((c: any) => c.nome);
-    const unique = Array.from(new Set([user?.name, ...nomes].filter(Boolean))) as string[];
+    const unique = uniqueSellers([user?.name, ...nomes], [{ nome: user?.name }]);
     return unique.length > 0 ? unique : ["Sem colaboradores cadastrados"];
   }, [colaboradores, user?.name]);
 

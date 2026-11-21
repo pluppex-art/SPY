@@ -1,3 +1,4 @@
+import { uniqueSellers, sameSeller } from "../../../../lib/sellerNames";
 import React, { useState, useMemo, useEffect } from "react";
 import { isVendedorColab } from "../../../../lib/sellers";
 import { Modal } from "../../modal";
@@ -68,12 +69,12 @@ export function NewLeadModal({ isOpen, onClose, firstStageId = "1", firstComerci
     if (colaboradores && colaboradores.length > 0) {
       list = colaboradores.filter((c: any) => isVendedorColab(c)).map((c: any) => c.nome as string);
     } else {
-      list = Array.from(new Set(leads.map((l: any) => l.seller).filter(Boolean))) as string[];
+      list = uniqueSellers(leads.map((l: any) => l.seller));
     }
-    if (user?.name && !list.includes(user.name)) {
+    if (user?.name && !list.some((n) => sameSeller(n, user.name))) {
       list = [user.name, ...list];
     }
-    return list;
+    return uniqueSellers(list, [...((colaboradores || []) as any[]), { nome: user?.name }]); // o nome do usuário logado vence, para o campo já nascer selecionado
   }, [colaboradores, leads, user?.name]);
 
   useEffect(() => {

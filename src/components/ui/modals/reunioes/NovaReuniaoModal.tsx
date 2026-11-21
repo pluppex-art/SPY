@@ -1,3 +1,4 @@
+import { uniqueSellers, sameSeller, dedupeBySeller } from "../../../../lib/sellerNames";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
@@ -104,13 +105,13 @@ export function NovaReuniaoModal({ isOpen, onClose, reuniao }: NovaReuniaoModalP
       .map((c: any) => ({ name: c.nome || c.name || "", email: c.email || "", cargo: c.cargo || "" }))
       .filter((c) => c.name);
     if (list.length === 0) {
-      const sellers = [...new Set((leads as any[]).map((l: any) => l.seller).filter(Boolean))] as string[];
+      const sellers = uniqueSellers((leads as any[]).map((l: any) => l.seller));
       list = sellers.map((s) => ({ name: s, email: "", cargo: "" }));
     }
-    if (user?.name && !list.some((c) => c.name === user.name)) {
+    if (user?.name && !list.some((c) => sameSeller(c.name, user.name))) {
       list = [{ name: user.name, email: user.email || "", cargo: "" }, ...list];
     }
-    return list;
+    return dedupeBySeller(list, (c) => c.name);
   }, [colaboradores, leads, user]);
 
   const closer = closerOptions.find((c) => c.name === closerName);

@@ -1,3 +1,4 @@
+import { uniqueSellers } from "../../../lib/sellerNames";
 import React, { useState, useMemo } from "react";
 import { isVendedorColab } from "../../../lib/sellers";
 import { Card } from "../card";
@@ -85,8 +86,8 @@ export function ProfileSection({
       .filter((c: any) => isVendedorColab(c))
       .map((c: any) => c.nome)
       .filter(Boolean);
-    if (fromColab.length > 0) return fromColab as string[];
-    return [...new Set((allLeads as any[]).map((l: any) => l.seller).filter(Boolean))] as string[];
+    if (fromColab.length > 0) return uniqueSellers(fromColab);
+    return uniqueSellers((allLeads as any[]).map((l: any) => l.seller));
   }, [colaboradores, allLeads]);
 
   // Valor da Proposta: `lead.value` já é a soma de todas as propostas reais
