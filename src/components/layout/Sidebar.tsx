@@ -1,3 +1,4 @@
+import { paginaOculta } from "../../lib/paginasOcultas";
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Building2, MapPin, ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -30,7 +31,7 @@ export function Sidebar({
 }: SidebarProps) {
   const location = useLocation();
   const {
-    user, isModuleEnabled, tenantIdMap,
+    user, isModuleEnabled, tenantIdMap, getTenantModules,
     activeTenantId, activeTenantName, switchTenant,
     activeFilialId, switchFilial,
   } = useAuth();
@@ -82,6 +83,8 @@ export function Sidebar({
   const canSwitchTenant = (!!user?.isMaster || !!user?.partnerId) && tenantOptions.length > 1;
   const canSwitchFilial = !!(user?.isMaster || user?.isTenantAdmin) && empresaFiliais.length > 0;
   const cargoModulos: string[] | null = modulosDoCargo(user, cargos);
+  // Páginas que o operador ocultou para a empresa aberta (tela de módulos).
+  const modulosEmpresa = getTenantModules(activeTenantName || user?.tenantName || "") as Record<string, any>;
   const checkModule = (mod: string) => {
     if (mod === "automotivo" || mod === "concessionaria") return isModuleEnabled("automotivo") || isModuleEnabled("concessionaria");
     if (mod === "catalogo-produtos") return isModuleEnabled("catalogo") || isModuleEnabled("imobiliaria") || isModuleEnabled("automotivo") || isModuleEnabled("concessionaria") || isModuleEnabled("varejo");
@@ -185,6 +188,7 @@ export function Sidebar({
                 if (item.reqModule === 'master' && !user?.isMaster) return false;
                 if (item.reqCondition && !conditionCheckers[item.reqCondition as NavReqCondition](user)) return false;
                 if (item.hideWhen === 'os-implementacao' && usaOsImplementacao) return false;
+                if (item.path && paginaOculta(modulosEmpresa, item.path)) return false;
                 return true;
               });
 

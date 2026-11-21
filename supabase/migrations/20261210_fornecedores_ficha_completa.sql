@@ -1,0 +1,21 @@
+-- Ficha completa do fornecedor. Todas as colunas são opcionais (ativo já nasce true), nada existente é alterado.
+ALTER TABLE varejo_fornecedores
+  ADD COLUMN IF NOT EXISTS tipo_pessoa text DEFAULT 'PJ',
+  ADD COLUMN IF NOT EXISTS nome_fantasia text,
+  ADD COLUMN IF NOT EXISTS inscricao_estadual text,
+  ADD COLUMN IF NOT EXISTS telefone_secundario text,
+  ADD COLUMN IF NOT EXISTS site text,
+  ADD COLUMN IF NOT EXISTS cep text,
+  ADD COLUMN IF NOT EXISTS endereco text,
+  ADD COLUMN IF NOT EXISTS numero text,
+  ADD COLUMN IF NOT EXISTS complemento text,
+  ADD COLUMN IF NOT EXISTS bairro text,
+  ADD COLUMN IF NOT EXISTS cidade text,
+  ADD COLUMN IF NOT EXISTS uf text,
+  ADD COLUMN IF NOT EXISTS condicao_pagamento text,
+  ADD COLUMN IF NOT EXISTS forma_pagamento text,
+  ADD COLUMN IF NOT EXISTS pedido_minimo numeric,
+  ADD COLUMN IF NOT EXISTS frete text,
+  ADD COLUMN IF NOT EXISTS dados_bancarios text,
+  ADD COLUMN IF NOT EXISTS observacoes text,
+  ADD COLUMN IF NOT EXISTS ativo boolean NOT NULL DEFAULT true;

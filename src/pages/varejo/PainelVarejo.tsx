@@ -7,12 +7,50 @@ import {
   QrCode, Banknote, Clock, ArrowUpRight, BarChart3, RefreshCw
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
-import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import { Link, useNavigate } from "react-router-dom";
+import { Modal } from "../../components/ui/modal";
+import { FornecedorModal, rowToFornecedor, type FornecedorItem } from "./FornecedorModal";
 import { useAuth } from "../../contexts/AuthContext";
 import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
+
+type PeriodoId = "hoje" | "ontem" | "7d" | "30d" | "mes" | "mes_passado" | "ano" | "custom";
+const PERIODOS: { id: PeriodoId; label: string }[] = [
+  { id: "hoje", label: "Hoje" },
+  { id: "ontem", label: "Ontem" },
+  { id: "7d", label: "Últimos 7 dias" },
+  { id: "30d", label: "Últimos 30 dias" },
+  { id: "mes", label: "Mês atual" },
+  { id: "mes_passado", label: "Mês passado" },
+  { id: "ano", label: "Ano atual" },
+  { id: "custom", label: "Personalizado" },
+];
+const isoDia = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** Intervalo [inicio, fim) no horário do navegador; `fim` é exclusivo (início do dia seguinte ao último). */
+function intervaloDoPeriodo(id: PeriodoId, de: string, ate: string): { inicio: Date; fim: Date } | null {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
+  const diasAtras = (n: number) => { const d = new Date(hoje); d.setDate(d.getDate() - n); return d; };
+  switch (id) {
+    case "hoje": return { inicio: hoje, fim: amanha };
+    case "ontem": return { inicio: diasAtras(1), fim: hoje };
+    case "7d": return { inicio: diasAtras(6), fim: amanha };
+    case "30d": return { inicio: diasAtras(29), fim: amanha };
+    case "mes": return { inicio: new Date(hoje.getFullYear(), hoje.getMonth(), 1), fim: amanha };
+    case "mes_passado": return { inicio: new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1), fim: new Date(hoje.getFullYear(), hoje.getMonth(), 1) };
+    case "ano": return { inicio: new Date(hoje.getFullYear(), 0, 1), fim: amanha };
+    case "custom": {
+      if (!de || !ate) return null;
+      const inicio = new Date(`${de}T00:00:00`), ultimo = new Date(`${ate}T00:00:00`);
+      if (isNaN(inicio.getTime()) || isNaN(ultimo.getTime()) || ultimo < inicio) return null;
+      const fim = new Date(ultimo); fim.setDate(fim.getDate() + 1);
+      return { inicio, fim };
+    }
+  }
+}
 
 interface VendaFinalizada {
   id: string;
@@ -20,6 +58,8 @@ interface VendaFinalizada {
   data: string;
   cliente: string;
   vendedor?: string;
+  numero?: number | null;
+  comissao?: number;
   itens: Array<{
     id: string;
     name: string;
@@ -27,6 +67,8 @@ interface VendaFinalizada {
     cost?: number;
     qty: number;
     total: number;
+    comissaoNome?: string | null;
+    comissaoValor?: number;
   }>;
   subtotal: number;
   desconto: number;
@@ -46,7 +88,19 @@ export default function PainelVarejo() {
   const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId || user?.tenantId || (user as any)?.tenant_id || "default";
   const { products } = useData();
+  const navigate = useNavigate();
   const cfgVarejo = useVarejoConfig();
+
+  // Período do painel (padrão: mês atual). O status do caixa segue sempre o dia de hoje.
+  const [periodo, setPeriodo] = useState<PeriodoId>("mes");
+  const [customDe, setCustomDe] = useState(() => isoDia(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [customAte, setCustomAte] = useState(() => isoDia(new Date()));
+  const intervalo = useMemo(() => intervaloDoPeriodo(periodo, customDe, customAte), [periodo, customDe, customAte]);
+  const inicioISO = intervalo?.inicio.toISOString() ?? null;
+  const fimISO = intervalo?.fim.toISOString() ?? null;
+  const periodoLabel = periodo === "custom"
+    ? (intervalo ? `${new Date(`${customDe}T00:00:00`).toLocaleDateString("pt-BR")} a ${new Date(`${customAte}T00:00:00`).toLocaleDateString("pt-BR")}` : "intervalo inválido")
+    : PERIODOS.find((x) => x.id === periodo)!.label;
 
   // 1. Vendas do PDV (banco real: vendas + venda_items)
   const [vendas, setVendas] = useState<VendaFinalizada[]>([]);
@@ -91,15 +145,24 @@ export default function PainelVarejo() {
     if (!supabase || !activeTenantId) return;
     let cancelled = false;
     (async () => {
-      const hojeInicio = new Date();
-      hojeInicio.setHours(0, 0, 0, 0);
-
-      const { data: vendasRows, error: vendasError } = await supabase
-        .from("vendas")
-        .select("*, venda_items(*)")
-        .eq("tenant_id", activeTenantId)
-        .gte("created_at", hojeInicio.toISOString())
-        .order("created_at", { ascending: false });
+      // Intervalo inválido (personalizado incompleto): não consulta nem mostra dado de outro período.
+      let vendasRows: any[] | null = inicioISO && fimISO ? [] : null;
+      let vendasError: { message: string } | null = null;
+      if (!inicioISO || !fimISO) { if (!cancelled) setVendas([]); }
+      // A API devolve no máximo 1000 linhas por chamada: pagina para o total do período não sair cortado.
+      for (let pagina = 0; vendasRows && pagina < 20; pagina++) {
+        const { data, error } = await supabase
+          .from("vendas")
+          .select("*, venda_items(*)")
+          .eq("tenant_id", activeTenantId)
+          .gte("created_at", inicioISO)
+          .lt("created_at", fimISO)
+          .order("created_at", { ascending: false })
+          .range(pagina * 1000, pagina * 1000 + 999);
+        if (error) { vendasError = error; vendasRows = null; break; }
+        vendasRows.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
       if (vendasError) console.error("[Supabase] fetch vendas (painel varejo) error:", vendasError.message);
       if (!cancelled && vendasRows) {
         setVendas(
@@ -108,7 +171,9 @@ export default function PainelVarejo() {
             timestamp: v.created_at,
             data: new Date(v.created_at).toLocaleDateString("pt-BR"),
             cliente: v.cliente_nome || "Consumidor Final",
-            vendedor: undefined,
+            vendedor: v.vendedor_nome || undefined,
+            numero: v.numero,
+            comissao: Number(v.comissao_valor) || 0,
             itens: (v.venda_items || []).map((it: any) => ({
               id: it.id,
               name: it.product_name || "Item",
@@ -116,9 +181,11 @@ export default function PainelVarejo() {
               cost: undefined,
               qty: it.quantidade,
               total: Number(it.preco_unitario) * it.quantidade,
+              comissaoNome: it.comissao_vendedor_nome || null,
+              comissaoValor: Number(it.comissao_valor) || 0,
             })),
-            subtotal: Number(v.valor_total) || 0,
-            desconto: 0,
+            subtotal: (Number(v.valor_total) || 0) + (Number(v.valor_desconto) || 0),
+            desconto: Number(v.valor_desconto) || 0,
             total: Number(v.valor_total) || 0,
             metodo: v.forma_pagamento || "Outro",
             status: v.status === "cancelada" ? "cancelada" : "concluida",
@@ -144,7 +211,7 @@ export default function PainelVarejo() {
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTenantId]);
+  }, [activeTenantId, inicioISO, fimISO]);
 
   // Métricas Consolidadas
   const metrics = useMemo(() => {
@@ -207,32 +274,143 @@ export default function PainelVarejo() {
     { header: "Estoque Mín.", render: (p: any) => Number(p.minStock ?? p.min_stock) || 0 },
   ];
 
-  // Itens com estoque crítico
-  const itensCriticos = useMemo(() => {
+  // Itens com estoque crítico. Só produto físico entra: serviço, assinatura e item digital não se compra de fornecedor.
+  const itensCriticosTodos = useMemo(() => {
     if (!cfgVarejo.estoque.alertaEstoqueBaixo) return [];
     return (products || [])
-      .filter(p => (Number(p.currentStock ?? p.current_stock ?? p.stock) || 0) <= (Number(p.minStock ?? p.min_stock) || cfgVarejo.estoque.estoqueMinimoPadrao))
-      .slice(0, 4)
+      .filter(p => !p.type || p.type === "Físico")
+      .filter(p => p.active !== false)
+      .filter(p => (Number(p.currentStock ?? p.current_stock ?? p.stock) || 0) <= (Number(p.minStock ?? p.min_stock ?? p.stockMin) || cfgVarejo.estoque.estoqueMinimoPadrao))
       .map(p => {
         const stock = Number(p.currentStock ?? p.current_stock ?? p.stock) || 0;
-        const min = Number(p.minStock ?? p.min_stock) || 10;
+        const min = Number(p.minStock ?? p.min_stock ?? p.stockMin) || cfgVarejo.estoque.estoqueMinimoPadrao;
+        const max = Number(p.stockMax) || 0;
         return {
+          id: String(p.id),
           name: p.name || "Item em estoque",
+          provider: (p.provider || "").trim(),
+          custo: Number(p.cost) || 0,
           stock,
           min,
+          sugerido: Math.max((max > 0 ? max : min * 2) - stock, 1),
           status: stock <= 2 ? "Crítico" : "Atenção",
         };
       });
-  }, [products]);
+  }, [products, cfgVarejo]);
+  const itensCriticos = useMemo(() => itensCriticosTodos.slice(0, 4), [itensCriticosTodos]);
+
+  // Modal de reposição: escolhe o que comprar e a quantidade, e leva para Compras como rascunho de ordem.
+  const [repOpen, setRepOpen] = useState(false);
+  const [repSel, setRepSel] = useState<Record<string, boolean>>({});
+  const [repQtd, setRepQtd] = useState<Record<string, string>>({});
+  const abrirReposicao = () => {
+    const sel: Record<string, boolean> = {};
+    const qtd: Record<string, string> = {};
+    const forn: Record<string, string> = {};
+    itensCriticosTodos.forEach(i => {
+      sel[i.id] = true; qtd[i.id] = String(i.sugerido);
+      forn[i.id] = i.provider && i.provider.toLowerCase() !== "interno" ? i.provider : "";
+    });
+    setRepSel(sel); setRepQtd(qtd); setRepForn(forn); setRepOpen(true);
+  };
+  const escolhidos = itensCriticosTodos.filter(i => repSel[i.id] && (parseInt(repQtd[i.id], 10) || 0) > 0);
+  const [fornecedoresCad, setFornecedoresCad] = useState<FornecedorItem[]>([]);
+  const [repForn, setRepForn] = useState<Record<string, string>>({});
+  const [novoFornPara, setNovoFornPara] = useState<string | null>(null);
+  useEffect(() => {
+    if (!repOpen || !supabase || !activeTenantId) return;
+    supabase.from("varejo_fornecedores").select("*").eq("tenant_id", activeTenantId).order("razao_social")
+      .then(({ data }) => { if (data) setFornecedoresCad(data.map(rowToFornecedor)); });
+  }, [repOpen, activeTenantId]);
+  const [lancando, setLancando] = useState(false);
+  const lancarOrdemCompra = async () => {
+    if (escolhidos.length === 0 || lancando) return;
+    if (!supabase || !activeTenantId) { toast.error("Sem conexão com o banco de dados."); return; }
+    const prazo = cfgVarejo.compras.prazoEntregaPadraoDias;
+    let previsao: string | null = null;
+    if (prazo > 0) { const d = new Date(); d.setDate(d.getDate() + prazo); previsao = d.toISOString().slice(0, 10); }
+    setLancando(true);
+    // Uma ordem por item, cada uma com o fornecedor escolhido na linha.
+    const { error } = await supabase.from("compras").insert(
+      escolhidos.map(i => {
+        const qtd = parseInt(repQtd[i.id], 10) || 0;
+        return {
+          tenant_id: activeTenantId,
+          fornecedor: (repForn[i.id] || "").trim() || "A definir",
+          valor: qtd * i.custo,
+          itens: `${qtd}x ${i.name}`,
+          product_id: i.id,
+          item_nome: i.name,
+          quantidade: qtd,
+          custo_unitario: i.custo || null,
+          previsao_entrega: previsao,
+          status: "Pendente",
+        };
+      }),
+    );
+    setLancando(false);
+    if (error) { toast.error("Erro ao lançar a ordem de compra."); return; }
+    toast.success(escolhidos.length > 1 ? `${escolhidos.length} ordens de compra lançadas!` : "Ordem de compra lançada!");
+    setRepOpen(false);
+    navigate("/app/varejo/compras");
+  };
+
+  // Comissão do dia por pessoa. Vem dos itens (cada produto tem a sua pessoa e o seu %);
+  // vendas antigas, sem comissão por item, caem no vendedor da venda com o valor gravado nela.
+  const comissoesPorVendedor = useMemo(() => {
+    const mapa = new Map<string, { vendedor: string; vendaIds: Set<string>; total: number; comissao: number }>();
+    const get = (nome: string) => {
+      let r = mapa.get(nome);
+      if (!r) { r = { vendedor: nome, vendaIds: new Set(), total: 0, comissao: 0 }; mapa.set(nome, r); }
+      return r;
+    };
+    for (const v of vendas) {
+      if (v.status !== "concluida") continue;
+      if (v.itens.some((i) => i.comissaoNome)) {
+        for (const it of v.itens) {
+          if (!it.comissaoNome) continue;
+          const r = get(it.comissaoNome);
+          r.vendaIds.add(v.id);
+          r.total += it.total;
+          r.comissao += it.comissaoValor || 0;
+        }
+      } else {
+        const r = get(v.vendedor || "Sem vendedor");
+        r.vendaIds.add(v.id);
+        r.total += v.total;
+        r.comissao += v.comissao || 0;
+      }
+    }
+    return Array.from(mapa.values())
+      .map((r) => ({ vendedor: r.vendedor, vendas: r.vendaIds.size, total: r.total, comissao: r.comissao }))
+      .sort((x, y) => y.comissao - x.comissao || y.total - x.total);
+  }, [vendas]);
 
   return (
     <PageContainer
-      title="Painel Executivo de Varejo"
+      title="Painel de Vendas"
       description="Visão geral da frente de caixa (PDV), do giro de produtos, das reposições e da lucratividade."
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <select
+            aria-label="Período do painel"
+            value={periodo}
+            onChange={(e) => setPeriodo(e.target.value as PeriodoId)}
+            className="h-9 px-3 text-xs font-semibold rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
+          >
+            {PERIODOS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+          </select>
+          {periodo === "custom" && (
+            <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+              <input type="date" aria-label="Data inicial" value={customDe} max={customAte || undefined} onChange={(e) => setCustomDe(e.target.value)}
+                className="h-9 px-2 text-xs rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
+              <span>a</span>
+              <input type="date" aria-label="Data final" value={customAte} min={customDe || undefined} onChange={(e) => setCustomAte(e.target.value)}
+                className="h-9 px-2 text-xs rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
+            </div>
+          )}
           <Link
-            to="/app/varejo/estoque"
+            to="/app/produtos?vista=estoque"
             className="h-9 px-3.5 text-xs font-semibold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
           >
             <Boxes className="w-3.5 h-3.5 text-[var(--color-text-muted)]" /> Estoque
@@ -284,7 +462,7 @@ export default function PainelVarejo() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <Card onClick={() => setDrillKey("vendas")} className="p-4 bg-[var(--color-surface-elevated)]/40 border border-emerald-500/20 shadow-xs cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Faturamento Hoje</span>
+            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Faturamento · {periodoLabel}</span>
             <DollarSign className="w-4 h-4 text-emerald-500" />
           </div>
           <p className="text-2xl font-black text-emerald-500 font-mono">
@@ -375,7 +553,7 @@ export default function PainelVarejo() {
 
               {metrics.topProdutos.length === 0 && (
                 <div className="text-xs text-[var(--color-text-muted)] py-6 text-center">
-                  Nenhuma venda computada ainda hoje.
+                  Nenhuma venda no período selecionado.
                 </div>
               )}
             </div>
@@ -438,9 +616,9 @@ export default function PainelVarejo() {
               <h4 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-500" /> Estoque Crítico
               </h4>
-              <Link to="/app/varejo/compras" className="text-[11px] font-bold text-[var(--color-primary-blue)] hover:underline flex items-center gap-1">
+              <button type="button" onClick={abrirReposicao} disabled={itensCriticosTodos.length === 0} className="text-[11px] font-bold text-[var(--color-primary-blue)] hover:underline flex items-center gap-1 disabled:opacity-40 disabled:no-underline">
                 Nova Compra <ArrowRight className="w-3 h-3" />
-              </Link>
+              </button>
             </div>
 
             <div className="space-y-2.5">
@@ -465,13 +643,41 @@ export default function PainelVarejo() {
           </div>
 
           <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
-            <span className="text-[10px] text-[var(--color-text-muted)]">Itens necessitando reposição</span>
+            <span className="text-[10px] text-[var(--color-text-muted)]">{itensCriticosTodos.length > 4 ? `+${itensCriticosTodos.length - 4} itens necessitando reposição` : "Itens necessitando reposição"}</span>
             <Link to="/app/varejo/estoque" className="text-xs font-bold text-[var(--color-primary-blue)] hover:underline">
               Gerenciar Saldo
             </Link>
           </div>
         </div>
       </div>
+
+      {comissoesPorVendedor.length > 0 && (
+        <div className="mb-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs">
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-3">Vendas e comissão por vendedor · {periodoLabel}</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                  <th className="py-2 pr-3">Vendedor</th>
+                  <th className="py-2 px-3 text-right">Vendas</th>
+                  <th className="py-2 px-3 text-right">Total vendido</th>
+                  <th className="py-2 pl-3 text-right">Comissão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comissoesPorVendedor.map((c) => (
+                  <tr key={c.vendedor} className="border-t border-[var(--color-border-subtle)]">
+                    <td className="py-2 pr-3 font-semibold text-[var(--color-text-primary)]">{c.vendedor}</td>
+                    <td className="py-2 px-3 text-right font-mono">{c.vendas}</td>
+                    <td className="py-2 px-3 text-right font-mono">R$ {c.total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="py-2 pl-3 text-right font-mono font-bold">R$ {c.comissao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Row: Vendas Recentes & Compras com Fornecedores */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -493,7 +699,7 @@ export default function PainelVarejo() {
                 <div key={v.id} className="p-3 rounded-xl bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] flex items-center justify-between hover:bg-[var(--color-surface-sunken)] transition-colors">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono font-bold text-[var(--color-primary-blue)]">{v.id}</span>
+                      <span className="text-[10px] font-mono font-bold text-[var(--color-primary-blue)]">{v.numero ? `#${String(v.numero).padStart(4, "0")}` : `#${v.id.slice(0, 8)}`}</span>
                       <p className="text-xs font-bold text-[var(--color-text-primary)]">{v.cliente || "Consumidor"}</p>
                     </div>
                     <p className="text-[10px] text-[var(--color-text-muted)]">
@@ -547,9 +753,67 @@ export default function PainelVarejo() {
       <DrillDownPanel
         isOpen={drillKey !== null}
         onClose={() => setDrillKey(null)}
-        title={drillKey === "vendas" ? "Faturamento Hoje" : drillKey === "catalogo" ? "Catálogo Ativo" : undefined}
+        title={drillKey === "vendas" ? `Faturamento · ${periodoLabel}` : drillKey === "catalogo" ? "Catálogo Ativo" : undefined}
         rows={drillKey === "vendas" ? (vendas || []).filter((v) => v.status !== "cancelada") : drillKey === "catalogo" ? (products || []) : []}
         columns={drillKey === "vendas" ? vendaColumns : productColumns}
+      />
+      <Modal
+        isOpen={repOpen}
+        onClose={() => setRepOpen(false)}
+        maxWidth="max-w-lg"
+        title={<h3 className="text-base font-bold text-[var(--color-text-primary)]">Reposição de estoque</h3>}
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button type="button" variant="outline" onClick={() => setRepOpen(false)} className="h-9 px-4 text-xs font-semibold">Cancelar</Button>
+            <Button type="button" onClick={lancarOrdemCompra} disabled={escolhidos.length === 0 || lancando} className="h-9 px-4 text-xs font-semibold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
+              {lancando ? "Lançando..." : `Lançar ${escolhidos.length > 1 ? "ordens" : "ordem"} de compra (${escolhidos.length})`}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-xs text-[var(--color-text-muted)] mb-3">Marque o que precisa comprar e ajuste a quantidade. Cada item vira uma ordem própria em Compras, aguardando o fornecedor. O valor usa o custo cadastrado de cada produto.</p>
+        <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+          {itensCriticosTodos.map(i => (
+            <div key={i.id} className="p-2.5 rounded-xl bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] space-y-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={!!repSel[i.id]} onChange={e => setRepSel(prev => ({ ...prev, [i.id]: e.target.checked }))} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{i.name}</p>
+                  <p className="text-[10px] text-[var(--color-text-muted)]">Saldo: <strong className="text-rose-500">{i.stock}</strong> • Mín: {i.min}</p>
+                </div>
+                <input
+                  type="number" min={1}
+                  value={repQtd[i.id] ?? ""}
+                  onChange={e => setRepQtd(prev => ({ ...prev, [i.id]: e.target.value }))}
+                  onClick={e => e.stopPropagation()}
+                  className="w-20 px-2 py-1.5 text-xs text-right bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
+                />
+              </label>
+              <div className="flex items-center gap-2 pl-6">
+                <select
+                  value={repForn[i.id] ?? ""}
+                  onChange={e => setRepForn(prev => ({ ...prev, [i.id]: e.target.value }))}
+                  className="flex-1 min-w-0 px-2 py-1.5 text-xs bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
+                >
+                  <option value="">Fornecedor: a definir</option>
+                  {repForn[i.id] && !fornecedoresCad.some(f => f.razaoSocial === repForn[i.id]) && <option value={repForn[i.id]}>{repForn[i.id]}</option>}
+                  {fornecedoresCad.map(f => <option key={f.id} value={f.razaoSocial}>{f.razaoSocial}</option>)}
+                </select>
+                <button type="button" onClick={() => setNovoFornPara(i.id)} title="Cadastrar novo fornecedor" className="h-7 w-7 shrink-0 rounded-lg bg-[var(--color-primary-blue)] text-white text-sm font-bold flex items-center justify-center">+</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
+      <FornecedorModal
+        isOpen={novoFornPara !== null}
+        onClose={() => setNovoFornPara(null)}
+        tenantId={activeTenantId}
+        existentes={fornecedoresCad}
+        onSaved={f => {
+          setFornecedoresCad(prev => [...prev, f].sort((a, b) => a.razaoSocial.localeCompare(b.razaoSocial)));
+          if (novoFornPara) setRepForn(prev => ({ ...prev, [novoFornPara]: f.razaoSocial }));
+        }}
       />
     </PageContainer>
   );

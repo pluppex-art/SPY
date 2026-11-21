@@ -14,6 +14,7 @@ import { Input } from "../../components/ui/input";
 import { FormField } from "../../components/ui/form-field";
 import { EmptyState } from "../../components/ui/empty-state";
 import { Modal } from "../../components/ui/modal";
+import { AjusteEstoqueModal } from "./AjusteEstoqueModal";
 import { useData } from "../../contexts/DataContext";
 import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -35,7 +36,7 @@ interface Movimentacao {
   operador?: string;
 }
 
-export default function VarejoEstoque() {
+export default function VarejoEstoque({ embedded = false }: { embedded?: boolean } = {}) {
   const { products, setProducts } = useData();
   const cfg = useVarejoConfig();
   const minPadrao = cfg.estoque.estoqueMinimoPadrao;
@@ -51,10 +52,6 @@ export default function VarejoEstoque() {
   // Modal de Ajuste de Saldo
   const [modalAjusteOpen, setModalAjusteOpen] = useState(false);
   const [ajusteProduct, setAjusteProduct] = useState<any>(null);
-  const [ajusteTipo, setAjusteTipo] = useState<"entrada" | "saida" | "ajuste">("entrada");
-  const [ajusteQtd, setAjusteQtd] = useState("");
-  const [ajusteMotivo, setAjusteMotivo] = useState("Compra de Fornecedor");
-  const [ajusteSaving, setAjusteSaving] = useState(false);
 
   // Histórico de Movimentações — vem só da tabela real `estoque_movimentacoes`,
   // filtrado explicitamente pelo tenant ativo (achado A7, auditoria
@@ -157,82 +154,8 @@ export default function VarejoEstoque() {
   // Handlers para Ajuste de Estoque
   const handleOpenAjuste = (product: any) => {
     setAjusteProduct(product);
-    setAjusteTipo("entrada");
-    setAjusteQtd("");
-    setAjusteMotivo("Compra de Fornecedor");
     setModalAjusteOpen(true);
   };
-
-  const handleSalvarAjuste = async () => {
-    if (!ajusteProduct) return;
-    const qtd = Number(ajusteQtd);
-    if (isNaN(qtd) || qtd <= 0) {
-      toast.error("Informe uma quantidade válida.");
-      return;
-    }
-
-    setAjusteSaving(true);
-    try {
-      let novoSaldo = ajusteProduct.currentStock ?? 0;
-      let qtdMovimentada = qtd;
-
-      if (ajusteTipo === "entrada") {
-        novoSaldo += qtd;
-        qtdMovimentada = qtd;
-      } else if (ajusteTipo === "saida") {
-        if (qtd > novoSaldo) {
-          toast.error(`Saldo insuficiente para saída. Estoque atual: ${novoSaldo}`);
-          setAjusteSaving(false);
-          return;
-        }
-        novoSaldo = Math.max(0, novoSaldo - qtd);
-        qtdMovimentada = -qtd;
-      } else if (ajusteTipo === "ajuste") {
-        qtdMovimentada = qtd - novoSaldo;
-        novoSaldo = qtd;
-      }
-
-      // 1. Atualizar produto
-      const updatedList = products.map((p: any) =>
-        p.id === ajusteProduct.id ? { ...p, currentStock: novoSaldo } : p
-      );
-      setProducts(updatedList);
-
-      // 2. Registrar no histórico
-      const novaMov: Movimentacao = {
-        id: `mov-${Math.floor(1000 + Math.random() * 9000)}`,
-        product_id: ajusteProduct.id,
-        tipo: ajusteTipo,
-        quantidade: qtdMovimentada,
-        motivo: ajusteMotivo || "Ajuste de Estoque",
-        created_at: new Date().toISOString(),
-        operador: user?.name || "Operador Estoque",
-      };
-      setHistorico((prev) => [novaMov, ...prev]);
-
-      // 3. Supabase RPC se disponível
-      if (supabase) {
-        try {
-          await supabase.rpc("registrar_movimentacao_estoque", {
-            p_product_id: ajusteProduct.id,
-            p_tipo: ajusteTipo,
-            p_quantidade: qtd,
-            p_motivo: ajusteMotivo || null,
-          });
-        } catch (supaErr) {
-          console.warn("[Estoque] Supabase sync fallback to local:", supaErr);
-        }
-      }
-
-      toast.success(`Estoque de "${ajusteProduct.name}" atualizado para ${novoSaldo} unidades!`);
-      setModalAjusteOpen(false);
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao atualizar estoque.");
-    } finally {
-      setAjusteSaving(false);
-    }
-  };
-
 
   const handleExportCSV = () => {
     if (!products || products.length === 0) {
@@ -276,8 +199,8 @@ export default function VarejoEstoque() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
-            Movimentações de Estoque <Boxes className="w-6 h-6 text-blue-500" />
+          <h1 className={`${embedded ? "text-lg" : "text-2xl"} font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5`}>
+            {embedded ? "Estoque & Movimentações" : "Movimentações de Estoque"} <Boxes className="w-6 h-6 text-blue-500" />
            <HelpTip label="Sobre Movimentações de Estoque">Veja as entradas, saídas e ajustes de saldo, os alertas de estoque baixo e o histórico das movimentações. O cadastro de produtos fica em Produtos.</HelpTip></h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -460,7 +383,7 @@ export default function VarejoEstoque() {
                               </Button>
 
                               <Link
-                                to="/app/produtos"
+                                to={`/app/produtos?editar=${encodeURIComponent(p.id)}`}
                                 className="h-7 px-2 inline-flex items-center gap-1 rounded-lg bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] text-[11px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
                                 title="Editar cadastro em Produtos"
                               >
@@ -549,103 +472,23 @@ export default function VarejoEstoque() {
         </div>
       )}
 
-      {/* MODAL 1: AJUSTE RÁPIDO DE SALDO */}
-      {ajusteProduct && (
-        <Modal
-          isOpen={modalAjusteOpen}
-          onClose={() => setModalAjusteOpen(false)}
-          maxWidth="max-w-md"
-          title={
-            <div>
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">
-                Ajustar Estoque
-              </h3>
-              <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">
-                {ajusteProduct.name} (Saldo atual: <strong>{ajusteProduct.currentStock ?? 0} un.</strong>)
-              </p>
-            </div>
-          }
-          footer={
-            <div className="flex justify-end gap-2 w-full">
-              <Button variant="outline" size="sm" onClick={() => setModalAjusteOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSalvarAjuste}
-                loading={ajusteSaving}
-                className="font-bold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white"
-              >
-                Confirmar Ajuste
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-3.5 py-1">
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-faint)] block mb-1.5">
-                Tipo de Movimentação
-              </label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {(
-                  [
-                    { id: "entrada", label: "Entrada (+)" },
-                    { id: "saida", label: "Saída (-)" },
-                    { id: "ajuste", label: "Inventário (=)" },
-                  ] as const
-                ).map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setAjusteTipo(t.id)}
-                    className={`p-2 rounded-xl text-xs font-bold border transition-all text-center ${
-                      ajusteTipo === t.id
-                        ? "bg-[var(--color-primary-blue)] text-white border-[var(--color-primary-blue)] shadow-xs"
-                        : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-                {ajusteTipo === "ajuste" ? "Novo Saldo Exato (unidades)" : "Quantidade a Movimentar"}
-              </label>
-              <Input
-                type="number"
-                min={1}
-                value={ajusteQtd}
-                onChange={(e) => setAjusteQtd(e.target.value)}
-                placeholder="0"
-                className="font-mono font-bold text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1">
-                Motivo da Movimentação
-              </label>
-              <select
-                value={ajusteMotivo}
-                onChange={(e) => setAjusteMotivo(e.target.value)}
-                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl px-3 py-2 text-xs font-medium text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-              >
-                <option value="Compra de Fornecedor">Compra de Fornecedor</option>
-                <option value="Reposição de Loja">Reposição de Loja</option>
-                <option value="Inventário Periódico">Inventário Periódico</option>
-                <option value="Avaria / Quebra">Avaria / Quebra</option>
-                <option value="Validade Vencida">Validade Vencida</option>
-                <option value="Devolução de Cliente">Devolução de Cliente</option>
-                <option value="Consumo Interno">Consumo Interno</option>
-                <option value="Outros">Outros</option>
-              </select>
-            </div>
-          </div>
-        </Modal>
-      )}
+      {/* MODAL 1: AJUSTE RÁPIDO DE SALDO (mesmo modal usado em "Dar Entrada" de Compras) */}
+      <AjusteEstoqueModal
+        product={ajusteProduct}
+        isOpen={modalAjusteOpen}
+        onClose={() => setModalAjusteOpen(false)}
+        onApplied={(r) => {
+          setHistorico((prev) => [{
+            id: `mov-${Math.floor(1000 + Math.random() * 9000)}`,
+            product_id: ajusteProduct.id,
+            tipo: r.tipo,
+            quantidade: r.quantidadeMovimentada,
+            motivo: r.motivo,
+            created_at: new Date().toISOString(),
+            operador: user?.name || "Operador Estoque",
+          }, ...prev]);
+        }}
+      />
 
     </div>
   );

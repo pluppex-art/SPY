@@ -10,9 +10,11 @@ export type FormaPagamento = (typeof FORMAS_PAGAMENTO)[number];
 export interface VarejoConfig {
   pdv: {
     exigirCliente: boolean;          // identificar o cliente em toda venda
+    exigirSenhaSupervisor: boolean;  // pedir a senha do supervisor para remover item ou cancelar a venda
     exigirVendedor: boolean;         // impedir venda no "Balcão" sem vendedor escolhido
     permitirVendaSemEstoque: boolean;
     descontoMaximoPct: number;       // 0–100; acima disso a venda é bloqueada (0 = sem desconto permitido)
+    comissaoVendedorPct: number;     // 0–100; % do total da venda registrado como comissão do vendedor (0 = sem comissão)
     descontoLivre: boolean;          // true ignora o teto acima
     sons: boolean;
   };
@@ -47,7 +49,7 @@ export interface VarejoConfig {
 export const VAREJO_CONFIG_KEY = "varejo_config";
 
 export const DEFAULT_VAREJO_CONFIG: VarejoConfig = {
-  pdv: { exigirCliente: false, exigirVendedor: false, permitirVendaSemEstoque: false, descontoMaximoPct: 100, descontoLivre: true, sons: true },
+  pdv: { exigirCliente: false, exigirSenhaSupervisor: true, exigirVendedor: false, permitirVendaSemEstoque: false, descontoMaximoPct: 100, comissaoVendedorPct: 0, descontoLivre: true, sons: true },
   pagamentos: { habilitadas: [...FORMAS_PAGAMENTO], padrao: "Dinheiro", crediarioPrazoPadraoDias: 30, crediarioExigeCliente: true },
   estoque: { estoqueMinimoPadrao: 5, alertaEstoqueBaixo: true },
   cupom: { mostrarDadosEmpresa: true, cabecalho: "", rodape: "Obrigado pela preferência!", mensagemTroca: "", mostrarVendedor: true },

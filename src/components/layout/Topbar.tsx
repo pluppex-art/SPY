@@ -15,6 +15,7 @@ import { AgenteSecretoConexao } from "../AgenteSecretoConexao";
 import {
   Sun,
   Moon,
+  ArrowLeft,
   Bell,
   CheckCircle2,
   AlertTriangle,
@@ -34,6 +35,8 @@ interface TopbarProps {
   setIsSidebarCollapsed: (val: boolean) => void;
   isMobileSidebarOpen: boolean;
   setIsMobileSidebarOpen: (val: boolean) => void;
+  /** Tela do PDV: sem menu lateral e sem busca; ganha o botão de volta ao Painel de Vendas. */
+  modoPdv?: boolean;
 }
 
 // "category" nunca existiu como coluna em public.notifications — as abas
@@ -92,6 +95,7 @@ export function Topbar({
   setIsSidebarCollapsed,
   isMobileSidebarOpen,
   setIsMobileSidebarOpen,
+  modoPdv = false,
 }: TopbarProps) {
   const navigate = useNavigate();
   const { user, logout, activeTenantName } = useAuth();
@@ -234,13 +238,25 @@ export function Topbar({
         {/* Master / parceiro: troca de empresa no celular (lista em tela cheia). */}
         <TenantSwitcher variante="mobile" />
 
-        <div className="max-md:w-0 max-md:h-0 md:block">
-          <CommandPalette />
-        </div>
+        {!modoPdv && (
+          <div className="max-md:w-0 max-md:h-0 md:block">
+            <CommandPalette />
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-4 max-md:gap-2.5 sm:gap-5 shrink-0">
         <TenantSwitcher variante="desktop" />
+        {modoPdv && (
+          <button
+            type="button"
+            onClick={() => navigate("/app/varejo/dashboard")}
+            className="h-9 px-3 inline-flex items-center gap-1.5 rounded-xl text-xs font-bold text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] transition-colors cursor-pointer border-none whitespace-nowrap"
+            title="Voltar ao Painel de Vendas"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Painel de Vendas
+          </button>
+        )}
         <button
           type="button"
           onClick={() => toggleTheme()}

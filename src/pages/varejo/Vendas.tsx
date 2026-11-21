@@ -7,8 +7,9 @@ import {
   Share2, RotateCcw, AlertTriangle, Sparkles, DollarSign, Wallet, Store,
   Barcode, Check, ShieldCheck, RefreshCw, X, PauseCircle, PlayCircle,
   UserCheck, HelpCircle, Volume2, VolumeX, FileText, Split, Calendar,
-  Clock, Percent, Hash, Layers, CheckSquare, Maximize2, Minimize2
+  Clock, Percent, Hash, Layers, CheckSquare, LayoutGrid, List as ListIcon, Maximize2, Minimize2
 } from "lucide-react";
+import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -20,6 +21,10 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
+import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
+import { ClienteModal } from "./pdv/ClienteModal";
+import { SuspenderModal } from "./pdv/SuspenderModal";
+import { NovoClienteModal } from "../../components/ui/modals/crm/NovoClienteModal";
 
 import { HelpTip } from "../../components/ui/help-tip";
 // ─── AUDIO FEEDBACK (WEB AUDIO API) ──────────────────────────────────────────
@@ -68,9 +73,14 @@ function playPosSound(type: "beep" | "success" | "alert" | "error" = "beep") {
   }
 }
 
+// Número curto da venda (#0012); sem número (venda antiga/importada) cai no começo do código.
+const rotuloVenda = (numero: number | null | undefined, id: string) =>
+  numero ? `#${String(numero).padStart(4, "0")}` : `#${id.slice(0, 8)}`;
+
 // ─── INTERFACES ──────────────────────────────────────────────────────────────
 interface VendaHistorico {
   id: string;
+  numero?: number | null;
   cliente_nome: string | null;
   forma_pagamento: string | null;
   status: string;
@@ -108,7 +118,19 @@ interface CartItem {
   barcode?: string;
   category?: string;
   isAvulso?: boolean;
+  /** Desconto individual deste item, em % do valor da linha (escala com a quantidade). */
+  descontoItemPct?: number;
+  /** % de comissão do cadastro do produto (0/ausente = produto sem comissão). */
+  comissaoPct?: number;
+  /** Pessoa da equipe que recebe a comissão deste item. */
+  comissaoVendedor?: { nome: string; userId?: string | null } | null;
 }
+
+/** Desconto individual do item, em R$ (sobre a linha inteira). */
+const descontoDoItem = (i: { price: number; quantidade: number; descontoItemPct?: number }) =>
+  Math.round(i.price * i.quantidade * Math.min(Math.max(i.descontoItemPct || 0, 0), 100)) / 100;
+const linhaLiquida = (i: { price: number; quantidade: number; descontoItemPct?: number }) =>
+  Math.max(0, i.price * i.quantidade - descontoDoItem(i));
 
 interface VendaEmEspera {
   id: string;
@@ -116,6 +138,7 @@ interface VendaEmEspera {
   cart: CartItem[];
   clienteNome: string;
   clienteCpf: string;
+  clienteId?: string;
   vendedor: string;
   descontoTipo: "valor" | "porcentagem";
   descontoValor: string;
@@ -139,8 +162,8 @@ function formatPrice(value: number) {
 }
 
 export default function VarejoVendas() {
-  const { products, setProducts, colaboradores, appSettings, appSettingsLoaded } = useData();
-  const { user, activeTenantId } = useAuth();
+  const { products, setProducts, colaboradores, appSettings, appSettingsLoaded, clienteBase, addClienteBase, leads } = useData();
+  const { user, activeTenantId, updatePreferences } = useAuth();
   const tenantId = activeTenantId || "default";
   // Regras configuráveis da loja (Configurações → Varejo & PDV).
   const cfg = useVarejoConfig();
@@ -169,21 +192,38 @@ export default function VarejoVendas() {
   }, [colaboradores]);
 
   const [tab, setTab] = useState<"pdv" | "historico">("pdv");
-  // Tela cheia: o PDV cobre a janela inteira (menu e barra superior somem) e, quando o navegador deixa, usa a tela cheia de verdade.
-  const [telaCheia, setTelaCheia] = useState(false);
-  const alternarTelaCheia = async () => {
-    if (!telaCheia) {
-      setTelaCheia(true);
-      try { await document.documentElement.requestFullscreen?.(); } catch { /* sem tela cheia do navegador: fica só a cobertura da janela */ }
-    } else {
-      setTelaCheia(false);
-      try { if (document.fullscreenElement) await document.exitFullscreen(); } catch { /* já saiu */ }
-    }
+  // Edição do desconto individual de um item do carrinho (campo inline na linha).
+  // Item cujo pop-up "quem recebe a comissão" está aberto.
+  const [comissaoPend, setComissaoPend] = useState<string | null>(null);
+  const colaboradoresAtivos = useMemo(
+    () => (colaboradores as any[]).filter((c: any) => (!c.status || c.status === "Ativo") && c.nome),
+    [colaboradores]
+  );
+  const definirComissaoItem = (productId: string, pessoa: { nome: string; userId?: string | null } | null) => {
+    setCart((prev) => prev.map((i) => (i.productId === productId ? { ...i, comissaoVendedor: pessoa } : i)));
+    setComissaoPend(null);
   };
+  const [descItemEdit, setDescItemEdit] = useState<{ id: string; valor: string; tipo: "valor" | "pct" } | null>(null);
+  const aplicarDescontoItem = () => {
+    if (!descItemEdit) return;
+    const raw = parseFloat(descItemEdit.valor.replace(",", ".")) || 0;
+    setCart((prev) => prev.map((i) => {
+      if (i.productId !== descItemEdit.id) return i;
+      const linha = i.price * i.quantidade;
+      const pct = descItemEdit.tipo === "pct" ? raw : linha > 0 ? (raw / linha) * 100 : 0;
+      return { ...i, descontoItemPct: Math.min(Math.max(pct, 0), 100) || undefined };
+    }));
+    setDescItemEdit(null);
+  };
+  // PDV sem rolagem da página: no desktop (lg+) o terminal ocupa só o que sobra da tela e cada
+  // área (produtos, itens/pagamento) rola por dentro. Abaixo de lg a página rola normalmente.
+  const { ref: pdvRef, height: pdvHeight } = useFillViewportHeight<HTMLDivElement>(360, [tab]);
+  const [isLg, setIsLg] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches);
   useEffect(() => {
-    const aoMudar = () => { if (!document.fullscreenElement) setTelaCheia(false); }; // Esc do navegador sai da tela cheia
-    document.addEventListener("fullscreenchange", aoMudar);
-    return () => { document.removeEventListener("fullscreenchange", aoMudar); if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined); };
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const on = () => setIsLg(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
   }, []);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todas");
@@ -191,6 +231,28 @@ export default function VarejoVendas() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [clienteNome, setClienteNome] = useState("");
   const [clienteCpf, setClienteCpf] = useState("");
+  const [clienteId, setClienteId] = useState("");
+  // Tela cheia do navegador (esconde barras do navegador para o caixa). Sai sozinha ao deixar o PDV.
+  const [telaCheia, setTelaCheia] = useState(false);
+  useEffect(() => {
+    const sync = () => setTelaCheia(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", sync);
+    return () => {
+      document.removeEventListener("fullscreenchange", sync);
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+  const alternarTelaCheia = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch { toast.error("Este navegador não permitiu a tela cheia."); }
+  };
+  // Formato da lista de produtos: preferência do usuário (public.users.preferences), vale em qualquer aparelho.
+  const viewProdutos: "quadro" | "lista" = user?.preferences?.pdvViewProdutos === "lista" ? "lista" : "quadro";
+  const trocarViewProdutos = (v: "quadro" | "lista") => {
+    if (v !== viewProdutos) void updatePreferences({ pdvViewProdutos: v });
+  };
   const [vendedorSelecionado, setVendedorSelecionado] = useState(VENDEDOR_BALCAO);
 
   // Pagamento
@@ -224,13 +286,16 @@ export default function VarejoVendas() {
 
   // Item Avulso Modal
   const [modalAvulsoOpen, setModalAvulsoOpen] = useState(false);
+  const [modalClienteOpen, setModalClienteOpen] = useState(false);
+  const [modalNovoClienteOpen, setModalNovoClienteOpen] = useState(false);
+  const [modalPagamentoOpen, setModalPagamentoOpen] = useState(false);
+  const [suspenderOpen, setSuspenderOpen] = useState<false | "normal" | "cancelar">(false);
   const [avulsoNome, setAvulsoNome] = useState("");
   const [avulsoPreco, setAvulsoPreco] = useState("");
   const [avulsoQtd, setAvulsoQtd] = useState("1");
 
   // Modal de Ajuda / Atalhos
   const [modalAtalhosOpen, setModalAtalhosOpen] = useState(false);
-  const [modalClienteOpen, setModalClienteOpen] = useState(false);
 
   // Cupom Modal & Tab de NFC-e
   const [receiptVenda, setReceiptVenda] = useState<VendaHistorico | null>(null);
@@ -265,14 +330,17 @@ export default function VarejoVendas() {
       setHistorico(
         vendasRows.map((v: any): VendaHistorico => ({
           id: v.id,
+          numero: v.numero,
           cliente_nome: v.cliente_nome,
           forma_pagamento: v.forma_pagamento,
-          status: v.status,
-          subtotal: v.valor_total,
-          desconto: 0,
+          status: v.status === "cancelada" ? "estornada" : v.status,
+          subtotal: Number(v.valor_total) + Number(v.valor_desconto || 0),
+          desconto: Number(v.valor_desconto || 0),
           valor_total: v.valor_total,
-          operador: undefined,
-          vendedor: undefined,
+          troco: v.troco != null ? Number(v.troco) : undefined,
+          valor_recebido: v.valor_recebido != null ? Number(v.valor_recebido) : undefined,
+          operador: v.operador_nome || undefined,
+          vendedor: v.vendedor_nome || undefined,
           created_at: v.created_at,
           itens: (v.venda_items || []).map((it: any): CartItemSnapshot => ({
             productId: it.product_id,
@@ -359,7 +427,8 @@ export default function VarejoVendas() {
     return products.filter((p: any) => {
       if (p.active === false) return false;
       if (selectedCategory !== "Todas" && p.category !== selectedCategory) return false;
-      if (!search.trim()) return true;
+      // Sem estoque só aparece quando o operador pesquisa; na lista padrão ficam só os disponíveis.
+      if (!search.trim()) return (p.currentStock ?? 0) > 0;
       const q = search.toLowerCase();
       const skuMatch = p.sku?.toLowerCase().includes(q);
       const nameMatch = p.name?.toLowerCase().includes(q);
@@ -369,9 +438,12 @@ export default function VarejoVendas() {
   }, [products, search, selectedCategory]);
 
   // Cálculos do Carrinho
+  // `subtotal` já considera o desconto individual de cada item; o desconto geral incide sobre ele.
   const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.price * item.quantidade, 0);
+    return cart.reduce((sum, item) => sum + linhaLiquida(item), 0);
   }, [cart]);
+  const subtotalBruto = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.quantidade, 0), [cart]);
+  const descontoItens = Math.max(0, subtotalBruto - subtotal);
 
   const descontoCalculado = useMemo(() => {
     const rawVal = parseFloat(descontoValor.replace(",", ".")) || 0;
@@ -383,7 +455,8 @@ export default function VarejoVendas() {
     return Math.min(rawVal, subtotal);
   }, [descontoValor, descontoTipo, subtotal]);
 
-  const descontoPctEfetivo = subtotal > 0 ? (descontoCalculado / subtotal) * 100 : 0;
+  // O teto de desconto vale para o conjunto (individual + geral) sobre o valor bruto.
+  const descontoPctEfetivo = subtotalBruto > 0 ? ((descontoItens + descontoCalculado) / subtotalBruto) * 100 : 0;
   const descontoAcimaDoTeto = !cfg.pdv.descontoLivre && descontoPctEfetivo > cfg.pdv.descontoMaximoPct + 0.0001;
 
   const total = Math.max(0, subtotal - descontoCalculado);
@@ -443,14 +516,23 @@ export default function VarejoVendas() {
           sku: product.sku,
           barcode: product.typeAttributes?.barcode || product.typeAttributes?.ean,
           category: product.category,
+          comissaoPct: Number(product.commission) > 0 ? Number(product.commission) : undefined,
+          // Vendedor já escolhido no topo do PDV vira sugestão; o pop-up confirma ou troca.
+          comissaoVendedor: null,
         },
       ];
     });
+    // Linha nova de produto com comissão cadastrada: pergunta quem recebe.
+    if (Number(product.commission) > 0 && !cart.some((i) => i.productId === product.id)) {
+      setComissaoPend(product.id);
+    }
   };
 
   const updateCartQty = (productId: string, newQty: number) => {
     if (newQty <= 0) {
-      removeFromCart(productId);
+      // Remover item é ação protegida: passa pelo Suspender (F9), que pede a senha de supervisor.
+      if (soundEnabled) playPosSound("alert");
+      toast.info("Para remover o item, use Suspender (F9): a remoção pede a senha de supervisor.");
       return;
     }
     setCart((prev) =>
@@ -469,17 +551,12 @@ export default function VarejoVendas() {
     );
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((i) => i.productId !== productId));
-    if (soundEnabled) playPosSound("alert");
-    toast.info("Item removido do carrinho.");
-  };
-
   const clearCart = () => {
     if (cart.length === 0) return;
     setCart([]);
     setClienteNome("");
     setClienteCpf("");
+    setClienteId("");
     setDescontoValor("");
     setValorRecebido("");
     setPixConfirmado(false);
@@ -488,6 +565,120 @@ export default function VarejoVendas() {
     setMistoCartao("");
     if (soundEnabled) playPosSound("alert");
     toast.info("Venda cancelada / Carrinho esvaziado.");
+  };
+
+  // Cadastro completo de cliente novo (mesmo formulário e mesmas regras do CRM > Clientes): cadastra e já usa na venda.
+  const handleSalvarNovoCliente = async (data: Record<string, any>) => {
+    const nome = String(data.nome || "").trim();
+    if (!nome) { toast.error("Nome do cliente é obrigatório."); return; }
+    const documento = data.documento || null;
+    const email = data.email || null;
+    const duplicado = (clienteBase as any[]).find((c: any) =>
+      (documento && c.documento && c.documento === documento) ||
+      (email && c.email && String(c.email).toLowerCase() === String(email).toLowerCase()));
+    if (duplicado) {
+      toast.error(`Já existe um cliente cadastrado com esse ${documento && duplicado.documento === documento ? "documento" : "e-mail"}: ${duplicado.name}.`);
+      return;
+    }
+    const criado = await addClienteBase({
+      name: nome,
+      industry: data.industry || "Varejo",
+      city: data.cidade || null,
+      state: data.estado ? String(data.estado).toUpperCase() : null,
+      phone: data.telefone || null,
+      email,
+      documento,
+      status: "Ativo",
+    });
+    if (!criado) return; // falhou ou duplicado: o contexto já avisou
+    setClienteNome(nome);
+    setClienteCpf(documento || "");
+    setClienteId(String((criado as any)?.id || ""));
+    setModalNovoClienteOpen(false);
+    setModalClienteOpen(false);
+    toast.success("Cliente cadastrado e adicionado à venda.");
+  };
+
+  // Cliente escolhido a partir de um lead: reaproveita o cadastro existente (vínculo ou telefone) ou cria um a partir do lead.
+  const handleSelecionarLead = async (lead: any) => {
+    const nome = String(lead.name || "").trim();
+    const documento = String(lead.cnpj || lead.customFields?.cpf || lead.customFields?.documento || "") || null;
+    const fone = String(lead.phone || "").replace(/\D/g, "");
+    const existente = (clienteBase as any[]).find((c: any) =>
+      (lead.clientId && String(c.id) === String(lead.clientId)) || (fone.length >= 8 && String(c.phone || "").replace(/\D/g, "") === fone));
+    if (existente) {
+      setClienteNome(String(existente.name)); setClienteCpf(String(existente.documento || "")); setClienteId(String(existente.id));
+      return;
+    }
+    const criado = await addClienteBase({
+      name: nome, industry: "Varejo", phone: lead.phone || null, email: lead.email || null,
+      documento, status: "Ativo", city: null, state: null,
+    });
+    if (!criado) { setClienteNome(nome); setClienteCpf(documento || ""); setClienteId(""); return; }
+    setClienteNome(nome); setClienteCpf(documento || ""); setClienteId(String((criado as any)?.id || ""));
+    toast.success("Lead vinculado à venda como cliente.");
+  };
+
+  // Trilha de auditoria: quem removeu item ou cancelou a venda, quando e por quê.
+  const registrarAuditoriaPdv = async (acao: "remover_item" | "cancelar_venda", motivo: string, itens: CartItem[]) => {
+    if (!supabase || !activeTenantId || !user?.id) return;
+    const { error } = await supabase.from("pdv_auditoria").insert({
+      tenant_id: activeTenantId,
+      usuario_id: user.id,
+      usuario_nome: user.name || null,
+      acao,
+      motivo: motivo.trim() || null,
+      detalhes: {
+        itens: itens.map((i) => ({ nome: i.name, quantidade: i.quantidade, preco: i.price })),
+        cliente: clienteNome.trim() || "Consumidor Final",
+        total_antes: subtotal,
+        senha_exigida: !!cfg.pdv.exigirSenhaSupervisor,
+      },
+    });
+    if (error) console.error("[PDV] Falha ao registrar auditoria:", error.message);
+  };
+
+  // Cancelamento total já autorizado (SuspenderModal).
+  const cancelarVendaAutorizado = (motivo: string) => {
+    void registrarAuditoriaPdv("cancelar_venda", motivo, cart);
+    clearCart();
+  };
+
+  // Remoção já autorizada pela senha de supervisor (SuspenderModal).
+  const removerItensAutorizado = (ids: string[], motivo: string) => {
+    if (ids.length === 0) return;
+    void registrarAuditoriaPdv("remover_item", motivo, cart.filter((i) => ids.includes(i.productId)));
+    setCart((prev) => prev.filter((i) => !ids.includes(i.productId)));
+    if (soundEnabled) playPosSound("alert");
+    toast.info(ids.length === 1 ? "Item removido da venda." : `${ids.length} itens removidos da venda.`);
+  };
+
+  // Confere o que não depende da forma de pagamento antes de abrir o modal de pagamento.
+  const bloqueioAntesDoPagamento = () =>
+    descontoAcimaDoTeto ? `Desconto acima do limite da loja (${cfg.pdv.descontoMaximoPct}%).`
+    : cfg.pdv.exigirCliente && !clienteNome.trim() ? "Informe o cliente para finalizar a venda."
+    : cfg.fiscal.exigirCpfNaNota && !clienteCpf.replace(/\D/g, "") ? "Informe o CPF/CNPJ do cliente para emitir a nota."
+    : cfg.pdv.exigirVendedor && vendedorSelecionado === VENDEDOR_BALCAO ? "Escolha o vendedor para finalizar a venda."
+    : null;
+
+  const abrirPagamento = () => {
+    if (cart.length === 0) {
+      if (soundEnabled) playPosSound("error");
+      toast.error("Adicione ao menos um produto ao carrinho.");
+      return;
+    }
+    if (!caixaAberto) {
+      if (soundEnabled) playPosSound("error");
+      toast.error("O caixa está fechado. Reabra o turno para registrar vendas.");
+      return;
+    }
+    const bloqueio = bloqueioAntesDoPagamento();
+    if (bloqueio) {
+      if (soundEnabled) playPosSound("error");
+      toast.error(bloqueio);
+      return;
+    }
+    setModalPagamentoOpen(true);
   };
 
   // Leitor de Código de Barras / SKU rápido
@@ -555,7 +746,7 @@ export default function VarejoVendas() {
 
     const ident = clienteNome.trim() || `Cliente Fila #${vendasEmEspera.length + 1}`;
     const id = `esp-${Date.now()}`;
-    const snapshot = { cart, clienteNome, clienteCpf, vendedor: vendedorSelecionado, descontoTipo, descontoValor, subtotal };
+    const snapshot = { cart, clienteNome, clienteCpf, clienteId, vendedor: vendedorSelecionado, descontoTipo, descontoValor, subtotal };
     const { error } = await supabase.from("vendas_em_espera").insert({
       id,
       tenant_id: activeTenantId,
@@ -597,6 +788,7 @@ export default function VarejoVendas() {
     setCart(espera.cart);
     setClienteNome(espera.clienteNome);
     setClienteCpf(espera.clienteCpf);
+    setClienteId(espera.clienteId || "");
     setVendedorSelecionado(espera.vendedor);
     setDescontoTipo(espera.descontoTipo);
     setDescontoValor(espera.descontoValor);
@@ -616,7 +808,6 @@ export default function VarejoVendas() {
         setModalAvulsoOpen(false);
         setModalEsperaOpen(false);
         setModalAtalhosOpen(false);
-        setModalClienteOpen(false);
         setReceiptVenda(null);
         return;
       }
@@ -638,18 +829,18 @@ export default function VarejoVendas() {
         setModalAvulsoOpen(true);
       } else if (e.key === "F8") {
         e.preventDefault();
-        clearCart();
+        if (cart.length > 0) setSuspenderOpen("cancelar");
       } else if (e.key === "F9") {
         e.preventDefault();
         if (cart.length > 0) {
-          handleSuspenderVenda();
+          setSuspenderOpen("normal");
         } else if (vendasEmEspera.length > 0) {
           setModalEsperaOpen(true);
         }
       } else if (e.key === "F10") {
         e.preventDefault();
         if (cart.length > 0 && caixaAberto) {
-          handleFinalizarVenda();
+          abrirPagamento();
         }
       }
     };
@@ -657,6 +848,65 @@ export default function VarejoVendas() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [cart, vendasEmEspera, caixaAberto, soundEnabled, clienteNome, clienteCpf, vendedorSelecionado, descontoTipo, descontoValor, subtotal]);
+
+  // Rascunho da venda em andamento: guardado no banco (public.pdv_rascunhos, um por usuário e
+  // empresa), então sobrevive a fechar o sistema ou trocar de computador. Só some ao finalizar,
+  // cancelar ou colocar em espera (todos esvaziam o carrinho). Uma cópia local serve de reserva
+  // se o banco não responder.
+  const [rascunhoPronto, setRascunhoPronto] = useState(false);
+  const rascunhoDbOk = useRef(true);
+  const rascunhoKey = activeTenantId && user?.id ? `pdv_rascunho:${activeTenantId}:${user.id}` : null;
+  const aplicarRascunho = (d: any) => {
+    if (!d || !Array.isArray(d.cart) || d.cart.length === 0) return;
+    setCart(d.cart);
+    setClienteNome(d.clienteNome || "");
+    setClienteCpf(d.clienteCpf || "");
+    setClienteId(d.clienteId || "");
+    if (d.vendedor) setVendedorSelecionado(d.vendedor);
+    if (d.descontoTipo === "valor" || d.descontoTipo === "porcentagem") setDescontoTipo(d.descontoTipo);
+    setDescontoValor(d.descontoValor || "");
+    toast.info("Venda em andamento recuperada.");
+  };
+  useEffect(() => {
+    if (!rascunhoKey || rascunhoPronto) return;
+    let cancelado = false;
+    (async () => {
+      let snap: any = null;
+      let dbOk = false;
+      if (supabase && activeTenantId && user?.id) {
+        const { data, error } = await supabase.from("pdv_rascunhos").select("snapshot").eq("tenant_id", activeTenantId).eq("user_id", user.id).maybeSingle();
+        if (!error) { dbOk = true; snap = data?.snapshot ?? null; }
+      }
+      rascunhoDbOk.current = dbOk;
+      try {
+        if (dbOk) localStorage.removeItem(rascunhoKey); // o banco manda: evita ressuscitar rascunho já cancelado em outro lugar
+        else { const raw = localStorage.getItem(rascunhoKey); snap = raw ? JSON.parse(raw) : null; }
+      } catch { /* sem storage ou rascunho corrompido */ }
+      if (cancelado) return;
+      aplicarRascunho(snap);
+      setRascunhoPronto(true);
+    })();
+    return () => { cancelado = true; };
+  }, [rascunhoKey, rascunhoPronto]);
+  useEffect(() => {
+    if (!rascunhoKey || !rascunhoPronto || !activeTenantId || !user?.id) return;
+    const snapshot = { cart, clienteNome, clienteCpf, clienteId, vendedor: vendedorSelecionado, descontoTipo, descontoValor };
+    try {
+      if (cart.length === 0) localStorage.removeItem(rascunhoKey);
+      else localStorage.setItem(rascunhoKey, JSON.stringify(snapshot));
+    } catch { /* sem storage: só não guarda */ }
+    if (!supabase || !rascunhoDbOk.current) return;
+    const tenantId = activeTenantId;
+    const userId = user.id;
+    const gravar = async () => {
+      if (cart.length === 0) await supabase!.from("pdv_rascunhos").delete().eq("tenant_id", tenantId).eq("user_id", userId);
+      else await supabase!.from("pdv_rascunhos").upsert({ tenant_id: tenantId, user_id: userId, snapshot, updated_at: new Date().toISOString() }, { onConflict: "tenant_id,user_id" });
+    };
+    // Carrinho vazio apaga na hora (não deixa venda já encerrada voltar); alterações esperam um instante.
+    if (cart.length === 0) { void gravar(); return; }
+    const t = setTimeout(() => { void gravar(); }, 700);
+    return () => clearTimeout(t);
+  }, [rascunhoKey, rascunhoPronto, cart, clienteNome, clienteCpf, clienteId, vendedorSelecionado, descontoTipo, descontoValor]);
 
   // Finalizar Venda
   const handleFinalizarVenda = async () => {
@@ -733,8 +983,8 @@ export default function VarejoVendas() {
         cliente_nome: clienteNome.trim() ? `${clienteNome.trim()}${clienteCpf ? ` (${clienteCpf})` : ""}` : "Consumidor Final",
         forma_pagamento: formaDesc,
         status: "paga",
-        subtotal,
-        desconto: descontoCalculado,
+        subtotal: subtotalBruto,
+        desconto: descontoItens + descontoCalculado,
         valor_total: total,
         troco: troco > 0 ? troco : undefined,
         valor_recebido: formaPagamento === "Dinheiro" ? recNumber : undefined,
@@ -748,7 +998,7 @@ export default function VarejoVendas() {
           name: i.name,
           price: i.price,
           quantidade: i.quantidade,
-          subtotal: i.price * i.quantidade,
+          subtotal: linhaLiquida(i),
           sku: i.sku,
           isAvulso: i.isAvulso,
         })),
@@ -765,15 +1015,52 @@ export default function VarejoVendas() {
       // colaborador selecionado, não pelo `id` (text) usado só como chave local.
       const vendedorColaborador = (colaboradores as any[]).find((c: any) => c.nome === vendedorSelecionado);
 
-      const { error: vendaError } = await supabase.from("vendas").insert({
+      const uuidOk = (v?: string | null) => !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+      // Comissão por produto: base é o valor realmente cobrado do item (já com descontos).
+      const ratioComissao = subtotal > 0 ? total / subtotal : 1;
+      const comissaoDoItem = (it: CartItem) =>
+        it.comissaoVendedor && (it.comissaoPct || 0) > 0
+          ? Math.round(linhaLiquida(it) * ratioComissao * (it.comissaoPct || 0)) / 100
+          : 0;
+      const comissaoItensTotal = cart.reduce((sum, it) => sum + comissaoDoItem(it), 0);
+      const temComissaoPorItem = cart.some((it) => (it.comissaoPct || 0) > 0);
+      // Sem produto com comissão cadastrada, mantém a regra antiga (% fixo do vendedor nas configurações).
+      const comissaoPct = !temComissaoPorItem && vendedorSelecionado !== VENDEDOR_BALCAO ? Number(cfg.pdv.comissaoVendedorPct) || 0 : 0;
+      const { data: vendaCriada, error: vendaError } = await supabase.from("vendas").insert({
         id: vendaId,
         tenant_id: activeTenantId,
         cliente_nome: vendaSnap.cliente_nome,
+        // clientes.id é text, mas guarda uuid; só vincula se for uuid válido.
+        cliente_id: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clienteId) ? clienteId : null,
+        // Informativo: o total já sai certo porque o desconto é diluído nos itens abaixo.
+        valor_desconto: descontoItens + descontoCalculado > 0 ? Math.round((descontoItens + descontoCalculado) * 100) / 100 : 0,
         vendedor_id: vendedorColaborador?.user_id || null,
+        vendedor_nome: vendedorSelecionado,
+        operador_nome: operadorNome,
+        valor_recebido: formaPagamento === "Dinheiro" ? recNumber : null,
+        troco: troco > 0 ? troco : null,
+        comissao_valor: temComissaoPorItem ? (comissaoItensTotal > 0 ? Math.round(comissaoItensTotal * 100) / 100 : null) : comissaoPct > 0 ? Math.round(total * comissaoPct) / 100 : null,
         forma_pagamento: formaDesc,
         status: "aberta",
-      });
+      }).select("numero").single();
       if (vendaError) throw new Error(`Falha ao registrar venda: ${vendaError.message}`);
+      vendaSnap.numero = vendaCriada?.numero ?? null;
+
+      // Como o cliente pagou (a divisão do "Misto" é o que permite fechar o caixa por forma).
+      const pagamentos: { forma: string; valor: number }[] =
+        formaPagamento === "Misto"
+          ? [
+              { forma: "Dinheiro", valor: Number(mistoDinheiro) || 0 },
+              { forma: "Pix", valor: Number(mistoPix) || 0 },
+              { forma: "Cartão", valor: Number(mistoCartao) || 0 },
+            ].filter((x) => x.valor > 0)
+          : [{ forma: formaPagamento as string, valor: total }];
+      if (pagamentos.length > 0) {
+        const { error: pagError } = await supabase.from("venda_pagamentos").insert(
+          pagamentos.map((x) => ({ tenant_id: activeTenantId, venda_id: vendaId, forma: x.forma, valor: Math.round(x.valor * 100) / 100 }))
+        );
+        if (pagError) throw new Error(`Falha ao registrar pagamento: ${pagError.message}`);
+      }
 
       // Distribui o desconto proporcionalmente no preço unitário de cada item,
       // para que a soma dos itens bata com o total realmente cobrado.
@@ -785,12 +1072,22 @@ export default function VarejoVendas() {
           product_id: item.isAvulso ? null : item.productId,
           product_name: item.name,
           quantidade: item.quantidade,
-          preco_unitario: Math.round(item.price * discountRatio * 100) / 100,
+          // preço líquido: desconto do item e fatia do desconto geral já aplicados
+          preco_unitario: Math.round((linhaLiquida(item) / item.quantidade) * discountRatio * 100) / 100,
+          valor_desconto: descontoDoItem(item) > 0 ? descontoDoItem(item) : null,
+          comissao_vendedor_id: item.comissaoVendedor && uuidOk(item.comissaoVendedor.userId) ? item.comissaoVendedor.userId : null,
+          comissao_vendedor_nome: item.comissaoVendedor?.nome || null,
+          comissao_pct: item.comissaoVendedor && (item.comissaoPct || 0) > 0 ? item.comissaoPct : null,
+          comissao_valor: comissaoDoItem(item) > 0 ? comissaoDoItem(item) : null,
         }))
       );
       if (itemsError) throw new Error(`Falha ao registrar itens da venda: ${itemsError.message}`);
 
-      const { data: rpcResult, error: rpcError } = await supabase.rpc("finalizar_venda", { p_venda_id: vendaId });
+      const { data: rpcResult, error: rpcError } = await supabase.rpc("finalizar_venda", {
+        p_venda_id: vendaId,
+        p_permitir_sem_estoque: !!cfg.pdv.permitirVendaSemEstoque,
+        p_prazo_dias: formaPagamento === "A Prazo (Crediário)" ? Math.max(0, Number(prazoDias) || 0) : null,
+      });
       if (rpcError) throw new Error(`Falha ao finalizar venda: ${rpcError.message}`);
 
       const valorFinal = Number((rpcResult as any)?.valor_total ?? total);
@@ -809,7 +1106,8 @@ export default function VarejoVendas() {
       // Lançar nos Pedidos Varejo (painel de separação/entrega)
       try {
         const itensDesc = cart.map((i) => `${i.quantidade}x ${i.name}`).join(", ");
-        await supabase!.from("varejo_pedidos").insert({
+        const { error: pedidoErr } = await supabase!.from("varejo_pedidos").insert({
+          venda_id: vendaId,
           // M3 (auditoria 2026-09-21): id aleatório numérico colidia com o
           // esquema usado em PedidosVarejo.tsx. UUID como o resto do sistema.
           id: `PED-${crypto.randomUUID()}`,
@@ -821,7 +1119,10 @@ export default function VarejoVendas() {
           forma_pagto: vendaSnap.forma_pagamento || "Dinheiro",
           status: "Entregue / Concluído",
         });
-      } catch {}
+        if (pedidoErr) toast.warning(`Venda registrada, mas o pedido em "Pedidos Varejo" não foi criado: ${friendlyError(pedidoErr)}`);
+      } catch {
+        toast.warning('Venda registrada, mas o pedido em "Pedidos Varejo" não foi criado.');
+      }
 
       // Atualizar histórico e exibir comprovante
       setHistorico((prev) => [vendaSnap, ...prev]);
@@ -829,9 +1130,11 @@ export default function VarejoVendas() {
       setReceiptTab("termico");
 
       // Limpar carrinho
+      setModalPagamentoOpen(false);
       setCart([]);
       setClienteNome("");
       setClienteCpf("");
+      setClienteId("");
       setDescontoValor("");
       setValorRecebido("");
       setPixConfirmado(false);
@@ -840,7 +1143,15 @@ export default function VarejoVendas() {
       setMistoCartao("");
 
       if (soundEnabled) playPosSound("success");
-      toast.success(`Venda ${vendaId} concluída com sucesso!`);
+      const qtdItens = vendaSnap.itens.reduce((q, i) => q + i.quantidade, 0);
+      toast.success(`Venda ${rotuloVenda(vendaSnap.numero, vendaId)} concluída`, {
+        description: [
+          vendaSnap.cliente_nome || "Consumidor Final",
+          `${qtdItens} ${qtdItens === 1 ? "item" : "itens"} · ${formatPrice(valorFinal)}`,
+          vendaSnap.forma_pagamento,
+        ].filter(Boolean).join("\n"),
+        classNames: { description: "whitespace-pre-line" },
+      });
     } catch (err: any) {
       if (soundEnabled) playPosSound("error");
       toast.error(`Falha ao finalizar venda: ${friendlyError(err)}`);
@@ -853,7 +1164,7 @@ export default function VarejoVendas() {
   const handleEstornarVenda = async (venda: VendaHistorico) => {
     const ok = await confirmDialog({
       title: "Estornar Venda do PDV?",
-      description: `Tem certeza que deseja estornar a venda ${venda.id} no valor de ${formatPrice(venda.valor_total)}? Os itens retornarão automaticamente ao estoque.`,
+      description: `Tem certeza que deseja estornar a venda ${rotuloVenda(venda.numero, venda.id)} no valor de ${formatPrice(venda.valor_total)}? Os itens retornarão automaticamente ao estoque.`,
       confirmLabel: "Sim, Estornar Venda",
       variant: "danger",
     });
@@ -869,34 +1180,12 @@ export default function VarejoVendas() {
     setEstornandoIds((prev) => new Set(prev).add(venda.id));
 
     try {
-      // M4: `.eq("status", "paga")` garante que só a PRIMEIRA execução
-      // concorrente encontra a linha nesse status e de fato a atualiza — a
-      // segunda (duplo clique, outra aba) recebe 0 linhas afetadas e aborta
-      // antes de devolver o estoque de novo.
-      const { data: updData, error: updError } = await supabase
-        .from("vendas")
-        .update({ status: "cancelada" })
-        .eq("id", venda.id)
-        .eq("status", "paga")
-        .select("id");
-      if (updError) throw new Error(updError.message);
-      if (!updData || updData.length === 0) {
-        toast.error("Esta venda já foi estornada.");
-        return;
-      }
+      // Estorno inteiro no banco, numa transação só (status, estoque, financeiro e pedido):
+      // a própria função recusa um segundo estorno da mesma venda (duplo clique, outra aba).
+      const { error: estornoError } = await supabase.rpc("estornar_venda", { p_venda_id: venda.id, p_motivo: null });
+      if (estornoError) throw new Error(estornoError.message);
 
-      // Devolve ao estoque real (banco) cada item que veio do catálogo (ignora avulsos)
       const realItems = (venda.itens || []).filter((it) => it.productId && !it.isAvulso);
-      for (const item of realItems) {
-        const { error: movError } = await supabase.rpc("registrar_movimentacao_estoque", {
-          p_product_id: item.productId,
-          p_tipo: "entrada",
-          p_quantidade: item.quantidade,
-          p_motivo: `Estorno da venda ${venda.id}`,
-        });
-        if (movError) console.error("Falha ao devolver estoque do item:", item.productId, movError);
-      }
-
       setProducts(
         products.map((prod: any) => {
           const item = realItems.find((it) => it.productId === prod.id);
@@ -1014,6 +1303,8 @@ export default function VarejoVendas() {
     const q = filtroHistorico.toLowerCase();
     return (
       v.id.toLowerCase().includes(q) ||
+      rotuloVenda(v.numero, v.id).toLowerCase().includes(q.replace(/^#/, "#")) ||
+      (v.itens || []).some((i) => i.name?.toLowerCase().includes(q)) ||
       (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) ||
       (v.operador && v.operador.toLowerCase().includes(q))
     );
@@ -1045,42 +1336,25 @@ export default function VarejoVendas() {
   const catalogUrl = activeTenantId ? `${window.location.origin}/catalogo/${activeTenantId}` : "";
 
   return (
-    <div className={`flex flex-col gap-3 ${telaCheia ? "fixed inset-0 z-[60] bg-[var(--color-surface)] p-3 md:p-4 overflow-y-auto lg:overflow-hidden" : "lg:flex-1 lg:min-h-0"}`}>
-      {/* Cabeçalho compacto: título + ações (os atalhos de teclado ficam no botão "Atalhos (F1)") */}
-      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-w-0">
-          <h1 className="text-xl md:text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2 min-w-0">
-            Frente de Caixa (PDV Comercial)
-            <HelpTip label="Sobre a Frente de Caixa">O terminal de vendas do caixa: leitor de código de barras, vendas em espera, atalhos de teclado e a gestão do caixa.</HelpTip>
-          </h1>
-        </div>
+    <PageContainer
+      title="Frente de Caixa"
+      description="O terminal de vendas do caixa: leitor de código de barras, vendas em espera, atalhos de teclado e a gestão do caixa."
+      actions={
         <div className="flex flex-wrap items-center gap-2">
-          {/* Vendedor / atendente responsável pela venda */}
-          <div className="relative" title="Vendedor / atendente responsável">
-            <UserCheck className="w-3.5 h-3.5 text-blue-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          {/* Vendedor / atendente da venda */}
+          <div className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)]" title="Vendedor / atendente responsável">
+            <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
             <select
+              aria-label="Vendedor / atendente responsável"
               value={vendedorSelecionado}
               onChange={(e) => setVendedorSelecionado(e.target.value)}
-              aria-label="Vendedor / atendente responsável"
-              className="h-9 pl-8 pr-7 max-w-[200px] text-xs font-semibold rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
+              className="bg-transparent text-xs font-semibold text-[var(--color-text-primary)] focus:outline-none max-w-[170px] truncate"
             >
               {vendedoresDisponiveis.map((v) => (
                 <option key={v} value={v}>{v}</option>
               ))}
             </select>
           </div>
-          {/* Tela cheia */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void alternarTelaCheia()}
-            className="h-9 px-3 text-xs font-semibold gap-1.5"
-            title={telaCheia ? "Sair da tela cheia (Esc)" : "Frente de caixa em tela cheia"}
-            aria-pressed={telaCheia}
-          >
-            {telaCheia ? <Minimize2 className="w-3.5 h-3.5 text-blue-500" /> : <Maximize2 className="w-3.5 h-3.5 text-blue-500" />}
-            <span className="hidden 2xl:inline">{telaCheia ? "Sair da tela cheia" : "Tela cheia"}</span>
-          </Button>
 
           {/* Som de bip do leitor */}
           <Button
@@ -1091,7 +1365,7 @@ export default function VarejoVendas() {
             title={soundEnabled ? "Desativar Bip Sonoro" : "Ativar Bip Sonoro"}
           >
             {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-500" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
-            <span className="hidden 2xl:inline">{soundEnabled ? "Bip Ativo" : "Mudo"}</span>
+            <span className="hidden sm:inline">{soundEnabled ? "Bip Ativo" : "Mudo"}</span>
           </Button>
 
           {/* Atalhos F1 */}
@@ -1100,11 +1374,9 @@ export default function VarejoVendas() {
             size="sm"
             onClick={() => setModalAtalhosOpen(true)}
             className="h-9 px-3 text-xs font-semibold gap-1.5"
-            title="Atalhos de teclado (F1)"
-            aria-label="Atalhos de teclado (F1)"
           >
             <HelpCircle className="w-3.5 h-3.5 text-blue-500" />
-            <span className="hidden 2xl:inline">Atalhos (F1)</span>
+            <span className="hidden sm:inline">Atalhos (F1)</span>
           </Button>
 
           {/* Vendas em Espera */}
@@ -1170,17 +1442,28 @@ export default function VarejoVendas() {
                 toast.success("Link do catálogo público copiado!");
               }}
               className="h-9 px-3 text-xs font-semibold gap-1.5"
-              title="Copiar o link do catálogo público"
-              aria-label="Copiar o link do catálogo público"
             >
-              <Link2 className="w-3.5 h-3.5" /> <span className="hidden 2xl:inline">Catálogo</span>
+              <Link2 className="w-3.5 h-3.5" /> Catálogo
             </Button>
           )}
+
+          {document.fullscreenEnabled && (
+            <button
+              type="button"
+              onClick={alternarTelaCheia}
+              title={telaCheia ? "Sair da tela cheia" : "Tela cheia"}
+              aria-label={telaCheia ? "Sair da tela cheia" : "Tela cheia"}
+              className="h-9 w-9 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
+            >
+              {telaCheia ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+          )}
         </div>
-      </div>
+      }
+    >
       {/* Resumo do Turno / Status Bar */}
-      <div className="shrink-0 grid grid-cols-2 sm:grid-cols-5 gap-3 [@media(max-height:800px)]:lg:hidden">
-        <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+        <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Status do Terminal</span>
           <div className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${caixaAberto ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
@@ -1188,30 +1471,30 @@ export default function VarejoVendas() {
           </div>
         </Card>
 
-        <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
+        <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Vendas Hoje</span>
           <div className="text-sm font-black text-[var(--color-text-primary)]">{vendasHoje.length} pedidos</div>
         </Card>
 
-        <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
+        <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Faturamento Hoje</span>
           <div className="text-sm font-black text-emerald-500 font-mono">{formatPrice(faturamentoHoje)}</div>
         </Card>
 
-        <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
+        <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)]">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Ticket Médio</span>
           <div className="text-sm font-black text-blue-500 font-mono">{formatPrice(ticketMedioHoje)}</div>
         </Card>
 
-        <Card className="px-3 py-2 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] col-span-2 sm:col-span-1">
+        <Card className="p-3 bg-[var(--color-surface-elevated)]/40 border border-[var(--color-border-subtle)] col-span-2 sm:col-span-1">
           <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-0.5">Saldo em Dinheiro</span>
           <div className="text-sm font-black text-amber-500 font-mono">{formatPrice(saldoCaixaCalculado)}</div>
         </Card>
       </div>
 
-      {/* Abas + lembrete curto das teclas (a lista completa abre em "Todos") */}
-      <div className="shrink-0 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full shrink-0 overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-xs">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+      {/* Tabs Switcher: PDV vs Histórico */}
+      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-xs">
         <button
           onClick={() => setTab("pdv")}
           className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
@@ -1238,19 +1521,14 @@ export default function VarejoVendas() {
           <History className="w-3.5 h-3.5" /> Histórico de Vendas ({historico.length})
         </button>
       </div>
-        <div className="hidden xl:flex items-center gap-x-3 text-[11px] text-[var(--color-text-muted)] min-w-0 flex-1">
-          {([["F2", "Buscar"], ["F3", "Cliente"], ["F4", "Desconto"], ["F7", "Avulso"], ["F8", "Limpar"], ["F9", "Suspender"], ["F10", "Finalizar"]] as const).map(([k, t]) => (
-            <span key={k} className="whitespace-nowrap"><kbd className={`px-1.5 py-0.5 bg-[var(--color-surface)] border rounded text-[10px] font-mono font-bold ${k === "F10" ? "text-emerald-500" : "text-[var(--color-text-primary)]"}`}>{k}</kbd> {t}</span>
-          ))}
-          <button type="button" onClick={() => setModalAtalhosOpen(true)} className="ml-auto text-blue-500 hover:underline font-bold text-[10px] whitespace-nowrap">Todos</button>
-        </div>
+
       </div>
 
       {/* ABA 1: PDV FRENTE DE CAIXA */}
       {tab === "pdv" && (
-        <div className="grid lg:grid-cols-12 gap-4 items-start lg:items-stretch lg:flex-1 lg:min-h-0 lg:grid-rows-1">
+        <div ref={pdvRef} style={isLg && pdvHeight ? { height: pdvHeight } : undefined} className="grid lg:grid-cols-12 lg:grid-rows-1 gap-5 items-start lg:items-stretch">
           {/* LADO ESQUERDO: CATÁLOGO, LEITOR E PRODUTOS (Colunas 7 de 12) */}
-          <div className="lg:col-span-5 flex flex-col gap-3 lg:min-h-0">
+          <div className="lg:col-span-5 flex flex-col gap-4 lg:min-h-0">
             {/* Barra de Leitor de Código de Barras / SKU com Bip */}
             <form onSubmit={handleBarcodeSubmit} className="flex gap-2 shrink-0">
               <div className="relative flex-1">
@@ -1291,7 +1569,8 @@ export default function VarejoVendas() {
               </div>
 
               {/* Categorias em Pílulas */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1 min-w-0">
                 {categories.map((cat) => (
                   <button
                     key={cat}
@@ -1306,14 +1585,84 @@ export default function VarejoVendas() {
                   </button>
                 ))}
               </div>
+              <div className="flex items-center shrink-0 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-0.5 mb-1" role="group" aria-label="Modo de exibição dos produtos">
+                {([["lista", ListIcon, "Lista"], ["quadro", LayoutGrid, "Quadro"]] as const).map(([v, Icon, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    title={label}
+                    aria-label={label}
+                    aria-pressed={viewProdutos === v}
+                    onClick={() => trocarViewProdutos(v)}
+                    className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${viewProdutos === v ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                  </button>
+                ))}
+              </div>
+              </div>
             </div>
 
-            {/* Grid de Produtos: é a única área que rola na tela do PDV */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3 content-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 scrollbar-thin">
+            {/* Grid de Produtos */}
+            <div className={`grid ${viewProdutos === "lista" ? "grid-cols-1 gap-1.5" : "grid-cols-2 xl:grid-cols-3 gap-3"} content-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 scrollbar-thin`}>
               {produtosDisponiveis.map((product: any) => {
                 const itemNoCarrinho = cart.find((i) => i.productId === product.id);
                 const estoque = product.currentStock ?? 0;
                 const esgotado = estoque <= 0;
+
+                const controleAdd = itemNoCarrinho ? (
+                  <div className="flex items-center justify-between bg-blue-600/10 rounded-lg p-1 border border-blue-500/30 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => updateCartQty(product.id, itemNoCarrinho.quantidade - 1)}
+                      className="w-6 h-6 rounded bg-[var(--color-surface)] hover:bg-red-500/20 hover:text-red-500 text-[var(--color-text-primary)] flex items-center justify-center font-bold text-xs"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="font-bold text-xs text-blue-500 font-mono">{itemNoCarrinho.quantidade} un.</span>
+                    <button
+                      type="button"
+                      onClick={() => updateCartQty(product.id, itemNoCarrinho.quantidade + 1)}
+                      className="w-6 h-6 rounded bg-[var(--color-surface)] hover:bg-blue-600 hover:text-white text-[var(--color-text-primary)] flex items-center justify-center font-bold text-xs"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  // Fundo via var(--color-primary-blue): é a única forma que o CSS do tema claro (index.css) não força o texto para escuro.
+                  <button
+                    type="button"
+                    disabled={esgotado}
+                    onClick={() => addToCart(product)}
+                    className="w-full h-7 px-3 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1 bg-[var(--color-primary-blue)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="w-3 h-3" /> Adicionar
+                  </button>
+                );
+
+                if (viewProdutos === "lista") {
+                  return (
+                    <div
+                      key={product.id}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-xl border transition-all ${
+                        esgotado
+                          ? "opacity-50 border-red-500/20 bg-red-500/5"
+                          : itemNoCarrinho
+                          ? "border-blue-500/50 bg-blue-500/5"
+                          : "border-[var(--color-border-subtle)] bg-[var(--color-surface)] hover:border-blue-500/40"
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-[var(--color-text-primary)] truncate">{product.name}</p>
+                        <p className="text-[10px] text-[var(--color-text-muted)] truncate">
+                          {product.category || "Geral"}{product.sku ? ` · SKU ${product.sku}` : ""} · {estoque > 0 ? `${estoque} un.` : "Esgotado"}
+                        </p>
+                      </div>
+                      <span className="text-sm font-black font-mono text-[var(--color-text-primary)] shrink-0">{formatPrice(Number(product.price) || 0)}</span>
+                      <div className="w-28 shrink-0">{controleAdd}</div>
+                    </div>
+                  );
+                }
 
                 return (
                   <Card
@@ -1362,37 +1711,7 @@ export default function VarejoVendas() {
                         </span>
                       </div>
 
-                      {itemNoCarrinho ? (
-                        <div className="flex items-center justify-between bg-blue-600/10 rounded-lg p-1 border border-blue-500/30">
-                          <button
-                            type="button"
-                            onClick={() => updateCartQty(product.id, itemNoCarrinho.quantidade - 1)}
-                            className="w-6 h-6 rounded bg-[var(--color-surface)] hover:bg-red-500/20 hover:text-red-500 text-[var(--color-text-primary)] flex items-center justify-center font-bold text-xs"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="font-bold text-xs text-blue-500 font-mono">
-                            {itemNoCarrinho.quantidade} un.
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => updateCartQty(product.id, itemNoCarrinho.quantidade + 1)}
-                            className="w-6 h-6 rounded bg-[var(--color-surface)] hover:bg-blue-600 hover:text-white text-[var(--color-text-primary)] flex items-center justify-center font-bold text-xs"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={esgotado}
-                          onClick={() => addToCart(product)}
-                          className="w-full text-xs font-bold h-7 gap-1 bg-[var(--color-surface-elevated)] hover:bg-blue-600 hover:text-white text-[var(--color-text-primary)] border border-[var(--color-border-subtle)]"
-                        >
-                          <Plus className="w-3 h-3" /> Adicionar
-                        </Button>
-                      )}
+                      {controleAdd}
                     </div>
                   </Card>
                 );
@@ -1408,11 +1727,10 @@ export default function VarejoVendas() {
             </div>
           </div>
 
-          {/* COLUNA DO MEIO: ITENS DA VENDA */}
-          <div className="lg:col-span-4 flex flex-col lg:min-h-0">
-            <Card className="p-4 border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md flex flex-col gap-3 lg:flex-1 lg:min-h-0">
-              {/* Header do Carrinho */}
-              <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border-subtle)] shrink-0">
+          {/* COLUNA 2: ITENS DA VENDA */}
+          <div className="lg:col-span-4 lg:min-h-0">
+            <Card className="p-0 overflow-hidden flex flex-col lg:h-full border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md">
+              <div className="flex items-center justify-between px-4 pt-4 pb-3 shrink-0 border-b border-[var(--color-border-subtle)]">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-4 h-4 text-blue-500" />
                   <h3 className="text-sm font-black text-[var(--color-text-primary)]">
@@ -1421,7 +1739,7 @@ export default function VarejoVendas() {
                 </div>
                 {cart.length > 0 && (
                   <button
-                    onClick={clearCart}
+                    onClick={() => setSuspenderOpen("cancelar")}
                     className="text-[11px] font-bold text-red-500 hover:underline flex items-center gap-1"
                     title="Limpar Venda (F8)"
                   >
@@ -1430,8 +1748,8 @@ export default function VarejoVendas() {
                 )}
               </div>
 
-              {/* Lista de Itens no Carrinho */}
-              <div className="space-y-2 max-h-72 lg:max-h-none lg:flex-1 lg:min-h-[120px] overflow-y-auto pr-1 scrollbar-thin">
+              
+              <div className="space-y-2 flex-1 min-h-0 max-h-72 lg:max-h-none overflow-y-auto p-4 scrollbar-thin">
                 {cart.map((item) => (
                   <div
                     key={item.productId}
@@ -1451,6 +1769,46 @@ export default function VarejoVendas() {
                       <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
                         {item.quantidade} x {formatPrice(item.price)}
                       </span>
+                      {descItemEdit?.id === item.productId ? (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <div className="flex rounded-md overflow-hidden border border-[var(--color-border-subtle)] text-[10px] font-bold">
+                            {(["valor", "pct"] as const).map((t) => (
+                              <button key={t} type="button" onClick={() => setDescItemEdit({ ...descItemEdit, tipo: t })}
+                                className={`px-1.5 h-6 ${descItemEdit.tipo === t ? "bg-[var(--color-primary-blue)] text-white" : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"}`}>
+                                {t === "valor" ? "R$" : "%"}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            autoFocus
+                            inputMode="decimal"
+                            value={descItemEdit.valor}
+                            onChange={(e) => setDescItemEdit({ ...descItemEdit, valor: e.target.value })}
+                            onKeyDown={(e) => { if (e.key === "Enter") aplicarDescontoItem(); if (e.key === "Escape") setDescItemEdit(null); }}
+                            placeholder="0"
+                            className="w-16 h-6 px-1.5 text-[11px] font-mono rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
+                          />
+                          <button type="button" onClick={aplicarDescontoItem} className="h-6 px-2 rounded-md text-[10px] font-bold bg-[var(--color-primary-blue)] text-white">OK</button>
+                          <button type="button" onClick={() => setDescItemEdit(null)} className="h-6 px-1.5 rounded-md text-[10px] font-bold text-[var(--color-text-muted)]">Cancelar</button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setDescItemEdit({ id: item.productId, valor: item.descontoItemPct ? String(Math.round(item.descontoItemPct * 100) / 100) : "", tipo: "pct" })}
+                          className="mt-1 block text-[10px] font-bold text-[var(--color-primary-blue)] hover:underline"
+                        >
+                          {item.descontoItemPct ? `Desconto no item: -${formatPrice(descontoDoItem(item))} (${Math.round(item.descontoItemPct * 100) / 100}%)` : "+ Desconto no item"}
+                        </button>
+                      )}
+                      {(item.comissaoPct || 0) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setComissaoPend(item.productId)}
+                          className="mt-0.5 block text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:underline"
+                        >
+                          {item.comissaoVendedor ? `Comissão (${item.comissaoPct}%): ${item.comissaoVendedor.nome}` : `Comissão (${item.comissaoPct}%): sem pessoa vinculada`}
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1475,57 +1833,48 @@ export default function VarejoVendas() {
                       </div>
 
                       <span className="text-xs font-black font-mono text-[var(--color-text-primary)] w-16 text-right">
-                        {formatPrice(item.price * item.quantidade)}
+                        {formatPrice(linhaLiquida(item))}
                       </span>
-
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.productId)}
-                        className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/25 p-1 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   </div>
                 ))}
 
                 {cart.length === 0 && (
-                  <div className="py-4 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-center text-center text-xs text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)]/40 rounded-xl border border-dashed border-[var(--color-border-subtle)]">
-                    <ShoppingCart className="w-6 h-6 mx-auto mb-1 opacity-30" />
+                  <div className="py-8 text-center text-xs text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)]/40 rounded-xl border border-dashed border-[var(--color-border-subtle)]">
+                    <ShoppingCart className="w-7 h-7 mx-auto mb-1.5 opacity-30" />
                     Carrinho vazio. Bipe ou selecione um produto ao lado.
                   </div>
                 )}
               </div>
 
+              
             </Card>
           </div>
 
-          {/* COLUNA DA DIREITA: RESUMO DA COMPRA (cliente, desconto, pagamento e fechamento) */}
-          <div className="lg:col-span-3 flex flex-col lg:min-h-0">
-            <Card className="p-4 border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md flex flex-col gap-2.5 lg:flex-1 lg:min-h-0">
-              <div className="flex items-center gap-2 pb-2 border-b border-[var(--color-border-subtle)] shrink-0">
+          {/* COLUNA 3: RESUMO DA COMPRA */}
+          <div className="lg:col-span-3 lg:min-h-0">
+            <Card className="p-0 overflow-hidden flex flex-col lg:h-full border border-[var(--color-border-default)] bg-[var(--color-surface)] shadow-md">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-3 shrink-0 border-b border-[var(--color-border-subtle)]">
                 <Receipt className="w-4 h-4 text-blue-500" />
                 <h3 className="text-sm font-black text-[var(--color-text-primary)]">Resumo da compra</h3>
               </div>
-
-              {/* Cliente (F3): abre a janela para informar nome e CPF na nota */}
-              <div className="shrink-0">
-                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">Cliente (F3)</label>
-                <button
-                  type="button"
-                  onClick={() => setModalClienteOpen(true)}
-                  className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] hover:border-blue-500/50 text-left"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-xs font-bold text-[var(--color-text-primary)] truncate">{clienteNome.trim() || "Consumidor final"}</span>
-                    <span className="block text-[10px] text-[var(--color-text-muted)] truncate">{clienteCpf.trim() ? `CPF ${clienteCpf.trim()}` : "Selecionar ou cadastrar cliente"}</span>
-                  </span>
-                  <UserCheck className="w-4 h-4 text-blue-500 shrink-0" />
-                </button>
-              </div>
-
-              {/* Desconto (F4) */}
-              <div className="pt-2 border-t border-[var(--color-border-subtle)] shrink-0">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">Cliente (F3)</label>
+                  <button
+                    type="button"
+                    id="btn-cliente"
+                    onClick={() => setModalClienteOpen(true)}
+                    className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] hover:border-blue-500/40 text-left transition-colors"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold text-[var(--color-text-primary)] truncate">{clienteNome.trim() || "Consumidor final"}</span>
+                      <span className="block text-[10px] text-[var(--color-text-muted)] truncate">{clienteCpf.trim() ? `CPF/CNPJ ${clienteCpf}` : "Selecionar ou cadastrar cliente"}</span>
+                    </span>
+                    <UserCheck className="w-4 h-4 text-blue-500 shrink-0" />
+                  </button>
+                </div>
+              <div className="pt-2 border-t border-[var(--color-border-subtle)]">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] flex items-center gap-1">
                     <Percent className="w-3 h-3 text-emerald-500" /> Desconto (F4)
@@ -1560,312 +1909,48 @@ export default function VarejoVendas() {
                 </div>
               </div>
 
-              {/* Pagamento: a única parte que pode rolar dentro do resumo (os totais ficam sempre à vista) */}
-              <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto pr-0.5 scrollbar-thin">
-              {/* Seletor de Forma de Pagamento */}
-              <div className="space-y-2 pt-2 border-t border-[var(--color-border-subtle)] shrink-0">
-                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block">
-                  Forma de Pagamento
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {(
-                    FORMAS_PAGAMENTO.filter((f) => cfg.pagamentos.habilitadas.includes(f))
-                  ).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setFormaPagamento(m)}
-                      title={m}
-                      aria-label={m}
-                      className={`p-1.5 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 text-center ${
-                        formaPagamento === m
-                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                          : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                      }`}
-                    >
-                      {m === "Dinheiro" && <Banknote className="w-3 h-3" />}
-                      {m === "Pix" && <QrCode className="w-3 h-3" />}
-                      {m === "Cartão de Crédito" && <CreditCard className="w-3 h-3" />}
-                      {m === "Cartão de Débito" && <Wallet className="w-3 h-3" />}
-                      {m === "Misto" && <Split className="w-3 h-3" />}
-                      {m === "A Prazo (Crediário)" && <Calendar className="w-3 h-3" />}
-                      <span className="truncate">{m === "A Prazo (Crediário)" ? "A Prazo" : m.replace("Cartão de ", "")}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Sub-painel específico por forma de pagamento */}
-                {formaPagamento === "Dinheiro" && (
-                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-2">
-                    <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="font-bold text-[var(--color-text-muted)]">Valor Recebido:</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={valorRecebido}
-                        onChange={(e) => setValorRecebido(e.target.value)}
-                        placeholder="R$ 0,00"
-                        className="w-28 px-2 py-1 text-right font-mono font-bold bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-xs"
-                      />
-                    </div>
-                    {/* Botões Rápidos de Cédulas */}
-                    <div className="grid grid-cols-5 gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setValorRecebido(total.toFixed(2))}
-                        className="px-1 py-1 text-[10px] font-bold rounded bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:border-blue-500 whitespace-nowrap"
-                      >
-                        Exato
-                      </button>
-                      {[20, 50, 100, 200].map((ced) => (
-                        <button
-                          key={ced}
-                          type="button"
-                          onClick={() => setValorRecebido(String(ced))}
-                          className="px-1 py-1 text-[10px] font-bold rounded bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:border-blue-500 whitespace-nowrap"
-                        >
-                          {ced}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Alerta de Troco */}
-                    <div className="flex items-center justify-between pt-1 border-t border-[var(--color-border-subtle)] text-xs">
-                      <span className="font-black text-[var(--color-text-primary)]">Troco:</span>
-                      <span
-                        className={`font-black font-mono text-sm ${
-                          troco > 0
-                            ? "text-emerald-500"
-                            : valorFaltanteDinheiro > 0
-                            ? "text-amber-500"
-                            : "text-[var(--color-text-primary)]"
-                        }`}
-                      >
-                        {valorFaltanteDinheiro > 0
-                          ? `Faltam ${formatPrice(valorFaltanteDinheiro)}`
-                          : formatPrice(troco)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {formaPagamento === "Pix" && (
-                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-blue-500/30 flex flex-col items-center gap-2 text-center">
-                    <div className="w-16 h-16 shrink-0 bg-white p-1 rounded-xl flex items-center justify-center shadow-inner">
-                      <QrCode className="w-14 h-14 text-slate-900" />
-                    </div>
-                    <div className="w-full min-w-0 space-y-1.5">
-                      <div className="text-[10px] text-[var(--color-text-muted)]">Chave Pix gerada para esta venda:</div>
-                      <div className="flex items-center gap-1">
-                        <input
-                          readOnly
-                          value={`00020126580014br.gov.bcb.pix0136${tenantId.substring(0, 12)}5204000053039865802BR`}
-                          className="text-[9px] font-mono bg-[var(--color-surface)] border rounded px-2 py-1 flex-1 min-w-0 text-[var(--color-text-muted)] truncate"
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            navigator.clipboard.writeText("00020126580014br.gov.bcb.pix");
-                            toast.success("Código Pix Copia e Cola copiado!");
-                          }}
-                          className="h-7 text-[10px] font-bold shrink-0"
-                          title="Copiar código Pix"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPixConfirmado(true);
-                          if (soundEnabled) playPosSound("success");
-                          toast.success("Pagamento Pix confirmado!");
-                        }}
-                        className={`w-full py-1 rounded-lg text-xs font-bold transition-all ${
-                          pixConfirmado
-                            ? "bg-emerald-600 text-white flex items-center justify-center gap-1.5"
-                            : "bg-blue-600/10 text-blue-500 hover:bg-blue-600/20 border border-blue-500/30"
-                        }`}
-                      >
-                        {pixConfirmado ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Pix Confirmado pelo Banco
-                          </>
-                        ) : (
-                          "Simular Confirmação Instantânea"
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {formaPagamento === "Cartão de Crédito" && (
-                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-2">
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">
-                          Parcelamento:
-                        </label>
-                        <select
-                          value={parcelasCartao}
-                          onChange={(e) => setParcelasCartao(Number(e.target.value))}
-                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
-                        >
-                          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                            <option key={n} value={n}>
-                              {n}x de {formatPrice(total / n)} {n === 1 ? "(à vista)" : "sem juros"}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">
-                          Bandeira:
-                        </label>
-                        <select
-                          value={bandeiraCartao}
-                          onChange={(e) => setBandeiraCartao(e.target.value)}
-                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
-                        >
-                          {["Mastercard", "Visa", "Elo", "Hipercard", "Amex"].map((b) => (
-                            <option key={b} value={b}>{b}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {formaPagamento === "Cartão de Débito" && (
-                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] text-xs flex items-center justify-between">
-                    <span className="text-[var(--color-text-muted)] font-bold">Bandeira do Débito:</span>
-                    <select
-                      value={bandeiraCartao}
-                      onChange={(e) => setBandeiraCartao(e.target.value)}
-                      className="bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1 text-xs font-bold text-[var(--color-text-primary)]"
-                    >
-                      {["Mastercard Débito", "Visa Electron", "Elo Débito"].map((b) => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {formaPagamento === "Misto" && (
-                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-purple-500/30 space-y-1.5">
-                    <p className="text-[10px] text-[var(--color-text-muted)] font-semibold">
-                      Divida em vários meios até cobrir <strong>{formatPrice(total)}</strong>:
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">Em Dinheiro</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={mistoDinheiro}
-                          onChange={(e) => setMistoDinheiro(e.target.value)}
-                          placeholder="0,00"
-                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">No Pix</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={mistoPix}
-                          onChange={(e) => setMistoPix(e.target.value)}
-                          placeholder="0,00"
-                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">No Cartão</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={mistoCartao}
-                          onChange={(e) => setMistoCartao(e.target.value)}
-                          placeholder="0,00"
-                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center text-xs pt-1 border-t border-[var(--color-border-subtle)]">
-                      <span className="text-[var(--color-text-muted)]">Informado: <strong>{formatPrice(totalMistoInformado)}</strong></span>
-                      <span className={`font-bold font-mono ${faltaMisto > 0 ? "text-amber-500" : "text-emerald-500"}`}>
-                        {faltaMisto > 0 ? `Faltam ${formatPrice(faltaMisto)}` : "Valor 100% coberto"}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {formaPagamento === "A Prazo (Crediário)" && (
-                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-amber-500/30 space-y-2">
-                    <p className="text-[10px] text-amber-500 font-bold">
-                      Venda faturada a prazo na conta do cliente:
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <label className="text-[10px] text-[var(--color-text-muted)] block mb-1">Prazo de Pagamento:</label>
-                        <select
-                          value={prazoDias}
-                          onChange={(e) => setPrazoDias(e.target.value)}
-                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
-                        >
-                          <option value="15">15 dias</option>
-                          <option value="30">30 dias</option>
-                          <option value="45">45 dias</option>
-                          <option value="60">60 dias</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-[var(--color-text-muted)] block mb-1">Status no Financeiro:</label>
-                        <span className="block p-1.5 bg-amber-500/10 text-amber-500 rounded-lg text-center font-bold text-xs">
-                          Conta a Receber
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+              
               </div>
 
-              </div>
-
-              {/* Totalizadores e Finalizar Venda */}
-              <div className="pt-2 border-t border-[var(--color-border-subtle)] space-y-2 shrink-0">
+              {/* Totalizadores e Finalizar Venda — fixos no rodapé do painel */}
+              <div className="shrink-0 p-4 border-t border-[var(--color-border-default)] bg-[var(--color-surface)] space-y-2.5">
                 <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
                   <span>Subtotal dos itens:</span>
-                  <span className="font-mono">{formatPrice(subtotal)}</span>
+                  <span className="font-mono">{formatPrice(subtotalBruto)}</span>
                 </div>
+                {descontoItens > 0 && (
+                  <div className="flex items-center justify-between text-xs text-emerald-500 font-bold">
+                    <span>Descontos nos itens:</span>
+                    <span className="font-mono">-{formatPrice(descontoItens)}</span>
+                  </div>
+                )}
                 {descontoCalculado > 0 && (
                   <div className="flex items-center justify-between text-xs text-emerald-500 font-bold">
                     <span>Desconto aplicado:</span>
                     <span className="font-mono">-{formatPrice(descontoCalculado)}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between text-base font-black text-[var(--color-text-primary)]">
+                <div className="flex items-center justify-between text-base font-black text-[var(--color-text-primary)] pt-1">
                   <span>Total a Pagar:</span>
                   <span className="text-2xl font-mono text-blue-500 font-black">{formatPrice(total)}</span>
                 </div>
 
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-1 gap-2 pt-1">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleSuspenderVenda}
+                    onClick={() => setSuspenderOpen("normal")}
                     disabled={cart.length === 0}
-                    className="h-10 font-bold text-xs gap-1.5 border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                    className="h-11 font-bold text-xs gap-1.5 border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
                     title="Suspender Venda (F9)"
                   >
                     <PauseCircle className="w-4 h-4" /> Suspender (F9)
                   </Button>
 
                   <Button
-                    onClick={handleFinalizarVenda}
-                    loading={finalizando}
+                    onClick={abrirPagamento}
                     disabled={cart.length === 0 || !caixaAberto}
-                    className="h-10 font-black text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md gap-1.5"
+                    className="h-11 font-black text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md gap-1.5"
                     title="Finalizar Venda (F10)"
                   >
                     <CheckCircle2 className="w-4 h-4" /> Finalizar (F10)
@@ -1879,7 +1964,7 @@ export default function VarejoVendas() {
 
       {/* ABA 2: HISTÓRICO DE VENDAS */}
       {tab === "historico" && (
-        <div className="space-y-4 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+        <div className="space-y-4">
           <KpiFilterCard
             id="varejoVendas"
             activeCount={histActiveFilters}
@@ -1892,7 +1977,7 @@ export default function VarejoVendas() {
             ]}
           >
             <FilterBar>
-              <FilterSearch value={filtroHistorico} onChange={setFiltroHistorico} placeholder="Filtrar por ID da venda, cliente ou operador..." />
+              <FilterSearch value={filtroHistorico} onChange={setFiltroHistorico} placeholder="Filtrar por item, cliente, operador ou nº da venda..." />
               <FilterSelect icon={CreditCard} value={filtroHistPagto} onChange={setFiltroHistPagto} options={histPagtoOpts} allLabel="Todas as formas de pagamento" />
               <FilterChips value={filtroHistStatus} onChange={setFiltroHistStatus} options={histStatusOpts} />
             </FilterBar>
@@ -1916,7 +2001,14 @@ export default function VarejoVendas() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-black font-mono text-[var(--color-text-primary)]">{venda.id}</h4>
+                            <h4 className="text-sm font-black text-[var(--color-text-primary)] truncate max-w-[28rem]" title={(venda.itens || []).map((i) => `${i.quantidade}x ${i.name}`).join(", ")}>
+                              {(() => {
+                                const itens = venda.itens || [];
+                                if (itens.length === 0) return "Venda sem itens";
+                                return itens.length === 1 ? itens[0].name : `${itens[0].name} + ${itens.length - 1} ${itens.length - 1 === 1 ? "item" : "itens"}`;
+                              })()}
+                            </h4>
+                            <span className="text-[10px] font-mono font-bold text-[var(--color-text-muted)]">{rotuloVenda(venda.numero, venda.id)}</span>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isEstornada ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"}`}>
                               {isEstornada ? "Venda Estornada" : "Paga / Concluída"}
                             </span>
@@ -2029,7 +2121,7 @@ export default function VarejoVendas() {
               variant="outline"
               onClick={() => {
                 if (!receiptVenda) return;
-                const msg = encodeURIComponent(`Olá! Segue comprovante da sua compra ${receiptVenda.id} no valor de ${formatPrice(receiptVenda.valor_total)}.`);
+                const msg = encodeURIComponent(`Olá! Segue comprovante da sua compra ${rotuloVenda(receiptVenda.numero, receiptVenda.id)} no valor de ${formatPrice(receiptVenda.valor_total)}.`);
                 window.open(`https://wa.me/?text=${msg}`, "_blank");
               }}
               className="h-9 px-3 text-xs font-semibold gap-1.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10"
@@ -2105,7 +2197,7 @@ export default function VarejoVendas() {
 
                 <div className="text-[10px] space-y-0.5 border-b border-dashed border-slate-300 pb-2">
                   <div className="flex justify-between">
-                    <span>PEDIDO: <strong>{receiptVenda.id}</strong></span>
+                    <span>PEDIDO: <strong>{rotuloVenda(receiptVenda.numero, receiptVenda.id)}</strong></span>
                     <span>DATA: {new Date(receiptVenda.created_at).toLocaleDateString("pt-BR")}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
@@ -2303,49 +2395,6 @@ export default function VarejoVendas() {
       </Modal>
 
       {/* ─── MODAL 3: VENDAS EM ESPERA (FILA / PARKED SALES) ──────────────── */}
-      {/* MODAL: CLIENTE E CPF NA NOTA (F3) */}
-      <Modal
-        isOpen={modalClienteOpen}
-        onClose={() => setModalClienteOpen(false)}
-        maxWidth="max-w-md"
-        title={
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0"><UserCheck className="w-4 h-4" /></div>
-            <h3 className="text-base font-bold text-[var(--color-text-primary)]">Cliente da venda</h3>
-          </div>
-        }
-      >
-        <form
-          className="space-y-3 py-1"
-          onSubmit={(e) => { e.preventDefault(); setModalClienteOpen(false); }}
-        >
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">Nome do cliente</label>
-            <input
-              id="input-cliente-nome"
-              autoFocus
-              value={clienteNome}
-              onChange={(e) => setClienteNome(e.target.value)}
-              placeholder="Deixe em branco para consumidor final"
-              className="w-full px-3 py-2 text-sm bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">CPF na nota</label>
-            <input
-              value={clienteCpf}
-              onChange={(e) => setClienteCpf(e.target.value)}
-              placeholder="000.000.000-00"
-              className="w-full px-3 py-2 text-sm bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-blue-500"
-            />
-          </div>
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <button type="button" onClick={() => { setClienteNome(""); setClienteCpf(""); setModalClienteOpen(false); }} className="text-xs font-bold text-[var(--color-text-muted)] hover:text-red-500">Consumidor final</button>
-            <Button type="submit" className="h-9 px-4 text-xs font-bold">Confirmar</Button>
-          </div>
-        </form>
-      </Modal>
-
       <Modal
         isOpen={modalEsperaOpen}
         onClose={() => setModalEsperaOpen(false)}
@@ -2591,6 +2640,366 @@ export default function VarejoVendas() {
           ))}
         </div>
       </Modal>
-    </div>
+
+      {/* MODAL: FORMA DE PAGAMENTO (aberto pelo Finalizar) */}
+      <Modal
+        isOpen={modalPagamentoOpen}
+        onClose={() => { if (!finalizando) setModalPagamentoOpen(false); }}
+        title="Forma de pagamento"
+        description={`${cart.reduce((q, i) => q + i.quantidade, 0)} un. · ${clienteNome.trim() || "Consumidor final"}`}
+        maxWidth="max-w-lg"
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Total a pagar</span>
+              <span className="text-xl font-mono font-black text-blue-500">{formatPrice(total)}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setModalPagamentoOpen(false)} disabled={finalizando}>Voltar</Button>
+              <Button onClick={handleFinalizarVenda} loading={finalizando} className="bg-emerald-600 hover:bg-emerald-700 text-white font-black gap-1.5">
+                <CheckCircle2 className="w-4 h-4" /> Confirmar pagamento
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+              <div className="space-y-2 pt-2 border-t border-[var(--color-border-subtle)]">
+                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)] block">
+                  Forma de Pagamento
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(
+                    FORMAS_PAGAMENTO.filter((f) => cfg.pagamentos.habilitadas.includes(f))
+                  ).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setFormaPagamento(m)}
+                      className={`p-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 text-center ${
+                        formaPagamento === m
+                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                          : "bg-[var(--color-surface-sunken)] border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                      }`}
+                    >
+                      {m === "Dinheiro" && <Banknote className="w-3 h-3" />}
+                      {m === "Pix" && <QrCode className="w-3 h-3" />}
+                      {m === "Cartão de Crédito" && <CreditCard className="w-3 h-3" />}
+                      {m === "Cartão de Débito" && <Wallet className="w-3 h-3" />}
+                      {m === "Misto" && <Split className="w-3 h-3" />}
+                      {m === "A Prazo (Crediário)" && <Calendar className="w-3 h-3" />}
+                      <span className="truncate">{m === "A Prazo (Crediário)" ? "A Prazo" : m}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sub-painel específico por forma de pagamento */}
+                {formaPagamento === "Dinheiro" && (
+                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-[var(--color-text-muted)]">Valor Recebido:</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={valorRecebido}
+                        onChange={(e) => setValorRecebido(e.target.value)}
+                        placeholder="R$ 0,00"
+                        className="w-28 px-2 py-1 text-right font-mono font-bold bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-xs"
+                      />
+                    </div>
+                    {/* Botões Rápidos de Cédulas */}
+                    <div className="flex gap-1 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setValorRecebido(total.toFixed(2))}
+                        className="px-2 py-0.5 text-[10px] font-bold rounded bg-[var(--color-surface)] border hover:border-blue-500"
+                      >
+                        Exato
+                      </button>
+                      {[20, 50, 100, 200].map((ced) => (
+                        <button
+                          key={ced}
+                          type="button"
+                          onClick={() => setValorRecebido(String(ced))}
+                          className="px-2 py-0.5 text-[10px] font-bold rounded bg-[var(--color-surface)] border hover:border-blue-500"
+                        >
+                          R$ {ced}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Alerta de Troco */}
+                    <div className="flex items-center justify-between pt-1 border-t border-[var(--color-border-subtle)] text-xs">
+                      <span className="font-black text-[var(--color-text-primary)]">Troco:</span>
+                      <span
+                        className={`font-black font-mono text-sm ${
+                          troco > 0
+                            ? "text-emerald-500"
+                            : valorFaltanteDinheiro > 0
+                            ? "text-amber-500"
+                            : "text-[var(--color-text-primary)]"
+                        }`}
+                      >
+                        {valorFaltanteDinheiro > 0
+                          ? `Faltam ${formatPrice(valorFaltanteDinheiro)}`
+                          : formatPrice(troco)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {formaPagamento === "Pix" && (
+                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-blue-500/30 space-y-2 text-center">
+                    <div className="w-20 h-20 mx-auto bg-white p-1.5 rounded-xl flex items-center justify-center shadow-inner">
+                      <QrCode className="w-16 h-16 text-slate-900" />
+                    </div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                      Chave Pix Aleatória gerada para esta venda:
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input
+                        readOnly
+                        value={`00020126580014br.gov.bcb.pix0136${tenantId.substring(0, 12)}5204000053039865802BR`}
+                        className="text-[9px] font-mono bg-[var(--color-surface)] border rounded px-2 py-1 flex-1 text-[var(--color-text-muted)] truncate"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText("00020126580014br.gov.bcb.pix");
+                          toast.success("Código Pix Copia e Cola copiado!");
+                        }}
+                        className="h-7 text-[10px] font-bold shrink-0"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPixConfirmado(true);
+                        if (soundEnabled) playPosSound("success");
+                        toast.success("Pagamento Pix confirmado!");
+                      }}
+                      className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        pixConfirmado
+                          ? "bg-emerald-600 text-white flex items-center justify-center gap-1.5"
+                          : "bg-blue-600/10 text-blue-500 hover:bg-blue-600/20 border border-blue-500/30"
+                      }`}
+                    >
+                      {pixConfirmado ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Pix Confirmado pelo Banco
+                        </>
+                      ) : (
+                        "Simular Confirmação Instantânea"
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {formaPagamento === "Cartão de Crédito" && (
+                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] space-y-2">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">
+                          Parcelamento:
+                        </label>
+                        <select
+                          value={parcelasCartao}
+                          onChange={(e) => setParcelasCartao(Number(e.target.value))}
+                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                            <option key={n} value={n}>
+                              {n}x de {formatPrice(total / n)} {n === 1 ? "(à vista)" : "sem juros"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">
+                          Bandeira:
+                        </label>
+                        <select
+                          value={bandeiraCartao}
+                          onChange={(e) => setBandeiraCartao(e.target.value)}
+                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
+                        >
+                          {["Mastercard", "Visa", "Elo", "Hipercard", "Amex"].map((b) => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {formaPagamento === "Cartão de Débito" && (
+                  <div className="p-2.5 bg-[var(--color-surface-sunken)] rounded-xl border border-[var(--color-border-subtle)] text-xs flex items-center justify-between">
+                    <span className="text-[var(--color-text-muted)] font-bold">Bandeira do Débito:</span>
+                    <select
+                      value={bandeiraCartao}
+                      onChange={(e) => setBandeiraCartao(e.target.value)}
+                      className="bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1 text-xs font-bold text-[var(--color-text-primary)]"
+                    >
+                      {["Mastercard Débito", "Visa Electron", "Elo Débito"].map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {formaPagamento === "Misto" && (
+                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-purple-500/30 space-y-2">
+                    <p className="text-[10px] text-[var(--color-text-muted)] font-semibold">
+                      Divida o pagamento em múltiplos meios até cobrir o total de <strong>{formatPrice(total)}</strong>:
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">Em Dinheiro</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={mistoDinheiro}
+                          onChange={(e) => setMistoDinheiro(e.target.value)}
+                          placeholder="0,00"
+                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">No Pix</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={mistoPix}
+                          onChange={(e) => setMistoPix(e.target.value)}
+                          placeholder="0,00"
+                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-0.5">No Cartão</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={mistoCartao}
+                          onChange={(e) => setMistoCartao(e.target.value)}
+                          placeholder="0,00"
+                          className="w-full px-2 py-1 text-xs font-mono bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg text-[var(--color-text-primary)]"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-xs pt-1 border-t border-[var(--color-border-subtle)]">
+                      <span className="text-[var(--color-text-muted)]">Informado: <strong>{formatPrice(totalMistoInformado)}</strong></span>
+                      <span className={`font-bold font-mono ${faltaMisto > 0 ? "text-amber-500" : "text-emerald-500"}`}>
+                        {faltaMisto > 0 ? `Faltam ${formatPrice(faltaMisto)}` : "Valor 100% coberto"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {formaPagamento === "A Prazo (Crediário)" && (
+                  <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-amber-500/30 space-y-2">
+                    <p className="text-[10px] text-amber-500 font-bold">
+                      Venda faturada a prazo na conta do cliente:
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-[10px] text-[var(--color-text-muted)] block mb-1">Prazo de Pagamento:</label>
+                        <select
+                          value={prazoDias}
+                          onChange={(e) => setPrazoDias(e.target.value)}
+                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] rounded-lg p-1.5 text-xs font-bold text-[var(--color-text-primary)]"
+                        >
+                          <option value="15">15 dias</option>
+                          <option value="30">30 dias</option>
+                          <option value="45">45 dias</option>
+                          <option value="60">60 dias</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[var(--color-text-muted)] block mb-1">Status no Financeiro:</label>
+                        <span className="block p-1.5 bg-amber-500/10 text-amber-500 rounded-lg text-center font-bold text-xs">
+                          Conta a Receber
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+</div>
+      </Modal>
+
+      {/* MODAL: QUEM RECEBE A COMISSÃO DO PRODUTO ADICIONADO */}
+      {(() => {
+        const alvo = cart.find((i) => i.productId === comissaoPend);
+        return (
+          <Modal
+            isOpen={!!alvo}
+            onClose={() => setComissaoPend(null)}
+            title="Quem recebe a comissão?"
+            description={alvo ? `${alvo.name} · comissão de ${alvo.comissaoPct}% sobre o valor do item` : undefined}
+            maxWidth="max-w-md"
+          >
+            <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
+              {colaboradoresAtivos.map((c: any) => {
+                const atual = alvo?.comissaoVendedor?.nome === c.nome || (!alvo?.comissaoVendedor && c.nome === vendedorSelecionado);
+                return (
+                  <button
+                    key={c.id || c.nome}
+                    type="button"
+                    onClick={() => alvo && definirComissaoItem(alvo.productId, { nome: c.nome, userId: c.user_id || null })}
+                    className={`w-full text-left px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${atual ? "border-blue-500/60 bg-blue-500/5 text-[var(--color-text-primary)]" : "border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] hover:border-blue-500/40"}`}
+                  >
+                    {c.nome}
+                    {c.cargo ? <span className="ml-2 font-normal text-[var(--color-text-muted)]">{c.cargo}</span> : null}
+                  </button>
+                );
+              })}
+              {colaboradoresAtivos.length === 0 && (
+                <p className="py-4 text-center text-xs text-[var(--color-text-muted)]">Nenhum colaborador ativo cadastrado na equipe.</p>
+              )}
+            </div>
+            <div className="pt-3 mt-3 border-t border-[var(--color-border-subtle)]">
+              <Button variant="outline" className="text-[var(--color-text-muted)]" onClick={() => alvo && definirComissaoItem(alvo.productId, null)}>
+                Sem comissão neste item
+              </Button>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {/* MODAL: CLIENTE (selecionar ou cadastrar) */}
+      <ClienteModal
+        isOpen={modalClienteOpen}
+        onClose={() => setModalClienteOpen(false)}
+        clientes={clienteBase as any[]}
+        leads={leads as any[]}
+        onSelectLead={handleSelecionarLead}
+        nomeAtual={clienteNome}
+        cpfAtual={clienteCpf}
+        onSelect={({ nome, cpf, id }) => { setClienteNome(nome); setClienteCpf(cpf); setClienteId(id || ""); }}
+        onNovoCliente={() => { setModalClienteOpen(false); setModalNovoClienteOpen(true); }}
+      />
+      <NovoClienteModal
+        isOpen={modalNovoClienteOpen}
+        onClose={() => { setModalNovoClienteOpen(false); setModalClienteOpen(true); }}
+        onAction={handleSalvarNovoCliente}
+      />
+
+      {/* MODAL: SUSPENDER (espera, remover item ou cancelar venda com senha de supervisor) */}
+      <SuspenderModal
+        isOpen={suspenderOpen !== false}
+        modoInicial={suspenderOpen === "cancelar" ? "cancelar" : "normal"}
+        onClose={() => setSuspenderOpen(false)}
+        itens={cart.map((i) => ({ productId: i.productId, name: i.name, quantidade: i.quantidade }))}
+        tenantId={activeTenantId}
+        exigirSenha={cfg.pdv.exigirSenhaSupervisor}
+        onEspera={handleSuspenderVenda}
+        onRemover={removerItensAutorizado}
+        onCancelarVenda={cancelarVendaAutorizado}
+      />
+    </PageContainer>
   );
 }

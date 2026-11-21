@@ -213,7 +213,7 @@ export default function NotasEntrada() {
     <PageContainer
       title="Notas de Entrada"
       description="Cadastre a nota fiscal de compra, ligue cada item ao produto e dê entrada no estoque."
-      breadcrumb={[{ label: "Varejo" }, { label: "Notas de Entrada" }]}
+      breadcrumb={[{ label: "Operações & Catálogo" }, { label: "Notas de Entrada" }]}
       actions={
         <div className="flex items-center gap-2">
           <input ref={fileRef} type="file" accept=".xml,text/xml,application/xml" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleXml(f); }} />

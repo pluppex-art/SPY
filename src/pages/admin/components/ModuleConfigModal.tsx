@@ -32,7 +32,7 @@ const MODULES_LIST = [
   { id: "imobiliaria", title: "Imobiliária", desc: "Imóveis, corretores, visitas e propostas", icon: Home, color: "text-orange-500" },
   { id: "concessionaria", title: "Concessionária", desc: "Veículos, estoques e consignações", icon: Car, color: "text-amber-600" },
   { id: "solar", title: "Energia Solar", desc: "Análise de fatura por IA e projetos", icon: Sun, color: "text-yellow-500" },
-  { id: "varejo", title: "Varejo & PDV", desc: "Venda direta no caixa e catálogo público", icon: ShoppingCart, color: "text-lime-500" },
+  { id: "varejo", title: "Ponto de Venda", desc: "Venda direta no caixa e catálogo público", icon: ShoppingCart, color: "text-lime-500" },
   { id: "dev", title: "Engenharia & Sprints", desc: "Backlog tech e controle de releases", icon: Code2, color: "text-slate-500" },
 ];
 

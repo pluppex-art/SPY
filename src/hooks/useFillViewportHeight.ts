@@ -17,7 +17,7 @@ function scrollParent(el: HTMLElement): HTMLElement | null {
  * Recalcula ao redimensionar a janela e quando o que está acima muda de altura
  * (painel de filtros abre/fecha, gráficos aparecem) — observando o pai.
  */
-export function useFillViewportHeight<T extends HTMLElement>(minHeight = 320) {
+export function useFillViewportHeight<T extends HTMLElement>(minHeight = 320, deps: readonly unknown[] = []) {
   const ref = useRef<T>(null);
   const [height, setHeight] = useState<number | undefined>(undefined);
 
@@ -42,7 +42,7 @@ export function useFillViewportHeight<T extends HTMLElement>(minHeight = 320) {
     if (el.parentElement) ro.observe(el.parentElement);
     if (container) ro.observe(container);
     return () => { window.removeEventListener("resize", calc); ro.disconnect(); };
-  }, [minHeight]);
+  }, [minHeight, ...deps]);
 
   return { ref, height };
 }
