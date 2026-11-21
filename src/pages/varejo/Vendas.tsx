@@ -21,7 +21,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
-import { custoParaVenda, eanDoProduto, produtoTemCodigo } from "../../lib/tabelaPrecos";
+import { produtoVendavel, custoParaVenda, eanDoProduto, produtoTemCodigo } from "../../lib/tabelaPrecos";
 import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
 import { ClienteModal } from "./pdv/ClienteModal";
 import { SuspenderModal } from "./pdv/SuspenderModal";
@@ -418,14 +418,14 @@ export default function VarejoVendas() {
   const categories = useMemo(() => {
     const set = new Set<string>();
     products.forEach((p: any) => {
-      if (p.category) set.add(p.category);
+      if (p.category && produtoVendavel(p)) set.add(p.category);
     });
     return ["Todas", ...Array.from(set)];
   }, [products]);
 
   const produtosDisponiveis = useMemo(() => {
     return products.filter((p: any) => {
-      if (p.active === false) return false;
+      if (!produtoVendavel(p)) return false;
       if (selectedCategory !== "Todas" && p.category !== selectedCategory) return false;
       // Sem estoque só aparece quando o operador pesquisa; na lista padrão ficam só os disponíveis.
       if (!search.trim()) return (p.currentStock ?? 0) > 0;

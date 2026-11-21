@@ -40,3 +40,12 @@ test("busca no caixa: SKU ou código de barras, ignora maiúscula e pontuação;
   assert.equal(produtoTemCodigo(p, ""), false);
   assert.equal(produtoTemCodigo({ sku: "", typeAttributes: {} }, "x"), false);
 });
+
+import { produtoVendavel } from "../../src/lib/tabelaPrecos.js";
+test("vendável: preço interno de reserva e produto inativo não aparecem no balcão nem em proposta", () => {
+  assert.equal(produtoVendavel({ type: "Físico" }), true);
+  assert.equal(produtoVendavel({ type: "Exame" }), true);
+  assert.equal(produtoVendavel({ type: "Reserva" }), false);
+  assert.equal(produtoVendavel({ type: "Físico", active: false }), false);
+  assert.equal(produtoVendavel(null), false);
+});

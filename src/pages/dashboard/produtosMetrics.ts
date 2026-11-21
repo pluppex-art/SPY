@@ -1,4 +1,5 @@
 import { parseCurrencyBR } from "../../lib/utils";
+import { margemPct } from "../../lib/tabelaPrecos";
 import { getProposalItemMonthlyValue, getProposalItemRealValue, getProposalDiscountRatio } from "../../lib/saleCalculator";
 import { dentro, faixaAnterior, type Faixa } from "./vendedoresMetrics";
 
@@ -69,7 +70,7 @@ function margemDoProduto(p: any): number | null {
   if (m !== undefined && m !== null && m !== "" && Number.isFinite(Number(m))) return Number(m);
   const preco = Number(p?.price) || 0;
   const custo = Number(p?.cost) || 0;
-  return preco > 0 && custo > 0 ? Math.round(((preco - custo) / preco) * 1000) / 10 : null;
+  return preco > 0 && custo > 0 ? margemPct(preco, custo) : null;
 }
 
 export function computeProdutos(dados: DadosProdutos, periodo: Faixa, hoje = new Date()) {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { margemPct } from "../../../lib/tabelaPrecos";
 import { createPortal } from "react-dom";
 import { X, Package, DollarSign, Layers, Info, Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -80,7 +81,7 @@ export function ProdutoVisualizarModal({ produto, onClose, podeEditar, tenantId,
   const ao = typeof vivo === "object" && vivo ? vivo : null;
   const saldo = ao ? ao.saldo : Number(p.currentStock) || 0, min = ao ? ao.minimo : Number(p.stockMin) || 0;
   const situacao = saldo <= 0 ? { t: "Sem saldo", c: "text-danger" } : saldo <= min ? { t: "Abaixo do mínimo", c: "text-warning" } : { t: "Em estoque", c: "text-success" };
-  const margem = p.price > 0 ? ((p.price - p.cost) / p.price) * 100 : null;
+  const margem = p.price > 0 ? margemPct(p.price, p.cost) : null;
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>

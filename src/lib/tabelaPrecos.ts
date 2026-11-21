@@ -31,3 +31,9 @@ export function produtoTemCodigo(p: any, codigo: string): boolean {
   if (!c) return false;
   return String(p?.sku ?? "").replace(/[^0-9a-z]/gi, "").toLowerCase() === c || eanDoProduto(p) === c;
 }
+
+/** Tipos que vivem em products só para guardar um preço interno (ex.: hora de reserva do agendamento) e não são vendidos no balcão nem em proposta. */
+export const TIPOS_INTERNOS = ["Reserva"];
+export function produtoVendavel(p: { type?: unknown; active?: unknown } | null | undefined): boolean {
+  return !!p && p.active !== false && !TIPOS_INTERNOS.includes(String(p.type ?? ""));
+}

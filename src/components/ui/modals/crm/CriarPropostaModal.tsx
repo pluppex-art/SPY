@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { produtoVendavel } from "../../../../lib/tabelaPrecos";
 import { friendlyError } from "../../../../lib/friendlyError";
 import { FileText, List, PenLine, Upload, Loader2 } from "lucide-react";
 import { Modal } from "../../modal";
@@ -69,7 +70,7 @@ export function CriarPropostaModal({
     const [loading, setLoading] = useState(false);
     const { products, clienteBase } = useData();
     const { activeTenantId } = useAuth();
-    const activeProducts = useMemo(() => products.filter((p: any) => p.active !== false), [products]);
+    const activeProducts = useMemo(() => products.filter((p: any) => produtoVendavel(p)), [products]);
 
     useEffect(() => {
         if (!isOpen) return;
