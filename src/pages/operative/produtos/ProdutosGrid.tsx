@@ -14,6 +14,8 @@ interface ProdutosGridProps {
   setSelectedCategories: React.Dispatch<React.SetStateAction<string[]>>;
   setSearchTerm: (term: string) => void;
   handleVender: (p: Product, e: React.MouseEvent) => void;
+  /** Esconde o botão Vender (cria proposta) quando a empresa desligou a página de propostas. */
+  ocultarVender?: boolean;
 }
 
 import { getProductSubtitle } from "./typeSchemas";
@@ -29,6 +31,7 @@ export function ProdutosGrid({
   setSelectedCategories,
   setSearchTerm,
   handleVender,
+  ocultarVender,
 }: ProdutosGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -173,12 +176,12 @@ export function ProdutosGrid({
             </div>
 
             {/* Vender action */}
-            <button
+            {!ocultarVender && <button
               onClick={(e) => handleVender(p, e)}
               className="mt-3.5 w-full h-9 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
             >
               <ShoppingCart className="w-3.5 h-3.5" /> Vender
-            </button>
+            </button>}
 
             {/* Tags row in card bottom */}
             <div className="mt-3.5 flex gap-1 items-center overflow-x-auto scrollbar-none">

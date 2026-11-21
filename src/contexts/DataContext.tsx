@@ -30,6 +30,7 @@ import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
 import { friendlyError } from "../lib/friendlyError";
 import { normalizarStatusLead } from "../lib/leadStatus";
+import { mapaPapelPorEtapa, statusPelaEtapa } from "../lib/statusPelaEtapa";
 import { completarBaixa } from '../pages/finance/lib/baixa';
 import { montarEstorno, podeEstornar } from '../pages/finance/lib/estorno';
 import { deveLancarGanho, idLancamentoDoGanho, montarLancamentoDoGanho } from '../pages/finance/lib/ganho';
@@ -497,6 +498,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const [leadsRaw, setLeads] = useState<Lead[]>(defaultLeads);
+  // Funis do CRM (crm_funis): declarados aqui porque o status do negócio também depende da etapa em que ele está.
+  const [funis, setFunis] = useState<any[]>([]);
 
   const [tasksRaw, setTasks] = useState<Task[]>(defaultTasks);
 
@@ -553,12 +556,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const leads = useMemo(() => {
     // "Ganho" e "Fechado" são a mesma coisa (ver leadStatus.ts): em memória todo sinônimo vira "Fechado", então
     // Pipeline, dashboards, totais e filtros tratam igual. Só clona o lead que de fato tem outro nome.
-    const base = leadsRaw.some((l: any) => l.status !== normalizarStatusLead(l.status))
-      ? leadsRaw.map((l: any) => (l.status !== normalizarStatusLead(l.status) ? { ...l, status: 'Fechado' } : l))
+    // O status também acompanha a COLUNA: card na etapa "Ganho" com status "Novo" (movido por integração/Agente Secreto) conta como ganho.
+    const papelPorEtapa = mapaPapelPorEtapa(funis);
+    const statusDe = (l: any) => statusPelaEtapa(normalizarStatusLead(l.status), l.stageId, papelPorEtapa);
+    const base = leadsRaw.some((l: any) => l.status !== statusDe(l))
+      ? leadsRaw.map((l: any) => (l.status !== statusDe(l) ? { ...l, status: statusDe(l) } : l))
       : leadsRaw;
     if (!activeFilialId) return base;
     return base.filter((l: any) => l.customFields?.origin === 'maxdata' ? l.customFields?.fonte === unidadeFilial : (l.filial_id === activeFilialId || (filialAtivaEhPrincipal && !l.filial_id)));
-  }, [leadsRaw, activeFilialId, unidadeFilial, filialAtivaEhPrincipal]);
+  }, [leadsRaw, funis, activeFilialId, unidadeFilial, filialAtivaEhPrincipal]);
   // Ticket médio dos leads Fechado do tenant — usado só como ESTIMATIVA de
   // exibição pra leads "Novo" sem valor/produto ainda (ex.: cliente cadastrado
   // que nunca reservou/comprou). Nunca escreve em leads.value nem entra em
@@ -675,7 +681,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // ─── Funis do CRM (crm_funis) ────────────────────────────────────────────
   // Substitui o antigo "axis_funis_config" (localStorage + app_settings sem
   // filtro de tenant) pela tabela dedicada que já existia sem uso.
-  const [funis, setFunis] = useState<any[]>([]);
 
   const rowToFunil = (r: any) => ({
     id: r.id,

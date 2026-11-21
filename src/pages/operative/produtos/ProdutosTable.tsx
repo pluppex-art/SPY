@@ -13,6 +13,7 @@ interface ProdutosTableProps {
   duplicateProduct: (p: Product, e: React.MouseEvent) => void;
   deleteProduct: (id: string, e: React.MouseEvent) => void;
   handleVender: (p: Product, e: React.MouseEvent) => void;
+  ocultarVender?: boolean;
 }
 
 import { getProductSubtitle } from "./typeSchemas";
@@ -28,6 +29,7 @@ export function ProdutosTable({
   duplicateProduct,
   deleteProduct,
   handleVender,
+  ocultarVender,
 }: ProdutosTableProps) {
   return (
     <Card className="bg-[var(--color-surface-elevated)]/85 border-[var(--color-border-subtle)] shadow-xl overflow-hidden">
@@ -123,14 +125,14 @@ export function ProdutosTable({
                   </td>
                   <td className="py-4 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-1 justify-end">
-                      <button
+                      {!ocultarVender && <button
                         onClick={(e) => handleVender(p, e)}
                         className="p-1 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-400 rounded transition-colors"
                         title="Vender"
                         aria-label="Vender"
                       >
                         <ShoppingCart className="w-3.5 h-3.5" />
-                      </button>
+                      </button>}
                       <button
                         onClick={(e) => handleOpenEditModal(p, e)}
                         className="p-1 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded transition-colors"

@@ -7,6 +7,7 @@ import { round2 } from "./src/lib/dinheiro.js";
 import { criarEstorno, decidirEscritaExterna, soCamposPermitidos } from "./server/financeEstorno.js";
 import { prepararValor, valorDoLead } from "./src/lib/valorDoLead.js";
 import { isLeadWon } from "./src/lib/leadStatus.js";
+import { mapaPapelPorEtapa, statusPelaEtapa } from "./src/lib/statusPelaEtapa.js";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -1078,7 +1079,7 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
     const monthKey = (d: string) => d.slice(0, 7);
     const sumBy = (rows: { value: number | null }[]) => rows.reduce((s, r) => s + (Number(r.value) || 0), 0);
 
-    const [leadsAll, contracts, entries, clientesAll, tasksAll, reunioesAll, propostasAll, produtosAll, vendasPdvAll] = await Promise.all([
+    const [leadsAll, contracts, entries, clientesAll, tasksAll, reunioesAll, propostasAll, produtosAll, vendasPdvAll, funisAll] = await Promise.all([
       fetchAllRowsPaginated(sb, "leads", '"id",status,value,source,seller,"stageId","pipelineId",created_at,"productIds",interesseIds:customFields->produtosInteresseIds', (q) => q.eq("tenant_id", tenantId)) as Promise<
         { id: string; status: string; value: number | null; source: string | null; seller: string | null; stageId: string | null; pipelineId: string | null; created_at: string; productIds?: string[] | null; interesseIds?: unknown }[]
       >,
@@ -1097,7 +1098,12 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
       fetchAllRowsPaginated(sb, "products", "id,price", (q) => q.eq("tenant_id", tenantId).is("deleted_at", null)) as Promise<{ id: string; price: number | null }[]>,
       // Venda do PDV = negócio ganho (mesma coisa que "Fechado"). Só as nativas: venda importada de outro sistema já entra como lead fechado.
       fetchAllRowsPaginated(sb, "vendas", "id,valor_total,created_at,paid_at,vendedor_nome", (q) => q.eq("tenant_id", tenantId).eq("status", "paga").is("externo_sistema", null)) as Promise<{ id: string; valor_total: number | null; created_at: string; paid_at: string | null; vendedor_nome: string | null }[]>,
+      fetchAllRowsPaginated(sb, "crm_funis", "id,etapas", (q) => q.eq("tenant_id", tenantId)) as Promise<{ id: string; etapas: unknown }[]>,
     ]);
+
+    // A coluna do Kanban manda: negócio aberto que está na etapa Ganho/Perdido/Desqualificado conta como tal (mesma regra da tela).
+    const papelPorEtapa = mapaPapelPorEtapa(funisAll);
+    for (const l of leadsAll) l.status = (statusPelaEtapa(l.status, l.stageId, papelPorEtapa) ?? l.status) as string;
 
     // Valor de cada negócio pela regra única (src/lib/valorDoLead.ts): a mesma do Pipeline, dos cards e dos dashboards da tela.
     const ctxValor = prepararValor(propostasAll, produtosAll);

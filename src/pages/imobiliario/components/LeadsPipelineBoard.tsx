@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useRecursoAtivo } from "../../../lib/useRecursoAtivo";
+import { ROTA_PROPOSTAS } from "../../../lib/paginasOcultas";
 import { Button } from "../../../components/ui/button";
 import {
   Plus, X, Trophy, ThumbsDown, ChevronRight, Check, Brain,
@@ -284,6 +286,7 @@ function LeadDetailDrawer({ lead, onClose, onEdit, onGanho, onPerdido, onDelete,
   const [isPropostaModalOpen, setIsPropostaModalOpen] = useState(false);
   const [novaTarefaTitulo, setNovaTarefaTitulo] = useState("");
   const { createProposalWithItems, tasks, addTask, updateTask, deleteTask } = useData();
+  const propostasAtivas = useRecursoAtivo(ROTA_PROPOSTAS);
   const { user } = useAuth();
   const { formatCurrency } = useLocalization();
 
@@ -527,7 +530,7 @@ function LeadDetailDrawer({ lead, onClose, onEdit, onGanho, onPerdido, onDelete,
               <div className="bg-[var(--color-surface-elevated)] border border-white/[0.06] rounded-xl p-4">
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-3">Ações Rápidas</p>
                 <div className="grid grid-cols-3 gap-2">
-                  {QUICK_ACTIONS.map(a => (
+                  {QUICK_ACTIONS.filter(a => propostasAtivas || a.label !== "Proposta").map(a => (
                     a.href ? (
                       <a
                         key={a.label}
@@ -579,6 +582,7 @@ function LeadDetailDrawer({ lead, onClose, onEdit, onGanho, onPerdido, onDelete,
                   </div>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed mb-3">{AI_MSG[lead.etapa]}</p>
+                {propostasAtivas && (
                 <div className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2">
                   <span className="text-[10px] text-slate-600">Sugestão de ação:</span>
                   <button
@@ -588,6 +592,7 @@ function LeadDetailDrawer({ lead, onClose, onEdit, onGanho, onPerdido, onDelete,
                     Aplicar Proposta →
                   </button>
                 </div>
+                )}
               </div>
 
               {/* Tags */}

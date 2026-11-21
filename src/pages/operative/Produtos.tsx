@@ -1,4 +1,6 @@
 import { useNicheProfiles } from "./produtos/useNicheProfiles";
+import { useRecursoAtivo } from "../../lib/useRecursoAtivo";
+import { ROTA_PROPOSTAS } from "../../lib/paginasOcultas";
 import { formatBRL } from "../../lib/dinheiro";
 import VarejoEstoque from "../varejo/Estoque";
 import { useUnidadeMax } from "../../lib/unidadeMaxdata";
@@ -78,6 +80,7 @@ function Catalog() {
 
   const [sellingProduct, setSellingProduct] = useState<Product | null>(null);
 
+  const propostasAtivas = useRecursoAtivo(ROTA_PROPOSTAS);
   const handleVender = (p: Product, e: React.MouseEvent) => {
     e.stopPropagation();
     setSellingProduct(p);
@@ -283,6 +286,7 @@ function Catalog() {
                 setSelectedCategories={f.setSelectedCategories}
                 setSearchTerm={f.setSearchTerm}
                 handleVender={mx.ativo ? (_p: Product, e: React.MouseEvent) => { e.stopPropagation(); somenteConsulta(); } : handleVender}
+                ocultarVender={!propostasAtivas}
               />
             ) : (
               <ProdutosTable
@@ -295,6 +299,7 @@ function Catalog() {
                 duplicateProduct={mx.ativo ? somenteConsulta : f.duplicateProduct}
                 deleteProduct={mx.ativo ? somenteConsulta : f.deleteProduct}
                 handleVender={mx.ativo ? (_p: Product, e: React.MouseEvent) => { e.stopPropagation(); somenteConsulta(); } : handleVender}
+                ocultarVender={!propostasAtivas}
               />
             )}
             <Pagination page={page} totalPages={totalPages} total={viewTotal} pageSize={PAGE_SIZE} loading={mx.loading} onPageChange={setPage} itemLabel="produto" />
