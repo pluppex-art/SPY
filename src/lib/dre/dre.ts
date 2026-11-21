@@ -151,3 +151,21 @@ export function separarLegado<T extends LancamentoDre>(entries: T[]): { novos: T
 /** Quantidade efetiva de um item vendido (quantidade_decimal para produto pesado/fracionado, senão a inteira). */
 export const quantidadeDoItem = (i: { quantidade?: number | string | null; quantidade_decimal?: number | string | null }): number =>
   i.quantidade_decimal !== null && i.quantidade_decimal !== undefined ? num(i.quantidade_decimal) : num(i.quantidade);
+
+// ─────────────────────────── Regra de datas dos relatórios (uma só, para tela e servidor) ───────────────────────────
+//  • Resultado (DRE)                       -> COMPETÊNCIA : competencia_date, e date_normalized quando a linha não tem.
+//  • Caixa (só "Pago": entradas, saídas,   -> PAGAMENTO   : data_pagamento, e date_normalized em lançamento antigo.
+//    fluxo, saldo, resultado realizado)
+//  • Aberto (a vencer, atrasado, agenda,   -> VENCIMENTO  : date_normalized.
+//    previsto, inadimplência)
+export interface LinhaComDatas { competencia_date?: string | null; data_pagamento?: string | null; date_normalized?: string | null }
+const dia10 = (d?: string | null) => (d ? String(d).slice(0, 10) : null);
+export const diaCompetencia = (e: LinhaComDatas): string | null => dia10(e.competencia_date) ?? dia10(e.date_normalized);
+export const diaCaixa = (e: LinhaComDatas): string | null => dia10(e.data_pagamento) ?? dia10(e.date_normalized);
+export const diaVencimento = (e: LinhaComDatas): string | null => dia10(e.date_normalized);
+
+/** Filtro `.or(...)` do PostgREST: a coluna principal dentro do período; se ela estiver vazia, vale date_normalized. `fim` pode faltar (período aberto). */
+export function filtroPeriodoOr(coluna: "competencia_date" | "data_pagamento", inicio: string, fim?: string): string {
+  const faixa = (c: string) => `${c}.gte.${inicio}${fim ? `,${c}.lte.${fim}` : ""}`;
+  return `and(${faixa(coluna)}),and(${coluna}.is.null,${faixa("date_normalized")})`;
+}

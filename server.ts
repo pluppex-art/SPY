@@ -10,7 +10,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
-import { calcularDRELegado, calcularDreCompleto, cmvDosItens, filtrarPeriodo, quantidadeDoItem, separarLegado, type LancamentoDre, type RegimeDre } from "./src/lib/dre/dre.js";
+import { calcularDRELegado, diaCaixa, filtroPeriodoOr, calcularDreCompleto, cmvDosItens, filtrarPeriodo, quantidadeDoItem, separarLegado, type LancamentoDre, type RegimeDre } from "./src/lib/dre/dre.js";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
 import { createGoogleIntegrationsRouter, makeInitialSync } from "./server/googleIntegrations.js";
 import { createSaas, aiContext } from "./server/saas.js";
@@ -962,7 +962,7 @@ app.get("/api/finance/visao-geral-summary", requireUserOrInternalService, async 
 
     const sb = req.supabase;
     const [entries, contracts] = await Promise.all([
-      fetchAllRowsPaginated(sb, "finance_entries", "type,status,value,date_normalized,category", (q) => q.eq("tenant_id", tenantId)) as Promise<{ type: string; status: string; value: number; date_normalized: string | null; category: string | null }[]>,
+      fetchAllRowsPaginated(sb, "finance_entries", "type,status,value,date_normalized,data_pagamento,category", (q) => q.eq("tenant_id", tenantId)) as Promise<{ type: string; status: string; value: number; data_pagamento?: string | null; date_normalized: string | null; category: string | null }[]>,
       fetchAllRowsPaginated(sb, "contracts", "mrr_value,status", (q) => q.eq("tenant_id", tenantId)) as Promise<{ mrr_value: number | null; status: string }[]>,
     ]);
 
@@ -981,10 +981,10 @@ app.get("/api/finance/visao-geral-summary", requireUserOrInternalService, async 
     const inMonth = (d: string | null, prefix: string) => !!d && d.startsWith(prefix);
     const inRange = (d: string | null, from: string, to: string) => !!d && d >= from && d <= to;
 
-    const receitaMes = sum(entries.filter(f => f.type === "Receber" && f.status === "Pago" && inMonth(f.date_normalized, curMonthPrefix)));
-    const receitaMesAnt = sum(entries.filter(f => f.type === "Receber" && f.status === "Pago" && inMonth(f.date_normalized, prevMonthPrefix)));
-    const despesaMes = sum(entries.filter(f => f.type === "Pagar" && f.status === "Pago" && inMonth(f.date_normalized, curMonthPrefix)));
-    const despesaMesAnt = sum(entries.filter(f => f.type === "Pagar" && f.status === "Pago" && inMonth(f.date_normalized, prevMonthPrefix)));
+    const receitaMes = sum(entries.filter(f => f.type === "Receber" && f.status === "Pago" && inMonth(diaCaixa(f), curMonthPrefix)));
+    const receitaMesAnt = sum(entries.filter(f => f.type === "Receber" && f.status === "Pago" && inMonth(diaCaixa(f), prevMonthPrefix)));
+    const despesaMes = sum(entries.filter(f => f.type === "Pagar" && f.status === "Pago" && inMonth(diaCaixa(f), curMonthPrefix)));
+    const despesaMesAnt = sum(entries.filter(f => f.type === "Pagar" && f.status === "Pago" && inMonth(diaCaixa(f), prevMonthPrefix)));
 
     const abertoReceber = entries.filter(f => f.type === "Receber" && (f.status === "A Vencer" || f.status === "Atrasado"));
     const abertoPagar = entries.filter(f => f.type === "Pagar" && (f.status === "A Vencer" || f.status === "Atrasado"));
@@ -998,8 +998,8 @@ app.get("/api/finance/visao-geral-summary", requireUserOrInternalService, async 
       .filter(c => c.status !== "Cancelado" && c.status !== "Perdido")
       .reduce((s, c) => s + (Number(c.mrr_value) || 0), 0);
 
-    const hojeEntradas = sum(entries.filter(f => f.type === "Receber" && f.status === "Pago" && f.date_normalized === todayIso));
-    const hojeSaidas = sum(entries.filter(f => f.type === "Pagar" && f.status === "Pago" && f.date_normalized === todayIso));
+    const hojeEntradas = sum(entries.filter(f => f.type === "Receber" && f.status === "Pago" && diaCaixa(f) === todayIso));
+    const hojeSaidas = sum(entries.filter(f => f.type === "Pagar" && f.status === "Pago" && diaCaixa(f) === todayIso));
     const aReceber7 = sum(entries.filter(f => f.type === "Receber" && f.status === "A Vencer" && inRange(f.date_normalized, todayIso, next7Iso)));
     const aPagar7 = sum(entries.filter(f => f.type === "Pagar" && f.status === "A Vencer" && inRange(f.date_normalized, todayIso, next7Iso)));
     const vencendoEm3 = entries.filter(f => f.status === "A Vencer" && inRange(f.date_normalized, todayIso, next3Iso));
@@ -1080,8 +1080,8 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
         { id: string; status: string; value: number | null; source: string | null; seller: string | null; stageId: string | null; pipelineId: string | null; created_at: string }[]
       >,
       fetchAllRowsPaginated(sb, "contracts", "mrr_value,status", (q) => q.eq("tenant_id", tenantId)) as Promise<{ mrr_value: number | null; status: string }[]>,
-      fetchAllRowsPaginated(sb, "finance_entries", "type,status,value,date_normalized", (q) => q.eq("tenant_id", tenantId)) as Promise<
-        { type: string; status: string; value: number; date_normalized: string | null }[]
+      fetchAllRowsPaginated(sb, "finance_entries", "type,status,value,date_normalized,data_pagamento", (q) => q.eq("tenant_id", tenantId)) as Promise<
+        { type: string; status: string; value: number; date_normalized: string | null; data_pagamento?: string | null }[]
       >,
       fetchAllRowsPaginated(sb, "clientes", "status,created_at", (q) => q.eq("tenant_id", tenantId)) as Promise<{ status: string | null; created_at: string }[]>,
       fetchAllRowsPaginated(sb, "tasks", "status,due_date,assigned_to,created_at", (q) => q.eq("tenant_id", tenantId)) as Promise<
@@ -1132,8 +1132,8 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
     }
 
     // ── Financeiro ────────────────────────────────────────────────────────
-    const receitaRecebidaRows = entries.filter((e) => e.type === "Receber" && e.status === "Pago" && inRange(e.date_normalized, from, to));
-    const despesasPagasRows = entries.filter((e) => e.type === "Pagar" && e.status === "Pago" && inRange(e.date_normalized, from, to));
+    const receitaRecebidaRows = entries.filter((e) => e.type === "Receber" && e.status === "Pago" && inRange(diaCaixa(e), from, to));
+    const despesasPagasRows = entries.filter((e) => e.type === "Pagar" && e.status === "Pago" && inRange(diaCaixa(e), from, to));
     const receitaAReceberRows = entries.filter((e) => e.type === "Receber" && (e.status === "A Vencer" || e.status === "Atrasado"));
     const despesasAPagarRows = entries.filter((e) => e.type === "Pagar" && (e.status === "A Vencer" || e.status === "Atrasado"));
     const inadimplenciaRows = entries.filter((e) => e.type === "Receber" && e.status === "Atrasado");
@@ -1143,8 +1143,8 @@ app.get("/api/dashboard/bi-summary", requireUserOrInternalService, async (req: a
 
     const evolucaoFinanceira = new Map<string, { receita: number; despesa: number }>();
     for (const e of entries) {
-      if (!inRange(e.date_normalized, from, to) || e.status !== "Pago") continue;
-      const key = monthKey(e.date_normalized!);
+      if (!inRange(diaCaixa(e), from, to) || e.status !== "Pago") continue;
+      const key = monthKey(diaCaixa(e)!);
       const cur = evolucaoFinanceira.get(key) || { receita: 0, despesa: 0 };
       if (e.type === "Receber") cur.receita += Number(e.value) || 0;
       else cur.despesa += Number(e.value) || 0;
@@ -1409,7 +1409,7 @@ app.get("/api/finance/dre-summary", requireUserOrInternalService, async (req: an
     const sb = req.supabase;
     const [entries, categoryRows] = await Promise.all([
       fetchAllRowsPaginated(sb, "finance_entries", "type,status,value,category_id",
-        (q) => q.eq("tenant_id", tenantId).gte("date_normalized", startDate).lte("date_normalized", endDate)) as Promise<{ type: string; status: string; value: number; category_id: string | null }[]>,
+        (q) => q.eq("tenant_id", tenantId).or(filtroPeriodoOr("competencia_date", startDate, endDate))) as Promise<{ type: string; status: string; value: number; category_id: string | null }[]>,
       fetchAllRowsPaginated(sb, "finance_categories", "id,subtipo", (q) => q.eq("tenant_id", tenantId)),
     ]);
 
@@ -1528,13 +1528,14 @@ app.get("/api/finance/performance-mensal-summary", requireUserOrInternalService,
     const startDate = `${months[0].y}-${String(months[0].m + 1).padStart(2, "0")}-01`;
 
     const sb = req.supabase;
-    const rows = await fetchAllRowsPaginated(sb, "finance_entries", "type,value,date_normalized",
-      (q) => q.eq("tenant_id", tenantId).eq("status", "Pago").gte("date_normalized", startDate));
+    const rows = await fetchAllRowsPaginated(sb, "finance_entries", "type,value,date_normalized,data_pagamento",
+      (q) => q.eq("tenant_id", tenantId).eq("status", "Pago").or(filtroPeriodoOr("data_pagamento", startDate)));
 
     const byMonth = new Map<string, { receita: number; despesa: number }>();
-    for (const r of (rows || []) as { type: string; value: number; date_normalized: string | null }[]) {
-      if (!r.date_normalized) continue;
-      const key = r.date_normalized.slice(0, 7);
+    for (const r of (rows || []) as { type: string; value: number; date_normalized: string | null; data_pagamento?: string | null }[]) {
+      const dia = diaCaixa(r);
+      if (!dia) continue;
+      const key = dia.slice(0, 7);
       const cur = byMonth.get(key) || { receita: 0, despesa: 0 };
       if (r.type === "Receber") cur.receita += Number(r.value) || 0;
       else if (r.type === "Pagar") cur.despesa += Number(r.value) || 0;
@@ -1583,10 +1584,10 @@ app.get("/api/finance/performance-anual-summary", requireUserOrInternalService, 
     }
 
     const sb = req.supabase;
-    type PerfEntry = { id: string; type: string; value: number; description: string | null; category: string | null; category_id: string | null; date_normalized: string | null };
+    type PerfEntry = { id: string; type: string; value: number; description: string | null; category: string | null; category_id: string | null; date_normalized: string | null; data_pagamento?: string | null };
     const [entryRows, categoryRows] = await Promise.all([
-      fetchAllRowsPaginated(sb, "finance_entries", "id,type,value,description,category,category_id,date_normalized",
-        (q) => q.eq("tenant_id", tenantId).eq("status", "Pago").gte("date_normalized", `${ano - 1}-01-01`).lte("date_normalized", `${ano}-12-31`)) as Promise<PerfEntry[]>,
+      fetchAllRowsPaginated(sb, "finance_entries", "id,type,value,description,category,category_id,date_normalized,data_pagamento",
+        (q) => q.eq("tenant_id", tenantId).eq("status", "Pago").or(filtroPeriodoOr("data_pagamento", `${ano - 1}-01-01`, `${ano}-12-31`))) as Promise<PerfEntry[]>,
       fetchAllRowsPaginated(sb, "finance_categories", "id,subtipo", (q) => q.eq("tenant_id", tenantId)),
     ]);
 
@@ -1598,8 +1599,8 @@ app.get("/api/finance/performance-anual-summary", requireUserOrInternalService, 
     };
 
     const all = (entryRows || []) as PerfEntry[];
-    const atual = all.filter((e) => e.date_normalized && e.date_normalized.slice(0, 4) === String(ano));
-    const anterior = all.filter((e) => e.date_normalized && e.date_normalized.slice(0, 4) === String(ano - 1));
+    const atual = all.filter((e) => (diaCaixa(e) ?? "").slice(0, 4) === String(ano));
+    const anterior = all.filter((e) => (diaCaixa(e) ?? "").slice(0, 4) === String(ano - 1));
 
     const somaTipo = (arr: PerfEntry[], type: string) => arr.filter((e) => e.type === type).reduce((s, e) => s + (Number(e.value) || 0), 0);
     const receitaAtual = somaTipo(atual, "Receber"), receitaAnterior = somaTipo(anterior, "Receber");
@@ -1670,16 +1671,17 @@ app.get("/api/finance/fluxo-caixa-summary", requireUserOrInternalService, async 
     }
 
     const sb = req.supabase;
-    const rows = await fetchAllRowsPaginated(sb, "finance_entries", "type,value,date_normalized",
-      (q) => q.eq("tenant_id", tenantId).eq("status", "Pago").gte("date_normalized", startDate).lte("date_normalized", endDate));
+    const rows = await fetchAllRowsPaginated(sb, "finance_entries", "type,value,date_normalized,data_pagamento",
+      (q) => q.eq("tenant_id", tenantId).eq("status", "Pago").or(filtroPeriodoOr("data_pagamento", startDate, endDate)));
 
     const buckets = new Map<string, { entradas: number; saidas: number }>();
-    for (const r of (rows || []) as { type: string; value: number; date_normalized: string | null }[]) {
-      if (!r.date_normalized) continue;
-      const cur = buckets.get(r.date_normalized) || { entradas: 0, saidas: 0 };
+    for (const r of (rows || []) as { type: string; value: number; date_normalized: string | null; data_pagamento?: string | null }[]) {
+      const dia = diaCaixa(r);
+      if (!dia) continue;
+      const cur = buckets.get(dia) || { entradas: 0, saidas: 0 };
       if (r.type === "Receber") cur.entradas += Number(r.value) || 0;
       else if (r.type === "Pagar") cur.saidas += Number(r.value) || 0;
-      buckets.set(r.date_normalized, cur);
+      buckets.set(dia, cur);
     }
 
     let acumulado = 0;

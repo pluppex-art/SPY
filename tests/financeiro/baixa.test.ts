@@ -20,3 +20,12 @@ test("baixa: Pago sem conta recebe a principal; já preenchida não muda; não-P
   assert.equal(completarBaixa<{ status: string; conta_bancaria_id?: string | null }>({ status: "Pago" }, [], undefined).conta_bancaria_id, undefined);
   assert.equal("data_pagamento" in completarBaixa({ status: "Pago" }, contas), false);
 });
+
+test("baixa de lançamento aberto leva data_pagamento = hoje; já criado como Pago deixa o banco preencher; data informada é respeitada", () => {
+  type T = { status: string; conta_bancaria_id?: string | null; data_pagamento?: string | null };
+  assert.equal(completarBaixa<T>({ status: "Pago" }, contas, "A Vencer", "2026-11-21").data_pagamento, "2026-11-21");
+  assert.equal(completarBaixa<T>({ status: "Pago" }, contas, "Atrasado", "2026-11-21").data_pagamento, "2026-11-21");
+  assert.equal(completarBaixa<T>({ status: "Pago" }, contas, undefined, "2026-11-21").data_pagamento, undefined);
+  assert.equal(completarBaixa<T>({ status: "Pago", data_pagamento: "2026-11-05" }, contas, "A Vencer", "2026-11-21").data_pagamento, "2026-11-05");
+  assert.equal(completarBaixa<T>({ status: "Pago" }, contas, "Pago", "2026-11-21").data_pagamento, undefined);
+});

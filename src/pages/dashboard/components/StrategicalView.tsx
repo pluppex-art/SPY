@@ -103,7 +103,7 @@ export function StrategicalView({
       return true;
     };
     const entries = financeEntries as any[];
-    const pagosNoPeriodo = entries.filter(f => f.status === 'Pago' && inPeriod(f.date));
+    const pagosNoPeriodo = entries.filter(f => f.status === 'Pago' && inPeriod(f.data_pagamento || f.date));
     const receita = somar(pagosNoPeriodo.filter(f => f.type === 'Receber'), f => f.value);
     const despesas = somar(pagosNoPeriodo.filter(f => f.type === 'Pagar'), f => f.value);
     const novasVendas = pagosNoPeriodo.filter(f => f.type === 'Receber').length;

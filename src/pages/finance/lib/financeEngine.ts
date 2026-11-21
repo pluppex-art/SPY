@@ -27,7 +27,15 @@ export interface FinanceEntryLike {
   date: string;
   category_id?: string | null;
   category?: string;
+  /** Dia da competência (resultado). Em lançamento antigo pode faltar: vale `date`. */
+  competencia_date?: string | null;
+  /** Dia em que o dinheiro se moveu (caixa). Só existe em lançamento novo: senão vale `date`. */
+  data_pagamento?: string | null;
 }
+
+// REGRA DE DATAS (uma só, igual à do servidor em src/lib/dre/dre.ts): resultado = competência; caixa = pagamento; aberto/agenda = vencimento (`date`).
+export const dataCompetencia = (e: FinanceEntryLike): string => e.competencia_date || e.date;
+export const dataCaixa = (e: FinanceEntryLike): string => e.data_pagamento || e.date;
 
 export interface FinanceCategoryLike {
   id: string;
@@ -89,8 +97,8 @@ export function transferenciasDaConta(transfers: TransferLike[], contaId: string
 /** Resultado do mês em regime de CAIXA: só o que já foi efetivamente pago. */
 export function resultadoAtualDoMes(entries: FinanceEntryLike[], ref: Date): number {
   const y = ref.getFullYear(), m = ref.getMonth();
-  const receita = entries.filter(e => e.type === "Receber" && isPago(e) && isInMonth(e.date, y, m)).reduce((s, e) => s + e.value, 0);
-  const despesa = entries.filter(e => e.type === "Pagar" && isPago(e) && isInMonth(e.date, y, m)).reduce((s, e) => s + e.value, 0);
+  const receita = entries.filter(e => e.type === "Receber" && isPago(e) && isInMonth(dataCaixa(e), y, m)).reduce((s, e) => s + e.value, 0);
+  const despesa = entries.filter(e => e.type === "Pagar" && isPago(e) && isInMonth(dataCaixa(e), y, m)).reduce((s, e) => s + e.value, 0);
   return round2(receita - despesa);
 }
 
@@ -127,8 +135,8 @@ export function saldoDaConta(params: {
  * pagos ou não. */
 export function resultadoPrevistoDoMes(entries: FinanceEntryLike[], ref: Date): number {
   const y = ref.getFullYear(), m = ref.getMonth();
-  const receita = entries.filter(e => e.type === "Receber" && isInMonth(e.date, y, m)).reduce((s, e) => s + e.value, 0);
-  const despesa = entries.filter(e => e.type === "Pagar" && isInMonth(e.date, y, m)).reduce((s, e) => s + e.value, 0);
+  const receita = entries.filter(e => e.type === "Receber" && isInMonth(dataCompetencia(e), y, m)).reduce((s, e) => s + e.value, 0);
+  const despesa = entries.filter(e => e.type === "Pagar" && isInMonth(dataCompetencia(e), y, m)).reduce((s, e) => s + e.value, 0);
   return round2(receita - despesa);
 }
 
@@ -203,7 +211,7 @@ export function comparativoMesAnterior(
 
   const porTipo = (tipo: DreTipo | "TODAS_DESPESAS", data: Date) => {
     const y = data.getFullYear(), m = data.getMonth();
-    const doMes = entries.filter(e => isInMonth(e.date, y, m));
+    const doMes = entries.filter(e => isInMonth(dataCompetencia(e), y, m));
     if (tipo === "RECEBIMENTO") return doMes.filter(e => e.type === "Receber").reduce((s, e) => s + e.value, 0);
     if (tipo === "TODAS_DESPESAS") return doMes.filter(e => e.type === "Pagar").reduce((s, e) => s + e.value, 0);
     return doMes.filter(e => e.type === "Pagar" && dreTipoDe(e, categoriesMap) === tipo).reduce((s, e) => s + e.value, 0);
@@ -287,7 +295,7 @@ export function getMonthlyRealizedSeries(
     const value = round2(
       entries
         .filter(e => e.type === type && isPago(e))
-        .filter(e => { const dt = parseEntryDate(e.date); return !!dt && dt >= b.start && dt <= b.end; })
+        .filter(e => { const dt = parseEntryDate(dataCaixa(e)); return !!dt && dt >= b.start && dt <= b.end; })
         .reduce((s, e) => s + e.value, 0)
     );
     return { key: b.key, label: b.label, value };
@@ -314,7 +322,7 @@ export function getMonthlyDreSeries(
     buckets.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: MONTH_NAMES_SHORT[d.getMonth()], start, end });
   }
   return buckets.map(b => {
-    const entriesDoMes = entries.filter(e => { const dt = parseEntryDate(e.date); return !!dt && dt >= b.start && dt <= b.end; });
+    const entriesDoMes = entries.filter(e => { const dt = parseEntryDate(dataCompetencia(e)); return !!dt && dt >= b.start && dt <= b.end; });
     const dre = calcularDRE(entriesDoMes, categoriesMap);
     return {
       key: b.key,

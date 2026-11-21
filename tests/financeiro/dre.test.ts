@@ -95,3 +95,18 @@ test("legado fica fora do DRE completo; quantidade usa a decimal quando existe",
   assert.equal(quantidadeDoItem({ quantidade: 1, quantidade_decimal: 0.35 }), 0.35);
   assert.equal(quantidadeDoItem({ quantidade: 3, quantidade_decimal: null }), 3);
 });
+
+import { diaCaixa, diaCompetencia, diaVencimento, filtroPeriodoOr } from "../../src/lib/dre/dre.js";
+test("regra de datas: competência, caixa e vencimento, com fallback para o lançamento antigo", () => {
+  const novo = { competencia_date: "2026-10-30", data_pagamento: "2026-11-02", date_normalized: "2026-10-28" };
+  const velho = { competencia_date: null, data_pagamento: null, date_normalized: "2026-09-15" };
+  assert.equal(diaCompetencia(novo), "2026-10-30"); assert.equal(diaCaixa(novo), "2026-11-02"); assert.equal(diaVencimento(novo), "2026-10-28");
+  assert.equal(diaCompetencia(velho), "2026-09-15"); assert.equal(diaCaixa(velho), "2026-09-15"); assert.equal(diaVencimento(velho), "2026-09-15");
+  assert.equal(diaCaixa({ data_pagamento: "2026-11-02T10:00:00Z" }), "2026-11-02");
+  assert.equal(diaCaixa({}), null);
+});
+test("filtro do PostgREST: coluna principal no período, ou (vazia) date_normalized no período", () => {
+  assert.equal(filtroPeriodoOr("data_pagamento", "2026-11-01", "2026-11-30"),
+    "and(data_pagamento.gte.2026-11-01,data_pagamento.lte.2026-11-30),and(data_pagamento.is.null,date_normalized.gte.2026-11-01,date_normalized.lte.2026-11-30)");
+  assert.equal(filtroPeriodoOr("competencia_date", "2026-01-01"), "and(competencia_date.gte.2026-01-01),and(competencia_date.is.null,date_normalized.gte.2026-01-01)");
+});

@@ -12,7 +12,7 @@ import { Button } from "../../components/ui/button";
 import { toast } from "sonner";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseEntryDate } from "./lib/financeDates";
-import { calcularDRE, categoriesById, getMonthlyDreSeries, pctDelta, type FinanceCategoryLike, type DreResult } from "./lib/financeEngine";
+import { calcularDRE, dataCompetencia, categoriesById, getMonthlyDreSeries, pctDelta, type FinanceCategoryLike, type DreResult } from "./lib/financeEngine";
 import { apiFetch } from "../../lib/apiClient";
 import { SecaoCard } from "./components/SecaoCard";
 import { DreCompletoCard } from "./components/DreCompletoCard";
@@ -64,7 +64,7 @@ export default function FinanceiroDRE() {
   const { entriesDoPeriodo, dre: clientDre, dreAnterior, rangeStart, rangeEnd } = useMemo(() => {
     const { start, end } = periodoRange(periodo, new Date(), customStartDate, customEndDate);
     const entriesDoPeriodo = financeEntries.filter(e => {
-      const d = parseEntryDate(e.date);
+      const d = parseEntryDate(dataCompetencia(e));
       return !!d && d >= start && d <= end;
     });
     // DRE do dashboard é sempre regime de competência puro: inclui pendentes.

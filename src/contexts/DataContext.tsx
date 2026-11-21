@@ -3624,7 +3624,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toast.error("Este lançamento está pago dentro de um período bloqueado — não pode ser editado.");
       return;
     }
-    updates = completarBaixa({ ...updates } as any, financeBankAccounts, before?.status) as Partial<FinanceEntry>;
+    updates = completarBaixa({ ...updates } as any, financeBankAccounts, before?.status, new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })) as Partial<FinanceEntry>;
     setFinanceEntries(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
     if (supabase) {
       const { error } = await supabase.from('finance_entries').update(updates).eq('id', id);

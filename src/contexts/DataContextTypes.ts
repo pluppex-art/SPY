@@ -60,6 +60,8 @@ export interface FinanceEntry {
   centro_custo_id?: string | null;
   tags?: string[];
   competencia_date?: string | null;
+  /** Dia em que o dinheiro se moveu (caixa). Preenchido na baixa; lançamento antigo não tem. */
+  data_pagamento?: string | null;
   conta_bancaria_id?: string | null;
   numero_documento?: string | null;
   /** Vínculo opcional com um Contato completo (tabela `clientes`, reaproveitada
