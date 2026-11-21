@@ -192,6 +192,8 @@ export interface DataContextType {
   loadLeadHistory: (leadId: string) => Promise<void>;
   financeEntries: FinanceEntry[];
   appointments: Appointment[];
+  /** Negócio ganho sem proposta/contrato, no formato de contrato, só para painéis de vendas (não é MRR). */
+  vendasDiretas: any[];
   theme: 'dark' | 'light';
   toggleTheme: () => void;
   addLead: (lead: Omit<Lead, 'id'>) => Promise<boolean>;

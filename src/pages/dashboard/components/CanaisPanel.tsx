@@ -28,7 +28,9 @@ function Tendencia({ pct }: { pct: number | null }) {
 }
 
 export default function CanaisPanel({ dashboard }: { dashboard: DashboardData }) {
-  const { leads, contracts, proposals, proposalItems } = useData() as any;
+  const { leads, contracts: contratosReais, vendasDiretas, proposals, proposalItems } = useData() as any;
+  // Venda direta (ganho sem proposta/contrato) também é venda neste painel.
+  const contracts = useMemo(() => [...(contratosReais || []), ...(vendasDiretas || [])], [contratosReais, vendasDiretas]);
   const { formatCurrency } = useLocalization();
 
   const [periodo, setPeriodo] = useState<PeriodoOpcao>("mes");

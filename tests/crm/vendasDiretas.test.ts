@@ -13,10 +13,10 @@ const leads = [
 
 test("venda direta: negócio ganho sem proposta vira contrato virtual com valor, canal (leadId) e data de fechamento", () => {
   const r = vendasDiretasComoContratos(leads, [{ lead_id: "c" }, { lead_id: "e" }]);
-  assert.deepEqual(r.map((c) => c.id), ["venda-a", "venda-b", "venda-e"]);
-  const b = r.find((c) => c.id === "venda-b");
+  assert.deepEqual(r.map((c) => c.id), ["ganho-a", "ganho-b", "ganho-e"]);
+  const b = r.find((c) => c.id === "ganho-b");
   assert.equal(b.mrr, 1200.5); assert.equal(b.totalValue, 1200.5); assert.equal(b.leadId, "b"); assert.equal(b.date, "20/11/2026"); assert.equal(b.client, "Bia");
-  assert.equal(r.find((c) => c.id === "venda-a").date, "03/11/2026");
+  assert.equal(r.find((c) => c.id === "ganho-a").date, "03/11/2026");
   assert.equal(r.every((c) => c.status === "Ativo" && c.proposalId === null && c.plan === "Venda"), true);
 });
 

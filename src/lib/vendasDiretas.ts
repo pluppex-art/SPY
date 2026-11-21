@@ -1,6 +1,6 @@
 // Venda direta = negócio ganho SEM contrato e SEM proposta (o cliente vende rápido, não usa proposta/contrato).
 // Para os painéis que somam "vendas" a partir de contratos (canais, produtos, segmentos, vendedores), cada venda direta vira um
-// "contrato virtual" só em memória (id `venda-<lead>`): nunca é gravado nem aparece na tela de Contratos.
+// "contrato virtual" só em memória (id `ganho-<lead>`, nunca `venda-`: esse prefixo é só das vendas importadas do Max Data, que ligam a leitura agregada do banco): nunca é gravado nem aparece na tela de Contratos.
 // Só vale para empresa SEM nenhum contrato de verdade (o chamador confere): senão o MRR recorrente seria inflado por venda avulsa.
 import { lerValorPositivo } from "./dinheiro.js";
 import { isLeadWon } from "./leadStatus.js";
@@ -43,7 +43,7 @@ export function vendasDiretasComoContratos(leads: readonly LeadVenda[] | null | 
     if (l.source !== "Max Data" && comProposta.has(l.id)) continue;
     const v = lerValorPositivo(l.value ?? l.valor);
     out.push({
-      id: `venda-${l.id}`, leadId: l.id, client: l.clientName || l.name || "Consumidor final", plan: "Venda",
+      id: `ganho-${l.id}`, leadId: l.id, client: l.clientName || l.name || "Consumidor final", plan: "Venda",
       mrr: v, totalValue: v, status: "Ativo", date: diaDaVenda(l), progress: 100, proposalId: null, cancelledAt: null, seller: l.seller,
     });
   }

@@ -66,7 +66,8 @@ function MetaEditavel({ valor, editavel, onSalvar, formatCurrency }: {
 }
 
 export default function SegmentosPanel({ dashboard }: { dashboard: DashboardData }) {
-  const { contracts, proposals, proposalItems, products, appSettings, saveAppSetting, sellerRestricted } = useData() as any;
+  const { contracts: contratosReais, vendasDiretas, proposals, proposalItems, products, appSettings, saveAppSetting, sellerRestricted } = useData() as any;
+  const contracts = useMemo(() => [...(contratosReais || []), ...(vendasDiretas || [])], [contratosReais, vendasDiretas]);
   const { formatCurrency } = useLocalization();
 
   const [metrica, setMetrica] = useState<MetricaSegmento>("receita");

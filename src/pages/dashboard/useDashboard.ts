@@ -438,7 +438,9 @@ export function useDashboard() {
     const stageIds = stageNames.map((_: string, idx: number) => getStageId(comercialFunil.id, idx));
 
     const normalize = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-    const namedWonIdx = stageNames.findIndex((n) => /ganh|fech|venda|won/.test(normalize(n)));
+    // "Ganho" tem prioridade: num funil com "Fechamento" ANTES de "Ganho", o fechado caía em "Fechamento" e "Ganho" ficava zerado.
+    const procura = (re: RegExp) => stageNames.findIndex((n) => re.test(normalize(n)));
+    const namedWonIdx = [procura(/ganh/), procura(/venda ganh|won/), procura(/fechad|venda/), procura(/fech/)].find((i) => i !== -1) ?? -1;
     const wonIdx = namedWonIdx !== -1 ? namedWonIdx : stageNames.length - 1;
     // Achado real: Ganho/Perdido são dois desfechos PARALELOS (o lead vai pra
     // um ou pro outro, nunca "flui" de um pro outro), não mais um passo na

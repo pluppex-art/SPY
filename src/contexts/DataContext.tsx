@@ -589,9 +589,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const contracts = useMemo(() => {
     const reais = filterByFilial(contractsRaw);
     if (!contractsLoaded || reais.length > 0) return reais;
-    // Venda direta: negócio ganho sem proposta (Max Data ou qualquer outra origem) — ver src/lib/vendasDiretas.ts.
-    const virtuais = vendasDiretasComoContratos(leads as any[], proposalsRaw) as Contract[];
+    // Loja Max Data: as vendas ganhas fazem o papel de contrato (id "venda-…"; liga a leitura agregada do banco).
+    const virtuais = vendasDiretasComoContratos((leads as any[]).filter((l) => l.source === 'Max Data'), proposalsRaw).map((c: any) => ({ ...c, id: String(c.id).replace(/^ganho-/, 'venda-') })) as Contract[];
     return virtuais.length ? virtuais : reais;
+  }, [contractsRaw, contractsLoaded, leads, proposalsRaw, activeFilialId]);
+  // Venda direta (negócio ganho sem proposta/contrato) para os painéis de canais, produtos e segmentos — fica À PARTE de `contracts`,
+  // para não virar "MRR" nem aparecer em Contratos. Vazia quando a empresa tem contrato de verdade ou é loja Max Data.
+  const vendasDiretas = useMemo(() => {
+    if (!contractsLoaded || filterByFilial(contractsRaw).length > 0) return [];
+    return vendasDiretasComoContratos((leads as any[]).filter((l) => l.source !== 'Max Data'), proposalsRaw);
   }, [contractsRaw, contractsLoaded, leads, proposalsRaw, activeFilialId]);
   const appointments = useMemo(() => filterByFilial(appointmentsRaw), [appointmentsRaw, activeFilialId, filialAtivaEhPrincipal]);
 
@@ -3767,7 +3773,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      leads: vis?.leads ?? leads, avgWonTicket, tasks: vis?.tasks ?? tasks, contracts: vis?.contracts ?? contracts, notifications, leadActivities: vis?.leadActivities ?? leadActivities, loadLeadHistory, financeEntries, appointments,
+      leads: vis?.leads ?? leads, avgWonTicket, tasks: vis?.tasks ?? tasks, contracts: vis?.contracts ?? contracts, vendasDiretas, notifications, leadActivities: vis?.leadActivities ?? leadActivities, loadLeadHistory, financeEntries, appointments,
       sellerRestricted,
       theme, toggleTheme,
       addLead, ensureLeadForCliente, updateLead, deleteLead, moveLead,

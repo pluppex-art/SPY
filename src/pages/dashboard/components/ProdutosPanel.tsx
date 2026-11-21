@@ -47,7 +47,8 @@ function KpiCard({ icon: Icon, label, children, cor }: { icon: typeof Wallet; la
 }
 
 export default function ProdutosPanel({ dashboard }: { dashboard: DashboardData }) {
-  const { contracts, proposals, proposalItems, products } = useData() as any;
+  const { contracts: contratosReais, vendasDiretas, proposals, proposalItems, products } = useData() as any;
+  const contracts = useMemo(() => [...(contratosReais || []), ...(vendasDiretas || [])], [contratosReais, vendasDiretas]);
   const { formatCurrency } = useLocalization();
 
   const [periodo, setPeriodo] = useState<PeriodoOpcao>("mes");

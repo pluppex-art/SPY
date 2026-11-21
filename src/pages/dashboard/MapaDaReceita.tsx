@@ -19,6 +19,7 @@ import { leadDrillColumns, contractDrillColumns, isContractAtivo } from "../../c
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { parseCurrencyBR } from "../../lib/utils";
+import { prepararValor, somarLeads } from "../../lib/valorDoLead";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import SegmentosPanel from "./components/SegmentosPanel";
 import ProdutosPanel from "./components/ProdutosPanel";
@@ -53,6 +54,9 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
 
   const oportunidades = useMemo(() => (leads as any[]).filter((l) => parseCurrencyBR(l.value) > 0), [leads]);
   const vendas = useMemo(() => (leads as any[]).filter((l) => l.status === "Fechado"), [leads]);
+  // Empresa sem contrato (vende rápido, sem proposta): a receita é o valor dos negócios ganhos no período (regra única de valor).
+  const receitaDasVendas = useMemo(() => somarLeads(vendas, prepararValor(proposals as any[], products as any[])).total, [vendas, proposals, products]);
+  const receitaDoFluxo = faturamentoContratado > 0 ? faturamentoContratado : receitaDasVendas;
   const contratosAtivos = useMemo(() => (contracts as any[]).filter(isContractAtivo), [contracts]);
   const contratosEmRisco = useMemo(() => (contracts as any[]).filter((c) => c.status === "Inadimplente"), [contracts]);
   const valorEmRisco = contratosEmRisco.reduce((s, c) => s + parseCurrencyBR(c.mrr), 0);
@@ -111,11 +115,11 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
       { key: "leads" as DrillKey, icon: Users, label: "Leads", value: String(leads.length), sub: `100% do funil` as string | null },
       { key: "oportunidades" as DrillKey, icon: Target, label: "Oportunidades", value: String(oportunidades.length), sub: `${Math.round((oportunidades.length / totalLeads) * 1000) / 10}% dos leads` },
       { key: "vendas" as DrillKey, icon: ShoppingCart, label: "Vendas", value: String(vendas.length), sub: `${oportunidades.length > 0 ? Math.round((vendas.length / oportunidades.length) * 1000) / 10 : 0}% das oportunidades` },
-      { key: "receita" as DrillKey, icon: DollarSign, label: "Receita", value: formatCurrency(faturamentoContratado), sub: vendas.length > 0 ? `Ticket médio ${formatCurrency(faturamentoContratado / vendas.length)}` : "Sem vendas ainda" },
+      { key: "receita" as DrillKey, icon: DollarSign, label: "Receita", value: formatCurrency(receitaDoFluxo), sub: vendas.length > 0 ? `Ticket médio ${formatCurrency(receitaDoFluxo / vendas.length)}` : "Sem vendas ainda" },
       { key: "retencao" as DrillKey, icon: RefreshCw, label: "Retenção (MRR)", value: formatCurrency(totalRevenue), sub: faturamentoContratado > 0 ? `${Math.round((totalRevenue / faturamentoContratado) * 1000) / 10}% da receita` : "Sem receita ainda" },
       { key: "emRisco" as DrillKey, icon: AlertTriangle, label: "Em Risco", value: formatCurrency(valorEmRisco), sub: `${contratosEmRisco.length} contrato${contratosEmRisco.length === 1 ? "" : "s"} · ${faturamentoContratado > 0 ? Math.round((valorEmRisco / faturamentoContratado) * 1000) / 10 : 0}% da receita` },
     ].map((f, i) => ({ ...f, color: FLUXO_COLORS[i % FLUXO_COLORS.length] }));
-  }, [pan, leads.length, oportunidades.length, vendas.length, faturamentoContratado, totalRevenue, valorEmRisco, contratosEmRisco.length, formatCurrency]);
+  }, [pan, leads.length, oportunidades.length, vendas.length, faturamentoContratado, receitaDoFluxo, totalRevenue, valorEmRisco, contratosEmRisco.length, formatCurrency]);
 
   const leadColumns = leadDrillColumns(formatCurrency);
   const contractColumnsTotal = contractDrillColumns(formatCurrency, "totalValue");
