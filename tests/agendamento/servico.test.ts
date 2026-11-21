@@ -165,3 +165,14 @@ test("pagamento misto repartido entre faixas: cada faixa fecha exata", () => {
   assert.deepEqual(repartirMisto(misto, [200]), [[{ method: "PIX", amount: 120 }, { method: "DINHEIRO", amount: 80 }]]);
   assert.deepEqual(repartirMisto(misto, [0, 0]), [[{ method: "PIX", amount: 0 }, { method: "DINHEIRO", amount: 0 }], [{ method: "PIX", amount: 0 }, { method: "DINHEIRO", amount: 0 }]]);
 });
+
+import { decidirAcaoFinanceira } from "../../server/agendamentoPuro.js";
+test("o que fazer com o lançamento financeiro da reserva", () => {
+  assert.equal(decidirAcaoFinanceira(null, 100), "inserir");
+  assert.equal(decidirAcaoFinanceira({ status: "Pago", value: 100, origem_registro: null }, 0), "atualizar");      // lançamento antigo: como sempre
+  assert.equal(decidirAcaoFinanceira({ status: "Pago", value: 100, origem_registro: "api" }, 100), "nada");
+  assert.equal(decidirAcaoFinanceira({ status: "Pago", value: "100.00", origem_registro: "api" }, 100), "nada");
+  assert.equal(decidirAcaoFinanceira({ status: "Pago", value: 100, origem_registro: "api" }, 0), "estornar");
+  assert.equal(decidirAcaoFinanceira({ status: "Pago", value: 100, origem_registro: "api" }, 60), "revisar");
+  assert.equal(decidirAcaoFinanceira({ status: "A Vencer", value: 100, origem_registro: "api" }, 60), "atualizar");
+});

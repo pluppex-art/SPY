@@ -13,7 +13,7 @@ import axios from "axios";
 import type { Express, Request, RequestHandler, Response } from "express";
 import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
 import {
-  PERMISSOES_PADRAO, assinar, conferirAssinatura, configParaEngine, linhaParaLite, aplicarPrecos, externoIdPreco, ORIGEM_PRECO, PRECOS_RESERVA, type CampoPreco, montarLancamento, montarPreferenciaMP,
+  PERMISSOES_PADRAO, assinar, conferirAssinatura, configParaEngine, decidirAcaoFinanceira, linhaParaLite, aplicarPrecos, externoIdPreco, ORIGEM_PRECO, PRECOS_RESERVA, type CampoPreco, montarLancamento, montarPreferenciaMP,
   planejarPagamento, repartirMisto, slugDe, validarConfig, SLUG_REGEX,
   type LinhaConfig, type LinhaReserva, type PedidoPagamento, type PermissoesEquipe,
 } from "./agendamentoPuro.js";
@@ -145,17 +145,39 @@ export function registerAgendamentoRoutes(app: Express, deps: AgendamentoDeps) {
   const sincronizar = async (tenantId: string, r: LinhaReserva, opts: { papelLead?: "entrada" | "ganho"; nomeEstab?: string } = {}) => {
     try {
       const l = montarLancamento(r);
-      const { data: existente } = await db.from("finance_entries").select("id").eq("tenant_id", tenantId).eq("id", l.id).maybeSingle();
+      const { data: existente } = await db.from("finance_entries").select("id, description, status, value, origem_registro, conta_bancaria_id, category_id").eq("tenant_id", tenantId).eq("id", l.id).maybeSingle();
+      const acao = decidirAcaoFinanceira(existente as any, l.value);
       // Valor zero só para retratar um lançamento que já existia (reserva paga que foi cancelada/estornada).
-      if (l.value > 0 || existente) {
-        let categoryId: string | undefined;
-        const { data: cats } = await db.from("finance_categories").select("id, nome").eq("tenant_id", tenantId).eq("tipo", "Receita").ilike("nome", l.category);
-        categoryId = (cats || []).find((c: any) => String(c.nome).trim().toLowerCase() === l.category.toLowerCase())?.id;
-        if (!categoryId) {
-          const { data: criada } = await db.from("finance_categories").insert({ tenant_id: tenantId, nome: l.category, tipo: "Receita" }).select("id").maybeSingle();
-          categoryId = criada?.id;
+      if (acao === "estornar") {
+        // Pagamento confirmado não se edita (M2): a devolução vira um lançamento de estorno ligado ao original.
+        const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+        const { data: cat } = await db.from("finance_categories").select("id").eq("tenant_id", tenantId).eq("codigo", "2.02").maybeSingle();
+        const { error } = await db.from("finance_entries").upsert({
+          id: `estorno_${l.id}`, tenant_id: tenantId, description: `Estorno - ${existente.description ?? l.description}`, value: Number(existente.value), type: "Pagar", status: "Pago",
+          date: hoje, competencia_date: hoje, category: "Devoluções e estornos de vendas", ...(cat?.id ? { category_id: cat.id } : {}),
+          counterparty: l.counterparty, numero_documento: l.numero_documento, tags: ["Reserva", "Estorno"], estorno_de: l.id,
+          ...(existente.conta_bancaria_id ? { conta_bancaria_id: existente.conta_bancaria_id } : {}),
+        }, { onConflict: "id" });
+        if (error) console.warn("[agendamento] estorno:", error.message);
+      } else if (acao === "revisar") {
+        console.warn(`[agendamento] lançamento ${l.id} já está pago com outro valor; não dá para editar, precisa de estorno manual.`);
+      } else if (acao === "inserir" || acao === "atualizar") {
+        if (l.value > 0 || existente) {
+          let categoryId: string | undefined;
+          const { data: cats } = await db.from("finance_categories").select("id, nome").eq("tenant_id", tenantId).eq("tipo", "Receita").ilike("nome", l.category);
+          categoryId = (cats || []).find((c: any) => String(c.nome).trim().toLowerCase() === l.category.toLowerCase())?.id;
+          if (!categoryId) {
+            const { data: criada } = await db.from("finance_categories").insert({ tenant_id: tenantId, nome: l.category, tipo: "Receita" }).select("id").maybeSingle();
+            categoryId = criada?.id;
+          }
+          // Lançamento novo entra com a conta principal da empresa (a integração não tem usuário, então o banco não preenche sozinho).
+          let contaId: string | undefined;
+          if (acao === "inserir") {
+            const { data: conta } = await db.from("finance_bank_accounts").select("id").eq("tenant_id", tenantId).eq("is_principal", true).eq("arquivada", false).maybeSingle();
+            contaId = conta?.id;
+          }
+          await db.from("finance_entries").upsert({ ...l, tenant_id: tenantId, ...(categoryId ? { category_id: categoryId } : {}), ...(contaId ? { conta_bancaria_id: contaId } : {}) }, { onConflict: "id" });
         }
-        await db.from("finance_entries").upsert({ ...l, tenant_id: tenantId, ...(categoryId ? { category_id: categoryId } : {}) }, { onConflict: "id" });
       }
     } catch (e: any) { console.warn("[agendamento] financeiro:", e?.message); }
     try {

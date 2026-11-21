@@ -497,6 +497,25 @@ test("preços da hora: gravados em products (dia útil e fim de semana), valem n
   assert.equal((await chamar("GET", "/api/agendar/:slug/config", { params: { slug: "to-na-pista" } })).corpo.precoDiaUtil, 120);
 });
 
+test("financeiro da reserva: lançamento novo entra com a conta principal; cancelar uma reserva paga (regra nova) gera ESTORNO e não edita o lançamento", async () => {
+  const { admin, db } = montar({ extra: { finance_bank_accounts: [{ id: "conta-principal", tenant_id: T1, is_principal: true, arquivada: false }, { id: "conta-outra", tenant_id: T2, is_principal: true, arquivada: false }] } });
+  const r = (await admin("POST", "/api/agendamento/reservas", { body: novaEquipe({ pagamento: { modo: "receber", forma: "PIX" } }) })).corpo.reservas[0];
+  const lanc = (db.t.finance_entries ?? [])[0];
+  assert.equal(lanc.conta_bancaria_id, "conta-principal", "conta principal da empresa certa");
+  // vira lançamento da regra nova (o banco faz isso para quem grava sem usuário)
+  lanc.origem_registro = "api";
+  const valorPago = lanc.value;
+  assert.equal((await admin("POST", "/api/agendamento/reservas/:id/status", { params: { id: r.id }, body: { status: "Cancelada", motivo: "cliente desistiu" } })).status, 200);
+  const fin = db.t.finance_entries ?? [];
+  assert.equal(fin.find((f: any) => f.id === lanc.id).value, valorPago, "o lançamento pago não é editado");
+  const estorno = fin.find((f: any) => f.estorno_de === lanc.id);
+  assert.ok(estorno, "estorno criado");
+  assert.equal(estorno.value, valorPago); assert.equal(estorno.type, "Pagar"); assert.equal(estorno.conta_bancaria_id, "conta-principal");
+  // cancelar de novo não duplica o estorno
+  await admin("POST", "/api/agendamento/reservas/:id/status", { params: { id: r.id }, body: { status: "Cancelada", motivo: "de novo" } });
+  assert.equal((db.t.finance_entries ?? []).filter((f: any) => f.estorno_de === lanc.id).length, 1);
+});
+
 test("rotina diária: exige a chave e libera as pendentes vencidas", async () => {
   const { chamar, db } = montar();
   await db.rpc("agendamento_reservar", { p_tenant: T1, p_itens: [{ data: TERCA, hora: "19:00", duracao: 1, qtd_recursos: 2, contato_nome: "Velha", status: "Pendente" }] });

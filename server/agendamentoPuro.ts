@@ -386,6 +386,23 @@ export const idLancamento = (r: { id: string; externo_id?: string | null }) => (
 
 const ROTULO_FORMA: Record<string, string> = { PIX: "Pix", CREDITO: "Cartão de crédito", DEBITO: "Cartão de débito", ONLINE: "Online", DINHEIRO: "Dinheiro", MISTO: "Misto", COMANDA: "Comanda", CORTESIA: "Cortesia" };
 
+/**
+ * O que fazer com o lançamento financeiro de uma reserva, dado o que já existe no banco.
+ *  - sem lançamento antes            -> "inserir"  (entra com a conta principal da empresa)
+ *  - lançamento antigo (sem origem)  -> "atualizar" (como sempre foi: o valor é reescrito)
+ *  - lançamento novo, já Pago, igual -> "nada"
+ *  - lançamento novo, já Pago, e a reserva foi cancelada/estornada (valor 0) -> "estornar" (pagamento confirmado não se edita: gera estorno)
+ *  - lançamento novo, já Pago, valor diferente e maior que zero -> "revisar" (não dá para editar; fica avisado no log)
+ */
+export type AcaoFinanceira = "inserir" | "atualizar" | "nada" | "estornar" | "revisar";
+export function decidirAcaoFinanceira(existente: { status?: string | null; value?: number | string | null; origem_registro?: string | null } | null | undefined, valorNovo: number): AcaoFinanceira {
+  if (!existente) return "inserir";
+  if (!existente.origem_registro || existente.status !== "Pago") return "atualizar";
+  const antigo = Number(existente.value) || 0;
+  if (Math.abs(antigo - valorNovo) < 0.005) return "nada";
+  return valorNovo === 0 ? "estornar" : "revisar";
+}
+
 export function montarLancamento(r: LinhaReserva) {
   const valor = valorReconhecido({ status: r.status, statusPagamento: r.status_pagamento, valorTotal: Number(r.valor_total) });
   const forma = r.forma_pagamento ? ROTULO_FORMA[String(r.forma_pagamento).toUpperCase()] ?? String(r.forma_pagamento) : null;
