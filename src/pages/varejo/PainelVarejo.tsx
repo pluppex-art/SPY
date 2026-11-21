@@ -313,22 +313,27 @@ export default function PainelVarejo() {
   const lancarOrdemCompra = async () => {
     if (escolhidos.length === 0 || lancando) return;
     if (!supabase || !activeTenantId) { toast.error("Sem conexão com o banco de dados."); return; }
-    const provs = Array.from(new Set(escolhidos.map(i => i.provider).filter(p => p && p.toLowerCase() !== "interno")));
     const prazo = cfgVarejo.compras.prazoEntregaPadraoDias;
     let previsao: string | null = null;
     if (prazo > 0) { const d = new Date(); d.setDate(d.getDate() + prazo); previsao = d.toISOString().slice(0, 10); }
     setLancando(true);
-    const { error } = await supabase.from("compras").insert({
-      tenant_id: activeTenantId,
-      fornecedor: provs.length === 1 ? provs[0] : "A definir",
-      valor: escolhidos.reduce((t, i) => t + (parseInt(repQtd[i.id], 10) || 0) * i.custo, 0),
-      itens: escolhidos.map(i => `${parseInt(repQtd[i.id], 10)}x ${i.name}`).join(", "),
-      previsao_entrega: previsao,
-      status: "Pendente",
-    });
+    // Uma ordem por item, cada uma com o fornecedor cadastrado no próprio produto.
+    const { error } = await supabase.from("compras").insert(
+      escolhidos.map(i => {
+        const qtd = parseInt(repQtd[i.id], 10) || 0;
+        return {
+          tenant_id: activeTenantId,
+          fornecedor: i.provider && i.provider.toLowerCase() !== "interno" ? i.provider : "A definir",
+          valor: qtd * i.custo,
+          itens: `${qtd}x ${i.name}`,
+          previsao_entrega: previsao,
+          status: "Pendente",
+        };
+      }),
+    );
     setLancando(false);
     if (error) { toast.error("Erro ao lançar a ordem de compra."); return; }
-    toast.success("Ordem de compra lançada!");
+    toast.success(escolhidos.length > 1 ? `${escolhidos.length} ordens de compra lançadas!` : "Ordem de compra lançada!");
     setRepOpen(false);
     navigate("/app/varejo/compras");
   };
@@ -744,12 +749,12 @@ export default function PainelVarejo() {
           <div className="flex items-center justify-end gap-2 w-full">
             <Button type="button" variant="outline" onClick={() => setRepOpen(false)} className="h-9 px-4 text-xs font-semibold">Cancelar</Button>
             <Button type="button" onClick={lancarOrdemCompra} disabled={escolhidos.length === 0 || lancando} className="h-9 px-4 text-xs font-semibold bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white">
-              {lancando ? "Lançando..." : `Lançar ordem de compra (${escolhidos.length})`}
+              {lancando ? "Lançando..." : `Lançar ${escolhidos.length > 1 ? "ordens" : "ordem"} de compra (${escolhidos.length})`}
             </Button>
           </div>
         }
       >
-        <p className="text-xs text-[var(--color-text-muted)] mb-3">Marque o que precisa comprar e ajuste a quantidade. A ordem é lançada direto em Compras, aguardando o fornecedor. O valor usa o custo cadastrado de cada produto.</p>
+        <p className="text-xs text-[var(--color-text-muted)] mb-3">Marque o que precisa comprar e ajuste a quantidade. Cada item vira uma ordem própria em Compras, aguardando o fornecedor. O valor usa o custo cadastrado de cada produto.</p>
         <div className="space-y-2 max-h-[50vh] overflow-y-auto">
           {itensCriticosTodos.map(i => (
             <label key={i.id} className="p-2.5 rounded-xl bg-[var(--color-surface-sunken)]/60 border border-[var(--color-border-subtle)] flex items-center gap-3 cursor-pointer">

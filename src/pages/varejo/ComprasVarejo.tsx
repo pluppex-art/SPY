@@ -187,34 +187,35 @@ export default function ComprasVarejo() {
       toast.error("Informe o nome e a quantidade de cada item.");
       return;
     }
-    const itens = validas.map(l => `${parseInt(l.qtd, 10)}x ${l.nome.trim()}`).join(", ");
     if (!supabase || !activeTenantId) {
       toast.error("Sem conexão com o banco de dados.");
       return;
     }
 
-    const numVal = valor.trim() ? (parseFloat(valor.replace(/[^\d.,]/g, "").replace(",", ".")) || 0) : totalLinhas;
-
-    const { data, error } = await supabase
-      .from("compras")
-      .insert({
+    // Uma ordem por item: cada linha vira uma ordem própria na lista.
+    const valorManual = valor.trim() ? (parseFloat(valor.replace(/[^\d.,]/g, "").replace(",", ".")) || 0) : null;
+    const registros = validas.map(l => {
+      const qtd = parseInt(l.qtd, 10);
+      const custo = (qtd * (parseFloat(l.custo.replace(",", ".")) || 0));
+      return {
         tenant_id: activeTenantId,
         fornecedor: fornecedor.trim() || "A definir",
-        valor: numVal,
-        itens,
+        valor: validas.length === 1 && valorManual !== null ? valorManual : custo,
+        itens: `${qtd}x ${l.nome.trim()}`,
         previsao_entrega: previsaoEntrega || null,
         status: uiStatusToDb(status),
-      })
-      .select()
-      .maybeSingle();
+      };
+    });
 
-    if (error || !data) {
+    const { data, error } = await supabase.from("compras").insert(registros).select();
+
+    if (error || !data || data.length === 0) {
       toast.error("Erro ao emitir ordem de compra.");
       return;
     }
 
-    setCompras(prev => [rowToCompra(data), ...prev]);
-    toast.success("Ordem de compra emitida!");
+    setCompras(prev => [...data.map(rowToCompra), ...prev]);
+    toast.success(data.length > 1 ? `${data.length} ordens de compra emitidas!` : "Ordem de compra emitida!");
     setModalOpen(false);
 
     setFornecedor("");
@@ -619,6 +620,8 @@ export default function ComprasVarejo() {
               <input
                 type="text"
                 placeholder={totalLinhas > 0 ? totalLinhas.toFixed(2) : "Soma dos custos"}
+                disabled={linhas.length > 1}
+                title={linhas.length > 1 ? "Com vários itens, cada ordem usa o custo da própria linha" : undefined}
                 value={valor}
                 onChange={e => setValor(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
