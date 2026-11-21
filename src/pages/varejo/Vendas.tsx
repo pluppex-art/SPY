@@ -120,6 +120,10 @@ interface CartItem {
   isAvulso?: boolean;
   /** Desconto individual deste item, em % do valor da linha (escala com a quantidade). */
   descontoItemPct?: number;
+  /** % de comissão do cadastro do produto (0/ausente = produto sem comissão). */
+  comissaoPct?: number;
+  /** Pessoa da equipe que recebe a comissão deste item. */
+  comissaoVendedor?: { nome: string; userId?: string | null } | null;
 }
 
 /** Desconto individual do item, em R$ (sobre a linha inteira). */
@@ -189,6 +193,16 @@ export default function VarejoVendas() {
 
   const [tab, setTab] = useState<"pdv" | "historico">("pdv");
   // Edição do desconto individual de um item do carrinho (campo inline na linha).
+  // Item cujo pop-up "quem recebe a comissão" está aberto.
+  const [comissaoPend, setComissaoPend] = useState<string | null>(null);
+  const colaboradoresAtivos = useMemo(
+    () => (colaboradores as any[]).filter((c: any) => (!c.status || c.status === "Ativo") && c.nome),
+    [colaboradores]
+  );
+  const definirComissaoItem = (productId: string, pessoa: { nome: string; userId?: string | null } | null) => {
+    setCart((prev) => prev.map((i) => (i.productId === productId ? { ...i, comissaoVendedor: pessoa } : i)));
+    setComissaoPend(null);
+  };
   const [descItemEdit, setDescItemEdit] = useState<{ id: string; valor: string; tipo: "valor" | "pct" } | null>(null);
   const aplicarDescontoItem = () => {
     if (!descItemEdit) return;
@@ -502,9 +516,16 @@ export default function VarejoVendas() {
           sku: product.sku,
           barcode: product.typeAttributes?.barcode || product.typeAttributes?.ean,
           category: product.category,
+          comissaoPct: Number(product.commission) > 0 ? Number(product.commission) : undefined,
+          // Vendedor já escolhido no topo do PDV vira sugestão; o pop-up confirma ou troca.
+          comissaoVendedor: null,
         },
       ];
     });
+    // Linha nova de produto com comissão cadastrada: pergunta quem recebe.
+    if (Number(product.commission) > 0 && !cart.some((i) => i.productId === product.id)) {
+      setComissaoPend(product.id);
+    }
   };
 
   const updateCartQty = (productId: string, newQty: number) => {
@@ -994,7 +1015,17 @@ export default function VarejoVendas() {
       // colaborador selecionado, não pelo `id` (text) usado só como chave local.
       const vendedorColaborador = (colaboradores as any[]).find((c: any) => c.nome === vendedorSelecionado);
 
-      const comissaoPct = vendedorSelecionado !== VENDEDOR_BALCAO ? Number(cfg.pdv.comissaoVendedorPct) || 0 : 0;
+      const uuidOk = (v?: string | null) => !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+      // Comissão por produto: base é o valor realmente cobrado do item (já com descontos).
+      const ratioComissao = subtotal > 0 ? total / subtotal : 1;
+      const comissaoDoItem = (it: CartItem) =>
+        it.comissaoVendedor && (it.comissaoPct || 0) > 0
+          ? Math.round(linhaLiquida(it) * ratioComissao * (it.comissaoPct || 0)) / 100
+          : 0;
+      const comissaoItensTotal = cart.reduce((sum, it) => sum + comissaoDoItem(it), 0);
+      const temComissaoPorItem = cart.some((it) => (it.comissaoPct || 0) > 0);
+      // Sem produto com comissão cadastrada, mantém a regra antiga (% fixo do vendedor nas configurações).
+      const comissaoPct = !temComissaoPorItem && vendedorSelecionado !== VENDEDOR_BALCAO ? Number(cfg.pdv.comissaoVendedorPct) || 0 : 0;
       const { data: vendaCriada, error: vendaError } = await supabase.from("vendas").insert({
         id: vendaId,
         tenant_id: activeTenantId,
@@ -1008,7 +1039,7 @@ export default function VarejoVendas() {
         operador_nome: operadorNome,
         valor_recebido: formaPagamento === "Dinheiro" ? recNumber : null,
         troco: troco > 0 ? troco : null,
-        comissao_valor: comissaoPct > 0 ? Math.round(total * comissaoPct) / 100 : null,
+        comissao_valor: temComissaoPorItem ? (comissaoItensTotal > 0 ? Math.round(comissaoItensTotal * 100) / 100 : null) : comissaoPct > 0 ? Math.round(total * comissaoPct) / 100 : null,
         forma_pagamento: formaDesc,
         status: "aberta",
       }).select("numero").single();
@@ -1044,6 +1075,10 @@ export default function VarejoVendas() {
           // preço líquido: desconto do item e fatia do desconto geral já aplicados
           preco_unitario: Math.round((linhaLiquida(item) / item.quantidade) * discountRatio * 100) / 100,
           valor_desconto: descontoDoItem(item) > 0 ? descontoDoItem(item) : null,
+          comissao_vendedor_id: item.comissaoVendedor && uuidOk(item.comissaoVendedor.userId) ? item.comissaoVendedor.userId : null,
+          comissao_vendedor_nome: item.comissaoVendedor?.nome || null,
+          comissao_pct: item.comissaoVendedor && (item.comissaoPct || 0) > 0 ? item.comissaoPct : null,
+          comissao_valor: comissaoDoItem(item) > 0 ? comissaoDoItem(item) : null,
         }))
       );
       if (itemsError) throw new Error(`Falha ao registrar itens da venda: ${itemsError.message}`);
@@ -1779,6 +1814,15 @@ export default function VarejoVendas() {
                           className="mt-1 block text-[10px] font-bold text-[var(--color-primary-blue)] hover:underline"
                         >
                           {item.descontoItemPct ? `Desconto no item: -${formatPrice(descontoDoItem(item))} (${Math.round(item.descontoItemPct * 100) / 100}%)` : "+ Desconto no item"}
+                        </button>
+                      )}
+                      {(item.comissaoPct || 0) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setComissaoPend(item.productId)}
+                          className="mt-0.5 block text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] hover:underline"
+                        >
+                          {item.comissaoVendedor ? `Comissão (${item.comissaoPct}%): ${item.comissaoVendedor.nome}` : `Comissão (${item.comissaoPct}%): sem pessoa vinculada`}
                         </button>
                       )}
                     </div>
@@ -2902,6 +2946,45 @@ export default function VarejoVendas() {
 
 </div>
       </Modal>
+
+      {/* MODAL: QUEM RECEBE A COMISSÃO DO PRODUTO ADICIONADO */}
+      {(() => {
+        const alvo = cart.find((i) => i.productId === comissaoPend);
+        return (
+          <Modal
+            isOpen={!!alvo}
+            onClose={() => setComissaoPend(null)}
+            title="Quem recebe a comissão?"
+            description={alvo ? `${alvo.name} · comissão de ${alvo.comissaoPct}% sobre o valor do item` : undefined}
+            maxWidth="max-w-md"
+          >
+            <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
+              {colaboradoresAtivos.map((c: any) => {
+                const atual = alvo?.comissaoVendedor?.nome === c.nome || (!alvo?.comissaoVendedor && c.nome === vendedorSelecionado);
+                return (
+                  <button
+                    key={c.id || c.nome}
+                    type="button"
+                    onClick={() => alvo && definirComissaoItem(alvo.productId, { nome: c.nome, userId: c.user_id || null })}
+                    className={`w-full text-left px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${atual ? "border-blue-500/60 bg-blue-500/5 text-[var(--color-text-primary)]" : "border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] hover:border-blue-500/40"}`}
+                  >
+                    {c.nome}
+                    {c.cargo ? <span className="ml-2 font-normal text-[var(--color-text-muted)]">{c.cargo}</span> : null}
+                  </button>
+                );
+              })}
+              {colaboradoresAtivos.length === 0 && (
+                <p className="py-4 text-center text-xs text-[var(--color-text-muted)]">Nenhum colaborador ativo cadastrado na equipe.</p>
+              )}
+            </div>
+            <div className="pt-3 mt-3 border-t border-[var(--color-border-subtle)]">
+              <Button variant="outline" className="text-[var(--color-text-muted)]" onClick={() => alvo && definirComissaoItem(alvo.productId, null)}>
+                Sem comissão neste item
+              </Button>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {/* MODAL: CLIENTE (selecionar ou cadastrar) */}
       <ClienteModal

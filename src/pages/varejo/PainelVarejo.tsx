@@ -29,6 +29,8 @@ interface VendaFinalizada {
     cost?: number;
     qty: number;
     total: number;
+    comissaoNome?: string | null;
+    comissaoValor?: number;
   }>;
   subtotal: number;
   desconto: number;
@@ -120,6 +122,8 @@ export default function PainelVarejo() {
               cost: undefined,
               qty: it.quantidade,
               total: Number(it.preco_unitario) * it.quantidade,
+              comissaoNome: it.comissao_vendedor_nome || null,
+              comissaoValor: Number(it.comissao_valor) || 0,
             })),
             subtotal: (Number(v.valor_total) || 0) + (Number(v.valor_desconto) || 0),
             desconto: Number(v.valor_desconto) || 0,
@@ -229,19 +233,35 @@ export default function PainelVarejo() {
       });
   }, [products]);
 
-  // Comissão do dia por vendedor (só vendas concluídas; valor já gravado na venda pelo PDV)
+  // Comissão do dia por pessoa. Vem dos itens (cada produto tem a sua pessoa e o seu %);
+  // vendas antigas, sem comissão por item, caem no vendedor da venda com o valor gravado nela.
   const comissoesPorVendedor = useMemo(() => {
-    const mapa = new Map<string, { vendedor: string; vendas: number; total: number; comissao: number }>();
+    const mapa = new Map<string, { vendedor: string; vendaIds: Set<string>; total: number; comissao: number }>();
+    const get = (nome: string) => {
+      let r = mapa.get(nome);
+      if (!r) { r = { vendedor: nome, vendaIds: new Set(), total: 0, comissao: 0 }; mapa.set(nome, r); }
+      return r;
+    };
     for (const v of vendas) {
       if (v.status !== "concluida") continue;
-      const nome = v.vendedor || "Sem vendedor";
-      const atual = mapa.get(nome) || { vendedor: nome, vendas: 0, total: 0, comissao: 0 };
-      atual.vendas += 1;
-      atual.total += v.total;
-      atual.comissao += v.comissao || 0;
-      mapa.set(nome, atual);
+      if (v.itens.some((i) => i.comissaoNome)) {
+        for (const it of v.itens) {
+          if (!it.comissaoNome) continue;
+          const r = get(it.comissaoNome);
+          r.vendaIds.add(v.id);
+          r.total += it.total;
+          r.comissao += it.comissaoValor || 0;
+        }
+      } else {
+        const r = get(v.vendedor || "Sem vendedor");
+        r.vendaIds.add(v.id);
+        r.total += v.total;
+        r.comissao += v.comissao || 0;
+      }
     }
-    return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
+    return Array.from(mapa.values())
+      .map((r) => ({ vendedor: r.vendedor, vendas: r.vendaIds.size, total: r.total, comissao: r.comissao }))
+      .sort((x, y) => y.comissao - x.comissao || y.total - x.total);
   }, [vendas]);
 
   return (
@@ -271,34 +291,6 @@ export default function PainelVarejo() {
         </div>
       }
     >
-      {comissoesPorVendedor.length > 0 && (
-        <div className="mb-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs">
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-3">Vendas e comissão de hoje por vendedor</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-                  <th className="py-2 pr-3">Vendedor</th>
-                  <th className="py-2 px-3 text-right">Vendas</th>
-                  <th className="py-2 px-3 text-right">Total vendido</th>
-                  <th className="py-2 pl-3 text-right">Comissão</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comissoesPorVendedor.map((c) => (
-                  <tr key={c.vendedor} className="border-t border-[var(--color-border-subtle)]">
-                    <td className="py-2 pr-3 font-semibold text-[var(--color-text-primary)]">{c.vendedor}</td>
-                    <td className="py-2 px-3 text-right font-mono">{c.vendas}</td>
-                    <td className="py-2 px-3 text-right font-mono">R$ {c.total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="py-2 pl-3 text-right font-mono font-bold">R$ {c.comissao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* Top Banner: Status do Caixa */}
       <div className="mb-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -598,6 +590,34 @@ export default function PainelVarejo() {
         rows={drillKey === "vendas" ? (vendas || []).filter((v) => v.status !== "cancelada") : drillKey === "catalogo" ? (products || []) : []}
         columns={drillKey === "vendas" ? vendaColumns : productColumns}
       />
+      {comissoesPorVendedor.length > 0 && (
+        <div className="mt-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] shadow-xs">
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-3">Vendas e comissão de hoje por vendedor</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                  <th className="py-2 pr-3">Vendedor</th>
+                  <th className="py-2 px-3 text-right">Vendas</th>
+                  <th className="py-2 px-3 text-right">Total vendido</th>
+                  <th className="py-2 pl-3 text-right">Comissão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comissoesPorVendedor.map((c) => (
+                  <tr key={c.vendedor} className="border-t border-[var(--color-border-subtle)]">
+                    <td className="py-2 pr-3 font-semibold text-[var(--color-text-primary)]">{c.vendedor}</td>
+                    <td className="py-2 px-3 text-right font-mono">{c.vendas}</td>
+                    <td className="py-2 px-3 text-right font-mono">R$ {c.total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="py-2 pl-3 text-right font-mono font-bold">R$ {c.comissao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
     </PageContainer>
   );
 }
