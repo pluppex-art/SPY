@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Card } from "../../../components/ui/card";
 import {
   Cpu, Layers, Target, Clock, DollarSign, Package,
@@ -53,12 +53,14 @@ const MODULE_DEFINITIONS = [
   { id: "imobiliaria", title: "Imobiliária", desc: "Portfólio de imóveis, visitas, corretores e funil de propostas", icon: Home, category: "Vertical", color: "text-orange-500 bg-orange-500/10 border-orange-500/20" },
   { id: "concessionaria", title: "Concessionária & Automotivo", desc: "Estoque de veículos, financiamentos, trocas e consignações", icon: Car, category: "Vertical", color: "text-amber-600 bg-amber-600/10 border-amber-600/20" },
   { id: "solar", title: "Energia Solar", desc: "Análise de fatura por IA, dimensionamento e funil fotovoltaico", icon: Sun, category: "Vertical", color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20" },
-  { id: "varejo", title: "Varejo & Ponto de Venda", desc: "Carrinho de compras, baixa de estoque e catálogo compartilhável", icon: ShoppingCart, category: "Vertical", color: "text-lime-500 bg-lime-500/10 border-lime-500/20" },
+  { id: "varejo", title: "Ponto de Venda", desc: "Carrinho de compras, baixa de estoque e catálogo compartilhável", icon: ShoppingCart, category: "Vertical", color: "text-lime-500 bg-lime-500/10 border-lime-500/20" },
   { id: "dev", title: "Engenharia & Sprints", desc: "Quadro de sprints, releases e backlog de demandas tech", icon: Code2, category: "Engenharia", color: "text-slate-500 bg-slate-500/10 border-slate-500/20" },
 ];
 
 export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesTabProps) {
-  const { user, login, allTenantModules, updateTenantModules, getTenantModules } = useAuth();
+  const { user, login, allTenantModules, updateTenantModules, getTenantModules, activeTenantName } = useAuth();
+  // Empresa aberta na barra superior: é dela o menu lateral que o operador está vendo.
+  const empresaAberta = activeTenantName || user?.tenantName || "";
   const { setSidebarModules } = useData();
 
   // `allTenantModules` já vem completo dos tenants reais do Supabase — antes
@@ -67,7 +69,7 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
   const tenantOptions = useMemo(() => Object.keys(allTenantModules), [allTenantModules]);
 
   const [selectedTenant, setSelectedTenant] = useState<string>(
-    initialTenant || user?.tenantName || ""
+    initialTenant || empresaAberta
   );
   const [activeModules, setActiveModules] = useState<Record<string, boolean>>(DEFAULT_MODULES);
   const [simulationRole, setSimulationRole] = useState("Administrador / Sócio");
@@ -77,6 +79,15 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
       setSelectedTenant(initialTenant);
     }
   }, [initialTenant]);
+
+  // Trocar a empresa na barra superior leva a aba junto — antes ela ficava presa na empresa do
+  // login e o operador alterava os módulos de uma empresa olhando o menu de outra.
+  const empresaAbertaAnterior = useRef(empresaAberta);
+  useEffect(() => {
+    if (empresaAbertaAnterior.current === empresaAberta) return; // 1ª montagem: respeita a empresa já escolhida
+    empresaAbertaAnterior.current = empresaAberta;
+    if (empresaAberta) { setSelectedTenant(empresaAberta); onTenantChange?.(empresaAberta); }
+  }, [empresaAberta]);
 
   useEffect(() => {
     const mods = getTenantModules(selectedTenant);
@@ -95,9 +106,15 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
       updated.concessionaria = newVal;
       updated.automotivo = newVal;
     }
+    const anterior = activeModules;
     setActiveModules(updated);
-    await updateTenantModules(selectedTenant, updated as any);
-    if (selectedTenant === user?.tenantName) {
+    const ok = await updateTenantModules(selectedTenant, updated as any);
+    if (!ok) {
+      setActiveModules(anterior);
+      toast.error(`Não foi possível alterar o módulo de ${selectedTenant}. Nada foi gravado.`);
+      return;
+    }
+    if (selectedTenant === empresaAberta) {
       setSidebarModules(updated);
     }
     toast.success(`Módulo "${key.toUpperCase()}" ${newVal ? "ATIVADO" : "DESATIVADO"} para ${selectedTenant}!`);
@@ -105,48 +122,59 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
 
   const applyPreset = async (presetName: string) => {
     let preset: Record<string, boolean>;
+    let mensagem = "";
     switch (presetName) {
       case "ALL_ACTIVE":
         preset = { crm: true, educacao: true, produtividade: true, financeiro: true, catalogo: true, engajamento: true, rh: true, bi: true, clinica: true, marketing: true, dev: true, imobiliaria: true, concessionaria: true, varejo: true, solar: true, aurora: true };
-        toast.success("Preset Aplicado: Ecossistema Global (Todos os Módulos Ativos)");
+        mensagem = "Preset Aplicado: Ecossistema Global (Todos os Módulos Ativos)";
         break;
       case "SDR_CLOSER":
         preset = { crm: true, educacao: false, produtividade: true, financeiro: false, catalogo: false, engajamento: true, rh: false, bi: true, clinica: false, marketing: true, dev: false, imobiliaria: false, concessionaria: false, varejo: false, solar: false, aurora: true };
-        toast.success("Preset Aplicado: Agência SDR & Closers");
+        mensagem = "Preset Aplicado: Agência SDR & Closers";
         break;
       case "EDUCACAO":
         preset = { crm: true, educacao: true, produtividade: true, financeiro: true, catalogo: false, engajamento: true, rh: true, bi: true, clinica: false, marketing: true, dev: false, imobiliaria: false, concessionaria: false, varejo: false, solar: false, aurora: true };
-        toast.success("Preset Aplicado: Escola & Acadêmico");
+        mensagem = "Preset Aplicado: Escola & Acadêmico";
         break;
       case "CLINICA":
         preset = { crm: true, educacao: false, produtividade: true, financeiro: true, catalogo: false, engajamento: true, rh: true, bi: true, clinica: true, marketing: false, dev: false, imobiliaria: false, concessionaria: false, varejo: false, solar: false, aurora: true };
-        toast.success("Preset Aplicado: Clínica & Saúde Integrada");
+        mensagem = "Preset Aplicado: Clínica & Saúde Integrada";
         break;
       case "IMOBILIARIA":
         preset = { crm: true, educacao: false, produtividade: true, financeiro: true, catalogo: false, engajamento: true, rh: true, bi: true, clinica: false, marketing: true, dev: false, imobiliaria: true, concessionaria: false, varejo: false, solar: false, aurora: true };
-        toast.success("Preset Aplicado: Imobiliária");
+        mensagem = "Preset Aplicado: Imobiliária";
         break;
       case "CONCESSIONARIA":
         preset = { crm: true, educacao: false, produtividade: true, financeiro: true, catalogo: false, engajamento: true, rh: true, bi: true, clinica: false, marketing: true, dev: false, imobiliaria: false, concessionaria: true, varejo: false, solar: false, aurora: true };
-        toast.success("Preset Aplicado: Concessionária");
+        mensagem = "Preset Aplicado: Concessionária";
         break;
       case "VAREJO":
         preset = { crm: true, educacao: false, produtividade: true, financeiro: true, catalogo: true, engajamento: true, rh: true, bi: true, clinica: false, marketing: true, dev: false, imobiliaria: false, concessionaria: false, varejo: true, solar: false, aurora: true };
-        toast.success("Preset Aplicado: Varejo & Lojas");
+        mensagem = "Preset Aplicado: Varejo & Lojas";
         break;
       case "SOLAR":
         preset = { crm: true, educacao: false, produtividade: true, financeiro: true, catalogo: false, engajamento: true, rh: true, bi: true, clinica: false, marketing: false, dev: false, imobiliaria: false, concessionaria: false, varejo: false, solar: true, aurora: true };
-        toast.success("Preset Aplicado: Energia Solar");
+        mensagem = "Preset Aplicado: Energia Solar";
         break;
       default:
         return;
     }
     if (preset.concessionaria !== undefined) preset.automotivo = preset.concessionaria;
-    setActiveModules(preset);
-    await updateTenantModules(selectedTenant, preset as any);
-    if (selectedTenant === user?.tenantName) {
-      setSidebarModules(preset);
+    // O preset só redefine os módulos que ele conhece: os demais (ex.: agenda, documentos,
+    // agente_secreto) continuam como estavam — antes eram apagados da empresa.
+    const anterior = activeModules;
+    const final = { ...activeModules, ...preset };
+    setActiveModules(final);
+    const ok = await updateTenantModules(selectedTenant, final as any);
+    if (!ok) {
+      setActiveModules(anterior);
+      toast.error(`Não foi possível aplicar o preset em ${selectedTenant}. Nada foi gravado.`);
+      return;
     }
+    if (selectedTenant === empresaAberta) {
+      setSidebarModules(final);
+    }
+    toast.success(`${mensagem} em ${selectedTenant}`);
   };
 
   const handleSwitchRole = (role: string) => {
@@ -155,7 +183,7 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
     toast.info(`Simulação ativada para o perfil: ${role}`);
   };
 
-  const activeCount = Object.values(activeModules).filter(Boolean).length;
+  const activeCount = MODULE_DEFINITIONS.filter(m => activeModules[m.id]).length;
 
   return (
     <div className="space-y-6">
@@ -181,15 +209,18 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
                   ))}
                 </select>
                 <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 border border-[var(--color-primary-blue)]/20 px-2.5 py-1 rounded-lg">
-                  {activeCount} de 16 Ativos
+                  {activeCount} de {MODULE_DEFINITIONS.length} Ativos
                 </span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <p className="text-xs text-[var(--color-text-muted)] max-w-md hidden sm:block">
-              As alterações são gravadas instantaneamente no banco de dados e refletidas na barra lateral de navegação do tenant.
+            <p className="text-xs text-[var(--color-text-muted)] max-w-md">
+              Você está alterando os módulos de <strong className="text-[var(--color-text-primary)]">{selectedTenant || "nenhuma empresa"}</strong>. Cada alteração é gravada na hora.
+              {selectedTenant !== empresaAberta && empresaAberta && (
+                <span className="block mt-1 font-bold text-amber-600">Atenção: a empresa aberta na barra superior é {empresaAberta}; o menu lateral que você vê é dela.</span>
+              )}
             </p>
           </div>
         </div>

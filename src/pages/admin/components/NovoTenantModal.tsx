@@ -49,7 +49,7 @@ export const MODULES: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "imobiliaria", label: "Imobiliária", icon: Home },
   { id: "concessionaria", label: "Concessionária & Automotivo", icon: Car },
   { id: "solar", label: "Energia Solar", icon: Sun },
-  { id: "varejo", label: "Varejo & PDV", icon: ShoppingCart },
+  { id: "varejo", label: "Ponto de Venda", icon: ShoppingCart },
   { id: "dev", label: "Engenharia & Sprints", icon: Code2 },
 ];
 

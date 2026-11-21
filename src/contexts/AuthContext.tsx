@@ -40,7 +40,7 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
   updatePreferences: (partial: Record<string, any>) => Promise<void>;
   isModuleEnabled: (moduleName: keyof TenantModules) => boolean;
-  updateTenantModules: (tenantName: string, modules: TenantModules) => Promise<void>;
+  updateTenantModules: (tenantName: string, modules: TenantModules) => Promise<boolean>;
   getTenantModules: (tenantName: string) => TenantModules;
   allTenantModules: Record<string, TenantModules>;
   tenantIdMap: Record<string, string>;
@@ -329,6 +329,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateTenantModules = async (tenant: string, modules: TenantModules) => {
     // 1. Atualiza o estado local para feedback imediato na UI
+    const anterior = getTenantModules(tenant);
     setAllTenantModules(prev => {
       const keys = Object.keys(prev);
       const matchedKey = keys.find(k => k.toLowerCase() === tenant.toLowerCase()) || tenant;
@@ -343,7 +344,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!result.success) {
       console.error('[AuthContext] Falha ao persistir módulos no banco');
+      // Desfaz o estado local: a tela não pode mostrar ligado o que o banco não gravou.
+      setAllTenantModules(prev => {
+        const matchedKey = Object.keys(prev).find(k => k.toLowerCase() === tenant.toLowerCase()) || tenant;
+        return { ...prev, [matchedKey]: anterior };
+      });
+      return false;
     }
+    return true;
   };
 
   return (

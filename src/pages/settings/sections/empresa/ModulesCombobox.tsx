@@ -18,7 +18,7 @@ export const ALL_MODULES: { id: string; label: string; desc: string }[] = [
   { id: "imobiliaria",  label: "Imobiliária",            desc: "Imóveis, visitas, corretores e propostas" },
   { id: "automotivo",   label: "Concessionária & Automotivo", desc: "Estoque de veículos, trocas e consignações" },
   { id: "solar",        label: "Energia Solar",          desc: "Dimensionamento e funil fotovoltaico" },
-  { id: "varejo",       label: "Varejo & PDV",           desc: "Frente de caixa, estoque, compras e fornecedores" },
+  { id: "varejo",       label: "Ponto de Venda",         desc: "Frente de caixa, estoque, compras e fornecedores" },
   { id: "aurora",       label: "Aurora (IA)",            desc: "Assistente executiva com inteligência" },
 ];
 

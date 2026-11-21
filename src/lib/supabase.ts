@@ -741,12 +741,15 @@ export async function updateTenantModulesInDB(tenantName: string, modules: any) 
   if (!supabase) return { success: false, error: 'Não foi possível conectar ao servidor' };
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("tenants")
       .update({ modules })
-      .eq("name", tenantName);
+      .eq("name", tenantName)
+      .select("id");
 
     if (error) throw error;
+    // Sem erro e sem linha alterada = RLS barrou ou o nome não bateu: não é sucesso.
+    if (!data || data.length === 0) return { success: false, error: 'Nenhuma empresa foi alterada (sem permissão ou nome não encontrado).' };
     return { success: true };
   } catch (err) {
     console.error('[Tenants] ❌ Erro ao salvar módulos:', err);
