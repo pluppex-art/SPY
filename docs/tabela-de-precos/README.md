@@ -5,7 +5,7 @@
 código), **3 são separados por um motivo de negócio**. Fora desses 8, os planos de assinatura do SPY **já puxam o preço de
 `products` por gatilho**. O que de fato estava "puxando errado" eram **três coisas pequenas**, que esta entrega corrige.
 
-> **Nada foi aplicado ao banco.** Só leitura (`SELECT`) em 21/11/2026. O SQL está em `migracoes/P1_products_tabela_unica.sql`,
+> **Nada foi aplicado ao banco.** Só leitura (`SELECT`) em 21/11/2026. O SQL está em `migracoes/P1_TUDO_EM_UM.sql`,
 > testado num banco descartável, esperando a sua autorização. O código desta entrega **funciona sem o SQL** (ele só fica
 > ainda melhor com o SQL).
 
@@ -61,16 +61,17 @@ minúscula ao lado de `Serviço` e `Físico`). Isso é limpeza de outra fase.
 ## 4. O que foi testado
 
 - `npx tsx --test tests/varejo/tabelaPrecos.test.ts`: regras de margem, custo da venda e código de barras (4 testes).
-- **P1 aplicada e desfeita** num banco descartável (PGlite) com o formato de `products` e um gatilho de planos de mentira:
-  15 verificações, todas passaram (margem recalcula em preço/custo; não mexe em linha que ninguém tocou; gatilho de planos
-  segue funcionando; EAN único por empresa, livre em outra empresa e ao apagar; desfazer devolve tudo). Script em
+- **O script `P1_TUDO_EM_UM.sql` foi rodado e desfeito** num banco descartável (PGlite) com o formato de `products` e um gatilho de
+  planos de mentira: roda inteiro sem erro, **roda uma segunda vez sem erro e sem mudar nada**, não quebra se uma tabela antiga
+  não existir, não falha com EAN repetido (avisa e segue), corrige as margens divergentes sem tocar nas outras, mantém o gatilho de planos
+  funcionando e desfaz tudo. Script em
   `migracoes/teste-em-banco-descartavel.mjs`.
 - **Não prova nada sobre a produção** (RLS real, outros gatilhos reais além dos dois de planos, volume). Aplicar primeiro em
   branch do Supabase.
 
 ## 5. Decisões que dependem de você
 
-1. **Autorizar o P1** (colunas `ean` e `unidade`, gatilho da margem, comentário de "LEGADO" nas 4 tabelas mortas)?
+1. **Autorizar o script `P1_TUDO_EM_UM.sql`** (colunas `ean` e `unidade`, gatilho da margem, correção da margem de 2 produtos, comentário de "LEGADO" nas 4 tabelas mortas)?
 2. **Apagar as 4 tabelas mortas** (`estoque_items`, `clinica_servicos`, `imobiliario_imoveis`, `imobiliario_veiculos`)? Não apago:
    não consigo ver o N8N e algum fluxo pode ainda escrever nelas. Proposta: deixar marcadas como legado por algumas semanas
    e só então apagar.
