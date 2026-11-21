@@ -1221,6 +1221,8 @@ export default function VarejoVendas() {
     const q = filtroHistorico.toLowerCase();
     return (
       v.id.toLowerCase().includes(q) ||
+      rotuloVenda(v.numero, v.id).toLowerCase().includes(q.replace(/^#/, "#")) ||
+      (v.itens || []).some((i) => i.name?.toLowerCase().includes(q)) ||
       (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) ||
       (v.operador && v.operador.toLowerCase().includes(q))
     );
@@ -1863,7 +1865,7 @@ export default function VarejoVendas() {
             ]}
           >
             <FilterBar>
-              <FilterSearch value={filtroHistorico} onChange={setFiltroHistorico} placeholder="Filtrar por ID da venda, cliente ou operador..." />
+              <FilterSearch value={filtroHistorico} onChange={setFiltroHistorico} placeholder="Filtrar por item, cliente, operador ou nº da venda..." />
               <FilterSelect icon={CreditCard} value={filtroHistPagto} onChange={setFiltroHistPagto} options={histPagtoOpts} allLabel="Todas as formas de pagamento" />
               <FilterChips value={filtroHistStatus} onChange={setFiltroHistStatus} options={histStatusOpts} />
             </FilterBar>
@@ -1887,7 +1889,14 @@ export default function VarejoVendas() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-black font-mono text-[var(--color-text-primary)]">{rotuloVenda(venda.numero, venda.id)}</h4>
+                            <h4 className="text-sm font-black text-[var(--color-text-primary)] truncate max-w-[28rem]" title={(venda.itens || []).map((i) => `${i.quantidade}x ${i.name}`).join(", ")}>
+                              {(() => {
+                                const itens = venda.itens || [];
+                                if (itens.length === 0) return "Venda sem itens";
+                                return itens.length === 1 ? itens[0].name : `${itens[0].name} + ${itens.length - 1} ${itens.length - 1 === 1 ? "item" : "itens"}`;
+                              })()}
+                            </h4>
+                            <span className="text-[10px] font-mono font-bold text-[var(--color-text-muted)]">{rotuloVenda(venda.numero, venda.id)}</span>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isEstornada ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"}`}>
                               {isEstornada ? "Venda Estornada" : "Paga / Concluída"}
                             </span>
