@@ -734,6 +734,7 @@ export default function ComprasVarejo() {
         isOpen={novoFornecedorOpen}
         onClose={() => setNovoFornecedorOpen(false)}
         tenantId={activeTenantId}
+        existentes={fornecedoresCad}
         onSaved={f => { setFornecedoresCad(prev => [...prev, f].sort((a, b) => a.razaoSocial.localeCompare(b.razaoSocial))); if (editando) setEForn(f.razaoSocial); else setFornecedor(f.razaoSocial); }}
       />
     </PageContainer>

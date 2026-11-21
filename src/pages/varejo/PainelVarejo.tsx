@@ -809,6 +809,7 @@ export default function PainelVarejo() {
         isOpen={novoFornPara !== null}
         onClose={() => setNovoFornPara(null)}
         tenantId={activeTenantId}
+        existentes={fornecedoresCad}
         onSaved={f => {
           setFornecedoresCad(prev => [...prev, f].sort((a, b) => a.razaoSocial.localeCompare(b.razaoSocial)));
           if (novoFornPara) setRepForn(prev => ({ ...prev, [novoFornPara]: f.razaoSocial }));
