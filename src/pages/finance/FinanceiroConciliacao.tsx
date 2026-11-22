@@ -25,6 +25,8 @@ import { Modal } from "../../components/ui/modal";
 import { Field, ModalFooter, inputCls, selectCls } from "./components/ModalKit";
 import { acharLancamento, lancamentoDoExtrato } from "./lib/conciliacao";
 import { Link } from "react-router-dom";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
+import { parseEntryDate } from "./lib/financeDates";
 type ExtratoItem = {
   id: string;
   data: string;
@@ -128,16 +130,25 @@ export default function FinanceiroConciliacao() {
   const [busca, setBusca] = useState("");
   const [situacaoFilter, setSituacaoFilter] = useState("");
   const [tipoFilter, setTipoFilter] = useState("");
+  // Período do extrato (mesmo seletor das outras telas); sem período = todas as linhas.
+  const [periodoDe, setPeriodoDe] = useState<string | null>(null);
+  const [periodoAte, setPeriodoAte] = useState<string | null>(null);
   const extratoFiltrado = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return extrato.filter(i => {
       if (situacaoFilter === "conciliado" && !i.conciliado) return false;
       if (situacaoFilter === "pendente" && i.conciliado) return false;
       if (tipoFilter && i.tipo !== tipoFilter) return false;
+      if (periodoDe || periodoAte) {
+        const d = parseEntryDate(i.data as any);
+        if (!d) return false;
+        if (periodoDe && d < new Date(`${periodoDe}T00:00:00`)) return false;
+        if (periodoAte && d > new Date(`${periodoAte}T23:59:59`)) return false;
+      }
       if (!q) return true;
       return (i.descricao || "").toLowerCase().includes(q) || (i.documento || "").toLowerCase().includes(q) || (i.banco || "").toLowerCase().includes(q);
     });
-  }, [extrato, busca, situacaoFilter, tipoFilter]);
+  }, [extrato, busca, situacaoFilter, tipoFilter, periodoDe, periodoAte]);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -381,8 +392,8 @@ export default function FinanceiroConciliacao() {
           { label: "Pendentes de Match", value: pendentes, icon: AlertCircle, tone: "warning", hint: "Aguardando conferência ou aceite por IA" },
           { label: "Lançamentos Importados", value: extrato.length, icon: Building2, tone: "primary", hint: "Via upload de extrato CSV/OFX" },
         ]}
-        activeCount={(busca ? 1 : 0) + (situacaoFilter ? 1 : 0) + (tipoFilter ? 1 : 0)}
-        onClear={() => { setBusca(""); setSituacaoFilter(""); setTipoFilter(""); }}
+        activeCount={(busca ? 1 : 0) + (situacaoFilter ? 1 : 0) + (tipoFilter ? 1 : 0) + (periodoDe || periodoAte ? 1 : 0)}
+        onClear={() => { setBusca(""); setSituacaoFilter(""); setTipoFilter(""); setPeriodoDe(null); setPeriodoAte(null); }}
       >
         <FilterBar>
           <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar por descrição, documento ou banco..." />
@@ -393,6 +404,7 @@ export default function FinanceiroConciliacao() {
             options={[{ value: "credito", label: "Créditos" }, { value: "debito", label: "Débitos" }]}
             allLabel="Créditos e débitos"
           />
+          <DateRangeFilter dateFrom={periodoDe} setDateFrom={setPeriodoDe} dateTo={periodoAte} setDateTo={setPeriodoAte} emptyLabel="Data do extrato: Tudo" />
           <FilterChips
             value={situacaoFilter}
             onChange={setSituacaoFilter}

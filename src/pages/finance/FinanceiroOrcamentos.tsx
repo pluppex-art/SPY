@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { SeletorCompetencia } from "./components/SeletorCompetencia";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { AlertTriangle, ChevronLeft, ChevronRight, Copy, FolderTree, Sparkles, Target, TrendingDown, TrendingUp, Wallet } from "lucide-react";
@@ -231,11 +232,7 @@ export default function FinanceiroOrcamentos() {
         <div className="mx-auto max-w-[1700px] space-y-4 pb-12">
           <FinanceKpiFilter id="finOrcamentos" kpis={kpis} activeCount={activeCount} onClear={limpar}>
             <FilterBar>
-              <div className="flex h-[38px] items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-2">
-                <button type="button" aria-label="Mês anterior" onClick={() => setRefDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="cursor-pointer rounded p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)]"><ChevronLeft className="h-4 w-4" /></button>
-                <span className="w-36 text-center text-xs font-bold capitalize">{mesLabel}</span>
-                <button type="button" aria-label="Próximo mês" onClick={() => setRefDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="cursor-pointer rounded p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)]"><ChevronRight className="h-4 w-4" /></button>
-              </div>
+              <SeletorCompetencia mes={refDate} setMes={setRefDate} />
               <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar categoria..." />
               <FilterChips value={tipoFiltro} onChange={setTipoFiltro} options={[{ value: "Despesa", label: "Despesas" }, { value: "Receita", label: "Receitas" }]} />
             </FilterBar>
