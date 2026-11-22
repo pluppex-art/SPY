@@ -89,8 +89,8 @@ export function OnboardingWizard() {
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-[var(--color-primary-blue)]" />
             <div>
-              <h2 className="text-base font-black text-[var(--color-text-primary)]">Bem-vindo ao S.P.Y. SORA</h2>
-              <p className="text-xs text-[var(--color-text-muted)]">Vamos configurar sua empresa em 2 passos rápidos.</p>
+              <h2 className="text-base font-black text-[var(--color-text-primary)]">Bem-vindo ao S.P.Y. SOA</h2>
+              <p className="text-xs text-[var(--color-text-muted)]">SOA = Sistema Operacional Autônomo: o sistema que roda a operação comercial e financeira da sua empresa. Vamos configurar em 2 passos rápidos.</p>
             </div>
           </div>
           <button onClick={handleSkip} className="w-8 h-8 rounded-full bg-[var(--color-surface)] border border-[var(--color-border-default)] flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">

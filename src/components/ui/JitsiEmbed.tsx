@@ -78,8 +78,8 @@ export function JitsiEmbed({ roomName, displayName, email, onLeave, className }:
             BRAND_WATERMARK_LINK: "",
             HIDE_INVITE_MORE_HEADER: false,
             NATIVE_APP_SCHEME: "",
-            APP_NAME: "S.P.Y. SORA — Sala de Reunião",
-            PROVIDER_NAME: "S.P.Y. SORA",
+            APP_NAME: "S.P.Y. SOA — Sala de Reunião",
+            PROVIDER_NAME: "S.P.Y. SOA",
           },
         });
 

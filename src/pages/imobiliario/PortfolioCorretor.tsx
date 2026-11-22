@@ -77,7 +77,7 @@ export default function PortfolioCorretor() {
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-blue-400" />
-              <span className="text-sm font-black text-slate-400">S.P.Y. SORA</span>
+              <span className="text-sm font-black text-slate-400">S.P.Y. SOA</span>
             </div>
             <a href="/" className="flex items-center gap-1.5 text-[11px] text-slate-600 hover:text-slate-400 transition-colors">
               <ChevronLeft className="w-3.5 h-3.5" /> Voltar ao site
@@ -202,7 +202,7 @@ export default function PortfolioCorretor() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-6">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-600">
-          <span>Portfólio gerado por <span className="text-blue-500 font-bold">S.P.Y. SORA</span></span>
+          <span>Portfólio gerado por <span className="text-blue-500 font-bold">S.P.Y. SOA</span></span>
           {corretor.creci && <span>{corretor.creci}</span>}
         </div>
       </footer>

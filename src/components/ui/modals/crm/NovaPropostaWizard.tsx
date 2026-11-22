@@ -833,7 +833,7 @@ function StepContexto(props: any) {
         <SectionCard icon={Target} title="Dados da oportunidade" desc="Defina o contexto comercial desta proposta.">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Título da proposta">
-              <input value={tituloProposta} onChange={(e) => setTituloProposta(e.target.value)} className={inputCls} placeholder="Ex.: Implementação S.P.Y. SORA + Aurora" />
+              <input value={tituloProposta} onChange={(e) => setTituloProposta(e.target.value)} className={inputCls} placeholder="Ex.: Implementação S.P.Y. SOA + Aurora" />
             </Field>
             <Field label="Valor estimado">
               <input inputMode="decimal" value={valorEstimado} onChange={(e) => setValorEstimado(e.target.value)} className={inputCls} />
@@ -858,7 +858,7 @@ function StepContexto(props: any) {
           <textarea
             value={objetivo} onChange={(e) => setObjetivo(e.target.value.slice(0, 500))} rows={3} maxLength={500}
             className={cn(inputCls, "resize-none")}
-            placeholder="Ex.: Implementar o S.P.Y. SORA para organizar o processo comercial e gerar mais oportunidades qualificadas."
+            placeholder="Ex.: Implementar o S.P.Y. SOA para organizar o processo comercial e gerar mais oportunidades qualificadas."
           />
           <p className="text-[9px] text-[var(--color-text-faint)] text-right mt-1">{objetivo.length}/500</p>
         </SectionCard>
