@@ -28,7 +28,7 @@ export function SystemWorkflowsSection({ initialWorkflows }: { initialWorkflows?
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <Zap className="text-blue-500 w-5 h-5" /> Automações Gerais do Sistema
         </h2>
-        <p className="text-slate-500 text-xs mt-1">Configure fluxos lineares internos baseados em estágios do CRM comercial.</p>
+        <p className="text-slate-500 text-xs mt-1">Configure fluxos lineares internos baseados em estágios de Vendas comercial.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

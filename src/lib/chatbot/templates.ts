@@ -19,7 +19,7 @@ export const NODE_LABEL: Record<FlowNodeType, string> = {
   menu: "Menu de opções",
   question: "Pergunta",
   media: "Imagem / arquivo",
-  create_lead: "Criar lead no CRM",
+  create_lead: "Criar lead em Vendas",
   save_data: "Salvar dados",
   handoff: "Passar para humano",
   end: "Encerrar",
@@ -142,7 +142,7 @@ function implantacao(): ChatbotFlow {
 }
 
 export const CHATBOT_TEMPLATES: ChatbotTemplate[] = [
-  { id: "basico", name: "Atendimento + captação de lead", description: "Boas-vindas, menu, coleta de nome/e-mail/interesse, cria o lead no CRM e opção de falar com atendente.", flow: basico },
-  { id: "implantacao", name: "Implantação de cliente (SPY)", description: "Perguntas de cadastro da empresa, responsável e CRM. As respostas preenchem o formulário de Implementações do cliente.", flow: implantacao() },
+  { id: "basico", name: "Atendimento + captação de lead", description: "Boas-vindas, menu, coleta de nome/e-mail/interesse, cria o lead em Vendas e opção de falar com atendente.", flow: basico },
+  { id: "implantacao", name: "Implantação de cliente (SPY)", description: "Perguntas de cadastro da empresa, responsável e Vendas. As respostas preenchem o formulário de Implementações do cliente.", flow: implantacao() },
   { id: "vazio", name: "Em branco", description: "Só uma mensagem de boas-vindas. Monte o resto do zero.", flow: vazio },
 ];

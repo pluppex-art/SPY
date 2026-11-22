@@ -75,7 +75,7 @@ export function LandingPageEditorModal({ isOpen, onClose, pagina, onSalvar }: Pr
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-2xl" title={pagina ? "Editar landing page" : "Nova landing page"}
-      description="A página fica no ar no endereço abaixo, conta visitas e cliques sozinha e cada envio vira lead no CRM."
+      description="A página fica no ar no endereço abaixo, conta visitas e cliques sozinha e cada envio vira lead em Vendas."
       footer={<div className="flex items-center justify-between w-full gap-2">
         {pagina ? <a href={link} target="_blank" rel="noreferrer" className="text-xs font-bold text-blue-400 hover:underline inline-flex items-center gap-1"><ExternalLink className="w-3.5 h-3.5" />Ver página</a> : <span />}
         <div className="flex gap-2"><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button onClick={salvar} disabled={salvando}>{salvando && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{pagina ? "Salvar" : "Criar página"}</Button></div>

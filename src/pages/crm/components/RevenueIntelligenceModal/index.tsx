@@ -43,7 +43,7 @@ export function RevenueIntelligenceModal({ lead, stageName, pipelineName, onClos
         installments: installments || 'Não informado',
         commercialRules: commercialRules || 'Nenhuma regra específica',
         crmNotes: lead.iaSummary ?? 'Sem notas',
-        history: 'Veja histórico no CRM',
+        history: 'Veja histórico em Vendas',
         transcript,
       };
       setResult(await analyzeCall(data));

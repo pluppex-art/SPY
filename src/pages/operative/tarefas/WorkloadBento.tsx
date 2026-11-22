@@ -246,7 +246,7 @@ export function WorkloadBento({ tasks, onExpandTask, googleConnected }: Workload
               <span className="text-[10px] font-normal text-[var(--color-text-muted)]">{googleConnected ? "Conectado" : "Não conectado"}</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--color-surface-sunken)] text-xs font-bold text-[var(--color-text-primary)]">
-              <Link2 className="w-4 h-4 text-violet-500" /> CRM S.P.Y.
+              <Link2 className="w-4 h-4 text-violet-500" /> Vendas S.P.Y.
               <span className="text-[10px] font-normal text-[var(--color-text-muted)]">{vinculadas} vinculadas a leads</span>
             </div>
           </div>

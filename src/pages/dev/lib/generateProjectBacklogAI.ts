@@ -29,7 +29,7 @@ function buildPrompt(input: { productName: string; description: string }) {
 
 Objetivo: gerar um backlog de desenvolvimento (Kanban) para um projeto.
 
-Você DEVE adaptar as tasks ao TIPO do produto (ex.: site institucional, app mobile, agente de IA, API, dashboard, CRM, etc.).
+Você DEVE adaptar as tasks ao TIPO do produto (ex.: site institucional, app mobile, agente de IA, API, dashboard, Vendas, etc.).
 
 REGRAS ABSOLUTAS:
 1) Retorne APENAS JSON válido, sem markdown.

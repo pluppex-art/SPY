@@ -83,7 +83,7 @@ export function ConfigIntegracoesWebhooks() {
     });
     
     setNewWebhookUrl("");
-    toast.success("URL de Webhook vinculada ao CRM com sucesso! Disparos automáticos ativados.");
+    toast.success("URL de Webhook vinculada a Vendas com sucesso! Disparos automáticos ativados.");
   };
 
   const testWebhookTrigger = async (indexNum: number) => {
@@ -122,16 +122,16 @@ export function ConfigIntegracoesWebhooks() {
         </h1>
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
           Cadastre endpoints e valide a conexão com "Disparar Teste". O disparo automático já está ativo para 3 eventos:
-          Novo Lead Criado, Negócio Ganho e Negócio Perdido, Nova Tarefa SDR — assim que o evento acontece de verdade no CRM, o
+          Novo Lead Criado, Negócio Ganho e Negócio Perdido, Nova Tarefa SDR — assim que o evento acontece de verdade em Vendas, o
           endpoint marcado como "Ativo" é chamado automaticamente. "Reunião Agendada" ainda não dispara automaticamente
-          (reuniões ficam no Google Calendar, fora do banco do CRM) — só via teste manual por enquanto.
+          (reuniões ficam no Google Calendar, fora do banco de Vendas) — só via teste manual por enquanto.
         </p>
       </div>
 
       <Card className="p-6 space-y-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
         <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
           <Settings className="w-4 h-4 text-[var(--color-text-muted)]" />
-          Configurar Novo Webhook CRM
+          Configurar Novo Webhook Vendas
         </h3>
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1 w-full space-y-1.5">
@@ -186,7 +186,7 @@ export function ConfigIntegracoesWebhooks() {
               <EmptyState
                 icon={Zap}
                 title="Nenhum webhook cadastrado"
-                description="Cadastre um endpoint HTTPS acima para receber eventos do CRM."
+                description="Cadastre um endpoint HTTPS acima para receber eventos de Vendas."
                 className="py-8"
               />
             ) : (
@@ -261,7 +261,7 @@ export function ConfigIntegracoesWebhooks() {
         <Card className="p-5 space-y-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm md:col-span-2">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-              <Zap className="w-4 h-4 text-[var(--color-primary-blue)]" /> Disparos Automáticos Reais (eventos do CRM)
+              <Zap className="w-4 h-4 text-[var(--color-primary-blue)]" /> Disparos Automáticos Reais (eventos de Vendas)
             </h3>
             <Button
               type="button"

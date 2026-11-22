@@ -197,7 +197,7 @@ export function BusinessIntelligenceView() {
         <div>
           <SectionTitle>
             <BarChart3 className="w-5 h-5 text-[var(--color-primary-blue)]" /> Dashboard / BI
-           <HelpTip label="Sobre Painel / BI">Reúne CRM, Financeiro e Operacional numa só tela. Os números são calculados no servidor, por isso a tela abre rápido mesmo com muita informação.</HelpTip></SectionTitle>
+           <HelpTip label="Sobre Painel / BI">Reúne Vendas, Financeiro e Operacional numa só tela. Os números são calculados no servidor, por isso a tela abre rápido mesmo com muita informação.</HelpTip></SectionTitle>
         </div>
         <div className="flex items-center gap-2">
           <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
@@ -220,10 +220,10 @@ export function BusinessIntelligenceView() {
         />
       ) : (
         <>
-          {/* ── CRM / VENDAS ── */}
+          {/* ── Vendas / VENDAS ── */}
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-faint)] flex items-center gap-1.5 mb-2">
-              <Target className="w-3 h-3" /> CRM / Vendas
+              <Target className="w-3 h-3" /> Vendas
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <StatCard icon={Users} label="Leads Cadastrados" value={summary.crm.leadsCadastrados} caption={periodo} sub={<>{summary.crm.leadsNovosNoPeriodo} novos no período</>} />

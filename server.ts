@@ -4151,7 +4151,7 @@ app.post("/api/leads/calculate-score", requireUser, async (req, res) => {
     try {
       const response = await ai.models.generateContent({
         model: "gemini-3.6-flash",
-        contents: `Analyze this CRM lead and its recent activities, and compute:
+        contents: `Analyze this sales lead and its recent activities, and compute:
         1. An AI score (0 to 100) indicating closeness to buying or closing.
         2. A lead temperature ('frio', 'morno', or 'quente').
         3. A brief, informative summary of why the score was given.
@@ -4607,7 +4607,7 @@ const AURORA_TOOLS = [
     parameters: {
       type: Type.OBJECT,
       properties: {
-        lead_nome: { type: Type.STRING, description: "Nome do lead ou da empresa, como aparece no CRM (busca aproximada)" },
+        lead_nome: { type: Type.STRING, description: "Nome do lead ou da empresa, como aparece em Vendas (busca aproximada)" },
         produto_nome: { type: Type.STRING, description: "Nome ou palavra-chave do produto do catálogo" },
       },
       required: ["lead_nome", "produto_nome"],
@@ -4624,7 +4624,7 @@ const AURORA_TOOLS = [
   },
   {
     name: "atualizar_implementacao",
-    description: "Preenche campos do formulário de implementação de um cliente (Implementações no CRM) a partir do que o usuário ditar — ex.: 'o WhatsApp da Fulano é 63 99999-0000', 'CNPJ e razão social da Beta são ...'. Envie TODOS os campos ditos numa única chamada, no array 'campos'. Só preenche campos que o CLIENTE responde (dados da empresa, responsáveis, CRM, IDs de integração, financeiro, Aurora); NÃO altera status de integração, checklist de go-live nem notas internas — isso é da equipe, no sistema. Nunca grave senhas ou tokens de acesso. Se o cliente ainda não tem implementação iniciada, avise que precisa iniciar em CRM > Implementações.",
+    description: "Preenche campos do formulário de implementação de um cliente (Implementações em Vendas) a partir do que o usuário ditar — ex.: 'o WhatsApp da Fulano é 63 99999-0000', 'CNPJ e razão social da Beta são ...'. Envie TODOS os campos ditos numa única chamada, no array 'campos'. Só preenche campos que o CLIENTE responde (dados da empresa, responsáveis, Vendas, IDs de integração, financeiro, Aurora); NÃO altera status de integração, checklist de go-live nem notas internas — isso é da equipe, no sistema. Nunca grave senhas ou tokens de acesso. Se o cliente ainda não tem implementação iniciada, avise que precisa iniciar em Vendas > Implementações.",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -4675,7 +4675,7 @@ async function auroraFindImplementation(supabaseClient: any, scoped: (q: any) =>
   );
   if (iErr) return { erro: { error: iErr.message } };
   if (!impls || impls.length === 0) {
-    return { erro: { sucesso: false, mensagem: `Encontrei ${clientes.map((c: any) => c.name).join(", ")}, mas nenhum tem implementação iniciada. O usuário precisa iniciar em CRM > Implementações.` } };
+    return { erro: { sucesso: false, mensagem: `Encontrei ${clientes.map((c: any) => c.name).join(", ")}, mas nenhum tem implementação iniciada. O usuário precisa iniciar em Vendas > Implementações.` } };
   }
   if (impls.length > 1) {
     return {
@@ -4921,7 +4921,7 @@ async function runAuroraTool(name: string, args: any, supabaseClient: any, tenan
     const found = await auroraFindImplementation(supabaseClient, scoped, args?.cliente_nome);
     if ("erro" in found) return found.erro;
     const { impl, clienteNome } = found;
-    if (impl.status === "Concluída") return { sucesso: false, mensagem: `A implementação de ${clienteNome} já está concluída — reabra no CRM antes de alterar.` };
+    if (impl.status === "Concluída") return { sucesso: false, mensagem: `A implementação de ${clienteNome} já está concluída — reabra em Vendas antes de alterar.` };
 
     const campos = Array.isArray(args?.campos) ? args.campos.slice(0, 40) : [];
     if (campos.length === 0) return { sucesso: false, mensagem: "Nenhum campo informado." };
@@ -6112,7 +6112,7 @@ app.post("/api/whatsapp/instances/:id/backfill", requireUser, async (req: any, r
   const { id } = req.params;
   const { data: inst, error } = await req.supabase.from("whatsapp_instances").select("*").eq("id", id).maybeSingle();
   if (error || !inst) return res.status(404).json({ error: "Instância não encontrada" });
-  if (inst.colaborador_id) return res.status(409).json({ error: "Sessão pessoal de colaborador: o histórico das conversas dele não é importado para o CRM." });
+  if (inst.colaborador_id) return res.status(409).json({ error: "Sessão pessoal de colaborador: o histórico das conversas dele não é importado para Vendas." });
   if (inst.status !== "CONNECTED") return res.status(409).json({ error: "Conecte a instância antes de importar o histórico." });
 
   const provider = getWhatsAppProvider();

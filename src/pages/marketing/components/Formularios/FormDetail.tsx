@@ -230,8 +230,8 @@ export function FormDetail({ form, tenantId }: { form: FormDefinition; tenantId:
                   )}
                 </div>
                 <details className="mt-3 rounded-xl border border-slate-700 bg-slate-950/60 p-3">
-                  <summary className="cursor-pointer text-[11px] font-black uppercase tracking-widest text-slate-300">Receber os leads deste formulário no CRM</summary>
-                  <p className="text-[11px] text-slate-400 mt-2">Faça o seu formulário (no site ou em outra ferramenta) enviar os dados para o endereço abaixo. O lead entra no CRM com a origem “{form.source}” e quem já existe é só atualizado.</p>
+                  <summary className="cursor-pointer text-[11px] font-black uppercase tracking-widest text-slate-300">Receber os leads deste formulário em Vendas</summary>
+                  <p className="text-[11px] text-slate-400 mt-2">Faça o seu formulário (no site ou em outra ferramenta) enviar os dados para o endereço abaixo. O lead entra em Vendas com a origem “{form.source}” e quem já existe é só atualizado.</p>
                   <pre className="mt-2 text-[10px] font-mono whitespace-pre-wrap break-all p-2 rounded-lg bg-slate-900 text-slate-300">{`POST ${typeof window !== "undefined" ? window.location.origin : ""}/api/public/forms/${form.id}/submit
 Content-Type: application/json
 

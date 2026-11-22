@@ -26,7 +26,7 @@ export default function Automations() {
           <p className="text-slate-400 text-sm mt-1">Configure regras inteligentes, links e integre com canais externos de comunicação.</p>
         </div>
         <Button onClick={() => setIsModalOpen(true)} className="gap-2 bg-[#2563EB] hover:bg-blue-600 rounded-full px-6 shadow-lg shadow-blue-500/20 text-xs font-bold uppercase tracking-wider">
-          <Plus className="w-4 h-4" /> Novo Fluxo CRM
+          <Plus className="w-4 h-4" /> Novo Fluxo Vendas
         </Button>
       </div>
 

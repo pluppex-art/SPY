@@ -162,7 +162,7 @@ export function NodeInspector({ flow, node, issues, readOnly, onChange, onDelete
 
       {node.type === "create_lead" && (
         <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-          Cria o contato no CRM com tudo que foi coletado até aqui: <b>nome</b>, <b>e-mail</b> e o telefone do WhatsApp. As demais respostas vão para as observações e campos do lead.
+          Cria o contato em Vendas com tudo que foi coletado até aqui: <b>nome</b>, <b>e-mail</b> e o telefone do WhatsApp. As demais respostas vão para as observações e campos do lead.
           O funil e a etapa de entrada são escolhidos em <b>Configurações</b>. Se o telefone já estiver cadastrado, o lead existente é atualizado — nunca duplicado nem sobrescrito.
         </p>
       )}

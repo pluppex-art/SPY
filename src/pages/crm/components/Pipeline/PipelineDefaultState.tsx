@@ -8,7 +8,7 @@ export function PipelineDefaultState() {
       <Settings2 className="w-8 h-8 text-warning shrink-0" />
       <div className="flex-1">
         <p className="text-sm font-bold text-[var(--color-text-primary)]">Nenhum funil configurado</p>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Configure seus funis nas configurações do CRM.</p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Configure seus funis nas configurações de Vendas.</p>
       </div>
       <Link
         to="/app/configuracoes/crm/funis"

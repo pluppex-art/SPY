@@ -36,7 +36,7 @@ const AGENTES = [
   {
     key: "agente_secreto",
     nome: "Agente Secreto",
-    resumo: "Lê as conversas da equipe e cadastra sozinho lead, produto de interesse, etapa e tarefas no CRM.",
+    resumo: "Lê as conversas da equipe e cadastra sozinho lead, produto de interesse, etapa e tarefas em Vendas.",
   },
 ] as const;
 

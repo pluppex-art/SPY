@@ -118,7 +118,7 @@ export function NovaPropostaRapidaModal({ isOpen, onClose, onSubmit }: NovaPropo
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Consultoria CRM, Migração de Sistema"
+                  placeholder="Ex: Consultoria Vendas, Migração de Sistema"
                   value={titulo}
                   onChange={(e) => setTitulo(e.target.value)}
                   className={inputClass}

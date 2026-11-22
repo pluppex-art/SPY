@@ -32,7 +32,7 @@ export function CompanyBlock({
         <FormField
           label="Documento CNPJ"
           hint="Digite os 14 dígitos para buscar na Receita Federal"
-          error={isCnpjDuplicate ? "CNPJ já cadastrado no CRM" : undefined}
+          error={isCnpjDuplicate ? "CNPJ já cadastrado em Vendas" : undefined}
         >
           <Input
             name="cnpj"

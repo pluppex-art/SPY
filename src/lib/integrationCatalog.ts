@@ -46,7 +46,7 @@ export const CATALOG_CATEGORY_LABELS: Record<CatalogCategory, string> = {
   mensageria: "Chat & WhatsApp",
   pagamentos: "Pagamentos & Checkout",
   email: "E-mail & SMTP",
-  crm: "CRM & Marketing",
+  crm: "Vendas & Marketing",
   erp: "ERP & Fiscal",
   ecommerce: "E-commerce & Infoprodutos",
   produtividade: "Produtividade & Automação",

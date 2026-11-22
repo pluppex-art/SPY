@@ -85,7 +85,7 @@ export const IMPLEMENTATION_SECTIONS: ImplSection[] = [
   },
   {
     id: "comercial",
-    title: "CRM & Comercial",
+    title: "Comercial",
     description: "Como o time vende e o que precisa entrar configurado no SPY.",
     fields: [
       { id: "qtd_usuarios", label: "Quantos usuários vão usar o sistema?", type: "text", audience: "client", track: "answered" },
@@ -94,7 +94,7 @@ export const IMPLEMENTATION_SECTIONS: ImplSection[] = [
       { id: "origens_leads", label: "De onde vêm os leads hoje?", type: "textarea", audience: "client" },
       { id: "meta_mensal", label: "Meta mensal de vendas", type: "text", audience: "client" },
       { id: "importar_base", label: "Tem base de clientes/leads pra importar?", type: "boolean", audience: "client" },
-      { id: "importar_base_origem", label: "Onde está essa base? (planilha, outro CRM…)", type: "text", audience: "client" },
+      { id: "importar_base_origem", label: "Onde está essa base? (planilha, outro Vendas…)", type: "text", audience: "client" },
     ],
   },
   {

@@ -196,7 +196,7 @@ export function ResultsView({ result, onCreateTask, onReset }: ResultsViewProps)
               )}
               {result.commercialValidation.officialPrice && (
                 <div className="bg-white/5 rounded-xl p-2">
-                  <p className="text-[9px] text-slate-500 uppercase font-black">Valor Oficial CRM</p>
+                  <p className="text-[9px] text-slate-500 uppercase font-black">Valor Oficial Vendas</p>
                   <p className="text-xs text-emerald-400 font-bold">{result.commercialValidation.officialPrice}</p>
                 </div>
               )}

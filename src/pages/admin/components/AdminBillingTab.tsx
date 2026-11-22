@@ -280,7 +280,7 @@ export function AdminBillingTab({ revenueData, CustomTooltip }: AdminBillingTabP
 
           <div className="space-y-3">
             {[
-              { name: "Starter", price: "R$ 497", desc: "CRM Comercial, Funil e WhatsApp", color: "border-blue-500/30" },
+              { name: "Starter", price: "R$ 497", desc: "Vendas Comercial, Funil e WhatsApp", color: "border-blue-500/30" },
               { name: "Professional", price: "R$ 997", desc: "SDR IA, Catálogo, BI e Automações", color: "border-emerald-500/30" },
               { name: "Enterprise", price: "R$ 2.497", desc: "Módulos Verticais, Ilimitado e SLA 24/7", color: "border-purple-500/30" },
             ].map(p => (

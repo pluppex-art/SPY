@@ -13,7 +13,7 @@ export default function SettingsGenericForm() {
     'filiais': 'Filiais da Empresa',
     'equipe': 'Equipe & Convites',
     'permissoes': 'Perfis & Permissões',
-    'funis': 'Funis & Etapas (CRM)',
+    'funis': 'Funis & Etapas (Vendas)',
     'origens': 'Origens de Leads',
     'produtos': 'Catálogo de Produtos',
     'categorias': 'Categorias do Sistema',

@@ -23,7 +23,7 @@ export function RadarAtributos({ salesRanking, funnelLeadsCount }: RadarAtributo
     { subject: 'Ticket Médio', A: top ? Math.min(150, (top.total / Math.max(top.deals, 1)) / 1000) : 0, fullMark: 150 },
     { subject: 'Volume', A: top ? Math.min(150, top.deals * 10) : 0, fullMark: 150 },
     { subject: 'Qualidade', A: top ? Math.min(150, top.rate) : 0, fullMark: 150 },
-    { subject: 'Saúde CRM', A: Math.min(150, funnelLeadsCount * 5), fullMark: 150 },
+    { subject: 'Saúde Vendas', A: Math.min(150, funnelLeadsCount * 5), fullMark: 150 },
   ];
 
   return (

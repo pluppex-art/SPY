@@ -1020,7 +1020,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
         icon: ShieldCheck,
         iconBg: "bg-purple-500/10 text-purple-400 border-purple-500/20",
         description:
-          "Emissão automatizada de boletos registrados, cobranças PIX dinâmicas e gestão de faturamento integrada com CRM.",
+          "Emissão automatizada de boletos registrados, cobranças PIX dinâmicas e gestão de faturamento integrada com Vendas.",
         connected: paymentConfig.asaas.connected,
         statusText: paymentConfig.asaas.connected ? "Conectado" : "Não Conectado",
         statusVariant: (paymentConfig.asaas.connected ? "success" : "neutral") as any,
@@ -1074,7 +1074,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
         icon: Zap,
         iconBg: "bg-amber-500/10 text-amber-400 border-amber-500/20",
         description:
-          "Endpoints HTTPS para orquestração com n8n ou qualquer automação externa. O disparo automático em eventos do CRM ainda não existe — hoje só o botão de teste manual envia uma requisição real.",
+          "Endpoints HTTPS para orquestração com n8n ou qualquer automação externa. O disparo automático em eventos de Vendas ainda não existe — hoje só o botão de teste manual envia uma requisição real.",
         connected: globalWebhooks.some((w: any) => w.active),
         statusText: globalWebhooks.length > 0 ? "Webhook(s) Cadastrado(s)" : "Nenhum Webhook",
         statusVariant: (globalWebhooks.length > 0 ? "info" : "neutral") as any,
@@ -1228,7 +1228,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
             { id: "automacoes", label: "Automações & Webhooks" },
             { id: "email", label: "E-mail & SMTP" },
             { id: "dados", label: "Dados & Bases" },
-            { id: "crm", label: "CRM & Marketing" },
+            { id: "crm", label: "Vendas & Marketing" },
             { id: "erp", label: "ERP & Fiscal" },
             { id: "ecommerce", label: "E-commerce" },
             { id: "produtividade", label: "Produtividade" },
@@ -1416,7 +1416,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
               title="Status do Rastreamento Meta"
             >
               {metaConfig.connected
-                ? "Sua conta comercial Meta está conectada. O Pixel e a Conversions API (CAPI) estão sincronizados para rastrear conversões em formulários, landing pages e estágios do CRM."
+                ? "Sua conta comercial Meta está conectada. O Pixel e a Conversions API (CAPI) estão sincronizados para rastrear conversões em formulários, landing pages e estágios de Vendas."
                 : "Conecte sua conta para começar a rastrear visitantes, atribuir origem de leads com precisão e alimentar os algoritmos de tráfego do Facebook e Instagram."}
             </Alert>
 
@@ -1424,7 +1424,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
               <TabsList className="w-full grid grid-cols-2 sm:grid-cols-4">
                 <TabsTrigger value="pixel">Pixel & CAPI</TabsTrigger>
                 <TabsTrigger value="eventos">Eventos & Tracking</TabsTrigger>
-                <TabsTrigger value="crm">Conversões do CRM</TabsTrigger>
+                <TabsTrigger value="crm">Conversões de Vendas</TabsTrigger>
                 <TabsTrigger value="teste">Teste de Ping ao Vivo</TabsTrigger>
               </TabsList>
 
@@ -1521,7 +1521,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
                     { key: "PageView", label: "PageView", desc: "Abertura de Landing Pages & Formulários" },
-                    { key: "Lead", label: "Lead", desc: "Formulário enviado ou lead cadastrado no CRM" },
+                    { key: "Lead", label: "Lead", desc: "Formulário enviado ou lead cadastrado em Vendas" },
                     { key: "Schedule", label: "Schedule", desc: "Reunião de qualificação agendada no SDR" },
                     { key: "Purchase", label: "Purchase", desc: "Negócio marcado como 'Ganho' na Central de Vendas" },
                     { key: "ViewContent", label: "ViewContent", desc: "Visualização do catálogo de produtos" },
@@ -1555,7 +1555,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
               </TabsContent>
 
               {/* TAB 3: Live Test Ping Tool */}
-              {/* TAB: Conversões do CRM (lead qualificado e compra enviados sozinhos à Conversions API) */}
+              {/* TAB: Conversões de Vendas (lead qualificado e compra enviados sozinhos à Conversions API) */}
               <TabsContent value="crm" className="space-y-4 pt-3">
                 <MetaCrmSyncTab metaConfig={metaConfig} setMetaConfig={setMetaConfig} tenantId={activeTenantId} />
               </TabsContent>
@@ -1565,7 +1565,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
                   <div>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-primary-blue)] mb-1">
                       Disparador de Evento de Teste (Pixel & CAPI)
-                     <HelpTip label="Sobre Disparador de Evento de Teste (Pixel & C">Envia um evento de teste de verdade para a API de Conversões da Meta, para confirmar que o Pixel ID e o token estão corretos. Hoje não há envio automático dos eventos do CRM (novo lead, negócio ganho): só este teste manual.</HelpTip></h4>
+                     <HelpTip label="Sobre Disparador de Evento de Teste (Pixel & C">Envia um evento de teste de verdade para a API de Conversões da Meta, para confirmar que o Pixel ID e o token estão corretos. Hoje não há envio automático dos eventos de Vendas (novo lead, negócio ganho): só este teste manual.</HelpTip></h4>
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -1994,7 +1994,7 @@ function MetaCrmSyncTab({ metaConfig, setMetaConfig, tenantId }: { metaConfig: a
         Devolve para a Meta <b>quem virou lead qualificado</b> e <b>quem comprou</b>, para ela otimizar suas campanhas por resultado de verdade (não só por clique ou cadastro). Só vão dados de contato com hash (e-mail, telefone, nome) — nunca em texto aberto. Cada lead envia cada evento uma única vez.
       </p>
       {!pronto && <p className="text-xs font-bold text-[var(--color-warning)]">Preencha o ID do Pixel e o Token CAPI na aba "Pixel & CAPI" antes de ligar.</p>}
-      <label className={box}><input type="checkbox" checked={!!crm.enabled} disabled={!pronto} onChange={(e) => set({ enabled: e.target.checked })} className="mt-0.5" /><span><b className="text-[var(--color-text-primary)]">Enviar conversões do CRM para a Meta</b><br />Liga tudo abaixo para esta empresa.</span></label>
+      <label className={box}><input type="checkbox" checked={!!crm.enabled} disabled={!pronto} onChange={(e) => set({ enabled: e.target.checked })} className="mt-0.5" /><span><b className="text-[var(--color-text-primary)]">Enviar conversões de Vendas para a Meta</b><br />Liga tudo abaixo para esta empresa.</span></label>
       {crm.enabled && (
         <>
           <label className={box}><input type="checkbox" checked={crm.qualificado !== false} onChange={(e) => set({ qualificado: e.target.checked })} className="mt-0.5" /><span><b className="text-[var(--color-text-primary)]">Lead qualificado</b><br />Quando o lead chega numa etapa de qualificação (por padrão: a etapa de entrega do SDR IA, "Qualificado" ou "Reunião agendada").</span></label>

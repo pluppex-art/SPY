@@ -54,7 +54,7 @@ export function BasicInfoBlock({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           label="E-mail Comercial"
-          error={isEmailDuplicate ? "Este e-mail já existe na base do CRM" : undefined}
+          error={isEmailDuplicate ? "Este e-mail já existe na base de Vendas" : undefined}
         >
           <Input
             name="email"

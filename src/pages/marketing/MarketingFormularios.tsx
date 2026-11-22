@@ -17,7 +17,7 @@ const EMPREENDA_PREVIEW_URL = "https://escolaempreendamais.pluppex.com.br/inscri
 export const DEFAULT_EMPREENDA_FORM: FormDefinition = {
   id: "empreenda",
   name: "Inscrição — E-EMPREENDA+",
-  description: "Formulário oficial de qualificação com 5 passos interativos, rodízio de SDRs e captação direta de leads no CRM.",
+  description: "Formulário oficial de qualificação com 5 passos interativos, rodízio de SDRs e captação direta de leads em Vendas.",
   previewUrl: EMPREENDA_PREVIEW_URL,
   source: "landing_empreenda",
   active: true,
@@ -116,7 +116,7 @@ export default function MarketingFormularios() {
   return (
     <PageContainer
       title="Formulários"
-      subtitle="Gerencie os formulários de captação de leads ligados ao CRM."
+      subtitle="Gerencie os formulários de captação de leads ligados a Vendas."
       actions={!selected && (
         <button
           onClick={() => setIsModalOpen(true)}

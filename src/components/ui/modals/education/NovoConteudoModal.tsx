@@ -118,7 +118,7 @@ export function NovoConteudoModal({ isOpen, onClose, onSubmit, editingTitle, ini
                 </label>
                 <input
                   required
-                  placeholder="Ex: Introdução ao CRM — Parte 1"
+                  placeholder="Ex: Introdução a Vendas — Parte 1"
                   value={form.title}
                   onChange={set("title")}
                   className={inputClass}
@@ -171,7 +171,7 @@ export function NovoConteudoModal({ isOpen, onClose, onSubmit, editingTitle, ini
                 </label>
                 <input
                   required
-                  placeholder="Ex: 01: Fundamentos do CRM"
+                  placeholder="Ex: 01: Fundamentos de Vendas"
                   value={form.module}
                   onChange={set("module")}
                   className={inputClass}

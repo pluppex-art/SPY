@@ -21,7 +21,7 @@ function actionLines(actions: ChatbotAction[]): Line[] {
         return [{ from: "media", text: `${a.media_kind === "image" ? "Imagem" : "Arquivo"}: ${a.filename || a.url}${a.caption ? ` — ${a.caption}` : ""}` }];
       case "create_lead": {
         const v = a.vars;
-        return [{ from: "system", text: `Lead seria criado no CRM — nome: ${v.nome || "(não coletado)"}, e-mail: ${v.email || "(não coletado)"}` }];
+        return [{ from: "system", text: `Lead seria criado em Vendas — nome: ${v.nome || "(não coletado)"}, e-mail: ${v.email || "(não coletado)"}` }];
       }
       case "save_data":
         return [{ from: "system", text: `Seriam gravados em "${a.target}": ${a.map.map((m) => `${m.field}=${a.vars[m.variable] ?? "(não coletado)"}`).join(", ")}` }];

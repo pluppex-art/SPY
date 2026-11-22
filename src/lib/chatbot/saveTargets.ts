@@ -16,7 +16,7 @@ export interface SaveTargetDef {
 export const SAVE_TARGETS: Record<SaveTargetId, SaveTargetDef> = {
   implementation: {
     label: "Implementação do cliente",
-    hint: "Preenche o formulário de CRM > Implementações do cliente que está conversando (achado pelo número de WhatsApp). Só preenche campo vazio — nunca sobrescreve o que já está cadastrado.",
+    hint: "Preenche o formulário de Vendas > Implementações do cliente que está conversando (achado pelo número de WhatsApp). Só preenche campo vazio — nunca sobrescreve o que já está cadastrado.",
     fields: allFields("client").map((f) => ({ id: f.id, label: `${f.group ? f.group + " — " : ""}${f.label}` })),
   },
 };

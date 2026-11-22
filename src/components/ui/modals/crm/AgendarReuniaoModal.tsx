@@ -426,7 +426,7 @@ export function AgendarReuniaoModal({ isOpen, onClose, lead, onConfirm }: Agenda
               )}
             >
               <span className="text-xs font-black">🖥️ Sala S.P.Y.</span>
-              <span className="text-[10px] leading-tight opacity-70">Vídeo no CRM</span>
+              <span className="text-[10px] leading-tight opacity-70">Vídeo em Vendas</span>
             </button>
             <button
               type="button"

@@ -53,7 +53,7 @@ export const AURORA_AGENTS_DEFAULT: Array<Pick<AuroraAgent, "name" | "role" | "d
   { name: "Agente Secreto", role: "Inteligência", description: "Monitoramento e alertas de oportunidades ocultas no pipeline." },
   { name: "Radar de Oportunidades", role: "Prospecção", description: "Identifica leads quentes e sinais de compra em tempo real." },
   { name: "Agente Vendedor", role: "Vendas", description: "Passo 2 da venda: conduz a negociação e o fechamento das propostas." },
-  { name: "Agente Comercial", role: "Comercial", description: "Suporte geral ao time comercial no dia a dia do CRM." },
+  { name: "Agente Comercial", role: "Comercial", description: "Suporte geral ao time comercial no dia a dia de Vendas." },
   { name: "Diretoria", role: "Executivo", description: "Resumos e recomendações estratégicas para a liderança." },
   { name: "Pesquisa", role: "Pesquisa", description: "Levantamento de dados de mercado e concorrência." },
   { name: "Atendimento", role: "Suporte", description: "Acompanhamento de clientes ativos e chamados de suporte." },
@@ -122,7 +122,7 @@ export const FIXED_N8N_PROMPT_KEY: Record<string, string> = {
   "Marketing": "marketing", // CMO AI
   "Organização": "organizacao", // COO AI
   "Pesquisa": "pesquisa", // Research Intelligence
-  "Agente Secreto": "agente_secreto", // CRM Customer Intelligence
+  "Agente Secreto": "agente_secreto", // Vendas Customer Intelligence
   "Atendimento": "atendimento", // Gerencia Customer Success
   "Briefing Diário": "briefing_diario", // Autonomous Daily Briefing
 };

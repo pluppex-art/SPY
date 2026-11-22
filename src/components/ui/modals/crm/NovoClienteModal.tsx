@@ -371,7 +371,7 @@ export function NovoClienteModal({ isOpen, onClose, onAction, cliente, permitirE
           {!isEditMode && permitirEnviarMax && (
             <label className="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
               <input type="checkbox" checked={enviarMax} onChange={(e) => setEnviarMax(e.target.checked)} className="mt-0.5 rounded" />
-              <span><strong>Cadastrar na Max Data</strong> — o cliente é criado no sistema da loja e passa a aparecer na lista Max Data (não entra na base do CRM).</span>
+              <span><strong>Cadastrar na Max Data</strong> — o cliente é criado no sistema da loja e passa a aparecer na lista Max Data (não entra na base de Vendas).</span>
             </label>
           )}
         </form>

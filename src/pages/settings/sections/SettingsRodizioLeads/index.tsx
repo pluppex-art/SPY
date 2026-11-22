@@ -8,7 +8,7 @@ import { TabFormularioSDR } from "./TabFormularioSDR";
 import { HelpTip } from "../../../../components/ui/help-tip";
 const TABS = [
   { key: "formulario", label: "Formulário – SDRs", icon: <FileText className="w-3.5 h-3.5" /> },
-  { key: "closers",    label: "CRM – Closers",      icon: <Users    className="w-3.5 h-3.5" /> },
+  { key: "closers",    label: "Vendas – Closers",      icon: <Users    className="w-3.5 h-3.5" /> },
 ] as const;
 
 export function ConfigRodizioLeads() {

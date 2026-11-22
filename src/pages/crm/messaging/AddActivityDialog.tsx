@@ -41,7 +41,7 @@ export function AddActivityDialog({
         <div>
           <h3 className="text-lg font-bold text-[var(--color-text-primary)] flex items-center gap-2">
             <PlusCircle className="w-5 h-5 text-[#10B981]" />
-            Registrar Atividade no CRM
+            Registrar Atividade em Vendas
           </h3>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">
             Adicione uma nova nota, ligação ou reunião diretamente na jornada linear do lead <strong className="text-[var(--color-text-primary)] font-medium">{matchingLead.name}</strong>.

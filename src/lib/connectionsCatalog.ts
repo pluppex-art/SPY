@@ -27,7 +27,7 @@ export const CONNECTION_GROUPS: ConnectionGroup[] = [
       { id: "gmail", name: "Gmail", description: "E-mails ligados aos seus contatos e negócios.", live: false },
       { id: "drive", name: "Google Drive", description: "Arquivos e documentos da empresa.", live: false },
       { id: "sheets", name: "Google Sheets", description: "Planilhas como fonte de dados.", live: false },
-      { id: "contacts", name: "Google Contacts", description: "Agenda de contatos para o CRM.", live: false },
+      { id: "contacts", name: "Google Contacts", description: "Agenda de contatos para Vendas.", live: false },
     ],
   },
   {

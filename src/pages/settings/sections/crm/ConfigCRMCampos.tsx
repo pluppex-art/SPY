@@ -40,8 +40,8 @@ export function ConfigCRMCampos() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
-            Campos Personalizados (CRM) <Sliders className="w-5 h-5 text-[var(--color-primary-blue)]" />
-           <HelpTip label="Sobre Campos Personalizados (CRM)">Crie campos extras nos leads, escolha o tipo de cada um (texto, número, data…) e as regras de validação. Assim você guarda as informações específicas do seu negócio.</HelpTip></h1>
+            Campos Personalizados (Vendas) <Sliders className="w-5 h-5 text-[var(--color-primary-blue)]" />
+           <HelpTip label="Sobre Campos Personalizados (Vendas)">Crie campos extras nos leads, escolha o tipo de cada um (texto, número, data…) e as regras de validação. Assim você guarda as informações específicas do seu negócio.</HelpTip></h1>
         </div>
         <Button
           onClick={() => { setEditingField(null); setIsModalOpen(true); }}

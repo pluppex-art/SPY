@@ -53,7 +53,7 @@ function preview(step: FlowNode): string {
     case "media":
       return step.filename || step.url || "(sem arquivo)";
     case "create_lead":
-      return "Registra o contato no funil do CRM";
+      return "Registra o contato no funil de Vendas";
     case "save_data":
       return `Grava ${step.map.length} campo(s) em ${SAVE_TARGETS[step.target]?.label ?? step.target}`;
   }

@@ -298,7 +298,7 @@ function AppContent() {
           <Route path="ia" element={<ProtectedRoute requireModule="aurora"><VisaoGeralIA /></ProtectedRoute>} />
           <Route path="conhecimento" element={<ConhecimentoSurfSense />} />
 
-          {/* Módulo CRM (Núcleo Central do S.P.Y.) */}
+          {/* Módulo Vendas (Núcleo Central do S.P.Y.) */}
           <Route path="crm">
             <Route index element={<Navigate to="pipeline" replace />} />
             <Route path="pipeline" element={<Pipeline />} />

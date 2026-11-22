@@ -632,7 +632,7 @@ export function AutomationFunilConnections() {
   if (funisOrigem.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--color-border-default)] p-10 text-center text-xs text-[var(--color-text-faint)]">
-        Nenhum funil encontrado no CRM — crie um em Configurações › CRM › Funis para usar gatilhos.
+        Nenhum funil encontrado em Vendas — crie um em Configurações › Vendas › Funis para usar gatilhos.
       </div>
     );
   }
@@ -853,7 +853,7 @@ export function AutomationFunilConnections() {
               </button>
               <div className="hidden sm:flex flex-col gap-1.5 px-3 py-2.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] shadow-sm text-xs text-[var(--color-text-muted)]">
                 <span className="flex items-center gap-1.5 font-bold text-[var(--color-text-faint)] uppercase tracking-wide"><Info className="w-3.5 h-3.5" /> Legenda</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary-blue)]" /> Funil do CRM (etapa)</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary-blue)]" /> Funil de Vendas (etapa)</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-warning" /> Categoria de produto</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-violet-500" /> Produto específico</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-success" /> Departamento (OS) ou "Executar ações"</span>

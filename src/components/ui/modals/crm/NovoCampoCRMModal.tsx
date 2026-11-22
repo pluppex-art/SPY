@@ -102,7 +102,7 @@ export function NovoCampoCRMModal({
           <div className="leading-tight">
             <div className="text-base font-black text-white">{title}</div>
             <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">
-              Validações e regras de dados para o CRM
+              Validações e regras de dados para Vendas
             </div>
           </div>
         </div>

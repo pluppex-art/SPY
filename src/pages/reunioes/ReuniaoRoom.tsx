@@ -246,7 +246,7 @@ export default function ReuniaoRoom() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              message: `Com base no que você acabou de analisar e registrar nesta mesma conversa, o Gustavo está te chamando pra participar da reunião agora, com o cliente presente na call. Diga em voz alta, agora, algo que agregue à conversa (um resumo rápido, uma sugestão, uma resposta a um ponto em aberto, ou uma mensagem apropriada pro momento). Sua resposta TEM que ser exatamente e somente o que você vai falar — nada de pontuação de lead, análises internas do CRM ou qualquer coisa que não deveria ser dita na frente do cliente.`,
+              message: `Com base no que você acabou de analisar e registrar nesta mesma conversa, o Gustavo está te chamando pra participar da reunião agora, com o cliente presente na call. Diga em voz alta, agora, algo que agregue à conversa (um resumo rápido, uma sugestão, uma resposta a um ponto em aberto, ou uma mensagem apropriada pro momento). Sua resposta TEM que ser exatamente e somente o que você vai falar — nada de pontuação de lead, análises internas de Vendas ou qualquer coisa que não deveria ser dita na frente do cliente.`,
               sessionId: meetingSessionId,
             }),
           });

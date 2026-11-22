@@ -718,7 +718,7 @@ export default function Indicacoes() {
           </FormSection>
 
           <FormSection icon={Users} title="Formulário do indicado" hint={`rastreio: ${currentAffiliate ? currentAffiliate.name : "Geral"}`}>
-            <p className="text-[11px] text-[var(--color-text-muted)] leading-snug">É assim que o indicado se cadastra. Ao testar, o envio é real: cria uma indicação (Pendente) e um lead no CRM.</p>
+            <p className="text-[11px] text-[var(--color-text-muted)] leading-snug">É assim que o indicado se cadastra. Ao testar, o envio é real: cria uma indicação (Pendente) e um lead em Vendas.</p>
             <form onSubmit={handleTestSubmitForm} className="space-y-3" noValidate>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Nome do indicado" required error={previewErrors.name}>

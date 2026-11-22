@@ -58,7 +58,7 @@ export function ConfigCRMFidelidade() {
           </label>
           <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">O que é uma compra
             <select value={cfg.fonte} onChange={(e) => setCfg({ ...cfg, fonte: e.target.value as any })} className={field}>
-              <option value="vendas">Venda fechada no CRM</option><option value="financeiro">Receita paga no Financeiro</option>
+              <option value="vendas">Venda fechada em Vendas</option><option value="financeiro">Receita paga no Financeiro</option>
             </select>
           </label>
         </div>

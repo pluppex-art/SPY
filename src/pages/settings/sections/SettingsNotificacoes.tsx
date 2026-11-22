@@ -52,7 +52,7 @@ interface NotificationTrigger {
 const DEFAULT_NOTIFICATION_PREFS: NotificationTrigger[] = [
   {
     id: "novo_lead",
-    category: "Comercial / CRM",
+    category: "Comercial / Vendas",
     title: "Novo Lead Cadastrado",
     description: "Notificar quando um novo lead entrar pelo site, formulário, anúncio ou webhook",
     inApp: true,
@@ -61,7 +61,7 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationTrigger[] = [
   },
   {
     id: "lead_distribuido",
-    category: "Comercial / CRM",
+    category: "Comercial / Vendas",
     title: "Lead Atribuído",
     description: "Avisar o vendedor ou SDR responsável no momento do rodízio ou atribuição manual",
     inApp: true,
@@ -70,7 +70,7 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationTrigger[] = [
   },
   {
     id: "lead_esquentou",
-    category: "Comercial / CRM",
+    category: "Comercial / Vendas",
     title: "Oportunidade Quente",
     description: "Alerta de lead com score alto ou probabilidade máxima de fechamento",
     inApp: true,

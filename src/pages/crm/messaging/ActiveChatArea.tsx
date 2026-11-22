@@ -347,17 +347,17 @@ export function ActiveChatArea({
         {matchingLead ? (
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-[var(--color-text-muted)]">
-              Vínculo CRM ativo: <strong className="text-[var(--color-text-primary)] font-medium">{matchingLead.name}</strong>
+              Vínculo Vendas ativo: <strong className="text-[var(--color-text-primary)] font-medium">{matchingLead.name}</strong>
             </span>
             <button 
               onClick={() => setShowAddActivityModal(true)}
               className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase rounded-lg cursor-pointer transition-all animate-none"
             >
-              + Novo Evento CRM
+              + Novo Evento Vendas
             </button>
           </div>
         ) : (
-          <span className="text-[11px] text-[var(--color-text-faint)] italic">Nenhum Lead CRM correspondente a este telefone.</span>
+          <span className="text-[11px] text-[var(--color-text-faint)] italic">Nenhum Lead Vendas correspondente a este telefone.</span>
         )}
       </div>
 
@@ -479,7 +479,7 @@ export function ActiveChatArea({
                         <div className="bg-[var(--color-surface-elevated)]/60 border border-[var(--color-border-default)] rounded-2xl p-4 space-y-2 hover:border-amber-500/20 transition-all shadow-md">
                           <div className="flex items-center justify-between gap-2">
                             <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-[9px] uppercase tracking-wider">
-                              🏛️ {act.type} (CRM)
+                              🏛️ {act.type} (Vendas)
                             </span>
                             <span className="text-[10px] text-[var(--color-text-faint)] font-medium">{act.date}</span>
                           </div>
@@ -491,7 +491,7 @@ export function ActiveChatArea({
                           </p>
                           <div className="pt-2 border-t border-[var(--color-border-default)] flex items-center justify-between text-[10px] text-[var(--color-text-muted)]">
                             <span>Agente: <strong className="text-[var(--color-text-muted)] font-medium">{act.seller}</strong></span>
-                            <span className="text-emerald-400">Registrado no CRM ✓</span>
+                            <span className="text-emerald-400">Registrado em Vendas ✓</span>
                           </div>
                         </div>
                       </div>

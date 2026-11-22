@@ -406,7 +406,7 @@ export function usePipeline() {
     let nextY = 50 + splitSummary.length * 6 + 10;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("Últimas 5 Atividades do CRM:", 14, nextY);
+    doc.text("Últimas 5 Atividades de Vendas:", 14, nextY);
     nextY += 8;
 
     const leadTasks = tasks

@@ -115,7 +115,7 @@ export function TasksListMode({
                         <Link
                           to={`/app/crm/pipeline?leadId=${t.lead_id}`}
                           className="text-[var(--color-primary-blue)] hover:underline cursor-pointer font-bold inline-flex items-center gap-1"
-                          title="Abrir lead no CRM"
+                          title="Abrir lead em Vendas"
                         >
                           {getLeadLabel(t)}
                           <ExternalLink className="w-2.5 h-2.5" />

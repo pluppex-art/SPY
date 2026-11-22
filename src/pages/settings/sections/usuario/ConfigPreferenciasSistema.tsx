@@ -324,17 +324,17 @@ export function ConfigPreferenciasSistema() {
         </div>
       </Card>
 
-      {/* CRM & Workspace Experience */}
+      {/* Vendas & Workspace Experience */}
       <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2 pb-2 border-b border-[var(--color-border-subtle)]">
-          <Columns3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> {t("Visualização & Alertas do CRM")}
+          <Columns3 className="w-4 h-4 text-[var(--color-primary-blue)]" /> {t("Visualização & Alertas de Vendas")}
         </h3>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between p-3.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-[var(--radius-control)]">
             <div>
               <p className="text-xs font-bold text-[var(--color-text-primary)]">{t("Visualização Inicial da Central de Vendas")}</p>
-              <p className="text-[10px] text-[var(--color-text-muted)]">{t("Escolha entre visão Kanban (colunas) ou Lista tabular ao abrir o CRM.")}</p>
+              <p className="text-[10px] text-[var(--color-text-muted)]">{t("Escolha entre visão Kanban (colunas) ou Lista tabular ao abrir Vendas.")}</p>
             </div>
             <div className="flex gap-1.5 bg-[var(--color-surface-elevated)] p-1 rounded-lg border border-[var(--color-border-default)]">
               <button

@@ -493,7 +493,7 @@ function DistribuicaoEditor({ label, vendedores, rodizioElegiveis, semEu, value,
         </div>
       )}
       {semRodizio && (cfg.modo === "rodizio" || (cfg.modo === "quantidades" && cfg.restante === "rodizio" && calc.restante > 0)) && (
-        <p className="text-xs font-bold text-[var(--color-warning)]">O rodízio automático não tem nenhum closer ativo (Configurações › CRM › Rodízio de Leads). {semEu ? "Por isso o que sobrar será dividido entre os vendedores escolhidos." : "Por isso esses leads ficariam com você, não sem responsável."}</p>
+        <p className="text-xs font-bold text-[var(--color-warning)]">O rodízio automático não tem nenhum closer ativo (Configurações › Vendas › Rodízio de Leads). {semEu ? "Por isso o que sobrar será dividido entre os vendedores escolhidos." : "Por isso esses leads ficariam com você, não sem responsável."}</p>
       )}
       <p className="text-[11px] text-[var(--color-text-faint)]">Os leads são repartidos intercalados, na ordem da planilha, e cada vendedor passa a ser o responsável pelos que recebe.</p>
     </div>

@@ -261,7 +261,7 @@ export default function MarketingCampanhas() {
             value: formatCurrency(totalRevenue),
             icon: ArrowUpRight,
             color: "text-emerald-500",
-            sub: "Negócios fechados no CRM",
+            sub: "Negócios fechados em Vendas",
           },
           {
             label: "CPA Médio",

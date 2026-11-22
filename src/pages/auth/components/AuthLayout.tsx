@@ -110,7 +110,7 @@ export function AuthLayout({ primaryColor, title, subtitle, children }: { primar
               resultados reais.
             </h1>
             <p className="text-base leading-relaxed" style={{ color: "#94A3B8", maxWidth: "420px" }}>
-              Unifique CRM, finanças, clínicas, educação e muito mais numa única plataforma
+              Unifique Vendas, finanças, clínicas, educação e muito mais numa única plataforma
               turbinada por Inteligência Artificial.
             </p>
           </div>

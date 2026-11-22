@@ -483,7 +483,7 @@ export default function MarketingLandingPages() {
       >
         <form onSubmit={handleConnectClientLP} className="space-y-4">
           <p className="text-xs text-slate-300 leading-relaxed">
-            Conecte a página externa do cliente para monitorar visualizações, cliques e receber leads diretamente no CRM.
+            Conecte a página externa do cliente para monitorar visualizações, cliques e receber leads diretamente em Vendas.
           </p>
 
           <div>
@@ -516,7 +516,7 @@ export default function MarketingLandingPages() {
 
           <div>
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-              Vincular a um Cliente do CRM (Opcional)
+              Vincular a um Cliente de Vendas (Opcional)
             </label>
             <select
               value={clientSelected}

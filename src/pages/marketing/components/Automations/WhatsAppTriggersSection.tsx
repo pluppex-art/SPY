@@ -138,7 +138,7 @@ export function WhatsAppTriggersSection() {
                 </div>
               )}
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">3. Ação CRM Correspondente</label>
+                <label className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">3. Ação Vendas Correspondente</label>
                 <select value={newRuleAction} onChange={(e) => setNewRuleAction(e.target.value)}
                   className="bg-[var(--color-surface)] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 w-full font-semibold">
                   <option value="Adicionar tag de interesse">Adicionar tag de interesse</option>

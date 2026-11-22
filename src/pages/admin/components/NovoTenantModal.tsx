@@ -33,7 +33,7 @@ const NICHES = [
 ];
 
 export const MODULES: { id: string; label: string; icon: LucideIcon }[] = [
-  { id: "crm", label: "CRM & Funil de Vendas", icon: Target },
+  { id: "crm", label: "Vendas & Funil de Vendas", icon: Target },
   { id: "aurora", label: "Aurora Diretoria IA", icon: Sparkles },
   { id: "produtividade", label: "Tarefas & Produtividade", icon: Clock },
   { id: "agendamento", label: "Agendamento & Reservas", icon: CalendarCheck },

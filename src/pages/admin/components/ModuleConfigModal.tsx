@@ -16,7 +16,7 @@ interface ModuleConfigModalProps {
 }
 
 const MODULES_LIST = [
-  { id: "crm", title: "CRM & Funil Comercial", desc: "Central de Vendas, leads e rodízio de closers", icon: Target, color: "text-blue-500" },
+  { id: "crm", title: "Vendas & Funil Comercial", desc: "Central de Vendas, leads e rodízio de closers", icon: Target, color: "text-blue-500" },
   { id: "aurora", title: "Aurora Diretoria IA", desc: "Assistente de voz e inteligência de diretoria", icon: Sparkles, color: "text-indigo-500" },
   { id: "produtividade", title: "Tarefas & Produtividade", desc: "Quadro Kanban operacional e retomadas", icon: Clock, color: "text-cyan-500" },
   { id: "agendamento", title: "Agendamento & Reservas", desc: "Agenda de reservas por horário, página pública e pagamento online", icon: CalendarCheck, color: "text-orange-500" },

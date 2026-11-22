@@ -39,7 +39,7 @@ type Opts = { table: "maxdata_clientes" | "maxdata_produtos"; origem: string; te
 export function useMaxdataPage({ table, origem: origemPedida, tenantId, term, page, pageSize, from, count: limit, searchCols, orderBy, refresh }: Opts) {
   const [unidade] = useUnidadeMax();
   const origem = origemPedida && unidade ? unidade : origemPedida; // com uma filial ativa, só a conexão dela
-  const vazio = limit !== undefined && limit <= 0; // lista mista: esta página inteira cai na parte do CRM
+  const vazio = limit !== undefined && limit <= 0; // lista mista: esta página inteira cai na parte de Vendas
   const ativo = !!origem && !!tenantId && !!supabase;
   const chave = `page|${table}|${tenantId}|${origem}|${term}|${page}|${pageSize}|${from ?? ""}|${limit ?? ""}|${orderBy}|${refresh ?? 0}|${searchCols.join(",")}`;
   const guardado = ativo ? cacheGet<{ rows: any[]; total: number }>(chave) : undefined;

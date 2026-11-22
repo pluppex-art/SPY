@@ -175,7 +175,7 @@ export function ChatbotSettingsPanel({ bot, name, description, settings, funilId
         </Card>
 
         <Card className="p-4 space-y-3">
-          <h4 className="text-sm font-bold text-[var(--color-text-primary)]">Onde os leads entram no CRM</h4>
+          <h4 className="text-sm font-bold text-[var(--color-text-primary)]">Onde os leads entram em Vendas</h4>
           <Field label="Funil">
             <select
               className={SELECT}

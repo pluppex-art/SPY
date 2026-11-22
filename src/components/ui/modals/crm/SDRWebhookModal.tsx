@@ -74,7 +74,7 @@ export function SDRWebhookModal({ isOpen, onClose }: SDRWebhookModalProps) {
       <div className="space-y-6">
         <div className="bg-[#0f172a] p-4 rounded-xl border border-blue-500/20">
           <p className="text-xs text-slate-300 leading-relaxed mb-0">
-            Conecte a Aurora ao seu <strong>CRM</strong>, <strong>N8N</strong>, <strong>Make</strong> ou <strong>RD Station</strong>.
+            Conecte a Aurora ao seu <strong>Vendas</strong>, <strong>N8N</strong>, <strong>Make</strong> ou <strong>RD Station</strong>.
             Todas as conversões de leads ou análises de pipeline dispararão um POST usando `axios` com os dados JSON.
           </p>
         </div>

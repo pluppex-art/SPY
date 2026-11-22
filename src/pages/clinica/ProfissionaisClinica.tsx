@@ -75,7 +75,7 @@ export default function ProfissionaisClinica() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim() || !crm.trim() || !especialidade.trim()) {
-      toast.error("Preencha os campos obrigatórios (Nome, CRM/CRO e Especialidade).");
+      toast.error("Preencha os campos obrigatórios (Nome, Vendas/CRO e Especialidade).");
       return;
     }
     if (!supabase || !activeTenantId) {
@@ -210,7 +210,7 @@ export default function ProfissionaisClinica() {
         onClear={clearFilters}
       >
         <FilterBar>
-          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por nome, CRM/CRO ou especialidade..." />
+          <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por nome, Vendas/CRO ou especialidade..." />
           <FilterSelect icon={Award} value={espFilter} onChange={setEspFilter} options={especialidadeOptions} allLabel="Todas as especialidades" />
           <FilterChips value={filterStatus} onChange={setFilterStatus} allValue="Todos" allLabel="Todos" options={["Ativo", "Férias / Licença", "Inativo"]} />
         </FilterBar>
@@ -316,11 +316,11 @@ export default function ProfissionaisClinica() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Registro (CRM / CRO)</label>
+              <label className="text-xs font-semibold text-[var(--color-text-primary)] block mb-1.5">Registro (Vendas / CRO)</label>
               <input
                 type="text"
                 required
-                placeholder="Ex: CRM/SP 199.300"
+                placeholder="Ex: Vendas/SP 199.300"
                 value={crm}
                 onChange={e => setCrm(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] rounded-xl text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"

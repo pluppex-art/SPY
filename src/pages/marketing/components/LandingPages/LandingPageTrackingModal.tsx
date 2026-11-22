@@ -110,7 +110,7 @@ export function LandingPageTrackingModal({
             <button type="button" className="text-[11px] font-bold flex items-center gap-1 text-[var(--color-primary-blue)]" onClick={() => { navigator.clipboard.writeText(script).then(() => toast.success("Script copiado.")); }}><Copy className="w-3.5 h-3.5" />Copiar</button>
           </div>
           <pre className="text-[10px] font-mono overflow-x-auto p-2 rounded-lg bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] whitespace-pre-wrap break-all">{script}</pre>
-          <p className="text-[11px] text-[var(--color-text-muted)]">Cole antes de <code>&lt;/head&gt;</code> da página. Ele conta a visita, os cliques e, quando alguém envia um formulário com nome e WhatsApp/e-mail, registra a conversão e cria o lead no CRM.</p>
+          <p className="text-[11px] text-[var(--color-text-muted)]">Cole antes de <code>&lt;/head&gt;</code> da página. Ele conta a visita, os cliques e, quando alguém envia um formulário com nome e WhatsApp/e-mail, registra a conversão e cria o lead em Vendas.</p>
         </div>
       </div>
     </Modal>

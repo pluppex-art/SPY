@@ -74,7 +74,7 @@ export function NovaOrigemCRMModal({
           </div>
           <div className="min-w-0">
             <div className="text-lg font-black text-[var(--color-text-primary)] leading-tight">{title}</div>
-            <div className="text-xs font-normal text-[var(--color-text-muted)]">Crie uma origem de lead para classificar de onde vêm os seus leads no CRM.</div>
+            <div className="text-xs font-normal text-[var(--color-text-muted)]">Crie uma origem de lead para classificar de onde vêm os seus leads em Vendas.</div>
           </div>
         </div>
       }

@@ -96,7 +96,7 @@ const SYSTEM_PROMPT = `Você é o SPY Revenue Intelligence Engine.
 Você é um Diretor Comercial virtual. Analise a transcrição e retorne APENAS JSON válido, sem markdown, sem código, sem texto fora do JSON.
 
 REGRAS ABSOLUTAS:
-1. NUNCA invente informações. Use apenas o que está na transcrição ou no CRM.
+1. NUNCA invente informações. Use apenas o que está na transcrição ou em Vendas.
 2. Se algo não foi mencionado: status = "unknown".
 3. Copie valores monetários exatamente como foram falados.
 4. Não arredonde. Não some taxa de matrícula ao valor principal.
@@ -165,7 +165,7 @@ RETORNE EXATAMENTE este JSON (sem campos extras, sem comentários):
 export function buildPrompt(data: PromptData): string {
   return `${SYSTEM_PROMPT}
 
-═══════════ CONTEXTO CRM ═══════════
+═══════════ CONTEXTO Vendas ═══════════
 Data Atual: ${data.today}
 Tenant: ${data.tenantName}
 Cliente Proprietário: ${data.clientName}
@@ -179,7 +179,7 @@ Valor Oficial: ${data.officialPrice}
 Taxa de Matrícula: ${data.enrollmentFee}
 Parcelamento: ${data.installments}
 Regras Comerciais: ${data.commercialRules}
-Notas CRM: ${data.crmNotes}
+Notas Vendas: ${data.crmNotes}
 Histórico: ${data.history}
 
 ═══════════ TRANSCRIÇÃO ═══════════

@@ -180,7 +180,7 @@ export const INTEGRATION_DEFS: IntegrationDef[] = [
     id: "ia_provider", label: "IA — chave própria do cliente", settingsKey: "integracoes_ia_provider",
     fields: [
       { prop: "provider", label: "Provedor de IA", kind: "select", options: ["Gemini", "OpenAI", "Claude"], required: true },
-      { prop: "apiKey", label: "Chave de API", kind: "secret", required: true, help: "Recebida do cliente por telefone ou e-mail — nunca pelo WhatsApp/CRM." },
+      { prop: "apiKey", label: "Chave de API", kind: "secret", required: true, help: "Recebida do cliente por telefone ou e-mail — nunca pelo WhatsApp/Vendas." },
     ],
   },
 ];

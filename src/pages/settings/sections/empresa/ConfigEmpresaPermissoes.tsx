@@ -14,7 +14,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 
 import { HelpTip } from "../../../../components/ui/help-tip";
 const MODULE_LABELS: Record<string, string> = {
-  crm: "CRM & Central de Vendas", financeiro: "Financeiro", engajamento: "Engajamento",
+  crm: "Central de Vendas", financeiro: "Financeiro", engajamento: "Engajamento",
   marketing: "Marketing", educacao: "Educação", clinica: "Clínica",
   rh: "RH & Equipe", bi: "BI & Dashboards", produtividade: "Tarefas", catalogo: "Catálogo", dev: "Dev",
   agenda: "Agenda", sdr: "SDR", closer: "Closer", radar: "Radar",
