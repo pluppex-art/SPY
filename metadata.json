@@ -1,6 +1,6 @@
 {
   "name": "S.P.Y. SOA",
-  "description": "Seu espião comercial: plataforma empresarial SaaS premium que acompanha conversas, atualiza o CRM sozinho e encontra oportunidades de vendas.",
+  "description": "Seu espião comercial: plataforma empresarial SaaS premium que acompanha conversas, atualiza o sistema sozinho e encontra oportunidades de vendas.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -28,7 +28,7 @@ export const NICHES: Record<string, NicheConfig> = {
     segment: "varejo",
     icon: ShoppingCart,
     title: "S.P.Y. para o seu varejo",
-    intro: "Frente de Caixa (PDV), estoque, fornecedores e compras no mesmo sistema do CRM e do financeiro.",
+    intro: "Frente de Caixa (PDV), estoque, fornecedores e compras no mesmo sistema de vendas e do financeiro.",
     points: ["Frente de Caixa (PDV)", "Movimentações de estoque", "Pedidos de compra e notas de entrada"],
   },
   automotivo: {
@@ -64,7 +64,7 @@ export const NICHES: Record<string, NicheConfig> = {
     segment: "clinica",
     icon: Stethoscope,
     title: "S.P.Y. para a sua clínica",
-    intro: "Agenda médica, pacientes, prontuários, telemedicina e faturamento clínico junto ao CRM.",
+    intro: "Agenda médica, pacientes, prontuários, telemedicina e faturamento clínico no mesmo sistema.",
     points: ["Agenda médica e telemedicina", "Prontuários e exames", "Faturamento clínico"],
   },
   educacao: {
@@ -73,7 +73,7 @@ export const NICHES: Record<string, NicheConfig> = {
     segment: "educacao",
     icon: GraduationCap,
     title: "S.P.Y. para a sua escola",
-    intro: "Turmas, alunos, conteúdo, certificados e mensalidades, com o funil de matrículas no CRM.",
+    intro: "Turmas, alunos, conteúdo, certificados e mensalidades, com o funil de matrículas no próprio sistema.",
     points: ["Turmas e alunos", "Certificados", "Mensalidades no financeiro"],
   },
 };
@@ -89,7 +89,7 @@ export const SEGMENT_OPTIONS: { id: string; label: string; icon: LucideIcon }[] 
 ];
 
 export const TEAM_OPTIONS = ["Só eu", "2 a 5 pessoas", "6 a 15 pessoas", "Mais de 15 pessoas"];
-export const TOOL_OPTIONS = ["Planilhas", "Outro CRM", "Sistema próprio ou ERP", "Nada ainda"];
+export const TOOL_OPTIONS = ["Planilhas", "Outro sistema", "Sistema próprio", "Nada ainda"];
 export const GOAL_OPTIONS: { id: string; label: string; text: string }[] = [
   { id: "pipeline", label: "Pipeline de vendas", text: "Organizar leads e o funil." },
   { id: "financeiro", label: "Financeiro", text: "Contas, fluxo de caixa e DRE." },

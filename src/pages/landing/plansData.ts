@@ -28,7 +28,7 @@ export const PLANS: PlanData[] = [
     setupPrice: "R$ 2.997",
     featuresHeader: "Inclui:",
     features: [
-      "CRM",
+      "Vendas e pipeline",
       "Gestão de leads",
       "Pipeline comercial",
       "Gestão de clientes",

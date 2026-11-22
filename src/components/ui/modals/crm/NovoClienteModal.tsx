@@ -184,7 +184,7 @@ export function NovoClienteModal({ isOpen, onClose, onAction, cliente, permitirE
           <div>
             <div className="text-base font-black text-white">{isEditMode ? "Editar Cliente" : "Novo Cliente"}</div>
             <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">
-              {isEditMode ? "Atualize os dados desta conta no CRM S.P.Y." : "Cadastro de conta no CRM S.P.Y."}
+              {isEditMode ? "Atualize os dados desta conta no S.P.Y. SOA" : "Cadastro de conta no S.P.Y. SOA"}
             </div>
           </div>
         </div>
@@ -218,7 +218,7 @@ export function NovoClienteModal({ isOpen, onClose, onAction, cliente, permitirE
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-200">Conta registrada no CRM</p>
+            <p className="text-sm font-bold text-slate-200">Conta registrada no sistema</p>
             <p className="text-xs text-slate-400 leading-relaxed mt-0.5">
               O cliente será adicionado à base de contas e poderá ser vinculado a negócios, propostas e tarefas.
             </p>

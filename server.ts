@@ -4397,7 +4397,7 @@ app.post("/api/ai/suggest-new-config", requireUser, async (req, res) => {
   const { type } = req.body;
   if (!hasAnyAI()) return res.json({ suggestion: null });
   try {
-    const raw = await generateAI(`Você é um consultor de CRM. Sugira um exemplo para "${type}".
+    const raw = await generateAI(`Você é um consultor comercial do S.P.Y. SOA. Sugira um exemplo para "${type}".
       NÃO inclua campos como 'target'. Use os campos exatos abaixo.
       Responda APENAS com JSON:
       - Se for "Campo Personalizado": {"name": "Data de Aniversário", "type": "Data", "required": false}
@@ -5089,7 +5089,7 @@ app.post("/api/ai/lead-copilot", requireUser, async (req: any, res: any) => {
   if (!leadContext) return res.status(400).json({ error: "Contexto do lead ausente." });
 
   try {
-    const prompt = `Você é o Copilot de CRM do S.P.Y.. Analise o perfil do lead e retorne SOMENTE o JSON, sem markdown, sem texto extra.
+    const prompt = `Você é o Copilot comercial do S.P.Y. SOA. Analise o perfil do lead e retorne SOMENTE o JSON, sem markdown, sem texto extra.
 
 PERFIL DO LEAD:
 Nome: ${leadContext.name ?? "Não informado"}
@@ -6680,7 +6680,7 @@ app.post("/api/whatsapp/copilot/analyze", requireUser, async (req: any, res) => 
     });
   }
   const conversationText = chatHistory.map((m: any) => `${m.sender === "contact" ? "Cliente" : "Vendedor/Atendente"}: ${m.text}`).join("\n");
-  const promptContext = `Você é o S.P.Y. Copilot, do S.P.Y. SOA (Sistema Operacional Autônomo), um assistente especializado em CRM, Vendas e Atendimento via WhatsApp.
+  const promptContext = `Você é o S.P.Y. Copilot, do S.P.Y. SOA (Sistema Operacional Autônomo), um assistente especializado em Vendas e Atendimento via WhatsApp.
   O cliente se chama: ${contact ? contact.name : "Cliente"}.
   O histórico de mensagens é este:
   ${conversationText}

@@ -241,7 +241,7 @@ export const SECURITY = [
   "Tratamento de dados conforme a LGPD",
 ];
 
-export const PROBLEM_PAINS = ["WhatsApp separado", "Planilhas soltas", "CRM isolado", "Leads esquecidos", "Equipe sem contexto", "Gestor sem visão da operação", "Decisões no achismo"];
+export const PROBLEM_PAINS = ["WhatsApp separado", "Planilhas soltas", "Sistema isolado", "Leads esquecidos", "Equipe sem contexto", "Gestor sem visão da operação", "Decisões no achismo"];
 export const PROBLEM_WITHOUT = ["O lead chega pelo WhatsApp", "Alguém responde e o interesse aparece", "A conversa para e a retomada não acontece", "O lead esfria e some do radar"];
 export const PROBLEM_WITH = [
   "O lead entra no pipeline, com score e temperatura",
@@ -254,7 +254,7 @@ export const PROBLEM_WITH = [
 export const AURORA_AGENTS: { name: string; role: string; text: string }[] = [
   { name: "Agente de Pré-venda", role: "Pré-venda", text: "Atende, qualifica o lead e agenda a reunião, pelo WhatsApp configurado na implantação." },
   { name: "Agente Vendedor", role: "Vendas", text: "Conduz a negociação e o fechamento das propostas." },
-  { name: "Agente Comercial", role: "Comercial", text: "Suporte ao time comercial no dia a dia do CRM." },
+  { name: "Agente Comercial", role: "Comercial", text: "Suporte ao time comercial no dia a dia de vendas." },
   { name: "Diretoria", role: "Executivo", text: "Resumos e recomendações para a liderança." },
   { name: "Financeiro", role: "Financeiro", text: "Resumos de fluxo de caixa, contas e inadimplência." },
   { name: "Marketing", role: "Marketing", text: "Leitura de campanhas, landing pages e origem dos leads." },
@@ -281,7 +281,7 @@ export const START_STEPS: [string, string][] = [
 ];
 
 export const FAQ_EXTRA: [string, string][] = [
-  ["O S.P.Y. substitui o meu CRM e as planilhas?", "Ele centraliza no mesmo ambiente o pipeline de vendas, a base de clientes, a agenda sincronizada com o Google, propostas e contratos e o financeiro com DRE. Na prática, dispensa o CRM isolado e as planilhas soltas."],
+  ["O S.P.Y. substitui os meus sistemas e as planilhas?", "Ele centraliza no mesmo ambiente o pipeline de vendas, a base de clientes, a agenda sincronizada com o Google, propostas e contratos e o financeiro com DRE. Na prática, dispensa os sistemas isolados e as planilhas soltas."],
   ["Posso importar meus contatos de uma planilha?", "Sim. Leads e clientes podem ser importados por arquivo CSV, e o cadastro evita duplicidade na base de clientes."],
   ["O S.P.Y. gera propostas e contratos?", "Sim. A proposta é multi-produto, com recorrência, parcelamento, desconto e implantação. O contrato tem editor de cláusulas e PDF, e o cliente aceita a proposta online por um link público."],
   ["Como funciona o rodízio de leads?", "Os leads que entram pelo formulário ou pela API são distribuídos entre os vendedores em rodízio, para que ninguém fique sem atendimento."],

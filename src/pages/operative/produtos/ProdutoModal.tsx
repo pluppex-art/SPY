@@ -112,7 +112,7 @@ export function ProdutoModal(props: ProdutoModalProps) {
                 <Package className="w-4 h-4" />
               </div>
               <h3 className="font-black text-sm sm:text-base text-white uppercase tracking-tight">
-                {props.editingProduct ? "Editar Produto / Serviço" : "Cadastrar Novo Item ERP"}
+                {props.editingProduct ? "Editar Produto / Serviço" : "Cadastrar Novo Item"}
               </h3>
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
@@ -229,7 +229,7 @@ export function ProdutoModal(props: ProdutoModalProps) {
             ) : (
               <Button type="submit" form="produto-erp-form"
                 className="flex-1 sm:flex-initial h-9 bg-emerald-600 hover:bg-emerald-500 !text-white font-black text-xs rounded-xl px-5 gap-1.5 shadow-md shadow-emerald-600/25 cursor-pointer">
-                <Check className="w-4 h-4" /> Salvar Produto ERP
+                <Check className="w-4 h-4" /> Salvar Produto
               </Button>
             )}
           </div>

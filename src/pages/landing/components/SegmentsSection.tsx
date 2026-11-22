@@ -26,7 +26,7 @@ export function SegmentsSection() {
           Módulos prontos para o seu segmento.
         </h2>
         <p className="sp-lede" {...rv(1)}>
-          Além do CRM e do financeiro, cada empresa liga os módulos do seu nicho. Escolha um segmento para ver os módulos e um exemplo de uso.
+          Além de vendas e do financeiro, cada empresa liga os módulos do seu nicho. Escolha um segmento para ver os módulos e um exemplo de uso.
         </p>
 
         <div {...rv(2)}>

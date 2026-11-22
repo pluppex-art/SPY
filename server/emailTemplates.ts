@@ -65,7 +65,7 @@ interface Spec {
   subject: string;
   /** Texto de pré-visualização que aparece ao lado do assunto na caixa de entrada. */
   preheader: string;
-  /** Texto à direita do cabeçalho (ex.: "Notificação automática" / "Novo lead no seu CRM"). */
+  /** Texto à direita do cabeçalho (ex.: "Notificação automática" / "Novo lead no seu sistema"). */
   headerRight: { line1: string; line2: string };
   pill: { label: string; color: string };
   title1: string;
@@ -83,7 +83,7 @@ interface Spec {
   /** Aviso pequeno abaixo do botão, com linha separadora. */
   note?: string;
   info?: { title: string; text: string };
-  /** Mostra o painel com a ilustração do pipeline (e-mails de CRM); sem ele o corpo é de coluna única. */
+  /** Mostra o painel com a ilustração do pipeline (e-mails de vendas); sem ele o corpo é de coluna única. */
   illustration?: boolean;
   footerLink?: { label: string; url: string };
   brand?: EmailBrand;
@@ -347,27 +347,27 @@ export const NOTIFICATION_COPY: Record<string, Copy> = {
   agente_secreto_desconectado_gestor: {
     crm: true,
     pill: "Agente Secreto desconectado", title1: "Agente Secreto da equipe", title2: "desconectou do WhatsApp", icon: "icon-bell",
-    intro: "O Agente Secreto de um colaborador da sua equipe desconectou do WhatsApp e parou de registrar as conversas dele no CRM. Peça que ele reconecte, ou reconecte você mesmo pelo RH.",
+    intro: "O Agente Secreto de um colaborador da sua equipe desconectou do WhatsApp e parou de registrar as conversas dele no sistema. Peça que ele reconecte, ou reconecte você mesmo pelo RH.",
     headerLine2: "Agente Secreto desconectado",
     info: { title: "Como reconectar pelo RH", text: "Abra Colaboradores & RH, no menu do colaborador escolha “Conectar WhatsApp do colaborador” e leia o QR code no celular dele." },
   },
   novo_lead: {
     crm: true,
     pill: "Novo lead recebido", title1: "Novo Lead", title2: "adicionado no S.P.Y.", icon: "icon-user",
-    intro: "Um novo lead foi capturado e adicionado automaticamente no seu CRM. Chame agora, enquanto ele ainda está pensando em você.",
-    headerLine2: "Novo lead no seu CRM",
-    info: { title: "Leads chegam automaticamente", text: "O S.P.Y. monitora seus canais e adiciona oportunidades no CRM em tempo real, para você não perder nenhum potencial cliente." },
+    intro: "Um novo lead foi capturado e adicionado automaticamente no seu sistema. Chame agora, enquanto ele ainda está pensando em você.",
+    headerLine2: "Novo lead no seu sistema",
+    info: { title: "Leads chegam automaticamente", text: "O S.P.Y. monitora seus canais e adiciona oportunidades no sistema em tempo real, para você não perder nenhum potencial cliente." },
   },
   lead_distribuido: {
     crm: true,
     pill: "Lead atribuído a você", title1: "Lead atribuído", title2: "para você", icon: "icon-user",
     intro: "Um lead acabou de ser colocado na sua carteira. Quanto mais rápido o primeiro contato, maiores as chances de fechar.",
-    headerLine2: "Lead atribuído no seu CRM",
+    headerLine2: "Lead atribuído no seu sistema",
     info: { title: "Quem responde primeiro, vende mais", text: "Falar com o lead nos primeiros minutos multiplica a chance de conversão. O Agente Secreto acompanha a conversa com você." },
   },
   lead_esquentou: {
     crm: true,
-    pill: "Oportunidade quente", title1: "Oportunidade", title2: "quente no seu CRM", icon: "icon-chart",
+    pill: "Oportunidade quente", title1: "Oportunidade", title2: "quente no seu sistema", icon: "icon-chart",
     intro: "Este lead está com alta chance de fechamento. É a hora de priorizar o contato.",
     headerLine2: "Oportunidade quente",
     info: { title: "Foco no que mais converte", text: "O S.P.Y. avalia cada lead e avisa quando uma oportunidade esquenta, para você agir no momento certo." },
@@ -413,7 +413,7 @@ export const NOTIFICATION_COPY: Record<string, Copy> = {
   venda_fechada: {
     crm: true,
     pill: "Venda fechada", title1: "Venda", title2: "fechada no S.P.Y.", icon: "icon-chart",
-    intro: "Mais uma venda registrada no seu CRM. Parabéns ao time!",
+    intro: "Mais uma venda registrada no seu sistema. Parabéns ao time!",
     headerLine2: "Venda fechada",
     info: { title: "Onboarding sem atraso", text: "Com a venda fechada, siga para o financeiro e a entrega para o cliente começar bem." },
   },
@@ -494,7 +494,7 @@ export function notificationEmail(n: {
   return render({
     subject: n.title,
     preheader: n.description.slice(0, 110),
-    headerRight: { line1: "Notificação automática", line2: copy?.headerLine2 || "Aviso do seu CRM" },
+    headerRight: { line1: "Notificação automática", line2: copy?.headerLine2 || "Aviso do seu sistema" },
     pill: { label: copy?.pill || style.label, color: style.color },
     title1: copy?.title1 || n.title,
     title2: copy?.title2,
@@ -504,7 +504,7 @@ export function notificationEmail(n: {
     icon: copy?.icon,
     button: n.primaryButton || (n.linkUrl ? { label: "Abrir no S.P.Y.", url: n.linkUrl } : undefined),
     secondaryLink: n.primaryButton && n.linkUrl ? { label: "abrir no S.P.Y.", url: n.linkUrl } : undefined,
-    info: copy?.info || { title: "Fique por dentro", text: "O S.P.Y. avisa você sobre o que importa no seu CRM, em tempo real, para você agir no momento certo." },
+    info: copy?.info || { title: "Fique por dentro", text: "O S.P.Y. avisa você sobre o que importa no seu sistema, em tempo real, para você agir no momento certo." },
     illustration: copy ? !!copy.crm : true,
     footerLink: n.settingsUrl ? { label: "Ajustar quais avisos você recebe por e-mail", url: n.settingsUrl } : undefined,
     brand: n.brand,

@@ -36,7 +36,7 @@ export const PRIVACIDADE: DocContent = {
       id: "quem-somos",
       title: "1. Quem somos e quais são os nossos papéis",
       html: [
-        "<p>O S.P.Y. é uma plataforma de gestão comercial e operacional (CRM, propostas, contratos, agenda, tarefas, financeiro e assistente de inteligência artificial chamada Aurora), disponibilizada em <strong>spycrm.com.br</strong>. Esta Política explica como tratamos dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD).</p>",
+        "<p>O S.P.Y. é uma plataforma de gestão comercial e operacional (vendas e pipeline, propostas, contratos, agenda, tarefas, financeiro e assistente de inteligência artificial chamada Aurora), disponibilizada em <strong>spycrm.com.br</strong>. Esta Política explica como tratamos dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD).</p>",
         "<p>O serviço responsável por esta página e por este aplicativo é o <strong>S.P.Y. — spycrm.com.br</strong>.</p>",
         empresa,
         "<p>Atuamos em dois papéis distintos:</p>",
