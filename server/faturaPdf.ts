@@ -211,7 +211,10 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
       nomeRecebedor = texto(emp?.value?.razaoSocial) || texto(emp?.value?.nomeFantasia);
     }
     const brcode = pix ? montarBrCode({ chave: pix.chave, nome: nomeRecebedor, cidade: pix.cidade, txid: "SPY" }) : null;
-    return res.json({ pix, brcode, mercadoPago: !!(await cobranca.tokenMp(tenantId)) });
+    // brcodeValor: o mesmo Pix com o valor da venda (?valor=), usado na tela do PDV.
+    const valor = Number(req.query.valor);
+    const brcodeValor = pix && Number.isFinite(valor) && valor > 0 && valor < 1e9 ? montarBrCode({ chave: pix.chave, nome: nomeRecebedor, cidade: pix.cidade, valor, txid: "PDV" }) : null;
+    return res.json({ pix, brcode, brcodeValor, mercadoPago: !!(await cobranca.tokenMp(tenantId)) });
   });
   app.put("/api/financeiro/pix-recebimento", requireUser, requireTenantAdmin, limiter, async (req: any, res) => {
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;

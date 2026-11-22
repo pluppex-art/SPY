@@ -267,6 +267,8 @@ export default function VarejoVendas() {
   const [parcelasCartao, setParcelasCartao] = useState<number>(1);
   const [bandeiraCartao, setBandeiraCartao] = useState<string>("Mastercard");
   const [pixConfirmado, setPixConfirmado] = useState(false);
+  // Pix da venda no PDV: QR real (chave Pix da empresa + valor do carrinho). "semChave" = a empresa ainda não cadastrou a chave.
+  const [pixPdv, setPixPdv] = useState<{ qr: string; codigo: string } | "semChave" | "carregando" | null>(null);
   const [prazoDias, setPrazoDias] = useState<string>("30");
   useEffect(() => { setPrazoDias(String(cfg.pagamentos.crediarioPrazoPadraoDias)); }, [cfg.pagamentos.crediarioPrazoPadraoDias]);
   useEffect(() => { setFormaPagamento((f) => (cfg.pagamentos.habilitadas.includes(f) ? f : cfg.pagamentos.padrao)); }, [cfg.pagamentos.habilitadas, cfg.pagamentos.padrao]);
@@ -480,6 +482,25 @@ export default function VarejoVendas() {
   const descontoAcimaDoTeto = !cfg.pdv.descontoLivre && descontoPctEfetivo > cfg.pdv.descontoMaximoPct + 0.0001;
 
   const total = Math.max(0, subtotal - descontoCalculado);
+
+  // QR do Pix da venda (com o valor do carrinho), só enquanto a forma "Pix" está escolhida. Pequena espera para não consultar a cada tecla.
+  useEffect(() => {
+    if (formaPagamento !== "Pix" || !(total > 0)) { setPixPdv(null); return; }
+    let vivo = true;
+    setPixPdv("carregando");
+    const t = setTimeout(async () => {
+      try {
+        const r = await apiFetch(`/api/financeiro/pix-recebimento?valor=${encodeURIComponent(total.toFixed(2))}`);
+        const j = r.ok ? await r.json() : null;
+        if (!vivo) return;
+        if (!j?.brcodeValor) { setPixPdv("semChave"); return; }
+        const QR = await import("qrcode");
+        const qr = await QR.toDataURL(j.brcodeValor, { margin: 1, width: 220, errorCorrectionLevel: "M" });
+        if (vivo) setPixPdv({ qr, codigo: j.brcodeValor });
+      } catch { if (vivo) setPixPdv("semChave"); }
+    }, 350);
+    return () => { vivo = false; clearTimeout(t); };
+  }, [formaPagamento, total]);
 
   const troco = useMemo(() => {
     if (formaPagamento !== "Dinheiro") return 0;
@@ -2700,36 +2721,28 @@ export default function VarejoVendas() {
 
                 {formaPagamento === "Pix" && (
                   <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-blue-500/30 space-y-2 text-center">
-                    <div className="w-20 h-20 mx-auto bg-white p-1.5 rounded-xl flex items-center justify-center shadow-inner">
-                      <QrCode className="w-16 h-16 text-slate-900" />
-                    </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
-                      Chave Pix Aleatória gerada para esta venda:
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <input
-                        readOnly
-                        value={`00020126580014br.gov.bcb.pix0136${tenantId.substring(0, 12)}5204000053039865802BR`}
-                        className="text-[9px] font-mono bg-[var(--color-surface)] border rounded px-2 py-1 flex-1 text-[var(--color-text-muted)] truncate"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          navigator.clipboard.writeText("00020126580014br.gov.bcb.pix");
-                          toast.success("Código Pix Copia e Cola copiado!");
-                        }}
-                        className="h-7 text-[10px] font-bold shrink-0"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    </div>
+                    {pixPdv === "semChave" ? (
+                      <p className="text-[11px] text-[var(--color-text-muted)]">
+                        Cadastre a chave Pix da empresa em <b>Financeiro → Modelos de recibo</b> para o QR aparecer aqui. Enquanto isso, receba o Pix pela sua maquininha ou app do banco e confirme abaixo.
+                      </p>
+                    ) : pixPdv && pixPdv !== "carregando" ? (
+                      <>
+                        <img src={pixPdv.qr} alt="QR de Pix com o valor da venda" className="w-36 h-36 mx-auto bg-white p-1 rounded-xl" />
+                        <div className="text-[10px] text-[var(--color-text-muted)]">Peça ao cliente para ler o QR (valor {formatPrice(total)}) ou use o Pix copia e cola:</div>
+                        <div className="flex items-center gap-1">
+                          <input readOnly value={pixPdv.codigo} className="text-[9px] font-mono bg-[var(--color-surface)] border rounded px-2 py-1 flex-1 text-[var(--color-text-muted)] truncate" />
+                          <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(pixPdv.codigo); toast.success("Código Pix copia e cola copiado!"); }} className="h-7 text-[10px] font-bold shrink-0"><Copy className="w-3 h-3" /></Button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-[var(--color-text-muted)]">Gerando o QR do Pix…</p>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
                         setPixConfirmado(true);
                         if (soundEnabled) playPosSound("success");
-                        toast.success("Pagamento Pix confirmado!");
+                        toast.success("Recebimento do Pix marcado.");
                       }}
                       className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all ${
                         pixConfirmado
@@ -2737,14 +2750,9 @@ export default function VarejoVendas() {
                           : "bg-blue-600/10 text-blue-500 hover:bg-blue-600/20 border border-blue-500/30"
                       }`}
                     >
-                      {pixConfirmado ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Pix Confirmado pelo Banco
-                        </>
-                      ) : (
-                        "Simular Confirmação Instantânea"
-                      )}
+                      {pixConfirmado ? (<><CheckCircle2 className="w-3.5 h-3.5" /> Pix recebido (confirmado por você)</>) : "Confirmei o recebimento no app do banco"}
                     </button>
+                    <p className="text-[9px] text-[var(--color-text-faint)]">O banco não avisa o sistema: confira o recebimento no app do banco antes de confirmar.</p>
                   </div>
                 )}
 
