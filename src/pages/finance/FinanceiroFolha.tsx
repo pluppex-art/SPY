@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { CheckCircle2, ChevronLeft, ChevronRight, Clock, FileSpreadsheet, HandCoins, Inbox, Users, Wallet, Wand2 } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
+import { SeletorCompetencia } from "./components/SeletorCompetencia";
 import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -174,11 +175,7 @@ export default function FinanceiroFolha() {
       description="Gere a folha do mês, desconte os adiantamentos e pague. Cada pagamento já vira uma saída em Despesas."
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex h-9 items-center gap-1 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-1.5">
-            <button type="button" onClick={() => mover(-1)} aria-label="Mês anterior" className="rounded p-1 hover:bg-[var(--color-surface-sunken)]"><ChevronLeft className="h-4 w-4" /></button>
-            <span className="w-36 text-center text-xs font-bold">{labelComp(competencia)}</span>
-            <button type="button" onClick={() => mover(1)} aria-label="Próximo mês" className="rounded p-1 hover:bg-[var(--color-surface-sunken)]"><ChevronRight className="h-4 w-4" /></button>
-          </div>
+          <SeletorCompetencia mes={ref} setMes={setRef} />
           <Button variant="outline" onClick={exportar} disabled={geradas.length === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar planilha</Button>
           <Button onClick={gerar} disabled={faltamGerar.length === 0 || ocupado === "gerar"}><Wand2 className="mr-2 h-4 w-4" />{faltamGerar.length === 0 ? "Folha gerada" : `Gerar folha (${faltamGerar.length})`}</Button>
         </div>

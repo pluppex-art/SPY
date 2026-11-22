@@ -3,6 +3,7 @@ import { somar, lerValor } from "../../lib/dinheiro";
 import { toast } from "sonner";
 import { BadgePercent, CheckCircle2, ChevronLeft, ChevronRight, Clock, FileSpreadsheet, Plus, Target, Trophy, Wand2, X } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
+import { SeletorCompetencia } from "./components/SeletorCompetencia";
 import { Button } from "../../components/ui/button";
 import { Skeleton } from "../../components/ui/skeleton";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
@@ -195,11 +196,7 @@ export default function FinanceiroComissoes() {
       description="Vendas fechadas por vendedor, percentual e meta de cada um, e o pagamento das comissões."
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex h-9 items-center gap-1 rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-1.5">
-            <button type="button" onClick={() => mover(-1)} aria-label="Mês anterior" className="rounded p-1 hover:bg-[var(--color-surface-sunken)]"><ChevronLeft className="h-4 w-4" /></button>
-            <span className="w-36 text-center text-xs font-bold">{labelComp(competencia)}</span>
-            <button type="button" onClick={() => mover(1)} aria-label="Próximo mês" className="rounded p-1 hover:bg-[var(--color-surface-sunken)]"><ChevronRight className="h-4 w-4" /></button>
-          </div>
+          <SeletorCompetencia mes={ref} setMes={setRef} />
           <Button variant="outline" onClick={exportar} disabled={resumo.length === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar planilha</Button>
           <Button onClick={gerar} disabled={ocupado === "gerar" || vendasDoMes.every((v) => jaGeradas.has(v.id))}><Wand2 className="mr-2 h-4 w-4" />Gerar comissões do mês</Button>
         </div>
