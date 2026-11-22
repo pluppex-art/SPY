@@ -95,26 +95,21 @@ export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingE
 
 /**
  * Envia pelo SMTP da plataforma (variáveis SPY_SMTP_*), sem olhar tenant nenhum.
- * Para e-mails de conta (redefinir senha, aviso de senha alterada): o usuário
- * pode nem estar logado e a mensagem é do S.P.Y., não de uma empresa cliente.
+ * Para tudo que é do S.P.Y. (não da empresa cliente): redefinir senha, aviso de senha alterada, cobrança e os
+ * avisos automáticos do sistema (tarefa, reunião, agente secreto, pagamento...). Só o disparo de marketing
+ * (campanhas e sequências) usa o SMTP próprio do cliente, via sendTenantEmail.
  */
 export async function sendPlatformEmail(mail: OutgoingEmail): Promise<{ messageId: string }> {
   const e = process.env;
   if (!e.SPY_SMTP_HOST || !e.SPY_SMTP_USER || !e.SPY_SMTP_PASS || !e.SPY_SMTP_FROM) {
     throw new Error("SMTP da plataforma não configurado (SPY_SMTP_*).");
   }
-  const encryption = e.SPY_SMTP_ENCRYPTION || "StartTLS";
-  const transporter = nodemailer.createTransport({
-    host: e.SPY_SMTP_HOST,
-    port: Number(e.SPY_SMTP_PORT || 587),
-    secure: encryption === "SSL/TLS",
-    requireTLS: encryption === "StartTLS",
-    auth: { user: e.SPY_SMTP_USER, pass: e.SPY_SMTP_PASS },
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 15000,
+  // Conexão reaproveitada (os avisos automáticos saem em rajada, vários por vez).
+  const transporter = transporterDe({
+    host: e.SPY_SMTP_HOST, port: Number(e.SPY_SMTP_PORT || 587), user: e.SPY_SMTP_USER, pass: e.SPY_SMTP_PASS,
+    encryption: e.SPY_SMTP_ENCRYPTION || "StartTLS",
   });
-  const info = await transporter.sendMail({ from: e.SPY_SMTP_FROM, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments });
+  const info = await transporter.sendMail({ from: e.SPY_SMTP_FROM, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments, headers: mail.headers, replyTo: mail.replyTo });
   return { messageId: String(info.messageId || "") };
 }
 

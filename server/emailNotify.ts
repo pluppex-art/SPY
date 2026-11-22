@@ -1,4 +1,4 @@
-import { sendTenantEmail } from "./mailer.js";
+import { sendPlatformEmail } from "./mailer.js";
 import { notificationEmail, type NotificationKind } from "./emailTemplates.js";
 import { getTenantBrand } from "./emailBrand.js";
 import { sendWebPushToUsers } from "./webPush.js";
@@ -134,7 +134,8 @@ export async function emailNotifyTenant(db: any, tenantId: string, baseUrl: stri
           name: u.name,
           brand,
         });
-        await sendTenantEmail(db, tenantId, { to: u.email, ...mail });
+        // Aviso do sistema: sempre pelo servidor do S.P.Y., mesmo que a empresa tenha SMTP próprio (esse é só do disparo de marketing).
+        await sendPlatformEmail({ to: u.email, ...mail });
         out.sent++;
       } catch (err: any) {
         out.failed++;
