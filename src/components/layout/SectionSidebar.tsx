@@ -29,6 +29,8 @@ interface SectionSidebarProps {
   heading: string;
   subheading?: string;
   groups: SectionNavGroup[];
+  /** Controle opcional logo abaixo do título (ex.: alternar modo Resumo/Avançado). */
+  headerExtra?: ReactNode;
   children: ReactNode;
 }
 
@@ -39,7 +41,7 @@ interface SectionSidebarProps {
  * zero com pequenas divergências de active-state/collapse; agora é um único
  * padrão visual e de comportamento.
  */
-export function SectionSidebar({ heading, subheading, groups, children }: SectionSidebarProps) {
+export function SectionSidebar({ heading, subheading, groups, headerExtra, children }: SectionSidebarProps) {
   const location = useLocation();
   const { t } = useLocalization();
   const [isHidden, setIsHidden] = useState(false);
@@ -94,6 +96,7 @@ export function SectionSidebar({ heading, subheading, groups, children }: Sectio
             <PanelLeftClose className="w-4 h-4" />
           </Button>
         </div>
+        {headerExtra && <div className="px-4 pb-3 shrink-0">{headerExtra}</div>}
 
         <nav className="flex flex-col overflow-y-auto pb-10 px-2 scrollbar-none">
           {groups.map((group) => (
@@ -138,6 +141,7 @@ export function SectionSidebar({ heading, subheading, groups, children }: Sectio
                 <X className="w-5 h-5" />
               </Button>
             </div>
+            {headerExtra && <div className="px-5 pb-2">{headerExtra}</div>}
             <div ref={sheetRef} className="overflow-y-auto overscroll-contain px-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
               {groups.map((group) => (
                 <SectionGroup

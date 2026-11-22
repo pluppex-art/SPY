@@ -101,7 +101,6 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
         { title: "Viagens e Eventos", path: "/app/financeiro/viagens", icon: Plane },
       ],
     },
-    { title: "Pessoas & Comercial", icon: Users, items: pessoas },
     {
       title: "Financeiro Geral",
       icon: Landmark,
@@ -116,6 +115,7 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
         { title: "Reservas Financeiras", path: "/app/financeiro/reservas", icon: PiggyBank },
       ],
     },
+    { title: "Pessoas & Comercial", icon: Users, items: pessoas },
     {
       title: "Relatórios",
       icon: PieChart,
@@ -125,7 +125,7 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
       ],
     },
     {
-      title: "Cadastros",
+      title: "Configurações",
       icon: FolderTree,
       items: [
         { title: "Clientes & Fornecedores", path: "/app/financeiro/contatos", icon: Users },
@@ -171,12 +171,55 @@ const PAGINAS_COM_BOTAO_PROPRIO = [
   "/app/financeiro/compras",
 ];
 
+// Modo "Resumo": só o essencial para quem não é do financeiro. "Avançado" mostra o menu completo.
+const ESSENCIAIS_RESUMO = new Set([
+  "/app/financeiro/dashboard",
+  "/app/financeiro/visao-geral",
+  "/app/financeiro/resumo",
+  "/app/financeiro/agenda",
+  "/app/financeiro/receitas",
+  "/app/financeiro/despesas",
+  "/app/financeiro/transacoes",
+  "/app/financeiro/fluxo-caixa",
+  "/app/financeiro/dre",
+  "/app/financeiro/relatorios",
+  "/app/financeiro/bancos",
+  "/app/financeiro/plano-contas",
+]);
+const MODO_KEY = "spy_financeiro_modo_menu";
+
 export default function FinanceiroLayout() {
   const location = useLocation();
   const [novaOperacaoOpen, setNovaOperacaoOpen] = useState(false);
   const { ensureNicheModulesLoaded } = useData();
   const { isModuleEnabled } = useAuth();
-  const groups = useMemo(() => montarGrupos((m) => isModuleEnabled(m)), [isModuleEnabled]);
+  const [modo, setModo] = useState<"resumo" | "avancado">(() => {
+    try { return localStorage.getItem(MODO_KEY) === "avancado" ? "avancado" : "resumo"; } catch { return "resumo"; }
+  });
+  const escolherModo = (m: "resumo" | "avancado") => { setModo(m); try { localStorage.setItem(MODO_KEY, m); } catch { /* sem storage: vale só nesta sessão */ } };
+  const groupsCompletos = useMemo(() => montarGrupos((m) => isModuleEnabled(m)), [isModuleEnabled]);
+  const groups = useMemo(() => {
+    if (modo === "avancado") return groupsCompletos;
+    // A página aberta nunca some do menu, mesmo fora do essencial.
+    const atual = (p: string) => location.pathname === p || location.pathname.startsWith(p + "/");
+    return groupsCompletos
+      .map((g) => ({ ...g, items: g.items.filter((i) => ESSENCIAIS_RESUMO.has(i.path) || atual(i.path)) }))
+      .filter((g) => g.items.length > 0);
+  }, [groupsCompletos, modo, location.pathname]);
+  const seletorModo = (
+    <div className="flex p-0.5 rounded-[var(--radius-control)] bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]" role="group" aria-label="Modo do menu">
+      {(["resumo", "avancado"] as const).map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => escolherModo(m)}
+          className={`flex-1 px-2 py-1 text-[11px] font-bold rounded cursor-pointer transition-all ${modo === m ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
+        >
+          {m === "resumo" ? "Resumo" : "Avançado"}
+        </button>
+      ))}
+    </div>
+  );
 
   // Bancos/transferências/centros de custo/anexos/categorias/auditoria não
   // entram na carga inicial do app (módulo de nicho) — busca sob demanda ao
@@ -188,7 +231,7 @@ export default function FinanceiroLayout() {
   const tipoPadrao = /receb|receita|cobranca|inadimpl|mrr/.test(location.pathname) ? "Receber" : "Pagar";
 
   return (
-    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groups}>
+    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groups} headerExtra={seletorModo}>
       <FinanceiroFilterProvider>
         <Outlet />
       </FinanceiroFilterProvider>

@@ -88,7 +88,7 @@ export function FinanceiroFilterProvider({ children }: { children: ReactNode }) 
       const saved = sessionStorage.getItem(STORAGE_KEY);
       if (saved && saved in FINANCEIRO_PERIODO_LABELS) return saved as FinanceiroPeriodoPreset;
     } catch { /* sessionStorage indisponível (modo privado etc.) — usa o default */ }
-    return "tudo";
+    return "mes-atual";
   });
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
