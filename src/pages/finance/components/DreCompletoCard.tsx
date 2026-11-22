@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ListTree } from "lucide-react";
+import { ListTree, Download } from "lucide-react";
+import { toast } from "sonner";
 import { SecaoCard } from "./SecaoCard";
 import { apiFetch } from "../../../lib/apiClient";
 import { useLocalization } from "../../../contexts/LocalizationContext";
@@ -11,7 +12,7 @@ type Resposta = DreCompleto & { regime: "competencia" | "caixa"; lancamentos: nu
 export function DreCompletoCard({ tenantId, startDate, endDate }: { tenantId: string | null; startDate: string; endDate: string }) {
   const { formatCurrency } = useLocalization();
   const fmt = (v: number) => formatCurrency(v);
-  const [regime, setRegime] = useState<"competencia" | "caixa">("competencia");
+  const [regime, setRegime] = useState<"competencia" | "caixa">("caixa");
   const [dados, setDados] = useState<Resposta | null>(null);
   const [erro, setErro] = useState(false);
 
@@ -45,12 +46,30 @@ export function DreCompletoCard({ tenantId, startDate, endDate }: { tenantId: st
     { nome: "(=) LUCRO LÍQUIDO", valor: dados.lucroLiquido, tipo: "final" },
   ] : [];
 
+  // PDF = página de impressão só com este bloco (o navegador oferece "Salvar como PDF").
+  const exportarPdf = () => {
+    if (!dados) return;
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+    const rows = linhas.map((l) => `<tr class="${l.tipo !== "linha" ? "t" : ""}"><td>${esc(l.nome)}</td><td class="v">${esc(l.sinal === "menos" && l.valor > 0 ? `(${fmt(l.valor)})` : fmt(l.valor))}</td></tr>`).join("");
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Libere os pop-ups do navegador para exportar o PDF."); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DRE completo</title><style>
+      body{font-family:system-ui,sans-serif;color:#111;padding:32px;max-width:760px;margin:auto}
+      h1{font-size:20px;margin:0}p{color:#555;font-size:12px;margin:4px 0 20px}
+      table{width:100%;border-collapse:collapse;font-size:13px}td{padding:9px 10px;border-bottom:1px solid #e5e5e5}
+      .v{text-align:right;font-variant-numeric:tabular-nums}.t td{font-weight:700;background:#f5f5f5}
+    </style></head><body><h1>DRE completo</h1><p>${esc(startDate)} a ${esc(endDate)} · ${regime === "caixa" ? "Regime de Caixa" : "Regime de Competência"}</p><table>${rows}</table></body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 300);
+  };
+
   return (
-    <SecaoCard titulo="DRE completo (plano de contas)" icon={ListTree}>
+    <SecaoCard titulo="DRE completo (plano de contas)" icon={ListTree} direita={<button type="button" onClick={exportarPdf} disabled={!dados} className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded border border-[var(--color-border-default)] text-[var(--color-text-muted)] bg-transparent cursor-pointer disabled:opacity-40 print:hidden"><Download className="w-3 h-3" /> PDF</button>}>
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <p className="text-[11px] text-[var(--color-text-faint)]">Só lançamentos feitos depois da Fase 1. Os antigos continuam no DRE acima.</p>
         <div className="inline-flex rounded-[var(--radius-control)] border border-[var(--color-border-default)] overflow-hidden text-xs">
-          {(["competencia", "caixa"] as const).map((r) => (
+          {(["caixa", "competencia"] as const).map((r) => (
             <button key={r} type="button" onClick={() => setRegime(r)}
               className={`px-3 py-1.5 ${regime === r ? "bg-[var(--color-surface-sunken)] font-semibold text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"}`}>
               {r === "competencia" ? "Competência" : "Caixa"}

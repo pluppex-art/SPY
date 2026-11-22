@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FileSpreadsheet, ArrowDownCircle, ArrowUpCircle, CalendarClock, AlertTriangle, Wallet, MessageCircle, Copy } from "lucide-react";
 import { exportarXlsx, dataParaArquivo } from "../../lib/exportXlsx";
@@ -66,7 +66,7 @@ export default function FinanceiroCentralResumo() {
     };
   }, [rows, hoje]);
 
-  const texto = useMemo(() => {
+  const textoGerado = useMemo(() => {
     const [a, m, d] = hoje.split("-");
     return [
       `*Resumo financeiro — ${d}/${m}/${a}*`,
@@ -86,6 +86,9 @@ export default function FinanceiroCentralResumo() {
         : []),
     ].join("\n");
   }, [r, hoje, brl]);
+  // O texto pode ser editado antes de enviar; enquanto não mexerem, acompanha os números.
+  const [editado, setEditado] = useState<string | null>(null);
+  const texto = editado ?? textoGerado;
 
   const copiar = async () => {
     try {
@@ -186,8 +189,19 @@ export default function FinanceiroCentralResumo() {
         )}
       </SecaoCard>
 
-      <SecaoCard titulo="Texto do resumo (WhatsApp)">
-        <pre className="whitespace-pre-wrap rounded-lg bg-[var(--color-surface-muted,transparent)] p-3 text-xs">{texto}</pre>
+      <SecaoCard titulo="Texto do resumo (editável, vai para o WhatsApp)">
+        <textarea
+          value={texto}
+          onChange={(e) => setEditado(e.target.value)}
+          rows={Math.min(24, texto.split("\n").length + 1)}
+          aria-label="Texto do resumo, editável"
+          className="w-full resize-y rounded-lg border border-[var(--color-border-default)] bg-transparent p-3 text-xs font-mono leading-relaxed"
+        />
+        {editado !== null && (
+          <button type="button" onClick={() => setEditado(null)} className="mt-2 text-xs text-[var(--color-primary-blue)] bg-transparent border-none cursor-pointer p-0">
+            Restaurar texto automático
+          </button>
+        )}
       </SecaoCard>
 
       <LegendaStatusFinanceiro />
