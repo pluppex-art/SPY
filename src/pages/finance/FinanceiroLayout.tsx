@@ -79,7 +79,7 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
 
   return [
     {
-      title: "Painel Geral",
+      title: "Painel e Relatórios",
       icon: LayoutDashboard,
       items: [
         { title: "Painel Geral", path: "/app/financeiro/dashboard", icon: LayoutDashboard },
@@ -87,6 +87,8 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
         { title: "Central de Resumo", path: "/app/financeiro/resumo", icon: ClipboardList },
         { title: "Agenda Financeira", path: "/app/financeiro/agenda", icon: CalendarDays },
         { title: "Busca Financeira", path: "/app/financeiro/busca", icon: Search },
+        { title: "Central de Relatórios", path: "/app/financeiro/relatorios", icon: BarChart3 },
+        { title: "DRE Gerencial", path: "/app/financeiro/dre", icon: PieChart },
       ],
     },
     { title: "Entradas", icon: Inbox, items: entradas },
@@ -116,14 +118,6 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
       ],
     },
     { title: "Pessoas & Comercial", icon: Users, items: pessoas },
-    {
-      title: "Relatórios",
-      icon: PieChart,
-      items: [
-        { title: "Central de Relatórios", path: "/app/financeiro/relatorios", icon: BarChart3 },
-        { title: "DRE Gerencial", path: "/app/financeiro/dre", icon: PieChart },
-      ],
-    },
     {
       title: "Configurações",
       icon: FolderTree,
@@ -172,20 +166,15 @@ const PAGINAS_COM_BOTAO_PROPRIO = [
 ];
 
 // Modo "Resumo": só o essencial para quem não é do financeiro. "Avançado" mostra o menu completo.
-const ESSENCIAIS_RESUMO = new Set([
+const ESSENCIAIS_RESUMO = [
   "/app/financeiro/dashboard",
-  "/app/financeiro/visao-geral",
-  "/app/financeiro/resumo",
-  "/app/financeiro/agenda",
   "/app/financeiro/receitas",
   "/app/financeiro/despesas",
-  "/app/financeiro/transacoes",
   "/app/financeiro/fluxo-caixa",
-  "/app/financeiro/dre",
-  "/app/financeiro/relatorios",
   "/app/financeiro/bancos",
-  "/app/financeiro/plano-contas",
-]);
+  "/app/financeiro/dre",
+  "/app/financeiro/resumo",
+];
 const MODO_KEY = "spy_financeiro_modo_menu";
 
 export default function FinanceiroLayout() {
@@ -200,11 +189,13 @@ export default function FinanceiroLayout() {
   const groupsCompletos = useMemo(() => montarGrupos((m) => isModuleEnabled(m)), [isModuleEnabled]);
   const groups = useMemo(() => {
     if (modo === "avancado") return groupsCompletos;
-    // A página aberta nunca some do menu, mesmo fora do essencial.
+    // Uma única lista curta, na ordem do essencial; a página aberta nunca some do menu.
+    const todos = groupsCompletos.flatMap((g) => g.items);
     const atual = (p: string) => location.pathname === p || location.pathname.startsWith(p + "/");
-    return groupsCompletos
-      .map((g) => ({ ...g, items: g.items.filter((i) => ESSENCIAIS_RESUMO.has(i.path) || atual(i.path)) }))
-      .filter((g) => g.items.length > 0);
+    const itens = ESSENCIAIS_RESUMO.map((path) => todos.find((i) => i.path === path)).filter(Boolean) as SectionNavItem[];
+    const aberta = todos.find((i) => atual(i.path));
+    if (aberta && !itens.some((i) => i.path === aberta.path)) itens.push(aberta);
+    return [{ title: "Financeiro", icon: Wallet, items: itens }];
   }, [groupsCompletos, modo, location.pathname]);
   const seletorModo = (
     <div className="flex p-0.5 rounded-[var(--radius-control)] bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]" role="group" aria-label="Modo do menu">
