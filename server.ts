@@ -2040,7 +2040,7 @@ app.get("/api/clinica/estatisticas-summary", requireUserOrInternalService, async
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
-    const cacheKey = `clinica-estatisticas:tenant:${tenantId}:user:${req.user.id}:summary`;
+    const cacheKey = `clinica-estatisticas:tenant:${tenantId}:user:${req.user?.id ?? "servico-interno"}:summary`;
 
     const cached = await cacheGet<Record<string, unknown>>(cacheKey);
     if (cached) {
@@ -2089,7 +2089,7 @@ app.get("/api/clinica/faturamento-summary", requireUserOrInternalService, async 
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
-    const cacheKey = `clinica-faturamento:tenant:${tenantId}:user:${req.user.id}:summary`;
+    const cacheKey = `clinica-faturamento:tenant:${tenantId}:user:${req.user?.id ?? "servico-interno"}:summary`;
 
     const cached = await cacheGet<Record<string, unknown>>(cacheKey);
     if (cached) {
@@ -2158,7 +2158,7 @@ app.get("/api/clinica/painel-geral-summary", requireUserOrInternalService, async
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
-    const cacheKey = `clinica-painel-geral:tenant:${tenantId}:user:${req.user.id}:summary`;
+    const cacheKey = `clinica-painel-geral:tenant:${tenantId}:user:${req.user?.id ?? "servico-interno"}:summary`;
 
     const cached = await cacheGet<Record<string, unknown>>(cacheKey);
     if (cached) {
@@ -2220,7 +2220,7 @@ app.get("/api/education/mensalidades-summary", requireUserOrInternalService, asy
   try {
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return;
-    const cacheKey = `education-mensalidades:tenant:${tenantId}:user:${req.user.id}:summary`;
+    const cacheKey = `education-mensalidades:tenant:${tenantId}:user:${req.user?.id ?? "servico-interno"}:summary`;
 
     const cached = await cacheGet<Record<string, unknown>>(cacheKey);
     if (cached) {
