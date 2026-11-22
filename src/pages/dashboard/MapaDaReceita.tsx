@@ -135,8 +135,8 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
   };
 
   const canais = useMemo(() => det.canais
-    ? det.canais.map((c: any) => ({ origem: c.origem, leads: 0, fechados: 1, conversao: Number(c.conversao) || 0, receita: Number(c.receita) || 0, ticketMedio: 0 }))
-    : computeChannelRevenue(leads), [leads, det.canais]);
+    ? det.canais.map((c: any) => ({ origem: c.origem, leads: 0, fechados: 1, vendas: null as number | null, conversao: Number(c.conversao) || 0, receita: Number(c.receita) || 0, ticketMedio: 0 }))
+    : computeChannelRevenue(leads).map((c) => ({ ...c, vendas: c.fechados as number | null })), [leads, det.canais]);
   const produtos = useMemo(() => {
     if (!det.produtos) return computeProductRevenue(proposals, proposalItems, products);
     const tot = det.produtos.reduce((t: number, p: any) => t + (Number(p.receita) || 0), 0) || 1;
@@ -215,17 +215,18 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="text-[9px] uppercase font-bold text-[var(--color-text-faint)] bg-[var(--color-surface-sunken)]">
-                <tr><th className="px-2.5 md:px-4 py-2">Canal</th><th className="px-2.5 md:px-4 py-2">Receita</th><th className="px-2.5 md:px-4 py-2">Conv.</th></tr>
+                <tr><th className="px-2.5 md:px-4 py-2">Canal</th><th className="px-2.5 md:px-4 py-2">Receita</th><th className="px-2.5 md:px-4 py-2">Vendas</th><th className="px-2.5 md:px-4 py-2">Conv.</th></tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
                 {canais.map((c) => (
                   <tr key={c.origem}>
                     <td className="px-2.5 md:px-4 py-2 font-bold text-[var(--color-text-primary)] truncate-desktop md:max-w-[110px]">{c.origem}</td>
                     <td className="px-2.5 md:px-4 py-2 font-mono text-[var(--color-text-primary)]">{formatCurrency(c.receita)}</td>
+                    <td className="px-2.5 md:px-4 py-2 text-[var(--color-text-muted)]">{c.vendas ?? "—"}</td>
                     <td className="px-2.5 md:px-4 py-2 text-[var(--color-text-muted)]">{c.conversao}%</td>
                   </tr>
                 ))}
-                {canais.length === 0 && <tr><td colSpan={3} className="px-4 py-6 text-center text-[var(--color-text-faint)]">Sem leads ainda.</td></tr>}
+                {canais.length === 0 && <tr><td colSpan={4} className="px-4 py-6 text-center text-[var(--color-text-faint)]">Sem leads ainda.</td></tr>}
               </tbody>
             </table>
           </div>
