@@ -4,6 +4,8 @@
 import type express from "express";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import QRCode from "qrcode";
+import { montarBrCode, normalizarChavePix } from "./pix.js";
 import { formatBRL } from "../src/lib/dinheiro.js";
 import { MODELO_PADRAO, aplicarVariaveis, escolherModelo, sanitizarConfig, sanitizarModelo, valorPorExtenso, type ModeloRecibo } from "./modeloRecibo.js";
 
@@ -12,6 +14,7 @@ type Deps = {
   resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>;
 };
 const SETTINGS_MODELOS = "modelos_recibo";
+const SETTINGS_PIX = "pix_recebimento";
 
 const texto = (v: unknown) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim());
 const soDigitos = (v: unknown) => texto(v).replace(/\D/g, "");
@@ -64,7 +67,7 @@ export function variaveisDaFatura(d: DadosFatura): Record<string, string> {
   };
 }
 
-export function gerarFaturaPdf(d: DadosFatura, modelo: ModeloRecibo = MODELO_PADRAO): Buffer {
+export function gerarFaturaPdf(d: DadosFatura, modelo: ModeloRecibo = MODELO_PADRAO, brcode?: string | null): Buffer {
   const doc = new jsPDF();
   const larg = doc.internal.pageSize.getWidth(), alt = doc.internal.pageSize.getHeight();
   const cor = hex(modelo.cor);
@@ -116,6 +119,21 @@ export function gerarFaturaPdf(d: DadosFatura, modelo: ModeloRecibo = MODELO_PAD
   doc.setFontSize(13); doc.setTextColor(0); doc.text(`Total: ${formatBRL(d.valor)}`, larg - 14, fim2, { align: "right" });
   fim2 += 8;
 
+  // QR de Pix: só em fatura em aberto, quando a empresa cadastrou a chave e o modelo permite.
+  if (brcode && d.tipoDocumento === "FATURA" && modelo.mostrar.pix) {
+    const tam = 38, linhas = doc.splitTextToSize(brcode, larg - 28 - tam - 8) as string[];
+    if (fim2 + tam + 14 > alt - 20) { doc.addPage(); fim2 = 20; }
+    const qr = QRCode.create(brcode, { errorCorrectionLevel: "M" }).modules;
+    const n = qr.size, celula = tam / (n + 2); // 1 módulo de margem em cada lado
+    doc.setFillColor(255, 255, 255); doc.rect(14, fim2, tam, tam, "F");
+    doc.setFillColor(0, 0, 0);
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.get(r, c)) doc.rect(14 + (c + 1) * celula, fim2 + (r + 1) * celula, celula, celula, "F");
+    doc.setFontSize(11); doc.setTextColor(cor[0], cor[1], cor[2]); doc.text("Pague com Pix", 14 + tam + 8, fim2 + 6);
+    doc.setFontSize(8); doc.setTextColor(70); doc.text("Aponte a câmera do app do banco para o QR ou use o Pix copia e cola:", 14 + tam + 8, fim2 + 11, { maxWidth: larg - 28 - tam - 8 });
+    doc.setFont("courier", "normal"); doc.setFontSize(6.5); doc.text(linhas, 14 + tam + 8, fim2 + 19);
+    doc.setFont("helvetica", "normal");
+    fim2 += tam + 10;
+  }
   if (modelo.observacoes) {
     doc.setFontSize(10); doc.setTextColor(70);
     const o = doc.splitTextToSize(aplicarVariaveis(modelo.observacoes, vars), larg - 28) as string[];
@@ -136,6 +154,36 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
     const { data } = (await supabaseService?.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", SETTINGS_MODELOS).maybeSingle()) ?? { data: null };
     return data?.value ?? null;
   };
+
+  const lerPix = async (tenantId: string) => {
+    const { data } = (await supabaseService?.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", SETTINGS_PIX).maybeSingle()) ?? { data: null };
+    const v = data?.value ?? {};
+    const k = normalizarChavePix(v.chave);
+    return k ? { chave: k.chave, tipo: k.tipo, nome: texto(v.nome).slice(0, 60), cidade: texto(v.cidade).slice(0, 40) } : null;
+  };
+  const brcodeDa = (pix: { chave: string; nome: string; cidade: string } | null, d: DadosFatura) =>
+    pix ? montarBrCode({ chave: pix.chave, nome: pix.nome || d.emitente.nome, cidade: pix.cidade, valor: d.valor, txid: `SPY${d.numero}` }) : null;
+
+  // Chave Pix da empresa (para o QR das faturas em aberto).
+  app.get("/api/financeiro/pix-recebimento", requireUser, limiter, async (req: any, res) => {
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    return res.json({ pix: await lerPix(tenantId) });
+  });
+  app.put("/api/financeiro/pix-recebimento", requireUser, requireTenantAdmin, limiter, async (req: any, res) => {
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    const chaveBruta = texto(req.body?.chave);
+    if (!chaveBruta) { // chave em branco = remove o QR das faturas
+      const { error } = await supabaseService.from("app_settings").upsert({ tenant_id: tenantId, key: SETTINGS_PIX, value: {} }, { onConflict: "tenant_id,key" });
+      return error ? res.status(500).json({ error: "Não foi possível salvar." }) : res.json({ pix: null });
+    }
+    const k = normalizarChavePix(chaveBruta);
+    if (!k) return res.status(400).json({ error: "Chave Pix inválida. Use CPF, CNPJ, e-mail, telefone com +55 ou a chave aleatória." });
+    const cidade = texto(req.body?.cidade);
+    if (!cidade) return res.status(400).json({ error: "Informe a cidade do recebedor (o Pix exige)." });
+    const { error } = await supabaseService.from("app_settings").upsert({ tenant_id: tenantId, key: SETTINGS_PIX, value: { chave: k.chave, nome: texto(req.body?.nome).slice(0, 60), cidade: cidade.slice(0, 40) } }, { onConflict: "tenant_id,key" });
+    if (error) return res.status(500).json({ error: "Não foi possível salvar." });
+    return res.json({ pix: await lerPix(tenantId) });
+  });
 
   // Modelos da empresa: o padrão do SPY (fixo) + os criados por ela, e qual é o principal.
   app.get("/api/financeiro/modelos-recibo", requireUser, limiter, async (req: any, res) => {
@@ -159,8 +207,9 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
       const pago = req.body?.tipo !== "fatura";
       const d = dadosDaFatura({ id: "a1b2c3d4", counterparty: "Maria da Silva", description: "Serviço prestado (exemplo)", value: 2244.5, status: pago ? "Pago" : "A Vencer", date_normalized: "2026-12-05", data_pagamento: "2026-11-21", payment_method: "Pix" },
         { razaoSocial: "Sua Empresa Ltda", cnpj: "12345678000195", endereco: "Rua Exemplo, 100 — Centro", emailContato: "contato@suaempresa.com.br", telefoneContato: "(11) 99999-0000" }, { name: "Maria da Silva", documento: "52998224725" }, "Sua Empresa", new Date().toISOString().slice(0, 10));
+      const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
       res.setHeader("Content-Type", "application/pdf"); res.setHeader("Cache-Control", "private, no-store");
-      return res.send(gerarFaturaPdf(d, modelo));
+      return res.send(gerarFaturaPdf(d, modelo, brcodeDa(await lerPix(tenantId), d)));
     } catch (err: any) { console.error("[modelos-recibo/preview]", err?.message); return res.status(500).json({ error: "Não foi possível gerar a pré-visualização." }); }
   });
 
@@ -180,7 +229,7 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
       ]);
       const d = dadosDaFatura(entry, cfg?.value, cli, texto(tenant?.name) || "Empresa", new Date().toISOString().slice(0, 10));
       const modelo = escolherModelo(await lerConfig(entry.tenant_id), texto(req.query.modelo) || null);
-      const pdf = gerarFaturaPdf(d, modelo);
+      const pdf = gerarFaturaPdf(d, modelo, brcodeDa(await lerPix(entry.tenant_id), d));
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `inline; filename="${d.tipoDocumento.toLowerCase()}-${d.numero}.pdf"`);
       res.setHeader("Cache-Control", "private, no-store");

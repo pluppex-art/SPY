@@ -7,14 +7,14 @@ import { useAuth } from "../../contexts/AuthContext";
 import { apiFetch } from "../../lib/apiClient";
 import { esquecerListaDeModelos } from "./BotaoFaturaPdf";
 
-type Mostrar = { emitente: boolean; documentoCliente: boolean; detalhes: boolean; formaPagamento: boolean; assinatura: boolean };
+type Mostrar = { emitente: boolean; documentoCliente: boolean; detalhes: boolean; formaPagamento: boolean; assinatura: boolean; pix: boolean };
 type Modelo = { id: string; nome: string; cor: string; logo: string; tituloRecibo: string; tituloFatura: string; abertura: string; observacoes: string; mostrar: Mostrar };
 
 const campo = "h-[38px] w-full rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-3 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]";
 const area = "w-full rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]";
 const VARIAVEIS = ["cliente", "cliente_documento", "valor", "valor_extenso", "descricao", "data_pagamento", "vencimento", "forma_pagamento", "emitente", "emitente_documento", "numero", "hoje"];
 const EXEMPLO = "Recebi de {{cliente}} a importância de {{valor}} ({{valor_extenso}}), referente a {{descricao}}. Para maior clareza, firmo o presente.";
-const OPCOES: [keyof Mostrar, string][] = [["emitente", "Dados da empresa (emitente)"], ["documentoCliente", "CPF/CNPJ do cliente"], ["detalhes", "Tabela de descrição e valor"], ["formaPagamento", "Forma de pagamento"], ["assinatura", "Linha de assinatura"]];
+const OPCOES: [keyof Mostrar, string][] = [["emitente", "Dados da empresa (emitente)"], ["documentoCliente", "CPF/CNPJ do cliente"], ["detalhes", "Tabela de descrição e valor"], ["formaPagamento", "Forma de pagamento"], ["assinatura", "Linha de assinatura"], ["pix", "QR de Pix (só nas faturas em aberto)"]];
 
 const novoId = () => `m${Date.now().toString(36)}`;
 async function lerJson(r: Response) { try { return await r.json(); } catch { return {}; } }
@@ -32,11 +32,16 @@ export default function FinanceiroModelosRecibo() {
   const [previa, setPrevia] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const areaRef = useRef<HTMLTextAreaElement>(null);
+  const [pix, setPix] = useState({ chave: "", nome: "", cidade: "" });
+  const [pixSalvo, setPixSalvo] = useState(false);
+  const [salvandoPix, setSalvandoPix] = useState(false);
 
   useEffect(() => {
     (async () => {
       const r = await apiFetch("/api/financeiro/modelos-recibo"); const j = await lerJson(r);
       if (r.ok) { setPadrao(j.padrao); setModelos(j.modelos ?? []); setPrincipalId(j.principalId ?? "padrao"); }
+      const rp = await apiFetch("/api/financeiro/pix-recebimento"); const jp = await lerJson(rp);
+      if (rp.ok && jp.pix) { setPix({ chave: jp.pix.chave ?? "", nome: jp.pix.nome ?? "", cidade: jp.pix.cidade ?? "" }); setPixSalvo(true); }
     })();
   }, []);
 
@@ -93,6 +98,16 @@ export default function FinanceiroModelosRecibo() {
       setModelos(j.modelos); setPrincipalId(j.principalId); setSujo(false); esquecerListaDeModelos(); toast.success("Modelos salvos.");
     } finally { setSalvando(false); }
   }
+  async function salvarPix() {
+    setSalvandoPix(true);
+    try {
+      const r = await apiFetch("/api/financeiro/pix-recebimento", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pix) });
+      const j = await lerJson(r);
+      if (!r.ok) { toast.error(j.error || "Não foi possível salvar a chave Pix."); return; }
+      setPixSalvo(!!j.pix); if (j.pix) setPix({ chave: j.pix.chave, nome: j.pix.nome, cidade: j.pix.cidade });
+      toast.success(j.pix ? "Chave Pix salva." : "Chave Pix removida."); atualizarPrevia(atual, tipo);
+    } finally { setSalvandoPix(false); }
+  }
   async function tornarPrincipal() { setPrincipalId(selId); await salvar(selId); }
 
   if (!padrao) return <div className="p-6 text-sm text-[var(--color-text-muted)]">Carregando…</div>;
@@ -113,6 +128,21 @@ export default function FinanceiroModelosRecibo() {
         ))}
         {admin && <Button size="sm" variant="outline" onClick={() => novo()}><Plus className="w-4 h-4" /> Novo modelo</Button>}
       </div>
+
+      <Card className="p-4 flex flex-col gap-3">
+        <div className="text-sm font-bold">Recebimento por Pix</div>
+        <p className="text-xs text-[var(--color-text-muted)]">Cadastre a chave Pix da empresa: as faturas em aberto passam a sair com o QR e o Pix copia e cola, já com o valor. Deixe a chave em branco e salve para remover.</p>
+        <div className="flex flex-wrap gap-3 items-end">
+          <label className="text-xs font-bold text-[var(--color-text-muted)] flex-1 min-w-[220px]">Chave Pix (CPF, CNPJ, e-mail, +55… ou aleatória)
+            <input className={campo} disabled={!admin} value={pix.chave} onChange={(e) => setPix({ ...pix, chave: e.target.value })} /></label>
+          <label className="text-xs font-bold text-[var(--color-text-muted)] w-[220px]">Nome do recebedor (opcional)
+            <input className={campo} disabled={!admin} maxLength={25} placeholder="Nome da empresa" value={pix.nome} onChange={(e) => setPix({ ...pix, nome: e.target.value })} /></label>
+          <label className="text-xs font-bold text-[var(--color-text-muted)] w-[180px]">Cidade
+            <input className={campo} disabled={!admin} maxLength={15} value={pix.cidade} onChange={(e) => setPix({ ...pix, cidade: e.target.value })} /></label>
+          {admin && <Button size="sm" onClick={salvarPix} disabled={salvandoPix}>{salvandoPix ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar chave Pix</Button>}
+        </div>
+        {!pixSalvo && <p className="text-[11px] text-[var(--color-text-muted)]">Sem chave cadastrada, as faturas saem sem QR.</p>}
+      </Card>
 
       {atual && (
         <div className="grid gap-4 lg:grid-cols-2">

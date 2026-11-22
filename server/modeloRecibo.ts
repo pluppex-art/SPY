@@ -8,13 +8,13 @@ export type ModeloRecibo = {
   /** Texto do corpo, com variáveis {{cliente}}, {{valor}}, {{valor_extenso}}… (vazio = sem parágrafo). */
   abertura: string;
   observacoes: string;
-  mostrar: { emitente: boolean; documentoCliente: boolean; detalhes: boolean; formaPagamento: boolean; assinatura: boolean };
+  mostrar: { emitente: boolean; documentoCliente: boolean; detalhes: boolean; formaPagamento: boolean; assinatura: boolean; pix: boolean };
 };
 
 export const MODELO_PADRAO: ModeloRecibo = {
   id: "padrao", nome: "Padrão do SPY", cor: "#2563eb", logo: "", tituloRecibo: "RECIBO", tituloFatura: "FATURA",
   abertura: "", observacoes: "",
-  mostrar: { emitente: true, documentoCliente: true, detalhes: true, formaPagamento: true, assinatura: false },
+  mostrar: { emitente: true, documentoCliente: true, detalhes: true, formaPagamento: true, assinatura: false, pix: true },
 };
 
 export const VARIAVEIS = [
@@ -44,7 +44,7 @@ export function sanitizarModelo(m: any, idFallback = "modelo"): ModeloRecibo {
     id, nome: texto(m?.nome, 60) || "Modelo sem nome", cor, logo: logoValida(m?.logo),
     tituloRecibo: texto(m?.tituloRecibo, 40) || "RECIBO", tituloFatura: texto(m?.tituloFatura, 40) || "FATURA",
     abertura: texto(m?.abertura, 800), observacoes: texto(m?.observacoes, 800),
-    mostrar: { emitente: bool(mo.emitente, P.emitente), documentoCliente: bool(mo.documentoCliente, P.documentoCliente), detalhes: bool(mo.detalhes, P.detalhes), formaPagamento: bool(mo.formaPagamento, P.formaPagamento), assinatura: bool(mo.assinatura, P.assinatura) },
+    mostrar: { emitente: bool(mo.emitente, P.emitente), documentoCliente: bool(mo.documentoCliente, P.documentoCliente), detalhes: bool(mo.detalhes, P.detalhes), formaPagamento: bool(mo.formaPagamento, P.formaPagamento), assinatura: bool(mo.assinatura, P.assinatura), pix: bool(mo.pix, P.pix) },
   };
 }
 

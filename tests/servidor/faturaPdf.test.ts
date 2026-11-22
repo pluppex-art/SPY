@@ -61,3 +61,37 @@ test("PDF com modelo próprio (corpo com variáveis, assinatura, observações) 
   const pdf = gerarFaturaPdf(d, m);
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-"); assert.ok(pdf.length > 1500);
 });
+
+import { crc16, montarBrCode, normalizarChavePix, semAcento } from "../../server/pix.js";
+
+test("Pix: CRC16 confere com o vetor padrão e o BR Code fecha o próprio CRC", () => {
+  assert.equal(crc16("123456789"), "29B1");
+  const code = montarBrCode({ chave: "12345678000195", nome: "Luminar Loja Elétrica Ltda", cidade: "Goiânia", valor: 2244.5, txid: "SPYB6FC9218" });
+  assert.ok(code.startsWith("000201010211"));
+  assert.ok(code.includes("br.gov.bcb.pix0114" + "12345678000195"));
+  assert.ok(code.includes("5407" + "2244.50"));
+  assert.ok(code.includes("5802BR")); assert.ok(code.includes("5925LUMINAR LOJA ELETRICA LTD"));
+  assert.ok(code.includes("6007GOIANIA")); assert.ok(code.includes("0511SPYB6FC9218"));
+  assert.equal(code.slice(-4), crc16(code.slice(0, -4)));
+});
+
+test("Pix: chave é validada e normalizada; acentos e símbolos saem do nome", () => {
+  assert.deepEqual(normalizarChavePix("529.982.247-25"), { tipo: "cpf", chave: "52998224725" });
+  assert.deepEqual(normalizarChavePix("00.000.000/0001-91"), { tipo: "cnpj", chave: "00000000000191" });
+  assert.deepEqual(normalizarChavePix("Contato@Empresa.com.br"), { tipo: "email", chave: "contato@empresa.com.br" });
+  assert.deepEqual(normalizarChavePix("+55 (62) 99999-0000"), { tipo: "telefone", chave: "+5562999990000" });
+  assert.equal(normalizarChavePix("123e4567-e89b-12d3-a456-426614174000")?.tipo, "aleatoria");
+  assert.equal(normalizarChavePix("52998224726"), null);
+  assert.equal(normalizarChavePix("62999990000"), null);
+  assert.equal(normalizarChavePix(""), null);
+  assert.equal(semAcento("João & Cia — São Paulo!", 25), "JOAO  CIA  SAO PAULO");
+});
+
+test("PDF da fatura em aberto com QR de Pix é gerado; recibo (pago) não leva QR", () => {
+  const code = montarBrCode({ chave: "12345678000195", nome: "Luminar", cidade: "Goiania", valor: 100 });
+  const aberta = dadosDaFatura({ id: "abcdef12", counterparty: "Ana Souza", value: 100, status: "A Vencer", date_normalized: "2026-12-05" }, { razaoSocial: "LUMINAR" }, null, "Luminar", "2026-11-21");
+  const comQr = gerarFaturaPdf(aberta, MODELO_PADRAO, code), semQr = gerarFaturaPdf(aberta, MODELO_PADRAO, null);
+  assert.ok(comQr.length > semQr.length + 2000);
+  const paga = dadosDaFatura({ id: "abcdef12", counterparty: "Ana Souza", value: 100, status: "Pago", data_pagamento: "2026-11-21" }, { razaoSocial: "LUMINAR" }, null, "Luminar", "2026-11-21");
+  assert.ok(Math.abs(gerarFaturaPdf(paga, MODELO_PADRAO, code).length - gerarFaturaPdf(paga, MODELO_PADRAO, null).length) < 50);
+});
