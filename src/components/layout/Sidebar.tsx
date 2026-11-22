@@ -252,7 +252,7 @@ export function Sidebar({
                     );
                   }
 
-                  if (item.path === "/app/financeiro/dashboard" && !isSidebarCollapsed && location.pathname.startsWith("/app/financeiro") && modoFinanceiro === "resumo") {
+                  if (item.path === "/app/financeiro/dashboard" && !isSidebarCollapsed && location.pathname.startsWith("/app/financeiro")) {
                     const subAtivo = (it: { path: string; matchPaths?: string[] }) => (it.matchPaths ?? [it.path]).some((p) => location.pathname === p || location.pathname.startsWith(p + "/"));
                     const linhas = [...ITENS_RESUMO_FINANCEIRO, null, ITEM_CONFIG_FINANCEIRO];
                     return (
@@ -262,7 +262,7 @@ export function Sidebar({
                             if (!it) {
                               const Ic = ITEM_AVANCADO_FINANCEIRO.icon;
                               return (
-                                <button key="avancado" type="button" onClick={() => { escolherModoFinanceiro("avancado"); setIsMobileSidebarOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] cursor-pointer border-none bg-transparent text-left text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors">
+                                <button key="avancado" type="button" aria-pressed={modoFinanceiro === "avancado"} onClick={() => { escolherModoFinanceiro(modoFinanceiro === "avancado" ? "resumo" : "avancado"); setIsMobileSidebarOpen(false); }} className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] cursor-pointer border-none text-left transition-colors ${modoFinanceiro === "avancado" ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : "bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"}`}>
                                   <Ic className="w-4 h-4 shrink-0" />
                                   <span className="truncate">{t(ITEM_AVANCADO_FINANCEIRO.title)}</span>
                                 </button>
