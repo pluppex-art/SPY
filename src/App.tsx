@@ -170,6 +170,7 @@ const EEmpreendaEditor = lazy(() => import("./pages/marketing/EEmpreendaEditor")
 const MarketingFormularios = lazy(() => import("./pages/marketing/MarketingFormularios"));
 const MarketingEmail = lazy(() => import("./pages/marketing/MarketingEmail"));
 const RHColaboradores = lazy(() => import("./pages/hr/RHColaboradores"));
+const CalculadoraTrabalhista = lazy(() => import("./pages/hr/CalculadoraTrabalhista"));
 const ReuniaoRoom = lazy(() => import("./pages/reunioes/ReuniaoRoom"));
 
 const ImobiliarioPainel = lazy(() => import("./pages/imobiliario/PainelGeral"));
@@ -339,6 +340,7 @@ function AppContent() {
           <Route path="indicadores" element={<Indicadores />} />
           <Route path="relatorios" element={<RelatoriosExecutivos />} />
           <Route path="equipe" element={<RHColaboradores />} />
+          <Route path="equipe/calculadora" element={<CalculadoraTrabalhista />} />
 
           {/* Comunicação & Marketing */}
           <Route path="mensageria" element={<Messaging />} />

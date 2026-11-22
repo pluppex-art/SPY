@@ -42,6 +42,7 @@ import { testEmail, passwordResetEmail, passwordChangedEmail, notificationEmail 
 import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { registerProspeccaoCnaeRoutes } from "./server/prospeccaoCnae.js";
+import { registerApisBrasilRoutes } from "./server/apisBrasil.js";
 import { registerKommoRoutes } from "./server/kommoSync.js";
 import { registerKommoWebhookRoutes } from "./server/kommoWebhook.js";
 import { buildEmpresaDados, tenantReadiness } from "./src/lib/implementationTenant.js";
@@ -550,6 +551,8 @@ registerTableComparisonRoutes(app, {
 registerTableComparisonExportRoutes(app, { requireUser, resolveRequestedTenantId });
 // Prospecção por CNAE e cidade (apipj). Limite baixo: cada empresa devolvida gasta cota paga da conta.
 registerProspeccaoCnaeRoutes(app, { requireUser, limiter: rateLimit({ windowMs: 60_000, limit: 15, standardHeaders: true, legacyHeaders: false }) });
+// Dados do Brasil (CNPJ, CEP, taxas do Banco Central, cálculos trabalhistas) com fonte reserva e cache. Ver docs/apis-brasil.md.
+registerApisBrasilRoutes(app, { requireUser, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 // Pesquisa externa (web) da Aurora para itens não identificados — a busca roda no n8n; só gera sugestões p/ revisão.
 registerTableComparisonResearchRoutes(app, { requireUser, resolveRequestedTenantId });
 // Relatório financeiro em PDF sob demanda (Aurora/n8n) — ver server/financialReportPdf.ts.

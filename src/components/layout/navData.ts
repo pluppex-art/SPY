@@ -2,6 +2,7 @@ import {
   Rocket,
   LayoutDashboard,
   Users,
+  Calculator,
   Columns3,
   Radar as RadarIcon,
   CheckSquare,
@@ -239,6 +240,7 @@ export const navSections = [
     reqModule: "rh",
     items: [
       { name: "Colaboradores & RH", path: "/app/equipe", icon: Users },
+      { name: "Calculadora trabalhista", path: "/app/equipe/calculadora", icon: Calculator },
     ],
   },
   {

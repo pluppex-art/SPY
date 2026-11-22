@@ -60,6 +60,15 @@ async function getJson(url: string): Promise<any> {
   }
 }
 
+/** Consulta de reserva pelo servidor do SPY (exige login); qualquer falha devolve null e vale o erro original. */
+async function reservaDoServidor(caminho: string): Promise<any | null> {
+  try {
+    const { apiFetch } = await import("./apiClient");
+    const r = await apiFetch(caminho);
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+
 const title = (s: string) => (s || "").trim();
 
 export async function fetchCnpj(input: string): Promise<CnpjInfo> {
@@ -67,7 +76,14 @@ export async function fetchCnpj(input: string): Promise<CnpjInfo> {
   if (!isValidCnpj(d)) throw new LookupError("CNPJ inválido — confira os dígitos.");
   let j: any;
   try { j = await getJson(`https://brasilapi.com.br/api/cnpj/v1/${d}`); }
-  catch (e) { if (e instanceof LookupError && e.message === "Não encontrado.") throw new LookupError("CNPJ não encontrado na Receita."); throw e; }
+  catch (e) {
+    if (e instanceof LookupError && e.message === "Não encontrado.") throw new LookupError("CNPJ não encontrado na Receita.");
+    // BrasilAPI fora do ar: o servidor tenta a fonte reserva (Receita WS).
+    const r = await reservaDoServidor(`/api/br/cnpj/${d}`);
+    if (!r) throw e;
+    return { razao_social: r.razaoSocial, nome_fantasia: r.fantasia, situacao: r.situacao, segmento: r.cnaeDescricao,
+      endereco: [r.endereco, [r.cidade, r.uf].filter(Boolean).join("/")].filter(Boolean).join(" — "), cep: r.cep, email: r.email, telefone: onlyDigits(r.telefone) };
+  }
   const rua = [title(j.descricao_tipo_de_logradouro), title(j.logradouro)].filter(Boolean).join(" ");
   const endereco = [
     [rua, j.numero && j.numero !== "S/N" ? title(j.numero) : null].filter(Boolean).join(", "),
@@ -93,7 +109,13 @@ export async function fetchCep(input: string): Promise<CepInfo> {
   if (d.length !== 8) throw new LookupError("CEP precisa ter 8 dígitos.");
   let j: any;
   try { j = await getJson(`https://brasilapi.com.br/api/cep/v2/${d}`); }
-  catch (e) { if (e instanceof LookupError && e.message === "Não encontrado.") throw new LookupError("CEP não encontrado."); throw e; }
+  catch (e) {
+    if (e instanceof LookupError && e.message === "Não encontrado.") throw new LookupError("CEP não encontrado.");
+    // BrasilAPI fora do ar: o servidor tenta a fonte reserva (ViaCEP).
+    const r = await reservaDoServidor(`/api/br/cep/${d}`);
+    if (!r) throw e;
+    return { endereco: [r.logradouro, r.bairro, [r.cidade, r.uf].filter(Boolean).join("/")].filter(Boolean).join(" — "), cidade: r.cidade, uf: r.uf };
+  }
   const endereco = [title(j.street), title(j.neighborhood), [title(j.city), title(j.state)].filter(Boolean).join("/")].filter(Boolean).join(" — ");
   return { endereco, cidade: title(j.city), uf: title(j.state) };
 }
