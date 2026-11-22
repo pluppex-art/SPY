@@ -3,7 +3,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard, FilterSearch } from "../../components/ui/kpi-filter-card";
 import { useFillViewportHeight } from "../../hooks/useFillViewportHeight";
-import { Users, Flame, CheckCircle2, Target, BarChart3 } from "lucide-react";
+import { Users, Flame, CheckCircle2, Target, BarChart3, Layers, XCircle, Receipt, UserPlus } from "lucide-react";
 
 import { PipelineTopActions } from "./components/Pipeline/PipelineTopActions";
 
@@ -78,6 +78,7 @@ export default function Pipeline() {
     activePipelineStages, sellers,
     filteredItemsList, analyticsData, hotLeadsCount,
     formattedTotalValue, formattedOpenValue, estimadoGanhos, estimadoAbertos, winRate,
+    totalLeadsCount, perdidosCount, ticketMedioGanhos, novos7dCount,
     triggerCelebration, exportPDF,
     handleExportIAResume, handleTransferToComercial,
     handleWinStageDrop,
@@ -213,11 +214,15 @@ export default function Pipeline() {
           activeCount={activeFilterCount}
           onClear={clearFilters}
           kpis={[
+            { label: "Leads totais", value: totalLeadsCount, icon: Layers, tone: "primary", hint: "Todos os negócios que passam pelos filtros: em aberto, ganhos e perdidos" },
             { label: "Em aberto", value: kpis.total, icon: Users, tone: "primary" },
             { label: "Alta Prior.", value: kpis.hot, icon: Flame, tone: "warning" },
             { label: "Ganhos", value: kpis.closed, icon: CheckCircle2, tone: "success" },
             { label: "Win Rate", value: `${winRate}%`, icon: Target, tone: "info" },
             { label: "Total de Ganhos", value: formattedTotalValue, icon: BarChart3, tone: "accent", hint: estimadoGanhos > 0 ? `Inclui ${formatCurrency(estimadoGanhos)} estimados pelo preço de tabela (negócios sem valor lançado)` : undefined },
+            { label: "Perdidos", value: perdidosCount, icon: XCircle, tone: perdidosCount > 0 ? "danger" : "neutral", hint: totalLeadsCount > 0 ? `${Math.round((perdidosCount / totalLeadsCount) * 100)}% dos leads totais` : undefined },
+            { label: "Ticket médio", value: formatCurrency(ticketMedioGanhos), icon: Receipt, tone: "success", hint: "Valor médio de cada negócio ganho" },
+            { label: "Novos (7 dias)", value: novos7dCount, icon: UserPlus, tone: "info", hint: "Leads criados na última semana" },
             { label: "Valor em aberto", value: formattedOpenValue, icon: BarChart3, tone: "info", hint: estimadoAbertos > 0 ? `Inclui ${formatCurrency(estimadoAbertos)} estimados pelo preço de tabela (negócios sem valor lançado)` : "Soma dos negócios ainda em andamento" },
           ]}
         >

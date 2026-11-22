@@ -319,6 +319,19 @@ export function usePipeline() {
 
   const totalLeadsCount = filteredItemsList.length;
 
+  // Indicadores extras do topo do Pipeline (sempre sobre os negócios que passam pelos filtros da tela).
+  const perdidosCount = filteredItemsList.filter((l: any) => l.status === "Perdido").length;
+  const ticketMedioGanhos = somaGanhos.total > 0 && filteredItemsList.some((l: any) => l.status === "Fechado")
+    ? somaGanhos.total / filteredItemsList.filter((l: any) => l.status === "Fechado").length
+    : 0;
+  const novos7dCount = (() => {
+    const corte = Date.now() - 7 * 86400000;
+    return filteredItemsList.filter((l: any) => {
+      const t = Date.parse(l.created_at ?? l.createdAt ?? "");
+      return !Number.isNaN(t) && t >= corte;
+    }).length;
+  })();
+
   const firstComercialStageId = useMemo(() => {
     const f = comercialFunis[0];
     if (!f) return "1";
@@ -525,7 +538,7 @@ export function usePipeline() {
     analyticsData,
     hotLeadsCount,
     formattedTotalValue, formattedOpenValue, estimadoGanhos, estimadoAbertos,
-    winRate,
+    winRate, totalLeadsCount, perdidosCount, ticketMedioGanhos, novos7dCount,
     triggerCelebration,
     exportPDF,
     handleExportIAResume,
