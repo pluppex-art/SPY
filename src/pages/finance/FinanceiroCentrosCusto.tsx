@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ModalTitle } from "./components/ModalKit";
+import { ModalTitle, inputCls } from "./components/ModalKit";
 import { somar, formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -18,7 +18,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { cn } from "../../lib/utils";
 import { ViewModal } from "./components/ViewModal";
 
-const ctl = "w-full h-9 px-3 rounded-lg bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40";
+const ctl = inputCls();
 const lbl = "text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5";
 
 type CentroCusto = {

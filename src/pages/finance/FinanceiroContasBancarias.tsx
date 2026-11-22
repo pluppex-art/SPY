@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ModalTitle } from "./components/ModalKit";
+import { ModalTitle, inputCls } from "./components/ModalKit";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -40,7 +40,7 @@ const TIPO_HINTS: Record<string, string> = {
   CARTAO_DEBITO: "Cartão ligado a uma conta existente.",
   OUTRO: "Qualquer outro tipo de conta ou caixa.",
 };
-const ctl = "w-full h-9 px-3 rounded-lg bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40";
+const ctl = inputCls();
 const lbl = "text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5";
 const tipoLabel = (id: string) => TIPOS.find(t => t.id === id)?.label ?? id;
 
