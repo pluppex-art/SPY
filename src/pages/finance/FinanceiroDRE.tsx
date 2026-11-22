@@ -53,6 +53,9 @@ export default function FinanceiroDRE() {
   const { formatCurrency } = useLocalization();
 
   const [periodo, setPeriodo] = useState<Periodo>("mensal");
+  // Caixa (o que entrou e saiu de fato) é o principal; Competência (por mês de origem, com pendentes) é o secundário.
+  const [regime, setRegime] = useState<"caixa" | "competencia">("caixa");
+  const regimeLabel = regime === "caixa" ? "Regime de Caixa" : "Regime de Competência";
   const [customStartDate, setCustomStartDate] = useState<string>(() => {
     const d = new Date(); d.setDate(1);
     return d.toISOString().slice(0, 10);
@@ -64,10 +67,11 @@ export default function FinanceiroDRE() {
   const { entriesDoPeriodo, dre: clientDre, dreAnterior, rangeStart, rangeEnd } = useMemo(() => {
     const { start, end } = periodoRange(periodo, new Date(), customStartDate, customEndDate);
     const entriesDoPeriodo = financeEntries.filter(e => {
-      const d = parseEntryDate(dataCompetencia(e));
+      if (regime === "caixa" && e.status !== "Pago") return false;
+      const d = parseEntryDate(regime === "caixa" ? e.date : dataCompetencia(e));
       return !!d && d >= start && d <= end;
     });
-    // DRE do dashboard é sempre regime de competência puro: inclui pendentes.
+    // Caixa: só o que foi pago. Competência: inclui pendentes.
     const dre = calcularDRE(entriesDoPeriodo, catMap);
 
     // Período anterior = mesma duração, imediatamente antes — pra comparação
@@ -77,13 +81,14 @@ export default function FinanceiroDRE() {
     const previousEnd = new Date(start.getTime() - 1);
     const previousStart = new Date(previousEnd.getTime() - duracaoMs);
     const entriesAnterior = financeEntries.filter(e => {
+      if (regime === "caixa" && e.status !== "Pago") return false;
       const d = parseEntryDate(e.date);
       return !!d && d >= previousStart && d <= previousEnd;
     });
     const dreAnterior = calcularDRE(entriesAnterior, catMap);
 
     return { entriesDoPeriodo, dre, dreAnterior, rangeStart: toLocalISODate(start), rangeEnd: toLocalISODate(end) };
-  }, [financeEntries, catMap, periodo, customStartDate, customEndDate]);
+  }, [financeEntries, catMap, periodo, customStartDate, customEndDate, regime]);
 
   const monthlySeries = useMemo(() => getMonthlyDreSeries(financeEntries, catMap, 6), [financeEntries, catMap]);
 
@@ -94,14 +99,15 @@ export default function FinanceiroDRE() {
   const [serverSummary, setServerSummary] = useState<DreServerSummary | null>(null);
   useEffect(() => {
     setServerSummary(null);
-    if (!activeTenantId) return;
+    // O resumo do servidor soma por competência; no regime de caixa vale o cálculo local.
+    if (!activeTenantId || regime !== "competencia") return;
     let cancelled = false;
     apiFetch(`/api/finance/dre-summary?tenantId=${encodeURIComponent(activeTenantId)}&startDate=${rangeStart}&endDate=${rangeEnd}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (!cancelled && data) setServerSummary(data); })
       .catch(() => { /* silencioso — cálculo client-side acima já cobre */ });
     return () => { cancelled = true; };
-  }, [activeTenantId, rangeStart, rangeEnd]);
+  }, [activeTenantId, rangeStart, rangeEnd, regime]);
 
   const dre = serverSummary ?? clientDre;
   const entriesCount = serverSummary?.entriesCount ?? entriesDoPeriodo.length;
@@ -132,7 +138,7 @@ export default function FinanceiroDRE() {
     { label: "Lucro Bruto", value: fmt(dre.lucroBruto), icon: Wallet, tone: dre.lucroBruto < 0 ? "danger" : "info" },
     { label: "Lucro Líquido", value: <span className="inline-flex items-baseline gap-2">{fmt(dre.lucroLiquido)} <DeltaBadge pct={lucroDeltaPct} /></span>, icon: Wallet, tone: dre.lucroLiquido >= 0 ? "success" : "danger", hint: "Lucro líquido vs. período anterior" },
     { label: "Margem Líquida", value: `${dre.receitaBruta > 0 ? ((dre.lucroLiquido / dre.receitaBruta) * 100).toFixed(1) : "0"}%`, icon: Percent, tone: dre.lucroLiquido >= 0 ? "accent" : "danger" },
-    { label: "Lançamentos", value: entriesCount, icon: ListOrdered, tone: "neutral", hint: `${entriesPendentesCount} pendente(s) incluído(s) — regime de competência` },
+    { label: "Lançamentos", value: entriesCount, icon: ListOrdered, tone: "neutral", hint: regime === "caixa" ? "Somente lançamentos pagos — regime de caixa" : `${entriesPendentesCount} pendente(s) incluído(s) — regime de competência` },
   ];
 
   const chartData = [
@@ -153,6 +159,24 @@ export default function FinanceiroDRE() {
     { name: "(=) LUCRO LÍQUIDO DO EXERCÍCIO", value: fmt(dre.lucroLiquido), isTotal: true, negative: dre.lucroLiquido < 0, isFinal: true },
   ];
 
+  const rotuloPeriodo = periodo === "mensal" ? "Mês atual" : periodo === "trimestral" ? "Trimestre" : periodo === "semestral" ? "Semestre" : periodo === "anual" ? "Ano" : `${customStartDate} a ${customEndDate}`;
+  // PDF = página de impressão só com a demonstração (o navegador oferece "Salvar como PDF").
+  const exportarPdf = () => {
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+    const linhas = dreLines.map((l) => `<tr class="${l.isTotal ? "t" : ""}"><td>${esc(l.name)}</td><td class="v">${esc(!l.isTotal && l.negative ? `(${l.value})` : l.value)}</td></tr>`).join("");
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Libere os pop-ups do navegador para exportar o PDF."); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DRE - ${esc(rotuloPeriodo)}</title><style>
+      body{font-family:system-ui,sans-serif;color:#111;padding:32px;max-width:760px;margin:auto}
+      h1{font-size:20px;margin:0}p{color:#555;font-size:12px;margin:4px 0 20px}
+      table{width:100%;border-collapse:collapse;font-size:13px}td{padding:9px 10px;border-bottom:1px solid #e5e5e5}
+      .v{text-align:right;font-variant-numeric:tabular-nums}.t td{font-weight:700;background:#f5f5f5}
+    </style></head><body><h1>DRE Gerencial</h1><p>${esc(rotuloPeriodo)} · ${esc(regimeLabel)}</p><table>${linhas}</table></body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 300);
+  };
+
   const handleExportXLS = () => {
     const csvContent = "data:text/csv;charset=utf-8,"
       + "Linha DRE;Valor\r\n"
@@ -170,10 +194,20 @@ export default function FinanceiroDRE() {
   return (
     <PageContainer
       title="DRE Gerencial"
-      description="O DRE mostra o resultado da empresa por regime de competência: soma os lançamentos por categoria, inclusive os pendentes."
+      description={regime === "caixa" ? "O DRE mostra o resultado da empresa pelo regime de caixa: soma só o que foi pago, por categoria." : "O DRE mostra o resultado da empresa por regime de competência: soma os lançamentos por categoria, inclusive os pendentes."}
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "DRE Gerencial" }]}
       actions={
         <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex p-0.5 rounded-[var(--radius-control)] bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)]" role="group" aria-label="Regime do DRE">
+            {(["caixa", "competencia"] as const).map((r) => (
+              <button key={r} type="button" onClick={() => setRegime(r)} className={`px-3 h-8 text-xs font-bold rounded cursor-pointer ${regime === r ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)]"}`}>
+                {r === "caixa" ? "Caixa" : "Competência"}
+              </button>
+            ))}
+          </div>
+          <Button variant="outline" onClick={exportarPdf} className="h-9 px-4 text-xs font-medium gap-1.5">
+            <Download className="w-3.5 h-3.5" /> PDF
+          </Button>
           <Button onClick={handleExportXLS} className="h-9 px-4 text-xs font-medium gap-1.5">
             <Download className="w-3.5 h-3.5" /> Exportar
           </Button>
@@ -232,7 +266,7 @@ export default function FinanceiroDRE() {
             </div>
             <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)]">
               <p className="text-[11px] text-[var(--color-text-faint)]">
-                {entriesCount} lançamento(s) no período · {entriesPendentesCount} pendente(s) incluído(s) — regime de competência
+                {entriesCount} lançamento(s) no período · {regime === "caixa" ? "somente pagos — regime de caixa" : `${entriesPendentesCount} pendente(s) incluído(s) — regime de competência`}
               </p>
             </div>
           </Card>
@@ -255,8 +289,8 @@ export default function FinanceiroDRE() {
         </SecaoCard>
 
         <SecaoCard titulo={<>Demonstração Consolidada ({periodo === "mensal" ? "Mês Atual" : periodo === "trimestral" ? "Trimestre" : periodo === "semestral" ? "Semestre" : periodo === "anual" ? "Ano" : "Período Personalizado"})</>} icon={Calendar} direita={<><span className="text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 border border-[var(--color-border-default)] rounded text-[var(--color-text-muted)]">
-              Regime de Competência
-            </span></>}>
+              {regimeLabel}
+            </span><Button variant="outline" onClick={exportarPdf} className="h-7 px-2.5 text-[11px] font-medium gap-1.5 print:hidden"><Download className="w-3 h-3" /> PDF</Button></>}>
 
           <div className="space-y-1">
             {dreLines.map((line, idx) => (
