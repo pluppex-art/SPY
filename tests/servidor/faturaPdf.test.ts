@@ -25,3 +25,39 @@ test("PDF de verdade: começa com %PDF e tem corpo", () => {
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   assert.ok(pdf.length > 1500);
 });
+
+import { valorPorExtenso, sanitizarModelo, sanitizarConfig, escolherModelo, aplicarVariaveis, logoValida, MODELO_PADRAO } from "../../server/modeloRecibo.js";
+
+test("valor por extenso (reais e centavos)", () => {
+  const c: [number, string][] = [
+    [2244, "dois mil duzentos e quarenta e quatro reais"], [1500, "mil e quinhentos reais"], [1, "um real"], [101.5, "cento e um reais e cinquenta centavos"],
+    [1000000, "um milhão de reais"], [0.01, "um centavo"], [2000, "dois mil reais"], [1001, "mil e um reais"], [1100, "mil e cem reais"], [100, "cem reais"],
+    [1234567, "um milhão, duzentos e trinta e quatro mil quinhentos e sessenta e sete reais"], [90, "noventa reais"], [0, "zero real"], [2244.5, "dois mil duzentos e quarenta e quatro reais e cinquenta centavos"],
+  ];
+  for (const [v, t] of c) assert.equal(valorPorExtenso(v), t, String(v));
+});
+
+test("variáveis do texto: troca as conhecidas e deixa as desconhecidas visíveis", () => {
+  assert.equal(aplicarVariaveis("Recebi de {{cliente}} {{ valor }} ({{valor_extenso}}) {{xyz}}", { cliente: "Ana", valor: "R$ 10,00", valor_extenso: "dez reais" }), "Recebi de Ana R$ 10,00 (dez reais) {{xyz}}");
+});
+
+test("modelo: só dados válidos entram (cor, logo, tamanhos); 'padrao' não pode ser sobrescrito; principal inválido volta ao padrão", () => {
+  const m = sanitizarModelo({ id: "meu modelo!", nome: "  X ", cor: "vermelho", logo: "javascript:alert(1)", abertura: "a".repeat(5000), mostrar: { assinatura: true, emitente: "sim" } });
+  assert.equal(m.id, "meumodelo"); assert.equal(m.cor, MODELO_PADRAO.cor); assert.equal(m.logo, ""); assert.equal(m.abertura.length, 800);
+  assert.equal(m.mostrar.assinatura, true); assert.equal(m.mostrar.emitente, true);
+  assert.equal(logoValida("data:image/png;base64,iVBORw0KGgo="), "data:image/png;base64,iVBORw0KGgo=");
+  assert.equal(logoValida("data:image/svg+xml;base64,PHN2Zz4="), "");
+  const c = sanitizarConfig({ modelos: [{ id: "padrao", nome: "invasor" }, { id: "a", nome: "A" }, { id: "a", nome: "A2" }], principalId: "zzz" });
+  assert.deepEqual(c.modelos.map((x) => x.id), ["a"]); assert.equal(c.principalId, "padrao");
+  assert.equal(sanitizarConfig({ modelos: [{ id: "a" }], principalId: "a" }).principalId, "a");
+  assert.equal(escolherModelo({ modelos: [{ id: "a", nome: "A", cor: "#112233" }], principalId: "a" }).cor, "#112233");
+  assert.equal(escolherModelo({ modelos: [{ id: "a" }], principalId: "a" }, "inexistente").id, "padrao");
+  assert.equal(escolherModelo(null).id, "padrao");
+});
+
+test("PDF com modelo próprio (corpo com variáveis, assinatura, observações) é gerado", () => {
+  const m = sanitizarModelo({ id: "x", nome: "Elaborado", cor: "#16a34a", tituloRecibo: "RECIBO DE PAGAMENTO", abertura: "Recebi de {{cliente}} a quantia de {{valor}} ({{valor_extenso}}), referente a {{descricao}}.", observacoes: "Obrigado pela preferência.", mostrar: { assinatura: true } });
+  const d = dadosDaFatura({ id: "abcdef12", counterparty: "Cícero Divino", description: "caixa trifásica", value: 2244, status: "Pago", data_pagamento: "2026-11-21" }, { razaoSocial: "LUMINAR LTDA" }, null, "Luminar", "2026-11-21");
+  const pdf = gerarFaturaPdf(d, m);
+  assert.equal(pdf.subarray(0, 5).toString(), "%PDF-"); assert.ok(pdf.length > 1500);
+});

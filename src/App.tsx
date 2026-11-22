@@ -64,6 +64,7 @@ const FinanceiroFluxoCaixa = lazy(() => import("./pages/finance/FinanceiroFluxoC
 const FinanceiroTransacoes = lazy(() => import("./pages/finance/FinanceiroTransacoes"));
 const FinanceiroCobrancas = lazy(() => import("./pages/finance/FinanceiroCobrancas"));
 const FinanceiroNotasFiscais = lazy(() => import("./pages/finance/FinanceiroNotasFiscais"));
+const FinanceiroModelosRecibo = lazy(() => import("./pages/finance/FinanceiroModelosRecibo"));
 const FinanceiroConciliacao = lazy(() => import("./pages/finance/FinanceiroConciliacao"));
 const FinanceiroCentrosCusto = lazy(() => import("./pages/finance/FinanceiroCentrosCusto"));
 const FinanceiroTags = lazy(() => import("./pages/finance/FinanceiroTags"));
@@ -377,6 +378,7 @@ function AppContent() {
             <Route path="transacoes" element={<FinanceiroTransacoes />} />
             <Route path="cobrancas" element={<FinanceiroCobrancas />} />
             <Route path="notas-fiscais" element={<FinanceiroNotasFiscais />} />
+            <Route path="modelos-recibo" element={<FinanceiroModelosRecibo />} />
             <Route path="conciliacao" element={<FinanceiroConciliacao />} />
             <Route path="centros-custo" element={<FinanceiroCentrosCusto />} />
             <Route path="tags" element={<FinanceiroTags />} />

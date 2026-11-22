@@ -558,7 +558,7 @@ registerApisBrasilRoutes(app, { requireUser, limiter: rateLimit({ windowMs: 60_0
 // Emissão de NFS-e (emissaoja.com.br): a chave de cada empresa fica no servidor (app_settings), nunca no navegador.
 registerEmissaoJaRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }) });
 // Fatura/recibo em PDF de uma receita, gerado no próprio servidor (sem serviço externo).
-registerFaturaPdfRoutes(app, { requireUser, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }) });
+registerFaturaPdfRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }) });
 // Pesquisa externa (web) da Aurora para itens não identificados — a busca roda no n8n; só gera sugestões p/ revisão.
 registerTableComparisonResearchRoutes(app, { requireUser, resolveRequestedTenantId });
 // Relatório financeiro em PDF sob demanda (Aurora/n8n) — ver server/financialReportPdf.ts.
