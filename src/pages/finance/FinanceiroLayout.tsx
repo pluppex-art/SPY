@@ -41,7 +41,6 @@ import {
   Plane,
   PiggyBank,
   BadgePercent,
-  ChevronLeft,
 } from "lucide-react";
 import { SectionSidebar, type SectionNavGroup, type SectionNavItem } from "../../components/layout/SectionSidebar";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
@@ -159,15 +158,8 @@ export default function FinanceiroLayout() {
   const [novaOperacaoOpen, setNovaOperacaoOpen] = useState(false);
   const { ensureNicheModulesLoaded } = useData();
   const { isModuleEnabled } = useAuth();
-  const [modo, escolherModo] = useModoMenuFinanceiro();
+  const [modo] = useModoMenuFinanceiro();
   const groupsCompletos = useMemo(() => montarGrupos((m) => isModuleEnabled(m)), [isModuleEnabled]);
-  const btnModo = "w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] cursor-pointer transition-all border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]";
-  // Resumo: lista curta + "Avançado" no fim abre o menu completo (subsidebar). No Avançado, "Voltar" retorna.
-  const voltarResumo = (
-    <button type="button" onClick={() => escolherModo("resumo")} className={btnModo}>
-      <span className="flex items-center gap-2"><ChevronLeft className="w-4 h-4" /> Voltar ao Resumo</span>
-    </button>
-  );
 
   // Bancos/transferências/centros de custo/anexos/categorias/auditoria não
   // entram na carga inicial do app (módulo de nicho) — busca sob demanda ao
@@ -213,7 +205,7 @@ export default function FinanceiroLayout() {
   // Resumo: a lista fica no menu lateral principal. Avançado: abre o submenu completo ao lado.
   if (modo !== "avancado") return conteudo;
   return (
-    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groupsCompletos} headerExtra={voltarResumo}>
+    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groupsCompletos}>
       {conteudo}
     </SectionSidebar>
   );
