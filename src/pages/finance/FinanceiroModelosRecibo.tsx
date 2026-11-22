@@ -34,6 +34,7 @@ export default function FinanceiroModelosRecibo() {
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const [pix, setPix] = useState({ chave: "", nome: "", cidade: "" });
   const [pixSalvo, setPixSalvo] = useState(false);
+  const [mpConectado, setMpConectado] = useState(false);
   const [salvandoPix, setSalvandoPix] = useState(false);
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function FinanceiroModelosRecibo() {
       const r = await apiFetch("/api/financeiro/modelos-recibo"); const j = await lerJson(r);
       if (r.ok) { setPadrao(j.padrao); setModelos(j.modelos ?? []); setPrincipalId(j.principalId ?? "padrao"); }
       const rp = await apiFetch("/api/financeiro/pix-recebimento"); const jp = await lerJson(rp);
+      if (rp.ok) setMpConectado(!!jp.mercadoPago);
       if (rp.ok && jp.pix) { setPix({ chave: jp.pix.chave ?? "", nome: jp.pix.nome ?? "", cidade: jp.pix.cidade ?? "" }); setPixSalvo(true); }
     })();
   }, []);
@@ -141,7 +143,12 @@ export default function FinanceiroModelosRecibo() {
             <input className={campo} disabled={!admin} maxLength={15} value={pix.cidade} onChange={(e) => setPix({ ...pix, cidade: e.target.value })} /></label>
           {admin && <Button size="sm" onClick={salvarPix} disabled={salvandoPix}>{salvandoPix ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar chave Pix</Button>}
         </div>
-        {!pixSalvo && <p className="text-[11px] text-[var(--color-text-muted)]">Sem chave cadastrada, as faturas saem sem QR.</p>}
+        {mpConectado ? (
+          <p className="text-[11px] text-[var(--color-success,#16a34a)]"><b>Baixa automática ligada:</b> o Mercado Pago está conectado. Nas faturas em aberto que tenham e-mail do cliente (ou da empresa), o QR é gerado pelo Mercado Pago e, quando o cliente paga, o lançamento vira <b>Pago</b> sozinho.</p>
+        ) : (
+          <p className="text-[11px] text-[var(--color-text-muted)]">Para a <b>baixa automática</b> ao pagar, conecte o Mercado Pago em Configurações → Integrações. Sem ele, o QR usa a chave acima e a baixa continua manual.</p>
+        )}
+        {!pixSalvo && !mpConectado && <p className="text-[11px] text-[var(--color-text-muted)]">Sem chave cadastrada e sem Mercado Pago, as faturas saem sem QR.</p>}
       </Card>
 
       {atual && (

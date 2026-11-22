@@ -6,12 +6,14 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { montarBrCode, normalizarChavePix } from "./pix.js";
+import { criarCobrancaPix } from "./cobrancaPix.js";
 import { formatBRL } from "../src/lib/dinheiro.js";
 import { MODELO_PADRAO, aplicarVariaveis, escolherModelo, sanitizarConfig, sanitizarModelo, valorPorExtenso, type ModeloRecibo } from "./modeloRecibo.js";
 
 type Deps = {
   requireUser: express.RequestHandler; requireTenantAdmin: express.RequestHandler; supabaseService: any; limiter: express.RequestHandler;
   resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>;
+  segredo: string; appUrl: string;
 };
 const SETTINGS_MODELOS = "modelos_recibo";
 const SETTINGS_PIX = "pix_recebimento";
@@ -149,7 +151,9 @@ export function gerarFaturaPdf(d: DadosFatura, modelo: ModeloRecibo = MODELO_PAD
   return Buffer.from(doc.output("arraybuffer"));
 }
 
-export function registerFaturaPdfRoutes(app: express.Express, { requireUser, requireTenantAdmin, supabaseService, limiter, resolveRequestedTenantId }: Deps) {
+export function registerFaturaPdfRoutes(app: express.Express, { requireUser, requireTenantAdmin, supabaseService, limiter, resolveRequestedTenantId, segredo, appUrl }: Deps) {
+  const cobranca = criarCobrancaPix({ supabaseService, segredo, appUrl });
+  cobranca.registrar(app); // webhook do Mercado Pago: baixa automática da fatura quando o cliente paga
   const lerConfig = async (tenantId: string) => {
     const { data } = (await supabaseService?.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", SETTINGS_MODELOS).maybeSingle()) ?? { data: null };
     return data?.value ?? null;
@@ -167,7 +171,7 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
   // Chave Pix da empresa (para o QR das faturas em aberto).
   app.get("/api/financeiro/pix-recebimento", requireUser, limiter, async (req: any, res) => {
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
-    return res.json({ pix: await lerPix(tenantId) });
+    return res.json({ pix: await lerPix(tenantId), mercadoPago: !!(await cobranca.tokenMp(tenantId)) });
   });
   app.put("/api/financeiro/pix-recebimento", requireUser, requireTenantAdmin, limiter, async (req: any, res) => {
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
@@ -225,11 +229,17 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
       const [{ data: cfg }, { data: tenant }, { data: cli }] = await Promise.all([
         supabaseService?.from("app_settings").select("value").eq("tenant_id", entry.tenant_id).eq("key", "empresa_dados").maybeSingle() ?? { data: null },
         supabaseService?.from("tenants").select("name").eq("id", entry.tenant_id).maybeSingle() ?? { data: null },
-        entry.contato_id ? req.supabase.from("clientes").select("name, documento").eq("id", entry.contato_id).maybeSingle() : { data: null },
+        entry.contato_id ? req.supabase.from("clientes").select("name, documento, email").eq("id", entry.contato_id).maybeSingle() : { data: null },
       ]);
       const d = dadosDaFatura(entry, cfg?.value, cli, texto(tenant?.name) || "Empresa", new Date().toISOString().slice(0, 10));
       const modelo = escolherModelo(await lerConfig(entry.tenant_id), texto(req.query.modelo) || null);
-      const pdf = gerarFaturaPdf(d, modelo, brcodeDa(await lerPix(entry.tenant_id), d));
+      // Fatura em aberto: com Mercado Pago conectado o Pix é dinâmico (a baixa é automática ao pagar); senão, o Pix estático da chave cadastrada.
+      let brcode: string | null = null;
+      if (d.tipoDocumento === "FATURA") {
+        brcode = await cobranca.criarPix(entry.tenant_id, { id: entry.id, valor: d.valor, descricao: d.descricao, vencimentoISO: texto(entry.date_normalized) || new Date().toISOString().slice(0, 10), emailPagador: texto(cli?.email) || texto(cfg?.value?.emailContato), nomePagador: d.cliente.nome });
+        brcode ??= brcodeDa(await lerPix(entry.tenant_id), d);
+      }
+      const pdf = gerarFaturaPdf(d, modelo, brcode);
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `inline; filename="${d.tipoDocumento.toLowerCase()}-${d.numero}.pdf"`);
       res.setHeader("Cache-Control", "private, no-store");
