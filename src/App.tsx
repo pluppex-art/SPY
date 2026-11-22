@@ -18,6 +18,7 @@ const Contato = lazy(() => import("./pages/landing/pages/Contato"));
 // (ver RevenueTabs.tsx) — pedido explícito do usuário de não navegar pra
 // rotas separadas — por isso não têm lazy import/rota próprios aqui.
 const Dashboard = lazy(() => import("./pages/dashboard/CentralReceita"));
+const SobreSoa = lazy(() => import("./pages/common/SobreSoa"));
 const PerformanceIA = lazy(() => import("./pages/dashboard/PerformanceIA"));
 const ConhecimentoSurfSense = lazy(() => import("./pages/admin/ConhecimentoSurfSense"));
 const PainelGeral = lazy(() => import("./pages/clinica/PainelGeral"));
@@ -292,6 +293,7 @@ function AppContent() {
           <Route path="clientes" element={<Navigate to="/app/crm/clientes" replace />} />
           <Route path="propostas" element={<Navigate to="/app/crm/propostas" replace />} />
           <Route path="documentos" element={<Contracts />} />
+          <Route path="sobre-soa" element={<SobreSoa />} />
           <Route path="performance-ia" element={AI_OUTSIDE_AURORA_ENABLED ? <PerformanceIA /> : <Navigate to="/app/dashboard" replace />} />
           <Route path="ia" element={<ProtectedRoute requireModule="aurora"><VisaoGeralIA /></ProtectedRoute>} />
           <Route path="conhecimento" element={<ConhecimentoSurfSense />} />

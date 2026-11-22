@@ -41,11 +41,12 @@ import {
   Plane,
   PiggyBank,
   BadgePercent,
-  ChevronLeft, Star,
+  ChevronLeft,
 } from "lucide-react";
 import { SectionSidebar, type SectionNavGroup, type SectionNavItem } from "../../components/layout/SectionSidebar";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
 import { FinanceiroFilterProvider } from "./FinanceiroFilterContext";
+import { useModoMenuFinanceiro } from "./financeiroMenu";
 
 /**
  * Menu do Financeiro — o mesmo para toda empresa, organizado por assunto.
@@ -153,40 +154,13 @@ const PAGINAS_COM_BOTAO_PROPRIO = [
   "/app/financeiro/compras",
 ];
 
-// Modo "Resumo": só o essencial para quem não é do financeiro. "Avançado" mostra o menu completo.
-const ESSENCIAIS_RESUMO: SectionNavItem[] = [
-  { title: "Painel Geral", path: "/app/financeiro/dashboard", icon: LayoutDashboard, matchPaths: ["/app/financeiro/dashboard", "/app/financeiro/visao-geral", "/app/financeiro/resumo", "/app/financeiro/agenda", "/app/financeiro/busca"] },
-  { title: "Receita", path: "/app/financeiro/receitas", icon: Inbox },
-  { title: "Despesa", path: "/app/financeiro/despesas", icon: TrendingDown },
-  { title: "Fluxo de Caixa", path: "/app/financeiro/fluxo-caixa", icon: Waves },
-  { title: "Banco", path: "/app/financeiro/bancos", icon: CreditCard },
-  { title: "DRE", path: "/app/financeiro/dre", icon: PieChart },
-];
-const MODO_KEY = "spy_financeiro_modo_menu";
-
 export default function FinanceiroLayout() {
   const location = useLocation();
   const [novaOperacaoOpen, setNovaOperacaoOpen] = useState(false);
   const { ensureNicheModulesLoaded } = useData();
   const { isModuleEnabled } = useAuth();
-  const [modo, setModo] = useState<"resumo" | "avancado">(() => {
-    try { return localStorage.getItem(MODO_KEY) === "avancado" ? "avancado" : "resumo"; } catch { return "resumo"; }
-  });
-  const escolherModo = (m: "resumo" | "avancado") => { setModo(m); try { localStorage.setItem(MODO_KEY, m); } catch { /* sem storage: vale só nesta sessão */ } };
+  const [modo, escolherModo] = useModoMenuFinanceiro();
   const groupsCompletos = useMemo(() => montarGrupos((m) => isModuleEnabled(m)), [isModuleEnabled]);
-  const groups = useMemo(() => {
-    if (modo === "avancado") return groupsCompletos;
-    // Uma única lista curta; a página aberta nunca some do menu.
-    const atual = (p: string) => location.pathname === p || location.pathname.startsWith(p + "/");
-    const itens = [...ESSENCIAIS_RESUMO];
-    const aberta = groupsCompletos.flatMap((g) => g.items).find((i) => (i.matchPaths ?? [i.path]).some(atual));
-    const abertaEmConfig = G.cadastros.abas.some((a) => atual(a.path));
-    if (aberta && !abertaEmConfig && !itens.some((i) => (i.matchPaths ?? [i.path]).some(atual))) itens.push(aberta);
-    const config: SectionNavItem = { title: "Configuração", path: "/app/financeiro/contatos", icon: FolderTree, matchPaths: G.cadastros.abas.map((a) => a.path) };
-    const avancado: SectionNavItem = { title: "Avançado", path: "#avancado", icon: Star, onSelect: () => escolherModo("avancado") };
-    // Ordem do desenho: essenciais, Avançado, Configuração (a página aberta fora da lista entra antes do Avançado).
-    return [{ title: "Financeiro", icon: Wallet, items: [...itens, avancado, config] }];
-  }, [groupsCompletos, modo, location.pathname]);
   const btnModo = "w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] cursor-pointer transition-all border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]";
   // Resumo: lista curta + "Avançado" no fim abre o menu completo (subsidebar). No Avançado, "Voltar" retorna.
   const voltarResumo = (
@@ -205,8 +179,8 @@ export default function FinanceiroLayout() {
   // Antes buscava "recebimento" (rota inexistente), então sempre caía em "Pagar".
   const tipoPadrao = /receb|receita|cobranca|inadimpl|mrr/.test(location.pathname) ? "Receber" : "Pagar";
 
-  return (
-    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groups} headerExtra={modo === "avancado" ? voltarResumo : undefined}>
+  const conteudo = (
+    <>
       <FinanceiroFilterProvider>
         {abasDaRota && abasDaRota.abas.length > 1 && (
           <nav aria-label={abasDaRota.title} className="flex gap-1 overflow-x-auto mb-4 pb-1 border-b border-[var(--color-border-subtle)] print:hidden">
@@ -233,6 +207,14 @@ export default function FinanceiroLayout() {
       )}
 
       <NovaOperacaoModal isOpen={novaOperacaoOpen} onClose={() => setNovaOperacaoOpen(false)} defaultType={tipoPadrao} />
+    </>
+  );
+
+  // Resumo: a lista fica no menu lateral principal. Avançado: abre o submenu completo ao lado.
+  if (modo !== "avancado") return conteudo;
+  return (
+    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groupsCompletos} headerExtra={voltarResumo}>
+      {conteudo}
     </SectionSidebar>
   );
 }

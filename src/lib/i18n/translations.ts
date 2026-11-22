@@ -15,6 +15,7 @@ const en: Dictionary = {
   // Sidebar — seções
   "Visão Geral": "Overview",
   "Vendas": "Sales",
+  "Conheça o SOA": "Meet SOA",
   "Agenda & Reuniões": "Calendar & Meetings",
   "Gestão Financeira": "Financial Management",
   "Comunicação & Mkt": "Communication & Mkt",
@@ -271,6 +272,7 @@ const en: Dictionary = {
 const es: Dictionary = {
   "Visão Geral": "Resumen General",
   "Vendas": "Ventas",
+  "Conheça o SOA": "Conozca SOA",
   "Agenda & Reuniões": "Agenda y Reuniones",
   "Gestão Financeira": "Gestión Financiera",
   "Comunicação & Mkt": "Comunicación y Mkt",

@@ -74,6 +74,7 @@ export const navSections = [
     title: "Visão Geral",
     items: [
       { name: "Painel Geral", path: "/app/dashboard", icon: LayoutDashboard },
+      { name: "Conheça o SOA", path: "/app/sobre-soa", icon: Brain },
     ],
   },
   {
