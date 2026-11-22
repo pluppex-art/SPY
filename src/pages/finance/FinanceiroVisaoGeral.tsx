@@ -75,7 +75,7 @@ export default function FinanceiroVisaoGeral() {
   // Mês de referência do painel (padrão: o atual) e filtro por cliente.
   // O mês de referência segue o filtro de período padrão do Financeiro (o mesmo seletor das outras telas):
   // vale o mês final do período escolhido (nunca no futuro); sem período, o mês atual.
-  const { periodoTo } = useFinanceiroFiltro();
+  const { periodoFrom, periodoTo } = useFinanceiroFiltro();
   const refMonth = useMemo(() => {
     const n = new Date();
     const fim = periodoTo ? new Date(`${periodoTo.slice(0, 10)}T12:00:00`) : n;
@@ -87,7 +87,30 @@ export default function FinanceiroVisaoGeral() {
   const hoje = new Date();
   const isMesAtual = refMonth.getFullYear() === hoje.getFullYear() && refMonth.getMonth() === hoje.getMonth();
   const refY = refMonth.getFullYear(), refM = refMonth.getMonth();
-  const mesLabel = `${MONTH_FULL[refM]} ${refY}`;
+  // Período do filtro. Um mês só (do dia 1 ao fim ou até hoje) segue o mês inteiro e compara com o mês anterior;
+  // qualquer outro período soma tudo dentro dele e compara com o período de mesmo tamanho logo antes.
+  const periodo = useMemo(() => {
+    const n = new Date();
+    const fimHoje = new Date(n.getFullYear(), n.getMonth(), n.getDate(), 23, 59, 59);
+    const iniF = periodoFrom ? new Date(`${periodoFrom.slice(0, 10)}T00:00:00`) : null;
+    const fimBruto = periodoTo ? new Date(`${periodoTo.slice(0, 10)}T23:59:59`) : fimHoje;
+    const fimF = fimBruto > fimHoje ? fimHoje : fimBruto;
+    const ehMes = !!iniF && iniF.getDate() === 1 && iniF.getFullYear() === fimF.getFullYear() && iniF.getMonth() === fimF.getMonth();
+    if (!iniF && !periodoTo) return { ini: null as Date | null, fim: new Date(refY, refM + 1, 0, 23, 59, 59), antIni: null as Date | null, antFim: null as Date | null, ehMes: false, todo: true };
+    if (ehMes) {
+      const ini = new Date(refY, refM, 1), fim = new Date(refY, refM + 1, 0, 23, 59, 59);
+      return { ini, fim, antIni: new Date(refY, refM - 1, 1), antFim: new Date(refY, refM, 0, 23, 59, 59), ehMes: true, todo: false };
+    }
+    const ini = iniF ?? new Date(1970, 0, 1);
+    const dias = Math.max(1, Math.round((fimF.getTime() - ini.getTime()) / 86400000) + 1);
+    const antFim = new Date(ini.getTime() - 1);
+    const antIni = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate() - dias);
+    return { ini, fim: fimF, antIni, antFim, ehMes: false, todo: !iniF };
+  }, [periodoFrom, periodoTo, refY, refM]);
+  const fmtD = (d: Date) => d.toLocaleDateString("pt-BR");
+  const mesLabel = periodo.ehMes ? `${MONTH_FULL[refM]} ${refY}` : periodo.todo ? "Todo o período" : `${fmtD(periodo.ini!)} a ${fmtD(periodo.fim)}`;
+  const sufixoPeriodo = periodo.ehMes ? "do mês" : "do período";
+  const noPeriodo = (d: Date | null, ini: Date | null, fim: Date | null) => !!d && (!ini || d >= ini) && (!fim || d <= fim);
 
   // Cards do topo (exceto "Saldo em Contas") + resumo de alertas vêm de um
   // cache no Redis-SPY quando disponível — mesmo padrão de
@@ -104,7 +127,7 @@ export default function FinanceiroVisaoGeral() {
       .catch(() => { /* silencioso — cálculo client-side abaixo já cobre */ });
     return () => { cancelled = true; };
   }, [activeTenantId]);
-  const usaServidor = isMesAtual && !clienteFiltro;
+  const usaServidor = isMesAtual && !clienteFiltro && periodo.ehMes;
 
   // Clientes que aparecem como contraparte de recebimentos.
   const clienteOptions = useMemo(() => {
@@ -124,8 +147,8 @@ export default function FinanceiroVisaoGeral() {
 
   // Lançamentos do mês selecionado.
   const cicloEntries = useMemo(
-    () => financeEntries.filter(f => isInMonth(parseEntryDate(f.date), refY, refM)),
-    [financeEntries, refY, refM]
+    () => financeEntries.filter(f => noPeriodo(parseEntryDate(f.date), periodo.ini, periodo.fim)),
+    [financeEntries, periodo]
   );
 
   const { receita, despesa, mrr, receitaAvulsa, clientesAtivos, churnRate, mrrRows, receitaAvulsaRows, clientesAtivosRows } = useMemo(() => {
@@ -196,6 +219,8 @@ export default function FinanceiroVisaoGeral() {
     [refY, refM]
   );
 
+  const somaPeriodo = (tipo: "Receber" | "Pagar", ini: Date | null, fim: Date | null) =>
+    financeEntries.filter(f => f.type === tipo && f.status === "Pago" && noPeriodo(parseEntryDate(f.date), ini, fim)).reduce((s, f) => s + f.value, 0);
   const somaMes = (tipo: "Receber" | "Pagar", y: number, m: number) =>
     financeEntries.filter(f => f.type === tipo && f.status === "Pago" && isInMonth(parseEntryDate(f.date), y, m)).reduce((s, f) => s + f.value, 0);
 
@@ -205,10 +230,10 @@ export default function FinanceiroVisaoGeral() {
     const prevY = prevDate.getFullYear(), prevM = prevDate.getMonth();
     const k = usaServidor ? serverSummary?.kpis : undefined;
 
-    const receitaMes = k?.receitaMes ?? somaMes("Receber", refY, refM);
-    const receitaMesAnt = k?.receitaMesAnt ?? somaMes("Receber", prevY, prevM);
-    const despesaMes = k?.despesaMes ?? somaMes("Pagar", refY, refM);
-    const despesaMesAnt = k?.despesaMesAnt ?? somaMes("Pagar", prevY, prevM);
+    const receitaMes = k?.receitaMes ?? somaPeriodo("Receber", periodo.ini, periodo.fim);
+    const receitaMesAnt = k?.receitaMesAnt ?? (periodo.antIni ? somaPeriodo("Receber", periodo.antIni, periodo.antFim) : 0);
+    const despesaMes = k?.despesaMes ?? somaPeriodo("Pagar", periodo.ini, periodo.fim);
+    const despesaMesAnt = k?.despesaMesAnt ?? (periodo.antIni ? somaPeriodo("Pagar", periodo.antIni, periodo.antFim) : 0);
     const resultadoMes = k ? k.resultadoMes : receitaMes - despesaMes;
     const resultadoMesAnt = k ? k.resultadoMesAnt : receitaMesAnt - despesaMesAnt;
 
@@ -233,7 +258,7 @@ export default function FinanceiroVisaoGeral() {
 
     const mrrAtual = k?.mrrAtual ?? getMRR(contracts);
     return { receitaMes, receitaMesAnt, despesaMes, despesaMesAnt, resultadoMes, resultadoMesAnt, abertoReceber, abertoPagar, vencidoReceber, fluxoProjetado30, mrrAtual };
-  }, [financeEntries, contracts, serverSummary, usaServidor, refY, refM]);
+  }, [financeEntries, contracts, serverSummary, usaServidor, refY, refM, periodo]);
 
   // Saldo em contas: não depende do filtro de cliente (é da conta bancária).
   const saldo = useMemo(() => {
@@ -255,14 +280,14 @@ export default function FinanceiroVisaoGeral() {
 
   const kpiCards: FinanceiroKpiCard[] = useMemo(() => [
     { label: "Saldo em contas", value: saldo.atual, format: "currency", count: saldo.contas || undefined, deltaPct: pctChange(saldo.atual, saldo.anterior), deltaGoodWhenUp: true, danger: saldo.atual < 0, icon: Landmark, href: "/app/financeiro/bancos", tone: "green", series: saldo.serie, chart: "line" },
-    { label: "Receitas do mês", value: base.receitaMes, format: "currency", deltaPct: pctChange(base.receitaMes, base.receitaMesAnt), deltaGoodWhenUp: true, icon: Inbox, href: "/app/financeiro/receitas", tone: "blue", series: serieReceita, chart: "bars" },
-    { label: "Despesas do mês", value: base.despesaMes, format: "currency", deltaPct: pctChange(base.despesaMes, base.despesaMesAnt), deltaGoodWhenUp: false, icon: TrendingDown, href: "/app/financeiro/despesas", tone: "rose", series: serieDespesa, chart: "bars" },
-    { label: "Resultado do mês", value: base.resultadoMes, format: "currency", deltaPct: pctChange(base.resultadoMes, base.resultadoMesAnt), deltaGoodWhenUp: true, danger: base.resultadoMes < 0, icon: Scale, href: "/app/financeiro/transacoes", tone: "violet", series: serieResultado, chart: "line" },
+    { label: `Receitas ${sufixoPeriodo}`, value: base.receitaMes, format: "currency", deltaPct: pctChange(base.receitaMes, base.receitaMesAnt), deltaGoodWhenUp: true, icon: Inbox, href: "/app/financeiro/receitas", tone: "blue", series: serieReceita, chart: "bars" },
+    { label: `Despesas ${sufixoPeriodo}`, value: base.despesaMes, format: "currency", deltaPct: pctChange(base.despesaMes, base.despesaMesAnt), deltaGoodWhenUp: false, icon: TrendingDown, href: "/app/financeiro/despesas", tone: "rose", series: serieDespesa, chart: "bars" },
+    { label: `Resultado ${sufixoPeriodo}`, value: base.resultadoMes, format: "currency", deltaPct: pctChange(base.resultadoMes, base.resultadoMesAnt), deltaGoodWhenUp: true, danger: base.resultadoMes < 0, icon: Scale, href: "/app/financeiro/transacoes", tone: "violet", series: serieResultado, chart: "line" },
     { label: "MRR ativo", value: base.mrrAtual, format: "currency", deltaPct: mrrHist.delta, deltaGoodWhenUp: true, icon: Repeat2, href: "/app/financeiro/mrr", tone: "amber", series: mrrHist.serie, chart: "bars" },
     { label: "Contas a receber", value: base.abertoReceber.value, format: "currency", count: base.abertoReceber.count, deltaPct: null, deltaGoodWhenUp: null, icon: TrendingUp, href: "/app/financeiro/receitas?status=A%20Vencer", tone: "sky", note: "Posição atual em aberto" },
     { label: "Contas a pagar", value: base.abertoPagar.value, format: "currency", count: base.abertoPagar.count, deltaPct: null, deltaGoodWhenUp: null, icon: Wallet, href: "/app/financeiro/despesas?status=A%20Vencer", tone: "rose", note: "Posição atual em aberto" },
     { label: "Vencido (inadimplência)", value: base.vencidoReceber.value, format: "currency", count: base.vencidoReceber.count, deltaPct: null, deltaGoodWhenUp: null, danger: base.vencidoReceber.count > 0, icon: AlertTriangle, href: "/app/financeiro/inadimplencia", tone: "red", note: "Posição atual em atraso" },
-  ], [saldo, base, serieReceita, serieDespesa, serieResultado, mrrHist]);
+  ], [saldo, base, serieReceita, serieDespesa, serieResultado, mrrHist, sufixoPeriodo]);
 
   // Previsto × Realizado e Comparativo com mês anterior vêm direto do motor
   // de cálculo central — nunca recalculados aqui, pra não divergir do que a
