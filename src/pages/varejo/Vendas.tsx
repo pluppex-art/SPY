@@ -483,14 +483,38 @@ export default function VarejoVendas() {
 
   const total = Math.max(0, subtotal - descontoCalculado);
 
-  // QR do Pix da venda (com o valor do carrinho), só enquanto a forma "Pix" está escolhida. Pequena espera para não consultar a cada tecla.
+  // QR do Pix (ou o aviso de chave não cadastrada) mostrado no PDV, tanto no Pix inteiro quanto na parte em Pix do misto.
+  const conteudoPixPdv = () => (
+    <>
+                    {pixPdv === "semChave" ? (
+                      <p className="text-[11px] text-[var(--color-text-muted)]">
+                        Cadastre a chave Pix da empresa em <b>Financeiro → Modelos de recibo</b> para o QR aparecer aqui. Enquanto isso, receba o Pix pela sua maquininha ou app do banco e confirme abaixo.
+                      </p>
+                    ) : pixPdv && pixPdv !== "carregando" ? (
+                      <>
+                        <img src={pixPdv.qr} alt="QR de Pix com o valor da venda" className="w-36 h-36 mx-auto bg-white p-1 rounded-xl" />
+                        <div className="text-[10px] text-[var(--color-text-muted)]">Peça ao cliente para ler o QR (valor {formatPrice(valorPixVenda)}) ou use o Pix copia e cola:</div>
+                        <div className="flex items-center gap-1">
+                          <input readOnly value={pixPdv.codigo} className="text-[9px] font-mono bg-[var(--color-surface)] border rounded px-2 py-1 flex-1 text-[var(--color-text-muted)] truncate" />
+                          <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(pixPdv.codigo); toast.success("Código Pix copia e cola copiado!"); }} className="h-7 text-[10px] font-bold shrink-0"><Copy className="w-3 h-3" /></Button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-[var(--color-text-muted)]">Gerando o QR do Pix…</p>
+                    )}
+    </>
+  );
+
+  // Quanto vai por Pix nesta venda: o total (forma "Pix") ou só a parte em Pix do pagamento misto.
+  const valorPixVenda = formaPagamento === "Pix" ? total : formaPagamento === "Misto" ? Math.min(total, parseFloat(mistoPix.replace(",", ".")) || 0) : 0;
+  // QR do Pix com esse valor. Pequena espera para não consultar a cada tecla digitada.
   useEffect(() => {
-    if (formaPagamento !== "Pix" || !(total > 0)) { setPixPdv(null); return; }
+    if (!(valorPixVenda > 0)) { setPixPdv(null); return; }
     let vivo = true;
     setPixPdv("carregando");
     const t = setTimeout(async () => {
       try {
-        const r = await apiFetch(`/api/financeiro/pix-recebimento?valor=${encodeURIComponent(total.toFixed(2))}`);
+        const r = await apiFetch(`/api/financeiro/pix-recebimento?valor=${encodeURIComponent(valorPixVenda.toFixed(2))}`);
         const j = r.ok ? await r.json() : null;
         if (!vivo) return;
         if (!j?.brcodeValor) { setPixPdv("semChave"); return; }
@@ -500,7 +524,7 @@ export default function VarejoVendas() {
       } catch { if (vivo) setPixPdv("semChave"); }
     }, 350);
     return () => { vivo = false; clearTimeout(t); };
-  }, [formaPagamento, total]);
+  }, [valorPixVenda]);
 
   const troco = useMemo(() => {
     if (formaPagamento !== "Dinheiro") return 0;
@@ -2721,22 +2745,7 @@ export default function VarejoVendas() {
 
                 {formaPagamento === "Pix" && (
                   <div className="p-3 bg-[var(--color-surface-sunken)] rounded-xl border border-blue-500/30 space-y-2 text-center">
-                    {pixPdv === "semChave" ? (
-                      <p className="text-[11px] text-[var(--color-text-muted)]">
-                        Cadastre a chave Pix da empresa em <b>Financeiro → Modelos de recibo</b> para o QR aparecer aqui. Enquanto isso, receba o Pix pela sua maquininha ou app do banco e confirme abaixo.
-                      </p>
-                    ) : pixPdv && pixPdv !== "carregando" ? (
-                      <>
-                        <img src={pixPdv.qr} alt="QR de Pix com o valor da venda" className="w-36 h-36 mx-auto bg-white p-1 rounded-xl" />
-                        <div className="text-[10px] text-[var(--color-text-muted)]">Peça ao cliente para ler o QR (valor {formatPrice(total)}) ou use o Pix copia e cola:</div>
-                        <div className="flex items-center gap-1">
-                          <input readOnly value={pixPdv.codigo} className="text-[9px] font-mono bg-[var(--color-surface)] border rounded px-2 py-1 flex-1 text-[var(--color-text-muted)] truncate" />
-                          <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(pixPdv.codigo); toast.success("Código Pix copia e cola copiado!"); }} className="h-7 text-[10px] font-bold shrink-0"><Copy className="w-3 h-3" /></Button>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-[11px] text-[var(--color-text-muted)]">Gerando o QR do Pix…</p>
-                    )}
+                    {conteudoPixPdv()}
                     <button
                       type="button"
                       onClick={() => {
@@ -2848,6 +2857,11 @@ export default function VarejoVendas() {
                         />
                       </div>
                     </div>
+                    {valorPixVenda > 0 && (
+                      <div className="p-2 rounded-lg border border-blue-500/30 text-center space-y-2">
+                        {conteudoPixPdv()}
+                      </div>
+                    )}
                     <div className="flex justify-between items-center text-xs pt-1 border-t border-[var(--color-border-subtle)]">
                       <span className="text-[var(--color-text-muted)]">Informado: <strong>{formatPrice(totalMistoInformado)}</strong></span>
                       <span className={`font-bold font-mono ${faltaMisto > 0 ? "text-amber-500" : "text-emerald-500"}`}>
