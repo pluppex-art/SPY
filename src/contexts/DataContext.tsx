@@ -2,8 +2,8 @@ import { setUnidadeMax, type UnidadeMax } from "../lib/unidadeMaxdata";
 import React, { useState, useEffect, useMemo } from 'react';
 import { findDuplicateLead, fillEmptyLeadFields } from "../lib/leadDedupe";
 import { toast } from 'sonner';
-import { showNotificationPopup, showSalePopup, showNewLeadPopup } from '../lib/popups';
-import { shouldPopupNewLead, shouldPopupNotification } from '../lib/notificationRules';
+import { queueNotificationPopup, showPendingSummaryPopup, showSalePopup, showNewLeadPopup } from '../lib/popups';
+import { shouldPopupNewLead, shouldPopupNotification, isRuidoDeAutomacao } from '../lib/notificationRules';
 import { sendPushNotification } from "../lib/notifications";
 import { isSupabaseReachable, supabase, fetchTenantPrimaryColor, updateTenantTheme } from '../lib/supabase';
 import { DEFAULT_BRAND_COLOR, applyThemeColor } from '../lib/theme';
@@ -957,6 +957,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const notificationsLoadedRef = React.useRef(false);
+  // O sino só mostra o que é pra alguém agir: avisos de automação interna (reengajamento, gatilho de score) ficam de fora.
+  const visibleNotifications = useMemo(() => notifications.filter((n) => !isRuidoDeAutomacao(n)), [notifications]);
+  // Um único aviso "você tem N notificações pendentes" na primeira abertura do dia (e ao trocar de empresa só se ainda não foi mostrado hoje).
+  useEffect(() => {
+    if (!notificationsLoadedRef.current || !userRef.current) return;
+    const pendentes = visibleNotifications.filter((n) => !n.is_read).length;
+    if (pendentes === 0) return;
+    const hoje = new Date().toISOString().slice(0, 10);
+    const chave = `spy:resumo-pendentes:${(userRef.current as any).id}:${tenantId}`;
+    try {
+      if (localStorage.getItem(chave) === hoje) return;
+      localStorage.setItem(chave, hoje);
+    } catch { /* sem storage: avisa só uma vez por sessão abaixo */ }
+    showPendingSummaryPopup(pendentes);
+  }, [visibleNotifications, tenantId]);
 
   const [marketingAutomations, setMarketingAutomations] = useState<any[]>([]);
   const [marketingContent, setMarketingContent] = useState<any[]>([]);
@@ -1143,7 +1159,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
           if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId) {
             const n = payload.new as any;
-            if (shouldPopupNotification(userRef.current as any, n)) showNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
+            if (shouldPopupNotification(userRef.current as any, n) && !isRuidoDeAutomacao(n)) queueNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
           }
           applyRealtimeUpsert(setNotifications, payload, (r) => r as Notification, tenantId);
         })
@@ -1225,6 +1241,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setAppointments([]);
     setSquads([]);
     setNotifications([]);
+    notificationsLoadedRef.current = false;
     setMarketingLandingPages([]);
     setProducts([]);
     productsAuthoritativeLoadedRef.current = false;
@@ -1321,7 +1338,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           // Só as NÃO LIDAS (teto de 100, mais recentes primeiro) — o sino nunca precisa do
           // histórico inteiro, e a tabela cresce sem parar (milhares por tenant). Marcou como
           // lida / limpou → grava is_read=true e a notificação não volta mais no próximo login.
-          { name: 'notifications', promise: fetchUnreadNotifications(tenantId), apply: (res) => { if (res.data) setNotifications(res.data as Notification[]); } },
+          { name: 'notifications', promise: fetchUnreadNotifications(tenantId), apply: (res) => { if (res.data) { setNotifications(res.data as Notification[]); notificationsLoadedRef.current = true; } } },
           { name: 'marketing_landing_pages', promise: fetchAllRowsForTenant('marketing_landing_pages', tenantId), apply: (res) => { if (res.data) setMarketingLandingPages(res.data); } },
           {
             name: 'app_settings',
@@ -1650,11 +1667,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
             addTask(newTask, { silent: true });
 
-            addNotification({
-              title: "Reengajamento Iniciado",
-              description: `Automação detectou o lead frio '${lead.name}' (Score IA: ${lead.scoreIA}) e gerou uma tarefa de Nutrição.`,
-              type: "info",
-            }, true);
+            // Sem aviso no sino: a tarefa de Nutrição (com data) já aparece em Tarefas e no calendário.
           } else {
             handledColdLeadsRef.current[lead.id] = true;
           }
@@ -1688,11 +1701,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           if (movedByTriggerRef.current[key]) continue;
           movedByTriggerRef.current[key] = true;
           moveLead(lead.id, trigger.targetStageId, 0);
-          addNotification({
-            title: "Gatilho de Lead Score Aplicado",
-            description: `${lead.name} (Score IA: ${lead.scoreIA}) foi movido automaticamente para a etapa configurada no gatilho.`,
-            type: "info",
-          }, true);
+          // Movimento automático de etapa não vira aviso: só ruído no sino.
           break;
         }
       });
@@ -3773,7 +3782,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      leads: vis?.leads ?? leads, avgWonTicket, tasks: vis?.tasks ?? tasks, contracts: vis?.contracts ?? contracts, vendasDiretas, notifications, leadActivities: vis?.leadActivities ?? leadActivities, loadLeadHistory, financeEntries, appointments,
+      leads: vis?.leads ?? leads, avgWonTicket, tasks: vis?.tasks ?? tasks, contracts: vis?.contracts ?? contracts, vendasDiretas, notifications: visibleNotifications, leadActivities: vis?.leadActivities ?? leadActivities, loadLeadHistory, financeEntries, appointments,
       sellerRestricted,
       theme, toggleTheme,
       addLead, ensureLeadForCliente, updateLead, deleteLead, moveLead,

@@ -35,3 +35,9 @@ export function shouldPopupNotification(user: RuleUser, n: { user_id?: string | 
   if (!user) return false;
   return !n.user_id || n.user_id === user.id;
 }
+
+/** Avisos gerados pelas automações internas (não pedem ação de ninguém): ficam fora do sino e dos pop-ups. */
+const TITULOS_RUIDO = ["Reengajamento Iniciado", "Gatilho de Lead Score Aplicado"];
+export function isRuidoDeAutomacao(n: { title?: string | null }): boolean {
+  return !!n.title && TITULOS_RUIDO.includes(n.title);
+}

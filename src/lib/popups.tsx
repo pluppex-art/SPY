@@ -183,3 +183,33 @@ export function showSalePopup(sale: { leadId: string; name: string; company?: st
   void celebrate();
   if (isSaleSoundEnabled()) playSaleSound();
 }
+
+// Notificações em tempo real nunca viram metralhadora: as que chegam em até 3 s saem juntas num único aviso.
+const NOTIF_BATCH_MS = 3000;
+type NotifPopup = Parameters<typeof showNotificationPopup>[0];
+let notifBatch: { items: NotifPopup[]; timer: ReturnType<typeof setTimeout> } | null = null;
+
+export function queueNotificationPopup(n: NotifPopup) {
+  if (popupsSuppressed()) return;
+  if (notifBatch) { notifBatch.items.push(n); return; }
+  notifBatch = {
+    items: [n],
+    timer: setTimeout(() => {
+      const items = notifBatch?.items ?? [];
+      notifBatch = null;
+      if (items.length === 1) showNotificationPopup(items[0]);
+      else if (items.length > 1) showPendingSummaryPopup(items.length, "novas");
+    }, NOTIF_BATCH_MS),
+  };
+}
+
+/** Aviso único de resumo: "Você tem N notificações pendentes" (clicar abre as tarefas). */
+export function showPendingSummaryPopup(total: number, tipo: "pendentes" | "novas" = "pendentes") {
+  if (popupsSuppressed()) return;
+  showNotificationPopup({
+    title: total === 1 ? `Você tem 1 notificação ${tipo === "novas" ? "nova" : "pendente"}` : `Você tem ${total} notificações ${tipo}`,
+    description: "Abra o sino para ver o que precisa da sua atenção.",
+    type: "info",
+    link_url: null,
+  });
+}
