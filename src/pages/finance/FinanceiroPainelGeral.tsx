@@ -8,6 +8,8 @@ import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
+import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
+import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
 import { SecaoCard } from "./components/SecaoCard";
 import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import { kpiSimples } from "./components/kpiSimples";
@@ -86,6 +88,8 @@ export default function FinanceiroPainelGeral() {
   const { formatCurrency: brl } = useLocalization();
   const [g, setG] = useState<Gestao>(VAZIO);
   const navigate = useNavigate();
+  const { periodoFrom, periodoTo, preset, label: periodoLabel } = useFinanceiroFiltro();
+  const sufixo = preset === "mes-atual" ? "do mês" : `(${periodoLabel.toLowerCase()})`;
 
   useEffect(() => {
     if (!supabase || !tenantId) return;
@@ -118,10 +122,10 @@ export default function FinanceiroPainelGeral() {
   }, [financeBankAccounts, financeTransfers, financeEntries]);
 
   const d = useMemo(() => {
-    const mes = hoje.slice(0, 7);
     const em = (n: number) => { const x = new Date(); x.setDate(x.getDate() + n); return hojeISO(x); };
     const l7 = em(7), l30 = em(30);
-    const doMes = rows.filter((l) => l.date?.startsWith(mes));
+    // Período escolhido no filtro (padrão: mês atual); sem limite = tudo.
+    const doMes = rows.filter((l) => !!l.date && (!periodoFrom || l.date >= periodoFrom) && (!periodoTo || l.date <= periodoTo));
     const abertoR = rows.filter((l) => l.type === "Receber" && l.status !== "Pago");
     const abertoP = rows.filter((l) => l.type === "Pagar" && l.status !== "Pago");
     const atrasado = (l: LancamentoResumo) => statusDoLancamento(l, hoje) === "Atrasado";
@@ -155,7 +159,7 @@ export default function FinanceiroPainelGeral() {
       pagoMesN: doMes.filter((l) => l.type === "Pagar" && l.status === "Pago").length,
       serie, proximos,
     };
-  }, [rows, hoje]);
+  }, [rows, hoje, periodoFrom, periodoTo]);
 
   const mesAtual = hoje.slice(0, 7);
   const promessasVencidas = g.promessas.filter((p) => p.status === "Pendente" && p.data_prometida < hoje);
@@ -193,14 +197,15 @@ export default function FinanceiroPainelGeral() {
       }
     >
       <div className="mx-auto max-w-[1700px] space-y-4 pb-12">
+        <FinanceiroFilterBar />
         {erro && <SecaoCard titulo="Erro ao carregar"><p className="text-sm text-rose-600">{erro}</p></SecaoCard>}
 
         <FinanceKpiGrid
           cards={[
             kpiSimples("Saldo em contas", v(temContas ? brl(saldoContas) : "—"), Landmark, temContas ? "Todas as contas somadas" : "Cadastre em Contas Bancárias", saldoContas < 0, () => navigate(`${base}/bancos`)),
-            kpiSimples("Entradas do mês", v(brl(d.entradas)), ArrowUpCircle, "Recebido até hoje", false, () => navigate(`${base}/receitas`)),
-            kpiSimples("Saídas do mês", v(brl(d.saidas)), ArrowDownCircle, `${d.pagoMesN} pagamento(s) feitos`, false, () => navigate(`${base}/despesas`)),
-            kpiSimples("Resultado do mês", v(brl(resultado)), Wallet, "Entradas − saídas", resultado < 0, () => navigate(`${base}/dre`)),
+            kpiSimples(`Entradas ${sufixo}`, v(brl(d.entradas)), ArrowUpCircle, "Recebido até hoje", false, () => navigate(`${base}/receitas`)),
+            kpiSimples(`Saídas ${sufixo}`, v(brl(d.saidas)), ArrowDownCircle, `${d.pagoMesN} pagamento(s) feitos`, false, () => navigate(`${base}/despesas`)),
+            kpiSimples(`Resultado ${sufixo}`, v(brl(resultado)), Wallet, "Entradas − saídas", resultado < 0, () => navigate(`${base}/dre`)),
           ]}
         />
 
@@ -282,7 +287,7 @@ export default function FinanceiroPainelGeral() {
             <div className="divide-y divide-[var(--color-border-default)]">
               <LinhaValor label="A receber" value={brl(d.aReceber)} to={`${base}/receitas`} />
               <LinhaValor label="Em atraso" value={brl(soma(d.receberAtrasado))} tone={d.receberAtrasado.length ? "danger" : undefined} to={`${base}/inadimplencia`} />
-              <LinhaValor label="Recebido no mês" value={brl(d.entradas)} tone="success" />
+              <LinhaValor label={`Recebido ${preset === "mes-atual" ? "no mês" : sufixo}`} value={brl(d.entradas)} tone="success" />
               <LinhaValor label="Promessas pendentes" value={`${promessasPend.length} · ${brl(somaK(promessasPend, "valor"))}`} to={`${base}/promessas`} />
               <LinhaValor label="Patrocínios a receber" value={brl(somaK(patrocReceber, "valor_total") - somaK(patrocReceber, "valor_recebido"))} to={`${base}/patrocinios`} />
             </div>
@@ -293,7 +298,7 @@ export default function FinanceiroPainelGeral() {
               <LinhaValor label="Total a pagar" value={brl(d.aPagar)} to={`${base}/despesas`} />
               <LinhaValor label="Vencido" value={brl(soma(d.pagarAtrasado))} tone={d.pagarAtrasado.length ? "danger" : undefined} to={`${base}/despesas`} />
               <LinhaValor label="Vence em 7 dias" value={brl(soma(d.pagar7))} tone={d.pagar7.length ? "warning" : undefined} to={`${base}/agenda`} />
-              <LinhaValor label="Pago no mês" value={brl(d.saidas)} />
+              <LinhaValor label={`Pago ${preset === "mes-atual" ? "no mês" : sufixo}`} value={brl(d.saidas)} />
               <LinhaValor label="Viagens e eventos (gasto)" value={brl(somaK(g.viagens, "valor_gasto"))} to={`${base}/viagens`} />
             </div>
             <Atalhos itens={[{ label: "Compras e parcelas", to: `${base}/compras` }, { label: "Centros de custo", to: `${base}/centros-custo` }, { label: "Orçamentos", to: `${base}/orcamentos` }]} />
@@ -311,7 +316,7 @@ export default function FinanceiroPainelGeral() {
               <LinhaValor label="Saldo em contas" value={temContas ? brl(saldoContas) : "—"} tone={saldoContas < 0 ? "danger" : undefined} to={`${base}/bancos`} />
               <LinhaValor label="Previsão 30 dias" value={`${d.previsto30 < 0 ? "déficit " : "sobra "}${brl(Math.abs(d.previsto30))}`} tone={d.previsto30 < 0 ? "danger" : "success"} to={`${base}/resumo`} />
               <LinhaValor label="Reservas (saldo)" value={brl(somaK(g.reservas, "saldo_atual"))} to={`${base}/reservas`} />
-              <LinhaValor label="Resultado do mês" value={brl(resultado)} tone={resultado < 0 ? "danger" : "success"} to={`${base}/dre`} />
+              <LinhaValor label={`Resultado ${sufixo}`} value={brl(resultado)} tone={resultado < 0 ? "danger" : "success"} to={`${base}/dre`} />
             </div>
             <Atalhos itens={[{ label: "Conciliação", to: `${base}/conciliacao` }, { label: "Relatórios", to: `${base}/relatorios` }, { label: "DRE", to: `${base}/dre` }]} />
           </SecaoCard>

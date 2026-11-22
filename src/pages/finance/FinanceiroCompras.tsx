@@ -13,6 +13,8 @@ import { FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-fi
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { kpiSimples } from "./components/kpiSimples";
 import { LegendaStatusFinanceiro, StatusFinanceiroBadge } from "./components/StatusFinanceiroBadge";
+import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
+import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
 import { statusDoLancamento, useFinanceEntriesResumo, type LancamentoResumo, type StatusFinanceiro } from "./hooks/useFinanceEntriesResumo";
 
 const dataBR = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
@@ -36,6 +38,7 @@ export default function FinanceiroCompras() {
   const { rows, loading, erro, hoje } = useFinanceEntriesResumo();
   const { formatCurrency: brl } = useLocalization();
   const [tipo, setTipo] = useState<"Pagar" | "Receber">("Pagar");
+  const { periodoFrom, periodoTo } = useFinanceiroFiltro();
   const [busca, setBusca] = useState("");
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
 
@@ -48,7 +51,10 @@ export default function FinanceiroCompras() {
       m.set(l.installment_group_id, arr);
     }
     const q = busca.trim().toLowerCase();
+    // Período: a compra aparece se alguma parcela vence dentro dele (a compra continua mostrando todas as parcelas).
+    const noPeriodo = (ps: LancamentoResumo[]) => ps.some((p) => !!p.date && (!periodoFrom || p.date >= periodoFrom) && (!periodoTo || p.date <= periodoTo));
     return [...m.entries()]
+      .filter(([, ps]) => noPeriodo(ps))
       .map(([id, ps]) => {
         const parcelas = ps.sort((a, b) => (a.installment_number ?? 0) - (b.installment_number ?? 0));
         const pagas = parcelas.filter((p) => p.status === "Pago").length;
@@ -60,7 +66,7 @@ export default function FinanceiroCompras() {
       })
       .filter((g) => !q || `${g.descricao} ${g.contraparte ?? ""}`.toLowerCase().includes(q))
       .sort((a, b) => Number(a.status === "Pago") - Number(b.status === "Pago") || a.descricao.localeCompare(b.descricao));
-  }, [rows, tipo, busca, hoje]);
+  }, [rows, tipo, busca, hoje, periodoFrom, periodoTo]);
 
   const exportar = async () => {
     const linhas = grupos.flatMap((g) =>
@@ -108,6 +114,7 @@ export default function FinanceiroCompras() {
         activeCount={busca.trim() ? 1 : 0}
         onClear={() => setBusca("")}
       >
+        <FinanceiroFilterBar />
         <FilterBar>
           <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar compra ou fornecedor…" />
         </FilterBar>
