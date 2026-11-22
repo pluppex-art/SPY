@@ -4225,7 +4225,7 @@ app.post("/api/ai/performance-audit", requireUser, async (req, res) => {
   const { mrr, cac, ltv, leadsCount, dealsCount } = req.body;
   if (!hasAnyAI()) return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   try {
-    const raw = await generateAI(`Você é o Master IA do S.P.Y. CRM. Analise estes indicadores reais (não invente números além dos fornecidos):
+    const raw = await generateAI(`Você é o Master IA do S.P.Y. SOA (Sistema Operacional Autônomo). Analise estes indicadores reais (não invente números além dos fornecidos):
 MRR: ${mrr}, CAC: ${cac}, LTV: ${ltv}, Leads: ${leadsCount}, Fechamentos: ${dealsCount}.
 Gere 3 recomendações estratégicas, em português, baseadas nesses dados. No campo "impact" use um rótulo qualitativo curto (ex.: "Alto impacto"), sem prometer percentuais.
 Responda SOMENTE com um array JSON, sem markdown: [{"title": string, "desc": string, "impact": string, "color": "text-blue-400" | "text-emerald-400" | "text-purple-400"}].`, { maxTokens: 1200 });
@@ -4291,7 +4291,7 @@ app.post("/api/ai/settings-audit", requireUser, async (req, res) => {
   const { type, config } = req.body;
   if (!hasAnyAI()) return res.status(503).json({ error: AI_UNAVAILABLE_MSG });
   try {
-    const raw = await generateAI(`Você é o Auditor Master do S.P.Y. CRM. Analise esta configuração de ${type}:
+    const raw = await generateAI(`Você é o Auditor Master do S.P.Y. SOA (Sistema Operacional Autônomo). Analise esta configuração de ${type}:
 ${JSON.stringify(config)}
 Identifique possíveis gargalos, regras redundantes ou melhorias na lógica, em português.
 Retorne estritamente um JSON: {"audit": string, "suggestions": string[]}.`, { maxTokens: 900 });
@@ -4416,7 +4416,7 @@ app.post("/api/ai/generic-insight", requireUser, async (req, res) => {
     return res.json({ insight: "A Master IA está em modo offline no momento. Conecte sua API Key para obter insights estratégicos." });
   }
   try {
-    const insight = await generateAI(`Você é o cérebro analítico do S.P.Y. CRM.
+    const insight = await generateAI(`Você é o cérebro analítico do S.P.Y. SOA (Sistema Operacional Autônomo).
       Contexto da solicitação: ${context}.
       Dados brutos para análise: ${JSON.stringify(data)}.
       Sua tarefa: Forneça um insight estratégico curto, direto e acionável em português (máximo 3 frases).
@@ -4989,7 +4989,7 @@ async function runAuroraAutoReply(tenantId: string, instanceId: string, contactI
       msgs.push({ role: "user", text: incomingText });
     }
 
-    const systemInstruction = "Você é a Aurora, atendente virtual do S.P.Y. CRM conversando por WhatsApp com um cliente/lead da empresa. Responda de forma curta, natural e cordial, como uma conversa real de WhatsApp — não como um relatório. Use as ferramentas disponíveis SOMENTE se precisar consultar dado real da empresa (pipeline, financeiro, tarefas) pra responder; nunca invente números, nomes ou datas. Responda em português do Brasil.";
+    const systemInstruction = "Você é a Aurora, atendente virtual do S.P.Y. SOA (Sistema Operacional Autônomo) conversando por WhatsApp com um cliente/lead da empresa. Responda de forma curta, natural e cordial, como uma conversa real de WhatsApp — não como um relatório. Use as ferramentas disponíveis SOMENTE se precisar consultar dado real da empresa (pipeline, financeiro, tarefas) pra responder; nunca invente números, nomes ou datas. Responda em português do Brasil.";
 
     const { text: replyText } = await aiChatWithTools({
       system: systemInstruction,
@@ -5047,7 +5047,7 @@ app.post("/api/ai/aurora-tenant-chat", requireUser, async (req: any, res: any) =
     console.error("[Aurora Tenant Chat] agent gate check failed:", err?.message);
   }
 
-  const systemInstruction = "Você é a Aurora, assistente operacional do S.P.Y. CRM. Responda SOMENTE com base no resultado real das ferramentas disponíveis — nunca invente números, nomes ou datas. Se a pergunta não puder ser respondida com as ferramentas disponíveis, diga isso claramente em vez de adivinhar. Responda em português do Brasil, de forma direta e objetiva." + agentGateNotice;
+  const systemInstruction = "Você é a Aurora, assistente operacional do S.P.Y. SOA (Sistema Operacional Autônomo). Responda SOMENTE com base no resultado real das ferramentas disponíveis — nunca invente números, nomes ou datas. Se a pergunta não puder ser respondida com as ferramentas disponíveis, diga isso claramente em vez de adivinhar. Responda em português do Brasil, de forma direta e objetiva." + agentGateNotice;
 
   try {
     const r = await aiChatWithTools({
@@ -5129,7 +5129,7 @@ app.post("/api/ai/reuniao-relatorio", requireUser, async (req: any, res: any) =>
   if (!hasAI) return res.json({ relatorio: "Relatório não disponível — configure uma chave de IA." });
 
   try {
-    const relatorio = await generateAI(`Você é o analista de vendas do S.P.Y. CRM. Gere um relatório completo desta reunião.
+    const relatorio = await generateAI(`Você é o analista de vendas do S.P.Y. SOA (Sistema Operacional Autônomo). Gere um relatório completo desta reunião.
 
 LEAD: ${leadContext?.name ?? "N/A"} | ${leadContext?.company ?? "N/A"}
 Score IA: ${leadContext?.scoreIA ?? "N/A"} | Temperatura: ${leadContext?.temperature ?? "N/A"}
@@ -5195,7 +5195,7 @@ app.post("/api/ai/reuniao-insights", requireUser, async (req: any, res: any) => 
     ].filter(Boolean).join("\n\n");
     if (!conteudo) return res.status(400).json({ error: "A reunião ainda não tem relatório, transcrição ou notas para analisar." });
 
-    const raw = await generateAI(`Você é o analista de vendas do S.P.Y. CRM. Com base APENAS no conteúdo abaixo (não invente fatos), responda SOMENTE com um JSON válido, sem markdown, neste formato exato:
+    const raw = await generateAI(`Você é o analista de vendas do S.P.Y. SOA (Sistema Operacional Autônomo). Com base APENAS no conteúdo abaixo (não invente fatos), responda SOMENTE com um JSON válido, sem markdown, neste formato exato:
 {"resumo": "2 a 3 frases", "pontos_chave": [{"texto": "...", "tom": "positivo|atencao|neutro"}], "proximos_passos": [{"titulo": "...", "prazo_dias": 3}], "observacoes": "1 a 3 frases com a leitura da IA sobre o cliente e a recomendação", "sentimento": {"rotulo": "Positivo|Neutro|Negativo", "pontuacao": 0}}
 Regras: no máximo 5 pontos_chave e 4 proximos_passos; prazo_dias é inteiro entre 1 e 30; pontuacao é inteiro de 0 a 100 (quão positivo foi o cliente na conversa).
 
@@ -6675,12 +6675,12 @@ app.post("/api/whatsapp/copilot/analyze", requireUser, async (req: any, res) => 
   ]);
   if (!chatHistory || chatHistory.length === 0) {
     return res.json({
-      suggestion: "Ainda não há mensagens registradas com este contato para analisar. Tente fazer uma saudação cortês, introduzindo o S.P.Y. CRM e perguntando como pode auxiliá-lo.",
+      suggestion: "Ainda não há mensagens registradas com este contato para analisar. Tente fazer uma saudação cortês, introduzindo o S.P.Y. SOA (Sistema Operacional Autônomo) e perguntando como pode auxiliá-lo.",
       sentiment: "Neutro"
     });
   }
   const conversationText = chatHistory.map((m: any) => `${m.sender === "contact" ? "Cliente" : "Vendedor/Atendente"}: ${m.text}`).join("\n");
-  const promptContext = `Você é o S.P.Y. Copilot, um assistente especializado em CRM, Vendas e Atendimento via WhatsApp.
+  const promptContext = `Você é o S.P.Y. Copilot, do S.P.Y. SOA (Sistema Operacional Autônomo), um assistente especializado em CRM, Vendas e Atendimento via WhatsApp.
   O cliente se chama: ${contact ? contact.name : "Cliente"}.
   O histórico de mensagens é este:
   ${conversationText}

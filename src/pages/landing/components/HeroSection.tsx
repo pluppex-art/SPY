@@ -28,7 +28,7 @@ export function HeroSection() {
             <span className="sp-nowrap">Nenhum lead esquecido.</span> <span className="sp-nowrap sp-grad">Toda venda, até o caixa.</span>
           </motion.h1>
           <motion.p className="sp-hero__sub" {...item(1)}>
-            O S.P.Y. é o CRM e ERP que organiza o seu pipeline, envia propostas, fecha contratos e controla o financeiro num só
+            O S.P.Y. SOA é o Sistema Operacional Autônomo da sua empresa: ele organiza o seu pipeline, envia propostas, fecha contratos e controla o financeiro num só
             lugar. E a Aurora, nossa IA, acompanha cada lead e aponta o próximo passo, para nenhuma oportunidade esfriar.
           </motion.p>
           <motion.div className="sp-hero__actions" {...item(2)}>

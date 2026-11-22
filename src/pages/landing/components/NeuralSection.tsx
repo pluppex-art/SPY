@@ -13,7 +13,7 @@ export function NeuralSection() {
       <div className="sp-wrap sp-aurora__grid">
         <div>
           <h2 id="sp-aurora-title" className="sp-h2" {...rv()}>
-            Aurora, a assistente de IA que conhece o seu CRM.
+            Aurora, a assistente de IA que conhece toda a sua operação.
           </h2>
           <p className="sp-lede" {...rv(1)}>
             A Aurora responde com os dados do seu ambiente: pipeline, reuniões, tarefas, financeiro, propostas, clientes e produtos. Pergunte em linguagem natural.
