@@ -9,6 +9,10 @@ interface DateRangeFilterProps {
   setDateTo: (v: string | null) => void;
   /** Altura pra bater com os outros controles da barra de filtro onde for usado (ex.: Pipeline usa h-[38px]). */
   className?: string;
+  /** Atalhos próprios (ex.: períodos futuros da Projeção). Sem isso, valem os atalhos padrão de período passado. */
+  presets?: readonly { label: string; from: string | null; to: string | null }[];
+  /** Texto do botão quando não há limite nenhum (padrão: "Período: Tudo"). */
+  emptyLabel?: string;
 }
 
 function toISO(d: Date): string {
@@ -59,7 +63,7 @@ export function thisMonthRange(): { from: string; to: string } {
 // de que lado abrir, nunca pra estilizar.
 const POPOVER_WIDTH = 280;
 
-export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, className }: DateRangeFilterProps) {
+export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, className, presets: presetsProp, emptyLabel = "Período: Tudo" }: DateRangeFilterProps) {
   const [open, setOpen] = useState(false);
   // Achado real: este componente é reaproveitado em telas onde o botão fica
   // perto da borda DIREITA da área de conteúdo (Propostas.tsx, Financeiro/BI —
@@ -80,11 +84,11 @@ export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, clas
     setAlign(fitsOnRight ? "left" : "right");
   }, [open]);
 
-  const presets = useMemo(buildPresets, []);
+  const presets = useMemo(() => presetsProp ?? buildPresets(), [presetsProp]);
   const activePreset = presets.find((p) => p.from === dateFrom && p.to === dateTo);
 
   const summary = !dateFrom && !dateTo
-    ? "Período: Tudo"
+    ? emptyLabel
     : activePreset
       ? activePreset.label
       : `${dateFrom ? fmtBR(dateFrom) : "…"} – ${dateTo ? fmtBR(dateTo) : "…"}`;

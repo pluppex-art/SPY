@@ -22,6 +22,8 @@ import {
 import { useMaxdataStats, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
 import { useAuth } from "../../contexts/AuthContext";
 import { SecaoCard } from "./components/SecaoCard";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
+import { parseEntryDate } from "./lib/financeDates";
 
 export default function FinanceiroMRR() {
   const { contracts } = useData();
@@ -48,11 +50,22 @@ export default function FinanceiroMRR() {
 
   const [busca, setBusca] = useState("");
   const [plano, setPlano] = useState("");
+  // Período (mesmo seletor das outras telas) aplicado ao INÍCIO do contrato; sem período = todos os contratos ativos.
+  const [inicioDe, setInicioDe] = useState<string | null>(null);
+  const [inicioAte, setInicioAte] = useState<string | null>(null);
   const planos = useMemo(() => Array.from(new Set(ativos.map(c => c.plan).filter(Boolean) as string[])).sort(), [ativos]);
   const ativosFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return ativos.filter(c => (!plano || c.plan === plano) && (!q || `${c.client || ""} ${c.plan || ""}`.toLowerCase().includes(q)));
-  }, [ativos, busca, plano]);
+    const de = inicioDe ? new Date(`${inicioDe}T00:00:00`) : null;
+    const ate = inicioAte ? new Date(`${inicioAte}T23:59:59`) : null;
+    return ativos.filter(c => {
+      if (de || ate) {
+        const d = parseEntryDate(c.date as any);
+        if (!d || (de && d < de) || (ate && d > ate)) return false;
+      }
+      return (!plano || c.plan === plano) && (!q || `${c.client || ""} ${c.plan || ""}`.toLowerCase().includes(q));
+    });
+  }, [ativos, busca, plano, inicioDe, inicioAte]);
 
   const kpis: KpiItem[] = [
     { label: "MRR Ativo", value: formatCurrency(mrr), icon: Repeat2, tone: "primary", hint: `Ticket médio: ${formatCurrency(ticketMedio)}` },
@@ -74,10 +87,11 @@ export default function FinanceiroMRR() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "MRR & Receita Recorrente" }]}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <FinanceKpiFilter id="finMrr" kpis={kpis} activeCount={(busca.trim() ? 1 : 0) + (plano ? 1 : 0)} onClear={() => { setBusca(""); setPlano(""); }}>
+        <FinanceKpiFilter id="finMrr" kpis={kpis} activeCount={(busca.trim() ? 1 : 0) + (plano ? 1 : 0) + (inicioDe || inicioAte ? 1 : 0)} onClear={() => { setBusca(""); setPlano(""); setInicioDe(null); setInicioAte(null); }}>
           <FilterBar>
             <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar cliente ou plano..." />
             <FilterSelect icon={Package} value={plano} onChange={setPlano} options={planos} allLabel="Todos os planos" title="Plano" />
+            <DateRangeFilter dateFrom={inicioDe} setDateFrom={setInicioDe} dateTo={inicioAte} setDateTo={setInicioAte} emptyLabel="Início do contrato: Tudo" />
           </FilterBar>
           <KpiDrillChips items={[{ label: "MRR perdido (cancelados)", onClick: () => setDrillCanceladosOpen(true) }]} />
         </FinanceKpiFilter>

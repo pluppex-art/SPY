@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, type KpiItem } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { ArrowUpRight, ArrowDownRight, Scale, Waves, ListOrdered } from "lucide-react";
@@ -14,24 +14,54 @@ import { cn } from "../../lib/utils";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 import { SecaoCard } from "./components/SecaoCard";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 
-const HORIZONTES = [7, 15, 30, 60, 90] as const;
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+// Atalhos do filtro de período, no mesmo seletor das outras telas, mas olhando para a frente.
+function presetsFuturos() {
+  const now = new Date();
+  const hoje = iso(now);
+  const mais = (n: number) => iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n));
+  const fimMes = iso(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  const iniProx = iso(new Date(now.getFullYear(), now.getMonth() + 1, 1));
+  const fimProx = iso(new Date(now.getFullYear(), now.getMonth() + 2, 0));
+  return [
+    { label: "Próximos 7 dias", from: hoje, to: mais(7) },
+    { label: "Próximos 15 dias", from: hoje, to: mais(15) },
+    { label: "Próximos 30 dias", from: hoje, to: mais(30) },
+    { label: "Próximos 60 dias", from: hoje, to: mais(60) },
+    { label: "Próximos 90 dias", from: hoje, to: mais(90) },
+    { label: "Até o fim do mês", from: hoje, to: fimMes },
+    { label: "Mês que vem", from: iniProx, to: fimProx },
+    { label: "Tudo", from: null, to: null },
+  ] as const;
+}
 
 export default function FinanceiroProjecao() {
   const { financeEntries, contracts } = useData();
   const { formatCurrency } = useLocalization();
-  const [horizonte, setHorizonte] = useState<(typeof HORIZONTES)[number]>(30);
+  const presets = useMemo(presetsFuturos, []);
+  const [de, setDe] = useState<string | null>(presets[2].from);
+  const [ate, setAte] = useState<string | null>(presets[2].to);
+  const padrao = de === presets[2].from && ate === presets[2].to;
+  const limpar = () => { setDe(presets[2].from); setAte(presets[2].to); };
+  const rotulo = presets.find((p) => p.from === de && p.to === ate)?.label ?? "Período";
+  // Dias cobertos pelo período (para decidir entre visão por dia ou por semana).
+  const diasCobertos = de && ate ? Math.round((new Date(`${ate}T00:00:00`).getTime() - new Date(`${de}T00:00:00`).getTime()) / 86400000) + 1 : 9999;
 
   const previstos = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    const fim = new Date(now); fim.setDate(fim.getDate() + horizonte);
+    // Só o futuro: o início nunca é antes de hoje.
+    const ini = de ? new Date(`${de}T00:00:00`) : now;
+    const inicio = ini > now ? ini : now;
+    const fim = ate ? new Date(`${ate}T23:59:59`) : null;
 
     return financeEntries
       .filter(f => f.status === "A Vencer")
       .map(f => ({ ...f, dueDate: parseEntryDate(f.date) }))
-      .filter(f => f.dueDate && f.dueDate >= now && f.dueDate <= fim);
-  }, [financeEntries, horizonte]);
+      .filter(f => f.dueDate && f.dueDate >= inicio && (!fim || f.dueDate <= fim));
+  }, [financeEntries, de, ate]);
 
   const { totalReceber, totalPagar, saldoProjetado, grupos, receberRows, pagarRows } = useMemo(() => {
     const receberRows = previstos.filter(f => f.type === "Receber");
@@ -41,7 +71,7 @@ export default function FinanceiroProjecao() {
 
     // Horizontes até 30 dias mostram dia a dia; acima disso, agrupado por
     // semana — uma tabela com 90 linhas diárias deixaria de ser legível.
-    const agruparPorSemana = horizonte > 30;
+    const agruparPorSemana = diasCobertos > 31;
     const buckets = new Map<string, { label: string; sortKey: number; receber: number; pagar: number }>();
     for (const f of previstos) {
       if (!f.dueDate) continue;
@@ -69,14 +99,14 @@ export default function FinanceiroProjecao() {
     });
 
     return { totalReceber, totalPagar, saldoProjetado: totalReceber - totalPagar, grupos, receberRows, pagarRows };
-  }, [previstos, horizonte]);
+  }, [previstos, diasCobertos]);
 
   const [drillKey, setDrillKey] = useState<"receber" | "pagar" | null>(null);
   const entryColumns = financeEntryDrillColumns(formatCurrency);
 
   const kpis: KpiItem[] = [
-    { label: `Recebimentos Previstos (${horizonte}d)`, value: formatCurrency(totalReceber), icon: ArrowUpRight, tone: "success" },
-    { label: `Pagamentos Previstos (${horizonte}d)`, value: formatCurrency(totalPagar), icon: ArrowDownRight, tone: "danger" },
+    { label: `Recebimentos Previstos (${rotulo})`, value: formatCurrency(totalReceber), icon: ArrowUpRight, tone: "success" },
+    { label: `Pagamentos Previstos (${rotulo})`, value: formatCurrency(totalPagar), icon: ArrowDownRight, tone: "danger" },
     { label: "Saldo Projetado do Período", value: formatCurrency(saldoProjetado), icon: Scale, tone: saldoProjetado < 0 ? "danger" : "primary" },
     { label: "Lançamentos Previstos", value: previstos.length, icon: ListOrdered, tone: "info" },
   ];
@@ -90,20 +120,14 @@ export default function FinanceiroProjecao() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Projeção de Caixa" }]}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <FinanceKpiFilter id="finProjecao" kpis={kpis} activeCount={horizonte !== 30 ? 1 : 0} onClear={() => setHorizonte(30)}>
+        <FinanceKpiFilter id="finProjecao" kpis={kpis} activeCount={padrao ? 0 : 1} onClear={limpar}>
           <FilterBar>
-            <FilterChips
-              value={String(horizonte)}
-              onChange={(v) => setHorizonte(Number(v) as (typeof HORIZONTES)[number])}
-              allValue="30"
-              allLabel="Próximos 30 dias"
-              options={HORIZONTES.filter(h => h !== 30).map(h => ({ value: String(h), label: `Próximos ${h} dias` }))}
-            />
+            <DateRangeFilter dateFrom={de} setDateFrom={setDe} dateTo={ate} setDateTo={setAte} presets={presets} emptyLabel="Todo o futuro" />
           </FilterBar>
           <KpiDrillChips items={[{ label: "Recebimentos previstos", onClick: () => setDrillKey("receber") }, { label: "Pagamentos previstos", onClick: () => setDrillKey("pagar") }]} />
         </FinanceKpiFilter>
 
-        <SecaoCard titulo={<>Saldo Acumulado Projetado ({horizonte}d)</>} icon={Waves}>
+        <SecaoCard titulo={<>Saldo Acumulado Projetado ({rotulo})</>} icon={Waves}>
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={grupos} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -124,12 +148,12 @@ export default function FinanceiroProjecao() {
           </div>
         </SecaoCard>
 
-        <SecaoCard titulo={<>Projetado — {horizonte > 30 ? "por Semana" : "por Dia"}</>} semPadding>
+        <SecaoCard titulo={<>Projetado — {diasCobertos > 31 ? "por Semana" : "por Dia"}</>} semPadding>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="text-[10px] uppercase font-semibold tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-sunken)] border-b border-[var(--color-border-subtle)]">
                 <tr>
-                  <th className="px-6 py-3">{horizonte > 30 ? "Semana" : "Dia"}</th>
+                  <th className="px-6 py-3">{diasCobertos > 31 ? "Semana" : "Dia"}</th>
                   <th className="px-6 py-3 text-right">A Receber</th>
                   <th className="px-6 py-3 text-right">A Pagar</th>
                   <th className="px-6 py-3 text-right">Saldo do Período</th>
@@ -176,7 +200,7 @@ export default function FinanceiroProjecao() {
       <DrillDownPanel
         isOpen={drillKey !== null}
         onClose={() => setDrillKey(null)}
-        title={drillKey === "receber" ? `Recebimentos Previstos (${horizonte}d)` : drillKey === "pagar" ? `Pagamentos Previstos (${horizonte}d)` : undefined}
+        title={drillKey === "receber" ? `Recebimentos Previstos (${rotulo})` : drillKey === "pagar" ? `Pagamentos Previstos (${rotulo})` : undefined}
         rows={drillKey === "receber" ? receberRows : drillKey === "pagar" ? pagarRows : []}
         columns={entryColumns}
       />
