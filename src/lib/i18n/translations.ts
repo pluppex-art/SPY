@@ -14,7 +14,7 @@ type Dictionary = Record<string, string>;
 const en: Dictionary = {
   // Sidebar — seções
   "Visão Geral": "Overview",
-  "CRM & Vendas": "CRM & Sales",
+  "Vendas": "Sales",
   "Agenda & Reuniões": "Calendar & Meetings",
   "Gestão Financeira": "Financial Management",
   "Comunicação & Mkt": "Communication & Mkt",
@@ -270,7 +270,7 @@ const en: Dictionary = {
 
 const es: Dictionary = {
   "Visão Geral": "Resumen General",
-  "CRM & Vendas": "CRM y Ventas",
+  "Vendas": "Ventas",
   "Agenda & Reuniões": "Agenda y Reuniones",
   "Gestão Financeira": "Gestión Financiera",
   "Comunicação & Mkt": "Comunicación y Mkt",

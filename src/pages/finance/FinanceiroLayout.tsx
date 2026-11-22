@@ -41,7 +41,7 @@ import {
   Plane,
   PiggyBank,
   BadgePercent,
-  ChevronLeft, ChevronRight, LayoutList,
+  ChevronLeft, Star,
 } from "lucide-react";
 import { SectionSidebar, type SectionNavGroup, type SectionNavItem } from "../../components/layout/SectionSidebar";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
@@ -159,7 +159,7 @@ const ESSENCIAIS_RESUMO: SectionNavItem[] = [
   { title: "Receita", path: "/app/financeiro/receitas", icon: Inbox },
   { title: "Despesa", path: "/app/financeiro/despesas", icon: TrendingDown },
   { title: "Fluxo de Caixa", path: "/app/financeiro/fluxo-caixa", icon: Waves },
-  { title: "Bancos", path: "/app/financeiro/bancos", icon: CreditCard },
+  { title: "Banco", path: "/app/financeiro/bancos", icon: CreditCard },
   { title: "DRE", path: "/app/financeiro/dre", icon: PieChart },
 ];
 const MODO_KEY = "spy_financeiro_modo_menu";
@@ -180,20 +180,18 @@ export default function FinanceiroLayout() {
     const atual = (p: string) => location.pathname === p || location.pathname.startsWith(p + "/");
     const itens = [...ESSENCIAIS_RESUMO];
     const aberta = groupsCompletos.flatMap((g) => g.items).find((i) => (i.matchPaths ?? [i.path]).some(atual));
-    if (aberta && !itens.some((i) => (i.matchPaths ?? [i.path]).some(atual))) itens.push(aberta);
-    return [{ title: "Financeiro", icon: Wallet, items: itens }];
+    const abertaEmConfig = G.cadastros.abas.some((a) => atual(a.path));
+    if (aberta && !abertaEmConfig && !itens.some((i) => (i.matchPaths ?? [i.path]).some(atual))) itens.push(aberta);
+    const config: SectionNavItem = { title: "Configuração", path: "/app/financeiro/contatos", icon: FolderTree, matchPaths: G.cadastros.abas.map((a) => a.path) };
+    const avancado: SectionNavItem = { title: "Avançado", path: "#avancado", icon: Star, onSelect: () => escolherModo("avancado") };
+    // Ordem do desenho: essenciais, Avançado, Configuração (a página aberta fora da lista entra antes do Avançado).
+    return [{ title: "Financeiro", icon: Wallet, items: [...itens, avancado, config] }];
   }, [groupsCompletos, modo, location.pathname]);
   const btnModo = "w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] cursor-pointer transition-all border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]";
   // Resumo: lista curta + "Avançado" no fim abre o menu completo (subsidebar). No Avançado, "Voltar" retorna.
   const voltarResumo = (
     <button type="button" onClick={() => escolherModo("resumo")} className={btnModo}>
       <span className="flex items-center gap-2"><ChevronLeft className="w-4 h-4" /> Voltar ao Resumo</span>
-    </button>
-  );
-  const abrirAvancado = (
-    <button type="button" onClick={() => escolherModo("avancado")} className={btnModo}>
-      <span className="flex items-center gap-2"><LayoutList className="w-4 h-4" /> Avançado</span>
-      <ChevronRight className="w-4 h-4" />
     </button>
   );
 
@@ -208,7 +206,7 @@ export default function FinanceiroLayout() {
   const tipoPadrao = /receb|receita|cobranca|inadimpl|mrr/.test(location.pathname) ? "Receber" : "Pagar";
 
   return (
-    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groups} headerExtra={modo === "avancado" ? voltarResumo : undefined} footerExtra={modo === "resumo" ? abrirAvancado : undefined}>
+    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groups} headerExtra={modo === "avancado" ? voltarResumo : undefined}>
       <FinanceiroFilterProvider>
         {abasDaRota && abasDaRota.abas.length > 1 && (
           <nav aria-label={abasDaRota.title} className="flex gap-1 overflow-x-auto mb-4 pb-1 border-b border-[var(--color-border-subtle)] print:hidden">

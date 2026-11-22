@@ -19,6 +19,8 @@ export interface SectionNavItem {
   help?: string;
   /** Outras rotas que também marcam este item como ativo (telas reunidas em abas). */
   matchPaths?: string[];
+  /** Em vez de navegar, executa uma ação (ex.: abrir o menu completo). */
+  onSelect?: () => void;
 }
 
 export interface SectionNavGroup {
@@ -214,6 +216,20 @@ function SectionGroup({
                 <span className="text-[8px] font-bold uppercase tracking-wider shrink-0 border border-[var(--color-border-default)] rounded px-1.5 py-0.5">
                   {t("Em breve")}
                 </span>
+              </div>
+            );
+          }
+          if (item.onSelect) {
+            return (
+              <div key={item.path} className="flex">
+                <button
+                  type="button"
+                  onClick={() => { item.onSelect?.(); onItemClick?.(); }}
+                  className="flex-1 min-w-0 flex items-center gap-2.5 px-4 py-3 lg:py-2 text-sm font-medium rounded-[var(--radius-control)] transition-all cursor-pointer text-[var(--color-text-muted)] border border-transparent bg-transparent hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]"
+                >
+                  {ItemIcon && <ItemIcon className="w-4 h-4 shrink-0" />}
+                  <span className="break-words lg:truncate w-full text-left leading-tight">{t(item.title)}</span>
+                </button>
               </div>
             );
           }

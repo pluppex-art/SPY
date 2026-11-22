@@ -21,7 +21,7 @@ export default function ImplementacaoRelatorio() {
 
   if (!impl) {
     return (
-      <PageContainer title="Relatório de implementação" breadcrumb={[{ label: "CRM & Vendas" }, { label: "Implementações", path: "/app/crm/implementacoes" }, { label: "Relatório" }]}>
+      <PageContainer title="Relatório de implementação" breadcrumb={[{ label: "Vendas" }, { label: "Implementações", path: "/app/crm/implementacoes" }, { label: "Relatório" }]}>
         <EmptyState
           icon={ClipboardList}
           title="Implementação não encontrada"
@@ -57,7 +57,7 @@ export default function ImplementacaoRelatorio() {
     <PageContainer
       title={`Relatório — ${props.clienteNome}`}
       description="Visão completa da implantação: o que está pronto, o que falta e as respostas de cada seção."
-      breadcrumb={[{ label: "CRM & Vendas" }, { label: "Implementações", path: "/app/crm/implementacoes" }, { label: props.clienteNome, path: `/app/crm/implementacoes/${impl.id}` }, { label: "Relatório" }]}
+      breadcrumb={[{ label: "Vendas" }, { label: "Implementações", path: "/app/crm/implementacoes" }, { label: props.clienteNome, path: `/app/crm/implementacoes/${impl.id}` }, { label: "Relatório" }]}
       actions={
         <div className="flex items-center gap-2 flex-wrap print:hidden">
           <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]" title="Alterna entre o que a equipe vê e o que o cliente veria">

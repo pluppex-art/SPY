@@ -77,7 +77,7 @@ export const navSections = [
     ],
   },
   {
-    title: "CRM & Vendas",
+    title: "Vendas",
     reqModule: "crm",
     items: [
       { name: "Central de Vendas", path: "/app/crm/pipeline", icon: Columns3 },

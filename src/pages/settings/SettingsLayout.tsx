@@ -42,7 +42,7 @@ const AJUDA: Record<string, string> = {
   "/app/configuracoes/integracoes/smtp": "Configure o servidor de e-mail da empresa para os e-mails do sistema saírem com o seu remetente.",
   "/app/configuracoes/integracoes/webhooks": "Cadastre endereços que recebem um aviso automático quando algo acontece no SPY, e acompanhe o registro dos envios.",
   "/app/configuracoes/integracoes/sdr-webhooks": "Cadastre os endereços de integração das automações de pré-vendas e teste a conexão com o botão Disparar Teste.",
-  "/app/configuracoes/integracoes/conectores-externos": "Ligue o sistema que a sua empresa já usa (um ERP, um CRM próprio ou outro) ao SPY, de forma segura e autenticada. Depois, ative os eventos que devem ser enviados automaticamente para ele.",
+  "/app/configuracoes/integracoes/conectores-externos": "Ligue o sistema que a sua empresa já usa (um sistema próprio ou outro) ao SPY, de forma segura e autenticada. Depois, ative os eventos que devem ser enviados automaticamente para ele.",
   "/app/configuracoes/integracoes/links-dinamicos": "Cadastre os links reais que a sua empresa já usa (pagamento, agendamento, checkout, contrato). A Aurora e a IA consultam esta lista na hora de responder, e a mudança vale imediatamente.",
   "/app/ia": "Tudo da Aurora num lugar só: consumo, atividade, funil, agentes e conhecimento.",
   "/app/configuracoes/sistema/aurora": "Controle da Aurora: o consumo de IA do mês, os agentes ligados a ela, e quais estão ativos para a sua empresa.",
@@ -100,7 +100,7 @@ export default function SettingsLayout() {
       ],
     },
     ...(activeModules.crm ? [{
-      title: "Vendas (CRM)",
+      title: "Vendas",
       icon: Columns3,
       items: [
         { title: "Funis & etapas", path: "/app/configuracoes/crm/funis" },
@@ -166,7 +166,7 @@ export default function SettingsLayout() {
         { title: "Servidores SMTP (E-mail)", path: "/app/configuracoes/integracoes/smtp" },
         { title: "Integrações automáticas & Logs (Webhooks)", path: "/app/configuracoes/integracoes/webhooks" },
         { title: "Automações de Pré-Vendas (Webhooks de SDR)", path: "/app/configuracoes/integracoes/sdr-webhooks" },
-        { title: "Conectar outros sistemas (ERP/CRM)", path: "/app/configuracoes/integracoes/conectores-externos" },
+        { title: "Conectar outros sistemas", path: "/app/configuracoes/integracoes/conectores-externos" },
       ],
     },
     {

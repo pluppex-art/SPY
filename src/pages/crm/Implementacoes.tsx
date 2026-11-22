@@ -200,7 +200,7 @@ export default function Implementacoes() {
     <PageContainer
       title="Implementações"
       description="Clientes que já fecharam e estão sendo implantados — formulário completo, integrações, progresso e relatório."
-      breadcrumb={[{ label: "CRM & Vendas" }, { label: "Implementações" }]}
+      breadcrumb={[{ label: "Vendas" }, { label: "Implementações" }]}
     >
       <div className="space-y-5 max-w-[1700px] mx-auto pb-12">
         {view === "lista" && (aguardando.length > 0 || clientesLivres.length > 0) && (
