@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet } from "lucide-react";
+import { SeletorCompetencia } from "./components/SeletorCompetencia";
 import { toast } from "sonner";
 import { exportarXlsx } from "../../lib/exportXlsx";
 import { PageContainer } from "../../components/PageContainer";
@@ -69,16 +70,14 @@ export default function FinanceiroAgenda() {
     <PageContainer
       title="Agenda Financeira"
       description="Vencimentos de contas, parcelas e contratos no calendário do mês."
-      actions={<Button variant="outline" onClick={exportar} disabled={porDia.size === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar mês</Button>}
+      actions={<div className="flex flex-wrap items-center justify-end gap-2"><SeletorCompetencia mes={ref} setMes={setRef} /><Button variant="outline" onClick={exportar} disabled={porDia.size === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar mês</Button></div>}
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
       {erro && <Card className="p-4 text-sm text-red-600">{erro}</Card>}
 
       <Card className="p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={() => mover(-1)} aria-label="Mês anterior"><ChevronLeft className="h-4 w-4" /></Button>
+        <div className="mb-3 flex items-center justify-center">
           <h3 className="text-base font-semibold">{MESES[mes]} {ano}{loading ? " …" : ""}</h3>
-          <Button variant="outline" size="sm" onClick={() => mover(1)} aria-label="Próximo mês"><ChevronRight className="h-4 w-4" /></Button>
         </div>
 
         <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-[var(--color-text-muted)]">

@@ -12,6 +12,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { LegendaStatusFinanceiro, StatusFinanceiroBadge } from "./components/StatusFinanceiroBadge";
 import { hojeISO, statusDoLancamento, useFinanceEntriesResumo } from "./hooks/useFinanceEntriesResumo";
 import { SecaoCard } from "./components/SecaoCard";
+import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
+import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 
 const soma = (xs: { value: number }[]) => xs.reduce((a, x) => a + x.value, 0);
 const dataBR = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
@@ -25,10 +27,11 @@ export default function FinanceiroCentralResumo() {
   const { rows, loading, erro, hoje } = useFinanceEntriesResumo();
   const { formatCurrency: brl } = useLocalization();
   const { user } = useAuth();
+  const { periodoFrom, periodoTo } = useFinanceiroFiltro();
 
   const r = useMemo(() => {
-    const mes = hoje.slice(0, 7);
-    const doMes = rows.filter((l) => l.date?.startsWith(mes));
+    // Entradas e saídas do período do filtro padrão (datas em AAAA-MM-DD); em aberto e previsão seguem a situação de hoje.
+    const doMes = rows.filter((l) => !!l.date && (!periodoFrom || l.date >= periodoFrom) && (!periodoTo || l.date <= periodoTo));
     const entradas = soma(doMes.filter((l) => l.type === "Receber" && l.status === "Pago"));
     const saidas = soma(doMes.filter((l) => l.type === "Pagar" && l.status === "Pago"));
     const pagarAberto = rows.filter((l) => l.type === "Pagar" && l.status !== "Pago");
@@ -64,16 +67,16 @@ export default function FinanceiroCentralResumo() {
       vencidosReceber: soma(vencidosReceber),
       proximos,
     };
-  }, [rows, hoje]);
+  }, [rows, hoje, periodoFrom, periodoTo]);
 
   const textoGerado = useMemo(() => {
     const [a, m, d] = hoje.split("-");
     return [
       `*Resumo financeiro — ${d}/${m}/${a}*`,
       ``,
-      `Entradas no mês (recebido): ${brl(r.entradas)}`,
-      `Saídas no mês (pago): ${brl(r.saidas)}`,
-      `Saldo do mês: ${brl(r.saldoMes)}`,
+      `Entradas no período (recebido): ${brl(r.entradas)}`,
+      `Saídas no período (pago): ${brl(r.saidas)}`,
+      `Saldo do período: ${brl(r.saldoMes)}`,
       ``,
       ...r.previsao.map((p) => `Previsão ${p.dias} dias: entra ${brl(p.entra)} / sai ${brl(p.sai)} → ${p.saldo < 0 ? "déficit" : "sobra"} ${brl(Math.abs(p.saldo))}`),
       ``,
@@ -105,7 +108,7 @@ export default function FinanceiroCentralResumo() {
           nome: "Resumo",
           colunas: [{ titulo: "Indicador", largura: 34 }, { titulo: "Valor", tipo: "moeda" }],
           linhas: [
-            ["Entradas do mês (recebido)", r.entradas], ["Saídas do mês (pago)", r.saidas], ["Saldo do mês", r.saldoMes],
+            ["Entradas do período (recebido)", r.entradas], ["Saídas do período (pago)", r.saidas], ["Saldo do período", r.saldoMes],
             ["A receber (em aberto)", r.totalReceber], ["A receber em atraso", r.vencidosReceber],
             ["Total a pagar", r.totalPagar], ["A pagar vencido", r.vencidosPagar], ["A pagar a vencer", r.aVencerPagar],
             ...r.previsao.map((p) => [`Previsão ${p.dias} dias (entra − sai)`, p.saldo]),
@@ -129,7 +132,8 @@ export default function FinanceiroCentralResumo() {
       title="Central de Resumo"
       description={`Visão rápida do caixa${user?.name ? `, ${user.name.split(" ")[0]}` : ""}: o que entrou, o que saiu e o que vence.`}
       actions={
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <FinanceiroFilterBar />
           <Button variant="outline" onClick={exportar}><FileSpreadsheet className="mr-2 h-4 w-4" />Planilha</Button>
           <Button variant="outline" onClick={copiar}><Copy className="mr-2 h-4 w-4" />Copiar</Button>
           <Button onClick={abrirWhatsApp}><MessageCircle className="mr-2 h-4 w-4" />Gerar resumo para WhatsApp</Button>
@@ -141,9 +145,9 @@ export default function FinanceiroCentralResumo() {
 
       <FinanceKpiGrid
         cards={[
-          kpiSimples("Entradas do mês", loading ? "…" : brl(r.entradas), ArrowUpCircle, "Recebimentos pagos"),
-          kpiSimples("Saídas do mês", loading ? "…" : brl(r.saidas), ArrowDownCircle, "Pagamentos feitos"),
-          kpiSimples("Saldo do mês", loading ? "…" : brl(r.saldoMes), Wallet, "Entradas − saídas", r.saldoMes < 0),
+          kpiSimples("Entradas do período", loading ? "…" : brl(r.entradas), ArrowUpCircle, "Recebimentos pagos"),
+          kpiSimples("Saídas do período", loading ? "…" : brl(r.saidas), ArrowDownCircle, "Pagamentos feitos"),
+          kpiSimples("Saldo do período", loading ? "…" : brl(r.saldoMes), Wallet, "Entradas − saídas", r.saldoMes < 0),
           kpiSimples("Previsão 30 dias", loading ? "…" : `${r.previsao[0].saldo < 0 ? "Déficit " : "Sobra "}${brl(Math.abs(r.previsao[0].saldo))}`, CalendarClock, "Entra − sai até 30 dias", r.previsao[0].saldo < 0),
           kpiSimples("Total a pagar", loading ? "…" : brl(r.totalPagar), CalendarClock, `A vencer: ${brl(r.aVencerPagar)}`),
           kpiSimples("Vencido a pagar", loading ? "…" : brl(r.vencidosPagar), AlertTriangle, `${r.qtdVencidosPagar} conta(s)`, r.vencidosPagar > 0),
