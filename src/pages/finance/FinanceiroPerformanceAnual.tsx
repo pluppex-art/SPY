@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { SeletorAno } from "./components/SeletorAno";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -148,7 +149,7 @@ export default function FinanceiroPerformanceAnual() {
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
         <FinanceKpiFilter id="finPerformanceAnual" kpis={kpis} activeCount={ano !== anoAtual ? 1 : 0} onClear={() => setAno(anoAtual)}>
           <FilterBar>
-            <FilterChips value={String(ano)} onChange={(v) => setAno(Number(v))} allValue={String(anoAtual)} allLabel={String(anoAtual)} options={[String(anoAtual - 1)]} />
+            <SeletorAno ano={ano} setAno={setAno} />
           </FilterBar>
         </FinanceKpiFilter>
 

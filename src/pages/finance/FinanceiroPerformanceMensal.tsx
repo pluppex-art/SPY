@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, type KpiItem } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
 import { Download, Printer, TrendingUp, TrendingDown, Scale, Award } from "lucide-react";
@@ -17,7 +18,8 @@ import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 
 const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-const JANELAS = [6, 12, 24] as const;
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const JANELAS_SERVIDOR = [6, 12, 24];
 
 interface MesPerformance { label: string; receita: number; despesa: number; resultado: number }
 interface PerformanceMensalServerSummary {
@@ -28,7 +30,17 @@ export default function FinanceiroPerformanceMensal() {
   const { financeEntries } = useData();
   const { activeTenantId } = useAuth();
   const { formatCurrency } = useLocalization();
-  const [janela, setJanela] = useState<(typeof JANELAS)[number]>(12);
+  // Período no seletor padrão (padrão: últimos 12 meses). A tela mostra mês a mês: vale o nº de meses do início do período até hoje (1 a 24).
+  const padrao = useMemo(() => { const n = new Date(); return { de: iso(new Date(n.getFullYear(), n.getMonth() - 11, 1)), ate: iso(n) }; }, []);
+  const [de, setDe] = useState<string | null>(padrao.de);
+  const [ate, setAte] = useState<string | null>(padrao.ate);
+  const janela = useMemo(() => {
+    if (!de) return 24;
+    const n = new Date(); const d0 = new Date(`${de}T12:00:00`);
+    const meses = (n.getFullYear() - d0.getFullYear()) * 12 + (n.getMonth() - d0.getMonth()) + 1;
+    return Math.min(24, Math.max(1, meses));
+  }, [de]);
+  const setJanela = (_: number) => { setDe(padrao.de); setAte(padrao.ate); };
 
   const clientMeses = useMemo(() => {
     const now = new Date();
@@ -72,7 +84,8 @@ export default function FinanceiroPerformanceMensal() {
   const [serverSummary, setServerSummary] = useState<PerformanceMensalServerSummary | null>(null);
   useEffect(() => {
     setServerSummary(null);
-    if (!activeTenantId) return;
+    // O resumo do servidor só existe para 6, 12 e 24 meses; nos demais, vale o cálculo da própria tela.
+    if (!activeTenantId || !JANELAS_SERVIDOR.includes(janela)) return;
     let cancelled = false;
     apiFetch(`/api/finance/performance-mensal-summary?tenantId=${encodeURIComponent(activeTenantId)}&janela=${janela}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -109,15 +122,9 @@ export default function FinanceiroPerformanceMensal() {
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <FinanceKpiFilter id="finPerformanceMensal" kpis={kpis} activeCount={janela !== 12 ? 1 : 0} onClear={() => setJanela(12)}>
+        <FinanceKpiFilter id="finPerformanceMensal" kpis={kpis} activeCount={de === padrao.de && ate === padrao.ate ? 0 : 1} onClear={() => setJanela(12)}>
           <FilterBar>
-            <FilterChips
-              value={String(janela)}
-              onChange={(v) => setJanela(Number(v) as (typeof JANELAS)[number])}
-              allValue="12"
-              allLabel="Últimos 12 meses"
-              options={JANELAS.filter(j => j !== 12).map(j => ({ value: String(j), label: `Últimos ${j} meses` }))}
-            />
+            <DateRangeFilter dateFrom={de} setDateFrom={setDe} dateTo={ate} setDateTo={setAte} emptyLabel="Últimos 24 meses" />
           </FilterBar>
           <KpiDrillChips items={[{ label: "Receitas", onClick: () => setDrillKey("receitas") }, { label: "Despesas", onClick: () => setDrillKey("despesas") }]} />
         </FinanceKpiFilter>
