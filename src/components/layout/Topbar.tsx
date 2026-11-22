@@ -259,6 +259,15 @@ export function Topbar({
         )}
         <button
           type="button"
+          onClick={() => navigate("/app/sobre-soa")}
+          className="p-1.5 bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-full transition-colors cursor-pointer border-none max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent"
+          title="Conheça o SOA: Sistema Operacional Autônomo"
+          aria-label="Conheça o SOA"
+        >
+          <Logo variant="icon" size={22} color={tenantPrimaryColor} />
+        </button>
+        <button
+          type="button"
           onClick={() => toggleTheme()}
           className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] hover:bg-[var(--color-border-default)] rounded-xl max-md:rounded-full transition-colors cursor-pointer border-none max-md:w-10 max-md:h-10 max-md:flex max-md:items-center max-md:justify-center max-md:bg-transparent max-md:shadow-none max-md:border-none"
           title={t("Alternar Tema (Light/Dark)")}
