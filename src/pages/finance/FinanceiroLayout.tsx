@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -51,83 +51,70 @@ import { FinanceiroFilterProvider } from "./FinanceiroFilterContext";
  * Os grupos "do negócio" (mensalidades de alunos, faturamento de clínica,
  * equipe, comissões) só aparecem quando o cliente tem o módulo correspondente.
  */
+// Telas parecidas viram UMA entrada no menu, com abas no topo da página.
+type Aba = { label: string; path: string };
+type GrupoAbas = { title: string; icon: SectionNavItem["icon"]; abas: Aba[] };
+const B = "/app/financeiro";
+const G = {
+  painel: { title: "Painel Geral", icon: LayoutDashboard, abas: [
+    { label: "Painel", path: `${B}/dashboard` }, { label: "Análise detalhada", path: `${B}/visao-geral` },
+    { label: "Central de Resumo", path: `${B}/resumo` }, { label: "Agenda", path: `${B}/agenda` }, { label: "Busca", path: `${B}/busca` },
+  ] },
+  relatorios: { title: "Relatórios e DRE", icon: PieChart, abas: [
+    { label: "Central de Relatórios", path: `${B}/relatorios` }, { label: "DRE Gerencial", path: `${B}/dre` },
+  ] },
+  receitas: { title: "Receitas e Cobranças", icon: Inbox, abas: [
+    { label: "A receber", path: `${B}/receitas` }, { label: "Contratos e Faturas", path: `${B}/faturas` }, { label: "Cobranças", path: `${B}/cobrancas` },
+    { label: "Promessas", path: `${B}/promessas` }, { label: "Histórico", path: `${B}/historico-cobrancas` },
+    { label: "Inadimplência", path: `${B}/inadimplencia` }, { label: "MRR", path: `${B}/mrr` },
+  ] },
+  notas: { title: "Notas e Recibos", icon: FileText, abas: [
+    { label: "Notas fiscais (NFS-e)", path: `${B}/notas-fiscais` }, { label: "Modelos de recibo", path: `${B}/modelos-recibo` },
+  ] },
+  despesas: { title: "Despesas e Compras", icon: TrendingDown, abas: [
+    { label: "A pagar", path: `${B}/despesas` }, { label: "Compras e Parcelas", path: `${B}/compras` }, { label: "Viagens e Eventos", path: `${B}/viagens` },
+  ] },
+  orcamento: { title: "Centros de Custo e Orçamento", icon: Target, abas: [
+    { label: "Centros de Custo", path: `${B}/centros-custo` }, { label: "Orçamentos", path: `${B}/orcamentos` },
+  ] },
+  movimentacoes: { title: "Movimentações e Caixa", icon: ArrowLeftRight, abas: [
+    { label: "Todas", path: `${B}/transacoes` }, { label: "Fluxo de Caixa", path: `${B}/fluxo-caixa` },
+    { label: "Projeção", path: `${B}/projecao` }, { label: "Transferências", path: `${B}/transferencias` },
+  ] },
+  bancos: { title: "Bancos e Conciliação", icon: Landmark, abas: [
+    { label: "Contas Bancárias", path: `${B}/bancos` }, { label: "Conciliação", path: `${B}/conciliacao` },
+  ] },
+  metas: { title: "Metas e Reservas", icon: PiggyBank, abas: [
+    { label: "Metas", path: `${B}/metas` }, { label: "Reservas", path: `${B}/reservas` },
+  ] },
+  equipe: { title: "Equipe e Comissões", icon: Users, abas: [
+    { label: "Funcionários", path: `${B}/funcionarios` }, { label: "Folha", path: `${B}/folha` }, { label: "Adiantamentos", path: `${B}/adiantamentos` },
+    { label: "Comissões", path: `${B}/comissoes` }, { label: "Indicações", path: `${B}/indicacoes` },
+  ] },
+  acordos: { title: "Acordos e Patrocínios", icon: Handshake, abas: [
+    { label: "Acordos e Permutas", path: `${B}/acordos` }, { label: "Patrocínios", path: `${B}/patrocinios` },
+  ] },
+  cadastros: { title: "Configurações", icon: FolderTree, abas: [
+    { label: "Clientes e Fornecedores", path: `${B}/contatos` }, { label: "Plano de Contas", path: `${B}/plano-contas` },
+    { label: "Tags", path: `${B}/tags` }, { label: "Importar", path: `${B}/importar` },
+  ] },
+} satisfies Record<string, GrupoAbas>;
+const TODOS_GRUPOS: GrupoAbas[] = Object.values(G);
+const grupoDaRota = (pathname: string) => TODOS_GRUPOS.find((g) => g.abas.some((a) => pathname === a.path || pathname.startsWith(a.path + "/")));
+
+const itemDe = (g: GrupoAbas): SectionNavItem => ({ title: g.title, path: g.abas[0].path, icon: g.icon, matchPaths: g.abas.map((a) => a.path) });
+
 function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
-  const entradas: SectionNavItem[] = [
-    { title: "Receitas (a receber)", path: "/app/financeiro/receitas", icon: Inbox },
-    { title: "Contratos & Faturas", path: "/app/financeiro/faturas", icon: Receipt },
-    { title: "Cobranças", path: "/app/financeiro/cobrancas", icon: Receipt },
-    { title: "Notas fiscais (NFS-e)", path: "/app/financeiro/notas-fiscais", icon: FileText },
-    { title: "Modelos de recibo", path: "/app/financeiro/modelos-recibo", icon: FileText },
-    { title: "Promessas de Pagamento", path: "/app/financeiro/promessas", icon: Clock },
-    { title: "Histórico de Cobranças", path: "/app/financeiro/historico-cobrancas", icon: MessageCircle },
-    { title: "Patrocínios", path: "/app/financeiro/patrocinios", icon: Gift },
-    { title: "Inadimplência", path: "/app/financeiro/inadimplencia", icon: AlertTriangle },
-    { title: "MRR & Receita Recorrente", path: "/app/financeiro/mrr", icon: Repeat2 },
-  ];
+  const entradas: SectionNavItem[] = [itemDe(G.receitas), itemDe(G.notas), itemDe(G.acordos)];
   if (has("educacao")) entradas.splice(1, 0, { title: "Mensalidades de Alunos", path: "/app/educacao/mensalidades", icon: GraduationCap });
   if (has("clinica")) entradas.splice(1, 0, { title: "Faturamento da Clínica", path: "/app/clinica/faturamento", icon: Stethoscope });
-
-  // Folha e comissões ficam no próprio Financeiro (antes o item de equipe levava para o RH).
-  const pessoas: SectionNavItem[] = [
-    { title: "Funcionários e Salários", path: "/app/financeiro/funcionarios", icon: Users },
-    { title: "Folha de Pagamento", path: "/app/financeiro/folha", icon: Wallet },
-    { title: "Adiantamentos", path: "/app/financeiro/adiantamentos", icon: HandCoins },
-    { title: "Acordos e Permutas", path: "/app/financeiro/acordos", icon: Handshake },
-    { title: "Comissões de Vendedores", path: "/app/financeiro/comissoes", icon: BadgePercent },
-    { title: "Indicações e Parcerias", path: "/app/financeiro/indicacoes", icon: Gift },
-  ];
-
   return [
-    {
-      title: "Painel e Relatórios",
-      icon: LayoutDashboard,
-      items: [
-        { title: "Painel Geral", path: "/app/financeiro/dashboard", icon: LayoutDashboard },
-        { title: "Análise detalhada", path: "/app/financeiro/visao-geral", icon: BarChart3 },
-        { title: "Central de Resumo", path: "/app/financeiro/resumo", icon: ClipboardList },
-        { title: "Agenda Financeira", path: "/app/financeiro/agenda", icon: CalendarDays },
-        { title: "Busca Financeira", path: "/app/financeiro/busca", icon: Search },
-        { title: "Central de Relatórios", path: "/app/financeiro/relatorios", icon: BarChart3 },
-        { title: "DRE Gerencial", path: "/app/financeiro/dre", icon: PieChart },
-      ],
-    },
+    { title: "Painel e Relatórios", icon: LayoutDashboard, items: [itemDe(G.painel), itemDe(G.relatorios)] },
     { title: "Entradas", icon: Inbox, items: entradas },
-    {
-      title: "Custos e Despesas",
-      icon: TrendingDown,
-      items: [
-        { title: "Despesas (a pagar)", path: "/app/financeiro/despesas", icon: TrendingDown },
-        { title: "Compras e Parcelas", path: "/app/financeiro/compras", icon: ShoppingCart },
-        { title: "Centros de Custo", path: "/app/financeiro/centros-custo", icon: Target },
-        { title: "Orçamentos", path: "/app/financeiro/orcamentos", icon: Target },
-        { title: "Viagens e Eventos", path: "/app/financeiro/viagens", icon: Plane },
-      ],
-    },
-    {
-      title: "Financeiro Geral",
-      icon: Landmark,
-      items: [
-        { title: "Todas as Movimentações", path: "/app/financeiro/transacoes", icon: ArrowLeftRight },
-        { title: "Fluxo de Caixa", path: "/app/financeiro/fluxo-caixa", icon: Waves },
-        { title: "Projeção de Caixa", path: "/app/financeiro/projecao", icon: LineChart },
-        { title: "Bancos e Conciliação", path: "/app/financeiro/conciliacao", icon: RefreshCw },
-        { title: "Contas Bancárias", path: "/app/financeiro/bancos", icon: CreditCard },
-        { title: "Transferências entre Contas", path: "/app/financeiro/transferencias", icon: Repeat },
-        { title: "Metas e Resultados", path: "/app/financeiro/metas", icon: Target },
-        { title: "Reservas Financeiras", path: "/app/financeiro/reservas", icon: PiggyBank },
-      ],
-    },
-    { title: "Pessoas & Comercial", icon: Users, items: pessoas },
-    {
-      title: "Configurações",
-      icon: FolderTree,
-      items: [
-        { title: "Clientes & Fornecedores", path: "/app/financeiro/contatos", icon: Users },
-        { title: "Plano de Contas", path: "/app/financeiro/plano-contas", icon: FolderTree },
-        { title: "Tags", path: "/app/financeiro/tags", icon: Tag },
-        { title: "Importar Movimentações", path: "/app/financeiro/importar", icon: Upload },
-      ],
-    },
+    { title: "Custos e Despesas", icon: TrendingDown, items: [itemDe(G.despesas), itemDe(G.orcamento)] },
+    { title: "Caixa e Bancos", icon: Landmark, items: [itemDe(G.movimentacoes), itemDe(G.bancos), itemDe(G.metas)] },
+    { title: "Pessoas", icon: Users, items: [itemDe(G.equipe)] },
+    { title: "Configurações", icon: FolderTree, items: [itemDe(G.cadastros)] },
   ];
 }
 
@@ -166,14 +153,13 @@ const PAGINAS_COM_BOTAO_PROPRIO = [
 ];
 
 // Modo "Resumo": só o essencial para quem não é do financeiro. "Avançado" mostra o menu completo.
-const ESSENCIAIS_RESUMO = [
-  "/app/financeiro/dashboard",
-  "/app/financeiro/receitas",
-  "/app/financeiro/despesas",
-  "/app/financeiro/fluxo-caixa",
-  "/app/financeiro/bancos",
-  "/app/financeiro/dre",
-  "/app/financeiro/resumo",
+const ESSENCIAIS_RESUMO: SectionNavItem[] = [
+  { title: "Painel Geral", path: "/app/financeiro/dashboard", icon: LayoutDashboard, matchPaths: ["/app/financeiro/dashboard", "/app/financeiro/visao-geral", "/app/financeiro/resumo", "/app/financeiro/agenda", "/app/financeiro/busca"] },
+  { title: "Receitas (a receber)", path: "/app/financeiro/receitas", icon: Inbox },
+  { title: "Despesas (a pagar)", path: "/app/financeiro/despesas", icon: TrendingDown },
+  { title: "Fluxo de Caixa", path: "/app/financeiro/fluxo-caixa", icon: Waves },
+  { title: "Contas Bancárias", path: "/app/financeiro/bancos", icon: CreditCard },
+  { title: "DRE Gerencial", path: "/app/financeiro/dre", icon: PieChart },
 ];
 const MODO_KEY = "spy_financeiro_modo_menu";
 
@@ -189,12 +175,11 @@ export default function FinanceiroLayout() {
   const groupsCompletos = useMemo(() => montarGrupos((m) => isModuleEnabled(m)), [isModuleEnabled]);
   const groups = useMemo(() => {
     if (modo === "avancado") return groupsCompletos;
-    // Uma única lista curta, na ordem do essencial; a página aberta nunca some do menu.
-    const todos = groupsCompletos.flatMap((g) => g.items);
+    // Uma única lista curta; a página aberta nunca some do menu.
     const atual = (p: string) => location.pathname === p || location.pathname.startsWith(p + "/");
-    const itens = ESSENCIAIS_RESUMO.map((path) => todos.find((i) => i.path === path)).filter(Boolean) as SectionNavItem[];
-    const aberta = todos.find((i) => atual(i.path));
-    if (aberta && !itens.some((i) => i.path === aberta.path)) itens.push(aberta);
+    const itens = [...ESSENCIAIS_RESUMO];
+    const aberta = groupsCompletos.flatMap((g) => g.items).find((i) => (i.matchPaths ?? [i.path]).some(atual));
+    if (aberta && !itens.some((i) => (i.matchPaths ?? [i.path]).some(atual))) itens.push(aberta);
     return [{ title: "Financeiro", icon: Wallet, items: itens }];
   }, [groupsCompletos, modo, location.pathname]);
   const seletorModo = (
@@ -217,6 +202,7 @@ export default function FinanceiroLayout() {
   // entrar em qualquer tela do Financeiro.
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
 
+  const abasDaRota = grupoDaRota(location.pathname);
   const mostrarFab = !PAGINAS_COM_BOTAO_PROPRIO.some(p => location.pathname.startsWith(p));
   // Antes buscava "recebimento" (rota inexistente), então sempre caía em "Pagar".
   const tipoPadrao = /receb|receita|cobranca|inadimpl|mrr/.test(location.pathname) ? "Receber" : "Pagar";
@@ -224,6 +210,16 @@ export default function FinanceiroLayout() {
   return (
     <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groups} headerExtra={seletorModo}>
       <FinanceiroFilterProvider>
+        {abasDaRota && abasDaRota.abas.length > 1 && (
+          <nav aria-label={abasDaRota.title} className="flex gap-1 overflow-x-auto mb-4 pb-1 border-b border-[var(--color-border-subtle)] print:hidden">
+            {abasDaRota.abas.map((a) => {
+              const ativa = location.pathname === a.path || location.pathname.startsWith(a.path + "/");
+              return (
+                <Link key={a.path} to={a.path} className={`px-3 py-2 text-xs font-bold whitespace-nowrap rounded-t-[var(--radius-control)] no-underline border-b-2 -mb-px ${ativa ? "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]" : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>{a.label}</Link>
+              );
+            })}
+          </nav>
+        )}
         <Outlet />
       </FinanceiroFilterProvider>
 

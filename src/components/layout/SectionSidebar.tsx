@@ -17,6 +17,8 @@ export interface SectionNavItem {
   soon?: boolean;
   /** Explicação do que a página faz — aparece num "?" ao lado do item. */
   help?: string;
+  /** Outras rotas que também marcam este item como ativo (telas reunidas em abas). */
+  matchPaths?: string[];
 }
 
 export interface SectionNavGroup {
@@ -52,7 +54,7 @@ export function SectionSidebar({ heading, subheading, groups, headerExtra, child
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
-  const activeItem = groups.flatMap((g) => g.items).find((i) => !i.soon && isActive(i.path));
+  const activeItem = groups.flatMap((g) => g.items).find((i) => !i.soon && (i.matchPaths ?? [i.path]).some(isActive));
   const ActiveIcon = activeItem?.icon ?? LayoutList;
 
   // Trocou de página (ou girou o aparelho pra desktop): fecha a folha do menu.
@@ -176,7 +178,7 @@ function SectionGroup({
   // Começa FECHADO — exceto o grupo que contém a página atual, senão a pessoa
   // entraria numa tela sem ver onde está no menu. Estado local por grupo (desktop
   // e o dropdown mobile remontam independentes).
-  const hasActive = group.items.some((item) => !item.soon && isActive(item.path));
+  const hasActive = group.items.some((item) => !item.soon && (item.matchPaths ?? [item.path]).some(isActive));
   const [isOpen, setIsOpen] = useState(hasActive);
   // Navegar (por link de fora do menu) pra uma página deste grupo abre ele.
   useEffect(() => { if (hasActive) setIsOpen(true); }, [hasActive]);
@@ -194,7 +196,7 @@ function SectionGroup({
       {isOpen && (
       <div className="space-y-0.5 flex flex-col">
         {group.items.map((item) => {
-          const active = isActive(item.path);
+          const active = (item.matchPaths ?? [item.path]).some(isActive);
           const ItemIcon = item.icon;
           if (item.soon) {
             return (
