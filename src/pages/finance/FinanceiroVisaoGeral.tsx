@@ -1,4 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
+import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
+import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
 import { Button } from "../../components/ui/button";
 import { Printer, Download, ChevronLeft, ChevronRight, Calendar, Users, Inbox, Wallet, Scale, Repeat2, TrendingUp, TrendingDown, AlertTriangle, Landmark } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
@@ -71,7 +73,15 @@ export default function FinanceiroVisaoGeral() {
   const mxClientes = useMaxdataStats("maxdata_clientes", (allContracts as any[]).some((c) => String(c.id).startsWith("venda-")) ? MAXDATA_TODAS : "", activeTenantId);
 
   // Mês de referência do painel (padrão: o atual) e filtro por cliente.
-  const [refMonth, setRefMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); });
+  // O mês de referência segue o filtro de período padrão do Financeiro (o mesmo seletor das outras telas):
+  // vale o mês final do período escolhido (nunca no futuro); sem período, o mês atual.
+  const { periodoTo } = useFinanceiroFiltro();
+  const refMonth = useMemo(() => {
+    const n = new Date();
+    const fim = periodoTo ? new Date(`${periodoTo.slice(0, 10)}T12:00:00`) : n;
+    const base = Number.isNaN(fim.getTime()) || fim > n ? n : fim;
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  }, [periodoTo]);
   const [clienteFiltro, setClienteFiltro] = useState("");
 
   const hoje = new Date();
@@ -386,7 +396,6 @@ export default function FinanceiroVisaoGeral() {
     );
   };
 
-  const irMes = (delta: number) => setRefMonth(new Date(refY, refM + delta, 1));
   const selCls = "h-9 px-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40 cursor-pointer";
 
   return (
@@ -395,13 +404,7 @@ export default function FinanceiroVisaoGeral() {
       description="Reúne num só lugar a saúde financeira, o fluxo de caixa, o MRR e a inadimplência."
       actions={
         <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <div className="flex items-center rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] h-9">
-            <button type="button" onClick={() => irMes(-1)} className="px-2 h-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-transparent border-none cursor-pointer" title="Mês anterior"><ChevronLeft className="w-4 h-4" /></button>
-            <button type="button" onClick={() => setRefMonth(new Date(hoje.getFullYear(), hoje.getMonth(), 1))} className="flex items-center gap-1.5 px-1.5 text-xs font-bold text-[var(--color-text-primary)] bg-transparent border-none cursor-pointer" title="Voltar ao mês atual">
-              <Calendar className="w-3.5 h-3.5 text-[var(--color-text-muted)]" /> {MONTH_FULL[refM]} {refY}
-            </button>
-            <button type="button" onClick={() => irMes(1)} className="px-2 h-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-transparent border-none cursor-pointer" title="Próximo mês"><ChevronRight className="w-4 h-4" /></button>
-          </div>
+          <FinancePeriodFilter />
           <div className="relative">
             <Users className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
             <select value={clienteFiltro} onChange={(e) => setClienteFiltro(e.target.value)} className={`${selCls} pl-8 max-w-[220px]`} title="Filtra receitas, despesas, contas a receber/pagar e MRR por cliente; o saldo em contas não é filtrado">
