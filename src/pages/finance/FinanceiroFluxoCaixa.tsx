@@ -2,9 +2,11 @@ import { useMemo, useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { type KpiItem } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { KpiDrillChips } from "./components/KpiDrillChips";
+import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
+import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { ArrowUpRight, ArrowDownRight, Scale, Download, Calendar, CalendarDays } from "lucide-react";
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { useData } from "../../contexts/DataContext";
@@ -19,7 +21,6 @@ import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 import { SecaoCard } from "./components/SecaoCard";
 
-const PERIODOS = [30, 60, 90] as const;
 
 interface DiaFluxo { label: string; dataCompleta: string; entradas: number; saidas: number; saldoDia: number; acumulado: number }
 interface FluxoCaixaServerSummary { totalEntradas: number; totalSaidas: number; saldoLiquido: number; fluxoDiario: DiaFluxo[] }
@@ -37,16 +38,19 @@ export default function FinanceiroFluxoCaixa() {
   const { financeEntries } = useData();
   const { activeTenantId } = useAuth();
   const { formatCurrency } = useLocalization();
-  const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number]>(30);
+  // Período: o mesmo filtro padrão do Financeiro (regime de caixa nunca passa de hoje).
+  const { periodoFrom, periodoTo, label: periodoLabel } = useFinanceiroFiltro();
 
   const { totalEntradas: clientTotalEntradas, totalSaidas: clientTotalSaidas, saldoLiquido: clientSaldoLiquido, fluxoDiario: clientFluxoDiario, rangeStart, rangeEnd, rowsEntradas, rowsSaidas } = useMemo(() => {
     const hoje = new Date(); hoje.setHours(23, 59, 59, 999);
-    const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - periodo); inicio.setHours(0, 0, 0, 0);
+    const inicio = periodoFrom ? new Date(`${periodoFrom}T00:00:00`) : new Date(1970, 0, 1);
+    const fimFiltro = periodoTo ? new Date(`${periodoTo}T23:59:59`) : hoje;
+    const fim = fimFiltro < hoje ? fimFiltro : hoje;
 
     const doPeriodo = (financeEntries as FinanceEntryLike[])
       .filter(isPago)
       .map(e => ({ ...e, __data: parseEntryDate(e.date) }))
-      .filter((e): e is FinanceEntryLike & { __data: Date } => !!e.__data && e.__data >= inicio && e.__data <= hoje);
+      .filter((e): e is FinanceEntryLike & { __data: Date } => !!e.__data && e.__data >= inicio && e.__data <= fim);
 
     const buckets = new Map<string, { data: Date; entradas: number; saidas: number }>();
     for (const e of doPeriodo) {
@@ -75,10 +79,10 @@ export default function FinanceiroFluxoCaixa() {
 
     return {
       totalEntradas, totalSaidas, saldoLiquido: round2(totalEntradas - totalSaidas), fluxoDiario,
-      rangeStart: toLocalISODate(inicio), rangeEnd: toLocalISODate(hoje),
+      rangeStart: toLocalISODate(inicio), rangeEnd: toLocalISODate(fim),
       rowsEntradas, rowsSaidas,
     };
-  }, [financeEntries, periodo]);
+  }, [financeEntries, periodoFrom, periodoTo]);
 
   // GET /api/finance/fluxo-caixa-summary faz a mesma soma dia a dia no
   // servidor, cacheada 60s no Redis-SPY. Cálculo client-side acima
@@ -104,14 +108,14 @@ export default function FinanceiroFluxoCaixa() {
   const entryColumns = financeEntryDrillColumns(formatCurrency);
 
   const kpis: KpiItem[] = [
-    { label: `Entradas (${periodo}d)`, value: formatCurrency(totalEntradas), icon: ArrowUpRight, tone: "success", hint: "Só o que já foi pago" },
-    { label: `Saídas (${periodo}d)`, value: formatCurrency(totalSaidas), icon: ArrowDownRight, tone: "danger", hint: "Só o que já foi pago" },
+    { label: `Entradas (${periodoLabel})`, value: formatCurrency(totalEntradas), icon: ArrowUpRight, tone: "success", hint: "Só o que já foi pago" },
+    { label: `Saídas (${periodoLabel})`, value: formatCurrency(totalSaidas), icon: ArrowDownRight, tone: "danger", hint: "Só o que já foi pago" },
     { label: "Saldo Líquido do Período", value: formatCurrency(saldoLiquido), icon: Scale, tone: saldoLiquido < 0 ? "danger" : "primary" },
     { label: "Dias com Movimentação", value: fluxoDiario.length, icon: CalendarDays, tone: "info" },
   ];
 
   const handleExport = () => {
-    downloadCsv(`fluxo_de_caixa_${periodo}d_${Date.now()}.csv`, ["Data", "Entradas", "Saídas", "Saldo do Dia", "Acumulado"], fluxoDiario.map(d => [d.dataCompleta, d.entradas, d.saidas, d.saldoDia, d.acumulado]));
+    downloadCsv(`fluxo_de_caixa_${periodoFrom ?? "tudo"}_${Date.now()}.csv`, ["Data", "Entradas", "Saídas", "Saldo do Dia", "Acumulado"], fluxoDiario.map(d => [d.dataCompleta, d.entradas, d.saidas, d.saldoDia, d.acumulado]));
   };
 
   return (
@@ -121,21 +125,13 @@ export default function FinanceiroFluxoCaixa() {
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Fluxo de Caixa" }]}
       actions={
         <div className="flex items-center gap-2 print:hidden">
+          <FinanceiroFilterBar />
           <Button variant="outline" onClick={handleExport} className="h-9 px-4 text-xs font-medium gap-1.5"><Download className="w-3.5 h-3.5" /> Exportar CSV</Button>
         </div>
       }
     >
       <div className="space-y-4 max-w-[1700px] mx-auto pb-12">
-        <FinanceKpiFilter id="finFluxoCaixa" kpis={kpis} activeCount={periodo !== 30 ? 1 : 0} onClear={() => setPeriodo(30)}>
-          <FilterBar>
-            <FilterChips
-              value={String(periodo)}
-              onChange={(v) => setPeriodo(Number(v) as (typeof PERIODOS)[number])}
-              allValue="30"
-              allLabel="Últimos 30 dias"
-              options={PERIODOS.filter(p => p !== 30).map(p => ({ value: String(p), label: `Últimos ${p} dias` }))}
-            />
-          </FilterBar>
+        <FinanceKpiFilter id="finFluxoCaixa" kpis={kpis} activeCount={0} onClear={() => {}}>
           <KpiDrillChips items={[{ label: "Entradas", onClick: () => setDrillKey("entradas") }, { label: "Saídas", onClick: () => setDrillKey("saidas") }]} />
         </FinanceKpiFilter>
 
@@ -171,7 +167,7 @@ export default function FinanceiroFluxoCaixa() {
             </thead>
             <tbody className="divide-y divide-[var(--color-border-subtle)]">
               {fluxoDiario.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-[var(--color-text-faint)]">Nenhum lançamento pago nos últimos {periodo} dias.</td></tr>
+                <tr><td colSpan={5} className="px-6 py-10 text-center text-[var(--color-text-faint)]">Nenhum lançamento pago neste período.</td></tr>
               ) : [...fluxoDiario].reverse().map(d => (
                 <tr key={d.dataCompleta} className="hover:bg-[var(--color-surface-sunken)]/50 transition-colors">
                   <td className="px-6 py-3 font-medium text-[var(--color-text-primary)]">{d.dataCompleta}</td>
@@ -189,7 +185,7 @@ export default function FinanceiroFluxoCaixa() {
       <DrillDownPanel
         isOpen={drillKey !== null}
         onClose={() => setDrillKey(null)}
-        title={drillKey === "entradas" ? `Entradas (${periodo}d)` : drillKey === "saidas" ? `Saídas (${periodo}d)` : undefined}
+        title={drillKey === "entradas" ? `Entradas (${periodoLabel})` : drillKey === "saidas" ? `Saídas (${periodoLabel})` : undefined}
         rows={drillKey === "entradas" ? rowsEntradas : drillKey === "saidas" ? rowsSaidas : []}
         columns={entryColumns}
       />
