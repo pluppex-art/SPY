@@ -38,7 +38,7 @@ const PAGE_SIZE = 50;
 
 export default function FinanceiroCobrancas() {
   const { financeEntries, addFinanceEntry, updateFinanceEntry, deleteFinanceEntry, appSettings, clienteBase, financeCategories, financeBankAccounts, financeCentrosCusto } = useData();
-  const { user, activeTenantName } = useAuth();
+  const { activeTenantName } = useAuth();
   const { formatCurrency } = useLocalization();
   const { dataInicio, dataFim, label: periodoLabel } = useFinanceiroFiltro();
   const [search, setSearch] = useState("");

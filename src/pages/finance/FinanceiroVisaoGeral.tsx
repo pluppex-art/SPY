@@ -52,9 +52,6 @@ function parseDateBR(br?: string | null): Date | null {
 }
 const mrrNum = (v: any) => Number(String(v).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
 
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
 
 function isInMonth(date: Date | null, year: number, month: number): boolean {
   return !!date && date.getFullYear() === year && date.getMonth() === month;
@@ -226,8 +223,6 @@ export default function FinanceiroVisaoGeral() {
 
   // Valores-base do mês de referência.
   const base = useMemo(() => {
-    const prevDate = new Date(refY, refM - 1, 1);
-    const prevY = prevDate.getFullYear(), prevM = prevDate.getMonth();
     const k = usaServidor ? serverSummary?.kpis : undefined;
 
     const receitaMes = k?.receitaMes ?? somaPeriodo("Receber", periodo.ini, periodo.fim);

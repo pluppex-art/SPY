@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { useData } from "../../contexts/DataContext";
 import { SecaoCard } from "./components/SecaoCard";
 
-type TipoLancamento = "Recebimentos" | "Despesas fixas" | "Despesas variáveis" | "Pessoas" | "Impostos";
 
 const TIPO_MAP: Record<string, { type: "Pagar" | "Receber"; subtipo: string | null }> = {
   "recebimentos": { type: "Receber", subtipo: null },

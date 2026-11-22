@@ -7,7 +7,6 @@ import { friendlyError } from "../../lib/friendlyError";
 import { toast } from "sonner";
 
 const DEFAULT_PAGE_SIZE = 10;
-const SEARCH_DEBOUNCE_MS = 300;
 
 export interface FinanceEntriesFilters {
   type: "Pagar" | "Receber";

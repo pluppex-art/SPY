@@ -196,12 +196,6 @@ export default function FinanceiroBuscaGlobal() {
     { id: "centros" as const, label: "Centros de Custo", count: resultadosCentros.length, icon: Building2 },
   ];
 
-  const kpis = [
-    { label: "Entradas", value: formatCurrency(entradas), chip: `${nEntradas} ${nEntradas === 1 ? "movimentação" : "movimentações"}`, icon: ArrowUpRight, color: "#10b981", tile: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", chipCls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", data: series.entradas, danger: false },
-    { label: "Saídas", value: formatCurrency(saidas), chip: `${nSaidas} ${nSaidas === 1 ? "movimentação" : "movimentações"}`, icon: ArrowDownRight, color: "#f43f5e", tile: "bg-rose-500/10 text-rose-600 dark:text-rose-400", chipCls: "bg-rose-500/10 text-rose-600 dark:text-rose-400", data: series.saidas, danger: false },
-    { label: "Resultado", value: formatCurrency(entradas - saidas), chip: "Saldo no período", icon: Scale, color: "#3b82f6", tile: "bg-blue-500/10 text-blue-600 dark:text-blue-400", chipCls: "bg-blue-500/10 text-blue-600 dark:text-blue-400", data: series.resultado, danger: entradas - saidas < 0 },
-    { label: "Movimentações", value: String(resultadosMovimentacoes.length), chip: "Total de registros", icon: ListOrdered, color: "#8b5cf6", tile: "bg-violet-500/10 text-violet-600 dark:text-violet-400", chipCls: "bg-violet-500/10 text-violet-600 dark:text-violet-400", data: series.qtd, danger: false },
-  ];
 
   return (
     <PageContainer

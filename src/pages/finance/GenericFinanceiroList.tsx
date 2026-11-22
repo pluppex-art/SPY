@@ -32,7 +32,6 @@ import { parseEntryDate } from "./lib/financeDates";
 import { useFinanceEntriesList } from "./useFinanceEntriesList";
 import { Pagination } from "../../components/ui/Pagination";
 import { type Frequencia, addPeriodo, splitInstallments } from "../../lib/saleCalculator";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import { isInMonth, pctDelta } from "./lib/financeEngine";
@@ -71,7 +70,7 @@ interface GenericProps {
 }
 
 export default function GenericFinanceiroList({ title, desc, type, statusFilter, defaultStatus }: GenericProps) {
-  const { financeEntries, addFinanceEntry, deleteFinanceEntry, updateFinanceEntry, estornarFinanceEntry, financeCategories, addFinanceCategory, financeBankAccounts, financeCentrosCusto, clienteBase, financeAttachments } = useData();
+  const { financeEntries, addFinanceEntry, deleteFinanceEntry, updateFinanceEntry, estornarFinanceEntry, financeCategories, addFinanceCategory, financeBankAccounts, financeCentrosCusto, financeAttachments } = useData();
   const { formatCurrency } = useLocalization();
   const [isModalOpen, setIsModalOpen] = useState(false);
   // Período global da tela (seletor "Período: Tudo" do cabeçalho): filtra a tabela (servidor), os cards e o gráfico.
@@ -190,16 +189,6 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
   const [drillKey, setDrillKey] = useState<string | null>(null);
   const drillColumns = financeEntryDrillColumns(formatCurrency);
 
-  const STATUS_CHART_COLORS: Record<string, string> = { Pago: "var(--color-success)", "A Vencer": "var(--color-text-muted)", Atrasado: "var(--color-danger)", Pendente: "var(--color-warning)" };
-  const statusBreakdown = useMemo(() => {
-    if (kpis.kind !== "pipeline") return [];
-    return [
-      { status: "Pago", value: kpis.pago, fill: STATUS_CHART_COLORS.Pago },
-      { status: "A Vencer", value: kpis.aVencer, fill: STATUS_CHART_COLORS["A Vencer"] },
-      { status: "Atrasado", value: kpis.atrasado, fill: STATUS_CHART_COLORS.Atrasado },
-      { status: "Pendente", value: kpis.pendente, fill: STATUS_CHART_COLORS.Pendente },
-    ].filter(s => s.value > 0);
-  }, [kpis]);
 
   const NOMES_MES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   const rotuloMes = (x: { y: number; m: number }) => (mesesDoGrafico.length > 12 || new Set(mesesDoGrafico.map((z) => z.y)).size > 1 ? `${NOMES_MES[x.m]}/${String(x.y).slice(2)}` : NOMES_MES[x.m]);
@@ -676,7 +665,6 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
           { label: "Total geral (histórico)", value: formatCurrency(kpis.totalGeral), hint: `${kpis.count} lançamento(s)`, icon: Layers, delta: null, goodUp: null, series: [], drill: "geral", hideDelta: true },
         ];
       })();
-  const ICON_COLORS = ["text-[var(--color-primary-blue)]", "text-emerald-500", "text-cyan-500", "text-rose-500"];
   const filtrosAtivosCount = [filtroContraparte, filtroBusca, filtroCategoriaId, filtroStatus, filtroContaBancariaId, filtroCentroCustoId, filtroDataInicio, filtroDataFim].filter(Boolean).length;
 
   const RepeatBadge = ({ item }: { item: (typeof financeEntries)[number] }) => {

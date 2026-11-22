@@ -40,7 +40,6 @@ const ORDEM_OPTIONS: { id: TransacoesOrdem; label: string }[] = [
   { id: "valor_asc", label: "Valor (menor)" },
 ];
 
-const ICON_COLORS = ["text-[var(--color-primary-blue)]", "text-emerald-500", "text-cyan-500", "text-rose-500"];
 
 const SELECT = "h-9 px-3 rounded-lg bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]/40 cursor-pointer";
 

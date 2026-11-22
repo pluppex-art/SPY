@@ -49,7 +49,6 @@ export default function FinanceiroExtrato() {
     const fim = new Date(dataFinal + "T23:59:59");
 
     const entriesDaConta = (financeEntries as (FinanceEntryLike & any)[]).filter(e => e.conta_bancaria_id === conta.id);
-    const { recebidas, enviadas } = transferenciasDaConta(financeTransfers as any[], conta.id);
 
     // Saldo anterior = saldo real (caixa) até o dia anterior ao início do período.
     const entriesAntesDoPeriodo = entriesDaConta.filter(e => {
