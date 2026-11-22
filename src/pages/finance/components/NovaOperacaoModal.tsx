@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Modal } from "../../../components/ui/modal";
-import { Button } from "../../../components/ui/button";
+import { } from "../../../components/ui/button";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Repeat, Layers, FileText, AlignLeft, FolderOpen, User, CreditCard, Landmark, Tag, Calendar, CalendarCheck, Hash, Save, X, Info, ListChecks, Wallet } from "lucide-react";
 import { ClienteSelect } from "./ClienteSelect";
 import { TagSelect } from "./TagSelect";

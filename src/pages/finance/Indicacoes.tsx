@@ -14,8 +14,8 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { downloadCsv } from "../../lib/csvExport";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from "recharts";
 import {
-  Plus, X, Trash2, Download, CheckCircle2, Clock, XCircle, DollarSign,
-  UserPlus, Share2, Copy, ExternalLink, QrCode, Send, MessageCircle, Link, Check, Users, BarChart3,
+  Plus, Trash2, Download, CheckCircle2, Clock, XCircle, DollarSign,
+  UserPlus, Share2, Copy, QrCode, Send, MessageCircle, Link, Check, Users, BarChart3,
   Pencil, User, Phone, Mail, Calendar, AlignLeft, Save, Info, Eye
 } from "lucide-react";
 import type { Indicacao } from "../../contexts/DataContextTypes";

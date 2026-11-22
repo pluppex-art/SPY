@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { PageContainer } from "../../components/PageContainer";
-import { Card } from "../../components/ui/card";
+import { } from "../../components/ui/card";
 import { Repeat2, Users, TrendingDown, Percent, Layers, Package } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useData } from "../../contexts/DataContext";

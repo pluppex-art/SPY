@@ -72,15 +72,11 @@ function computeRange(preset: FinanceiroPeriodoPreset, customStart: string, cust
 const STORAGE_KEY = "spy_financeiro_filtro_periodo";
 
 /**
- * Filtro de período GLOBAL do módulo Financeiro — um seletor só, no topo,
- * que vale pras páginas que não tinham nenhum recorte de tempo próprio
- * (Central de Relatórios, Contatos, Transferências, Cobranças). Escopo
- * deliberadamente NÃO inclui Painel Financeiro/DRE/Fluxo de
- * Caixa/Projeção/Receber-Pagar-Receitas-Despesas — essas já têm seletor de
- * período próprio, mais específico pro que cada uma faz (ex.: o Painel tem
- * cards que são "sempre mês atual vs mês anterior" por design,
- * independente de qualquer seletor; forçar um filtro genérico ali quebraria
- * esse comportamento documentado). Ver FinanceiroFilterBar.tsx pro seletor.
+ * Filtro de período GLOBAL do módulo Financeiro: um seletor só (o dropdown "Este mês", "Mês passado"…),
+ * lido por todas as telas com período via useFinanceiroFiltro (Painel Geral, Visão Geral, DRE, Fluxo de
+ * Caixa, Central de Resumo, Compras, Relatórios, Contatos, Transferências, Cobranças…). Telas que fecham
+ * mês a mês (Comissões, Folha, Orçamentos, Agenda) e as que olham para o futuro (Projeção) usam o mesmo
+ * seletor com atalhos próprios. Ver FinanceiroFilterBar.tsx.
  */
 export function FinanceiroFilterProvider({ children }: { children: ReactNode }) {
   const [preset, setPresetState] = useState<FinanceiroPeriodoPreset>(() => {

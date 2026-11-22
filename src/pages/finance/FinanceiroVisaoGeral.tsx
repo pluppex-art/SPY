@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
 import { Button } from "../../components/ui/button";
-import { Printer, Download, ChevronLeft, ChevronRight, Calendar, Users, Inbox, Wallet, Scale, Repeat2, TrendingUp, TrendingDown, AlertTriangle, Landmark } from "lucide-react";
+import { Printer, Download, Users, Inbox, Wallet, Scale, Repeat2, TrendingUp, TrendingDown, AlertTriangle, Landmark } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import { PageContainer } from "../../components/PageContainer";
 import { FinanceiroKPIs, type FinanceiroKpiCard } from "./components/FinanceiroVisaoGeral/FinanceiroKPIs";

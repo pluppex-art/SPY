@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
-import { Card } from "../../components/ui/card";
+import { } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { type KpiItem } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { somar, lerValor } from "../../lib/dinheiro";
 import { toast } from "sonner";
-import { BadgePercent, CheckCircle2, ChevronLeft, ChevronRight, Clock, FileSpreadsheet, Plus, Target, Trophy, Wand2, X } from "lucide-react";
+import { BadgePercent, CheckCircle2, Clock, FileSpreadsheet, Plus, Target, Trophy, Wand2, X } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { SeletorCompetencia } from "./components/SeletorCompetencia";
 import { Button } from "../../components/ui/button";
@@ -187,7 +187,6 @@ export default function FinanceiroComissoes() {
     } catch (e) { toast.error(friendlyError(e)); }
   };
 
-  const mover = (d: number) => setRef(new Date(ref.getFullYear(), ref.getMonth() + d, 1));
   const inputCls = "h-8 rounded-md border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-2 text-right text-xs tabular-nums";
 
   return (

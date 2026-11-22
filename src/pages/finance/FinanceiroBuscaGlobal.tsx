@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { Sparkline } from "../../components/ui/sparkline";
+import { } from "../../components/ui/sparkline";
 import { Pagination } from "../../components/ui/Pagination";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../../components/ui/dropdown-menu";

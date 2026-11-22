@@ -13,7 +13,7 @@ import { Modal } from "../../components/ui/modal";
 import { Switch } from "../../components/ui/switch";
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid, AreaChart, Area, Legend } from "recharts";
+import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area, Legend } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { BotaoFaturaPdf } from "./BotaoFaturaPdf";
@@ -35,7 +35,7 @@ import { type Frequencia, addPeriodo, splitInstallments } from "../../lib/saleCa
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
-import { isInMonth, pctDelta, getMonthlyRealizedSeries } from "./lib/financeEngine";
+import { isInMonth, pctDelta } from "./lib/financeEngine";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { financeEntryDrillColumns } from "../../components/ui/drillColumns";
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { lerValor } from "../../lib/dinheiro";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { CheckCircle2, ChevronLeft, ChevronRight, Clock, FileSpreadsheet, HandCoins, Inbox, Users, Wallet, Wand2 } from "lucide-react";
+import { CheckCircle2, Clock, FileSpreadsheet, HandCoins, Inbox, Users, Wallet, Wand2 } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { SeletorCompetencia } from "./components/SeletorCompetencia";
 import { Button } from "../../components/ui/button";
@@ -166,7 +166,6 @@ export default function FinanceiroFolha() {
     } catch (e) { toast.error(friendlyError(e)); }
   };
 
-  const mover = (d: number) => setRef(new Date(ref.getFullYear(), ref.getMonth() + d, 1));
   const inputCls = "h-8 w-24 rounded-md border border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] px-2 text-right text-xs tabular-nums";
 
   return (

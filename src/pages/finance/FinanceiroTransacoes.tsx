@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
-import { Sparkline } from "../../components/ui/sparkline";
+import { } from "../../components/ui/sparkline";
 import { Pagination } from "../../components/ui/Pagination";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
@@ -14,7 +14,7 @@ import { useRowOpen } from "./components/useRowOpen";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
 import { FinanceKpiGrid } from "./components/FinanceKpiGrid";
 import {
-  ArrowDownLeft, ArrowUpRight, ArrowDownRight, Download, Plus, ListOrdered, Scale, Search, Minus,
+  ArrowDownLeft, ArrowUpRight, Download, Plus, ListOrdered, Scale, Search, 
   CheckCircle2, Clock, AlertTriangle, Tag, List as ListIcon, LayoutGrid, ArrowUpDown, X, MoreVertical, Copy, ExternalLink, Eye, FileText, Landmark, Trash2, SlidersHorizontal,
 } from "lucide-react";
 import { useData } from "../../contexts/DataContext";

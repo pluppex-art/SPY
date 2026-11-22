@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { SeletorCompetencia } from "./components/SeletorCompetencia";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { AlertTriangle, ChevronLeft, ChevronRight, Copy, FolderTree, Sparkles, Target, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, Copy, FolderTree, Sparkles, Target, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { FilterBar, FilterSearch, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
@@ -47,7 +47,6 @@ export default function FinanceiroOrcamentos() {
 
   const [refDate, setRefDate] = useState(() => new Date());
   const mes = monthKey(refDate);
-  const mesLabel = `${MONTH_NAMES[refDate.getMonth()]} de ${refDate.getFullYear()}`;
   const mesAtualKey = monthKey(new Date());
   const [busca, setBusca] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState("");

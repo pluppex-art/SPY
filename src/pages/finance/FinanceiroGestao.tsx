@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock, Wallet, Target, Gift, Plane, HandCoins, Handshake, PiggyBank, MessageCircle, Users } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Wallet, Target, Gift, Plane, PiggyBank, Users } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { fetchAllRows } from "../../lib/pgrst";
 import { CadastroFinanceiro, type ResumoCadastro } from "./components/CadastroFinanceiro";

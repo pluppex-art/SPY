@@ -3,12 +3,12 @@ import { lerValorOuNulo } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
-  CheckCircle2, AlertCircle, RefreshCw, Upload, FileText,
-  Building2, ArrowRight, ShieldCheck, Sparkles, Check, X,
-  ArrowDownLeft, ArrowUpRight, Landmark, Link2, FilePlus2
+  CheckCircle2, AlertCircle, RefreshCw, Upload, 
+  Building2, Sparkles, Check, X,
+  ArrowDownLeft, Landmark, Link2, FilePlus2
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
-import { Card } from "../../components/ui/card";
+import { } from "../../components/ui/card";
 import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { toast } from "sonner";

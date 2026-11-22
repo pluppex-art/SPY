@@ -4,7 +4,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Download, Printer, ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Scale, Landmark } from "lucide-react";
-import { FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
+import { FilterBar, type KpiItem } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useData } from "../../contexts/DataContext";

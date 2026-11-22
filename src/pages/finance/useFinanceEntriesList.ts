@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { somar } from "../../lib/dinheiro";
 import { supabase } from "../../lib/supabase";
 import { limpaBusca, fetchAllRows } from "../../lib/pgrst";

@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
-import { Card } from "../../components/ui/card";
+import { } from "../../components/ui/card";
 import { AlertTriangle, Users, Receipt, Clock, Hourglass } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";

@@ -64,7 +64,6 @@ export default function FinanceiroAgenda() {
       toast.error("Não foi possível gerar a planilha.");
     }
   };
-  const mover = (delta: number) => setRef(new Date(ano, mes + delta, 1));
 
   return (
     <PageContainer

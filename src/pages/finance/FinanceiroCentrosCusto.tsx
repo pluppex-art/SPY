@@ -5,7 +5,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
   Layers, Plus, DollarSign, Users, TrendingUp,
-  Building2, Trash2, Edit2, X, AlertCircle, PieChart, Download, FileText, Loader2, Info, Eye
+  Trash2, Edit2, AlertCircle, Download, FileText, Loader2, Info, Eye
 } from "lucide-react";
 import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";

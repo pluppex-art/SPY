@@ -3,11 +3,11 @@ import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import {
   Receipt, Plus, QrCode, CheckCircle2, Clock,
-  AlertTriangle, ExternalLink, DollarSign, X, Trash2, Check, Download,
-  Send, MessageCircle, Mail, Eye, User, FolderOpen, Landmark, Wallet, CreditCard, Hash, AlignLeft, Calendar, FileText, Save, Info, Loader2
+  AlertTriangle, DollarSign, Trash2, Download,
+  Send, MessageCircle, Mail, Eye, User, FolderOpen, Landmark, Wallet, CreditCard, Hash, AlignLeft, Calendar, FileText, Save, Info, 
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
-import { Card } from "../../components/ui/card";
+import { } from "../../components/ui/card";
 import { FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { Modal } from "../../components/ui/modal";

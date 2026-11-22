@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, BarChart3, CalendarClock, CheckCircle2, ChevronRight, Inbox, Landmark, TrendingDown, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, BarChart3, CalendarClock, CheckCircle2, ChevronRight, Inbox, Landmark, TrendingDown, Users, Wallet } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
