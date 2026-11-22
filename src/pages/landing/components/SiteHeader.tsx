@@ -91,7 +91,7 @@ export function SiteHeader() {
       <div className="sp-wrap">
         <div className="sp-header__bar">
           <Link to="/landing" className="sp-brand" aria-label="S.P.Y. — página inicial">
-            <img className="sp-brand__img" src="/logo-topbar.webp" alt="S.P.Y. CRM" width={720} height={320} decoding="async" fetchPriority="high" />
+            <img className="sp-brand__img" src="/logo-topbar.webp" alt="S.P.Y. SORA" width={720} height={320} decoding="async" fetchPriority="high" />
           </Link>
 
           <nav className="sp-nav" aria-label="Principal">

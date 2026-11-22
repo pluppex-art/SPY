@@ -98,7 +98,7 @@ export default function CatalogoPublico() {
         )}
 
         <footer className="text-center text-[11px] text-slate-600 mt-10 pt-6 border-t border-white/5">
-          Catálogo gerado por <span className="text-blue-500 font-bold">S.P.Y. CRM</span>
+          Catálogo gerado por <span className="text-blue-500 font-bold">S.P.Y. SORA</span>
         </footer>
       </div>
       <TenantSocialProofPopup tenantId={tenantId} />

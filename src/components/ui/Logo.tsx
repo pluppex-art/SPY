@@ -10,7 +10,7 @@ export const LOGO_COLORS: Record<LogoColorId, string> = {
 };
 
 export interface LogoProps {
-  /** "icon" = só o símbolo (chapéu + mira). "full" = símbolo + wordmark "SPY CRM" */
+  /** "icon" = só o símbolo (chapéu + mira). "full" = símbolo + wordmark "SPY SORA" */
   variant?: "icon" | "full";
   /** Uma das 4 cores de marca, ou qualquer hex customizado (ex.: tenant.primary_color). */
   color?: LogoColorId | (string & {});
@@ -29,7 +29,7 @@ function resolveColor(color: LogoProps["color"]): string {
 const MASK_BASE = { maskSize: "100% 100%", WebkitMaskSize: "100% 100%", maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat" } as const;
 
 /**
- * Logo oficial da S.P.Y. (espião + mira, e "SPY CRM"), a mesma arte para todas as empresas. Está dividida em
+ * Logo oficial da S.P.Y. (espião + mira, e "SPY SORA"), a mesma arte para todas as empresas. Está dividida em
  * camadas: a parte colorida (mira, chapéu, "CRM") é uma máscara pintada com a cor EXATA da empresa — a mesma
  * dos botões —, e a parte neutra (texto "SPY" e olhos) fica branca no tema escuro e grafite no claro; o CSS
  * (.spy-logo--*) escolhe pela classe `dark` do <html>.
@@ -44,7 +44,7 @@ export function Logo({ variant = "full", color, size = 32, className, tone = "au
   const maskUrl = `url(${base}-color.webp)`;
   const layer: React.CSSProperties = { position: "absolute", inset: 0, width: w, height: h, display: "block" };
   return (
-    <span className={`relative inline-block shrink-0 ${className ?? ""}`} style={{ width: w, height: h }} role="img" aria-label={isIcon ? "S.P.Y." : "SPY CRM"}>
+    <span className={`relative inline-block shrink-0 ${className ?? ""}`} style={{ width: w, height: h }} role="img" aria-label={isIcon ? "S.P.Y." : "SPY SORA"}>
       {tone !== "light" && <img className={tone === "dark" ? "" : "spy-logo--on-dark"} src={`${base}-white.webp`} alt="" width={w} height={h} style={layer} draggable={false} />}
       {tone !== "dark" && <img className={tone === "light" ? "" : "spy-logo--on-light"} src={`${base}-dark.webp`} alt="" width={w} height={h} style={layer} draggable={false} />}
       <span aria-hidden="true" style={{ ...layer, ...MASK_BASE, backgroundColor: fill, maskImage: maskUrl, WebkitMaskImage: maskUrl }} />

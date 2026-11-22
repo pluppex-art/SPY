@@ -89,7 +89,7 @@ export function OnboardingWizard() {
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-[var(--color-primary-blue)]" />
             <div>
-              <h2 className="text-base font-black text-[var(--color-text-primary)]">Bem-vindo ao S.P.Y. CRM</h2>
+              <h2 className="text-base font-black text-[var(--color-text-primary)]">Bem-vindo ao S.P.Y. SORA</h2>
               <p className="text-xs text-[var(--color-text-muted)]">Vamos configurar sua empresa em 2 passos rápidos.</p>
             </div>
           </div>
