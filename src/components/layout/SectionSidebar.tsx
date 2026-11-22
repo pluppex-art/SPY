@@ -33,6 +33,8 @@ interface SectionSidebarProps {
   groups: SectionNavGroup[];
   /** Controle opcional logo abaixo do título (ex.: alternar modo Resumo/Avançado). */
   headerExtra?: ReactNode;
+  /** Conteúdo logo após a lista de itens (ex.: botão "Avançado" que abre o menu completo). */
+  footerExtra?: ReactNode;
   children: ReactNode;
 }
 
@@ -43,7 +45,7 @@ interface SectionSidebarProps {
  * zero com pequenas divergências de active-state/collapse; agora é um único
  * padrão visual e de comportamento.
  */
-export function SectionSidebar({ heading, subheading, groups, headerExtra, children }: SectionSidebarProps) {
+export function SectionSidebar({ heading, subheading, groups, headerExtra, footerExtra, children }: SectionSidebarProps) {
   const location = useLocation();
   const { t } = useLocalization();
   const [isHidden, setIsHidden] = useState(false);
@@ -104,6 +106,7 @@ export function SectionSidebar({ heading, subheading, groups, headerExtra, child
           {groups.map((group) => (
             <SectionGroup key={group.title} group={group} isActive={isActive} />
           ))}
+          {footerExtra && <div className="px-4 mt-2">{footerExtra}</div>}
         </nav>
       </div>
 
@@ -153,6 +156,7 @@ export function SectionSidebar({ heading, subheading, groups, headerExtra, child
                   onItemClick={() => setMobileMenuOpen(false)}
                 />
               ))}
+              {footerExtra && <div className="px-4 mt-2">{footerExtra}</div>}
             </div>
           </div>
         </div>,

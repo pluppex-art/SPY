@@ -41,6 +41,7 @@ import {
   Plane,
   PiggyBank,
   BadgePercent,
+  ChevronLeft, ChevronRight, LayoutList,
 } from "lucide-react";
 import { SectionSidebar, type SectionNavGroup, type SectionNavItem } from "../../components/layout/SectionSidebar";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
@@ -155,11 +156,11 @@ const PAGINAS_COM_BOTAO_PROPRIO = [
 // Modo "Resumo": só o essencial para quem não é do financeiro. "Avançado" mostra o menu completo.
 const ESSENCIAIS_RESUMO: SectionNavItem[] = [
   { title: "Painel Geral", path: "/app/financeiro/dashboard", icon: LayoutDashboard, matchPaths: ["/app/financeiro/dashboard", "/app/financeiro/visao-geral", "/app/financeiro/resumo", "/app/financeiro/agenda", "/app/financeiro/busca"] },
-  { title: "Receitas (a receber)", path: "/app/financeiro/receitas", icon: Inbox },
-  { title: "Despesas (a pagar)", path: "/app/financeiro/despesas", icon: TrendingDown },
+  { title: "Receita", path: "/app/financeiro/receitas", icon: Inbox },
+  { title: "Despesa", path: "/app/financeiro/despesas", icon: TrendingDown },
   { title: "Fluxo de Caixa", path: "/app/financeiro/fluxo-caixa", icon: Waves },
-  { title: "Contas Bancárias", path: "/app/financeiro/bancos", icon: CreditCard },
-  { title: "DRE Gerencial", path: "/app/financeiro/dre", icon: PieChart },
+  { title: "Bancos", path: "/app/financeiro/bancos", icon: CreditCard },
+  { title: "DRE", path: "/app/financeiro/dre", icon: PieChart },
 ];
 const MODO_KEY = "spy_financeiro_modo_menu";
 
@@ -182,19 +183,18 @@ export default function FinanceiroLayout() {
     if (aberta && !itens.some((i) => (i.matchPaths ?? [i.path]).some(atual))) itens.push(aberta);
     return [{ title: "Financeiro", icon: Wallet, items: itens }];
   }, [groupsCompletos, modo, location.pathname]);
-  const seletorModo = (
-    <div className="flex p-0.5 rounded-[var(--radius-control)] bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]" role="group" aria-label="Modo do menu">
-      {(["resumo", "avancado"] as const).map((m) => (
-        <button
-          key={m}
-          type="button"
-          onClick={() => escolherModo(m)}
-          className={`flex-1 px-2 py-1 text-[11px] font-bold rounded cursor-pointer transition-all ${modo === m ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
-        >
-          {m === "resumo" ? "Resumo" : "Avançado"}
-        </button>
-      ))}
-    </div>
+  const btnModo = "w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] cursor-pointer transition-all border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]";
+  // Resumo: lista curta + "Avançado" no fim abre o menu completo (subsidebar). No Avançado, "Voltar" retorna.
+  const voltarResumo = (
+    <button type="button" onClick={() => escolherModo("resumo")} className={btnModo}>
+      <span className="flex items-center gap-2"><ChevronLeft className="w-4 h-4" /> Voltar ao Resumo</span>
+    </button>
+  );
+  const abrirAvancado = (
+    <button type="button" onClick={() => escolherModo("avancado")} className={btnModo}>
+      <span className="flex items-center gap-2"><LayoutList className="w-4 h-4" /> Avançado</span>
+      <ChevronRight className="w-4 h-4" />
+    </button>
   );
 
   // Bancos/transferências/centros de custo/anexos/categorias/auditoria não
@@ -208,7 +208,7 @@ export default function FinanceiroLayout() {
   const tipoPadrao = /receb|receita|cobranca|inadimpl|mrr/.test(location.pathname) ? "Receber" : "Pagar";
 
   return (
-    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groups} headerExtra={seletorModo}>
+    <SectionSidebar heading="Financeiro" subheading="Gestão Financeira" groups={groups} headerExtra={modo === "avancado" ? voltarResumo : undefined} footerExtra={modo === "resumo" ? abrirAvancado : undefined}>
       <FinanceiroFilterProvider>
         {abasDaRota && abasDaRota.abas.length > 1 && (
           <nav aria-label={abasDaRota.title} className="flex gap-1 overflow-x-auto mb-4 pb-1 border-b border-[var(--color-border-subtle)] print:hidden">
