@@ -15,6 +15,7 @@ import { useSearchParams } from "react-router-dom";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid, AreaChart, Area, Legend } from "recharts";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
+import { apiFetch } from "../../lib/apiClient";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { downloadCsv } from "../../lib/csvExport";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -516,6 +517,14 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       confirmText: "Estornar",
     }))) return;
     if (await estornarFinanceEntry(item.id)) setTimeout(refetchEntries, 300);
+  };
+  // Fatura (em aberto) ou recibo (pago) em PDF — gerado no servidor, só para receitas.
+  const handleFaturaPdf = async (item: (typeof financeEntries)[number]) => {
+    try {
+      const r = await apiFetch(`/api/financeiro/fatura/${encodeURIComponent(String(item.id))}`);
+      if (!r.ok) { const j = await r.json().catch(() => ({})); toast.error(j.error || "Não foi possível gerar o PDF."); return; }
+      window.open(URL.createObjectURL(await r.blob()), "_blank");
+    } catch { toast.error("Não foi possível gerar o PDF agora."); }
   };
   const handleRemover = (item: (typeof financeEntries)[number]) => (pagamentoTravado(item as any) ? handleEstornar(item) : handleDelete(item));
   const tituloRemover = (item: (typeof financeEntries)[number]) => (pagamentoTravado(item as any) ? "Estornar pagamento" : "Excluir lançamento");
@@ -1057,6 +1066,16 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
+                        {type === "Receber" && (
+                          <button
+                            type="button"
+                            onClick={() => handleFaturaPdf(item)}
+                            className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/10 rounded-lg transition-colors cursor-pointer"
+                            title={item.status === "Pago" ? "Recibo em PDF" : "Fatura em PDF"}
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleDuplicate(item)}
@@ -1179,6 +1198,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
               <div className="flex items-center gap-1 shrink-0">
                 <button type="button" onClick={() => setViewingItem(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Visualizar lançamento"><Eye className="w-3.5 h-3.5" /></button>
                 <button type="button" onClick={() => openEdit(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Editar lançamento"><Pencil className="w-3.5 h-3.5" /></button>
+                {type === "Receber" && <button type="button" onClick={() => handleFaturaPdf(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title={item.status === "Pago" ? "Recibo em PDF" : "Fatura em PDF"}><FileText className="w-3.5 h-3.5" /></button>}
                 <button type="button" onClick={() => handleDuplicate(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-primary-blue)] rounded-lg cursor-pointer" title="Duplicar lançamento"><Copy className="w-3.5 h-3.5" /></button>
                 <button type="button" onClick={() => handleRemover(item)} className="p-1.5 bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-danger rounded-lg cursor-pointer" title={tituloRemover(item)}>{pagamentoTravado(item as any) ? <Undo2 className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}</button>
               </div>
