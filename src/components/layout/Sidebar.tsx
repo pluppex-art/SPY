@@ -257,28 +257,21 @@ export function Sidebar({
                     const linhas = [...ITENS_RESUMO_FINANCEIRO, null, ITEM_CONFIG_FINANCEIRO];
                     return (
                       <div key={item.name}>
-                        <Link to={item.path} onClick={() => setIsMobileSidebarOpen(false)} className="block">
-                          <button type="button" className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] cursor-pointer border-none text-left text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)]">
-                            <item.icon className="w-4 h-4 shrink-0 text-[var(--color-primary-blue)]" />
-                            <span className="truncate">{t(item.name)}</span>
-                            <ChevronDown className="w-3.5 h-3.5 ml-auto rotate-180 text-[var(--color-text-faint)]" />
-                          </button>
-                        </Link>
-                        <div className="ml-4 mt-1 mb-1 pl-2 border-l border-[var(--color-border-default)] space-y-0.5">
+                        <div className="space-y-0.5">
                           {linhas.map((it) => {
                             if (!it) {
                               const Ic = ITEM_AVANCADO_FINANCEIRO.icon;
                               return (
-                                <button key="avancado" type="button" onClick={() => { escolherModoFinanceiro("avancado"); setIsMobileSidebarOpen(false); }} className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-[12px] font-semibold rounded-[var(--radius-control)] cursor-pointer border-none bg-transparent text-left text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors">
-                                  <Ic className="w-3.5 h-3.5 shrink-0" />
+                                <button key="avancado" type="button" onClick={() => { escolherModoFinanceiro("avancado"); setIsMobileSidebarOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] cursor-pointer border-none bg-transparent text-left text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors">
+                                  <Ic className="w-4 h-4 shrink-0" />
                                   <span className="truncate">{t(ITEM_AVANCADO_FINANCEIRO.title)}</span>
                                 </button>
                               );
                             }
                             const Ic = it.icon; const sel = subAtivo(it);
                             return (
-                              <Link key={it.path} to={it.path} onClick={() => setIsMobileSidebarOpen(false)} className={`flex items-center gap-2.5 px-2.5 py-1.5 text-[12px] font-semibold rounded-[var(--radius-control)] transition-colors ${sel ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"}`}>
-                                <Ic className="w-3.5 h-3.5 shrink-0" />
+                              <Link key={it.path} to={it.path} onClick={() => setIsMobileSidebarOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] transition-colors ${sel ? "bg-[var(--color-primary-blue)] !text-white shadow-md shadow-[var(--color-primary-blue)]/25" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"}`}>
+                                <Ic className="w-4 h-4 shrink-0" />
                                 <span className="truncate">{t(it.title)}</span>
                               </Link>
                             );
