@@ -203,7 +203,15 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
   // Chave Pix da empresa (para o QR das faturas em aberto).
   app.get("/api/financeiro/pix-recebimento", requireUser, limiter, async (req: any, res) => {
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
-    return res.json({ pix: await lerPix(tenantId), mercadoPago: !!(await cobranca.tokenMp(tenantId)) });
+    const pix = await lerPix(tenantId);
+    // brcode: Pix da empresa SEM valor (usado no cupom do varejo e no recibo), pronto para virar QR na tela.
+    let nomeRecebedor = pix?.nome || "";
+    if (pix && !nomeRecebedor) {
+      const { data: emp } = (await supabaseService?.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "empresa_dados").maybeSingle()) ?? { data: null };
+      nomeRecebedor = texto(emp?.value?.razaoSocial) || texto(emp?.value?.nomeFantasia);
+    }
+    const brcode = pix ? montarBrCode({ chave: pix.chave, nome: nomeRecebedor, cidade: pix.cidade, txid: "SPY" }) : null;
+    return res.json({ pix, brcode, mercadoPago: !!(await cobranca.tokenMp(tenantId)) });
   });
   app.put("/api/financeiro/pix-recebimento", requireUser, requireTenantAdmin, limiter, async (req: any, res) => {
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;

@@ -34,6 +34,7 @@ export interface VarejoConfig {
     rodape: string;
     mensagemTroca: string;
     mostrarVendedor: boolean;
+    mostrarPix: boolean;             // QR do Pix da empresa (sem valor) no rodapé do cupom
     mostrarLogo: boolean;            // logo de Dados da Empresa no topo do cupom
   };
   fiscal: {
@@ -52,7 +53,7 @@ export const DEFAULT_VAREJO_CONFIG: VarejoConfig = {
   pdv: { exigirCliente: false, exigirSenhaSupervisor: true, exigirVendedor: false, permitirVendaSemEstoque: false, descontoMaximoPct: 100, comissaoVendedorPct: 0, descontoLivre: true, sons: true },
   pagamentos: { habilitadas: [...FORMAS_PAGAMENTO], padrao: "Dinheiro", crediarioPrazoPadraoDias: 30, crediarioExigeCliente: true },
   estoque: { estoqueMinimoPadrao: 5, alertaEstoqueBaixo: true },
-  cupom: { mostrarDadosEmpresa: true, cabecalho: "", rodape: "Obrigado pela preferência!", mensagemTroca: "", mostrarVendedor: true, mostrarLogo: true },
+  cupom: { mostrarDadosEmpresa: true, cabecalho: "", rodape: "Obrigado pela preferência!", mensagemTroca: "", mostrarVendedor: true, mostrarLogo: true, mostrarPix: true },
   fiscal: { exigirCpfNaNota: false, vincularItensAutomaticamente: true },
   compras: { prazoEntregaPadraoDias: 7, margemMinimaPct: 0 },
 };

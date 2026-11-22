@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { somar, formatBRL } from "../../lib/dinheiro";
 import { toast } from "sonner";
+import { apiFetch } from "../../lib/apiClient";
 import {
   ShoppingCart, Plus, Minus, Trash2, Search, Package, Link2, Copy,
   History, ChevronDown, ChevronUp, TrendingUp, Receipt, QrCode, CreditCard,
@@ -302,6 +303,23 @@ export default function VarejoVendas() {
 
   // Cupom Modal
   const [receiptVenda, setReceiptVenda] = useState<VendaHistorico | null>(null);
+  // QR do Pix da empresa (sem valor) para o rodapé do cupom: o código vem do servidor, o desenho é feito aqui.
+  const [pixCupomQr, setPixCupomQr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!receiptVenda || !cfg.cupom.mostrarPix) { setPixCupomQr(null); return; }
+    let vivo = true;
+    (async () => {
+      try {
+        const r = await apiFetch("/api/financeiro/pix-recebimento");
+        const j = r.ok ? await r.json() : null;
+        if (!j?.brcode) { if (vivo) setPixCupomQr(null); return; }
+        const QR = await import("qrcode");
+        const url = await QR.toDataURL(j.brcode, { margin: 1, width: 180, errorCorrectionLevel: "M" });
+        if (vivo) setPixCupomQr(url);
+      } catch { if (vivo) setPixCupomQr(null); }
+    })();
+    return () => { vivo = false; };
+  }, [receiptVenda, cfg.cupom.mostrarPix]);
 
   // Caixa Operations State — só fica "aberto" quando uma abertura real for
   // encontrada no banco (ver efeito de carregamento de caixa_operacoes abaixo).
@@ -2235,6 +2253,12 @@ export default function VarejoVendas() {
                 <div className="text-center text-[9px] text-slate-600 pt-1 space-y-0.5">
                   <p className="font-bold whitespace-pre-line">{cfg.cupom.rodape}</p>
                   {cfg.cupom.mensagemTroca && <p className="text-[8px] whitespace-pre-line">{cfg.cupom.mensagemTroca}</p>}
+                  {pixCupomQr && (
+                    <div className="pt-1.5 flex flex-col items-center">
+                      <img src={pixCupomQr} alt="QR de Pix da empresa" className="w-24 h-24" />
+                      <p className="text-[8px] font-bold uppercase tracking-wide">Pix da empresa</p>
+                    </div>
+                  )}
                   <div className="pt-1 flex justify-center">
                     <Barcode className="w-32 h-6 opacity-70" />
                   </div>
