@@ -252,7 +252,7 @@ export function Sidebar({
                     );
                   }
 
-                  if (item.path === "/app/financeiro/dashboard" && !isSidebarCollapsed && location.pathname.startsWith("/app/financeiro")) {
+                  if (item.path === "/app/financeiro/dashboard" && !isSidebarCollapsed) {
                     const subAtivo = (it: { path: string; matchPaths?: string[] }) => (it.matchPaths ?? [it.path]).some((p) => location.pathname === p || location.pathname.startsWith(p + "/"));
                     const linhas = [...ITENS_RESUMO_FINANCEIRO, null, ITEM_CONFIG_FINANCEIRO];
                     return (
