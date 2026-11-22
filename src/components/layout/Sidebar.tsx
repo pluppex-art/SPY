@@ -128,7 +128,7 @@ export function Sidebar({
           </button>
         </div>
 
-        <div className="h-20 flex items-center justify-center px-3 py-2.5 shrink-0 border-b border-[var(--color-border-subtle)]">
+        <div className={`${isSidebarCollapsed ? "h-20" : "h-[6.5rem]"} flex items-center justify-center px-3 py-2.5 shrink-0 border-b border-[var(--color-border-subtle)]`}>
           <Link
             to="/app"
             className={`logo-image-container sidebar-logo-header flex items-center justify-center w-full h-full rounded-xl bg-transparent dark:bg-[var(--color-primary-blue)]/15 dark:border dark:border-[var(--color-primary-blue)]/25 dark:shadow-[0_0_20px_-6px_var(--color-primary-blue)] transition-all ${isSidebarCollapsed ? "mx-auto" : ""}`}
@@ -138,8 +138,9 @@ export function Sidebar({
                 <Logo variant="icon" size={34} color={tenantPrimaryColor} />
               </div>
             ) : (
-              <div className="relative w-full h-full flex items-center justify-center overflow-hidden px-2">
-                <Logo variant="full" size={30} color={tenantPrimaryColor} />
+              <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden px-2 gap-0.5">
+                <Logo variant="full" size={26} color={tenantPrimaryColor} />
+                <span className="text-[8px] font-black uppercase tracking-[0.18em] text-[var(--color-text-muted)] text-center leading-tight whitespace-nowrap">Sistema Operacional Autônomo</span>
               </div>
             )}
           </Link>
