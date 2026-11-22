@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ModalTitle } from "./components/ModalKit";
 import { somar } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
@@ -378,17 +379,7 @@ export default function FinanceiroTransferencias() {
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-[var(--color-info)]/10 text-[var(--color-info)]">
-              {editingId ? <Pencil className="w-5 h-5" /> : <Repeat className="w-6 h-6" />}
-            </div>
-            <div className="min-w-0">
-              <div className="text-lg font-black text-[var(--color-text-primary)] leading-tight">{editingId ? "Editar Transferência" : "Nova Transferência"}</div>
-              <div className="text-xs font-normal text-[var(--color-text-muted)]">Move dinheiro entre suas próprias contas — não é receita nem despesa e não entra no DRE.</div>
-            </div>
-          </div>
-        }
+        title={<ModalTitle icon={editingId ? Pencil : Repeat} title={editingId ? "Editar Transferência" : "Nova Transferência"} subtitle="Move dinheiro entre suas próprias contas — não é receita nem despesa e não entra no DRE." tone="primary" />}
         maxWidth="max-w-xl"
       >
         <form onSubmit={(e) => handleSave(e, false)} className="space-y-4">

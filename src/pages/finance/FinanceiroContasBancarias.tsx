@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ModalTitle } from "./components/ModalKit";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -462,17 +463,7 @@ export default function FinanceiroContasBancarias() {
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]">
-              {editingId ? <Pencil className="w-5 h-5" /> : <Landmark className="w-6 h-6" />}
-            </div>
-            <div className="min-w-0">
-              <div className="text-lg font-black text-[var(--color-text-primary)] leading-tight">{editingId ? "Editar Conta Bancária" : "Nova Conta Bancária"}</div>
-              <div className="text-xs font-normal text-[var(--color-text-muted)]">Contas e caixas onde o dinheiro realmente circula — só lançamentos pagos afetam o saldo.</div>
-            </div>
-          </div>
-        }
+        title={<ModalTitle icon={editingId ? Pencil : Landmark} title={editingId ? "Editar Conta Bancária" : "Nova Conta Bancária"} subtitle="Contas e caixas onde o dinheiro realmente circula — só lançamentos pagos afetam o saldo." tone="primary" />}
         maxWidth="max-w-xl"
       >
         <form onSubmit={handleSave} className="space-y-4">

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { ModalTitle } from "./components/ModalKit";
 import { somar, formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -357,17 +358,7 @@ export default function FinanceiroCentrosCusto() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]">
-              {editingId ? <Edit2 className="w-5 h-5" /> : <Layers className="w-6 h-6" />}
-            </div>
-            <div className="min-w-0">
-              <div className="text-lg font-black text-[var(--color-text-primary)] leading-tight">{editingId ? "Editar Centro de Custo" : "Novo Centro de Custo"}</div>
-              <div className="text-xs font-normal text-[var(--color-text-muted)]">Defina as alocações de budget por setor, squad ou unidade de despesa.</div>
-            </div>
-          </div>
-        }
+        title={<ModalTitle icon={editingId ? Edit2 : Layers} title={editingId ? "Editar Centro de Custo" : "Novo Centro de Custo"} subtitle="Defina as alocações de budget por setor, squad ou unidade de despesa." tone="primary" />}
         maxWidth="max-w-xl"
       >
         <form onSubmit={handleSave} className="space-y-4">

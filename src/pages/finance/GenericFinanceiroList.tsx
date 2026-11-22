@@ -1,4 +1,5 @@
 import { PageContainer } from "../../components/PageContainer";
+import { ModalTitle } from "./components/ModalKit";
 import { pagamentoTravado } from "./lib/estorno";
 import { Card } from "../../components/ui/card";
 import { EmptyState } from "../../components/ui/empty-state";
@@ -1228,17 +1229,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       <Modal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); resetAddForm(); }}
-        title={
-          <div className="flex items-center gap-3">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${type === 'Pagar' ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-              <DollarSign className="w-6 h-6" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-lg font-black text-[var(--color-text-primary)] leading-tight">{type === 'Pagar' ? 'Novo Gasto / Despesa' : 'Novo Recebimento / Receita'}</div>
-              <div className="text-xs font-normal text-[var(--color-text-muted)]">Registre um lançamento financeiro com classificação de categoria e vencimento.</div>
-            </div>
-          </div>
-        }
+        title={<ModalTitle icon={DollarSign} title={type === 'Pagar' ? 'Novo Gasto / Despesa' : 'Novo Recebimento / Receita'} subtitle="Registre um lançamento financeiro com classificação de categoria e vencimento." tone={type === 'Pagar' ? 'danger' : 'success'} />}
         maxWidth="max-w-2xl"
       >
         <form onSubmit={handleAdd} className="space-y-4">
@@ -1536,17 +1527,7 @@ export default function GenericFinanceiroList({ title, desc, type, statusFilter,
       <Modal
         isOpen={!!editingItem}
         onClose={() => setEditingItem(null)}
-        title={
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]">
-              <Pencil className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-lg font-black text-[var(--color-text-primary)] leading-tight">Editar Lançamento</div>
-              <div className="text-xs font-normal text-[var(--color-text-muted)]">Atualize os dados e o status deste lançamento financeiro. Nenhum campo é obrigatório.</div>
-            </div>
-          </div>
-        }
+        title={<ModalTitle icon={Pencil} title="Editar Lançamento" subtitle="Atualize os dados e o status deste lançamento financeiro. Nenhum campo é obrigatório." tone="primary" />}
         maxWidth="max-w-2xl"
       >
         <div className="flex items-center gap-1 border-b border-[var(--color-border-subtle)] mb-4">
