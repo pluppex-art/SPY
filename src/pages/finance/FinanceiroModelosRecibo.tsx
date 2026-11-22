@@ -7,14 +7,14 @@ import { useAuth } from "../../contexts/AuthContext";
 import { apiFetch } from "../../lib/apiClient";
 import { esquecerListaDeModelos } from "./BotaoFaturaPdf";
 
-type Mostrar = { emitente: boolean; documentoCliente: boolean; detalhes: boolean; formaPagamento: boolean; assinatura: boolean; pix: boolean };
+type Mostrar = { emitente: boolean; documentoCliente: boolean; detalhes: boolean; formaPagamento: boolean; assinatura: boolean; pix: boolean; logoEmpresa: boolean };
 type Modelo = { id: string; nome: string; cor: string; logo: string; tituloRecibo: string; tituloFatura: string; abertura: string; observacoes: string; mostrar: Mostrar };
 
 const campo = "h-[38px] w-full rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-3 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]";
 const area = "w-full rounded-[var(--radius-control)] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]";
 const VARIAVEIS = ["cliente", "cliente_documento", "valor", "valor_extenso", "descricao", "data_pagamento", "vencimento", "forma_pagamento", "emitente", "emitente_documento", "numero", "hoje"];
 const EXEMPLO = "Recebi de {{cliente}} a importância de {{valor}} ({{valor_extenso}}), referente a {{descricao}}. Para maior clareza, firmo o presente.";
-const OPCOES: [keyof Mostrar, string][] = [["emitente", "Dados da empresa (emitente)"], ["documentoCliente", "CPF/CNPJ do cliente"], ["detalhes", "Tabela de descrição e valor"], ["formaPagamento", "Forma de pagamento"], ["assinatura", "Linha de assinatura"], ["pix", "QR de Pix (só nas faturas em aberto)"]];
+const OPCOES: [keyof Mostrar, string][] = [["emitente", "Dados da empresa (emitente)"], ["documentoCliente", "CPF/CNPJ do cliente"], ["detalhes", "Tabela de descrição e valor"], ["formaPagamento", "Forma de pagamento"], ["assinatura", "Linha de assinatura"], ["pix", "QR de Pix (só nas faturas em aberto)"], ["logoEmpresa", "Usar a logo de Dados da Empresa (quando o modelo não tem logo própria)"]];
 
 const novoId = () => `m${Date.now().toString(36)}`;
 async function lerJson(r: Response) { try { return await r.json(); } catch { return {}; } }

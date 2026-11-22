@@ -7,6 +7,7 @@ import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { montarBrCode, normalizarChavePix } from "./pix.js";
 import { criarCobrancaPix } from "./cobrancaPix.js";
+import { assertSafeHttpUrl } from "./ssrfGuard.js";
 import { formatBRL } from "../src/lib/dinheiro.js";
 import { MODELO_PADRAO, aplicarVariaveis, escolherModelo, sanitizarConfig, sanitizarModelo, valorPorExtenso, type ModeloRecibo } from "./modeloRecibo.js";
 
@@ -67,6 +68,36 @@ export function variaveisDaFatura(d: DadosFatura): Record<string, string> {
     descricao: d.descricao, data_pagamento: d.pagoEm, vencimento: d.vencimento, forma_pagamento: d.formaPagamento,
     emitente: d.emitente.nome, emitente_documento: d.emitente.documento, numero: d.numero, hoje: d.emitidoEm,
   };
+}
+
+/** Tipo da imagem pelos primeiros bytes (não pelo que o servidor diz): só PNG e JPEG servem para o PDF. */
+export function tipoDaImagem(b: Uint8Array): "png" | "jpeg" | null {
+  if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "png";
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpeg";
+  return null;
+}
+
+const MAX_LOGO_EMPRESA = 1_000_000;
+const cacheLogo = new Map<string, { ate: number; valor: string }>();
+/** Logo de "Dados da Empresa" (URL pública) → data URL PNG/JPEG, ou "" se não der (formato diferente, grande demais, fora do ar). Nunca derruba o PDF. */
+export async function logoDaEmpresa(url: unknown): Promise<string> {
+  const u = texto(url);
+  if (!u) return "";
+  const hit = cacheLogo.get(u);
+  if (hit && hit.ate > Date.now()) return hit.valor;
+  let valor = "";
+  try {
+    await assertSafeHttpUrl(u);
+    const r = await fetch(u, { signal: AbortSignal.timeout(8000), redirect: "error" });
+    const len = Number(r.headers.get("content-length") || 0);
+    if (r.ok && len <= MAX_LOGO_EMPRESA) {
+      const b = new Uint8Array(await r.arrayBuffer());
+      const t = b.length <= MAX_LOGO_EMPRESA ? tipoDaImagem(b) : null;
+      if (t) valor = `data:image/${t};base64,${Buffer.from(b).toString("base64")}`;
+    }
+  } catch { /* sem logo */ }
+  cacheLogo.set(u, { ate: Date.now() + 10 * 60_000, valor });
+  return valor;
 }
 
 export function gerarFaturaPdf(d: DadosFatura, modelo: ModeloRecibo = MODELO_PADRAO, brcode?: string | null): Buffer {
@@ -207,11 +238,15 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
   // Pré-visualização: gera o PDF de um modelo (ainda não salvo) com dados de exemplo.
   app.post("/api/financeiro/modelos-recibo/preview", requireUser, limiter, async (req: any, res) => {
     try {
-      const modelo = sanitizarModelo(req.body?.modelo, "previa");
+      const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+      let modelo = sanitizarModelo(req.body?.modelo, "previa");
+      if (!modelo.logo && modelo.mostrar.logoEmpresa) {
+        const { data: emp } = (await supabaseService?.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "empresa_dados").maybeSingle()) ?? { data: null };
+        modelo = { ...modelo, logo: await logoDaEmpresa(emp?.value?.logoUrl) };
+      }
       const pago = req.body?.tipo !== "fatura";
       const d = dadosDaFatura({ id: "a1b2c3d4", counterparty: "Maria da Silva", description: "Serviço prestado (exemplo)", value: 2244.5, status: pago ? "Pago" : "A Vencer", date_normalized: "2026-12-05", data_pagamento: "2026-11-21", payment_method: "Pix" },
         { razaoSocial: "Sua Empresa Ltda", cnpj: "12345678000195", endereco: "Rua Exemplo, 100 — Centro", emailContato: "contato@suaempresa.com.br", telefoneContato: "(11) 99999-0000" }, { name: "Maria da Silva", documento: "52998224725" }, "Sua Empresa", new Date().toISOString().slice(0, 10));
-      const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
       res.setHeader("Content-Type", "application/pdf"); res.setHeader("Cache-Control", "private, no-store");
       return res.send(gerarFaturaPdf(d, modelo, brcodeDa(await lerPix(tenantId), d)));
     } catch (err: any) { console.error("[modelos-recibo/preview]", err?.message); return res.status(500).json({ error: "Não foi possível gerar a pré-visualização." }); }
@@ -232,7 +267,8 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
         entry.contato_id ? req.supabase.from("clientes").select("name, documento, email").eq("id", entry.contato_id).maybeSingle() : { data: null },
       ]);
       const d = dadosDaFatura(entry, cfg?.value, cli, texto(tenant?.name) || "Empresa", new Date().toISOString().slice(0, 10));
-      const modelo = escolherModelo(await lerConfig(entry.tenant_id), texto(req.query.modelo) || null);
+      let modelo = escolherModelo(await lerConfig(entry.tenant_id), texto(req.query.modelo) || null);
+      if (!modelo.logo && modelo.mostrar.logoEmpresa) modelo = { ...modelo, logo: await logoDaEmpresa(cfg?.value?.logoUrl) };
       // Fatura em aberto: com Mercado Pago conectado o Pix é dinâmico (a baixa é automática ao pagar); senão, o Pix estático da chave cadastrada.
       let brcode: string | null = null;
       if (d.tipoDocumento === "FATURA") {

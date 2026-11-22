@@ -95,3 +95,14 @@ test("PDF da fatura em aberto com QR de Pix é gerado; recibo (pago) não leva Q
   const paga = dadosDaFatura({ id: "abcdef12", counterparty: "Ana Souza", value: 100, status: "Pago", data_pagamento: "2026-11-21" }, { razaoSocial: "LUMINAR" }, null, "Luminar", "2026-11-21");
   assert.ok(Math.abs(gerarFaturaPdf(paga, MODELO_PADRAO, code).length - gerarFaturaPdf(paga, MODELO_PADRAO, null).length) < 50);
 });
+
+import { tipoDaImagem, logoDaEmpresa } from "../../server/faturaPdf.js";
+test("logo da empresa: reconhece PNG/JPEG pelos bytes; URL insegura ou vazia vira 'sem logo' sem derrubar nada", async () => {
+  assert.equal(tipoDaImagem(Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0])), "png");
+  assert.equal(tipoDaImagem(Uint8Array.from([0xff, 0xd8, 0xff, 0xe0])), "jpeg");
+  assert.equal(tipoDaImagem(Uint8Array.from([0x3c, 0x73, 0x76, 0x67, 0x3e])), null);   // SVG
+  assert.equal(tipoDaImagem(Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57])), null); // WEBP
+  assert.equal(await logoDaEmpresa(""), "");
+  assert.equal(await logoDaEmpresa("http://127.0.0.1/logo.png"), "");
+  assert.equal(await logoDaEmpresa("file:///etc/passwd"), "");
+});
