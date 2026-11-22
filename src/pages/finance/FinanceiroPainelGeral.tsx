@@ -190,14 +190,14 @@ export default function FinanceiroPainelGeral() {
       title="Painel Geral"
       description="Saldo, entradas, saídas, contas a pagar e a receber, e os alertas do dia."
       actions={
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <FinanceiroFilterBar />
           <Link to={`${base}/resumo`}><Button variant="outline">Central de Resumo</Button></Link>
           <Link to={`${base}/visao-geral`}><Button variant="outline"><BarChart3 className="mr-2 h-4 w-4" />Análise detalhada</Button></Link>
         </div>
       }
     >
       <div className="mx-auto max-w-[1700px] space-y-4 pb-12">
-        <FinanceiroFilterBar />
         {erro && <SecaoCard titulo="Erro ao carregar"><p className="text-sm text-rose-600">{erro}</p></SecaoCard>}
 
         <FinanceKpiGrid
