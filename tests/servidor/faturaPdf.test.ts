@@ -87,13 +87,16 @@ test("Pix: chave é validada e normalizada; acentos e símbolos saem do nome", (
   assert.equal(semAcento("João & Cia — São Paulo!", 25), "JOAO  CIA  SAO PAULO");
 });
 
-test("PDF da fatura em aberto com QR de Pix é gerado; recibo (pago) não leva QR", () => {
+test("PDF: fatura em aberto leva o QR; recibo leva o Pix da empresa só se o modelo permitir", () => {
   const code = montarBrCode({ chave: "12345678000195", nome: "Luminar", cidade: "Goiania", valor: 100 });
   const aberta = dadosDaFatura({ id: "abcdef12", counterparty: "Ana Souza", value: 100, status: "A Vencer", date_normalized: "2026-12-05" }, { razaoSocial: "LUMINAR" }, null, "Luminar", "2026-11-21");
   const comQr = gerarFaturaPdf(aberta, MODELO_PADRAO, code), semQr = gerarFaturaPdf(aberta, MODELO_PADRAO, null);
   assert.ok(comQr.length > semQr.length + 2000);
   const paga = dadosDaFatura({ id: "abcdef12", counterparty: "Ana Souza", value: 100, status: "Pago", data_pagamento: "2026-11-21" }, { razaoSocial: "LUMINAR" }, null, "Luminar", "2026-11-21");
-  assert.ok(Math.abs(gerarFaturaPdf(paga, MODELO_PADRAO, code).length - gerarFaturaPdf(paga, MODELO_PADRAO, null).length) < 50);
+  assert.ok(gerarFaturaPdf(paga, MODELO_PADRAO, code).length > gerarFaturaPdf(paga, MODELO_PADRAO, null).length + 2000);
+  const semPixNoRecibo = { ...MODELO_PADRAO, mostrar: { ...MODELO_PADRAO.mostrar, pixNoRecibo: false } };
+  assert.ok(Math.abs(gerarFaturaPdf(paga, semPixNoRecibo, code).length - gerarFaturaPdf(paga, semPixNoRecibo, null).length) < 50);
+  assert.equal(MODELO_PADRAO.mostrar.pixNoRecibo, true);
 });
 
 import { tipoDaImagem, logoDaEmpresa } from "../../server/faturaPdf.js";

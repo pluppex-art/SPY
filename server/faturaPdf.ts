@@ -153,7 +153,8 @@ export function gerarFaturaPdf(d: DadosFatura, modelo: ModeloRecibo = MODELO_PAD
   fim2 += 8;
 
   // QR de Pix: só em fatura em aberto, quando a empresa cadastrou a chave e o modelo permite.
-  if (brcode && d.tipoDocumento === "FATURA" && modelo.mostrar.pix) {
+  const ehRecibo = d.tipoDocumento === "RECIBO";
+  if (brcode && (ehRecibo ? modelo.mostrar.pixNoRecibo : modelo.mostrar.pix)) {
     const tam = 38, linhas = doc.splitTextToSize(brcode, larg - 28 - tam - 8) as string[];
     if (fim2 + tam + 14 > alt - 20) { doc.addPage(); fim2 = 20; }
     const qr = QRCode.create(brcode, { errorCorrectionLevel: "M" }).modules;
@@ -161,8 +162,8 @@ export function gerarFaturaPdf(d: DadosFatura, modelo: ModeloRecibo = MODELO_PAD
     doc.setFillColor(255, 255, 255); doc.rect(14, fim2, tam, tam, "F");
     doc.setFillColor(0, 0, 0);
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.get(r, c)) doc.rect(14 + (c + 1) * celula, fim2 + (r + 1) * celula, celula, celula, "F");
-    doc.setFontSize(11); doc.setTextColor(cor[0], cor[1], cor[2]); doc.text("Pague com Pix", 14 + tam + 8, fim2 + 6);
-    doc.setFontSize(8); doc.setTextColor(70); doc.text("Aponte a câmera do app do banco para o QR ou use o Pix copia e cola:", 14 + tam + 8, fim2 + 11, { maxWidth: larg - 28 - tam - 8 });
+    doc.setFontSize(11); doc.setTextColor(cor[0], cor[1], cor[2]); doc.text(ehRecibo ? "Pix da empresa" : "Pague com Pix", 14 + tam + 8, fim2 + 6);
+    doc.setFontSize(8); doc.setTextColor(70); doc.text(ehRecibo ? "Para novos pagamentos, aponte a câmera do app do banco ou use o Pix copia e cola (sem valor definido):" : "Aponte a câmera do app do banco para o QR ou use o Pix copia e cola:", 14 + tam + 8, fim2 + 11, { maxWidth: larg - 28 - tam - 8 });
     doc.setFont("courier", "normal"); doc.setFontSize(6.5); doc.text(linhas, 14 + tam + 8, fim2 + 19);
     doc.setFont("helvetica", "normal");
     fim2 += tam + 10;
@@ -248,7 +249,9 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
       const d = dadosDaFatura({ id: "a1b2c3d4", counterparty: "Maria da Silva", description: "Serviço prestado (exemplo)", value: 2244.5, status: pago ? "Pago" : "A Vencer", date_normalized: "2026-12-05", data_pagamento: "2026-11-21", payment_method: "Pix" },
         { razaoSocial: "Sua Empresa Ltda", cnpj: "12345678000195", endereco: "Rua Exemplo, 100 — Centro", emailContato: "contato@suaempresa.com.br", telefoneContato: "(11) 99999-0000" }, { name: "Maria da Silva", documento: "52998224725" }, "Sua Empresa", new Date().toISOString().slice(0, 10));
       res.setHeader("Content-Type", "application/pdf"); res.setHeader("Cache-Control", "private, no-store");
-      return res.send(gerarFaturaPdf(d, modelo, brcodeDa(await lerPix(tenantId), d)));
+      const pixPrev = await lerPix(tenantId);
+      const code = pago ? (pixPrev ? montarBrCode({ chave: pixPrev.chave, nome: pixPrev.nome || d.emitente.nome, cidade: pixPrev.cidade, txid: "SPY" }) : null) : brcodeDa(pixPrev, d);
+      return res.send(gerarFaturaPdf(d, modelo, code));
     } catch (err: any) { console.error("[modelos-recibo/preview]", err?.message); return res.status(500).json({ error: "Não foi possível gerar a pré-visualização." }); }
   });
 
@@ -271,7 +274,11 @@ export function registerFaturaPdfRoutes(app: express.Express, { requireUser, req
       if (!modelo.logo && modelo.mostrar.logoEmpresa) modelo = { ...modelo, logo: await logoDaEmpresa(cfg?.value?.logoUrl) };
       // Fatura em aberto: com Mercado Pago conectado o Pix é dinâmico (a baixa é automática ao pagar); senão, o Pix estático da chave cadastrada.
       let brcode: string | null = null;
-      if (d.tipoDocumento === "FATURA") {
+      if (d.tipoDocumento === "RECIBO") {
+        // Recibo (já pago): só o Pix da empresa, sem valor, para novos pagamentos. Nunca cobra de novo o mesmo valor.
+        const pix = await lerPix(entry.tenant_id);
+        brcode = pix ? montarBrCode({ chave: pix.chave, nome: pix.nome || d.emitente.nome, cidade: pix.cidade, txid: "SPY" }) : null;
+      } else {
         brcode = await cobranca.criarPix(entry.tenant_id, { id: entry.id, valor: d.valor, descricao: d.descricao, vencimentoISO: texto(entry.date_normalized) || new Date().toISOString().slice(0, 10), emailPagador: texto(cli?.email) || texto(cfg?.value?.emailContato), nomePagador: d.cliente.nome });
         brcode ??= brcodeDa(await lerPix(entry.tenant_id), d);
       }
