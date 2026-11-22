@@ -5,6 +5,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiFetch } from "../../lib/apiClient";
+import { esquecerListaDeModelos } from "./BotaoFaturaPdf";
 
 type Mostrar = { emitente: boolean; documentoCliente: boolean; detalhes: boolean; formaPagamento: boolean; assinatura: boolean };
 type Modelo = { id: string; nome: string; cor: string; logo: string; tituloRecibo: string; tituloFatura: string; abertura: string; observacoes: string; mostrar: Mostrar };
@@ -89,7 +90,7 @@ export default function FinanceiroModelosRecibo() {
       const r = await apiFetch("/api/financeiro/modelos-recibo", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modelos, principalId: novoPrincipal }) });
       const j = await lerJson(r);
       if (!r.ok) { toast.error(j.error || "Não foi possível salvar."); return; }
-      setModelos(j.modelos); setPrincipalId(j.principalId); setSujo(false); toast.success("Modelos salvos.");
+      setModelos(j.modelos); setPrincipalId(j.principalId); setSujo(false); esquecerListaDeModelos(); toast.success("Modelos salvos.");
     } finally { setSalvando(false); }
   }
   async function tornarPrincipal() { setPrincipalId(selId); await salvar(selId); }
