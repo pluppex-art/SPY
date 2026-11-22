@@ -60,7 +60,7 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
     { title: "Modelos de recibo", path: "/app/financeiro/modelos-recibo", icon: FileText },
     { title: "Promessas de Pagamento", path: "/app/financeiro/promessas", icon: Clock },
     { title: "Histórico de Cobranças", path: "/app/financeiro/historico-cobrancas", icon: MessageCircle },
-    { title: "Patrocínios e Permutas", path: "/app/financeiro/patrocinios", icon: Gift },
+    { title: "Patrocínios", path: "/app/financeiro/patrocinios", icon: Gift },
     { title: "Inadimplência", path: "/app/financeiro/inadimplencia", icon: AlertTriangle },
     { title: "MRR & Receita Recorrente", path: "/app/financeiro/mrr", icon: Repeat2 },
   ];

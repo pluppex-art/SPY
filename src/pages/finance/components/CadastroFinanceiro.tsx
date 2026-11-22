@@ -82,6 +82,8 @@ interface Props {
   sugestoes?: (tenantId: string) => Promise<Record<string, string[]>>;
   /** Botões extras no cabeçalho da página. */
   acoesExtras?: ReactNode;
+  /** Botão extra por linha (ex.: calculadora do funcionário), antes de Editar. */
+  acaoLinha?: (linha: any) => ReactNode;
 }
 
 const vazio = (campos: CampoCadastro[]) =>
@@ -108,7 +110,7 @@ const dataBR = (iso?: string | null) => (iso ? iso.split("-").reverse().join("/"
  * reservas, adiantamentos, acordos, patrocínios, viagens). Cada tela é só uma
  * configuração: tabela + campos. Tudo isolado por empresa (tenant_id + RLS).
  */
-export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc = false, campos, campoStatus, ordenarPor = "created_at", resumos = [], rodape, progresso, enriquecer, dicaOrigem, acima, sugestoes, acoesExtras }: Props) {
+export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc = false, campos, campoStatus, ordenarPor = "created_at", resumos = [], rodape, progresso, enriquecer, dicaOrigem, acima, sugestoes, acoesExtras, acaoLinha }: Props) {
   const { activeTenantId: tenantId } = useAuth();
   const { formatCurrency: brl } = useLocalization();
   const [linhas, setLinhas] = useState<any[]>([]);
@@ -302,6 +304,7 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
                   <div className="flex items-start justify-between gap-2">
                     <p className="min-w-0 break-words text-sm font-semibold">{l[principal.key]}</p>
                     <div className="flex shrink-0 gap-1">
+                      {acaoLinha?.(l)}
                       <Button variant="ghost" size="sm" onClick={() => abrirEdicao(l)} aria-label="Editar"><Edit2 className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => excluir(l)} aria-label="Excluir"><Trash2 className="h-4 w-4" /></Button>
                     </div>
@@ -363,7 +366,8 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
                       )}
                       <td className="px-3 py-2.5">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => abrirEdicao(l)} aria-label="Editar"><Edit2 className="h-4 w-4" /></Button>
+                          {acaoLinha?.(l)}
+                      <Button variant="ghost" size="sm" onClick={() => abrirEdicao(l)} aria-label="Editar"><Edit2 className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="sm" onClick={() => excluir(l)} aria-label="Excluir"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </td>

@@ -111,8 +111,8 @@ export function FinanceiroPatrocinios() {
   return (
     <CadastroFinanceiro
       tabela="finance_patrocinios"
-      titulo="Patrocínios e Permutas"
-      descricao="Patrocinadores, valores combinados e recebidos, e as contrapartidas a entregar."
+      titulo="Patrocínios"
+      descricao="Patrocinadores, valores combinados e recebidos, e as contrapartidas a entregar. Permutas (pagamento em troca de produto ou serviço) ficam em Acordos e Permutas."
       nomeItem="patrocínio"
       masc
       campoStatus="status"

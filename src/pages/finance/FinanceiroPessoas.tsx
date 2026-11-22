@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CalendarClock, CheckCircle2, Clock, DollarSign, Gift, HandCoins, Handshake, MessageCircle, Repeat, Users, Wallet, Download } from "lucide-react";
+import { Calculator, AlertTriangle, CalendarClock, CheckCircle2, Clock, DollarSign, Gift, HandCoins, Handshake, MessageCircle, Repeat, Users, Wallet, Download } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { friendlyError } from "../../lib/friendlyError";
 import { useAuth } from "../../contexts/AuthContext";
@@ -8,6 +8,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { Button } from "../../components/ui/button";
 import { CadastroFinanceiro, type ApiCadastro } from "./components/CadastroFinanceiro";
 import { SecaoCard } from "./components/SecaoCard";
+import { CalculoSalarioModal } from "./components/CalculoSalarioModal";
 import { hojeISO, useFinanceEntriesResumo } from "./hooks/useFinanceEntriesResumo";
 
 const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
@@ -334,8 +335,14 @@ function ImportarDoRH({ linhas, api }: { linhas: any[]; api: ApiCadastro }) {
 /** Pessoas: cadastro de funcionários com contrato, salário e dia de pagamento (base da Folha de Pagamento). */
 export function FinanceiroFuncionarios() {
   const ativos = (l: any[]) => l.filter((x) => x.status === "Ativo");
+  const [calc, setCalc] = useState<{ nome: string; salario: number } | null>(null);
   return (
+    <>
+    <CalculoSalarioModal aberto={!!calc} onClose={() => setCalc(null)} nome={calc?.nome ?? ""} salario={calc?.salario ?? 0} />
     <CadastroFinanceiro
+      acaoLinha={(l) => (
+        <Button variant="ghost" size="sm" onClick={() => setCalc({ nome: l.nome, salario: Number(l.salario_base) || 0 })} aria-label="Calcular salário líquido" title="Calcular salário líquido"><Calculator className="h-4 w-4" /></Button>
+      )}
       tabela="finance_funcionarios"
       titulo="Funcionários e Salários"
       descricao="Cadastro da equipe para o financeiro: contrato, salário base, dia e chave Pix do pagamento. É a base da Folha de Pagamento."
@@ -362,5 +369,6 @@ export function FinanceiroFuncionarios() {
         { key: "observacao", label: "Observação", tipo: "textarea" },
       ]}
     />
+    </>
   );
 }
