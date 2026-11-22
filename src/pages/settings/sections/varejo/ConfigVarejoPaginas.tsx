@@ -64,6 +64,7 @@ export function ConfigVarejoCupom() {
       subtitle="O que aparece no comprovante impresso da venda."
       fields={[
         { kind: "toggle", key: "mostrarDadosEmpresa", label: "Mostrar dados da empresa", hint: "Razão social, CNPJ e endereço (vêm de Empresa → Dados da empresa)." },
+        { kind: "toggle", key: "mostrarLogo", label: "Mostrar a logo da empresa", hint: "A logo enviada em Empresa → Dados da empresa, no topo do cupom." },
         { kind: "text", key: "cabecalho", label: "Cabeçalho", placeholder: "Ex.: Loja Centro — Tel. (11) 0000-0000", multiline: true },
         { kind: "toggle", key: "mostrarVendedor", label: "Mostrar vendedor" },
         { kind: "text", key: "mensagemTroca", label: "Política de troca", placeholder: "Ex.: Trocas em até 7 dias com o cupom.", multiline: true },

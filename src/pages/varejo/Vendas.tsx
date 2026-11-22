@@ -176,9 +176,10 @@ export default function VarejoVendas() {
   // já garantem isolamento por tenant (mesmo mecanismo que ConfigEmpresaDados.tsx).
   const empresaReceipt = useMemo(() => {
     const dados = appSettings?.["empresa_dados"] as
-      | { razaoSocial?: string; nomeFantasia?: string; cnpj?: string; endereco?: string }
+      | { razaoSocial?: string; nomeFantasia?: string; cnpj?: string; endereco?: string; logoUrl?: string }
       | undefined;
     return {
+      logoUrl: dados?.logoUrl || "",
       nome: dados?.razaoSocial || dados?.nomeFantasia || "",
       cnpj: dados?.cnpj || "",
       endereco: dados?.endereco || "",
@@ -2147,6 +2148,10 @@ export default function VarejoVendas() {
             {(
               <div id="thermal-receipt" className="bg-white text-slate-900 rounded-xl p-4 font-mono text-xs shadow-inner space-y-2.5 border border-slate-200">
                 <div className="text-center border-b border-dashed border-slate-300 pb-2">
+                  {cfg.cupom.mostrarLogo && empresaReceipt.logoUrl && (
+                    // Em tons de cinza e com contraste alto, para sair nítida na impressora térmica (preto e branco).
+                    <img src={empresaReceipt.logoUrl} alt="Logo da empresa" className="mx-auto mb-1.5 max-h-14 max-w-[60%] object-contain" style={{ filter: "grayscale(1) contrast(1.4)" }} />
+                  )}
                   {cfg.cupom.cabecalho && <p className="text-[10px] text-slate-700 whitespace-pre-line">{cfg.cupom.cabecalho}</p>}
                   {!cfg.cupom.mostrarDadosEmpresa ? null : !appSettingsLoaded ? (
                     <p className="text-[10px] text-slate-500">Carregando dados da empresa...</p>
