@@ -6,6 +6,7 @@
 // Seguranca: preco NUNCA vem do cliente; rotas publicas com limite de requisicoes e sem dados sensiveis na resposta;
 // rotas de administracao exigem super admin; o pedido e acessado por um token aleatorio (nao adivinhavel).
 
+import { provisionarRadarDaEmpresa } from "./radarWebhook.js";
 import { socialProofItems, type SocialProofItem } from "./socialProof.js";
 import { formatBRLCentavos } from "../src/lib/dinheiro.js";
 import { Router } from "express";
@@ -189,6 +190,8 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
    * o resultado e gravado no pedido e, se falhar, a equipe e avisada. URL e implementation_id vem de env (com o padrao atual).
    */
   async function acionarAgentes(o: any, tenantId: string): Promise<{ ok: boolean; erro: string | null }> {
+    // Radar da empresa: webhook de busca próprio, criado sozinho (best-effort; não bloqueia a liberação do pedido).
+    provisionarRadarDaEmpresa(db, tenantId, o.empresa).catch(() => {});
     const secret = process.env.SPY_IMPLEMENTACAO_WEBHOOK_SECRET;
     if (!secret) return { ok: false, erro: "SPY_IMPLEMENTACAO_WEBHOOK_SECRET não configurada: agentes não acionados." };
     const url = process.env.SPY_IMPLEMENTACAO_WEBHOOK_URL || "https://n8n.spycrm.com.br/webhook/spy-agente-implementacao-tenant-criado";

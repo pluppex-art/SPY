@@ -15,6 +15,7 @@ import { randomBytes } from "node:crypto";
 import { tenantReadiness, buildEmpresaDados } from "../src/lib/implementationTenant.js";
 import { ensureAdminColaborador } from "./tenantAdminColaborador.js";
 import { agentesDoTenant } from "./agentesDoCliente.js";
+import { provisionarRadarDaEmpresa } from "./radarWebhook.js";
 
 type Db = any;
 export interface ProvisionDeps {
@@ -114,6 +115,12 @@ export async function provisionTenantForImplementation(deps: ProvisionDeps, impl
     }
   } catch { /* vira aviso abaixo */ }
   if (!emailSent) problems.push(`o e-mail de acesso NÃO foi enviado (oriente o cliente a usar "Esqueci a senha" em ${email})`);
+
+  // Radar da empresa: webhook de busca próprio, criado sozinho (falha vira aviso, não derruba o ambiente).
+  try {
+    const radar = await provisionarRadarDaEmpresa(db, tenant.id, company);
+    if (!radar.ok) problems.push(`o Radar da empresa não foi criado (${radar.motivo})`);
+  } catch { problems.push("o Radar da empresa não foi criado"); }
 
   // Agente de implementação (n8n): uma única vez, só depois do ambiente existir.
   let agentTriggered = false;

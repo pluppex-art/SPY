@@ -15,6 +15,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
+import { radarWebhookDaEmpresa, provisionarRadarDaEmpresa } from "./server/radarWebhook.js";
 import { calcularDRELegado, diaCaixa, filtroPeriodoOr, calcularDreCompleto, cmvDosItens, filtrarPeriodo, quantidadeDoItem, separarLegado, type LancamentoDre, type RegimeDre } from "./src/lib/dre/dre.js";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
 import { createGoogleIntegrationsRouter, makeInitialSync } from "./server/googleIntegrations.js";
@@ -4447,17 +4448,17 @@ app.post("/api/ai/generate-json", requireUser, async (req: any, res: any) => {
 
 // Pesquisa do Radar: busca empresas reais (Google Maps) pelo workflow de busca direta do Radar no n8n.
 // O navegador nunca vê a URL nem o segredo do webhook; o servidor valida o login e a empresa e repassa o pedido.
-// Variáveis: RADAR_BUSCA_WEBHOOK_SECRET (obrigatória), RADAR_BUSCA_WEBHOOK_URL e RADAR_BUSCA_WEBHOOK_HEADER (opcionais).
+// Cada empresa usa o SEU webhook (criado sozinho ao criar a empresa; ver server/radarWebhook.ts). Variáveis: RADAR_BUSCA_WEBHOOK_SECRET (obrigatória)
+// e RADAR_BUSCA_WEBHOOK_URL / RADAR_BUSCA_WEBHOOK_HEADER (opcionais, valem como padrão quando a empresa ainda não tem o dela).
 app.post("/api/radar/pesquisar", requireUser, aiLimiter, async (req: any, res: any) => {
   const tenantId = await resolveRequestedTenantId(req, res);
   if (!tenantId) return;
   const criterio = typeof req.body?.criterio === "string" ? req.body.criterio.trim().slice(0, 200) : "";
   if (criterio.length < 3) return res.status(400).json({ error: "Descreva o que procurar, por exemplo: clínicas odontológicas em Palmas/TO." });
   const quantidade = Math.min(20, Math.max(1, parseInt(String(req.body?.quantidade ?? "10"), 10) || 10));
-  const secret = process.env.RADAR_BUSCA_WEBHOOK_SECRET;
-  if (!secret) return res.status(503).json({ error: "A pesquisa do Radar não está configurada neste ambiente." });
-  const url = process.env.RADAR_BUSCA_WEBHOOK_URL || "https://n8n.spycrm.com.br/webhook/radar-busca-direta";
-  const header = process.env.RADAR_BUSCA_WEBHOOK_HEADER || "X-Webhook-Secret";
+  const wh = await radarWebhookDaEmpresa(supabaseService, tenantId);
+  if (!wh.secret) return res.status(503).json({ error: "A pesquisa do Radar não está configurada neste ambiente." });
+  const url = wh.url, header = wh.header, secret = wh.secret;
   try {
     const { data } = await axios.post(url, { criterio, quantidade, tenant_id: tenantId }, { headers: { "Content-Type": "application/json", [header]: secret }, timeout: 90_000 });
     const resposta = typeof data?.resposta === "string" ? data.resposta : typeof data === "string" ? data : "";
@@ -4481,6 +4482,16 @@ app.post("/api/radar/pesquisar", requireUser, aiLimiter, async (req: any, res: a
     const status = err?.response?.status;
     res.status(status === 401 || status === 403 ? 502 : 504).json({ error: status === 401 || status === 403 ? "O Radar recusou o pedido (credencial do webhook)." : "A pesquisa demorou demais ou falhou. Tente de novo em instantes." });
   }
+});
+
+// Cria o Radar (webhook de busca) de uma empresa que já existe (equipe interna). Idempotente.
+app.post("/api/radar/provisionar", requireUser, requireMaster, async (req: any, res: any) => {
+  const tenantId = typeof req.body?.tenantId === "string" ? req.body.tenantId : "";
+  if (!tenantId) return res.status(400).json({ error: "Informe o tenantId." });
+  const { data: t } = await supabaseService!.from("tenants").select("id, name").eq("id", tenantId).maybeSingle();
+  if (!t) return res.status(404).json({ error: "Empresa não encontrada." });
+  const r = await provisionarRadarDaEmpresa(supabaseService, t.id, t.name);
+  res.status(r.ok ? 200 : 502).json(r);
 });
 
 app.post("/api/ai/aurora-chat", requireUser, async (req: any, res: any) => {
@@ -5595,6 +5606,10 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
     // (Radar/Closer/Júlia/Agente Secreto); se vier telefone (via implementação), também
     // inicia a conversa de onboarding no WhatsApp. Fire-and-forget: nunca atrasa nem
     // derruba a resposta real pro admin que provisionou o tenant.
+    // Radar da empresa: cria sozinho o webhook de busca dela no n8n (sem env nem deploy). Fire-and-forget.
+    provisionarRadarDaEmpresa(supabaseService, tenantData.id, tenantName.trim())
+      .then((r) => { if (!r.ok) console.warn("[tenant-create] Radar da empresa não criado:", r.motivo); })
+      .catch(() => {});
     const implWebhookSecret = process.env.SPY_IMPLEMENTACAO_WEBHOOK_SECRET;
     if (!implWebhookSecret) {
       console.error("[tenant-create] SPY_IMPLEMENTACAO_WEBHOOK_SECRET nao configurada — agente de implementacao NAO foi acionado.");
