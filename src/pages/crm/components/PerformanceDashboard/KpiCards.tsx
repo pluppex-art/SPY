@@ -1,3 +1,4 @@
+import { gradeLg } from "../../../../lib/gridCols";
 import { useState } from "react";
 import { Card } from "../../../../components/ui/card";
 import { DrillDownPanel, type DrillColumn } from "../../../../components/ui/DrillDownPanel";
@@ -21,7 +22,7 @@ export function KpiCards(props: {
   const drillStat = drillIndex !== null ? stats[drillIndex] : null;
   return (
     <>
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+    <div className={`grid grid-cols-2 ${gradeLg(stats.length)} gap-3 mb-6`}>
       {stats.map((stat, i) => {
         const Icon = stat.icon;
         const color = stat.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length];

@@ -14,3 +14,12 @@ export function classeColunasFinanceiro(n: number): string {
   const c = n <= 4 ? 4 : colunasBalanceadas(n, 4);
   return c === 3 ? "xl:grid-cols-3" : "xl:grid-cols-4";
 }
+
+/** Classe estática (o Tailwind precisa ler o texto inteiro) de colunas em telas `lg`, até 4 por linha e sem card sozinho. */
+export function gradeLg(n: number): string {
+  return colunasBalanceadas(n, 4) === 3 ? "lg:grid-cols-3" : colunasBalanceadas(n, 4) === 2 ? "lg:grid-cols-2" : "lg:grid-cols-4";
+}
+/** Igual a gradeLg, para grades que abrem a partir de `md`. */
+export function gradeMd(n: number): string {
+  return colunasBalanceadas(n, 4) === 3 ? "md:grid-cols-3" : colunasBalanceadas(n, 4) === 2 ? "md:grid-cols-2" : "md:grid-cols-4";
+}

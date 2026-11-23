@@ -1,3 +1,4 @@
+import { gradeMd } from "../../../../lib/gridCols";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { motion, AnimatePresence } from "motion/react";
@@ -54,7 +55,7 @@ export function IndicadoresKPIs({ kpiCards, criticalKPIs, selectedKPI, onSelectK
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className={`grid grid-cols-1 ${gradeMd(kpiCards.length)} gap-6`}>
         {kpiCards.map((kpi) => (
           <div key={kpi.label} className="h-full">
             <Card

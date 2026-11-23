@@ -1,3 +1,4 @@
+import { gradeMd } from "../../../lib/gridCols";
 import { Card } from "../../../components/ui/card";
 import { Zap, Bug, Rocket, Server } from "lucide-react";
 
@@ -10,7 +11,7 @@ const STATS = [
 
 export function DevKPIs() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className={`grid grid-cols-2 ${gradeMd(STATS.length)} gap-4`}>
       {STATS.map((stat, i) => (
         <Card key={i} className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
           <stat.icon className={`w-5 h-5 ${stat.color} mb-4`} />

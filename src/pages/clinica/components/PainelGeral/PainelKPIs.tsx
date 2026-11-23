@@ -1,3 +1,4 @@
+import { gradeLg } from "../../../../lib/gridCols";
 import type { ComponentType } from 'react';
 import { useState } from 'react';
 import { Card } from "../../../../components/ui/card";
@@ -25,7 +26,7 @@ export function PainelKPIs({ stats }: PainelKPIsProps) {
   const drillStat = drillIndex !== null ? stats[drillIndex] : null;
   return (
     <>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className={`grid grid-cols-1 sm:grid-cols-2 ${gradeLg(stats.length)} gap-4`}>
       {stats.map((stat, i) => (
         <Card
           key={i}

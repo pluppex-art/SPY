@@ -1,3 +1,4 @@
+import { gradeLg } from "../../../../lib/gridCols";
 import { useMemo, useState } from "react";
 import { Card } from "../../../../components/ui/card";
 import { Users, CheckCircle2, Clock, AlertCircle } from "lucide-react";
@@ -67,7 +68,7 @@ export function ClientesKPIs({ total, ativos, implantacao, inativos, todosRows, 
 
   return (
     <>
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className={`grid grid-cols-2 ${gradeLg(items.length)} gap-3`}>
       {items.map(({ label, value, icon: Icon, color, rows, spark, delta }, i) => (
         <Card
           key={label}
