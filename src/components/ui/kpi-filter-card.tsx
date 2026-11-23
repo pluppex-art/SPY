@@ -172,58 +172,71 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
 
   const hasInlineSearch = !open && !!search;
 
+  // Extrai value/onChange do nó <FilterSearch> passado em `search`
+  const searchProps = (() => {
+    if (!search || !isValidElement(search)) return null;
+    const p = search.props as { value?: string; onChange?: (v: string) => void; placeholder?: string };
+    if (typeof p.value !== "string" || typeof p.onChange !== "function") return null;
+    return { value: p.value, onChange: p.onChange, placeholder: p.placeholder ?? "Buscar..." };
+  })();
+
   return (
     <Card className={cn("overflow-hidden", className)}>
-      <div className="flex items-center gap-0 pr-4">
-        {/* Título — clicável, largura fixa para não empurrar a busca */}
+      <div className="flex items-center gap-2 px-4 py-2.5">
+        {/* Título clicável */}
         <button
           type="button"
           onClick={toggle}
           aria-expanded={open}
-          className="shrink-0 flex items-center gap-2 px-4 py-3.5 md:py-3 border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors"
+          className="shrink-0 flex items-center gap-2 border-none bg-transparent cursor-pointer p-0"
         >
           <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
           <span className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] whitespace-nowrap">
             {title}
           </span>
           {activeCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)] text-[10px] font-black">
-              {activeCount} {activeCount === 1 ? "filtro" : "filtros"}
+            <span className="px-1.5 py-0.5 rounded-full bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)] text-[10px] font-black">
+              {activeCount}
             </span>
           )}
         </button>
 
-        {/* Busca inline — ocupa o espaço central, só aparece quando fechado */}
-        {hasInlineSearch ? (
-          <div
-            className="flex-1 min-w-0 px-3 [&_div]:!min-w-0 [&_input]:!h-[34px] [&_input]:!text-[11px]"
-            onClick={e => e.stopPropagation()}
-          >
-            {search}
+        {/* Busca compacta inline — só quando fechado */}
+        {hasInlineSearch && searchProps ? (
+          <div className="relative w-48 shrink-0" onClick={e => e.stopPropagation()}>
+            <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
+            <input
+              type="text"
+              placeholder={searchProps.placeholder}
+              value={searchProps.value}
+              onChange={e => searchProps.onChange(e.target.value)}
+              className="w-full h-7 pl-7 pr-2.5 rounded-full border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-[11px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)] transition-colors"
+            />
           </div>
-        ) : (
-          <div className="flex-1" />
-        )}
+        ) : null}
 
-        {/* Chevron — sempre na borda direita, abre/fecha */}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          className="shrink-0 flex items-center px-2 py-3.5 md:py-3 border-none bg-transparent cursor-pointer"
-        >
-          <ChevronDown className={cn("w-4 h-4 text-[var(--color-text-muted)] transition-transform", open && "rotate-180")} />
-        </button>
+        {/* Espaço expansível + ações à direita */}
+        <div className="flex-1" />
 
         {activeCount > 0 && onClear && (
           <button
             type="button"
             onClick={onClear}
-            className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer py-2 pl-2 shrink-0"
+            className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer shrink-0"
           >
             <X className="w-3 h-3" /> Limpar
           </button>
         )}
+
+        {/* Chevron */}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          className="shrink-0 flex items-center border-none bg-transparent cursor-pointer p-0"
+        >
+          <ChevronDown className={cn("w-4 h-4 text-[var(--color-text-muted)] transition-transform", open && "rotate-180")} />
+        </button>
       </div>
 
       {open && (
