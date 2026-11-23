@@ -4445,6 +4445,44 @@ app.post("/api/ai/generate-json", requireUser, async (req: any, res: any) => {
   }
 });
 
+// Pesquisa do Radar: busca empresas reais (Google Maps) pelo workflow de busca direta do Radar no n8n.
+// O navegador nunca vê a URL nem o segredo do webhook; o servidor valida o login e a empresa e repassa o pedido.
+// Variáveis: RADAR_BUSCA_WEBHOOK_SECRET (obrigatória), RADAR_BUSCA_WEBHOOK_URL e RADAR_BUSCA_WEBHOOK_HEADER (opcionais).
+app.post("/api/radar/pesquisar", requireUser, aiLimiter, async (req: any, res: any) => {
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+  const criterio = typeof req.body?.criterio === "string" ? req.body.criterio.trim().slice(0, 200) : "";
+  if (criterio.length < 3) return res.status(400).json({ error: "Descreva o que procurar, por exemplo: clínicas odontológicas em Palmas/TO." });
+  const quantidade = Math.min(20, Math.max(1, parseInt(String(req.body?.quantidade ?? "10"), 10) || 10));
+  const secret = process.env.RADAR_BUSCA_WEBHOOK_SECRET;
+  if (!secret) return res.status(503).json({ error: "A pesquisa do Radar não está configurada neste ambiente." });
+  const url = process.env.RADAR_BUSCA_WEBHOOK_URL || "https://n8n.spycrm.com.br/webhook/radar-busca-direta";
+  const header = process.env.RADAR_BUSCA_WEBHOOK_HEADER || "X-Webhook-Secret";
+  try {
+    const { data } = await axios.post(url, { criterio, quantidade, tenant_id: tenantId }, { headers: { "Content-Type": "application/json", [header]: secret }, timeout: 90_000 });
+    const resposta = typeof data?.resposta === "string" ? data.resposta : typeof data === "string" ? data : "";
+    // O workflow devolve um texto: uma linha por empresa ("- Nome — endereço — avaliação Google: … — contato: … — site: … — whatsapp_chatid: …").
+    const resultados = resposta.split("\n").filter((l: string) => l.startsWith("- ")).map((l: string) => {
+      const partes = l.slice(2).split(" — ");
+      const pega = (prefixo: string) => (partes.find((x) => x.startsWith(prefixo)) || "").slice(prefixo.length).trim();
+      const contato = pega("contato: ");
+      return {
+        empresa: (partes[0] || "").trim(),
+        endereco: (partes[1] || "").trim(),
+        avaliacao: pega("avaliação Google: "),
+        contato: contato && contato !== "não encontrado" ? contato : "",
+        site: pega("site: "),
+        whatsapp: pega("whatsapp_chatid: ").replace(/@c\.us$/, ""),
+      };
+    }).filter((r: any) => r.empresa);
+    res.json({ criterio, resposta, resultados });
+  } catch (err: any) {
+    console.error("[radar/pesquisar]", err?.response?.status || err?.code || err?.message);
+    const status = err?.response?.status;
+    res.status(status === 401 || status === 403 ? 502 : 504).json({ error: status === 401 || status === 403 ? "O Radar recusou o pedido (credencial do webhook)." : "A pesquisa demorou demais ou falhou. Tente de novo em instantes." });
+  }
+});
+
 app.post("/api/ai/aurora-chat", requireUser, async (req: any, res: any) => {
   const { message, sessionId: clientSessionId } = req.body ?? {};
   if (!message?.trim()) return res.status(400).json({ error: "Mensagem vazia." });
