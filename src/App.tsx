@@ -123,6 +123,7 @@ const ConfigCRMFidelidade = lazy(() => import("./pages/settings/sections/crm/Con
 const ConfigCRMOrigens = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMOrigens })));
 const ConfigCRMProdutos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMProdutos })));
 const ConfigProdutividadeCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigProdutividadeCategorias })));
+const FinanceiroPlanoContas = lazy(() => import("./pages/finance/FinanceiroPlanoContas"));
 const ConfigFinanceiroCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroCategorias })));
 const ConfigEngajamentoModelos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEngajamentoModelos })));
 const ModuleSettingsPage = lazy(() => import("./pages/settings/sections/modules/ModuleSettingsPage").then(m => ({ default: m.ModuleSettingsPage })));
@@ -388,7 +389,7 @@ function AppContent() {
                 (financeiro/categorias) — a página já existe, só não era
                 alcançável de dentro do módulo Financeiro (ficava escondida em
                 Configurações). Evita ter duas implementações da mesma coisa. */}
-            <Route path="plano-contas" element={<ConfigFinanceiroCategorias />} />
+            <Route path="plano-contas" element={<FinanceiroPlanoContas />} />
             <Route path="orcamentos" element={<FinanceiroOrcamentos />} />
             <Route path="bancos" element={<FinanceiroContasBancarias />} />
             <Route path="transferencias" element={<FinanceiroTransferencias />} />
