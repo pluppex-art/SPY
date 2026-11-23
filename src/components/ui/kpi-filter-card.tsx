@@ -174,15 +174,12 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
 
   return (
     <Card className={cn("overflow-hidden", className)}>
-      <div className={cn("flex items-center gap-2 pr-4", hasInlineSearch ? "py-2" : "")}>
+      <div className="flex items-center justify-between gap-2 pr-4">
         <button
           type="button"
           onClick={toggle}
           aria-expanded={open}
-          className={cn(
-            "flex items-center gap-2 px-4 border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors rounded-lg",
-            hasInlineSearch ? "py-2 shrink-0" : "flex-1 min-w-0 justify-between py-3.5 md:py-3",
-          )}
+          className="flex-1 min-w-0 flex items-center justify-between gap-2 px-4 py-3.5 md:py-3 border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors"
         >
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">
             <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
@@ -198,7 +195,7 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
 
         {hasInlineSearch && (
           <div
-            className="flex-1 min-w-0 [&_input]:!h-[34px] [&_input]:!text-xs [&_div]:!min-w-0"
+            className="shrink-0 w-52 [&_div]:!min-w-0 [&_input]:!h-[34px] [&_input]:!text-[11px]"
             onClick={e => e.stopPropagation()}
           >
             {search}
