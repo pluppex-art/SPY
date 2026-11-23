@@ -190,6 +190,11 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
           </span>
           <ChevronDown className={cn("w-4 h-4 text-[var(--color-text-muted)] transition-transform", open && "rotate-180")} />
         </button>
+        {!open && search && (
+          <div className="shrink-0 w-56" onClick={e => e.stopPropagation()}>
+            {search}
+          </div>
+        )}
         {activeCount > 0 && onClear && (
           <button
             type="button"
