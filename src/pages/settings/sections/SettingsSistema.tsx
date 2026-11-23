@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ShieldCheck, HardDrive, ExternalLink, RefreshCw, Gauge, ShieldAlert, FileText, Save } from "lucide-react";
+import { ShieldCheck, HardDrive, ExternalLink, RefreshCw, Gauge, FileText, Save, Activity, Wallet, CalendarClock, BadgeCheck } from "lucide-react";
+import { KpiTiles } from "../../../components/ui/kpi-filter-card";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { useAuroraTokenUsage } from "../../../hooks/useAuroraTokenUsage";
@@ -113,152 +114,82 @@ export function ConfigSistemaAuroraUso() {
   const barColor = usage?.limitReached ? "bg-danger" : percent >= 90 ? "bg-warning" : "bg-success";
   const textColor = usage?.limitReached ? "text-danger" : percent >= 90 ? "text-warning" : "text-success";
 
+  const semLimite = !usage || usage.tokensLimit === null;
   return (
-    <div className="max-w-3xl space-y-6 animate-in fade-in duration-300 pb-12">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Aurora — Controle, Consumo & Agentes</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            O que a Aurora pode fazer, seu consumo de IA no ciclo mensal e os agentes vinculados, tudo pra{" "}
-            {activeTenantName ?? "sua empresa"}.
+    <div className="max-w-5xl space-y-6 animate-in fade-in duration-300 pb-12">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">Aurora: consumo e agentes <Gauge className="w-5 h-5 text-[var(--color-primary-blue)]" /></h1>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">
+            Quanto da Aurora já foi usado neste ciclo e quais agentes estão ligados para {activeTenantName ?? "sua empresa"}.
           </p>
         </div>
-        <Button
-          type="button"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          size="sm"
-          className="bg-[var(--color-primary-blue)] hover:bg-[var(--color-primary-blue)]/90 text-white border border-[var(--color-primary-blue)] font-bold uppercase tracking-wider shrink-0"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-          Atualizar
+        <Button type="button" variant="outline" onClick={handleRefresh} disabled={refreshing} className="h-9 px-4 text-xs font-medium gap-1.5 shrink-0">
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} /> Atualizar
         </Button>
       </div>
 
-      {!isMaster ? null : configLoading || !config ? (
-        <p className="text-xs text-[var(--color-text-muted)]">Carregando configuração...</p>
+      {/* Consumo */}
+      {usageLoading ? (
+        <p className="text-xs text-[var(--color-text-muted)]">Carregando consumo...</p>
+      ) : semLimite ? (
+        <Card className="p-5 text-sm text-[var(--color-text-muted)]">Nenhum limite configurado para esta empresa ainda: a Aurora está liberada, sem restrição de consumo.</Card>
       ) : (
         <>
-          <Card className="p-6 bg-[var(--color-surface-elevated)]/80 border border-[var(--color-border-default)] space-y-3">
+          <KpiTiles items={[
+            { label: "Uso do ciclo", value: `${percent.toFixed(1)}%`, icon: Gauge, tone: usage!.limitReached ? "danger" : percent >= 90 ? "warning" : "success", hint: "Percentual do limite mensal já usado" },
+            { label: "Créditos usados", value: formatFull(creditsUsed), icon: Activity, tone: "primary", hint: `de ${formatFull(CREDITS_PER_CYCLE)} no ciclo` },
+            { label: "Créditos restantes", value: formatFull(creditsLeft), icon: Wallet, tone: "info", hint: "Até o fim deste ciclo" },
+            { label: "Renova em", value: `${daysLeftInCycle()} dias`, icon: CalendarClock, tone: "neutral", hint: "Quando o consumo volta a zero" },
+            { label: "Plano", value: usage!.planName ?? "—", icon: BadgeCheck, tone: "accent" },
+          ]} />
+          <Card className="p-5 space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-xs font-black uppercase tracking-wider text-[var(--color-text-muted)]">Consumo do ciclo atual</span>
+              <span className="text-xs text-[var(--color-text-muted)] tabular-nums">{formatFull(creditsUsed)} / {formatFull(CREDITS_PER_CYCLE)} créditos</span>
+            </div>
+            <div className="h-3 w-full rounded-full bg-[var(--color-surface-sunken)] overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${Math.max(1, Math.min(100, percent))}%` }} />
+            </div>
+            {usage!.limitReached && <p className="text-xs text-danger rounded-lg bg-danger/10 border border-danger/20 p-3 leading-relaxed">Limite atingido: a Aurora está bloqueada até o próximo ciclo ou até um upgrade de plano.</p>}
+            {!usage!.limitReached && percent >= 90 && <p className="text-xs text-warning rounded-lg bg-warning/10 border border-warning/20 p-3 leading-relaxed">Consumo perto do limite deste ciclo: a Aurora bloqueia automaticamente ao atingir 100%.</p>}
+          </Card>
+        </>
+      )}
+
+      {/* Agentes (só leitura: ligar e desligar é da equipe interna) */}
+      <ConfigSistemaAuroraAgentes />
+
+      {/* Equipe interna */}
+      {isMaster && (
+        configLoading || !config ? (
+          <p className="text-xs text-[var(--color-text-muted)]">Carregando configuração...</p>
+        ) : (
+          <Card className="p-5 space-y-3">
             <div>
               <h3 className="font-bold text-xs uppercase tracking-widest text-[var(--color-primary-blue)] flex items-center gap-2">
-                <FileText className="w-3.5 h-3.5" />
-                <span>Instruções específicas deste tenant</span>
+                <FileText className="w-3.5 h-3.5" /><span>Instruções específicas desta empresa (equipe interna)</span>
               </h3>
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                Contexto de negócio anexado ao prompt da Aurora só para {activeTenantName ?? "esta empresa"} (ex.: termos,
-                produtos, tom de voz específicos). Buscado direto pelo tenant a cada execução no n8n — nunca compartilhado
-                com outros tenants.
+                Contexto de negócio anexado ao prompt da Aurora só para {activeTenantName ?? "esta empresa"} (termos, produtos, tom de voz). Nunca compartilhado com outras empresas.
               </p>
             </div>
             <textarea
               value={customPromptDraft ?? config.customPrompt}
               onChange={(e) => setCustomPromptDraft(e.target.value)}
-              placeholder="Ex.: Somos uma boliche/lazer familiar, sempre trate reservas como 'partidas', evite jargão técnico..."
-              rows={5}
-              className="w-full text-xs font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg p-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-blue)]/50 resize-y"
+              placeholder="Ex.: trate reservas como 'partidas' e evite jargão técnico..."
+              rows={4}
+              className="w-full text-xs font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg p-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
             />
             <div className="flex items-center justify-between">
-              {config.updatedAt ? (
-                <p className="text-[10px] text-[var(--color-text-faint)]">
-                  Última atualização: {new Date(config.updatedAt).toLocaleString("pt-BR")}
-                </p>
-              ) : <span />}
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleSaveCustomPrompt}
-                disabled={savingCustomPrompt || customPromptDraft === null || customPromptDraft === config.customPrompt}
-                className={`flex items-center gap-1.5 text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg shadow-none border ${
-                  customPromptDraft !== null && customPromptDraft !== config.customPrompt
-                    ? "bg-[var(--color-primary-blue)]/10 !text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/30 hover:bg-[var(--color-primary-blue)]/15"
-                    : "bg-[var(--color-surface-sunken)] !text-[var(--color-text-faint)] border-[var(--color-border-default)]"
-                }`}
-              >
-                {savingCustomPrompt ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                {savingCustomPrompt ? "Salvando..." : "Salvar"}
+              {config.updatedAt ? <p className="text-[10px] text-[var(--color-text-faint)]">Última atualização: {new Date(config.updatedAt).toLocaleString("pt-BR")}</p> : <span />}
+              <Button type="button" onClick={handleSaveCustomPrompt} disabled={savingCustomPrompt || customPromptDraft === null || customPromptDraft === config.customPrompt} className="h-8 px-4 text-xs font-bold gap-1.5">
+                {savingCustomPrompt ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}{savingCustomPrompt ? "Salvando..." : "Salvar"}
               </Button>
             </div>
           </Card>
-        </>
+        )
       )}
-
-      <Card className="p-6 bg-[var(--color-surface-elevated)]/80 border border-[var(--color-border-default)] space-y-5">
-        <h3 className="font-bold text-xs uppercase tracking-widest text-[var(--color-primary-blue)] flex items-center gap-2">
-          <Gauge className="w-3.5 h-3.5" />
-          <span>Consumo do ciclo atual</span>
-        </h3>
-
-        {usageLoading ? (
-          <p className="text-xs text-[var(--color-text-muted)]">Carregando consumo...</p>
-        ) : !usage || usage.tokensLimit === null ? (
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Nenhum limite configurado para este tenant ainda — a Aurora está liberada sem restrição de consumo.
-          </p>
-        ) : (
-          <>
-            <div className="space-y-2">
-              <div className="flex items-baseline justify-between">
-                <span className={`text-3xl font-black tabular-nums ${textColor}`}>{percent.toFixed(1)}%</span>
-                <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
-                  {formatFull(creditsUsed)} / {formatFull(CREDITS_PER_CYCLE)} créditos
-                </span>
-              </div>
-              <div className="h-2.5 w-full rounded-full bg-[var(--color-surface-sunken)] overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${barColor}`}
-                  style={{ width: `${Math.max(1, Math.min(100, percent))}%` }}
-                />
-              </div>
-            </div>
-
-            {usage.limitReached && (
-              <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl">
-                <p className="text-xs text-danger leading-relaxed">
-                  Limite atingido — a Aurora está bloqueada até o próximo ciclo ou até um upgrade de plano.
-                </p>
-              </div>
-            )}
-            {!usage.limitReached && percent >= 90 && (
-              <div className="p-3 bg-warning/10 border border-warning/20 rounded-xl">
-                <p className="text-xs text-warning leading-relaxed">
-                  Consumo perto do limite deste ciclo — a Aurora bloqueia automaticamente ao atingir 100%.
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-              <div className="bg-[var(--color-surface)] border border-[var(--color-border-subtle)] p-3 rounded-xl space-y-0.5">
-                <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">Plano</p>
-                <p className="font-bold text-[var(--color-text-primary)]">{usage.planName ?? "—"}</p>
-              </div>
-              <div className="bg-[var(--color-surface)] border border-[var(--color-border-subtle)] p-3 rounded-xl space-y-0.5">
-                <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">Restam no mês</p>
-                <p className="font-bold text-[var(--color-text-primary)]">{formatFull(creditsLeft)} créditos</p>
-              </div>
-              <div className="bg-[var(--color-surface)] border border-[var(--color-border-subtle)] p-3 rounded-xl space-y-0.5">
-                <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">Renova em</p>
-                <p className="font-bold text-[var(--color-text-primary)]">{daysLeftInCycle()} dias</p>
-              </div>
-            </div>
-          </>
-        )}
-      </Card>
-
-      <div className="pt-4 border-t border-[var(--color-border-default)]">
-        <ConfigSistemaAuroraAgentes />
-      </div>
-
-      {isMaster && <Card className="p-5 bg-warning/5 border border-warning/20 space-y-2">
-        <h3 className="font-bold text-xs text-warning flex items-center gap-2">
-          <ShieldAlert className="w-3.5 h-3.5" /> Ainda não existe nesta tela
-        </h3>
-        <p className="text-xs text-warning/80 leading-relaxed">
-          Permissão granular de leitura/escrita por ferramenta (ex: "Aurora pode ler leads mas não criar"),
-          conexão com sistemas externos do cliente e integrações/APIs de terceiros fazem parte de fases
-          futuras do projeto de integração — ainda não estão implementadas, e esta tela não finge que estão.
-        </p>
-      </Card>}
     </div>
   );
 }

@@ -1,24 +1,16 @@
 import { useState, useEffect } from "react";
-import {
-  Bot, Pencil, Info, X, UserSearch, Eye, Radar,
-  Handshake, Briefcase, LineChart, Search, Headset, Wallet, Megaphone, ClipboardList, Trash2, Sunrise, Workflow, Loader2,
-} from "lucide-react";
+import { Bot, Info, X, UserSearch, Eye, Radar, Handshake, Briefcase, LineChart, Search, Headset, Wallet, Megaphone, ClipboardList, Sunrise, Workflow, Loader2 } from "lucide-react";
 import { AgentFlowViewerModal } from "./AgentFlowViewer";
 import { useAgentFlow } from "../../../hooks/useAgentFlow";
 import { Card } from "../../../components/ui/card";
-import { Button } from "../../../components/ui/button";
 import { Switch } from "../../../components/ui/switch";
 import { Modal } from "../../../components/ui/modal";
-import { Input } from "../../../components/ui/input";
-import { FormField } from "../../../components/ui/form-field";
-import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 import type { AuroraAgent } from "../../../contexts/DataContextTypes";
 import { useAgentPrompts } from "../../../hooks/useAgentPrompts";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useTenantAiConfig } from "../../../hooks/useTenantAiConfig";
-import { ViewPromptButton, InlinePromptEditor } from "./AgentPromptControls";
 
 // Card "Aurora" (núcleo) — id sintético, não é uma linha de aurora_agents. Liga/desliga
 // aqui grava em tenant_ai_config.aurora_enabled (useTenantAiConfig), não em aurora_agents.
@@ -167,11 +159,9 @@ export function ConfigSistemaAuroraAgentes() {
   const isMaster = !!user?.isMaster;
   const { auroraAgents, addAuroraAgent, updateAuroraAgent, deleteAuroraAgent, toggleAuroraAgent, ensureNicheModulesLoaded, appSettings, saveAppSetting } = useData();
   useEffect(() => { ensureNicheModulesLoaded(); }, [ensureNicheModulesLoaded]);
-  const [editing, setEditing] = useState<EditingState>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [flowViewerAgentId, setFlowViewerAgentId] = useState<string | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  const { prompts, loading: promptsLoading, savingKey: promptSavingKey, updatePrompt } = useAgentPrompts();
+  const { prompts } = useAgentPrompts();
   const promptByKey = new Map(prompts.map((p) => [p.agentKey, p]));
   // Apelido do Agente de Pré-venda = nome com que ele se apresenta aos clientes (empresa_dados.ia_nome_agente).
   const apelidoVendas1 = String(appSettings?.empresa_dados?.ia_nome_agente || "").trim();
@@ -252,59 +242,7 @@ export function ConfigSistemaAuroraAgentes() {
     toggleAuroraAgent(agent.id);
   };
 
-  const handleSave = () => {
-    if (!editing?.name.trim()) { toast.error("Nome do agente é obrigatório."); return; }
-    const n8nKey = FIXED_N8N_PROMPT_KEY[editing.originalName];
-    if (n8nKey) {
-      // Agente ligado ao n8n: o campo Nome é o apelido do tenant, grava em
-      // ai_agent_prompts.name (mesma linha do prompt aditivo) — nunca em aurora_agents.name,
-      // que fica fixo pra não perder o vínculo com o agent_key real. Preserva o texto do
-      // prompt e a descrição já salvos (se houver) em vez de zerar ao só trocar o nome.
-      const existing = promptByKey.get(n8nKey);
-      updatePrompt(n8nKey, existing?.prompt ?? "", editing.name, existing?.description ?? editing.description);
-      if (n8nKey === "sdr") saveAppSetting("empresa_dados", { ...(appSettings?.empresa_dados ?? {}), ia_nome_agente: editing.name.trim() });
-      toast.success("Apelido do agente atualizado.");
-      setEditing(null);
-      return;
-    }
-    if (!hasCustomAgents) {
-      // Catálogo ainda em memória — a primeira edição materializa todo mundo de uma vez
-      // (mesmo padrão do handleToggle/handleDelete abaixo): o agente editado entra com os
-      // valores novos, os demais exatamente como estavam no catálogo padrão.
-      addAuroraAgent({ name: editing.name, role: editing.role, description: editing.description, active: true });
-      AURORA_AGENTS_DEFAULT.filter((a) => a.name !== editing.originalName).forEach((a) => {
-        addAuroraAgent({ name: a.name, role: a.role, description: a.description, active: true });
-      });
-      toast.success("Agente atualizado.");
-      setEditing(null);
-      return;
-    }
-    if (editing.id) {
-      updateAuroraAgent(editing.id, { name: editing.name, role: editing.role, description: editing.description });
-      toast.success("Agente atualizado.");
-    } else {
-      addAuroraAgent({ name: editing.name, role: editing.role, description: editing.description, active: true });
-      toast.success("Agente adicionado.");
-    }
-    setEditing(null);
-  };
 
-  const handleDelete = async (agent: AuroraAgent) => {
-    if (!(await confirmDialog({
-      title: "Remover agente",
-      description: `Remover "${agent.name}" da lista de agentes vinculados à Aurora? Essa ação não pode ser desfeita.`,
-    }))) return;
-    if (!hasCustomAgents) {
-      // Catálogo ainda em memória — materializa todo mundo, exceto o agente removido.
-      AURORA_AGENTS_DEFAULT.filter((a) => a.name !== agent.name).forEach((a) => {
-        addAuroraAgent({ name: a.name, role: a.role, description: a.description, active: true });
-      });
-      toast.success(`"${agent.name}" removido.`);
-      return;
-    }
-    deleteAuroraAgent(agent.id);
-    toast.success("Agente removido.");
-  };
 
   const activeCount = displayList.filter((a) => a.active).length;
 
@@ -320,7 +258,7 @@ export function ConfigSistemaAuroraAgentes() {
             <p className="text-sm text-[var(--color-text-muted)] mt-1 max-w-3xl">
               {isMaster
                 ? "Cada agente pode ser ativado ou desativado — a Aurora não age em nome de um agente inativo quando ele é citado diretamente na conversa."
-                : "Estes são os agentes contratados pela sua empresa. Você pode dar um apelido ao Agente de Pré-venda, que é o nome com que ele conversa com os seus clientes; o Agente Vendedor usa o mesmo nome. Ativação e treinamento ficam com a equipe da plataforma."}
+                : "Estes são os agentes contratados pela sua empresa e o que cada um faz. O funcionamento de cada um é cuidado pela Pluppex. Ativação e treinamento ficam com a equipe da plataforma."}
             </p>
           </div>
         </div>
@@ -344,8 +282,6 @@ export function ConfigSistemaAuroraAgentes() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
         {displayList.map((agent) => {
-          const promptKey = promptKeyForAgent(agent.name);
-          const isExpanded = expandedId === agent.id;
           const executeKey = EXECUTE_MODULE_BY_NAME[agent.name];
           // Pros 3 agentes de execução, o switch reflete allowed_execute_modules (a permissão
           // real), não aurora_agents.active — pra qualquer outro agente, active mesmo.
@@ -395,13 +331,6 @@ export function ConfigSistemaAuroraAgentes() {
                   {agent.description && <p className="text-xs text-[var(--color-text-muted)] mt-2 leading-relaxed">{agent.description}</p>}
 
                   <div className="flex items-center gap-2 mt-3.5 pt-3.5 border-t border-[var(--color-border-subtle)] flex-wrap">
-                    {isMaster && (
-                      <ViewPromptButton
-                        agentKey={agent.id}
-                        expandedKey={expandedId}
-                        setExpandedKey={setExpandedId}
-                      />
-                    )}
                     <button
                       onClick={() => setFlowViewerAgentId(agent.id)}
                       className="flex items-center gap-1.5 px-3 h-8 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-lg cursor-pointer transition-colors text-xs font-bold"
@@ -409,85 +338,14 @@ export function ConfigSistemaAuroraAgentes() {
                     >
                       <Workflow className="w-3.5 h-3.5" /> Ver fluxo
                     </button>
-                    {agent.id !== AURORA_CORE_ID && (isMaster || EXECUTE_MODULE_BY_NAME[agent.name] !== "closer") && (
-                      <>
-                        <button
-                          onClick={() => setEditing({ id: agent.id, name: displayNameForAgent(agent, promptByKey), originalName: agent.name, role: agent.role || "", description: agent.description || "" })}
-                          className="flex items-center gap-1.5 px-3 h-8 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-lg cursor-pointer transition-colors text-xs font-bold"
-                          title="Editar agente"
-                        >
-                          <Pencil className="w-3.5 h-3.5" /> {isMaster ? "Editar" : "Renomear"}
-                        </button>
-                        {isMaster && <button
-                          onClick={() => handleDelete(agent)}
-                          className="flex items-center gap-1.5 px-3 h-8 bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-danger hover:bg-danger/10 rounded-lg cursor-pointer transition-colors text-xs font-bold"
-                          title="Remover agente"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Remover
-                        </button>}
-                      </>
-                    )}
                   </div>
 
-                  {isMaster && isExpanded && (
-                    <InlinePromptEditor
-                      agentKey={promptKey}
-                      agent={promptByKey.get(promptKey)}
-                      loading={promptsLoading}
-                      saving={promptSavingKey === promptKey}
-                      onSave={(text, name, description) => updatePrompt(promptKey, text, name, description)}
-                    />
-                  )}
                 </div>
               </div>
             </Card>
           );
         })}
       </div>
-
-      <Modal
-        isOpen={editing !== null}
-        onClose={() => setEditing(null)}
-        title={editing?.id ? "Editar Agente" : "Novo Agente"}
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setEditing(null)}>Cancelar</Button>
-            <Button onClick={handleSave}>Salvar</Button>
-          </div>
-        }
-      >
-        {editing && (() => {
-          const isN8nLinked = !!FIXED_N8N_PROMPT_KEY[editing.originalName];
-          return (
-            <div className="space-y-4">
-              <FormField label={isN8nLinked ? "Apelido do Agente" : "Nome do Agente"}>
-                <Input
-                  value={editing.name}
-                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                  placeholder="Ex: Closer"
-                />
-                {isN8nLinked && (
-                  <p className="text-[10px] text-[var(--color-text-faint)] mt-1">
-                    Esse é o nome que aparece pra você e pro seu cliente — pode trocar à vontade (ex: "Agente" vira
-                    outro nome). O funcionamento por trás continua o mesmo, controlado pela Pluppex; só o apelido
-                    muda por empresa.
-                  </p>
-                )}
-              </FormField>
-              {isMaster && (
-                <>
-                  <FormField label="Papel/Função">
-                    <Input value={editing.role} onChange={(e) => setEditing({ ...editing, role: e.target.value })} placeholder="Ex: Vendas" />
-                  </FormField>
-                  <FormField label="Descrição">
-                    <Input value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} placeholder="O que esse agente faz" />
-                  </FormField>
-                </>
-              )}
-            </div>
-          );
-        })()}
-      </Modal>
 
       {flowAgent && flowDiagram && (
         <AgentFlowViewerModal
