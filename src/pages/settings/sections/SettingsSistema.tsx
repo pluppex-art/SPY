@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { ShieldCheck, HardDrive, ExternalLink, RefreshCw, Gauge, FileText, Save, Activity, Wallet, CalendarClock, BadgeCheck } from "lucide-react";
+import { ShieldCheck, HardDrive, ExternalLink, RefreshCw, Gauge, Activity, Wallet, CalendarClock, BadgeCheck } from "lucide-react";
 import { KpiTiles } from "../../../components/ui/kpi-filter-card";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { useAuroraTokenUsage } from "../../../hooks/useAuroraTokenUsage";
-import { useTenantAiConfig } from "../../../hooks/useTenantAiConfig";
 import { useAuth } from "../../../contexts/AuthContext";
 import { ConfigSistemaAuroraAgentes } from "./SettingsSistemaAuroraAgentes";
 
@@ -88,24 +87,14 @@ const CREDITS_PER_CYCLE = 10000;
  */
 export function ConfigSistemaAuroraUso() {
   const { usage, loading: usageLoading, refresh } = useAuroraTokenUsage();
-  const { config, loading: configLoading, update } = useTenantAiConfig();
   const { activeTenantName, user } = useAuth();
   const isMaster = !!user?.isMaster;
   const [refreshing, setRefreshing] = useState(false);
-  const [customPromptDraft, setCustomPromptDraft] = useState<string | null>(null);
-  const [savingCustomPrompt, setSavingCustomPrompt] = useState(false);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await refresh();
     setRefreshing(false);
-  };
-
-  const handleSaveCustomPrompt = async () => {
-    if (customPromptDraft === null) return;
-    setSavingCustomPrompt(true);
-    await update({ customPrompt: customPromptDraft });
-    setSavingCustomPrompt(false);
   };
 
   const percent = usage?.percentUsed ?? 0;
@@ -159,37 +148,6 @@ export function ConfigSistemaAuroraUso() {
 
       {/* Agentes (só leitura: ligar e desligar é da equipe interna) */}
       <ConfigSistemaAuroraAgentes />
-
-      {/* Equipe interna */}
-      {isMaster && (
-        configLoading || !config ? (
-          <p className="text-xs text-[var(--color-text-muted)]">Carregando configuração...</p>
-        ) : (
-          <Card className="p-5 space-y-3">
-            <div>
-              <h3 className="font-bold text-xs uppercase tracking-widest text-[var(--color-primary-blue)] flex items-center gap-2">
-                <FileText className="w-3.5 h-3.5" /><span>Instruções específicas desta empresa (equipe interna)</span>
-              </h3>
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                Contexto de negócio anexado ao prompt da Aurora só para {activeTenantName ?? "esta empresa"} (termos, produtos, tom de voz). Nunca compartilhado com outras empresas.
-              </p>
-            </div>
-            <textarea
-              value={customPromptDraft ?? config.customPrompt}
-              onChange={(e) => setCustomPromptDraft(e.target.value)}
-              placeholder="Ex.: trate reservas como 'partidas' e evite jargão técnico..."
-              rows={4}
-              className="w-full text-xs font-mono bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg p-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-blue)]"
-            />
-            <div className="flex items-center justify-between">
-              {config.updatedAt ? <p className="text-[10px] text-[var(--color-text-faint)]">Última atualização: {new Date(config.updatedAt).toLocaleString("pt-BR")}</p> : <span />}
-              <Button type="button" onClick={handleSaveCustomPrompt} disabled={savingCustomPrompt || customPromptDraft === null || customPromptDraft === config.customPrompt} className="h-8 px-4 text-xs font-bold gap-1.5">
-                {savingCustomPrompt ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}{savingCustomPrompt ? "Salvando..." : "Salvar"}
-              </Button>
-            </div>
-          </Card>
-        )
-      )}
     </div>
   );
 }
