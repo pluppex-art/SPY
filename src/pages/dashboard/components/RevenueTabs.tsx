@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { AbasPagina } from "../../../components/ui/abas-pagina";
 import { Gauge, Map, Target, AlertTriangle, Brain, LineChart, Users, Unlink } from "lucide-react";
 
 // Tabs da Central de Receita — pedido explícito do usuário: trocar as abas
@@ -23,36 +23,5 @@ const TABS: { id: RevenueTabId; label: string; icon: typeof Gauge }[] = [
 ];
 
 export function RevenueTabs(props: { activeTab: RevenueTabId; onTabChange: (id: RevenueTabId) => void }) {
-  const { activeTab, onTabChange } = props;
-  const activeRef = useRef<HTMLButtonElement | null>(null);
-  const barRef = useRef<HTMLDivElement | null>(null);
-  // Em telas estreitas a barra rola na horizontal: traz a aba ativa para a vista.
-  // Rola SÓ a barra (scrollTo). scrollIntoView rolaria também os ancestrais com overflow:hidden
-  // (o layout inteiro), deslocando a página para a esquerda por baixo do menu lateral.
-  useEffect(() => {
-    const bar = barRef.current;
-    const el = activeRef.current;
-    if (!bar || !el || bar.scrollWidth <= bar.clientWidth) return;
-    const left = el.offsetLeft - (bar.clientWidth - el.offsetWidth) / 2;
-    bar.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
-  }, [activeTab]);
-  return (
-    <div ref={barRef} className="relative flex flex-row md:flex-wrap overflow-x-auto md:overflow-visible scrollbar-none bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-panel)] md:rounded-[var(--radius-control)] p-1.5 md:p-1 w-full md:w-fit gap-1 shadow-sm">
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          ref={activeTab === tab.id ? activeRef : undefined}
-          type="button"
-          onClick={() => onTabChange(tab.id)}
-          className={`px-2.5 md:px-3.5 py-2 text-[11px] md:text-xs rounded-xl md:rounded-lg transition-all flex items-center gap-1.5 cursor-pointer border-none text-left whitespace-nowrap shrink-0 ${
-            activeTab === tab.id
-              ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] font-bold md:shadow-xs"
-              : "bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"
-          }`}
-        >
-          <tab.icon className="w-3.5 h-3.5 shrink-0" /> <span className="leading-tight">{tab.label}</span>
-        </button>
-      ))}
-    </div>
-  );
+  return <AbasPagina abas={TABS} value={props.activeTab} onChange={props.onTabChange} ariaLabel="Central de Receita" />;
 }

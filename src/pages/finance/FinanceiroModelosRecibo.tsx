@@ -3,6 +3,7 @@ import { Copy, Plus, Star, Trash2, Save, Loader2, ImagePlus, Palette, Type, List
 import { toast } from "sonner";
 import { Card } from "../../components/ui/card";
 import { PageContainer } from "../../components/PageContainer";
+import { AbasPagina } from "../../components/ui/abas-pagina";
 import { Field, FormSection, inputCls, textareaCls } from "./components/ModalKit";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { Button } from "../../components/ui/button";
@@ -155,11 +156,7 @@ export default function FinanceiroModelosRecibo() {
         </div>
 
         {/* Abas: modelo / Pix */}
-        <div className="flex gap-1 border-b border-[var(--color-border-subtle)]">
-          {([["modelo", "Modelo e pré-visualização", Eye], ["pix", "Recebimento por Pix", QrCode]] as const).map(([id, rot, Ic]) => (
-            <button key={id} type="button" onClick={() => setAba(id)} className={`px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5 border-b-2 -mb-px cursor-pointer bg-transparent ${aba === id ? "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]" : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}><Ic className="w-3.5 h-3.5" /> {rot}</button>
-          ))}
-        </div>
+        <AbasPagina<"modelo" | "pix"> abas={[{ id: "modelo", label: "Modelo e pré-visualização", icon: Eye }, { id: "pix", label: "Recebimento por Pix", icon: QrCode }]} value={aba} onChange={setAba} />
 
         {aba === "pix" && (
           <Card className="p-5 flex flex-col gap-4 max-w-3xl">

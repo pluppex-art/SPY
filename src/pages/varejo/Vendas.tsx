@@ -1,3 +1,4 @@
+import { AbasPagina } from "../../components/ui/abas-pagina";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { somar, formatBRL } from "../../lib/dinheiro";
 import { toast } from "sonner";
@@ -1541,37 +1542,15 @@ export default function VarejoVendas() {
         </Card>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-      {/* Tabs Switcher: PDV vs Histórico */}
-      <div className="flex bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-xl p-1 gap-1 w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap shadow-xs">
-        <button
-          onClick={() => setTab("pdv")}
-          className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-            tab === "pdv"
-              ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-          }`}
-        >
-          <ShoppingCart className="w-3.5 h-3.5" /> Frente de Caixa (PDV)
-          {cart.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.2 text-[10px] bg-white text-blue-600 rounded-full font-black">
-              {cart.reduce((s, i) => s + i.quantidade, 0)}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTab("historico")}
-          className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-            tab === "historico"
-              ? "bg-[var(--color-primary-blue)] text-white shadow-xs"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-          }`}
-        >
-          <History className="w-3.5 h-3.5" /> Histórico de Vendas ({historico.length})
-        </button>
-      </div>
-
-      </div>
+      <AbasPagina
+        className="mb-4"
+        value={tab}
+        onChange={(v) => setTab(v as any)}
+        abas={[
+          { id: "pdv", label: "Frente de Caixa (PDV)", icon: ShoppingCart, badge: cart.length > 0 ? cart.reduce((x, i) => x + i.quantidade, 0) : undefined },
+          { id: "historico", label: `Histórico de Vendas (${historico.length})`, icon: History },
+        ]}
+      />
 
       {/* ABA 1: PDV FRENTE DE CAIXA */}
       {tab === "pdv" && (

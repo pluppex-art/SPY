@@ -1,3 +1,4 @@
+import { AbasPagina } from "../../components/ui/abas-pagina";
 import { useNicheProfiles } from "./produtos/useNicheProfiles";
 import { useRecursoAtivo } from "../../lib/useRecursoAtivo";
 import { ROTA_PROPOSTAS } from "../../lib/paginasOcultas";
@@ -425,15 +426,10 @@ export default function Produtos() {
     if (v === "estoque") next.set("vista", "estoque"); else next.delete("vista");
     setSearchParams(next, { replace: true });
   };
-  const tabCls = (ativo: boolean) =>
-    `px-4 h-9 text-xs font-bold rounded-[var(--radius-control)] transition-colors ${ativo ? "bg-[var(--color-primary-blue)] text-white" : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-sunken)]"}`;
   return (
     <div className="space-y-4">
       {varejoOn && (
-        <div role="tablist" aria-label="Produtos e Estoque" className="inline-flex items-center gap-1 p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]">
-          <button role="tab" aria-selected={vista === "catalogo"} onClick={() => trocar("catalogo")} className={tabCls(vista === "catalogo")}>Catálogo</button>
-          <button role="tab" aria-selected={vista === "estoque"} onClick={() => trocar("estoque")} className={tabCls(vista === "estoque")}>Estoque & Movimentações</button>
-        </div>
+        <AbasPagina abas={[{ id: "catalogo", label: "Catálogo" }, { id: "estoque", label: "Estoque & Movimentações" }]} value={vista as "catalogo" | "estoque"} onChange={(v) => trocar(v)} ariaLabel="Produtos e Estoque" />
       )}
       {vista === "estoque" ? <VarejoEstoque embedded /> : <Catalog />}
     </div>

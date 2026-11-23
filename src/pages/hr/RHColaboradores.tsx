@@ -1,3 +1,4 @@
+import { AbasPagina } from "../../components/ui/abas-pagina";
 import { useState, useEffect, useRef } from "react";
 import { friendlyError } from "../../lib/friendlyError";
 import { PageContainer } from "../../components/PageContainer";
@@ -349,26 +350,14 @@ export default function RHColaboradores() {
       }
     >
       <div className="space-y-6 max-w-[1700px] mx-auto pb-12">
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-[var(--color-border-subtle)] pb-1">
-          {[
-            { key: "membros", label: `Membros da Equipe (${filteredVisiveis.length})` },
-            { key: "squads", label: `${escopo === "todos" ? "Squads da Empresa" : "Meus Squads"} (${squadsVis.length})` },
-          ].map(({ key, label }) => (
-            <button 
-              key={key} 
-              type="button"
-              onClick={() => setActiveTab(key as any)}
-              className={`px-4 py-2.5 text-xs font-bold transition-all relative rounded-t-[var(--radius-control)] cursor-pointer border-b-2 ${
-                activeTab === key 
-                  ? "text-[var(--color-primary-blue)] border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/5" 
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] border-transparent"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <AbasPagina
+          value={activeTab}
+          onChange={(v) => setActiveTab(v as any)}
+          abas={[
+            { id: "membros", label: `Membros da Equipe (${filteredVisiveis.length})` },
+            { id: "squads", label: `${escopo === "todos" ? "Squads da Empresa" : "Meus Squads"} (${squadsVis.length})` },
+          ]}
+        />
 
         {escopo !== "todos" && (
           <p className="text-xs text-[var(--color-text-muted)]">{ROTULO_ESCOPO[escopo]}.</p>

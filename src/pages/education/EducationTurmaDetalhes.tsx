@@ -1,3 +1,4 @@
+import { AbasPagina } from "../../components/ui/abas-pagina";
 import { useState } from "react";
 import { CheckSquare, TrendingUp, X, ArrowLeft, Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -64,21 +65,11 @@ export default function EducationTurmaDetalhes({ turma, students, onBack }: Educ
       <div className="space-y-6 max-w-[1700px] mx-auto pb-12">
         <TurmaDetalhesKPIs stats={kpiStats} />
 
-        <div className="flex gap-6 border-b border-[var(--color-border-subtle)]">
-          {(["presenca", "kanban"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
-                activeTab === tab 
-                  ? "text-[var(--color-primary-blue)] border-[var(--color-primary-blue)] font-bold" 
-                  : "text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {tab === "presenca" ? "Lista de Presença" : "Kanban de Progresso"}
-            </button>
-          ))}
-        </div>
+        <AbasPagina
+          value={activeTab}
+          onChange={(v) => setActiveTab(v as any)}
+          abas={[{ id: "presenca", label: "Lista de Presença" }, { id: "kanban", label: "Kanban de Progresso" }]}
+        />
 
         {activeTab === "presenca" && (
           <TurmaDetalhesPresenca

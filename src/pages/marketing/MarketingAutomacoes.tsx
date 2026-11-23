@@ -1,3 +1,4 @@
+import { AbasPagina } from "../../components/ui/abas-pagina";
 import { useMemo, useRef, useState } from "react";
 import { ResponsiveContainer, Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { MessageSquarePlus, Loader2, Users, Check, X, Trash2, AlertTriangle, Sparkles, Workflow, MessageCircle, Clock, Lightbulb, BookOpen, Send } from "lucide-react";
@@ -184,21 +185,14 @@ export default function MarketingAutomacoes() {
       }
     >
       <div className="space-y-6 pb-20">
-        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit max-w-full overflow-x-auto scrollbar-none [&>*]:shrink-0 [&>*]:whitespace-nowrap">
-          {([["julia", "Gatilho → Mensagem (IA)", MessageCircle], ["funis", "Gatilho → Funis / OS", Workflow]] as const).map(([v, label, Icon]) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setAba(v)}
-              className={cn(
-                "px-4 py-2 text-xs font-bold rounded-[calc(var(--radius-control)-2px)] cursor-pointer transition-all flex items-center gap-1.5",
-                aba === v ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              )}
-            >
-              <Icon className="w-3.5 h-3.5" /> {label}
-            </button>
-          ))}
-        </div>
+        <AbasPagina
+          value={aba}
+          onChange={(v) => setAba(v as any)}
+          abas={[
+            { id: "julia", label: "Gatilho → Mensagem (IA)", icon: MessageCircle },
+            { id: "funis", label: "Gatilho → Funis / OS", icon: Workflow },
+          ]}
+        />
 
         {aba === "julia" ? (
           <div className="space-y-6">

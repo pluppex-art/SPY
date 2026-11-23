@@ -1,3 +1,4 @@
+import { AbasPagina } from "../../components/ui/abas-pagina";
 import { useMemo, useState } from "react";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { Plus, FileText, FileSignature, Workflow, Send, Eye as EyeIcon, CheckCircle2, XCircle, FileEdit, User, Layers } from "lucide-react";
@@ -17,7 +18,7 @@ import { ContractsTable } from "./components/Contracts/ContractsTable";
 import { ContractFormModal, type ContractFormPayload } from "./components/Contracts/ContractFormModal";
 import { Pagination } from "../../components/ui/Pagination";
 import { handleDownloadPdf } from "./utils/proposalPdf";
-import { cn, normalizeText } from "../../lib/utils";
+import { normalizeText } from "../../lib/utils";
 import { getFaturamentoContratado } from "../../lib/revenueMetrics";
 import { isContractAtivo } from "../../components/ui/drillColumns";
 import type { Contract } from "../../types";
@@ -269,49 +270,16 @@ export default function Propostas() {
       }
     >
       {/* Abas de Navegação Unificada */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border-subtle)] pb-2 mb-6">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab("propostas")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 whitespace-nowrap",
-              activeTab === "propostas"
-                ? "bg-[var(--color-primary-blue)] text-white shadow-md shadow-[var(--color-primary-blue)]/20"
-                : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"
-            )}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            Propostas Comerciais ({propostasTotal})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("contratos")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 whitespace-nowrap",
-              activeTab === "contratos"
-                ? "bg-[var(--color-primary-blue)] text-white shadow-md shadow-[var(--color-primary-blue)]/20"
-                : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"
-            )}
-          >
-            <FileSignature className="w-3.5 h-3.5" />
-            Contratos & Faturas ({contracts.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("funil")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 whitespace-nowrap",
-              activeTab === "funil"
-                ? "bg-[var(--color-primary-blue)] text-white shadow-md shadow-[var(--color-primary-blue)]/20"
-                : "bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"
-            )}
-          >
-            <Workflow className="w-3.5 h-3.5" />
-            Funil de Conversão
-          </button>
-        </div>
-      </div>
+      <AbasPagina
+        className="mb-6"
+        value={activeTab}
+        onChange={(v) => setActiveTab(v as any)}
+        abas={[
+          { id: "propostas", label: "Propostas Comerciais", icon: FileText, badge: propostasTotal },
+          { id: "contratos", label: "Contratos & Faturas", icon: FileSignature, badge: contracts.length },
+          { id: "funil", label: "Funil de Conversão", icon: Workflow },
+        ]}
+      />
 
       {activeTab === "propostas" ? (
         <div className="space-y-6">

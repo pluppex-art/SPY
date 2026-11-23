@@ -1,3 +1,4 @@
+import { AbasPagina } from "../../components/ui/abas-pagina";
 import { createContext, useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Copy, Loader2, Plus, X } from "lucide-react";
@@ -86,9 +87,7 @@ export default function AgendamentoConfig() {
       breadcrumb={[{ label: "Agendamento", path: "/app/agendamento" }, { label: "Configurações" }]}
       actions={<div className="flex gap-2"><Link to="/app/agendamento"><Button variant="outline" size="sm"><ArrowLeft className="w-4 h-4 mr-1.5" />Voltar à agenda</Button></Link><Button size="sm" disabled={!sujo || salvando} onClick={salvar}>{salvando && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Salvar alterações</Button></div>}>
       <AbaCtx.Provider value={aba}>
-      <div className="flex gap-1 mb-4 overflow-x-auto border-b border-[var(--color-border-default)]">
-        {ABAS.map((x) => <button key={x.id} onClick={() => setAba(x.id)} className={`px-4 h-10 text-sm font-bold whitespace-nowrap border-b-2 -mb-px ${aba === x.id ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>{x.nome}</button>)}
-      </div>
+      <AbasPagina<AbaId> className="mb-4" abas={ABAS.map((x) => ({ id: x.id, label: x.nome }))} value={aba} onChange={setAba} />
       <div className="space-y-4 max-w-4xl pb-20">
         <Secao aba="geral" titulo="Modelo de negócio" ajuda="Escolha o que mais se parece com a sua operação: os nomes (pista, quadra, sala, profissional…), a lotação por unidade e os tipos de reserva são preenchidos para você. Nada vale até clicar em Salvar alterações, e dá para ajustar tudo depois.">
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,3 +1,4 @@
+import { AbasPagina } from "../../components/ui/abas-pagina";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FileText, Trash2, ClipboardList, ArrowLeft, Check, Loader2, PartyPopper, Link2, Copy, RefreshCw, Gauge, ListChecks, CalendarClock, Building2, StickyNote, FormInput } from "lucide-react";
@@ -314,26 +315,15 @@ export default function ImplementacaoDetalhe() {
         </Card>
 
         {/* Abas */}
-        <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] w-fit max-w-full overflow-x-auto">
-          {([
-            ["form", "Formulário", FormInput, false],
-            ...(user?.isMaster ? [["ambiente", "Ambiente do cliente", Building2, !impl.linked_tenant_id && readiness.ready] as const] : []),
-            ["notas", "Notas & ajustes", StickyNote, false],
-          ] as const).map(([id, label, Icon, dot]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id as typeof tab)}
-              className={cn(
-                "px-4 py-1.5 text-xs font-medium rounded cursor-pointer transition-all flex items-center gap-1.5 whitespace-nowrap",
-                tab === id ? "bg-[var(--color-primary-blue)] !text-white" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              )}
-            >
-              <Icon className="w-3.5 h-3.5" /> {label}
-              {dot && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Pronto para criar" />}
-            </button>
-          ))}
-        </div>
+        <AbasPagina
+          value={tab}
+          onChange={(v) => setTab(v as typeof tab)}
+          abas={[
+            { id: "form", label: "Formulário", icon: FormInput },
+            ...(user?.isMaster ? [{ id: "ambiente", label: "Ambiente do cliente", icon: Building2, badge: !impl.linked_tenant_id && readiness.ready ? "pronto" : undefined }] : []),
+            { id: "notas", label: "Notas & ajustes", icon: StickyNote },
+          ]}
+        />
 
         {/* Ambiente do cliente (só equipe interna). Fica montado mesmo em outra aba — o modal do acesso recém-criado não pode sumir. */}
         {user?.isMaster && (

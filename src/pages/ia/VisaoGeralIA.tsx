@@ -1,3 +1,4 @@
+import { AbasPagina } from "../../components/ui/abas-pagina";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Bot, Workflow, Zap, Settings2, ChevronRight, Clock, Power, Activity, BookOpen, Lightbulb, AlertTriangle, Gauge } from "lucide-react";
@@ -79,14 +80,7 @@ export default function VisaoGeralIA() {
       }
     >
      <div className="space-y-5">
-      <div className="flex gap-1 overflow-x-auto border-b border-[var(--color-border-default)] -mx-1 px-1" role="tablist">
-        {ABAS.map((a) => (
-          <button key={a.id} role="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}
-            className={`shrink-0 px-3 py-2 text-xs font-bold border-b-2 -mb-px cursor-pointer bg-transparent transition-colors ${aba === a.id ? "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]" : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
-            {a.label}
-          </button>
-        ))}
-      </div>
+      <AbasPagina<Aba> abas={ABAS} value={aba} onChange={setAba} ariaLabel="Visão geral da IA" />
 
       {aba === "resumo" && (
         <>
