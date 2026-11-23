@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ModalTitle, inputCls } from "./components/ModalKit";
+import { FormSection, ModalTitle, inputCls } from "./components/ModalKit";
 import { somar } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
@@ -22,7 +22,7 @@ import { DrillDownPanel } from "../../components/ui/DrillDownPanel";
 import { transferDrillColumns } from "../../components/ui/drillColumns";
 
 const ctl = inputCls();
-const lbl = "text-xs font-bold text-[var(--color-text-primary)] mb-1.5 block";
+const lbl = "text-[11px] font-bold text-[var(--color-text-primary)] mb-1 flex items-center gap-1.5";
 
 function toLocalISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -383,8 +383,7 @@ export default function FinanceiroTransferencias() {
         maxWidth="max-w-xl"
       >
         <form onSubmit={(e) => handleSave(e, false)} className="space-y-4">
-          <div className="rounded-xl border border-[var(--color-border-subtle)] p-3 space-y-3">
-            <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] flex items-center gap-1.5"><Landmark className="w-3.5 h-3.5" /> Contas envolvidas</div>
+          <FormSection icon={Landmark} title="Contas envolvidas">
             <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-start">
               <div>
                 <label className={lbl}>Conta de origem</label>
@@ -412,10 +411,9 @@ export default function FinanceiroTransferencias() {
                 {tentou && errors.destino && <p className="text-[10px] text-danger mt-1">{errors.destino}</p>}
               </div>
             </div>
-          </div>
+          </FormSection>
 
-          <div className="rounded-xl border border-[var(--color-border-subtle)] p-3 space-y-3">
-            <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5" /> Valor e data</div>
+          <FormSection icon={DollarSign} title="Valor e data">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={lbl}>Valor (R$)</label>
@@ -434,7 +432,7 @@ export default function FinanceiroTransferencias() {
                 <span className="block text-[10px] text-[var(--color-text-faint)]">Só transferências concluídas alteram o saldo das contas. Deixe desmarcado para agendar.</span>
               </span>
             </label>
-          </div>
+          </FormSection>
 
           {contaOrigemId && contaDestinoId && contaOrigemId !== contaDestinoId && valorNum > 0 && (() => {
             const baseO = saldoBase(contaOrigemId);

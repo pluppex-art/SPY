@@ -5,7 +5,7 @@ import { Button } from "../../components/ui/button";
 import {
   CheckCircle2, AlertCircle, RefreshCw, Upload, 
   Building2, Sparkles, Check, X,
-  ArrowDownLeft, Landmark, Link2, FilePlus2
+  ArrowDownLeft, Landmark, Link2, FilePlus2, FileText
 } from "lucide-react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { } from "../../components/ui/card";
@@ -22,7 +22,7 @@ import { SecaoCard } from "./components/SecaoCard";
 import { useConexaoBanco, estadoDaConexao } from "./hooks/useConexaoBanco";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { Modal } from "../../components/ui/modal";
-import { Field, ModalFooter, inputCls, selectCls } from "./components/ModalKit";
+import { Field, ModalFooter, ModalTitle, inputCls, selectCls } from "./components/ModalKit";
 import { acharLancamento, lancamentoDoExtrato } from "./lib/conciliacao";
 import { Link } from "react-router-dom";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
@@ -628,11 +628,11 @@ export default function FinanceiroConciliacao() {
       <Modal
         isOpen={!!lancando}
         onClose={() => setLancando(null)}
-        title="Criar lançamento a partir do extrato"
-        footer={<ModalFooter onCancel={() => setLancando(null)} submitLabel="Criar lançamento" saving={salvandoLancar} type="button" onSubmit={confirmarLancar} />}
+        maxWidth="max-w-xl"
+        title={<ModalTitle icon={FileText} title="Criar lançamento a partir do extrato" subtitle="Cria o lançamento pago, na data e no valor do banco, e já concilia a linha." />}
       >
         {lancando && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <p className="rounded-lg bg-[var(--color-surface-sunken)] p-3 text-xs text-[var(--color-text-muted)]">
               {lancando.data} · <b className={lancando.tipo === "credito" ? "text-success" : "text-danger"}>{lancando.tipo === "credito" ? "+" : "−"} R$ {lancando.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b> · {lancando.tipo === "credito" ? "vira uma receita paga" : "vira uma despesa paga"} nesta data.
             </p>
@@ -649,6 +649,7 @@ export default function FinanceiroConciliacao() {
                 {contasAtivas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </Field>
+            <ModalFooter onCancel={() => setLancando(null)} submitLabel="Criar lançamento" saving={salvandoLancar} type="button" onSubmit={confirmarLancar} />
           </div>
         )}
       </Modal>

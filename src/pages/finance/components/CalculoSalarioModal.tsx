@@ -4,7 +4,7 @@ import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
 import { apiFetch } from "../../../lib/apiClient";
 import { formatBRL } from "../../../lib/dinheiro";
-import { inputCls } from "./ModalKit";
+import { Field, ModalTitle, inputCls } from "./ModalKit";
 
 type Linha = { label: string; value: number; kind?: string };
 
@@ -31,16 +31,12 @@ export function CalculoSalarioModal({ aberto, onClose, nome, salario }: { aberto
 
   const linhas: Linha[] = Array.isArray(saida?.resultado?.lines) ? saida.resultado.lines : [];
   return (
-    <Modal isOpen={aberto} onClose={onClose} title={`Salário líquido — ${nome}`}>
+    <Modal isOpen={aberto} onClose={onClose} maxWidth="max-w-lg" title={<ModalTitle icon={Calculator} title="Salário líquido" subtitle={nome} />}>
       <div className="space-y-4">
         <p className="text-sm text-[var(--color-text-muted)]">Salário base: <strong className="text-[var(--color-text-primary)]">{formatBRL(salario || 0)}</strong></p>
         <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1 text-xs font-bold text-[var(--color-text-muted)]">Dependentes
-            <input className={inputCls()} inputMode="numeric" value={dependentes} onChange={(e) => setDependentes(e.target.value)} />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-bold text-[var(--color-text-muted)]">Pensão alimentícia (R$)
-            <input className={inputCls()} inputMode="decimal" value={pensao} onChange={(e) => setPensao(e.target.value)} />
-          </label>
+          <Field label="Dependentes"><input className={inputCls()} inputMode="numeric" value={dependentes} onChange={(e) => setDependentes(e.target.value)} /></Field>
+          <Field label="Pensão alimentícia (R$)"><input className={inputCls()} inputMode="decimal" value={pensao} onChange={(e) => setPensao(e.target.value)} /></Field>
         </div>
         <Button onClick={calcular} disabled={carregando || !(salario > 0)}>
           {carregando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />} Calcular

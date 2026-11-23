@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ModalTitle, inputCls } from "./components/ModalKit";
+import { FormSection, ModalFooter, ModalTitle, inputCls } from "./components/ModalKit";
 import { somar, formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -19,7 +19,7 @@ import { cn } from "../../lib/utils";
 import { ViewModal } from "./components/ViewModal";
 
 const ctl = inputCls();
-const lbl = "text-xs font-bold text-[var(--color-text-primary)] mb-1.5 flex items-center gap-1.5";
+const lbl = "text-[11px] font-bold text-[var(--color-text-primary)] mb-1 flex items-center gap-1.5";
 
 type CentroCusto = {
   id: string;
@@ -363,8 +363,7 @@ export default function FinanceiroCentrosCusto() {
         maxWidth="max-w-xl"
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <div className="rounded-xl border border-[var(--color-border-subtle)] p-3 space-y-3">
-            <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Identificação</div>
+          <FormSection icon={FileText} title="Identificação">
             <div>
               <label className={lbl}>Nome do centro / unidade</label>
               <input
@@ -390,10 +389,9 @@ export default function FinanceiroCentrosCusto() {
                 <input value={responsavel} onChange={e => setResponsavel(e.target.value)} placeholder="Nome do líder" className={ctl} />
               </div>
             </div>
-          </div>
+          </FormSection>
 
-          <div className="rounded-xl border border-[var(--color-border-subtle)] p-3 space-y-3">
-            <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5" /> Orçamento e consumo</div>
+          <FormSection icon={DollarSign} title="Orçamento e consumo">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={lbl}>Orçamento mensal (R$)</label>
@@ -420,7 +418,7 @@ export default function FinanceiroCentrosCusto() {
                 <p className="flex items-start gap-1.5 text-[10px] text-danger mt-1.5"><AlertCircle className="w-3 h-3 shrink-0 mt-0.5" /> O gasto ultrapassa o orçamento em {formatCurrency(numGasto - numOrcamento)}.</p>
               )}
             </div>
-          </div>
+          </FormSection>
 
           {vinculados && (
             <p className="flex items-start gap-1.5 text-[10px] text-[var(--color-text-muted)] p-2 rounded-lg bg-[var(--color-primary-blue)]/[0.06] border border-[var(--color-primary-blue)]/15">
@@ -431,24 +429,16 @@ export default function FinanceiroCentrosCusto() {
             </p>
           )}
 
-          <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
-            <div>
-              {editingId && (
+          <ModalFooter
+            onCancel={() => setShowModal(false)}
+            submitLabel={editingId ? "Salvar Alterações" : "Criar Centro de Custo"}
+            saving={saving}
+            left={editingId ? (
                 <Button type="button" variant="outline" disabled={saving} onClick={async () => { if (await handleDelete(editingId)) setShowModal(false); }} className="h-9 px-3 text-xs font-medium gap-1.5 text-[var(--color-danger)]">
                   <Trash2 className="w-3.5 h-3.5" /> Excluir
                 </Button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={saving} className="h-9 px-4 text-xs font-medium">
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={saving} className="h-9 px-5 text-xs font-medium gap-1.5">
-                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {editingId ? "Salvar Alterações" : "Criar Centro de Custo"}
-              </Button>
-            </div>
-          </div>
+            ) : undefined}
+          />
         </form>
       </Modal>
     </PageContainer>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { lerValor } from "../../../lib/dinheiro";
-import { Plus, Edit2, Trash2, Inbox, FileSpreadsheet } from "lucide-react";
+import { Plus, Edit2, Trash2, Inbox, FileSpreadsheet, Pencil, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../../components/PageContainer";
 import { Card } from "../../../components/ui/card";
@@ -18,7 +18,7 @@ import { friendlyError } from "../../../lib/friendlyError";
 import { exportarXlsx, dataParaArquivo, type ColunaXlsx } from "../../../lib/exportXlsx";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
-import { Field, ModalFooter, inputCls, selectCls, textareaCls } from "./ModalKit";
+import { Field, ModalFooter, ModalTitle, inputCls, selectCls, textareaCls } from "./ModalKit";
 
 export type TipoCampo = "text" | "money" | "int" | "date" | "month" | "select" | "bool" | "textarea";
 
@@ -385,7 +385,7 @@ export function CadastroFinanceiro({ tabela, titulo, descricao, nomeItem, masc =
       {rodape}
       </div>
 
-      <Modal isOpen={!!editando} onClose={() => setEditando(null)} title={editando?.id ? `Editar ${nomeItem}` : `${NOVO} ${nomeItem}`} footer={<ModalFooter onCancel={() => setEditando(null)} submitLabel="Salvar" saving={saving} type="button" onSubmit={salvar} />}>
+      <Modal isOpen={!!editando} onClose={() => setEditando(null)} maxWidth="max-w-xl" title={<ModalTitle icon={editando?.id ? Pencil : ClipboardList} title={editando?.id ? `Editar ${nomeItem}` : `${NOVO} ${nomeItem}`} subtitle={editando?.id ? "Atualize os dados e salve." : "Preencha os dados e salve. Os campos com * são obrigatórios."} />} footer={<ModalFooter onCancel={() => setEditando(null)} submitLabel="Salvar" saving={saving} type="button" onSubmit={salvar} />}>
         <div className="space-y-3">
           {campos.map((c) => (
             <Field key={c.key} label={c.label} required={c.obrigatorio} hint={c.ajuda}>
