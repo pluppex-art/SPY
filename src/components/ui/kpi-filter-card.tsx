@@ -182,13 +182,13 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
 
   return (
     <Card className={cn("overflow-hidden", className)}>
-      <div className="flex items-center gap-2 px-4 py-2.5">
-        {/* Título clicável */}
+      <div className="flex items-center h-11">
+        {/* Título — clicável */}
         <button
           type="button"
           onClick={toggle}
           aria-expanded={open}
-          className="shrink-0 flex items-center gap-2 border-none bg-transparent cursor-pointer p-0"
+          className="shrink-0 flex items-center gap-2 px-4 h-full border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors"
         >
           <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
           <span className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] whitespace-nowrap">
@@ -201,9 +201,12 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
           )}
         </button>
 
+        {/* Divisor */}
+        {hasInlineSearch && searchProps && <div className="w-px h-5 bg-[var(--color-border-default)] shrink-0" />}
+
         {/* Busca compacta inline — só quando fechado */}
-        {hasInlineSearch && searchProps ? (
-          <div className="relative w-80 shrink-0" onClick={e => e.stopPropagation()}>
+        {hasInlineSearch && searchProps && (
+          <div className="relative w-72 shrink-0 mx-3" onClick={e => e.stopPropagation()}>
             <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
             <input
               type="text"
@@ -213,16 +216,22 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
               className="w-full h-7 pl-7 pr-2.5 rounded-full border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-[11px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)] transition-colors"
             />
           </div>
-        ) : null}
+        )}
 
-        {/* Espaço expansível + ações à direita */}
-        <div className="flex-1" />
+        {/* Área branca central — botão de abrir/fechar */}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          className="flex-1 h-full border-none bg-transparent cursor-pointer"
+        />
 
+        {/* Limpar filtros */}
         {activeCount > 0 && onClear && (
           <button
             type="button"
             onClick={onClear}
-            className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer shrink-0"
+            className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer px-3 h-full"
           >
             <X className="w-3 h-3" /> Limpar
           </button>
@@ -233,7 +242,7 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
           type="button"
           onClick={toggle}
           aria-expanded={open}
-          className="shrink-0 flex items-center border-none bg-transparent cursor-pointer p-0"
+          className="shrink-0 flex items-center px-4 h-full border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors"
         >
           <ChevronDown className={cn("w-4 h-4 text-[var(--color-text-muted)] transition-transform", open && "rotate-180")} />
         </button>
