@@ -60,19 +60,20 @@ export function KpiTiles({ items }: { items: KpiItem[] }) {
   const n = colunasBalanceadas(items.length, 5);
   const cols = n >= 5 ? "md:grid-cols-5" : n === 4 ? "md:grid-cols-4" : n === 3 ? "md:grid-cols-3" : "md:grid-cols-2";
   return (
-    <div className={cn("flex md:grid gap-2 shrink-0 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none -mx-4 px-4 md:mx-0 md:px-0 pb-1 md:pb-0 scrollbar-none", cols)}>
+    <div className={cn("flex md:grid gap-2.5 sm:gap-4 shrink-0 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none -mx-4 px-4 md:mx-0 md:px-0 pb-1 md:pb-0 scrollbar-none", cols)}>
       {items.map(({ label, value, icon: Icon, tone = "primary", hint }, i) => (
         <Card
           key={label}
           title={hint}
           style={{ "--bar": TONE_VAR[tone] } as React.CSSProperties}
           className={cn(
-            "max-md:border-b-4 max-md:[border-bottom-color:var(--bar)] p-3 md:p-4 min-w-[128px] md:min-w-0 shrink-0 md:shrink snap-start hover:border-[var(--color-border-default)]/80 transition-all",
+            "max-md:border-b-4 max-md:[border-bottom-color:var(--bar)] p-3.5 sm:p-5 min-w-[140px] md:min-w-0 shrink-0 md:shrink snap-start hover:border-[var(--color-border-default)]/80 transition-all",
           )}
         >
-          {Icon && <Icon className={cn("w-4 h-4 mb-1.5 md:mb-2", TONE_CLASS[tone])} />}
-          <div className="text-xl font-display font-black text-[var(--color-text-primary)] mb-1 italic truncate">{value}</div>
-          <div className="text-[9px] font-black text-[var(--color-text-muted)] uppercase tracking-widest">{label}</div>
+          {Icon && <Icon className={cn("w-5 h-5 mb-2 sm:mb-3", TONE_CLASS[tone])} />}
+          <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)] mb-1 italic truncate">{value}</div>
+          <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{label}</div>
+          <div className="mt-1 min-h-[1.25rem] text-[10px] text-[var(--color-text-faint)] font-medium leading-tight line-clamp-2">{hint ?? ""}</div>
         </Card>
       ))}
     </div>
