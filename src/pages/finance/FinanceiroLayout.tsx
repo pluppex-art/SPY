@@ -18,6 +18,7 @@ import {
   GraduationCap,
   Stethoscope,
   PiggyBank,
+  ShoppingCart,
 } from "lucide-react";
 import { SectionSidebar, type SectionNavGroup, type SectionNavItem } from "../../components/layout/SectionSidebar";
 import { NovaOperacaoModal } from "./components/NovaOperacaoModal";
@@ -49,11 +50,14 @@ const G = {
   notas: { title: "Notas e Recibos", icon: FileText, abas: [
     { label: "Notas fiscais (NFS-e)", path: `${B}/notas-fiscais` }, { label: "Modelos de recibo", path: `${B}/modelos-recibo` },
   ] },
-  despesas: { title: "Despesas e Compras", icon: TrendingDown, abas: [
-    { label: "A pagar", path: `${B}/despesas` }, { label: "Compras e Parcelas", path: `${B}/compras` }, { label: "Viagens e Eventos", path: `${B}/viagens` },
+  despesas: { title: "Despesas", icon: TrendingDown, abas: [
+    { label: "A pagar", path: `${B}/despesas` }, { label: "Viagens e Eventos", path: `${B}/viagens` },
   ] },
-  orcamento: { title: "Centros de Custo e Orçamento", icon: Target, abas: [
-    { label: "Centros de Custo", path: `${B}/centros-custo` }, { label: "Orçamentos", path: `${B}/orcamentos` },
+  compras: { title: "Compras", icon: ShoppingCart, abas: [
+    { label: "Pedidos de compra", path: `${B}/pedidos-compra` }, { label: "Compras e Parcelas", path: `${B}/compras` }, { label: "Centros de Custo", path: `${B}/centros-custo` },
+  ] },
+  orcamento: { title: "Orçamento", icon: Target, abas: [
+    { label: "Orçamentos", path: `${B}/orcamentos` },
   ] },
   movimentacoes: { title: "Movimentações e Caixa", icon: ArrowLeftRight, abas: [
     { label: "Todas", path: `${B}/transacoes` }, { label: "Fluxo de Caixa", path: `${B}/fluxo-caixa` },
@@ -89,7 +93,7 @@ function montarGrupos(has: (m: any) => boolean): SectionNavGroup[] {
   return [
     { title: "Painel e Relatórios", icon: LayoutDashboard, items: [itemDe(G.painel), itemDe(G.relatorios)] },
     { title: "Entradas", icon: Inbox, items: entradas },
-    { title: "Custos e Despesas", icon: TrendingDown, items: [itemDe(G.despesas), itemDe(G.orcamento)] },
+    { title: "Custos e Despesas", icon: TrendingDown, items: [itemDe(G.despesas), itemDe(G.compras), itemDe(G.orcamento)] },
     { title: "Caixa e Bancos", icon: Landmark, items: [itemDe(G.movimentacoes), itemDe(G.bancos), itemDe(G.metas)] },
     { title: "Pessoas", icon: Users, items: [itemDe(G.equipe)] },
     { title: "Configurações", icon: FolderTree, items: [itemDe(G.cadastros)] },
@@ -128,6 +132,7 @@ const PAGINAS_COM_BOTAO_PROPRIO = [
   "/app/financeiro/resumo",
   "/app/financeiro/agenda",
   "/app/financeiro/compras",
+  "/app/financeiro/pedidos-compra",
 ];
 
 export default function FinanceiroLayout() {

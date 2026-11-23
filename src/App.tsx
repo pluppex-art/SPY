@@ -123,6 +123,7 @@ const ConfigCRMFidelidade = lazy(() => import("./pages/settings/sections/crm/Con
 const ConfigCRMOrigens = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMOrigens })));
 const ConfigCRMProdutos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMProdutos })));
 const ConfigProdutividadeCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigProdutividadeCategorias })));
+const FinanceiroPedidosCompra = lazy(() => import("./pages/finance/FinanceiroPedidosCompra"));
 const FinanceiroPlanoContas = lazy(() => import("./pages/finance/FinanceiroPlanoContas"));
 const ConfigFinanceiroCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroCategorias })));
 const ConfigEngajamentoModelos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigEngajamentoModelos })));
@@ -399,6 +400,7 @@ function AppContent() {
             <Route path="resumo" element={<FinanceiroCentralResumo />} />
             <Route path="agenda" element={<FinanceiroAgenda />} />
             <Route path="compras" element={<FinanceiroCompras />} />
+            <Route path="pedidos-compra" element={<FinanceiroPedidosCompra />} />
             <Route path="promessas" element={<FinanceiroPromessas />} />
             <Route path="historico-cobrancas" element={<FinanceiroHistoricoCobrancas />} />
             <Route path="adiantamentos" element={<FinanceiroAdiantamentos />} />
