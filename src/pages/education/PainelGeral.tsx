@@ -133,31 +133,31 @@ export default function PainelGeralEducation() {
         
         {/* KPI Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card onClick={() => setDrillKey("alunos")} className="p-5 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
+          <Card onClick={() => setDrillKey("alunos")} className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total de Alunos</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Total de Alunos</span>
               <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
                 <Users className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-2xl font-display font-black text-white italic">{totalAlunos}</div>
+            <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)] italic">{totalAlunos}</div>
             <p className="text-[11px] text-slate-500 mt-1">Alunos matriculados no sistema</p>
           </Card>
 
-          <Card onClick={() => setDrillKey("turmas")} className="p-5 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
+          <Card onClick={() => setDrillKey("turmas")} className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Turmas Ativas</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Turmas Ativas</span>
               <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
                 <GraduationCap className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-2xl font-display font-black text-white italic">{totalTurmas}</div>
+            <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)] italic">{totalTurmas}</div>
             <p className="text-[11px] text-slate-500 mt-1">Turmas pedagógicas cadastradas</p>
           </Card>
 
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm">
+          <Card className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recebido (Mensalidades)</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Recebido (Mensalidades)</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                 <DollarSign className="w-4 h-4" />
               </div>
@@ -166,9 +166,9 @@ export default function PainelGeralEducation() {
             <p className="text-[11px] text-slate-500 mt-1">Parcelas pagas confirmadas</p>
           </Card>
 
-          <Card onClick={() => setDrillKey("certificados")} className="p-5 bg-[var(--color-surface-elevated)] border border-white/5 shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
+          <Card onClick={() => setDrillKey("certificados")} className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Certificados Emitidos</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Certificados Emitidos</span>
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
                 <Award className="w-4 h-4" />
               </div>

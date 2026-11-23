@@ -278,14 +278,14 @@ export default function MarketingCampanhas() {
             sub: `${closedLeads} negócios ganhos`,
           },
         ].map((kpi, i) => (
-          <Card key={i} className="p-4 hover:border-[var(--color-border-default)]/80 transition-all">
+          <Card key={i} className="p-3.5 sm:p-5 hover:border-[var(--color-border-default)]/80 transition-all">
             <div className="flex items-center justify-between mb-2">
-              <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
+              <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
               <span className="text-[10px] font-bold text-[var(--color-text-faint)] uppercase tracking-wider">
                 {kpi.label}
               </span>
             </div>
-            <div className="text-xl md:text-2xl font-display font-black text-[var(--color-text-primary)] mb-1 italic">
+            <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)] mb-1 italic">
               {kpi.value}
             </div>
             <div className="text-[10px] text-[var(--color-text-muted)] truncate">

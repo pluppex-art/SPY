@@ -45,7 +45,7 @@ function KPICard({ icon: Icon, label, value, sub, color, trend, trendVal }: {
   trend?: "up" | "down"; trendVal?: string;
 }) {
   return (
-    <Card className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
+    <Card className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/30 hover:shadow-md transition-all">
       <div className="flex items-start justify-between mb-4">
         <Icon className={`w-5 h-5 ${color}`} />
         {trendVal && (
@@ -55,8 +55,8 @@ function KPICard({ icon: Icon, label, value, sub, color, trend, trendVal }: {
           </div>
         )}
       </div>
-      <div className="text-2xl font-display font-black text-white mb-1 italic">{value}</div>
-      <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</div>
+      <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)] mb-1 italic">{value}</div>
+      <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{label}</div>
       {sub && <p className="text-[10px] text-slate-600 mt-0.5">{sub}</p>}
     </Card>
   );

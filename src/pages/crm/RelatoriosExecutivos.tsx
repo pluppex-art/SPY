@@ -216,39 +216,39 @@ export default function RelatoriosExecutivos() {
 
         {/* Executive Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
+          <Card className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Leads & Conversão</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Leads & Conversão</span>
               <Target className="w-4 h-4 text-blue-400" />
             </div>
-            <div className="text-2xl font-display font-black text-white italic">{totalLeads}</div>
+            <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)] italic">{totalLeads}</div>
             <div className="text-xs text-slate-400 mt-1 flex items-center justify-between">
               <span>{closedLeads} fechados</span>
               <Badge variant={leadConversion > 15 ? "success" : "neutral"}>{leadConversion}% conv.</Badge>
             </div>
           </Card>
 
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
+          <Card className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Receita Liquidada</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Receita Liquidada</span>
               <DollarSign className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="text-2xl font-display font-black text-emerald-400 italic">{fmt(totalReceitas)}</div>
             <p className="text-xs text-slate-400 mt-1">Entradas confirmadas no período</p>
           </Card>
 
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
+          <Card className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Despesas Liquidadas</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Despesas Liquidadas</span>
               <TrendingUp className="w-4 h-4 text-rose-400" />
             </div>
             <div className="text-2xl font-display font-black text-rose-400 italic">{fmt(totalDespesas)}</div>
             <p className="text-xs text-slate-400 mt-1">Custos e despesas quitados</p>
           </Card>
 
-          <Card className="p-5 bg-[var(--color-surface-elevated)] border border-white/5">
+          <Card className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Resultado Líquido</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Resultado Líquido</span>
               <Briefcase className={`w-4 h-4 ${resultadoLiquido >= 0 ? "text-emerald-400" : "text-rose-400"}`} />
             </div>
             <div className={`text-2xl font-display font-black italic ${resultadoLiquido >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
