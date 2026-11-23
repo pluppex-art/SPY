@@ -10,6 +10,7 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { useMarketingTrafego, type Campanha } from "./useMarketingTrafego";
 import { TrafegoColumn } from "./components/TrafegoColumn";
 import { CampanhaModal } from "./components/CampanhaModal";
+import { CampanhaDetalhesPainel } from "./components/CampanhaDetalhesPainel";
 import { ConteudoCalendario } from "./components/ConteudoCalendario";
 
 /** Gestão de Tráfego Pago: campanhas de anúncios em quadro (por etapa) ou em calendário (por data de início). */
@@ -20,7 +21,8 @@ export default function MarketingTrafego() {
   const [busca, setBusca] = useState("");
   const [plataforma, setPlataforma] = useState("");
   const [etapa, setEtapa] = useState("");
-  const [modal, setModal] = useState<{ campanha: Campanha | null; data?: string } | null>(null);
+  const [modal, setModal] = useState<{ campanha: Campanha | null; data?: string; etapa?: string } | null>(null);
+  const [detalheId, setDetalheId] = useState<string | null>(null);
 
   const plataformas = useMemo(() => Array.from(new Set(campanhas.map((c) => c.platform))).sort(), [campanhas]);
   const filtradas = useMemo(() => {
@@ -102,7 +104,7 @@ export default function MarketingTrafego() {
               tasks={filtradas}
               colunas={colunas}
               rotulo={{ singular: "campanha", plural: "campanhas" }}
-              onOpenTask={(c) => setModal({ campanha: c as Campanha })}
+              onOpenTask={(c) => setDetalheId((c as Campanha).id)}
               onNovaPauta={(data) => setModal({ campanha: null, data })}
             />
           ) : (
@@ -110,12 +112,22 @@ export default function MarketingTrafego() {
               <DragDropContext onDragEnd={aoArrastar}>
                 <div className="flex gap-5 overflow-x-auto min-h-[500px] scrollbar-thin pb-6 flex-1 items-start">
                   {colunasVisiveis.map((col) => (
-                    <TrafegoColumn key={col.id} col={col} campanhas={filtradas} onOpen={(c) => setModal({ campanha: c })} />
+                    <TrafegoColumn key={col.id} col={col} campanhas={filtradas} todas={filtradas} onOpen={(c) => setDetalheId(c.id)} onNova={(etapaId) => setModal({ campanha: null, etapa: etapaId })} />
                   ))}
                 </div>
               </DragDropContext>
             </div>
           )}
+
+          <CampanhaDetalhesPainel
+            campanha={campanhas.find((c) => c.id === detalheId) ?? null}
+            campanhas={campanhas}
+            colunas={colunas}
+            onClose={() => setDetalheId(null)}
+            onAtualizar={(id, patch) => atualizar(id, patch)}
+            onEditar={(c) => setModal({ campanha: c })}
+            onExcluir={excluir}
+          />
 
           <CampanhaModal
             isOpen={modal !== null}
@@ -123,6 +135,7 @@ export default function MarketingTrafego() {
             colunas={colunas}
             campanha={modal?.campanha ?? null}
             dataInicial={modal?.data}
+            etapaInicial={modal?.etapa}
             onSalvar={salvar}
             onExcluir={excluir}
           />

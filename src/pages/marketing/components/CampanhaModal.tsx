@@ -15,6 +15,8 @@ interface Props {
   campanha: Campanha | null;
   /** Data sugerida ao criar (vem do clique num dia do calendário). */
   dataInicial?: string;
+  /** Etapa sugerida ao criar (vem do botão “Adicionar” de uma coluna do quadro). */
+  etapaInicial?: string;
   onSalvar: (dados: Omit<Campanha, "id" | "date">, id?: string) => Promise<boolean>;
   onExcluir?: (id: string) => Promise<boolean>;
 }
@@ -23,7 +25,7 @@ const rotulo = "text-[10px] font-black uppercase tracking-wider text-[var(--colo
 const campo = "w-full h-10 px-3 rounded-xl text-sm border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)]";
 
 /** Criar ou editar uma campanha de tráfego pago. */
-export function CampanhaModal({ isOpen, onClose, colunas, campanha, dataInicial, onSalvar, onExcluir }: Props) {
+export function CampanhaModal({ isOpen, onClose, colunas, campanha, dataInicial, etapaInicial, onSalvar, onExcluir }: Props) {
   const [titulo, setTitulo] = useState("");
   const [plataforma, setPlataforma] = useState(PLATAFORMAS_TRAFEGO[0]);
   const [etapa, setEtapa] = useState("");
@@ -38,14 +40,14 @@ export function CampanhaModal({ isOpen, onClose, colunas, campanha, dataInicial,
     if (!isOpen) return;
     setTitulo(campanha?.title ?? "");
     setPlataforma(campanha?.platform ?? PLATAFORMAS_TRAFEGO[0]);
-    setEtapa(campanha?.colId ?? colunas[0]?.id ?? "planejamento");
+    setEtapa(campanha?.colId ?? etapaInicial ?? colunas[0]?.id ?? "planejamento");
     setOrcamento(campanha ? String(campanha.value || "") : "");
     setInicio(campanha?.publishDateISO ?? dataInicial ?? "");
     setFim(campanha?.endDateISO ?? "");
     setPrioridade(campanha?.priority ?? "Média");
     setDescricao(campanha?.desc ?? "");
     setSalvando(false);
-  }, [isOpen, campanha, dataInicial, colunas]);
+  }, [isOpen, campanha, dataInicial, etapaInicial, colunas]);
 
   const fimAntesDoInicio = !!inicio && !!fim && fim < inicio;
 

@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase";
 import { friendlyError } from "../../lib/friendlyError";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
-import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_CLASS } from "../../hooks/useKanbanConfig";
+import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_CLASS, KANBAN_COR_DOT } from "../../hooks/useKanbanConfig";
 
 /** Campanha de tráfego pago, no formato usado pelo quadro e pelo calendário. */
 export interface Campanha {
@@ -74,6 +74,8 @@ export function useMarketingTrafego() {
     id: c.id,
     title: c.nome,
     color: KANBAN_COR_CLASS[c.cor] ?? "bg-slate-500",
+    /** Cor da etapa em hexadecimal (faixa da coluna e do painel de detalhes). */
+    hex: KANBAN_COR_DOT[c.cor] ?? "#64748b",
   }));
 
   const carregar = useCallback(async () => {
