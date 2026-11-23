@@ -82,20 +82,20 @@ export function PropostasKPIs({ kpis, contracts }: { kpis: PropostasKpisValue; c
 
   return (
     <>
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2.5 sm:gap-4">
       {stats.map((stat, i) => (
         <Card
           key={stat.label}
           onClick={stat.rows ? () => setDrillIndex(i) : undefined}
-          className={`p-4 ${stat.rows ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all" : ""}`}
+          className={`p-3.5 sm:p-5 ${stat.rows ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all" : ""}`}
         >
           <div className="flex items-center gap-2 mb-2">
-            <stat.icon className={`w-4 h-4 ${stat.color}`} />
-            <span className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest">{stat.label}</span>
+            <stat.icon className={`w-5 h-5 ${stat.color}`} />
+            <span className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{stat.label}</span>
           </div>
           <div className="flex items-end justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-xl font-display font-black text-[var(--color-text-primary)] truncate">{stat.value}</div>
+              <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)] truncate">{stat.value}</div>
               {stat.hint ? (
                 <span className="text-[11px] text-[var(--color-text-muted)]">{stat.hint}</span>
               ) : (

@@ -13,10 +13,10 @@ export function DevKPIs() {
   return (
     <div className={`grid grid-cols-2 ${gradeMd(STATS.length)} gap-4`}>
       {STATS.map((stat, i) => (
-        <Card key={i} className="p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all">
-          <stat.icon className={`w-5 h-5 ${stat.color} mb-4`} />
-          <div className="text-2xl font-display font-black text-white mb-1 italic">{stat.value}</div>
-          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</div>
+        <Card key={i} className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/30 hover:shadow-md transition-all">
+          <stat.icon className={`w-5 h-5 ${stat.color} mb-2 sm:mb-3`} />
+          <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)] mb-1 italic">{stat.value}</div>
+          <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{stat.label}</div>
         </Card>
       ))}
     </div>

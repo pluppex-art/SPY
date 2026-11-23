@@ -59,15 +59,15 @@ export function IndicadoresKPIs({ kpiCards, criticalKPIs, selectedKPI, onSelectK
         {kpiCards.map((kpi) => (
           <div key={kpi.label} className="h-full">
             <Card
-              className={`p-6 bg-[var(--color-surface-elevated)]/50 border hover:border-white/10 border-white/5 backdrop-blur-md transition-all ${criticalKPIs.includes(kpi.label) ? "animate-pulse" : ""}`}
+              className={`p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/30 hover:shadow-md transition-all ${criticalKPIs.includes(kpi.label) ? "animate-pulse" : ""}`}
               onDoubleClick={() => onSelectKPI(kpi)}
             >
               <div className="flex justify-between items-start mb-4">
                 <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
                 <span className={`text-[10px] font-bold ${kpi.trend.startsWith("+") ? "text-emerald-400" : "text-rose-400"}`}>{kpi.trend}</span>
               </div>
-              <div className="text-2xl font-display font-black text-white mb-1 italic">{kpi.value}</div>
-              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{kpi.label}</div>
+              <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)] mb-1 italic">{kpi.value}</div>
+              <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{kpi.label}</div>
             </Card>
           </div>
         ))}

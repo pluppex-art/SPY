@@ -31,11 +31,11 @@ export function PainelKPIs({ stats }: PainelKPIsProps) {
         <Card
           key={i}
           onClick={stat.drill ? () => setDrillIndex(i) : undefined}
-          className={`p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-blue-500/30 hover:shadow-md transition-all ${stat.drill ? "cursor-pointer hover:-translate-y-0.5" : ""}`}
+          className={`p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/30 hover:shadow-md transition-all ${stat.drill ? "cursor-pointer hover:-translate-y-0.5" : ""}`}
         >
-          <stat.icon className={`w-5 h-5 ${ICON_COLORS[i % ICON_COLORS.length]} mb-4`} />
-          <div className="text-2xl font-display font-black text-[var(--color-text-primary)] mb-1 italic">{stat.value}</div>
-          <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest">{stat.label}</div>
+          <stat.icon className={`w-5 h-5 ${ICON_COLORS[i % ICON_COLORS.length]} mb-2 sm:mb-3`} />
+          <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)] mb-1 italic">{stat.value}</div>
+          <div className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{stat.label}</div>
           {stat.trend && (
             <div className={`text-xs mt-1 ${stat.trend.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}>
               {stat.trend}

@@ -68,20 +68,20 @@ export function ClientesKPIs({ total, ativos, implantacao, inativos, todosRows, 
 
   return (
     <>
-    <div className={`grid grid-cols-2 ${gradeLg(items.length)} gap-3`}>
+    <div className={`grid grid-cols-2 ${gradeLg(items.length)} gap-2.5 sm:gap-4`}>
       {items.map(({ label, value, icon: Icon, color, rows, spark, delta }, i) => (
         <Card
           key={label}
           onClick={rows ? () => setDrillIndex(i) : undefined}
-          className={`p-4 ${rows ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all" : ""}`}
+          className={`p-3.5 sm:p-5 ${rows ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all" : ""}`}
         >
           <div className="flex items-center gap-2 mb-2">
-            <Icon className={`w-4 h-4 ${color}`} />
-            <span className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest">{label}</span>
+            <Icon className={`w-5 h-5 ${color}`} />
+            <span className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-wider">{label}</span>
           </div>
           <div className="flex items-end justify-between gap-2">
             <div>
-              <div className="text-2xl font-display font-black text-[var(--color-text-primary)]">{value}</div>
+              <div className="text-lg sm:text-2xl font-display font-black text-[var(--color-text-primary)]">{value}</div>
               {delta === null ? (
                 <span className="text-[10px] text-[var(--color-text-faint)]">Sem dado de comparação</span>
               ) : (

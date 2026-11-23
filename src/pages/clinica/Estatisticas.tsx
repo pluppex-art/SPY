@@ -128,10 +128,10 @@ export default function EstatisticasClinicas() {
             { label: "Total de Pacientes", value: totalPacientes.toString(), icon: Users, color: "text-emerald-500" },
             { label: "Tempo Médio de Espera", value: avgWaitTime, icon: Clock, color: "text-purple-500" },
           ].map((stat, i) => (
-            <Card key={i} className="p-4 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
+            <Card key={i} className="p-3.5 sm:p-5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">{stat.label}</span>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                <stat.icon className={`w-5 h-5 ${stat.color}`} />
               </div>
               <h3 className="text-2xl font-black font-mono text-[var(--color-text-primary)]">{stat.value}</h3>
             </Card>
