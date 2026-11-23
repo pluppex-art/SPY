@@ -5,7 +5,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
-import { Plus, Star, Pencil, Trash2, Archive, ArchiveRestore, Landmark, Repeat, Wallet, BarChart3, FileText, DollarSign, Info, Loader2, Eye, TrendingUp, Link2, AlertTriangle } from "lucide-react";
+import { Plus, Star, Pencil, Trash2, Archive, ArchiveRestore, Landmark, Repeat, Wallet, BarChart3, FileText, DollarSign, Info, Loader2, Eye, TrendingUp, Link2, AlertTriangle, Scale } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
 import { useData } from "../../contexts/DataContext";
@@ -283,11 +283,12 @@ export default function FinanceiroContasBancarias() {
           kpis={[
             { label: "Saldo Total (Contas Ativas)", value: formatCurrency(saldoTotalAtivas), icon: Wallet, tone: saldoTotalAtivas < 0 ? "danger" : "neutral" },
             { label: "Contas Ativas", value: listaAtiva.length, icon: Landmark, tone: "primary", hint: "Use o botão \"Ver contas ativas\" para detalhar" },
-            { label: "Maior Saldo", value: chartData[0] ? chartData[0].nome : "—", icon: TrendingUp, tone: "success", hint: chartData[0] ? formatCurrency(chartData[0].saldo) : undefined },
-            { label: "Contas Conectadas", value: `${listaAtiva.filter(c => c.conexao_status === "Conectada").length}/${listaAtiva.length}`, icon: Link2, tone: "info", hint: "Contas ativas ligadas ao banco; as demais recebem extrato OFX/CSV" },
+            { label: "Contas Conectadas", value: `${listaAtiva.filter(c => c.conexao_status === "Conectada").length}/${listaAtiva.length}`, icon: Link2, tone: "info", hint: "Ligadas ao banco; as demais usam OFX/CSV" },
             { label: "Saldo Negativo", value: listaAtiva.filter(c => (saldoPorConta.get(c.id) ?? 0) < 0).length, icon: AlertTriangle, tone: listaAtiva.some(c => (saldoPorConta.get(c.id) ?? 0) < 0) ? "danger" : "neutral", hint: "Contas ativas com saldo abaixo de zero" },
-            { label: "Arquivadas", value: listaArquivada.length, icon: Archive, tone: "neutral", hint: "Contas guardadas, fora do saldo total" },
             { label: "Conta Principal", value: contaPrincipal ? contaPrincipal.nome : "—", icon: Star, tone: "accent", hint: contaPrincipal ? formatCurrency(saldoPorConta.get(contaPrincipal.id) ?? 0) : undefined },
+            { label: "Saldo Médio por Conta", value: formatCurrency(listaAtiva.length > 0 ? saldoTotalAtivas / listaAtiva.length : 0), icon: Scale, tone: "neutral", hint: "Saldo total dividido pelas contas ativas" },
+            { label: "Maior Saldo", value: formatCurrency(chartData[0] ? chartData[0].saldo : 0), icon: TrendingUp, tone: "success", hint: chartData[0] ? `Conta: ${chartData[0].nome}` : undefined },
+            { label: "Arquivadas", value: listaArquivada.length, icon: Archive, tone: "neutral", hint: "Contas guardadas, fora do saldo total" },
           ]}
           activeCount={(busca ? 1 : 0) + (tipoFilter ? 1 : 0) + (aba !== "ativas" ? 1 : 0)}
           onClear={() => { setBusca(""); setTipoFilter(""); setAba("ativas"); }}
