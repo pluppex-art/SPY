@@ -1,3 +1,4 @@
+import { PageContainer } from "../../components/PageContainer";
 import { useState, useMemo } from "react";
 import { Button } from "../../components/ui/button";
 import { ConfirmModal } from "../../components/ui/modals/shared/ConfirmModal";
@@ -16,7 +17,6 @@ import { FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-f
 import { FinanceKpiFilter } from "../finance/components/FinanceKpiFilter";
 import { normalizeText, parseCurrencyBR, dataLocalISO } from "../../lib/utils";
 
-import { HelpTip } from "../../components/ui/help-tip";
 export default function Contracts() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
@@ -125,19 +125,19 @@ export default function Contracts() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestão de Contratos <HelpTip label="Sobre Gestão de Contratos">Resumo dos seus contratos: quantos estão ativos, quanto entra todo mês de forma recorrente (MRR) e como está a saúde financeira da carteira. Use para saber rápido como está a base de clientes.</HelpTip></h1>
-        </div>
+    <PageContainer
+      title="Gestão de Contratos"
+      description="Resumo dos seus contratos: quantos estão ativos, quanto entra todo mês de forma recorrente (MRR) e como está a saúde financeira da carteira. Use para saber rápido como está a base de clientes."
+      actions={
         <div className="flex gap-3">
           <Button variant="outline" className="gap-2" onClick={exportarCsv}>Exportar CSV</Button>
           <Button onClick={() => { setEditingContract(null); setIsModalOpen(true); }} className="gap-2">
             <Plus className="w-4 h-4" /> Novo Contrato
           </Button>
         </div>
-      </div>
-
+      }
+    >
+    <div className="space-y-6">
       <ContractsKPIs
         valorAtivos={valorContratosAtivos}
         ativos={contractsFiltrados.filter(c => c.status === "Ativo").length}
@@ -192,5 +192,6 @@ export default function Contracts() {
         message="Tem certeza de que deseja remover permanentemente este contrato? Os dados associados não poderão ser recuperados."
       />
     </div>
+    </PageContainer>
   );
 }
