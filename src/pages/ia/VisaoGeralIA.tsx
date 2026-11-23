@@ -1,7 +1,9 @@
 import { AbasPagina } from "../../components/ui/abas-pagina";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Bot, Workflow, Zap, Settings2, ChevronRight, Clock, Power, Activity, BookOpen, Lightbulb, AlertTriangle, Gauge } from "lucide-react";
+import { Bot, Workflow, Zap, Settings2, ChevronRight, Clock, Power, Activity, BookOpen, Lightbulb, AlertTriangle, Gauge, LayoutDashboard, Link2, GraduationCap } from "lucide-react";
+import { SectionSidebar, type SectionNavGroup } from "../../components/layout/SectionSidebar";
+import { useAuth } from "../../contexts/AuthContext";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { useData } from "../../contexts/DataContext";
@@ -51,6 +53,22 @@ const SHORTCUTS = [
 /** Tudo da IA (Aurora) numa tela só: agentes, funil SDR IA com etapas e um atalho pra cada configuração. */
 export default function VisaoGeralIA() {
   const { funis, leads, auroraAgents, leadScoreTriggers } = useData();
+  const { user, isModuleEnabled } = useAuth();
+  // Menu lateral da IA: a visão geral e atalhos para tudo o que se configura nela.
+  const grupos: SectionNavGroup[] = [
+    { title: "Inteligência Artificial", icon: Bot, items: [{ title: "Visão geral", path: "/app/ia", icon: LayoutDashboard }] },
+    {
+      title: "Configurações da IA", icon: Settings2, items: [
+        { title: "Aurora: controle, consumo e agentes", path: "/app/configuracoes/sistema/aurora", icon: Bot },
+        ...(isModuleEnabled("crm") ? [
+          { title: "Funis e etapas", path: "/app/configuracoes/crm/funis", icon: Workflow },
+          { title: "Gatilhos da IA", path: "/app/configuracoes/crm/gatilhos-ia", icon: Zap },
+        ] : []),
+        { title: "Links para os assistentes", path: "/app/configuracoes/integracoes/links-dinamicos", icon: Link2 },
+        ...(user?.isMaster ? [{ title: "Treinamento dos agentes", path: "/app/configuracoes/sistema/treinamento", icon: GraduationCap }] : []),
+      ],
+    },
+  ];
   const { data: ia, loading } = useIAOverview();
   const { usage } = useAuroraTokenUsage(120000);
   const [aba, setAba] = useState<Aba>("resumo");
@@ -70,6 +88,7 @@ export default function VisaoGeralIA() {
   const Titulo = ({ children }: { children: ReactNode }) => <h2 className="text-sm font-black uppercase tracking-wider text-[var(--color-text-faint)]">{children}</h2>;
 
   return (
+    <SectionSidebar heading="Inteligência Artificial" subheading="Aurora e agentes" groups={grupos}>
     <PageContainer
       title="Inteligência Artificial"
       description="Tudo da Aurora num lugar só: consumo, atividade, funil, agentes e conhecimento."
@@ -262,5 +281,6 @@ export default function VisaoGeralIA() {
       )}
      </div>
     </PageContainer>
+    </SectionSidebar>
   );
 }
