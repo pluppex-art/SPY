@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { ChevronRight, Home } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { navSections } from "./layout/navData";
 import { HelpTip } from "./ui/help-tip";
 
 interface PageContainerProps {
@@ -21,6 +22,23 @@ export function PageContainer({
   breadcrumb 
 }: PageContainerProps) {
   const displayDescription = description || subtitle;
+  const { pathname } = useLocation();
+
+  // Sem caminho informado pela tela: monta "Início › Seção › Tela" pela seção do menu a que a rota pertence
+  // (a seção do item cujo caminho é o maior prefixo da rota atual). Se a tela é o próprio item do menu, não repete.
+  const secao = (() => {
+    if (breadcrumb) return null;
+    let melhor: { sec: string; path: string; name: string; len: number } | null = null;
+    for (const sec of navSections as any[]) {
+      for (const it of sec.items as any[]) {
+        if (!it.path || it.path === "/app/dashboard" || it.path === "/app") continue;
+        if ((pathname === it.path || pathname.startsWith(it.path + "/")) && (!melhor || it.path.length > melhor.len)) {
+          melhor = { sec: sec.title, path: it.path, name: it.name, len: it.path.length };
+        }
+      }
+    }
+    return melhor && melhor.name !== title && melhor.sec !== title ? melhor : null;
+  })();
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -42,6 +60,12 @@ export function PageContainer({
                 )}
               </div>
             ))}
+            {!breadcrumb && secao && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[var(--color-text-faint)]" />
+                <Link to={secao.path} className="hover:text-[var(--color-text-primary)] transition-colors">{secao.sec}</Link>
+              </>
+            )}
             {!breadcrumb && (
                <>
                 <ChevronRight className="w-3 h-3 text-[var(--color-text-faint)]" />
