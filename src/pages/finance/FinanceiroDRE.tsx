@@ -136,12 +136,11 @@ export default function FinanceiroDRE() {
   const kpis: KpiItem[] = [
     { label: "Receita Bruta", value: <span className="inline-flex items-baseline gap-2">{fmt(dre.receitaBruta)} <DeltaBadge pct={receitaDeltaPct} /></span>, icon: TrendingUp, tone: "primary", hint: "Receita bruta vs. período anterior" },
     { label: "Lucro Bruto", value: fmt(dre.lucroBruto), icon: Wallet, tone: dre.lucroBruto < 0 ? "danger" : "info" },
-    { label: "Lucro Líquido", value: <span className="inline-flex items-baseline gap-2">{fmt(dre.lucroLiquido)} <DeltaBadge pct={lucroDeltaPct} /></span>, icon: Wallet, tone: dre.lucroLiquido >= 0 ? "success" : "danger", hint: "Lucro líquido vs. período anterior" },
-    { label: "Margem Líquida", value: `${dre.receitaBruta > 0 ? ((dre.lucroLiquido / dre.receitaBruta) * 100).toFixed(1) : "0"}%`, icon: Percent, tone: dre.lucroLiquido >= 0 ? "accent" : "danger" },
     { label: "Lucro Operacional", value: fmt(dre.lucroOperacional), icon: Gauge, tone: dre.lucroOperacional >= 0 ? "info" : "danger", hint: "Lucro bruto menos despesas variáveis" },
-    { label: "Despesas Totais", value: fmt(dre.impostos + dre.despesasVariaveis + dre.despesasFixas + dre.gastosComPessoal), icon: TrendingDown, tone: "danger", hint: "Impostos, variáveis, fixas e pessoal" },
+    { label: "Lucro Líquido", value: <span className="inline-flex items-baseline gap-2">{fmt(dre.lucroLiquido)} <DeltaBadge pct={lucroDeltaPct} /></span>, icon: Wallet, tone: dre.lucroLiquido >= 0 ? "success" : "danger", hint: "Lucro líquido vs. período anterior" },
     { label: "Margem Bruta", value: `${dre.receitaBruta > 0 ? ((dre.lucroBruto / dre.receitaBruta) * 100).toFixed(1) : "0"}%`, icon: Percent, tone: dre.lucroBruto >= 0 ? "success" : "danger", hint: "Lucro bruto sobre a receita bruta" },
-    { label: "Gastos com Pessoal", value: fmt(dre.gastosComPessoal), icon: Users, tone: "warning", hint: dre.receitaBruta > 0 ? `${((dre.gastosComPessoal / dre.receitaBruta) * 100).toFixed(1)}% da receita bruta` : undefined },
+    { label: "Margem Líquida", value: `${dre.receitaBruta > 0 ? ((dre.lucroLiquido / dre.receitaBruta) * 100).toFixed(1) : "0"}%`, icon: Percent, tone: dre.lucroLiquido >= 0 ? "accent" : "danger" },
+    { label: "Despesas Totais", value: fmt(dre.impostos + dre.despesasVariaveis + dre.despesasFixas + dre.gastosComPessoal), icon: TrendingDown, tone: "danger", hint: "Impostos, variáveis, fixas e pessoal" },
     { label: "Lançamentos", value: entriesCount, icon: ListOrdered, tone: "neutral", hint: regime === "caixa" ? "Somente lançamentos pagos — regime de caixa" : `${entriesPendentesCount} pendente(s) incluído(s) — regime de competência` },
   ];
 
