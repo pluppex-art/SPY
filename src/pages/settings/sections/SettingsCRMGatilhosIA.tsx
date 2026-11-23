@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Card } from "../../../components/ui/card";
+import { PageContainer } from "../../../components/PageContainer";
+import { Field, inputCls, selectCls } from "../../finance/components/ModalKit";
 import { Button } from "../../../components/ui/button";
 import { Zap, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -7,7 +9,6 @@ import { useData } from "../../../contexts/DataContext";
 import { LeadScoreTrigger } from "../../../types";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 
-import { HelpTip } from "../../../components/ui/help-tip";
 const DEFAULT_SDR_STAGES: Record<string, string> = {
   "sdr-1": "Novos Leads (Inbound)",
   "sdr-2": "Tentando Contato",
@@ -54,105 +55,59 @@ export function ConfigCRMGatilhosIA() {
   const sdrStagesMap = DEFAULT_SDR_STAGES;
 
   return (
-    <div className="max-w-4xl space-y-6 animate-in fade-in duration-300">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
-          Gatilhos de Lead Score IA <Zap className="w-5 h-5 text-[var(--color-primary-blue)] fill-[var(--color-primary-blue)]/10" />
-         <HelpTip label="Sobre Gatilhos de Lead Score IA">Crie regras para o sistema mover o lead de etapa sozinho conforme a nota dele (Lead Score IA). Assim, quem esquenta vai direto para o funil de SDR sem ninguém precisar fazer isso à mão.</HelpTip></h1>
-      </div>
-
-      {/* Rules list */}
-      <Card className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex justify-between items-center">
-          <h3 className="text-xs font-black text-[var(--color-primary-blue)] uppercase tracking-wider font-mono">Gatilhos Ativos no SDR</h3>
-          <span className="text-[10px] bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border border-[var(--color-primary-blue)]/20 px-2.5 py-0.5 rounded-full font-bold">
-            Motor de IA Operacional
-          </span>
-        </div>
-
-        <div className="divide-y divide-[var(--color-border-subtle)]">
+    <PageContainer
+      title="Gatilhos de Lead Score IA"
+      description="Crie regras para o sistema mover o lead de etapa sozinho conforme a nota dele (Lead Score IA). Assim, quem esquenta vai direto para o funil de SDR e quem esfria sai da frente."
+    >
+      <div className="grid gap-4 lg:grid-cols-5 items-start pb-12">
+        {/* Regras ativas */}
+        <Card className="lg:col-span-3 overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] flex items-center justify-between gap-2">
+            <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider inline-flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Regras ativas</h3>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]">{leadScoreTriggers.length} regra(s)</span>
+          </div>
           {leadScoreTriggers.length === 0 ? (
-            <div className="p-8 text-center text-[var(--color-text-muted)] text-sm italic">
-              Nenhuma regra de automação de lead score cadastrada. Crie uma abaixo.
+            <div className="px-6 py-12 text-center">
+              <p className="text-sm font-bold text-[var(--color-text-primary)]">Nenhuma regra ainda</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">Crie a primeira ao lado: por exemplo, "nota maior ou igual a 75 vai para Reunião Agendada".</p>
             </div>
           ) : (
-            leadScoreTriggers.map((trigger) => (
-              <div key={trigger.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-[var(--color-text-primary)]">Regra de Automação</h4>
-                  <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5 flex-wrap">
-                    Se <span className="font-mono text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 px-1 rounded border border-[var(--color-primary-blue)]/20 font-bold">Lead Score</span> for <strong>{trigger.condition === 'greater' ? 'Maior ou Igual a' : 'Menor ou Igual a'}</strong> <strong className="text-[var(--color-text-primary)] font-mono">{trigger.scoreThreshold}</strong>,
-                    mover de forma autônoma para a coluna <strong className="text-[var(--color-primary-blue)]">{sdrStagesMap[trigger.targetStageId] || trigger.targetStageId}</strong>.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 self-end md:self-auto">
-                  <Button 
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => handleDelete(trigger.id)}
-                    className="text-danger hover:bg-danger/10"
-                  >
-                    Remover
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </Card>
-
-      {/* Add trigger form */}
-      <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm">
-        <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
-          <Plus className="w-4 h-4 text-[var(--color-primary-blue)]" /> Criar Novo Gatilho por Inteligência Artificial
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1.5 block">Condição de Score</label>
-            <select
-              value={condition}
-              onChange={(e: any) => setCondition(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none"
-            >
-              <option value="greater">Maior ou Igual a (≥)</option>
-              <option value="less">Menor ou Igual a (≤)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1.5 block">Pontuação (0 a 100)</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={scoreThreshold}
-              onChange={(e) => setScoreThreshold(Number(e.target.value))}
-              className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-[var(--color-text-muted)] mb-1.5 block">Mover para Coluna</label>
-            <select
-              value={targetStageId}
-              onChange={(e) => setTargetStageId(e.target.value)}
-              className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none"
-            >
-              {Object.entries(DEFAULT_SDR_STAGES).map(([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
+            <ul className="divide-y divide-[var(--color-border-subtle)] list-none p-0 m-0">
+              {leadScoreTriggers.map((trigger) => (
+                <li key={trigger.id} className="px-4 py-3.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0 text-sm text-[var(--color-text-primary)] leading-relaxed">
+                    Quando a nota do lead for{" "}
+                    <strong>{trigger.condition === "greater" ? "maior ou igual a" : "menor ou igual a"}</strong>{" "}
+                    <span className="font-mono font-black text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10 px-1.5 py-0.5 rounded">{trigger.scoreThreshold}</span>,
+                    mover para <strong className="text-[var(--color-primary-blue)]">{sdrStagesMap[trigger.targetStageId] || trigger.targetStageId}</strong>.
+                  </div>
+                  <Button variant="ghost" size="xs" onClick={() => handleDelete(trigger.id)} className="text-danger hover:bg-danger/10 shrink-0">Remover</Button>
+                </li>
               ))}
-            </select>
-          </div>
-        </div>
+            </ul>
+          )}
+        </Card>
 
-        <Button onClick={handleAddTrigger} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
-          <Plus className="w-3.5 h-3.5" /> Adicionar Gatilho
-        </Button>
-      </Card>
-    </div>
+        {/* Nova regra */}
+        <Card className="lg:col-span-2 p-5 space-y-4">
+          <h3 className="text-xs font-black text-[var(--color-text-primary)] uppercase tracking-wider inline-flex items-center gap-1.5"><Plus className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Nova regra</h3>
+          <Field label="Condição da nota">
+            <select value={condition} onChange={(e: any) => setCondition(e.target.value)} className={selectCls()}>
+              <option value="greater">Maior ou igual a (≥)</option>
+              <option value="less">Menor ou igual a (≤)</option>
+            </select>
+          </Field>
+          <Field label="Nota (0 a 100)">
+            <input type="number" min="0" max="100" value={scoreThreshold} onChange={(e) => setScoreThreshold(Number(e.target.value))} className={inputCls()} />
+          </Field>
+          <Field label="Mover para a coluna">
+            <select value={targetStageId} onChange={(e) => setTargetStageId(e.target.value)} className={selectCls()}>
+              {Object.entries(DEFAULT_SDR_STAGES).map(([id, label]) => (<option key={id} value={id}>{label}</option>))}
+            </select>
+          </Field>
+          <Button onClick={handleAddTrigger} className="h-9 px-4 text-xs font-bold gap-1.5 w-full"><Plus className="w-3.5 h-3.5" /> Adicionar gatilho</Button>
+        </Card>
+      </div>
+    </PageContainer>
   );
 }

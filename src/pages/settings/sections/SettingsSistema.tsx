@@ -1,3 +1,4 @@
+import { PageContainer } from "../../../components/PageContainer";
 import { useState } from "react";
 import { ShieldCheck, HardDrive, ExternalLink, RefreshCw, Gauge, Activity, Wallet, CalendarClock, BadgeCheck } from "lucide-react";
 import { KpiTiles } from "../../../components/ui/kpi-filter-card";
@@ -105,18 +106,12 @@ export function ConfigSistemaAuroraUso() {
 
   const semLimite = !usage || usage.tokensLimit === null;
   return (
-    <div className="max-w-5xl space-y-6 animate-in fade-in duration-300 pb-12">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">Aurora: consumo e agentes <Gauge className="w-5 h-5 text-[var(--color-primary-blue)]" /></h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Quanto da Aurora já foi usado neste ciclo e quais agentes estão ligados para {activeTenantName ?? "sua empresa"}.
-          </p>
-        </div>
-        <Button type="button" variant="outline" onClick={handleRefresh} disabled={refreshing} className="h-9 px-4 text-xs font-medium gap-1.5 shrink-0">
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} /> Atualizar
-        </Button>
-      </div>
+    <PageContainer
+      title="Aurora: consumo e agentes"
+      description={`Quanto da Aurora já foi usado neste ciclo e quais agentes estão ligados para ${activeTenantName ?? "sua empresa"}.`}
+      actions={<Button type="button" variant="outline" onClick={handleRefresh} disabled={refreshing} className="h-9 px-4 text-xs font-medium gap-1.5"><RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} /> Atualizar</Button>}
+    >
+    <div className="space-y-6 pb-12">
 
       {/* Consumo */}
       {usageLoading ? (
@@ -149,5 +144,6 @@ export function ConfigSistemaAuroraUso() {
       {/* Agentes (só leitura: ligar e desligar é da equipe interna) */}
       <ConfigSistemaAuroraAgentes />
     </div>
+    </PageContainer>
   );
 }

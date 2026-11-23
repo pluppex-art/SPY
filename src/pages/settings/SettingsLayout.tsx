@@ -149,12 +149,12 @@ export default function SettingsLayout() {
       title: "Inteligência Artificial",
       icon: Brain,
       items: [
-        ...(aurora ? [{ title: "Visão geral da IA", path: "/app/ia" }] : []),
+        ...(aurora ? [{ title: "Visão geral", path: "/app/ia" }] : []),
         // Página única de Aurora (controle, prompts, consumo e agentes).
-        ...(aurora ? [{ title: "Aurora (Controle, Consumo & Agentes)", path: "/app/configuracoes/sistema/aurora" }] : []),
-        ...(activeModules.crm ? [{ title: "Gatilhos IA", path: "/app/configuracoes/crm/gatilhos-ia" }] : []),
-        { title: "Links para os assistentes de IA (Aurora e IA de vendas)", path: "/app/configuracoes/integracoes/links-dinamicos" },
-        ...(user?.isMaster && aurora ? [{ title: "Treinamento dos agentes (interno)", path: "/app/configuracoes/sistema/treinamento" }] : []),
+        ...(aurora ? [{ title: "Aurora", path: "/app/configuracoes/sistema/aurora" }] : []),
+        ...(activeModules.crm ? [{ title: "Gatilhos da IA", path: "/app/configuracoes/crm/gatilhos-ia" }] : []),
+        { title: "Links dos assistentes", path: "/app/configuracoes/integracoes/links-dinamicos" },
+        ...(user?.isMaster && aurora ? [{ title: "Treinamento dos agentes", path: "/app/configuracoes/sistema/treinamento" }] : []),
       ],
     },
     {

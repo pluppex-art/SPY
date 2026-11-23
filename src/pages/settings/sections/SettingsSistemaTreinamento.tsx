@@ -1,5 +1,7 @@
+import { PageContainer } from "../../../components/PageContainer";
+import { AbasPagina } from "../../../components/ui/abas-pagina";
 import { useEffect, useState } from "react";
-import { GraduationCap, Save, Loader2, Lock } from "lucide-react";
+import { Save, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
@@ -184,13 +186,11 @@ export function ConfigSistemaTreinamento() {
   const abas = [...AGENTES.map((a) => ({ key: a.key as string, nome: a.nome })), { key: "conhecimento", nome: "Conhecimento extra" }, { key: "licoes", nome: "Lições aprendidas" }];
 
   return (
-    <div className="max-w-4xl space-y-6 animate-in fade-in duration-300 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] flex items-center gap-2">
-          Treinamento dos agentes <GraduationCap className="w-5 h-5 text-[var(--color-primary-blue)]" />
-         <HelpTip label="Sobre Treinamento dos agentes">Cada agente tem uma instrução-base (80%) igual para todas as empresas, que você edita aqui. Os outros 20%, específicos da sua empresa, não são digitados aqui: vêm de Empresa → Dados (perfil para a IA) e de Produtos.</HelpTip></h1>
-      </div>
-
+    <PageContainer
+      title="Treinamento dos agentes"
+      description="Cada agente tem uma instrução-base (80%) igual para todas as empresas, que você edita aqui. Os outros 20%, específicos de cada empresa, vêm de Empresa › Dados e de Produtos."
+    >
+    <div className="space-y-4 pb-12">
       <Card className="p-3 bg-warning/10 border border-warning/30 text-xs text-[var(--color-text-primary)] flex items-start gap-2">
         <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
         <span>
@@ -198,18 +198,13 @@ export function ConfigSistemaTreinamento() {
         </span>
       </Card>
 
-      <div className="flex flex-wrap gap-2">
-        {abas.map((a) => (
-          <Button key={a.key} type="button" size="sm" variant={aba === a.key ? "default" : "ghost"} onClick={() => setAba(a.key)} className="border border-[var(--color-border-default)]">
-            {a.nome}
-          </Button>
-        ))}
-      </div>
+      <AbasPagina abas={abas.map((a) => ({ id: a.key, label: a.nome }))} value={aba} onChange={setAba} />
 
       {(aba === "sdr" || aba === "closer") && <EscopoVendas />}
       {agente && <AgenteTreino key={agente.key} agente={agente} />}
       {aba === "conhecimento" && <ConfigSistemaConhecimentoIA embedded />}
       {aba === "licoes" && <ConfigSistemaAprendizados embedded />}
     </div>
+    </PageContainer>
   );
 }

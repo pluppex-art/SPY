@@ -1,3 +1,4 @@
+import { PageContainer } from "../../components/PageContainer";
 import { useState } from "react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -10,7 +11,6 @@ import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useTenantDynamicLinks, type DynamicLinkType } from "../../hooks/useTenantDynamicLinks";
 
-import { HelpTip } from "../../components/ui/help-tip";
 const LINK_TYPE_LABELS: Record<DynamicLinkType, string> = {
   payment: "Pagamento",
   scheduling: "Agendamento",
@@ -59,14 +59,11 @@ export function ConfigLinksDinamicos() {
   };
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-[var(--color-text-primary)] flex items-center gap-2.5">
-          Links Dinâmicos
-          <Link2 className="w-5 h-5 text-[var(--color-primary-blue)]" />
-         <HelpTip label="Sobre Links Dinâmicos">Cadastre os links reais que a sua empresa já usa (pagamento, agendamento, checkout, contrato). A Aurora e a IA consultam esta lista na hora de responder, em vez de ter links fixos. Ao atualizar um link aqui, a mudança vale imediatamente, sem mexer em nenhuma automação.</HelpTip></h1>
-      </div>
-
+    <PageContainer
+      title="Links para os assistentes"
+      description="Cadastre os links reais que a sua empresa já usa (pagamento, agendamento, checkout, contrato). A Aurora e a IA consultam esta lista na hora de responder, em vez de inventar um link."
+    >
+    <div className="space-y-4 pb-12">
       <Card className="p-4 bg-warning/5 border border-warning/20 flex gap-3">
         <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <p className="text-xs text-[var(--color-text-muted)]">
@@ -142,5 +139,6 @@ export function ConfigLinksDinamicos() {
         </div>
       </Card>
     </div>
+    </PageContainer>
   );
 }
