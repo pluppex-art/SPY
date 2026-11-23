@@ -153,7 +153,6 @@ export default function FinanceiroPlanoContas() {
     );
   };
 
-  const vazio = (texto: string) => <p className="px-4 py-8 text-center text-xs text-[var(--color-text-faint)]">{texto}</p>;
   const nenhuma = categorias.length === 0;
 
   return (
