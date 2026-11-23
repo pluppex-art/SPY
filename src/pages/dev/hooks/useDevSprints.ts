@@ -17,6 +17,9 @@ export interface SprintTask {
   assignee: string;
   tags: string[];
   column: Column;
+  projectId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const COL_MAP: Record<string, Column> = {
@@ -36,6 +39,9 @@ function rowToTask(row: any): SprintTask {
     assignee: row.assignee || '',
     tags: row.tags || [],
     column: row.column_id as Column,
+    projectId: row.project_id ?? row.project ?? null,
+    createdAt: row.created_at ?? '',
+    updatedAt: row.updated_at ?? '',
   };
 }
 
@@ -83,7 +89,7 @@ export function useDevSprints(projectId?: string | null) {
     }
 
     if (!supabase) {
-      setTasks(prev => [...prev, { id: Date.now(), title: payload.title, type: payload.type, priority: payload.priority, points: payload.points, assignee: payload.assignee || '?', tags: [], column }]);
+      setTasks(prev => [...prev, { id: Date.now(), title: payload.title, type: payload.type, priority: payload.priority, points: payload.points, assignee: payload.assignee || '?', tags: [], column, projectId: projectId ?? null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
       toast.success('Tarefa adicionada!');
       return;
     }
@@ -163,5 +169,27 @@ export function useDevSprints(projectId?: string | null) {
   }
 
 
-  return { tasks, loading, addTask, moveTask };
+  /** Edita os campos do card (título, tipo, prioridade, pontos, responsável, tags). A etapa muda por moveTask. */
+  async function updateTask(id: string | number, patch: Partial<Pick<SprintTask, 'title' | 'type' | 'priority' | 'points' | 'assignee' | 'tags'>>): Promise<boolean> {
+    const antes = tasks.find(t => t.id === id);
+    if (!antes) return false;
+    if (patch.title !== undefined && !patch.title.trim()) { toast.error('O título não pode ficar vazio.'); return false; }
+    const limpo = {
+      ...patch,
+      ...(patch.title !== undefined ? { title: patch.title.trim() } : {}),
+      ...(patch.points !== undefined ? { points: Math.max(0, Math.min(100, Math.round(Number(patch.points) || 0))) } : {}),
+      ...(patch.tags !== undefined ? { tags: Array.from(new Set(patch.tags.map(t => t.trim().replace(/^#/, '')).filter(Boolean))).slice(0, 12) } : {}),
+    };
+    setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...limpo } : t)));
+    if (!supabase) return true;
+    const { error } = await supabase.from('dev_sprint_tasks').update(limpo).eq('id', id).eq('tenant_id', activeTenantId);
+    if (error) {
+      setTasks(prev => prev.map(t => (t.id === id ? antes : t)));
+      toast.error(`Não foi possível salvar: ${friendlyError(error)}`);
+      return false;
+    }
+    return true;
+  }
+
+  return { tasks, loading, addTask, moveTask, updateTask };
 }

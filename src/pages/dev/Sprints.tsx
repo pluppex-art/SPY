@@ -2,42 +2,22 @@ import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from '../../comp
 import { useMemo, useState } from 'react';
 import { Plus, Zap, Layers, Clock, CheckCircle2, FolderCode, Flame, User } from 'lucide-react';
 import { NovaTarefaSprintModal, type TarefaSprintPayload } from './modals/NovaTarefaSprintModal';
-import { DetalharTarefaSprintModal } from './modals/DetalharTarefaSprintModal';
+import { TarefaSprintPainel, TIPOS_SPRINT, COR_PRIORIDADE_SPRINT, iniciaisSprint } from './modals/TarefaSprintPainel';
 import { Button } from '../../components/ui/button';
 import { PageContainer } from '../../components/PageContainer';
 import { useDevSprints, type Column } from './hooks/useDevSprints';
-import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_CLASS } from '../../hooks/useKanbanConfig';
+import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_CLASS, KANBAN_COR_DOT } from '../../hooks/useKanbanConfig';
 import { useDevProjectsForFilter } from './hooks/useDevProjectsForFilter';
 import { useData } from '../../contexts/DataContext';
 import { useDevConfig } from '../../lib/modules/devConfig';
 
-const PRIORITY_STYLE: Record<string, string> = {
-  crítica: 'bg-red-500/15 text-red-400 border-red-500/25',
-  alta: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
-  média: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
-  baixa: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
-};
-
-const TYPE_ICON: Record<string, string> = {
-  feature: '✦',
-  bug: '🐛',
-  chore: '⚙',
-  refactor: '♻',
-};
-
-const TYPE_COLOR: Record<string, string> = {
-  feature: 'text-blue-400',
-  bug: 'text-red-400',
-  chore: 'text-slate-400',
-  refactor: 'text-indigo-400',
-};
-
-function getSprintColumns(appSettings: Record<string, any>): { id: Column; label: string; accent: string; dotColor: string }[] {
+function getSprintColumns(appSettings: Record<string, any>): { id: Column; label: string; accent: string; dotColor: string; hex: string }[] {
   return readKanbanConfig(appSettings, KANBAN_KEYS.sprint).map(c => ({
     id: c.id as Column,
     label: c.nome,
     accent: `border-${c.cor}-500/30`,
     dotColor: KANBAN_COR_CLASS[c.cor] ?? 'bg-slate-500',
+    hex: KANBAN_COR_DOT[c.cor] ?? '#64748b',
   }));
 }
 
@@ -60,7 +40,7 @@ export default function Sprints() {
     done: true,
   });
 
-  const { tasks, addTask, moveTask } = useDevSprints(activeProjectId);
+  const { tasks, addTask, moveTask, updateTask } = useDevSprints(activeProjectId);
 
   const [search, setSearch] = useState('');
   const [filterAssignee, setFilterAssignee] = useState('');
@@ -197,106 +177,79 @@ export default function Sprints() {
         </KpiFilterCard>
 
         {/* Board */}
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
           {COLUMNS.map(col => {
             const colTasks = tasksFiltered.filter(t => t.column === col.id);
             const colPoints = colTasks.reduce((s, t) => s + t.points, 0);
+            const pct = totalSprintPoints > 0 ? Math.round((colPoints / totalSprintPoints) * 100) : 0;
 
             return (
               <div
                 key={col.id}
-                className={`flex-shrink-0 w-72 flex flex-col rounded-2xl border ${
-                  dragOverCol === col.id ? 'border-blue-500/40 bg-blue-600/[0.03]' : 'border-white/5 bg-[var(--color-surface)]/40'
-                } transition-all`}
-                onDragOver={e => {
-                  e.preventDefault();
-                  setDragOverCol(col.id);
-                }}
+                style={{ borderTopColor: dragOverCol === col.id ? undefined : col.hex }}
+                className={`shrink-0 w-[84vw] max-w-[320px] sm:w-[300px] flex flex-col rounded-3xl border-2 border-t-4 p-3 transition-all duration-300 ${
+                  dragOverCol === col.id ? 'border-[var(--color-primary-blue)]/60 bg-[var(--color-primary-blue)]/10' : 'border-[var(--color-border-default)] bg-[var(--color-surface)]/40 hover:bg-[var(--color-surface-elevated)]/60'
+                }`}
+                onDragOver={e => { e.preventDefault(); setDragOverCol(col.id); }}
                 onDragLeave={() => setDragOverCol(null)}
                 onDrop={() => handleDrop(col.id)}
               >
-                {/* Column Header */}
-                <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${col.dotColor}`} />
-                    <span className="text-[11px] font-black text-white uppercase tracking-wider">{col.label}</span>
-                    <span className="text-[10px] font-black text-slate-500 ml-1">{colTasks.length}</span>
+                <div className="mb-3 shrink-0 pb-2.5 border-b border-[var(--color-border-default)]">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: col.hex }} />
+                      <h3 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider truncate">{col.label}</h3>
+                    </div>
+                    <span className="text-[10px] font-bold text-[var(--color-text-primary)] bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] px-2 py-0.5 rounded-full shrink-0">{colTasks.length}</span>
                   </div>
-                  <span className="text-[10px] text-slate-600 font-bold">{colPoints}pts</span>
+                  <div className="flex items-center justify-between gap-2 mt-1.5">
+                    <span className="text-[10px] font-mono font-bold text-[var(--color-text-muted)]">{colPoints} pts</span>
+                    <span className="text-[10px] font-bold tabular-nums" style={{ color: col.hex }} title={`${pct}% dos pontos do sprint`}>{pct}%</span>
+                  </div>
+                  <div className="h-1 mt-1.5 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: col.hex }} /></div>
                 </div>
 
-                {/* Tasks */}
-                <div className="flex-1 p-3 space-y-3 min-h-[120px]">
-                  {colTasks.map(task => (
-                    <div
-                      key={String(task.id)}
-                      draggable
-                      onDragStart={() => setDraggedId(task.id)}
-                      onClick={() => setSelectedTaskId(task.id)}
-                      className={`p-4 bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl cursor-grab active:cursor-grabbing hover:border-white/10 transition-all select-none group ${
-                        draggedId === task.id ? 'opacity-40 scale-95' : ''
-                      }`}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      {/* Type + Priority */}
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-[10px] font-black uppercase tracking-wider ${TYPE_COLOR[task.type] ?? 'text-slate-400'}`}
-                            >
-                              {TYPE_ICON[task.type] ?? '•'} {task.type}
-                            </span>
-                          </div>
-
-                          <p className="text-xs font-bold text-white leading-snug mt-2 line-clamp-3">{task.title}</p>
+                <div className="flex-1 space-y-2 min-h-[120px] pb-3">
+                  {colTasks.map(task => {
+                    const semResp = !task.assignee || task.assignee === '?' || task.assignee === '-';
+                    const tipo = TIPOS_SPRINT.find(x => x.id === task.type);
+                    return (
+                      <div
+                        key={String(task.id)}
+                        draggable
+                        onDragStart={() => setDraggedId(task.id)}
+                        onDragEnd={() => { setDraggedId(null); setDragOverCol(null); }}
+                        onClick={() => setSelectedTaskId(task.id)}
+                        className={`rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] p-3 space-y-2.5 cursor-pointer active:cursor-grabbing transition-all hover:border-[var(--color-primary-blue)]/50 hover:shadow-md select-none ${draggedId === task.id ? 'opacity-40 scale-95' : ''}`}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setSelectedTaskId(task.id); }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs font-bold text-[var(--color-text-primary)] leading-snug break-words line-clamp-3">{task.title}</p>
+                          <span className={`shrink-0 text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${COR_PRIORIDADE_SPRINT[task.priority] ?? COR_PRIORIDADE_SPRINT.baixa}`}>{task.priority}</span>
                         </div>
-
-                        <span
-                          className={`shrink-0 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border ${
-                            PRIORITY_STYLE[task.priority] ?? 'bg-slate-500/10 text-slate-300 border-slate-500/20'
-                          }`}
-                        >
-                          {task.priority}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]">{tipo ? `${tipo.icon} ${tipo.label}` : task.type}</span>
+                          {(task.tags || []).slice(0, 3).map(tag => <span key={tag} className="text-[10px] font-semibold text-[var(--color-text-faint)]">#{tag}</span>)}
+                          {(task.tags || []).length > 3 && <span className="text-[10px] text-[var(--color-text-faint)]">+{task.tags.length - 3}</span>}
+                        </div>
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--color-border-subtle)] text-[10px] font-semibold">
+                          <span className="flex items-center gap-1.5 min-w-0" title={semResp ? 'Sem responsável' : `Responsável: ${task.assignee}`}>
+                            <span className={`w-5 h-5 rounded-full grid place-items-center text-[8px] font-black shrink-0 ${semResp ? 'bg-[var(--color-surface-sunken)] text-[var(--color-text-faint)]' : 'bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]'}`}>{iniciaisSprint(semResp ? '' : task.assignee)}</span>
+                            <span className="truncate text-[var(--color-text-muted)]">{semResp ? 'Sem responsável' : task.assignee.split(' ')[0]}</span>
+                          </span>
+                          <span className="font-black text-[var(--color-primary-blue)] shrink-0">{task.points} pts</span>
+                        </div>
                       </div>
-
-                      {/* Tags */}
-                      {task.tags?.length ? (
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {(task.tags || []).slice(0, 5).map(tag => (
-                            <span key={tag} className="text-[9px] font-bold text-slate-500 bg-white/[0.03] px-1.5 py-0.5 rounded">
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-slate-500 mb-3">Sem tags</div>
-                      )}
-
-                      {/* Footer */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[9px] font-black text-white border border-white/10 shrink-0">
-                            {(task.assignee || '?').split('.')[0]}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-[10px] font-black text-slate-500 truncate">{task.assignee || '?'}</div>
-                            <div className="text-[9px] text-slate-600">{task.column}</div>
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-black text-slate-500">{task.points} pts</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   <button
                     onClick={() => setIsModalOpen(true)}
-                    className="w-full py-2.5 flex items-center justify-center gap-2 text-slate-600 hover:text-slate-400 hover:bg-white/[0.02] rounded-xl transition-all border border-dashed border-white/[0.04] hover:border-white/10"
+                    className="w-full py-2 border border-dashed border-[var(--color-border-default)] rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-all flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer bg-transparent"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">Adicionar</span>
+                    <Plus className="w-3.5 h-3.5" /> Adicionar
                   </button>
                 </div>
               </div>
@@ -311,10 +264,13 @@ export default function Sprints() {
         onSave={handleSaveTarefa}
       />
 
-      <DetalharTarefaSprintModal
-        isOpen={selectedTaskId !== null}
-        onClose={() => setSelectedTaskId(null)}
+      <TarefaSprintPainel
         task={selectedTask}
+        colunas={COLUMNS.map(c => ({ id: c.id, label: c.label, hex: c.hex }))}
+        projetos={projects}
+        onClose={() => setSelectedTaskId(null)}
+        onMover={moveTask}
+        onSalvar={updateTask}
       />
     </PageContainer>
   );
