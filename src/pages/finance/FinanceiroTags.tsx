@@ -1,6 +1,6 @@
 import { friendlyError } from "../../lib/friendlyError";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Tag, Plus, Sparkles, Eye, Edit2, Trash2, CheckCircle2, Layers, Download, FileText, Palette } from "lucide-react";
+import { Tag, Plus, Sparkles, Eye, Edit2, Trash2, CheckCircle2, CircleDashed, Layers, Download, FileText, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -215,6 +215,7 @@ export default function FinanceiroTags() {
           { label: "Total de Tags", value: tags.length, icon: Tag, tone: "primary" },
           { label: "Ativas", value: ativas, icon: CheckCircle2, tone: "success" },
           { label: "Em uso nos lançamentos", value: emUso ?? "—", icon: Layers, tone: "neutral" },
+          { label: "Sem uso", value: emUso === null ? "—" : tags.length - emUso, icon: CircleDashed, tone: "warning", hint: "Tags que ainda não aparecem em nenhum lançamento" },
         ]}
         activeCount={(search ? 1 : 0) + (statusFilter ? 1 : 0)}
         onClear={() => { setSearch(""); setStatusFilter(""); }}
