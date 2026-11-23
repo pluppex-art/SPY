@@ -1,3 +1,4 @@
+import { colunasBalanceadas } from "../../lib/gridCols";
 import { Children, createContext, isValidElement, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Search, SlidersHorizontal, X, type LucideIcon } from "lucide-react";
@@ -55,8 +56,9 @@ const TONE_VAR: Record<KpiTone, string> = {
 
 export function KpiTiles({ items }: { items: KpiItem[] }) {
   if (items.length === 0) return null;
-  // Até 5 colunas (como no Pipeline); com mais KPIs a linha quebra.
-  const cols = items.length >= 5 ? "md:grid-cols-5" : items.length === 4 ? "md:grid-cols-4" : items.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2";
+  // Colunas balanceadas: a última linha nunca fica com um card sozinho (6 → 3+3, 8 → 4+4, 10 → 5+5).
+  const n = colunasBalanceadas(items.length, 5);
+  const cols = n >= 5 ? "md:grid-cols-5" : n === 4 ? "md:grid-cols-4" : n === 3 ? "md:grid-cols-3" : "md:grid-cols-2";
   return (
     <div className={cn("flex md:grid gap-2 shrink-0 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none -mx-4 px-4 md:mx-0 md:px-0 pb-1 md:pb-0 scrollbar-none", cols)}>
       {items.map(({ label, value, icon: Icon, tone = "primary", hint }, i) => (

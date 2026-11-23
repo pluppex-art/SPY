@@ -1,3 +1,4 @@
+import { classeColunasFinanceiro } from "../../../../lib/gridCols";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, ArrowDownRight, Minus, type LucideIcon } from "lucide-react";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
@@ -56,7 +57,7 @@ export function FinanceiroKPIs({ cards }: { cards: FinanceiroKpiCard[] }) {
   const { formatCurrency } = useLocalization();
 
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
+    <div className={`grid grid-cols-2 gap-2.5 sm:gap-4 ${classeColunasFinanceiro(cards.length)}`}>
       {cards.map((kpi, i) => {
         const Icon = kpi.icon;
         const displayValue = kpi.format === "percent" ? `${kpi.value.toFixed(1)}%` : formatCurrency(kpi.value);

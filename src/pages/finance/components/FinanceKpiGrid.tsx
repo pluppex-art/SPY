@@ -1,3 +1,4 @@
+import { classeColunasFinanceiro } from "../../../lib/gridCols";
 import type { ReactNode } from "react";
 import { ArrowUpRight, ArrowDownRight, Minus, type LucideIcon } from "lucide-react";
 import { Card } from "../../../components/ui/card";
@@ -33,7 +34,7 @@ const BAR_COLORS = ["var(--color-primary-blue)", "#10b981", "#06b6d4", "#f43f5e"
  */
 export function FinanceKpiGrid({ cards, noDeltaLabel = "Sem período p/ comparação" }: { cards: FinanceKpi[]; noDeltaLabel?: string }) {
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
+    <div className={`grid grid-cols-2 gap-2.5 sm:gap-4 ${classeColunasFinanceiro(cards.length)}`}>
       {cards.map((k, i) => {
         const Icon = k.icon;
         const up = (k.delta ?? 0) > 0;
