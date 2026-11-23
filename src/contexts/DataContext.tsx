@@ -3291,18 +3291,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const certCrud = createCrudHelper('certificates', setCertificates);
   const indicacaoCrud = createCrudHelper('indicacoes', setIndicacoes as any);
 
-  // Lançamentos gerados automaticamente (aceite de proposta, AddProdutoLeadModal)
-  // só preenchiam o texto livre `category` — `category_id` (o vínculo real com
-  // finance_categories, usado pelo DRE) ficava sempre nulo. Acha uma categoria já
-  // existente com esse nome+tipo (mesmo padrão de match usado em
-  // FinanceiroImportarMovimentacoes.tsx) ou cria uma na hora — nunca inventa um
-  // id de categoria que não existe.
+  // Categorias: nunca se cria categoria sozinho e nunca se cria uma repetida.
+  // `achaCategoria` compara por tipo + nome sem maiúsculas/acentos/espaços extras, olhando também as
+  // categorias criadas nesta sessão (o estado do React só atualiza na renderização seguinte, e foi isso que
+  // gerou dezenas de cópias de "Implantação / Setup" quando vários lançamentos automáticos rodavam em sequência).
+  const normCategoria = (s: string) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  const categoriasCriadasRef = React.useRef<any[]>([]);
+  const achaCategoria = (nome: string, tipo: 'Receita' | 'Despesa') =>
+    [...(financeCategories as any[]), ...categoriasCriadasRef.current].find((c: any) => c.tipo === tipo && normCategoria(c.nome) === normCategoria(nome)) ?? null;
+
+  // Lançamentos gerados automaticamente (aceite de proposta, AddProdutoLeadModal) só devolvem o id de uma
+  // categoria que JÁ existe no Plano de Contas; se não houver, o lançamento fica sem vínculo (o texto da
+  // categoria continua nele) e a pessoa cria/ajusta a categoria no Plano de Contas.
   const resolveFinanceCategoryId = async (nome: string, tipo: 'Receita' | 'Despesa'): Promise<string | null> => {
-    const norm = (s: string) => String(s || "").trim().toLowerCase();
-    const existing = (financeCategories as any[]).find((c: any) => c.tipo === tipo && norm(c.nome) === norm(nome));
-    if (existing) return existing.id;
-    const created = await financeCategoryCrud.add({ nome, tipo, subtipo: null });
-    return created?.id ?? null;
+    return achaCategoria(nome, tipo)?.id ?? null;
+  };
+
+  // Cadastro manual de categoria (Plano de Contas, "nova categoria" nos formulários, orçamento padrão):
+  // se já existe uma com o mesmo tipo e nome, devolve a existente em vez de criar outra.
+  const addFinanceCategorySemRepetir = async (item: any) => {
+    const existente = achaCategoria(item?.nome, item?.tipo);
+    if (existente) return existente;
+    const criada = await financeCategoryCrud.add(item);
+    if (criada) categoriasCriadasRef.current.push(criada);
+    return criada;
   };
 
   const addFinanceEntry = async (entry: Omit<FinanceEntry, 'id'>, options: { silent?: boolean } = {}) => {
@@ -3830,7 +3842,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       updateNicho: nichoCrud.update,
       deleteNicho: nichoCrud.del,
       financeCategories,
-      addFinanceCategory: financeCategoryCrud.add,
+      addFinanceCategory: addFinanceCategorySemRepetir,
       updateFinanceCategory: financeCategoryCrud.update,
       deleteFinanceCategory: financeCategoryCrud.del,
       resolveFinanceCategoryId,

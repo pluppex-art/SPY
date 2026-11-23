@@ -108,6 +108,9 @@ export default function FinanceiroPlanoContas() {
   };
 
   const salvar = (data: { nome: string; tipo: "Receita" | "Despesa"; subtipo: FinanceCategorySubtipo | null }) => {
+    const norm = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+    const repetida = categorias.some((c) => c.id !== editando?.id && c.tipo === data.tipo && norm(c.nome) === norm(data.nome));
+    if (repetida) { toast.error(`Já existe uma categoria de ${data.tipo === "Receita" ? "receita" : "despesa"} chamada "${data.nome.trim()}".`); return; }
     if (editando) { updateFinanceCategory(editando.id, data); toast.success("Categoria atualizada."); }
     else { addFinanceCategory(data); toast.success("Categoria cadastrada."); }
     setModalAberto(false); setEditando(null);

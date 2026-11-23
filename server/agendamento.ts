@@ -158,12 +158,10 @@ export function registerAgendamentoRoutes(app: Express, deps: AgendamentoDeps) {
       } else if (acao === "inserir" || acao === "atualizar") {
         if (l.value > 0 || existente) {
           let categoryId: string | undefined;
-          const { data: cats } = await db.from("finance_categories").select("id, nome").eq("tenant_id", tenantId).eq("tipo", "Receita").ilike("nome", l.category);
-          categoryId = (cats || []).find((c: any) => String(c.nome).trim().toLowerCase() === l.category.toLowerCase())?.id;
-          if (!categoryId) {
-            const { data: criada } = await db.from("finance_categories").insert({ tenant_id: tenantId, nome: l.category, tipo: "Receita" }).select("id").maybeSingle();
-            categoryId = criada?.id;
-          }
+          // Só usa uma categoria que já existe (nunca cria: criar sozinho gerava categorias repetidas).
+          const normNome = (v: string) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+          const { data: cats } = await db.from("finance_categories").select("id, nome").eq("tenant_id", tenantId).eq("tipo", "Receita").limit(2000);
+          categoryId = (cats || []).find((c: any) => normNome(c.nome) === normNome(l.category))?.id;
           // Lançamento novo entra com a conta principal da empresa (a integração não tem usuário, então o banco não preenche sozinho).
           let contaId: string | undefined;
           if (acao === "inserir") {

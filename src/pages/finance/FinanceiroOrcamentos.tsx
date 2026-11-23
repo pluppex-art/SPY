@@ -120,8 +120,11 @@ export default function FinanceiroOrcamentos() {
   const criarPadrao = async () => {
     setCriando(true);
     try {
-      for (const c of CATEGORIAS_PADRAO) await addFinanceCategory(c);
-      toast.success(`${CATEGORIAS_PADRAO.length} categorias criadas. Agora defina o orçado de cada uma.`);
+      // Só cria as que ainda não existem (mesmo tipo e nome), para não repetir categoria.
+      const norm = (v: string) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+      const novas = CATEGORIAS_PADRAO.filter((c: any) => !(financeCategories as any[]).some((e: any) => e.tipo === c.tipo && norm(e.nome) === norm(c.nome)));
+      for (const c of novas) await addFinanceCategory(c);
+      toast.success(novas.length > 0 ? `${novas.length} categoria(s) criada(s). Agora defina o orçado de cada uma.` : "Todas as categorias padrão já existem. Defina o orçado de cada uma.");
     } finally {
       setCriando(false);
     }

@@ -2941,20 +2941,15 @@ app.post("/api/v1/finance-entries", requireApiKey, async (req, res) => {
     category, type, status,
   };
   const optional = async () => {
-    // Categoria real (finance_categories): acha por tenant + nome (case-insensitive) + tipo, cria se não existir.
+    // Categoria real (finance_categories): acha por tenant + nome + tipo; não cria categoria nova.
     if (has(category)) {
       const tipoCat = entryType === "Receber" ? "Receita" : "Despesa";
       const nomeCat = String(category).trim();
+      // Só vincula uma categoria que já existe (nunca cria: criar sozinho gerava categorias repetidas).
+      const normNome = (v: string) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
       const { data: cats } = await supabaseService!.from("finance_categories").select("id, nome")
-        .eq("tenant_id", tenantId).eq("tipo", tipoCat).ilike("nome", nomeCat.replace(/[\\%_]/g, "\\$&"));
-      let cat = (cats || []).find((c: any) => String(c.nome).trim().toLowerCase() === nomeCat.toLowerCase());
-      if (!cat) {
-        const { data: criada, error: catErr } = await supabaseService!.from("finance_categories")
-          .insert({ tenant_id: tenantId, nome: nomeCat, tipo: tipoCat, ...(entryType === "Pagar" ? { subtipo: "DESPESA_VARIAVEL" } : {}) })
-          .select("id").maybeSingle();
-        if (catErr) console.warn("[API v1] finance_categories insert:", catErr.message);
-        cat = criada as any;
-      }
+        .eq("tenant_id", tenantId).eq("tipo", tipoCat).limit(2000);
+      const cat = (cats || []).find((c: any) => normNome(c.nome) === normNome(nomeCat));
       if (cat?.id) payload.category_id = cat.id;
     }
 

@@ -71,6 +71,8 @@ interface ImportRow {
   erro: string | null;
 }
 
+const normCat = (v: string) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+
 export default function FinanceiroImportarMovimentacoes() {
   const { financeCategories, addFinanceCategory, financeBankAccounts, addFinanceBankAccount, financeCentrosCusto, addFinanceCentroCusto, addFinanceEntry, clienteBase } = useData();
   const [step, setStep] = useState<1 | 2>(1);
@@ -228,7 +230,7 @@ export default function FinanceiroImportarMovimentacoes() {
     // sem isso a mesma "Nubank" ou "Aluguel" repetida em 50 linhas criaria
     // 50 contas/categorias duplicadas em vez de reaproveitar a primeira.
     const contasCache = new Map<string, string>((financeBankAccounts as any[]).map(c => [c.nome.toLowerCase(), c.id]));
-    const categoriasCache = new Map<string, string>((financeCategories as any[]).map(c => [`${c.tipo}::${c.nome.toLowerCase()}`, c.id]));
+    const categoriasCache = new Map<string, string>((financeCategories as any[]).map(c => [`${c.tipo}::${normCat(c.nome)}`, c.id]));
     const centrosCache = new Map<string, string>((financeCentrosCusto as any[]).map(c => [c.nome.toLowerCase(), c.id]));
 
     // Liga o lançamento ao cliente cadastrado: pelo nome exato (case-insensitive) ou pelo documento quando
@@ -263,15 +265,11 @@ export default function FinanceiroImportarMovimentacoes() {
           if (contaId) contasCache.set(r.conta.toLowerCase(), contaId);
         }
 
+        // Categoria: só usa uma que já existe no Plano de Contas (nunca cria). Sem correspondência, o lançamento
+        // entra sem categoria e o nome informado fica guardado no texto.
         const tipoCategoria = r.tipo === "Receber" ? "Receita" : "Despesa";
         const nomeCategoria = r.categoria || (r.tipo === "Receber" ? "Importado" : `Importado (${r.subtipo})`);
-        const catKey = `${tipoCategoria}::${nomeCategoria.toLowerCase()}`;
-        let categoryId = categoriasCache.get(catKey);
-        if (!categoryId) {
-          const criada = await addFinanceCategory({ nome: nomeCategoria, tipo: tipoCategoria, subtipo: r.tipo === "Pagar" ? r.subtipo : null });
-          categoryId = criada?.id;
-          if (categoryId) categoriasCache.set(catKey, categoryId);
-        }
+        const categoryId = r.categoria ? (categoriasCache.get(`${tipoCategoria}::${normCat(r.categoria)}`) ?? null) : null;
 
         let centroCustoId: string | null = null;
         if (r.centroCusto) {
@@ -287,7 +285,7 @@ export default function FinanceiroImportarMovimentacoes() {
           type: r.tipo,
           description: r.descricao,
           category: nomeCategoria,
-          category_id: categoryId || null,
+          category_id: categoryId,
           value: r.valor,
           date: r.data,
           status: r.pago ? "Pago" : "A Vencer",
@@ -324,11 +322,14 @@ export default function FinanceiroImportarMovimentacoes() {
   const etapa: 1 | 2 | 3 = resultado ? 3 : step === 2 ? 2 : 1;
   const recomecar = () => { setStep(1); setRows([]); setResultado(null); setSoErros(false); setFileName(""); };
   const linhasVisiveis = soErros ? rows.filter((r) => r.erro) : rows;
+  const categoriasExistentes = new Set((financeCategories as any[]).map((c) => `${c.tipo}::${normCat(c.nome)}`));
+  const semCategoria = (r: ImportRow) => !!r.categoria && !categoriasExistentes.has(`${r.tipo === "Receber" ? "Receita" : "Despesa"}::${normCat(r.categoria)}`);
+  const qtdSemCategoria = validas.filter(semCategoria).length;
 
   return (
     <PageContainer
       title="Importar Movimentações"
-      description="Importa lançamentos de uma planilha Excel (.xlsx) ou CSV — cria automaticamente conta, categoria e centro de custo que ainda não existirem."
+      description="Importa lançamentos de uma planilha Excel (.xlsx) ou CSV. Conta e centro de custo que ainda não existirem são criados; categorias não: use as do Plano de Contas."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Importar Movimentações" }]}
     >
       <div className="max-w-5xl mx-auto space-y-5 pb-12">
@@ -395,7 +396,7 @@ export default function FinanceiroImportarMovimentacoes() {
                 <div className="overflow-x-auto"><table className="min-w-[640px] w-full text-xs text-left mt-3">
                   <tbody className="divide-y divide-[var(--color-border-subtle)]">
                     <tr><td className="py-2 font-medium w-44">Data Competência</td><td className="py-2 text-[var(--color-text-muted)]">dd/mm/aaaa</td></tr>
-                    <tr><td className="py-2 font-medium">Categoria</td><td className="py-2 text-[var(--color-text-muted)]">nome exato; se não existir, é criada</td></tr>
+                    <tr><td className="py-2 font-medium">Categoria</td><td className="py-2 text-[var(--color-text-muted)]">nome igual ao do Plano de Contas; se não existir, o lançamento entra sem categoria (não é criada)</td></tr>
                     <tr><td className="py-2 font-medium">Recebido de / Pago a</td><td className="py-2 text-[var(--color-text-muted)]">nome do cliente/fornecedor (ou CPF/CNPJ) — liga ao cadastro quando achar um só</td></tr>
                     <tr><td className="py-2 font-medium">Detalhes</td><td className="py-2 text-[var(--color-text-muted)]">até 255 caracteres</td></tr>
                     <tr><td className="py-2 font-medium">Número do Documento</td><td className="py-2 text-[var(--color-text-muted)]">até 255 caracteres</td></tr>
@@ -449,7 +450,7 @@ export default function FinanceiroImportarMovimentacoes() {
                       <td className="px-4 py-2 text-[var(--color-text-muted)]">{r.conta || "—"}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{brl(r.valor)}</td>
                       <td className="px-4 py-2">
-                        {r.erro ? <span className="inline-flex items-center gap-1 text-[var(--color-danger)]"><AlertTriangle className="w-3 h-3 shrink-0" /> {r.erro}</span> : <span className="text-[var(--color-success)] font-semibold">{r.pago ? "OK · já pago" : "OK · a vencer"}</span>}
+                        {r.erro ? <span className="inline-flex items-center gap-1 text-[var(--color-danger)]"><AlertTriangle className="w-3 h-3 shrink-0" /> {r.erro}</span> : <span className="text-[var(--color-success)] font-semibold">{r.pago ? "OK · já pago" : "OK · a vencer"}{semCategoria(r) && <span className="block font-normal text-[10px] text-[var(--color-warning)]">Categoria "{r.categoria}" não existe: entra sem categoria</span>}</span>}
                       </td>
                     </tr>
                   ))}
@@ -472,6 +473,7 @@ export default function FinanceiroImportarMovimentacoes() {
               <Button disabled={importando || validas.length === 0} onClick={handleImportar} className="h-10 px-6 text-sm font-medium">
                 {importando ? "Importando..." : `Importar ${validas.length} lançamento(s)`}
               </Button>
+              {qtdSemCategoria > 0 && !importando && <span className="text-xs text-[var(--color-warning)]">{qtdSemCategoria} linha(s) com categoria que não existe entram sem categoria.</span>}
               {comErro > 0 && !importando && <span className="text-xs text-[var(--color-text-muted)]">{comErro} linha(s) com erro ficam de fora.</span>}
             </div>
           </>
