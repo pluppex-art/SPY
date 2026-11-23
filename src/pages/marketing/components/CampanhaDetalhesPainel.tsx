@@ -12,6 +12,7 @@ import { cn } from "../../../lib/utils";
 import type { Campanha } from "../useMarketingTrafego";
 import { calcularCronograma, hojeBrasilia, dataCurta } from "../trafegoCronograma";
 import { corPlataforma, siglaPlataforma } from "../trafegoPlataforma";
+import { CampanhaFormulario } from "./CampanhaFormulario";
 import { COR_PRIORIDADE, COR_TOM, iniciais, type ColunaTrafego } from "./TrafegoColumn";
 import { useAuth } from "../../../contexts/AuthContext";
 
@@ -22,7 +23,8 @@ interface Props {
   colunas: ColunaTrafego[];
   onClose: () => void;
   onAtualizar: (id: string, patch: Partial<Campanha>) => Promise<boolean>;
-  onEditar: (c: Campanha) => void;
+  /** Grava a campanha inteira (formulário de edição dentro do painel). */
+  onSalvarCampanha: (dados: Omit<Campanha, "id" | "date">, id?: string) => Promise<boolean>;
   onExcluir: (id: string) => Promise<boolean>;
 }
 
@@ -35,10 +37,11 @@ const ABAS = [
 ] as const;
 
 /** Detalhes da campanha em painel lateral, no mesmo desenho dos detalhes do lead (faixa, cabeçalho, etapas clicáveis e abas). */
-export function CampanhaDetalhesPainel({ campanha, campanhas, colunas, onClose, onAtualizar, onEditar, onExcluir }: Props) {
+export function CampanhaDetalhesPainel({ campanha, campanhas, colunas, onClose, onAtualizar, onSalvarCampanha, onExcluir }: Props) {
   const { formatCurrency } = useLocalization();
   const [aba, setAba] = useState<(typeof ABAS)[number]["id"]>("resumo");
-  useEffect(() => { setAba("resumo"); }, [campanha?.id]);
+  const [editando, setEditando] = useState(false);
+  useEffect(() => { setAba("resumo"); setEditando(false); }, [campanha?.id]);
   const { leads } = useData();
   const { user } = useAuth() as any;
   const [novoItem, setNovoItem] = useState("");
@@ -92,16 +95,16 @@ export function CampanhaDetalhesPainel({ campanha, campanhas, colunas, onClose, 
 
   return (
     <Modal isOpen onClose={onClose} maxWidth="max-w-[546px]" position="right" overlay="light" noPadding
-      footer={
+      footer={editando ? undefined : (
         <div className="flex items-center justify-between w-full gap-2">
           <button type="button" onClick={excluir} className="flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-control)] border border-danger/30 text-danger hover:bg-danger/10 text-xs font-bold cursor-pointer bg-transparent">
             <Trash2 className="w-3.5 h-3.5" /> Excluir
           </button>
-          <button type="button" onClick={() => onEditar(c)} className="flex items-center gap-1.5 px-4 py-2 rounded-[var(--radius-control)] bg-[var(--color-primary-blue)] !text-white text-xs font-bold cursor-pointer border-none">
+          <button type="button" onClick={() => setEditando(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-[var(--radius-control)] bg-[var(--color-primary-blue)] !text-white text-xs font-bold cursor-pointer border-none">
             <Pencil className="w-3.5 h-3.5" /> Editar campanha
           </button>
         </div>
-      }
+      )}
     >
       <div className="flex flex-col h-full overflow-hidden bg-[var(--color-surface)] animate-in fade-in duration-150">
         <div className="h-[3px] shrink-0" style={{ backgroundColor: hex }} />
@@ -166,7 +169,7 @@ export function CampanhaDetalhesPainel({ campanha, campanhas, colunas, onClose, 
           {ABAS.map((t) => {
             const ativa = aba === t.id;
             return (
-              <button key={t.id} type="button" onClick={() => setAba(t.id)}
+              <button key={t.id} type="button" onClick={() => { setAba(t.id); setEditando(false); }}
                 className={cn("relative flex flex-col items-center justify-center gap-1 pt-2 pb-2.5 px-4 text-[9px] font-black tracking-wider uppercase whitespace-nowrap shrink-0 cursor-pointer min-w-[72px] rounded-t-lg border-none transition-all",
                   ativa ? "text-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] bg-transparent")}>
                 <t.icon className={cn("w-3.5 h-3.5", ativa ? "text-[var(--color-primary-blue)]" : "text-[var(--color-text-faint)]")} />
@@ -178,7 +181,11 @@ export function CampanhaDetalhesPainel({ campanha, campanhas, colunas, onClose, 
         </div>
 
         <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin">
-          {aba === "checklist" ? (
+          {editando ? (
+            <div className="px-5 py-4">
+              <CampanhaFormulario campanha={c} colunas={colunas} onSalvar={onSalvarCampanha} onSalvo={() => setEditando(false)} onCancelar={() => setEditando(false)} />
+            </div>
+          ) : aba === "checklist" ? (
             <div className="px-5 py-4 space-y-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-black text-[var(--color-text-primary)]">{feitos} de {c.checklist.length} concluídos</span>
