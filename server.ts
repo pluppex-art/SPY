@@ -15,7 +15,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
-import { radarWebhookDaEmpresa, provisionarRadarDaEmpresa } from "./server/radarWebhook.js";
+import { radarWebhookDaEmpresa, provisionarRadarDaEmpresa, sincronizarRadarDasEmpresas } from "./server/radarWebhook.js";
 import { calcularDRELegado, diaCaixa, filtroPeriodoOr, calcularDreCompleto, cmvDosItens, filtrarPeriodo, quantidadeDoItem, separarLegado, type LancamentoDre, type RegimeDre } from "./src/lib/dre/dre.js";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
 import { createGoogleIntegrationsRouter, makeInitialSync } from "./server/googleIntegrations.js";
@@ -4492,6 +4492,16 @@ app.post("/api/radar/provisionar", requireUser, requireMaster, async (req: any, 
   if (!t) return res.status(404).json({ error: "Empresa não encontrada." });
   const r = await provisionarRadarDaEmpresa(supabaseService, t.id, t.name);
   res.status(r.ok ? 200 : 502).json(r);
+});
+
+// Leva as mudanças do Radar original (n8n) para a cópia de cada empresa (equipe interna).
+app.post("/api/radar/sincronizar", requireUser, requireMaster, async (_req: any, res: any) => {
+  try {
+    const r = await sincronizarRadarDasEmpresas(supabaseService);
+    res.json({ total: r.length, atualizadas: r.filter((x) => x.ok).length, resultado: r });
+  } catch (e: any) {
+    res.status(502).json({ error: String(e?.message || "falha ao sincronizar").slice(0, 200) });
+  }
 });
 
 app.post("/api/ai/aurora-chat", requireUser, async (req: any, res: any) => {

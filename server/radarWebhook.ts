@@ -82,3 +82,45 @@ export async function provisionarRadarDaEmpresa(db: Db, tenantId: string, nomeEm
     return { ok: false, motivo: String(e?.response?.data?.message || e?.message || "falha ao criar o Radar da empresa").slice(0, 200) };
   }
 }
+
+export interface ResultadoSync { empresa: string; ok: boolean; motivo?: string }
+
+/**
+ * Leva as mudanças do workflow modelo do Radar para a cópia de cada empresa (mantendo o caminho próprio dos
+ * webhooks de cada uma). Roda sob demanda pela equipe interna, depois de alterar o Radar original no n8n.
+ */
+export async function sincronizarRadarDasEmpresas(db: Db): Promise<ResultadoSync[]> {
+  const api = (process.env.N8N_API_URL || "").replace(/\/+$/, "");
+  const chave = process.env.N8N_API_KEY || "";
+  if (!api || !chave) return [{ empresa: "-", ok: false, motivo: "API do n8n não configurada (N8N_API_URL / N8N_API_KEY)." }];
+  const headers = { "X-N8N-API-KEY": chave };
+  const mestreId = process.env.RADAR_MASTER_WORKFLOW_ID || MESTRE_PADRAO;
+  const { data: modelo } = await axios.get(`${api}/workflows/${mestreId}`, { headers, timeout: 20_000 });
+  const { data: linhas } = await db.from("app_settings").select("tenant_id, value, tenants(name)").eq("key", CHAVE);
+  const saida: ResultadoSync[] = [];
+  for (const l of (linhas || []) as any[]) {
+    const empresa = l.tenants?.name || l.tenant_id;
+    const workflowId = l.value?.workflowId;
+    if (!workflowId) { saida.push({ empresa, ok: false, motivo: "sem workflow próprio (usa o geral)" }); continue; }
+    try {
+      const sufixo = String(l.tenant_id).replace(/-/g, "").slice(0, 10);
+      const nodes = (modelo.nodes || []).map((n: any) => {
+        const copia = { ...n };
+        if (typeof n.type === "string" && n.type.endsWith(".webhook") && n.parameters?.path) {
+          copia.parameters = { ...n.parameters, path: `${n.parameters.path}-${sufixo}` };
+          delete copia.webhookId;
+        }
+        return copia;
+      });
+      const { data: atual } = await axios.get(`${api}/workflows/${workflowId}`, { headers, timeout: 20_000 });
+      await axios.put(`${api}/workflows/${workflowId}`, {
+        name: atual.name, nodes, connections: modelo.connections || {},
+        settings: { executionOrder: modelo.settings?.executionOrder ?? "v1" },
+      }, { headers, timeout: 30_000 });
+      saida.push({ empresa, ok: true });
+    } catch (e: any) {
+      saida.push({ empresa, ok: false, motivo: String(e?.response?.data?.message || e?.message || "falha").slice(0, 160) });
+    }
+  }
+  return saida;
+}
