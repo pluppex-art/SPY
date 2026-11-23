@@ -26,7 +26,7 @@ function fmtBR(iso: string): string {
 
 // Atalhos mais comuns pra filtro comercial — evita o usuário ter que contar
 // dias/meses manualmente toda vez que quer ver "esse mês" ou "mês passado".
-function buildPresets() {
+export function buildPresets() {
   const now = new Date();
   const today = toISO(now);
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());

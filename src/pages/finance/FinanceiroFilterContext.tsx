@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { buildPresets } from "../../components/ui/DateRangeFilter";
 
 export type FinanceiroPeriodoPreset =
   | "tudo" | "mes-atual" | "7d" | "30d" | "90d"
@@ -110,8 +111,17 @@ export function FinanceiroFilterProvider({ children }: { children: ReactNode }) 
   const setPeriodoFrom = (v: string | null) => { setCustomStart(v ?? ""); setPresetState("personalizado"); try { sessionStorage.setItem(STORAGE_KEY, "personalizado"); } catch { /* ignora */ } };
   const setPeriodoTo = (v: string | null) => { setCustomEnd(v ?? ""); setPresetState("personalizado"); try { sessionStorage.setItem(STORAGE_KEY, "personalizado"); } catch { /* ignora */ } };
 
+  // Rótulo que o usuário reconhece: o nome do atalho escolhido no seletor ("Este mês", "Últimos 3 meses"…) ou as datas.
+  const fmtBR = (iso: string) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
+  const label = preset !== "personalizado"
+    ? FINANCEIRO_PERIODO_LABELS[preset]
+    : semLimite
+      ? "Tudo"
+      : buildPresets().find((p) => p.from === periodoFrom && p.to === periodoTo)?.label
+        ?? `${periodoFrom ? fmtBR(periodoFrom) : "…"} a ${periodoTo ? fmtBR(periodoTo) : "…"}`;
+
   const value: FinanceiroFilterState = {
-    preset, dataInicio, dataFim, label: FINANCEIRO_PERIODO_LABELS[preset],
+    preset, dataInicio, dataFim, label,
     customStart, customEnd, setPreset, setCustomRange,
     periodoFrom, periodoTo, setPeriodoFrom, setPeriodoTo,
   };

@@ -72,7 +72,7 @@ const G = {
   acordos: { title: "Acordos e Patrocínios", icon: Handshake, abas: [
     { label: "Acordos e Permutas", path: `${B}/acordos` }, { label: "Patrocínios", path: `${B}/patrocinios` },
   ] },
-  cadastros: { title: "Configurações", icon: FolderTree, abas: [
+  cadastros: { title: "Cadastros", icon: FolderTree, abas: [
     { label: "Clientes e Fornecedores", path: `${B}/contatos` }, { label: "Plano de Contas", path: `${B}/plano-contas` },
     { label: "Tags", path: `${B}/tags` }, { label: "Importar", path: `${B}/importar` },
   ] },
