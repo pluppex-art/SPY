@@ -22,7 +22,24 @@ export interface Campanha {
   value: number;
   priority: "Alta" | "Média" | "Baixa";
   date: string;
+  /** Nome do colaborador responsável (vazio = sem responsável). */
+  responsavel: string;
+  objetivo: string;
+  publico: string;
+  /** Quanto já foi gasto de verdade (lançado à mão), em reais; 0 = não informado. */
+  gastoReal: number;
+  checklist: ItemChecklist[];
+  notas: NotaCampanha[];
 }
+
+export interface ItemChecklist { id: string; texto: string; feito: boolean }
+export interface NotaCampanha { id: string; autor: string; texto: string; em: string }
+
+export const OBJETIVOS_TRAFEGO = ["Gerar leads", "Vendas", "Tráfego para o site", "Reconhecimento de marca", "Mensagens (WhatsApp)", "Remarketing", "Outro"];
+export const CHECKLIST_PADRAO = ["Público definido", "Criativos aprovados", "Pixel / conversões configurados", "Orçamento aprovado", "Campanha publicada"];
+
+// A coluna `extras` vem da migração 20261213; sem ela, grava só o resto em vez de falhar.
+let gravaExtras = true;
 
 export const PLATAFORMAS_TRAFEGO = ["Meta Ads", "Google Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Pinterest Ads", "X Ads", "Outra"];
 
@@ -45,8 +62,21 @@ function linhaParaCampanha(r: any): Campanha {
     value: Number(r.budget) || 0,
     priority: r.priority === "Alta" || r.priority === "Baixa" ? r.priority : "Média",
     date: inicio ? rotuloData(inicio) : "Sem data",
+    responsavel: typeof r.extras?.responsavel === "string" ? r.extras.responsavel : "",
+    objetivo: typeof r.extras?.objetivo === "string" ? r.extras.objetivo : "",
+    publico: typeof r.extras?.publico === "string" ? r.extras.publico : "",
+    gastoReal: Number(r.extras?.gastoReal) || 0,
+    checklist: Array.isArray(r.extras?.checklist) ? r.extras.checklist.filter((i: any) => i && typeof i.texto === "string").map((i: any) => ({ id: String(i.id ?? i.texto), texto: i.texto, feito: !!i.feito })) : [],
+    notas: Array.isArray(r.extras?.notas) ? r.extras.notas.filter((n: any) => n && typeof n.texto === "string").map((n: any) => ({ id: String(n.id ?? n.em), autor: String(n.autor ?? ""), texto: n.texto, em: String(n.em ?? "") })) : [],
   };
 }
+
+const CAMPOS_EXTRAS = ["responsavel", "objetivo", "publico", "gastoReal", "checklist", "notas"] as const;
+const extrasDe = (c: Campanha) => ({
+  responsavel: c.responsavel.trim(), objetivo: c.objetivo.trim(), publico: c.publico.trim(), gastoReal: Math.max(0, Number(c.gastoReal) || 0),
+  checklist: c.checklist.slice(0, 40).map((i) => ({ id: i.id, texto: i.texto.slice(0, 200), feito: i.feito })),
+  notas: c.notas.slice(-100).map((n) => ({ id: n.id, autor: n.autor.slice(0, 80), texto: n.texto.slice(0, 2000), em: n.em })),
+});
 
 function campanhaParaLinha(c: Partial<Campanha>) {
   return {
@@ -61,6 +91,8 @@ function campanhaParaLinha(c: Partial<Campanha>) {
     updated_at: new Date().toISOString(),
   };
 }
+
+const MSG_SEM_EXTRAS = /extras/i;
 
 /** Quadro de tráfego pago: lê e grava as campanhas da empresa ativa. */
 export function useMarketingTrafego() {
@@ -105,9 +137,10 @@ export function useMarketingTrafego() {
     if (!c.title.trim()) { toast.error("Dê um nome à campanha."); return false; }
     const { data, error } = await supabase
       .from("marketing_trafego")
-      .insert({ ...campanhaParaLinha(c), tenant_id: activeTenantId })
+      .insert({ ...campanhaParaLinha(c), ...(gravaExtras ? { extras: extrasDe(c as Campanha) } : {}), tenant_id: activeTenantId })
       .select("*")
       .single();
+    if (error && gravaExtras && MSG_SEM_EXTRAS.test(error.message)) { gravaExtras = false; return criar(c); }
     if (error) { toast.error(`Não foi possível criar a campanha: ${friendlyError(error)}`); return false; }
     setCampanhas((prev) => [...prev, linhaParaCampanha(data)]);
     toast.success("Campanha criada.");
@@ -116,7 +149,14 @@ export function useMarketingTrafego() {
 
   const atualizar = async (id: string, patch: Partial<Campanha>, silencioso = false): Promise<boolean> => {
     if (!supabase || !activeTenantId) return false;
-    const { error } = await supabase.from("marketing_trafego").update(campanhaParaLinha(patch)).eq("id", id).eq("tenant_id", activeTenantId);
+    const atual = campanhas.find((x) => x.id === id);
+    const mexeuNosExtras = CAMPOS_EXTRAS.some((k) => k in patch);
+    const extras = gravaExtras && mexeuNosExtras && atual ? { extras: extrasDe({ ...atual, ...patch }) } : {};
+    let { error } = await supabase.from("marketing_trafego").update({ ...campanhaParaLinha(patch), ...extras }).eq("id", id).eq("tenant_id", activeTenantId);
+    if (error && "extras" in extras && MSG_SEM_EXTRAS.test(error.message)) {
+      gravaExtras = false;
+      ({ error } = await supabase.from("marketing_trafego").update(campanhaParaLinha(patch)).eq("id", id).eq("tenant_id", activeTenantId));
+    }
     if (error) { toast.error(`Não foi possível salvar: ${friendlyError(error)}`); return false; }
     setCampanhas((prev) => prev.map((x) => {
       if (x.id !== id) return x;

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Calendar, Columns3, Megaphone, DollarSign, Rocket, CalendarCheck, Share2, Layers, Loader2, Database } from "lucide-react";
+import { Plus, Calendar, Columns3, Megaphone, DollarSign, Rocket, CalendarCheck, Share2, Layers, Loader2, Database, User } from "lucide-react";
 import { DragDropContext } from "@hello-pangea/dnd";
 import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
@@ -21,18 +21,21 @@ export default function MarketingTrafego() {
   const [busca, setBusca] = useState("");
   const [plataforma, setPlataforma] = useState("");
   const [etapa, setEtapa] = useState("");
+  const [responsavel, setResponsavel] = useState("");
   const [modal, setModal] = useState<{ campanha: Campanha | null; data?: string; etapa?: string } | null>(null);
   const [detalheId, setDetalheId] = useState<string | null>(null);
 
   const plataformas = useMemo(() => Array.from(new Set(campanhas.map((c) => c.platform))).sort(), [campanhas]);
+  const responsaveis = useMemo(() => Array.from(new Set(campanhas.map((c) => c.responsavel).filter(Boolean))).sort(), [campanhas]);
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return campanhas.filter((c) =>
       (!plataforma || c.platform === plataforma) &&
       (!etapa || c.colId === etapa) &&
+      (!responsavel || c.responsavel === responsavel) &&
       (!q || [c.title, c.desc, c.platform].some((v) => (v || "").toLowerCase().includes(q))),
     );
-  }, [campanhas, busca, plataforma, etapa]);
+  }, [campanhas, busca, plataforma, etapa, responsavel]);
   const colunasVisiveis = etapa ? colunas.filter((c) => c.id === etapa) : colunas;
   const noAr = colunas.find((c) => c.id === "no_ar");
   const orcamentoTotal = filtradas.reduce((s, c) => s + (c.value || 0), 0);
@@ -61,13 +64,14 @@ export default function MarketingTrafego() {
               { label: noAr?.title ?? "No Ar", value: filtradas.filter((c) => c.colId === "no_ar").length, icon: Rocket, tone: "success", hint: "Campanhas que estão rodando agora." },
               { label: "Com data de início", value: filtradas.filter((c) => c.publishDateISO).length, icon: CalendarCheck, tone: "accent" },
             ]}
-            activeCount={(busca.trim() ? 1 : 0) + (plataforma ? 1 : 0) + (etapa ? 1 : 0)}
-            onClear={() => { setBusca(""); setPlataforma(""); setEtapa(""); }}
+            activeCount={(busca.trim() ? 1 : 0) + (plataforma ? 1 : 0) + (etapa ? 1 : 0) + (responsavel ? 1 : 0)}
+            onClear={() => { setBusca(""); setPlataforma(""); setEtapa(""); setResponsavel(""); }}
           >
             <FilterBar>
               <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar campanha, objetivo ou plataforma..." />
               <FilterSelect icon={Share2} value={plataforma} onChange={setPlataforma} options={plataformas} allLabel="Todas as plataformas" />
               <FilterSelect icon={Layers} value={etapa} onChange={setEtapa} options={colunas.map((c) => ({ value: c.id, label: c.title }))} allLabel="Todas as etapas" />
+              <FilterSelect icon={User} value={responsavel} onChange={setResponsavel} options={responsaveis} allLabel="Todos os responsáveis" />
             </FilterBar>
           </KpiFilterCard>
 

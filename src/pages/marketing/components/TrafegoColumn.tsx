@@ -1,5 +1,5 @@
 import { Droppable, Draggable } from "@hello-pangea/dnd";
-import { Calendar, Clock, Plus } from "lucide-react";
+import { Calendar, CheckSquare, Clock, Plus, Target } from "lucide-react";
 import { useLocalization } from "../../../contexts/LocalizationContext";
 import { cn } from "../../../lib/utils";
 import type { Campanha } from "../useMarketingTrafego";
@@ -7,6 +7,8 @@ import { calcularCronograma, hojeBrasilia, dataCurta, type TomCronograma } from 
 import { corPlataforma, siglaPlataforma } from "../trafegoPlataforma";
 
 export interface ColunaTrafego { id: string; title: string; color: string; hex: string }
+
+export const iniciais = (nome: string) => nome.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?";
 
 export const COR_PRIORIDADE: Record<string, string> = {
   Alta: "bg-rose-500/10 text-rose-600 border-rose-500/20",
@@ -97,6 +99,16 @@ export function TrafegoColumn({ col, campanhas, todas, onOpen, onNova }: {
                             <div className="h-full rounded-full" style={{ width: `${cron.progresso}%`, backgroundColor: col.hex }} />
                           </div>
                         )}
+                        {c.objetivo && <p className="flex items-center gap-1 text-[10px] font-semibold text-[var(--color-text-muted)]"><Target className="w-3 h-3 shrink-0 text-[var(--color-text-faint)]" /><span className="truncate">{c.objetivo}</span></p>}
+                        <div className="flex items-center justify-between gap-2 text-[10px] font-semibold">
+                          <span className="flex items-center gap-1.5 min-w-0" title={c.responsavel ? `Responsável: ${c.responsavel}` : "Sem responsável"}>
+                            <span className={cn("w-5 h-5 rounded-full grid place-items-center text-[8px] font-black shrink-0", c.responsavel ? "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-faint)]")}>{iniciais(c.responsavel)}</span>
+                            <span className="truncate text-[var(--color-text-muted)]">{c.responsavel ? c.responsavel.split(" ")[0] : "Sem responsável"}</span>
+                          </span>
+                          {c.checklist.length > 0 && (
+                            <span className="flex items-center gap-1 text-[var(--color-text-faint)] shrink-0"><CheckSquare className="w-3 h-3" />{c.checklist.filter((i) => i.feito).length}/{c.checklist.length}</span>
+                          )}
+                        </div>
                         <div className="flex items-center justify-between gap-2 text-[10px] font-semibold pt-2 border-t border-[var(--color-border-subtle)]">
                           <span className="flex items-center gap-1 text-[var(--color-text-faint)] min-w-0">
                             <Calendar className="w-3 h-3 shrink-0" />

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
-import { PLATAFORMAS_TRAFEGO, type Campanha } from "../useMarketingTrafego";
+import { useData } from "../../../contexts/DataContext";
+import { PLATAFORMAS_TRAFEGO, OBJETIVOS_TRAFEGO, CHECKLIST_PADRAO, type Campanha } from "../useMarketingTrafego";
 import { cn } from "../../../lib/utils";
 
 interface Coluna { id: string; title: string }
@@ -34,7 +35,13 @@ export function CampanhaModal({ isOpen, onClose, colunas, campanha, dataInicial,
   const [fim, setFim] = useState("");
   const [prioridade, setPrioridade] = useState<Campanha["priority"]>("Média");
   const [descricao, setDescricao] = useState("");
+  const [responsavel, setResponsavel] = useState("");
+  const [objetivo, setObjetivo] = useState("");
+  const [publico, setPublico] = useState("");
+  const [gastoReal, setGastoReal] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const { colaboradores } = useData();
+  const nomes = Array.from(new Set([...(colaboradores as any[]).map((c) => String(c.nome || "").trim()).filter(Boolean), ...(campanha?.responsavel ? [campanha.responsavel] : [])])).sort();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -46,6 +53,10 @@ export function CampanhaModal({ isOpen, onClose, colunas, campanha, dataInicial,
     setFim(campanha?.endDateISO ?? "");
     setPrioridade(campanha?.priority ?? "Média");
     setDescricao(campanha?.desc ?? "");
+    setResponsavel(campanha?.responsavel ?? "");
+    setObjetivo(campanha?.objetivo ?? "");
+    setPublico(campanha?.publico ?? "");
+    setGastoReal(campanha?.gastoReal ? String(campanha.gastoReal) : "");
     setSalvando(false);
   }, [isOpen, campanha, dataInicial, etapaInicial, colunas]);
 
@@ -55,7 +66,9 @@ export function CampanhaModal({ isOpen, onClose, colunas, campanha, dataInicial,
     if (fimAntesDoInicio) return;
     setSalvando(true);
     const ok = await onSalvar(
-      { title: titulo, platform: plataforma, colId: etapa, value: Number(orcamento.replace(",", ".")) || 0, publishDateISO: inicio, endDateISO: fim, priority: prioridade, desc: descricao },
+      { title: titulo, platform: plataforma, colId: etapa, value: Number(orcamento.replace(",", ".")) || 0, publishDateISO: inicio, endDateISO: fim, priority: prioridade, desc: descricao,
+        responsavel, objetivo, publico, gastoReal: Number(gastoReal.replace(",", ".")) || 0,
+        checklist: campanha?.checklist ?? CHECKLIST_PADRAO.map((texto, i) => ({ id: `p${i}`, texto, feito: false })), notas: campanha?.notas ?? [] },
       campanha?.id,
     );
     setSalvando(false);
@@ -115,6 +128,32 @@ export function CampanhaModal({ isOpen, onClose, colunas, campanha, dataInicial,
           </div>
         </div>
         {fimAntesDoInicio && <p className="text-[11px] text-rose-500 -mt-2">A data final não pode ser antes da data de início.</p>}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className={rotulo}>Responsável</label>
+            <select value={responsavel} onChange={(e) => setResponsavel(e.target.value)} className={campo}>
+              <option value="">Sem responsável</option>
+              {nomes.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className={rotulo}>Objetivo</label>
+            <select value={objetivo} onChange={(e) => setObjetivo(e.target.value)} className={campo}>
+              <option value="">Não definido</option>
+              {OBJETIVOS_TRAFEGO.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className={rotulo}>Público-alvo</label>
+            <Input value={publico} onChange={(e) => setPublico(e.target.value)} placeholder="Ex.: mulheres 25–40, São Paulo" maxLength={200} />
+          </div>
+          <div className="space-y-1.5">
+            <label className={rotulo}>Gasto real até agora (R$)</label>
+            <input type="number" min="0" step="0.01" inputMode="decimal" value={gastoReal} onChange={(e) => setGastoReal(e.target.value)} placeholder="0,00" className={campo} />
+          </div>
+        </div>
         <div className="space-y-1.5">
           <label className={rotulo}>Prioridade</label>
           <div className="grid grid-cols-3 gap-2">
