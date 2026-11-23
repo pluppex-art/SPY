@@ -43,9 +43,9 @@ function Kpi({ icon: Icon, label, value, hint, tone }: { icon: any; label: strin
 }
 
 const SHORTCUTS = [
-  { to: "/app/ia/aurora", icon: Bot, title: "Agentes & consumo", desc: "Ligar/desligar agentes, prompts e uso da Aurora" },
-  { to: "/app/ia/funis", icon: Workflow, title: "Funis & etapas", desc: "Etapas do funil SDR IA e do comercial" },
-  { to: "/app/ia/gatilhos", icon: Zap, title: "Gatilhos da IA", desc: "Quando a IA entra em ação" },
+  { to: "/app/configuracoes/sistema/aurora", icon: Bot, title: "Agentes & consumo", desc: "Ligar/desligar agentes, prompts e uso da Aurora" },
+  { to: "/app/configuracoes/crm/funis", icon: Workflow, title: "Funis & etapas", desc: "Etapas do funil SDR IA e do comercial" },
+  { to: "/app/configuracoes/crm/gatilhos-ia", icon: Zap, title: "Gatilhos da IA", desc: "Quando a IA entra em ação" },
 ];
 
 /** Tudo da IA (Aurora) numa tela só: agentes, funil SDR IA com etapas e um atalho pra cada configuração. */
@@ -150,7 +150,7 @@ export default function VisaoGeralIA() {
         <h2 className="text-sm font-black uppercase tracking-wider text-[var(--color-text-faint)]">Funil SDR IA</h2>
         {funisIA.length === 0 ? (
           <Card className="p-5 text-sm text-[var(--color-text-muted)]">
-            Nenhum funil SDR IA configurado ainda. <Link to="/app/ia/funis" className="text-[var(--color-primary-blue)] font-bold">Configurar em Funis & etapas</Link>
+            Nenhum funil SDR IA configurado ainda. <Link to="/app/configuracoes/crm/funis" className="text-[var(--color-primary-blue)] font-bold">Configurar em Funis & etapas</Link>
           </Card>
         ) : funisIA.map((f) => {
           const etapas = buildStagesForFunil(f);
@@ -162,7 +162,7 @@ export default function VisaoGeralIA() {
                   <div className="font-bold truncate">{f.nome}</div>
                   <div className="text-xs text-[var(--color-text-muted)]">{f.ativo === false ? "Desativado" : "Ativo"} · {etapas.length} etapas</div>
                 </div>
-                <Link to="/app/ia/funis" className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-[var(--color-primary-blue)]"><Settings2 className="w-3.5 h-3.5" /> Editar</Link>
+                <Link to="/app/configuracoes/crm/funis" className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-[var(--color-primary-blue)]"><Settings2 className="w-3.5 h-3.5" /> Editar</Link>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -257,7 +257,7 @@ export default function VisaoGeralIA() {
               ))}
             </Card>
           )}
-          <p className="text-xs text-[var(--color-text-muted)]">{((leadScoreTriggers as any[]) || []).length} regra(s) de pontuação de lead configurada(s). <Link to="/app/ia/gatilhos" className="text-[var(--color-primary-blue)] font-bold">Editar gatilhos</Link></p>
+          <p className="text-xs text-[var(--color-text-muted)]">{((leadScoreTriggers as any[]) || []).length} regra(s) de pontuação de lead configurada(s). <Link to="/app/configuracoes/crm/gatilhos-ia" className="text-[var(--color-primary-blue)] font-bold">Editar gatilhos</Link></p>
         </section>
       )}
      </div>

@@ -123,7 +123,6 @@ const ConfigCRMFidelidade = lazy(() => import("./pages/settings/sections/crm/Con
 const ConfigCRMOrigens = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMOrigens })));
 const ConfigCRMProdutos = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigCRMProdutos })));
 const ConfigProdutividadeCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigProdutividadeCategorias })));
-const IALayout = lazy(() => import("./pages/ia/IALayout"));
 const FinanceiroPedidosCompra = lazy(() => import("./pages/finance/FinanceiroPedidosCompra"));
 const FinanceiroPlanoContas = lazy(() => import("./pages/finance/FinanceiroPlanoContas"));
 const ConfigFinanceiroCategorias = lazy(() => import("./pages/settings/SettingsPages").then(m => ({ default: m.ConfigFinanceiroCategorias })));
@@ -298,13 +297,9 @@ function AppContent() {
           <Route path="documentos" element={<Contracts />} />
           <Route path="sobre-soa" element={<SobreSoa />} />
           <Route path="performance-ia" element={AI_OUTSIDE_AURORA_ENABLED ? <PerformanceIA /> : <Navigate to="/app/dashboard" replace />} />
-          <Route path="ia" element={<ProtectedRoute requireModule="aurora"><IALayout /></ProtectedRoute>}>
+          {/* A Visão geral da IA fica dentro do menu lateral de Configurações (o mesmo das telas de configuração da IA). */}
+          <Route path="ia" element={<ProtectedRoute requireModule="aurora"><SettingsLayout /></ProtectedRoute>}>
             <Route index element={<VisaoGeralIA />} />
-            <Route path="aurora" element={<ProtectedRoute requireTenantAdmin><ConfigSistemaAuroraUso /></ProtectedRoute>} />
-            <Route path="funis" element={<ProtectedRoute requireTenantAdmin><ConfigCRMFunis /></ProtectedRoute>} />
-            <Route path="gatilhos" element={<ProtectedRoute requireTenantAdmin><ConfigCRMGatilhosIA /></ProtectedRoute>} />
-            <Route path="links" element={<ConfigLinksDinamicos />} />
-            <Route path="treinamento" element={<ProtectedRoute requireMaster><ConfigSistemaTreinamento /></ProtectedRoute>} />
           </Route>
           <Route path="conhecimento" element={<ConhecimentoSurfSense />} />
 
