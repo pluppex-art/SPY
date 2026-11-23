@@ -170,14 +170,19 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
     );
   }
 
+  const hasInlineSearch = !open && !!search;
+
   return (
     <Card className={cn("overflow-hidden", className)}>
-      <div className="flex items-center justify-between gap-2 pr-4">
+      <div className={cn("flex items-center gap-2 pr-4", hasInlineSearch ? "py-2" : "")}>
         <button
           type="button"
           onClick={toggle}
           aria-expanded={open}
-          className="flex-1 min-w-0 flex items-center justify-between gap-2 px-4 py-3.5 md:py-3 border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors"
+          className={cn(
+            "flex items-center gap-2 px-4 border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors rounded-lg",
+            hasInlineSearch ? "py-2 shrink-0" : "flex-1 min-w-0 justify-between py-3.5 md:py-3",
+          )}
         >
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)]">
             <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
@@ -188,13 +193,18 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
               </span>
             )}
           </span>
-          <ChevronDown className={cn("w-4 h-4 text-[var(--color-text-muted)] transition-transform", open && "rotate-180")} />
+          <ChevronDown className={cn("w-4 h-4 text-[var(--color-text-muted)] transition-transform shrink-0", open && "rotate-180")} />
         </button>
-        {!open && search && (
-          <div className="shrink-0 w-56" onClick={e => e.stopPropagation()}>
+
+        {hasInlineSearch && (
+          <div
+            className="flex-1 min-w-0 [&_input]:!h-[34px] [&_input]:!text-xs [&_div]:!min-w-0"
+            onClick={e => e.stopPropagation()}
+          >
             {search}
           </div>
         )}
+
         {activeCount > 0 && onClear && (
           <button
             type="button"
