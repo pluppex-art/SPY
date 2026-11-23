@@ -16,6 +16,14 @@ const MESTRE_PADRAO = "X25VZukPX62cAfli";
 const BASE_PADRAO = "https://n8n.spycrm.com.br/webhook";
 const URL_GLOBAL_PADRAO = `${BASE_PADRAO}/radar-busca-direta`;
 
+/** Configurações do workflow que a API pública do n8n aceita (mantém, por exemplo, o fluxo de erro do modelo). */
+const CONFIG_ACEITAS = ["executionOrder", "saveDataErrorExecution", "saveDataSuccessExecution", "saveManualExecutions", "saveExecutionProgress", "executionTimeout", "errorWorkflow", "timezone", "callerPolicy"];
+export function configuracoesDoModelo(settings: any): Record<string, any> {
+  const out: Record<string, any> = { executionOrder: "v1" };
+  if (settings && typeof settings === "object") for (const k of CONFIG_ACEITAS) if (settings[k] !== undefined) out[k] = settings[k];
+  return out;
+}
+
 export interface RadarWebhook { url: string; header: string; secret: string | null; propria: boolean }
 
 /** Endereço de busca do Radar desta empresa (o dela, se já foi criado; senão o geral). */
@@ -68,7 +76,7 @@ export async function provisionarRadarDaEmpresa(db: Db, tenantId: string, nomeEm
       name: `[SPY] Radar: ${String(nomeEmpresa || tenantId).slice(0, 80)}`,
       nodes,
       connections: modelo.connections || {},
-      settings: modelo.settings && typeof modelo.settings === "object" ? { executionOrder: modelo.settings.executionOrder ?? "v1" } : { executionOrder: "v1" },
+      settings: configuracoesDoModelo(modelo.settings),
     };
     const { data: criado } = await axios.post(`${api}/workflows`, corpo, { headers, timeout: 30_000 });
     await axios.post(`${api}/workflows/${criado.id}/activate`, {}, { headers, timeout: 20_000 });
@@ -115,7 +123,7 @@ export async function sincronizarRadarDasEmpresas(db: Db): Promise<ResultadoSync
       const { data: atual } = await axios.get(`${api}/workflows/${workflowId}`, { headers, timeout: 20_000 });
       await axios.put(`${api}/workflows/${workflowId}`, {
         name: atual.name, nodes, connections: modelo.connections || {},
-        settings: { executionOrder: modelo.settings?.executionOrder ?? "v1" },
+        settings: configuracoesDoModelo(modelo.settings),
       }, { headers, timeout: 30_000 });
       saida.push({ empresa, ok: true });
     } catch (e: any) {

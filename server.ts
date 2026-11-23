@@ -4462,6 +4462,9 @@ app.post("/api/radar/pesquisar", requireUser, aiLimiter, async (req: any, res: a
   try {
     const { data } = await axios.post(url, { criterio, quantidade, tenant_id: tenantId }, { headers: { "Content-Type": "application/json", [header]: secret }, timeout: 90_000 });
     const resposta = typeof data?.resposta === "string" ? data.resposta : typeof data === "string" ? data : "";
+    // Sem resposta: o Radar recusa em silêncio quando a empresa não tem o módulo Radar no plano.
+    if (!resposta.trim()) return res.status(403).json({ error: "O módulo Radar não está habilitado no plano desta empresa (ou a busca não devolveu resposta). Fale com o administrador do sistema." });
+    if (/^O modulo Radar/i.test(resposta)) return res.status(403).json({ error: resposta });
     // O workflow devolve um texto: uma linha por empresa ("- Nome — endereço — avaliação Google: … — contato: … — site: … — whatsapp_chatid: …").
     const resultados = resposta.split("\n").filter((l: string) => l.startsWith("- ")).map((l: string) => {
       const partes = l.slice(2).split(" — ");
