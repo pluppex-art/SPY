@@ -65,7 +65,7 @@ export function SectionSidebar({ heading, subheading, groups, headerExtra, foote
   useEffect(() => { setMobileMenuOpen(false); }, [location.pathname]);
 
   return (
-    <div className="flex flex-col lg:flex-row h-full -m-4 md:-m-8 relative overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-full -m-4 md:-mx-8 md:-mt-4 md:-mb-8 relative overflow-hidden">
       {isHidden && (
         <div className="absolute left-0 top-12 z-[60] hidden lg:block">
           <Button

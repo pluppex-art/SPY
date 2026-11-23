@@ -48,7 +48,7 @@ export default function Equipe() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full -m-4 lg:-m-8">
+    <div className="flex flex-col lg:flex-row h-full -m-4 lg:-mx-8 lg:-mt-4 lg:-mb-8">
       <EquipeSidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
