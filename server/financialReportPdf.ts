@@ -20,7 +20,7 @@
  * nunca de texto livre do chamador) — isso evita que um campo/coluna arbitrário vaze de um jeito
  * que o allowlist não previu.
  */
-import type { Express, RequestHandler } from "express";
+import type { Express } from "express";
 import { formatBRL } from "../src/lib/dinheiro.js";
 import { createHmac, timingSafeEqual } from "crypto";
 import { jsPDF } from "jspdf";

@@ -11,37 +11,7 @@ import { Modal } from "../../../../components/ui/modal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../../../components/ui/tabs";
 import { Alert } from "../../../../components/ui/alert";
 import { EmptyState } from "../../../../components/ui/empty-state";
-import {
-  Zap,
-  Settings,
-  MessageSquare,
-  Search,
-  Activity,
-  CheckCircle2,
-  AlertTriangle,
-  Globe,
-  CreditCard,
-  Wallet,
-  Send,
-  Copy,
-  ExternalLink,
-  ShieldCheck,
-  Eye,
-  RefreshCw,
-  Play,
-  Check,
-  Lock,
-  Server,
-  Facebook,
-  Plus,
-  ArrowUpRight,
-  Sparkles,
-  Layers,
-  HelpCircle,
-  Database,
-  Truck,
-  ShoppingCart,
-} from "lucide-react";
+import { Zap, Settings, MessageSquare, Search, Activity, CheckCircle2, Globe, CreditCard, Wallet, Send, ShieldCheck, Play, Server, Facebook, Plus, Layers, Database, Truck, ShoppingCart } from "lucide-react";
 import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { toast } from "sonner";

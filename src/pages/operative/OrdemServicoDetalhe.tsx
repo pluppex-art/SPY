@@ -1,7 +1,7 @@
 import { OsPassosPanel } from "../os/components/OsPassosPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Plus, Printer, Save, Trash2, Package, UserRound, Wrench, ListChecks, FileText, ClipboardList } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Printer, Save, Trash2, Package, UserRound, Wrench, ListChecks, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";

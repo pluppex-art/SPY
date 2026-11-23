@@ -1,11 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card } from "../../../components/ui/card";
-import {
-  Cpu, Layers, Target, Clock, DollarSign, Package,
-  Megaphone, MessageSquare, Award, Activity, Users,
-  Columns3, Home, Car, Sun, ShoppingCart, Code2,
-  Sparkles, ShieldCheck, UserCheck, Check, Building2, CalendarCheck
-} from "lucide-react";
+import { Cpu, Target, Clock, DollarSign, Package, Megaphone, MessageSquare, Award, Activity, Users, Columns3, Home, Car, Sun, ShoppingCart, Code2, Sparkles, ShieldCheck, UserCheck, CalendarCheck } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useData } from "../../../contexts/DataContext";
 import { toast } from "sonner";

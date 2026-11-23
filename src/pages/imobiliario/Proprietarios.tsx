@@ -4,10 +4,7 @@ import { BotaoImportar } from "../../components/ImportadorPlanilha";
 import { proprietariosSpec } from "../../lib/importSpecs";
 
 import { Button } from "../../components/ui/button";
-import {
-  Users, Plus, Search, Phone, Mail, Home,
-  Building2, MessageSquare, Trash2, X
-} from "lucide-react";
+import { Users, Plus, Phone, Mail, Home, Building2, Trash2 } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";

@@ -1,9 +1,6 @@
 import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
-import {
-  Wallet, Search, CheckCircle2, AlertTriangle, Clock, DollarSign,
-  RefreshCw, Inbox, Download, Send
-} from "lucide-react";
+import { Wallet, CheckCircle2, AlertTriangle, Clock, DollarSign, RefreshCw, Inbox, Download, Send } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";

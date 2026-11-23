@@ -1,9 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  Users, Plus, ShieldCheck, FileText, Activity, Pill, Inbox,
-  Stethoscope, ClipboardList, FlaskConical, X, Trash2
-} from 'lucide-react';
+import { Users, Plus, ShieldCheck, FileText, Activity, Pill, Inbox, Stethoscope, ClipboardList, FlaskConical, Trash2 } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";

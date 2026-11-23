@@ -1,8 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  Users, Search, UserPlus, Download, Mail, Phone, Clock,
-  ShieldCheck, X, FileText, Trash2, Edit2, Cake, IdCard, Stethoscope
-} from 'lucide-react';
+import { Users, Search, UserPlus, Download, Phone, Clock, ShieldCheck, FileText, Trash2, Edit2, Cake, Stethoscope } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";

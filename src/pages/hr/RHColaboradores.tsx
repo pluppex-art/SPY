@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { friendlyError } from "../../lib/friendlyError";
 import { PageContainer } from "../../components/PageContainer";
-import { UserPlus, PlusCircle, Users } from "lucide-react";
+import { UserPlus, PlusCircle } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { useData } from "../../contexts/DataContext";
 import { useRHColaboradores } from "./hooks/useRHColaboradores";

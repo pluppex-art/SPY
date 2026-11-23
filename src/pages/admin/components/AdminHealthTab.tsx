@@ -1,10 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "../../../components/ui/card";
-import {
-  Activity, Database, ShieldCheck, Zap, RefreshCw,
-  Server, CheckCircle2, AlertTriangle, HardDrive,
-  Cpu, Lock, Globe, Clock, Check
-} from "lucide-react";
+import { Activity, Database, ShieldCheck, Zap, RefreshCw, CheckCircle2, HardDrive, Check } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { supabase } from "../../../lib/supabase";
 import { toast } from "sonner";

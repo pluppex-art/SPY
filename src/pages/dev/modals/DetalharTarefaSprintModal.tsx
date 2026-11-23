@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { Modal } from '../../../components/ui/modal';
 import { Button } from '../../../components/ui/button';

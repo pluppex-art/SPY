@@ -2,10 +2,7 @@ import { uniqueSellers, sameSeller } from "../../lib/sellerNames";
 import { useState, useMemo, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  DollarSign, Plus, Users, Filter, TrendingUp,
-  Columns3, Calendar, CheckCircle2, Clock, AlertCircle, ArrowUpRight
-} from "lucide-react";
+import { DollarSign, Plus, Users, Filter, TrendingUp, Columns3, CheckCircle2, Clock } from "lucide-react";
 import { Pagination } from "../../components/ui/Pagination";
 import { Link } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";

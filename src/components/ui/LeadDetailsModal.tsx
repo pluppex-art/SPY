@@ -1,6 +1,6 @@
 import { useAuth } from "../../contexts/AuthContext";
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../lib/featureFlags";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AgendarReuniaoModal } from "./modals/crm/AgendarReuniaoModal";
 import { supabase } from "../../lib/supabase";

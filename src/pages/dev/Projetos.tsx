@@ -1,6 +1,6 @@
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState } from 'react';
-import { FolderCode, Plus, Search, Clock, MoreHorizontal, Star, Bug } from 'lucide-react';
+import { FolderCode, Plus, Clock, MoreHorizontal, Star, Bug } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";

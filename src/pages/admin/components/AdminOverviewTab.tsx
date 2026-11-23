@@ -1,11 +1,6 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Card } from "../../../components/ui/card";
-import {
-  Building2, DollarSign, HardDrive, BarChart3,
-  Activity, Server, Inbox,
-  CheckCircle2, ArrowUpRight, ShieldCheck, Zap,
-  Clock, Database
-} from "lucide-react";
+import { Building2, DollarSign, BarChart3, Activity, Server, Inbox, CheckCircle2, ArrowUpRight } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer

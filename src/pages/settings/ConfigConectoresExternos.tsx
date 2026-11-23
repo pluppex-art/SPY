@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { FormField } from "../../components/ui/form-field";
 import { Badge } from "../../components/ui/badge";
 import { EmptyState } from "../../components/ui/empty-state";
-import { Plug, X, Send, RefreshCw, ShieldAlert, KeyRound, Copy, Code2 } from "lucide-react";
+import { Plug, X, Send, ShieldAlert, KeyRound, Copy, Code2 } from "lucide-react";
 import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useExternalIntegrations, type ExternalIntegrationInput } from "../../hooks/useExternalIntegrations";

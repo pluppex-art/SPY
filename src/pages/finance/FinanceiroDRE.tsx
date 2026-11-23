@@ -1,5 +1,5 @@
 import { Card } from "../../components/ui/card";
-import { Download, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Minus, LineChart as LineChartIcon, Wallet, TrendingUp, TrendingDown, Percent, ListOrdered, Gauge, Users } from "lucide-react";
+import { Download, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Minus, LineChart as LineChartIcon, Wallet, TrendingUp, TrendingDown, Percent, ListOrdered, Gauge } from "lucide-react";
 import { FilterBar, FilterChips, type KpiItem } from "../../components/ui/kpi-filter-card";
 import { FinanceKpiFilter } from "./components/FinanceKpiFilter";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";

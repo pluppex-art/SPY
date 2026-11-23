@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from '../../../components/ui/card';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
-import { DollarSign, MoreHorizontal, Calendar, Image, MessageSquare, GripVertical, Zap, FileText } from 'lucide-react';
+import { DollarSign, MoreHorizontal, Calendar, Image, MessageSquare, GripVertical } from 'lucide-react';
 import { useLocalization } from '../../../contexts/LocalizationContext';
 
 interface KanbanColumnProps {

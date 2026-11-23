@@ -1,10 +1,7 @@
 import { useState, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  Calendar, Clock, Video, MapPin, Users, Plus,
-  CheckCircle2, ArrowRight, Flag
-} from "lucide-react";
+import { Calendar, Video, MapPin, Plus, CheckCircle2, ArrowRight, Flag } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Link } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";

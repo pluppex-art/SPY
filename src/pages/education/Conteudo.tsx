@@ -7,8 +7,6 @@ import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { exportToCSV } from "../../lib/exportCsv";
 import { NovoConteudoModal } from "../../components/ui/modals/education/NovoConteudoModal";
-import { ConteudoKPIs } from "./components/Conteudo/ConteudoKPIs";
-import { ConteudoFilters } from "./components/Conteudo/ConteudoFilters";
 import { ConteudoTable } from "./components/Conteudo/ConteudoTable";
 import { ConteudoKanban } from "./components/Conteudo/ConteudoKanban";
 import { useData } from "../../contexts/DataContext";

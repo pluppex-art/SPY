@@ -1,4 +1,3 @@
-import React, { useMemo } from "react";
 
 const TEMP_CFG = {
   Quente: {

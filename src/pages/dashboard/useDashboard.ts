@@ -1,6 +1,5 @@
 import { useUnidadeMax } from "../../lib/unidadeMaxdata";
 import { prepararValor, somarLeads, valorDoLead } from "../../lib/valorDoLead";
-import { somar } from "../../lib/dinheiro";
 import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';

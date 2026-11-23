@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import {
-  FileText, FlaskConical, Building2,
-  Clock, CheckCircle2, AlertCircle, Download,
-  Eye, Plus, X, Check, Pencil
-} from 'lucide-react';
+import { FileText, FlaskConical, Building2, Clock, CheckCircle2, AlertCircle, Download, Eye, Plus, Check, Pencil } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -12,7 +8,6 @@ import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../comp
 import { Modal } from "../../components/ui/modal";
 import { useExames } from './hooks/useExames';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'motion/react';
 import { exportToCSV } from '../../lib/exportCsv';
 
 import { HelpTip } from "../../components/ui/help-tip";

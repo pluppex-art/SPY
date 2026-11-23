@@ -3,11 +3,7 @@ import { somar } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
-import {
-  Plus, Search, Star, Building2, TrendingUp, Copy, ExternalLink, X,
-  Phone, Mail, Edit2, Trash2, Link, Target, Award, Users, ChevronRight,
-  MessageSquare, BarChart2,
-} from "lucide-react";
+import { Plus, Star, TrendingUp, Copy, ExternalLink, X, Phone, Mail, Edit2, Trash2, Target, Award, Users, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { fetchImoveisCatalogo } from "../../lib/ativosCatalogo";

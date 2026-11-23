@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Zap, ArrowRight, Repeat } from "lucide-react";
+import { Zap, ArrowRight } from "lucide-react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
 

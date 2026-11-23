@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  Stethoscope, Plus, Calendar, Users, Award as AwardIcon, Phone,
-  Mail, Award, Clock, Trash2, X, Download
-} from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { Stethoscope, Plus, Calendar, Users, Award as AwardIcon, Award, Trash2, Download } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";

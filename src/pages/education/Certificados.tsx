@@ -5,8 +5,6 @@ import { Button } from "../../components/ui/button";
 import { toast } from "sonner";
 import { Modal } from "../../components/ui/modal";
 import { PageContainer } from "../../components/PageContainer";
-import { CertificadosKPIs } from "./components/Certificados/CertificadosKPIs";
-import { CertificadosFilters } from "./components/Certificados/CertificadosFilters";
 import { CertificadosGrid } from "./components/Certificados/CertificadosGrid";
 import { useData } from "../../contexts/DataContext";
 import { useEducacaoConfig } from "../../lib/modules/educacaoConfig";

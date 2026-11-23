@@ -1,10 +1,6 @@
 import React, { useRef, useEffect, useLayoutEffect, useState } from "react";
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
-import { 
-  ArrowLeft, Phone, MoreVertical, Sparkles, MessageCircle, 
-  CheckCheck, Send, Mic, Paperclip, Camera, Clock, 
-  Calendar, Info, Mail, CheckCircle2, ChevronRight, Search
-} from "lucide-react";
+import { ArrowLeft, Phone, MoreVertical, Sparkles, MessageCircle, CheckCheck, Send, Mic, Paperclip, Clock, Calendar, Info, Mail, CheckCircle2, Search } from "lucide-react";
 import { Contact, Message, RightPanelState } from "./useMessaging";
 import { toast } from "sonner";
 import { Trash2, X, FileText, Image as ImageIcon, Loader2 } from "lucide-react";

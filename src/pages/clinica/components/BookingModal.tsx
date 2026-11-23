@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from "motion/react";
-import { X, Search, ChevronDown, Check, Calendar, UserPlus } from 'lucide-react';
+import { X, Search, ChevronDown, Check, Calendar } from 'lucide-react';
 import { Button } from "../../../components/ui/button";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";

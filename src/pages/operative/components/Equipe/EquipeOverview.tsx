@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
-import {
-  Plus, LayoutDashboard, TrendingUp, Users, Layers, ShieldCheck,
-  Pencil, Trash2, CheckCircle2, XCircle, AlertTriangle, UserCheck
-} from "lucide-react";
+import { Plus, LayoutDashboard, Users, Layers, Pencil, Trash2, CheckCircle2, XCircle, AlertTriangle, UserCheck } from "lucide-react";
 import { motion } from "motion/react";
 import { TeamMember, Squad } from "../../hooks/useEquipe";
 

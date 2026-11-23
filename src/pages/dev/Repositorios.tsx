@@ -1,6 +1,6 @@
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState } from 'react';
-import { GitBranch, GitFork, Star, Lock, Globe, Plus, Search, Clock, Code2, Archive, CheckCircle2, ExternalLink, Unlink } from 'lucide-react';
+import { GitBranch, GitFork, Star, Lock, Globe, Plus, Clock, Code2, Archive, CheckCircle2, ExternalLink, Unlink } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";

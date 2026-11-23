@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
 import { Webhook, Activity, ShieldCheck, Zap } from "lucide-react";

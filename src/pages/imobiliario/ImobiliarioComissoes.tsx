@@ -2,10 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  DollarSign, CheckCircle2, Clock, Users, ArrowUpRight,
-  TrendingUp, Download, Building2, Plus, Search, Trash2, X, AlertCircle
-} from "lucide-react";
+import { DollarSign, CheckCircle2, Clock, Users, Plus, Trash2 } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";

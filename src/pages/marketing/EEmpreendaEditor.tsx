@@ -1,13 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
-import {
-  ChevronRight, Save, RefreshCw, Plus, Trash2,
-  Eye, ExternalLink, CheckCircle2, GripVertical,
-} from "lucide-react";
+import { ChevronRight, Save, RefreshCw, Plus, Trash2, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "../../lib/supabase";
-import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 
 // ─── Constantes ────────────────────────────────────────────────────────────

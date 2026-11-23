@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "../../../lib/supabase";
 import {
   LOGIN_DEFAULT_COLOR,
   applyThemeColor,

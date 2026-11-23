@@ -1,11 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { somar, formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
-import { Button } from "../../components/ui/button";
-import {
-  Car, DollarSign, TrendingUp, Calendar,
-  ArrowRight, Plus, Columns3, CheckCircle2, Clock
-} from "lucide-react";
+import { Car, DollarSign, TrendingUp, Calendar, ArrowRight, Columns3 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";

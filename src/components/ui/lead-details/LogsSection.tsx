@@ -1,4 +1,3 @@
-import React from "react";
 import { Card } from "../card";
 import { EmptyState } from "../empty-state";
 import { Badge } from "../badge";

@@ -1,4 +1,3 @@
-import React from 'react';
 import { somar, formatBRL } from "../../../../lib/dinheiro";
 import { Card } from '../../../../components/ui/card';
 import { Button } from '../../../../components/ui/button';

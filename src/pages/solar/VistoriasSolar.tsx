@@ -2,13 +2,8 @@ import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } fro
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  ClipboardCheck, Plus, Search, Calendar, MapPin,
-  Camera, CheckCircle2, Clock, AlertTriangle, Trash2, X, Download
-} from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { ClipboardCheck, Plus, Calendar, MapPin, Camera, CheckCircle2, AlertTriangle, Trash2, Download } from "lucide-react";
 import { Modal } from "../../components/ui/modal";
-import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";

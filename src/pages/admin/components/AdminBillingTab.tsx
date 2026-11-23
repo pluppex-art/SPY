@@ -1,10 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "../../../components/ui/card";
-import {
-  DollarSign, TrendingDown, Wallet, Download, CheckCircle2,
-  Clock, CreditCard, Sparkles, Building2, ArrowUpRight,
-  ShieldCheck, AlertCircle, Calendar, Inbox
-} from "lucide-react";
+import { DollarSign, TrendingDown, Wallet, Download, CheckCircle2, CreditCard, Sparkles, Building2, Inbox } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer

@@ -1,14 +1,11 @@
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  Calendar, CheckCircle2, ShieldCheck, Zap,
-  Save, RefreshCw, MessageSquare, Video, Clock, XCircle
-} from "lucide-react";
+import { Calendar, CheckCircle2, Save, RefreshCw, MessageSquare, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
-import { googleSignIn, getAccessToken, logout as googleLogout, initAuth, SCOPES_CALENDAR } from "../../lib/firebase";
+import { googleSignIn, logout as googleLogout, initAuth, SCOPES_CALENDAR } from "../../lib/firebase";
 
 type AgendaConfig = {
   autoInvite: boolean;

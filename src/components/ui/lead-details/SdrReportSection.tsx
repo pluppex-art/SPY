@@ -1,8 +1,7 @@
-import React from "react";
 import { Card } from "../card";
 import { Button } from "../button";
 import { Badge } from "../badge";
-import { Brain, Sparkles, Send, Copy, CheckCircle2 } from "lucide-react";
+import { Brain, Send, Copy, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface SdrReportSectionProps {

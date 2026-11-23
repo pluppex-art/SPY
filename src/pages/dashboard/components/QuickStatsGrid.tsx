@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StatCard } from '../../../components/ui/stat-card';
 import { motion } from 'motion/react';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';

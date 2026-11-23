@@ -1,28 +1,11 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
-import {
-  Phone,
-  Mic,
-  MicOff,
-  Plus,
-  Trash2,
-  MessageSquare,
-  Sparkles,
-  Flame,
-  Sun,
-  Snowflake,
-  TrendingUp,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  Sliders,
-} from "lucide-react";
+import { Phone, Mic, MicOff, Plus, Trash2, MessageSquare, Sparkles, Flame, Sun, Snowflake, TrendingUp, AlertTriangle, CheckCircle2, Sliders } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { toast } from "sonner";
 import { apiFetch } from "../../../lib/apiClient";
 import { Button } from "../button";
 import { Card } from "../card";
-import { Badge } from "../badge";
 import { cn } from "../../../lib/utils";
 import { calculateLeadScore } from "../../../lib/leadScore";
 import { useLeadPessoas } from "./useLeadPessoas";

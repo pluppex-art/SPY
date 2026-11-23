@@ -1,6 +1,6 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { useState } from 'react';
-import { Plus, Search, AlertCircle, CheckCircle2, Circle, Clock, Flame, MessageSquare } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle2, Circle, Clock, Flame, MessageSquare } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";

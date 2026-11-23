@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../lib/featureFlags";
 import { useState, useMemo, useEffect } from "react";
 import { Users, BookOpen, Target, Star, Download, UserPlus } from "lucide-react";
@@ -15,8 +15,6 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { NovaMatriculaModal } from "../../components/ui/modals/education/NovaMatriculaModal";
 import { supabase } from "../../lib/supabase";
 import { AlunoGradesModal } from "../../components/ui/modals/education/AlunoGradesModal";
-import { AlunosKPIs } from "./components/Alunos/AlunosKPIs";
-import { AlunosFilters } from "./components/Alunos/AlunosFilters";
 import { AlunosTable } from "./components/Alunos/AlunosTable";
 import { AlunosInsight } from "./components/Alunos/AlunosInsight";
 import { friendlyError } from "../../lib/friendlyError";

@@ -1,6 +1,6 @@
 import { CargosMultiSelect, cargosIniciais } from "../../CargosMultiSelect";
 import { useEffect, useState } from "react";
-import { Pencil, ShieldCheck, User, Mail, Phone, Briefcase, Building2, Users, MapPin, Activity, Gauge } from "lucide-react";
+import { Pencil, ShieldCheck, User, Mail, Phone, Building2, Users, MapPin, Activity, Gauge } from "lucide-react";
 import { useData } from "../../../../contexts/DataContext";
 import { useDepartamentoOptions } from "../../../../hooks/useDepartamentoOptions";
 import { Modal } from "../../modal";

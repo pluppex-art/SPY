@@ -78,11 +78,7 @@ import {
   INTEGRATION_DEFS, INTEGRATION_SETTING_KEYS, getIntegrationDef as implGetIntegrationDef, maskedView as implMaskedView,
   validateIntegrationValues as implValidateIntegrationValues, applyIntegrationUpdate as implApplyIntegrationUpdate,
 } from "./src/lib/tenantIntegrations.js";
-import {
-  allFields as implAllFields, applyPatch as implApplyPatch, computeProgress as implComputeProgress,
-  findField as implFindField, pendingFields as implPendingFields, sanitizePatch as implSanitizePatch,
-  coerceFieldValue as implCoerceFieldValue, applyTenantSnapshot as implApplyTenantSnapshot, IMPLEMENTATION_SECTIONS,
-} from "./src/lib/implementationForm.js";
+import { allFields as implAllFields, applyPatch as implApplyPatch, computeProgress as implComputeProgress, findField as implFindField, pendingFields as implPendingFields, sanitizePatch as implSanitizePatch, coerceFieldValue as implCoerceFieldValue, applyTenantSnapshot as implApplyTenantSnapshot } from "./src/lib/implementationForm.js";
 import nodemailer from "nodemailer";
 
 // ── Types ──────────────────────────────────────────────────────────────────

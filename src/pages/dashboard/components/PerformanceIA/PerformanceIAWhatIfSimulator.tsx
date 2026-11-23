@@ -3,7 +3,6 @@ import { SectionTitle } from "../../../../components/ui/section-title";
 import { Button } from "../../../../components/ui/button";
 import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, Area } from "recharts";
 import { Play, RefreshCw, Zap, Inbox, Lightbulb } from "lucide-react";
-import { motion } from "motion/react";
 
 import { HelpTip } from "../../../../components/ui/help-tip";
 export function PerformanceIAWhatIfSimulator(props: {

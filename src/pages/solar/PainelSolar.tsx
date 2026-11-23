@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { somar } from "../../lib/dinheiro";
-import {
-  Sun, Users, FileText, TrendingUp, Zap, DollarSign, Clock, Target,
-  Plus, Calculator, MapPin, ArrowRight, ShieldCheck, CheckCircle2, Wrench
-} from "lucide-react";
+import { Sun, TrendingUp, Zap, DollarSign, Clock, Target, Plus, Calculator, MapPin, ArrowRight, ShieldCheck } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";

@@ -2,10 +2,7 @@ import { uniqueSellers } from "../../../lib/sellerNames";
 import React, { useState, useMemo } from "react";
 import { isVendedorColab } from "../../../lib/sellers";
 import { Card } from "../card";
-import {
-  Sparkles, Brain, ArrowRight, Tag, Trophy,
-  Phone, MessageSquare, Mail, FileCheck, Clock, TrendingUp, ShieldCheck
-} from "lucide-react";
+import { Sparkles, Brain, ArrowRight, Tag, Trophy, Phone, MessageSquare, Mail, FileCheck, Clock, TrendingUp } from "lucide-react";
 import { Button } from "../button";
 import { Badge } from "../badge";
 import { useData } from "../../../contexts/DataContext";

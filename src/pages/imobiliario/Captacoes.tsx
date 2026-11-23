@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  ClipboardList, Plus, Search, MapPin, DollarSign,
-  User, CheckCircle2, Clock, Trash2, X, Filter, Download
-} from "lucide-react";
+import { ClipboardList, Plus, MapPin, DollarSign, User, CheckCircle2, Clock, Trash2, Download } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";

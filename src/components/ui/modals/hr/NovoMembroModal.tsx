@@ -1,5 +1,5 @@
 import { CargosMultiSelect } from "../../CargosMultiSelect";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { UserPlus, ShieldCheck, Eye, EyeOff, User, Mail, Phone, Briefcase, Building2, Users, Lock, Link2, Info, MapPin, Loader2, Check, Circle } from "lucide-react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";

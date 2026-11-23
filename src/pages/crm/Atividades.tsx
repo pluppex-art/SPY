@@ -1,15 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  Activity, PhoneCall, Mail, MessageSquare, Calendar,
-  CheckCircle2, Clock, Filter, Plus, User
-} from "lucide-react";
+import { Activity, PhoneCall, Mail, MessageSquare, Calendar, CheckCircle2, Filter, Plus, User } from "lucide-react";
 import { Pagination } from "../../components/ui/Pagination";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { normalizeText } from "../../lib/utils";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 
 const PAGE_SIZE = 50;
 

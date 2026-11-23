@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
 import { fetchPublicProposal, acceptPublicProposal, PublicProposal } from "../../lib/publicProposal";
 import { downloadPropostaClientePdf } from "../crm/utils/proposalClientPdf";
 import { toast } from "sonner";

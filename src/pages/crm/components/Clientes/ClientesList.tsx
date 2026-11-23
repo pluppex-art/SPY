@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { FidelidadeBadge } from "../../../../components/FidelidadeBadge";
 import { Card } from "../../../../components/ui/card";
 import { Badge } from "../../../../components/ui/badge";

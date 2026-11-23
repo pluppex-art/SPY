@@ -2,11 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  ShoppingCart, DollarSign, TrendingUp, Boxes, Package,
-  Truck, ArrowRight, CheckCircle2, AlertTriangle, CreditCard,
-  QrCode, Banknote, Clock, ArrowUpRight, BarChart3, RefreshCw
-} from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Boxes, Truck, ArrowRight, AlertTriangle, CreditCard, QrCode, Banknote, BarChart3 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";

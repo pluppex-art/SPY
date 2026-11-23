@@ -1,4 +1,4 @@
-import { User, Mail, Phone, Tag, Users, Target, AlertTriangle } from "lucide-react";
+import { User, Target } from "lucide-react";
 import { FormField } from "../form-field";
 import { Input } from "../input";
 

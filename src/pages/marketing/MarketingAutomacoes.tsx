@@ -1,11 +1,6 @@
 import { useMemo, useRef, useState } from "react";
-import {
-  ResponsiveContainer, AreaChart, Area, Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, CartesianGrid,
-} from "recharts";
-import {
-  MessageSquarePlus, Loader2, Users, Check, X, Trash2, AlertTriangle, Sparkles, Workflow, MessageCircle,
-  Clock, TrendingUp, TrendingDown, Lightbulb, BookOpen, Send,
-} from "lucide-react";
+import { ResponsiveContainer, Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { MessageSquarePlus, Loader2, Users, Check, X, Trash2, AlertTriangle, Sparkles, Workflow, MessageCircle, Clock, Lightbulb, BookOpen, Send } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";

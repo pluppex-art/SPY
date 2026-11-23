@@ -1,10 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import {
-  TrendingUp, ArrowUpRight, ArrowDownRight,
-  Download, FileText, AlertCircle,
-  CreditCard, Wallet, Landmark, PieChart as PieIcon,
-  Inbox
-} from 'lucide-react';
+import { TrendingUp, ArrowUpRight, ArrowDownRight, Download, AlertCircle, CreditCard, Wallet, Landmark, PieChart as PieIcon, Inbox } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";

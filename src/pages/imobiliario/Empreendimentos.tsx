@@ -2,10 +2,7 @@ import { useState, useEffect } from "react";
 import { cityKey, groupCities } from "../../lib/leadLocation";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  Building2, Plus, Search, MapPin, DollarSign,
-  TrendingUp, CheckCircle2, ArrowRight, Trash2, X, Download
-} from "lucide-react";
+import { Building2, Plus, MapPin, DollarSign, TrendingUp, CheckCircle2, ArrowRight, Trash2, Download } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";

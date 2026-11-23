@@ -1,14 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
-import {
-  TrendingUp, Users, Activity,
-  Calendar, PieChart as PieIcon,
-  Star, Clock, Download, Inbox
-} from 'lucide-react';
-import {
-  AreaChart, Area, XAxis, YAxis,
-  Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell
-} from 'recharts';
+import { TrendingUp, Users, Activity, PieChart as PieIcon, Star, Clock, Download, Inbox } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";

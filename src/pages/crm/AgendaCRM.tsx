@@ -11,33 +11,11 @@ import { EmptyState } from "../../components/ui/empty-state";
 import { Sparkline } from "../../components/ui/sparkline";
 import { NovaReuniaoModal, TIPO_COMPROMISSO_OPTIONS, type TipoCompromisso } from "../../components/ui/modals/reunioes/NovaReuniaoModal";
 import { ConfirmModal } from "../../components/ui/modals/shared/ConfirmModal";
-import {
-  CalendarDays,
-  Calendar as CalendarIcon,
-  Clock,
-  User,
-  Search,
-  ExternalLink,
-  Copy,
-  LayoutList,
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle2,
-  Video,
-  Plus,
-  Trash2,
-  RefreshCw,
-  Building2,
-  Sparkles,
-  ArrowUpRight,
-  ArrowDownRight,
-  LogOut,
- Pencil } from "lucide-react";
+import { CalendarDays, Calendar as CalendarIcon, Clock, Search, ExternalLink, Copy, LayoutList, ChevronLeft, ChevronRight, CheckCircle2, Video, Plus, Trash2, RefreshCw, Building2, Sparkles, ArrowUpRight, ArrowDownRight, LogOut, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Reuniao } from "../../contexts/DataContextTypes";
 import { connectGoogleCalendar, consumeGoogleCalendarRedirectResult, disconnectGoogleCalendar, formatGoogleCalendarError, syncGoogleCalendar } from "../../lib/google-auth";
 import { getGoogleIntegrationsStatus } from "../../lib/googleIntegrations";
-import { supabase } from "../../lib/supabase";
 import { normalizeText, dataLocalISO } from "../../lib/utils";
 import { friendlyError } from "../../lib/friendlyError";
 

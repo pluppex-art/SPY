@@ -1,12 +1,8 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  FileCheck, Clock, CheckCircle2, AlertTriangle, FileText,
-  Building2, ExternalLink, Plus, Search, Trash2, X, Download
-} from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { FileCheck, Clock, CheckCircle2, Building2, Plus, Trash2, Download } from "lucide-react";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";

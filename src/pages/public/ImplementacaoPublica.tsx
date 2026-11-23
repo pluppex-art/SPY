@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useParams } from "react-router-dom";
-import {
-  AlertTriangle, ArrowLeft, ArrowRight, Building2, Check, CheckCircle2, ClipboardList, Loader2, Lock, PartyPopper,
-  Moon, Plug, Rocket, ShieldCheck, Sparkles, Sun, Target, Users, Wallet, type LucideIcon,
-} from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Building2, Check, CheckCircle2, ClipboardList, Loader2, Lock, PartyPopper, Moon, ShieldCheck, Sun } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { ImplementationSectionForm } from "../../components/implementacao/ImplementationFormFields";
 import { IMPLEMENTATION_SECTIONS, computeProgress, type ImplData } from "../../lib/implementationForm";

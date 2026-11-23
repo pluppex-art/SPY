@@ -5,10 +5,7 @@ import { BotaoImportar } from "../../components/ImportadorPlanilha";
 import { clientesSpec } from "../../lib/importSpecs";
 
 import { Button } from "../../components/ui/button";
-import {
-  Building2, Plus, MapPin, Globe, Phone, Mail,
-  TrendingUp, Users, DollarSign, Trash2, ExternalLink,
-} from "lucide-react";
+import { Building2, Plus, MapPin, TrendingUp, Users, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";

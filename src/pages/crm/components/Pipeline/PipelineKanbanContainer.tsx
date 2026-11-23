@@ -1,6 +1,4 @@
 import { ReactNode } from "react";
-import { Card } from "../../../../components/ui/card";
-import { PipelineKanbanBoard } from "./PipelineKanbanBoard";
 
 export function PipelineKanbanContainer(props: {
   activePipelineStages: any[];

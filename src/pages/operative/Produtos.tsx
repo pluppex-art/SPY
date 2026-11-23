@@ -30,7 +30,7 @@ import { toast } from "sonner";
 import type { Product } from "../../types";
 import { downloadCsv } from "../../lib/csvExport";
 import { PLUPPEX_TENANT_ID, supabase } from "../../lib/supabase";
-import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS, origensVisiveis } from "../../lib/useMaxdataPage";
+import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_TODAS, origensVisiveis } from "../../lib/useMaxdataPage";
 
 const PAGE_SIZE = 60;
 

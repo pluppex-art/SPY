@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  Plus, Calendar, MapPin, User, Clock, Check, X, Building2, Car,
-  Search, CheckCircle2, XCircle, AlertCircle, Eye, TrendingUp,
-  Phone, Edit2, Trash2, ChevronRight, MessageSquare, ExternalLink,
-} from "lucide-react";
+import { Plus, Calendar, MapPin, User, Clock, Check, X, Building2, Car, CheckCircle2, XCircle, AlertCircle, TrendingUp, Phone, Edit2, Trash2, ChevronRight, MessageSquare } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { toast } from "sonner";

@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
-import { HelpTip } from "../../components/ui/help-tip";
 import { CatalogoFornecedorModal } from "./CatalogoFornecedorModal";
 import { FornecedorModal, rowToFornecedor, formatDoc, formatFone, type FornecedorItem } from "./FornecedorModal";
 

@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  ListTodo, Plus, CheckCircle2, Circle, Clock, Trash2,
-  Users, ExternalLink, CalendarCheck, X, Loader2,
-} from "lucide-react";
+import { ListTodo, Plus, CheckCircle2, Circle, Clock, Trash2, Users, CalendarCheck, X, Loader2 } from "lucide-react";
 import { useData } from "../../../contexts/DataContext";
 import { useAuth } from "../../../contexts/AuthContext";
 import { createCalendarEvent } from "../../../lib/google-calendar";

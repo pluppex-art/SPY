@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { FUNIS_DEFAULT } from "../settings/sections/crm/funisTypes";
 import { leadCity, cityKey, groupCities } from "../../lib/leadLocation";
 import { useSavedFunil } from "../../hooks/useSavedFunil";
-import { parseCurrencyBR, normalizeText } from "../../lib/utils";
+import { normalizeText } from "../../lib/utils";
 import { supabase } from "../../lib/supabase";
 import { aoGanharNegocio } from "../../lib/implementationAutoStart";
 import { getStageId, buildStagesForFunil } from "../../lib/funilStages";

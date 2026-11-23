@@ -1,30 +1,10 @@
 import { apiFetch } from "../../../lib/apiClient";
 import { ensurePushSubscription } from "../../../lib/push";
 import { playSaleSound, setSaleSoundEnabled } from "../../../lib/notifications";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
-import {
-  Target,
-  Users,
-  ShieldAlert,
-  Clock,
-  Mail,
-  Award,
-  Bell,
-  Volume2,
-  ChevronDown,
-  ChevronUp,
-  Save,
-  MessageSquare,
-  Sparkles,
-  CheckCircle2,
-  DollarSign,
-  Play,
-  RotateCcw,
-  Send,
-  Calendar,
-} from "lucide-react";
+import { Target, Users, ShieldAlert, Clock, Mail, Award, Bell, Volume2, ChevronDown, ChevronUp, Save, MessageSquare, Sparkles, DollarSign, Play, RotateCcw, Send, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 import { useAuth } from "../../../contexts/AuthContext";

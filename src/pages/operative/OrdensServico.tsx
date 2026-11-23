@@ -17,7 +17,7 @@ import { KANBAN_COR_CLASS } from "../../hooks/useKanbanConfig";
 import { cn } from "../../lib/utils";
 import { useOS } from "../os/hooks/useOS";
 import { OS_STATUS_COLUNAS, osEmAberto, type OrdemServico } from "../os/osTypes";
-import { OsBoard, PrioridadeBadge, prazoInfo, type OsBoardColuna } from "../os/components/OsBoard";
+import { OsBoard, PrioridadeBadge, type OsBoardColuna } from "../os/components/OsBoard";
 import { NovaOsModal } from "../os/components/OsModais";
 import { IniciarImplementacao } from "../os/components/IniciarImplementacao";
 import { ehDepartamentoImplementacao } from "../os/implementationOs";

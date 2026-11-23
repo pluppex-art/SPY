@@ -2,12 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  ShoppingBag, DollarSign, CheckCircle2,
-  Clock, Package, ArrowRight, Plus, Trash2, X, Truck, CreditCard
-} from "lucide-react";
+import { ShoppingBag, DollarSign, CheckCircle2, Package, Plus, Trash2, Truck, CreditCard } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
-import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";

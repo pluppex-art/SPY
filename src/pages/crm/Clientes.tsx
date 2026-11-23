@@ -23,7 +23,7 @@ import { ClientesResumo } from "./components/Clientes/ClientesResumo";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { normalizeText } from "../../lib/utils";
 import { Pagination } from "../../components/ui/Pagination";
-import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_ORIGENS, MAXDATA_TODAS, origensVisiveis } from "../../lib/useMaxdataPage";
+import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_TODAS, origensVisiveis } from "../../lib/useMaxdataPage";
 
 const MAX_PAGE_SIZE = 50;
 

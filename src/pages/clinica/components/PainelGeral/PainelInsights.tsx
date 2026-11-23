@@ -1,6 +1,6 @@
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
-import { Zap, ShieldCheck, Inbox, MoreVertical, BellRing, CalendarPlus } from "lucide-react";
+import { Zap, ShieldCheck, Inbox, BellRing, CalendarPlus } from "lucide-react";
 
 interface Appointment {
   id: string;

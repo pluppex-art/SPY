@@ -1,14 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { somar } from "../../../lib/dinheiro";
 import { motion } from 'motion/react';
 import { Card } from '../../../components/ui/card';
 import { StatCard } from '../../../components/ui/stat-card';
 import { periodoCaption } from '../periodoCaption';
 import { SectionTitle } from "../../../components/ui/section-title";
-import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line, Legend } from 'recharts';
-import { BarChart3, RefreshCw, Target, Trophy, Layers, Zap, Briefcase, ChevronDown, Wallet, TrendingDown, TrendingUp, Users, Receipt } from 'lucide-react';
+import { BarChart3, Target, Trophy, Layers, Zap, Briefcase, ChevronDown, Wallet, TrendingDown, TrendingUp, Users, Receipt } from 'lucide-react';
 import { useData } from '../../../contexts/DataContext';
 import { useLocalization } from '../../../contexts/LocalizationContext';
 import { parseCurrencyBR, formatPercentage } from '../../../lib/utils';

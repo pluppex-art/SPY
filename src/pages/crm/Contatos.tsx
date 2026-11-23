@@ -4,10 +4,7 @@ import { BotaoImportar } from "../../components/ImportadorPlanilha";
 import { contatosSpec } from "../../lib/importSpecs";
 
 import { Button } from "../../components/ui/button";
-import {
-  Users, Plus, Mail, Phone, Building2, Briefcase,
-  MessageSquare, Calendar, Trash2, Edit2, ShieldCheck, CheckCircle2,
-} from "lucide-react";
+import { Users, Plus, Mail, Phone, Building2, Briefcase, MessageSquare, Trash2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { confirmDialog } from "../../components/ui/confirm-dialog";

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Search, MoreVertical, X, MessageCircle, Instagram, Mail } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, X, MessageCircle, Instagram, Mail } from "lucide-react";
 import { motion } from "motion/react";
 import { Contact, Channel } from "./useMessaging";
 

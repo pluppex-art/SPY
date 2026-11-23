@@ -1,6 +1,6 @@
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
-import { Users, ExternalLink, UserPlus } from "lucide-react";
+import { ExternalLink, UserPlus } from "lucide-react";
 
 import { HelpTip } from "../../../../components/ui/help-tip";
 export function ConfigEmpresaEquipe() {

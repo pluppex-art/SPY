@@ -6,7 +6,6 @@ import { Task } from "../../../../types";
 import { useData } from "../../../../contexts/DataContext";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
 
-import { parseCurrencyBR } from "../../../../lib/utils";
 import { calculateLeadScore, normalizeText } from "../../../../lib/leadScore";
 import { statusFromStageName, isLeadLost } from "../../../../lib/leadStatus";
 import { MotivoModal } from "../../../../components/ui/MotivoModal";

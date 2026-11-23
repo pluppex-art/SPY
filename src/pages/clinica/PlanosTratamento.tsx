@@ -2,11 +2,7 @@ import { useState, useEffect } from "react";
 import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  FileHeart, Plus, DollarSign, Stethoscope, Calendar,
-  User, CheckCircle2, Clock, Trash2, X, Download
-} from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { FileHeart, Plus, DollarSign, Stethoscope, CheckCircle2, Clock, Trash2, Download } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";

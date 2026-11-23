@@ -1,9 +1,5 @@
 import { useRef, useState, useMemo } from "react";
-import {
-  Users, Search, UserPlus, Mail, Calendar,
-  MoreVertical, TrendingUp, ShieldCheck,
-  UserX, Coffee, Plane, Pencil, Phone, Building2
-} from "lucide-react";
+import { Users, UserPlus, Mail, Calendar, MoreVertical, TrendingUp, UserX, Coffee, Plane, Pencil, Phone, Building2 } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../../../components/ui/kpi-filter-card";
 import { Button } from "../../../../components/ui/button";
 import { Card } from "../../../../components/ui/card";

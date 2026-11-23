@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "../../../../components/ui/button";
-import { X, Stethoscope, MapPin, Activity, CheckCircle2, AlertCircle, Clock, Calendar, Trash2, Check } from "lucide-react";
+import { X, Stethoscope, MapPin, Activity, Clock, Calendar, Trash2, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface Appointment {

@@ -1,9 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import {
-  Search, Server, Plus, Settings, ShieldCheck, CheckCircle2,
-  RefreshCw, Building2, Pencil, Trash2, KeyRound, ExternalLink,
-  Layers, LayoutGrid, ListFilter, Users, Filter, X, Eye
-} from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Search, Server, Plus, Settings, ShieldCheck, CheckCircle2, RefreshCw, Building2, Pencil, Trash2, KeyRound, Layers, LayoutGrid, ListFilter, Filter, X } from "lucide-react";
 import {
   fetchTenantsDetailed,
   updateTenantInfo,

@@ -2,13 +2,7 @@ import { useState, useEffect } from "react";
 import { useRecursoAtivo } from "../../../lib/useRecursoAtivo";
 import { ROTA_PROPOSTAS } from "../../../lib/paginasOcultas";
 import { Button } from "../../../components/ui/button";
-import {
-  Plus, X, Trophy, ThumbsDown, ChevronRight, Check, Brain,
-  MessageSquare, Phone, Mail, Calendar, FileText, Building2,
-  MapPin, DollarSign, User, Tag, Send, Flame, Droplets,
-  Snowflake, LayoutList, Columns3, Trash, Clock, AlertCircle,
-  Edit2, CheckCircle2,
-} from "lucide-react";
+import { Plus, X, Trophy, ThumbsDown, ChevronRight, Check, Brain, MessageSquare, Phone, Mail, Calendar, FileText, Building2, MapPin, User, Tag, Send, Flame, Droplets, Snowflake, LayoutList, Columns3, Trash, Clock, AlertCircle, Edit2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../../lib/supabase";
 import { fetchImoveisCatalogo } from "../../../lib/ativosCatalogo";

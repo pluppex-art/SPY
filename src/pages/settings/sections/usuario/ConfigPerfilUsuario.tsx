@@ -5,12 +5,7 @@ import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";
 import { Switch } from "../../../../components/ui/switch";
-import {
-  User, Mail, Phone, Briefcase, Camera,
-  ShieldCheck, KeyRound, Smartphone, LogOut,
-  Save, CheckCircle2, AlertCircle, Sparkles, Building, Loader2,
-  Mic, Sunrise
-} from "lucide-react";
+import { User, Mail, Camera, ShieldCheck, KeyRound, Smartphone, Save, CheckCircle2, Sparkles, Building, Loader2, Mic, Sunrise } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { supabase, notifyPasswordChanged } from "../../../../lib/supabase";
 import { toast } from "sonner";

@@ -3,13 +3,9 @@ import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } fro
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  Calendar, Car, Clock, User, CheckCircle2,
-  Plus, ArrowRight, Search, Trash2, X
-} from "lucide-react";
+import { Calendar, Clock, User, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";

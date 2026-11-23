@@ -1,47 +1,12 @@
 import { ehGastoMarketing } from "../../lib/gastoMarketing";
 import { parseCurrencyBR } from "../../lib/utils";
 import { useState, useMemo, useEffect } from "react";
-import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { EmptyState } from "../../components/ui/empty-state";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "../../components/ui/table";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  BarChart,
-  Bar,
-} from "recharts";
-import {
-  Users,
-  MousePointerClick,
-  DollarSign,
-  Target,
-  ArrowUpRight,
-  Facebook,
-  Globe,
-  Plus,
-  Zap,
-  Inbox,
-  Settings,
-  TrendingUp,
-  BarChart3,
-} from "lucide-react";
+import { Users, DollarSign, Target, ArrowUpRight, Facebook, Globe, Plus, Settings, BarChart3 } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";

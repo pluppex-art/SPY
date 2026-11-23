@@ -2,13 +2,9 @@ import { uniqueSellers, sameSeller } from "../../lib/sellerNames";
 import { useState, useMemo, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  Clock, AlertCircle, CheckCircle2, MessageSquare, PhoneCall,
-  Calendar, User, ArrowRight
-} from "lucide-react";
+import { Clock, AlertCircle, CheckCircle2, MessageSquare, Calendar, User, ArrowRight } from "lucide-react";
 import { Pagination } from "../../components/ui/Pagination";
 import { useData } from "../../contexts/DataContext";
-import { toast } from "sonner";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import { isLeadOpen } from "../../lib/leadStatus";
 import { normalizeText, whatsappDigits } from "../../lib/utils";

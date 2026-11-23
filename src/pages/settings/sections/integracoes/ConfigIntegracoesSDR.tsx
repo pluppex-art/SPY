@@ -5,7 +5,7 @@ import { Input } from "../../../../components/ui/input";
 import { FormField } from "../../../../components/ui/form-field";
 import { Switch } from "../../../../components/ui/switch";
 import { Badge } from "../../../../components/ui/badge";
-import { Zap, Send, Save, CheckCircle2 } from "lucide-react";
+import { Zap, Send, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../../../contexts/DataContext";
 import { apiFetch } from "../../../../lib/apiClient";

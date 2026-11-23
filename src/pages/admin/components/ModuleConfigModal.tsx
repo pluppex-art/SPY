@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Cpu, X, Check, Sparkles, Target, Clock, DollarSign,
   Package, Megaphone, MessageSquare, Award, Activity,

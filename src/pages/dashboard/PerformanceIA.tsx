@@ -1,7 +1,3 @@
-import {
-   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-   BarChart, Bar, Cell, ComposedChart, Line
-} from 'recharts';
 import { PageContainer } from "../../components/PageContainer";
 
 import { PerformanceIAEngineCards } from "./components/PerformanceIA/PerformanceIAEngineCards";

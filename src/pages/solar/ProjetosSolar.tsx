@@ -3,12 +3,7 @@ import { cityKey, groupCities } from "../../lib/leadLocation";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  Sun, Plus, Search, Zap, CheckCircle2, Clock,
-  FileText, Columns3, MapPin, DollarSign, ArrowRight,
-  Trash2, X, Download
-} from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { Sun, Plus, Zap, Clock, Columns3, MapPin, DollarSign, Trash2, Download } from "lucide-react";
 import { Modal } from "../../components/ui/modal";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";

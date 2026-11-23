@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Card } from "../../../../components/ui/card";
 import { useLocalization } from "../../../../contexts/LocalizationContext";
 import { FileText, DollarSign, AlertCircle, TrendingUp } from "lucide-react";
 import { DrillDownPanel } from "../../../../components/ui/DrillDownPanel";

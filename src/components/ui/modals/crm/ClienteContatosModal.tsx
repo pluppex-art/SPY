@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Users, Star, Trash2, Plus, Mail, Phone, Briefcase, MessageCircle, FileText, Tag } from "lucide-react";
+import { Users, Star, Trash2, Plus, Mail, Phone, Briefcase, MessageCircle, Tag } from "lucide-react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
 import { Badge } from "../../badge";

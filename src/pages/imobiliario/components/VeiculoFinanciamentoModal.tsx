@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { X, Landmark, Calculator, Percent, Sparkles, Share2, CheckCircle2 } from "lucide-react";
+import { Landmark, Percent, Share2, CheckCircle2 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Modal } from "../../../components/ui/modal";
 import { toast } from "sonner";

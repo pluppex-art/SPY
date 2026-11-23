@@ -5,23 +5,11 @@ import { toast } from 'sonner';
 import { queueNotificationPopup, showPendingSummaryPopup, showSalePopup, showNewLeadPopup } from '../lib/popups';
 import { shouldPopupNewLead, shouldPopupNotification, isRuidoDeAutomacao } from '../lib/notificationRules';
 import { sendPushNotification } from "../lib/notifications";
-import { isSupabaseReachable, supabase, fetchTenantPrimaryColor, updateTenantTheme } from '../lib/supabase';
+import { supabase, fetchTenantPrimaryColor, updateTenantTheme } from '../lib/supabase';
 import { DEFAULT_BRAND_COLOR, applyThemeColor } from '../lib/theme';
 import { useAuth } from './AuthContext';
 import { Lead, Task, Contract, CustomField, LeadScoreTrigger, Squad } from '../types';
-import {
-  defaultCustomLeadFields,
-  defaultFinanceEntries,
-  defaultGlobalWebhooks,
-  defaultLeads,
-  defaultTasks,
-  defaultContracts,
-  defaultActivitiesOnLoad,
-  getDefaultAppointments,
-  defaultSquads,
-  defaultLeadScoreTriggers,
-  defaultProducts
-} from './dataMocks';
+import { defaultCustomLeadFields, defaultFinanceEntries, defaultGlobalWebhooks, defaultLeads, defaultTasks, defaultContracts, getDefaultAppointments, defaultSquads, defaultLeadScoreTriggers, defaultProducts } from './dataMocks';
 import { DataContext, DataContextType, LeadActivity, Notification, Appointment, GlobalWebhook, FinanceEntry, Reuniao, Indicacao, AuroraAgent, useData } from './DataContextTypes';
 import { apiFetch } from "../lib/apiClient";
 import { snapshotGet, snapshotSet } from "../lib/tableCache";

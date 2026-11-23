@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
-import { Clock, ShieldAlert, Sparkles, Check, AlertTriangle, ArrowRight, UserCheck, Flame } from "lucide-react";
+import { Clock, ShieldAlert, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 

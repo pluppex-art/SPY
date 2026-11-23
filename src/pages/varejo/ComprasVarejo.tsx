@@ -3,10 +3,7 @@ import { somar, formatBRL } from "../../lib/dinheiro";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  ClipboardList, FileDown, Pencil, Plus, Truck, DollarSign,
-  CheckCircle2, Clock, Package, Trash2, X, Boxes, ArrowDownCircle
-} from "lucide-react";
+import { ClipboardList, FileDown, Pencil, Plus, Truck, DollarSign, CheckCircle2, Clock, Trash2, Boxes } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";

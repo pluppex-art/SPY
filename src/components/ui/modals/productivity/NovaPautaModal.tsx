@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Calendar, Users } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { Modal } from "../../modal";
 import { Button } from "../../button";
 

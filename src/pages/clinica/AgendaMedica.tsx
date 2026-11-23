@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Stethoscope, MapPin, CheckCircle2, AlertCircle, Activity, Users, Clock, MoreVertical, RefreshCw, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Stethoscope, MapPin, CheckCircle2, AlertCircle, Activity, Users, Clock, RefreshCw, CalendarDays } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";

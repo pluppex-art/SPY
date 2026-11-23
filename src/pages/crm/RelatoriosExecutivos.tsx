@@ -1,9 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import {
-  FileText, Download, Printer, Filter, Calendar,
-  TrendingUp, DollarSign, Users, CheckSquare,
-  Target, BarChart3, Briefcase, ArrowUpRight
-} from "lucide-react";
+import { Download, Printer, TrendingUp, DollarSign, Users, CheckSquare, Target, Briefcase } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -14,10 +10,6 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { downloadCsv } from "../../lib/csvExport";
 import { getMRR } from "../../lib/revenueMetrics";
 import { toast } from "sonner";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  LineChart, Line
-} from "recharts";
 import { apiFetch } from "../../lib/apiClient";
 
 type Periodo = "30dias" | "mes" | "trimestre" | "ano" | "todos";

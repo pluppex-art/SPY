@@ -5,11 +5,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
-import {
-  Globe, Plus, Link as LinkIcon, Pencil, ExternalLink,
-  BarChart3, MousePointer2, TrendingUp, DollarSign, Award,
-  Sparkles, Code, CheckCircle2, Copy, RefreshCw
-} from "lucide-react";
+import { Globe, Plus, Link as LinkIcon, Pencil, ExternalLink, BarChart3, MousePointer2, TrendingUp, DollarSign, Award } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { motion } from "motion/react";
 import { toast } from "sonner";

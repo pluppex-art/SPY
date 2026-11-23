@@ -1,21 +1,12 @@
-import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { somar, formatBRL } from "../../lib/dinheiro";
 import { toast } from "sonner";
 import { apiFetch } from "../../lib/apiClient";
-import {
-  ShoppingCart, Plus, Minus, Trash2, Search, Package, Link2, Copy,
-  History, ChevronDown, ChevronUp, TrendingUp, Receipt, QrCode, CreditCard,
-  Banknote, ArrowDownRight, ArrowUpRight, Lock, CheckCircle2, Printer,
-  Share2, RotateCcw, AlertTriangle, Sparkles, DollarSign, Wallet, Store,
-  Barcode, Check, ShieldCheck, RefreshCw, X, PauseCircle, PlayCircle,
-  UserCheck, HelpCircle, Volume2, VolumeX, FileText, Split, Calendar,
-  Clock, Percent, Hash, Layers, CheckSquare, LayoutGrid, List as ListIcon, Maximize2, Minimize2
-} from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, Search, Package, Link2, Copy, History, ChevronDown, ChevronUp, TrendingUp, Receipt, QrCode, CreditCard, Banknote, ArrowDownRight, ArrowUpRight, Lock, CheckCircle2, Printer, Share2, RotateCcw, Sparkles, DollarSign, Wallet, Store, Barcode, PauseCircle, PlayCircle, UserCheck, HelpCircle, Volume2, VolumeX, Split, Calendar, Percent, LayoutGrid, List as ListIcon, Maximize2, Minimize2 } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { Modal } from "../../components/ui/modal";
 import { useData } from "../../contexts/DataContext";
 import { useVarejoConfig, FORMAS_PAGAMENTO } from "../../lib/varejoConfig";

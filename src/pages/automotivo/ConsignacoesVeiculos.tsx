@@ -1,13 +1,9 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { lerValorPositivo } from "../../lib/dinheiro";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  Handshake, Plus, Search, Car, DollarSign,
-  User, CheckCircle2, Clock, Trash2, X, Download
-} from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { Handshake, Plus, DollarSign, Clock, Trash2, Download } from "lucide-react";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";

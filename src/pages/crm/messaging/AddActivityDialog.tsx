@@ -1,4 +1,3 @@
-import React from "react";
 import { X, PlusCircle } from "lucide-react";
 
 interface AddActivityDialogProps {

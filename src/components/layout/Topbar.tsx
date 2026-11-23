@@ -6,29 +6,11 @@ import { useData } from "../../contexts/DataContext";
 import type { Notification } from "../../contexts/DataContextTypes";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
 import { EmptyState } from "../ui/empty-state";
 import { CommandPalette } from "../CommandPalette";
 import { Logo } from "../ui/Logo";
 import { AgenteSecretoConexao } from "../AgenteSecretoConexao";
-import {
-  Sun,
-  Moon,
-  ArrowLeft,
-  Bell,
-  CheckCircle2,
-  AlertTriangle,
-  Info,
-  Users,
-  Settings2,
-  AlertCircle,
-  CheckCheck,
-  Trash2,
-  ChevronRight,
-  X,
-  ChevronDown,
-} from "lucide-react";
+import { Sun, Moon, ArrowLeft, Bell, CheckCircle2, AlertTriangle, Info, Users, Settings2, AlertCircle, CheckCheck, Trash2, X, ChevronDown } from "lucide-react";
 
 interface TopbarProps {
   isSidebarCollapsed: boolean;

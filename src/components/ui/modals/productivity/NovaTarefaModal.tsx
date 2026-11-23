@@ -10,9 +10,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { connectGoogleCalendar, getGoogleCalendarStatus } from "../../../../lib/google-auth";
 import { createCalendarEvent } from "../../../../lib/google-calendar";
 import { toast } from "sonner";
-import {
-  listarDepartamentosTarefa, mesmoDepartamento, TIPOS_TAREFA_CLIENTE, TIPOS_TAREFA_INTERNA,
-} from "../../../../lib/departamentosTarefa";
+import { listarDepartamentosTarefa, TIPOS_TAREFA_CLIENTE, TIPOS_TAREFA_INTERNA } from "../../../../lib/departamentosTarefa";
 
 export type NovaTarefaPayload = {
   /** Área responsável pela tarefa (Comercial, Dev, Marketing...). */

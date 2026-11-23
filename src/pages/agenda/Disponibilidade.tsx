@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import { Clock, Check, Save, Calendar, Coffee, Plus } from "lucide-react";
+import { Clock, Save, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../contexts/DataContext";
 

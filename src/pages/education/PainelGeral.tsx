@@ -1,15 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { 
-  GraduationCap, Users, BookOpen, Award, 
-  TrendingUp, Activity, Star, Calendar,
-  ArrowUpRight, Clock, ArrowRight, CheckCircle2, 
-  AlertTriangle, DollarSign, Wallet
-} from 'lucide-react';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, BarChart, Bar,
-  PieChart, Pie, Cell 
-} from 'recharts';
+import { GraduationCap, Users, Award, ArrowRight, DollarSign, Wallet } from 'lucide-react';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";

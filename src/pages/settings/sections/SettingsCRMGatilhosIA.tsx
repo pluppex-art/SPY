@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
-import { Zap, Plus, ArrowRight, ShieldCheck, Sparkles, AlertCircle } from "lucide-react";
+import { Zap, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../../contexts/DataContext";
 import { LeadScoreTrigger } from "../../../types";

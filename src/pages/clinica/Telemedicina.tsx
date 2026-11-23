@@ -1,11 +1,5 @@
 import { useState, useEffect } from 'react';
-import { 
-  Video, Mic, Camera,
-  MessageSquare, ShieldCheck,
-  Phone, Zap, Settings,
-  Activity, ClipboardList,
-  Share2, LogIn, ExternalLink, Loader2
-} from 'lucide-react';
+import { Video, Mic, Camera, MessageSquare, ShieldCheck, ClipboardList, Share2, LogIn, ExternalLink, Loader2 } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";

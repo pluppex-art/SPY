@@ -3,11 +3,7 @@ import { lerValorPositivo } from "../../lib/dinheiro";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import {
-  TrendingUp, Plus, Search, Car, ArrowRightLeft,
-  DollarSign, CheckCircle2, Trash2, X
-} from "lucide-react";
-import { Card } from "../../components/ui/card";
+import { TrendingUp, Plus, ArrowRightLeft, DollarSign, CheckCircle2, Trash2 } from "lucide-react";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";

@@ -1,19 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import {
-  Boxes, ArrowUpCircle, ArrowDownCircle, Settings2, History,
-  Search, Plus, Filter, AlertTriangle, CheckCircle2, TrendingUp,
-  DollarSign, Package, Barcode, ExternalLink, X, RefreshCw,
-  Layers, ArrowUpDown, Download
-} from "lucide-react";
+import { Boxes, ArrowUpCircle, ArrowDownCircle, History, Plus, AlertTriangle, TrendingUp, DollarSign, Package, ExternalLink, Layers, ArrowUpDown, Download } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { FormField } from "../../components/ui/form-field";
 import { EmptyState } from "../../components/ui/empty-state";
-import { Modal } from "../../components/ui/modal";
 import { AjusteEstoqueModal } from "./AjusteEstoqueModal";
 import { useData } from "../../contexts/DataContext";
 import { useVarejoConfig } from "../../lib/varejoConfig";

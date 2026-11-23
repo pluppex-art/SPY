@@ -3,7 +3,7 @@ import { friendlyError } from "../../lib/friendlyError";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { toast } from "sonner";
-import { formatCNPJ, validateCNPJ } from "../../lib/utils";
+import { formatCNPJ } from "../../lib/utils";
 import { CheckCircle2, AlertTriangle, Building2, Save, Globe, Mail, Phone, MapPin, Upload, Loader2, ImageOff } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
