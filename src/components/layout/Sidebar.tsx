@@ -270,7 +270,7 @@ export function Sidebar({
                             }
                             const Ic = it.icon; const sel = subAtivo(it);
                             return (
-                              <Link key={it.path} to={it.path} onClick={() => setIsMobileSidebarOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] transition-colors ${sel ? "bg-[var(--color-primary-blue)] !text-white shadow-md shadow-[var(--color-primary-blue)]/25" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"}`}>
+                              <Link key={it.path} to={it.path} onClick={() => { escolherModoFinanceiro("resumo"); setIsMobileSidebarOpen(false); }} className={`flex items-center gap-2.5 px-3 py-2 text-xs font-bold rounded-[var(--radius-control)] transition-colors ${sel ? "bg-[var(--color-primary-blue)] !text-white shadow-md shadow-[var(--color-primary-blue)]/25" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)]"}`}>
                                 <Ic className="w-4 h-4 shrink-0" />
                                 <span className="truncate">{t(it.title)}</span>
                               </Link>
