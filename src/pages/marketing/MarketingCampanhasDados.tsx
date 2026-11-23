@@ -1,3 +1,4 @@
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Inbox, MousePointerClick, Target, TrendingUp } from "lucide-react";
@@ -13,25 +14,28 @@ import { canalDoLead } from "../../lib/canalAquisicao";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const CANAIS = [["todos", "Todos os canais"], ["meta", "Meta Ads"], ["google", "Google Ads"], ["outros", "Outros"]] as const;
-const PERIODOS = [["30", "Últimos 30 dias"], ["90", "Últimos 90 dias"], ["365", "Últimos 12 meses"], ["0", "Todo o período"]] as const;
+const isoDia = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 /** Dados dos leads por campanha/origem de tráfego: dia da semana, volume e desempenho por origem, com filtro de canal e período. */
 export default function MarketingCampanhasDados() {
   const { leads } = useData();
   const [canal, setCanal] = useState<(typeof CANAIS)[number][0]>("todos");
-  const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number][0]>("90");
+  // Período no seletor padrão do sistema (padrão: últimos 90 dias).
+  const [de, setDe] = useState<string | null>(() => isoDia(new Date(Date.now() - 89 * 86_400_000)));
+  const [ate, setAte] = useState<string | null>(() => isoDia(new Date()));
 
   const filtrados = useMemo(() => {
-    const corte = periodo === "0" ? 0 : Date.now() - Number(periodo) * 86_400_000;
+    const ini = de ? new Date(`${de}T00:00:00`).getTime() : 0;
+    const fim = ate ? new Date(`${ate}T23:59:59`).getTime() : Infinity;
     return leads.filter((l) => {
       const c = canalDoLead(l as any);
       const grupo = c === "Meta" ? "meta" : c === "Google" || c === "YouTube" ? "google" : "outros";
       if (canal !== "todos" && grupo !== canal) return false;
-      if (!corte) return true;
+      if (!ini && fim === Infinity) return true;
       const t = new Date(l.date || (l as any).createdAt || "").getTime();
-      return !Number.isNaN(t) && t >= corte;
+      return !Number.isNaN(t) && t >= ini && t <= fim;
     });
-  }, [leads, canal, periodo]);
+  }, [leads, canal, de, ate]);
 
   const totalLeads = filtrados.length;
   const trafficData = useMemo(() => WEEKDAYS.map((day) => ({ name: day, leads: filtrados.filter((l) => { const d = new Date(l.date || (l as any).createdAt || ""); return !Number.isNaN(d.getTime()) && WEEKDAYS[d.getDay()] === day; }).length })), [filtrados]);
@@ -45,9 +49,7 @@ export default function MarketingCampanhasDados() {
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="flex gap-1.5 flex-wrap">{CANAIS.map(([id, rotulo]) => (
           <button key={id} type="button" onClick={() => setCanal(id)} className={`px-3 py-1.5 rounded-full text-xs font-bold border ${canal === id ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>{rotulo}</button>))}</div>
-        <select value={periodo} onChange={(e) => setPeriodo(e.target.value as any)} aria-label="Período" className="h-9 px-2 rounded-lg text-xs font-bold border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]">
-          {PERIODOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
+        <DateRangeFilter dateFrom={de} setDateFrom={setDe} dateTo={ate} setDateTo={setAte} />
         <span className="text-xs text-[var(--color-text-muted)]">{totalLeads} lead(s) no filtro</span>
       </div>
 

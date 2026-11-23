@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
+import { useCallback, useEffect, useState } from "react";
 import { lerValorPositivo } from "../../lib/dinheiro";
 import { Loader2, Plus, Trash2, Megaphone, Info } from "lucide-react";
 import { toast } from "sonner";
@@ -23,13 +24,6 @@ interface Resp {
 interface Spend { id: string; month: string; source: string; amount: number; note: string | null }
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const PERIODS = [
-  { id: "mes", label: "Este mês" },
-  { id: "mes_passado", label: "Mês passado" },
-  { id: "30d", label: "Últimos 30 dias" },
-  { id: "90d", label: "Últimos 90 dias" },
-  { id: "ano", label: "Este ano" },
-] as const;
 function range(id: string): { from: string; to: string } {
   const now = new Date();
   if (id === "mes_passado") return { from: iso(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: iso(new Date(now.getFullYear(), now.getMonth(), 0)) };
@@ -42,7 +36,9 @@ function range(id: string): { from: string; to: string } {
 export function AquisicaoPanel() {
   const { activeTenantId, user } = useAuth() as any;
   const { formatCurrency } = useLocalization();
-  const [period, setPeriod] = useState<string>("mes");
+  // Período no seletor padrão do sistema (padrão: este mês).
+  const [de, setDe] = useState<string | null>(() => range("mes").from);
+  const [ate, setAte] = useState<string | null>(() => range("mes").to);
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
   const [spend, setSpend] = useState<Spend[]>([]);
@@ -52,7 +48,8 @@ export function AquisicaoPanel() {
   const [fAmount, setFAmount] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const { from, to } = useMemo(() => range(period), [period]);
+  const from = de ?? "2000-01-01";
+  const to = ate ?? iso(new Date());
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
@@ -111,9 +108,7 @@ export function AquisicaoPanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2"><Megaphone className="w-4 h-4 text-[var(--color-primary-blue)]" /> Aquisição: custo por lead, lead qualificado e venda</h3>
         <div className="flex flex-wrap items-center gap-2">
-          <select value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Período" className="h-8 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]">
-            {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-          </select>
+          <DateRangeFilter dateFrom={de} setDateFrom={setDe} dateTo={ate} setDateTo={setAte} />
           <Button variant="outline" onClick={() => setShowSpend((v) => !v)} className="h-8 px-3 text-xs gap-1.5"><Plus className="w-3.5 h-3.5" /> Investimento em mídia</Button>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { DateRangeFilter } from "../../components/ui/DateRangeFilter";
 import { useState, useMemo, useEffect } from "react";
 import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
@@ -88,15 +89,15 @@ export default function PainelVarejo() {
   const navigate = useNavigate();
   const cfgVarejo = useVarejoConfig();
 
-  // Período do painel (padrão: mês atual). O status do caixa segue sempre o dia de hoje.
-  const [periodo, setPeriodo] = useState<PeriodoId>("mes");
+  // Período do painel no seletor padrão do sistema (padrão: mês atual). O status do caixa segue sempre o dia de hoje.
+  const periodo: PeriodoId = "custom";
   const [customDe, setCustomDe] = useState(() => isoDia(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
   const [customAte, setCustomAte] = useState(() => isoDia(new Date()));
   const intervalo = useMemo(() => intervaloDoPeriodo(periodo, customDe, customAte), [periodo, customDe, customAte]);
   const inicioISO = intervalo?.inicio.toISOString() ?? null;
   const fimISO = intervalo?.fim.toISOString() ?? null;
   const periodoLabel = periodo === "custom"
-    ? (intervalo ? `${new Date(`${customDe}T00:00:00`).toLocaleDateString("pt-BR")} a ${new Date(`${customAte}T00:00:00`).toLocaleDateString("pt-BR")}` : "intervalo inválido")
+    ? (!customDe && !customAte ? "todo o período" : intervalo ? `${new Date(`${customDe}T00:00:00`).toLocaleDateString("pt-BR")} a ${new Date(`${customAte}T00:00:00`).toLocaleDateString("pt-BR")}` : "intervalo inválido")
     : PERIODOS.find((x) => x.id === periodo)!.label;
 
   // 1. Vendas do PDV (banco real: vendas + venda_items)
@@ -389,23 +390,7 @@ export default function PainelVarejo() {
       description="Visão geral da frente de caixa (PDV), do giro de produtos, das reposições e da lucratividade."
       actions={
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          <select
-            aria-label="Período do painel"
-            value={periodo}
-            onChange={(e) => setPeriodo(e.target.value as PeriodoId)}
-            className="h-9 px-3 text-xs font-semibold rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]"
-          >
-            {PERIODOS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
-          </select>
-          {periodo === "custom" && (
-            <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
-              <input type="date" aria-label="Data inicial" value={customDe} max={customAte || undefined} onChange={(e) => setCustomDe(e.target.value)}
-                className="h-9 px-2 text-xs rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
-              <span>a</span>
-              <input type="date" aria-label="Data final" value={customAte} min={customDe || undefined} onChange={(e) => setCustomAte(e.target.value)}
-                className="h-9 px-2 text-xs rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)]" />
-            </div>
-          )}
+          <DateRangeFilter dateFrom={customDe || null} setDateFrom={(v) => setCustomDe(v ?? "")} dateTo={customAte || null} setDateTo={(v) => setCustomAte(v ?? "")} />
           <Link
             to="/app/produtos?vista=estoque"
             className="h-9 px-3.5 text-xs font-semibold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
