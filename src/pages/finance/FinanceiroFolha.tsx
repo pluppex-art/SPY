@@ -171,6 +171,7 @@ export default function FinanceiroFolha() {
   return (
     <PageContainer
       title="Folha de Pagamento"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Folha de Pagamento" }]}
       description="Gere a folha do mês, desconte os adiantamentos e pague. Cada pagamento já vira uma saída em Despesas."
       actions={
         <div className="flex flex-wrap items-center gap-2">

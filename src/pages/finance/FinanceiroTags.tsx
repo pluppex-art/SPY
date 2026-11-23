@@ -187,6 +187,7 @@ export default function FinanceiroTags() {
   return (
     <PageContainer
       title="Tags"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Tags" }]}
       description="Cadastre as etiquetas (tags) usadas para classificar os lançamentos do Financeiro."
       actions={
         <div className="flex items-center gap-2 flex-wrap">

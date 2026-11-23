@@ -254,6 +254,7 @@ export default function FinanceiroCobrancas() {
   return (
     <PageContainer
       title="Gestão de Cobranças & Faturamento"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Gestão de Cobranças & Faturamento" }]}
       description="Registre e acompanhe as cobranças e faturas, e envie o lembrete ao cliente por WhatsApp ou e-mail."
       actions={
         <div className="flex items-center gap-2">

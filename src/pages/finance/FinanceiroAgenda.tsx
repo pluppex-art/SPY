@@ -68,6 +68,7 @@ export default function FinanceiroAgenda() {
   return (
     <PageContainer
       title="Agenda Financeira"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Agenda Financeira" }]}
       description="Vencimentos de contas, parcelas e contratos no calendário do mês."
       actions={<div className="flex flex-wrap items-center justify-end gap-2"><SeletorCompetencia mes={ref} setMes={setRef} /><Button variant="outline" onClick={exportar} disabled={porDia.size === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar mês</Button></div>}
     >

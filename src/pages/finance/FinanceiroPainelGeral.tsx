@@ -188,6 +188,7 @@ export default function FinanceiroPainelGeral() {
   return (
     <PageContainer
       title="Painel Geral"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Painel Geral" }]}
       description="Saldo, entradas, saídas, contas a pagar e a receber, e os alertas do dia."
       actions={
         <div className="flex flex-wrap items-center justify-end gap-2">

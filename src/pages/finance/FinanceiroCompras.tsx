@@ -97,6 +97,7 @@ export default function FinanceiroCompras() {
   return (
     <PageContainer
       title="Compras e Parcelas"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Compras e Parcelas" }]}
       description="Cada compra parcelada com as parcelas pagas, a vencer e atrasadas — controle de boletos por fornecedor ou cliente."
       actions={<Button variant="outline" onClick={exportar} disabled={grupos.length === 0}><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar planilha</Button>}
     >

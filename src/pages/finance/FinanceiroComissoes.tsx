@@ -192,6 +192,7 @@ export default function FinanceiroComissoes() {
   return (
     <PageContainer
       title="Comissões de Vendedores"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Comissões de Vendedores" }]}
       description="Vendas fechadas por vendedor, percentual e meta de cada um, e o pagamento das comissões."
       actions={
         <div className="flex flex-wrap items-center gap-2">

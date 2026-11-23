@@ -421,6 +421,7 @@ export default function FinanceiroVisaoGeral() {
   return (
     <PageContainer
       title="Painel Financeiro"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Painel Financeiro" }]}
       description="Reúne num só lugar a saúde financeira, o fluxo de caixa, o MRR e a inadimplência."
       actions={
         <div className="flex flex-wrap items-center gap-2 print:hidden">

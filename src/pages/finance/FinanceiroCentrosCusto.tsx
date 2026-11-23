@@ -201,6 +201,7 @@ export default function FinanceiroCentrosCusto() {
   return (
     <PageContainer
       title="Centros de Custo & Squads"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Centros de Custo & Squads" }]}
       description="Gerencie as unidades de despesa (centros de custo), os orçamentos por departamento e os centros de resultado."
       actions={
         <div className="flex items-center gap-2">

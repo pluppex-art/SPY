@@ -367,6 +367,7 @@ export default function FinanceiroConciliacao() {
   return (
     <PageContainer
       title="Conciliação Bancária & OFX"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Conciliação Bancária & OFX" }]}
       description="Importe o extrato do banco (OFX ou Excel) e o sistema concilia sozinho as transações do banco com as do sistema."
       actions={
         <div className="flex flex-wrap gap-2">

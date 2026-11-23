@@ -130,6 +130,7 @@ export default function FinanceiroCentralResumo() {
   return (
     <PageContainer
       title="Central de Resumo"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Central de Resumo" }]}
       description={`Visão rápida do caixa${user?.name ? `, ${user.name.split(" ")[0]}` : ""}: o que entrou, o que saiu e o que vence.`}
       actions={
         <div className="flex flex-wrap items-center justify-end gap-2">

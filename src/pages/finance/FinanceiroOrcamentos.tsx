@@ -207,6 +207,7 @@ export default function FinanceiroOrcamentos() {
   return (
     <PageContainer
       title="Orçamentos"
+      breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Orçamentos" }]}
       description="Planeje um valor para cada categoria a cada mês e acompanhe o realizado, que vem direto dos lançamentos pagos."
       actions={
         <div className="flex flex-wrap gap-2">
