@@ -203,7 +203,7 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
 
         {/* Busca compacta inline — só quando fechado */}
         {hasInlineSearch && searchProps ? (
-          <div className="relative w-48 shrink-0" onClick={e => e.stopPropagation()}>
+          <div className="relative w-80 shrink-0" onClick={e => e.stopPropagation()}>
             <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
             <input
               type="text"
