@@ -4,12 +4,15 @@ import { Card } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import {
   Calendar, Clock, AlignLeft, FileText, Globe, Zap,
-  Image, Plus, Sparkles, Loader2, Copy, CheckCircle2, Paperclip, Trash2, Link2, ExternalLink
+  Image, Plus, Sparkles, Loader2, Copy, CheckCircle2, Paperclip, Trash2, Link2, ExternalLink, StickyNote, User as UserIcon, X as XIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../lib/apiClient';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useData } from '../../../contexts/DataContext';
+
+const FORMATOS_CONTEUDO = ['Post', 'Carrossel', 'Reels / Vídeo curto', 'Stories', 'Vídeo longo', 'Artigo / Blog', 'E-mail', 'Live', 'Outro'];
 
 const TIPOS_ANEXO = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 const LIMITE_ANEXO = 25 * 1024 * 1024;
@@ -20,8 +23,8 @@ interface TaskDetailsDrawerProps {
   tasks: any[];
   setTasks: React.Dispatch<React.SetStateAction<any[]>>;
   initialColumns: any[];
-  activeTab: 'overview' | 'script' | 'refs' | 'ai';
-  setActiveTab: (t: 'overview' | 'script' | 'refs' | 'ai') => void;
+  activeTab: 'overview' | 'script' | 'refs' | 'ai' | 'notas';
+  setActiveTab: (t: 'overview' | 'script' | 'refs' | 'ai' | 'notas') => void;
   updateTaskInDatabase: (task: any) => void;
 }
 
@@ -35,7 +38,11 @@ export function TaskDetailsDrawer({
   setActiveTab,
   updateTaskInDatabase
 }: TaskDetailsDrawerProps) {
-  const { activeTenantId } = useAuth();
+  const { activeTenantId, user } = useAuth() as any;
+  const { colaboradores } = useData();
+  const [novaNota, setNovaNota] = useState('');
+  const nomesEquipe = Array.from(new Set([...(colaboradores as any[]).map((c) => String(c.nome || '').trim()).filter(Boolean), ...(selectedTask?.responsavel ? [selectedTask.responsavel] : [])])).sort();
+  const notas: { id: string; autor: string; texto: string; em: string }[] = Array.isArray(selectedTask?.notas) ? selectedTask.notas : [];
   const [checklist, setChecklistLocal] = useState<boolean[]>([false, false, false, false]);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [generatedScript, setGeneratedScript] = useState("");
@@ -50,6 +57,7 @@ export function TaskDetailsDrawer({
     setGeneratedScript(selectedTask?.script || "");
     setGeneratedHashtags(Array.isArray(selectedTask?.hashtags) ? selectedTask.hashtags : []);
     setNovoLink("");
+    setNovaNota('');
   }, [selectedTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const salvarExtras = (patch: Record<string, any>) => {
@@ -183,8 +191,9 @@ export function TaskDetailsDrawer({
                      <Calendar className="w-3.5 h-3.5" /> {selectedTask.date}
                   </span>
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                     <Clock className="w-3.5 h-3.5" /> ID: {selectedTask.id}
+                     <UserIcon className="w-3.5 h-3.5" /> {selectedTask.responsavel || 'Sem responsável'}
                   </span>
+                  {selectedTask.formato && <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{selectedTask.formato}</span>}
                </div>
             </div>
          </div>
@@ -196,6 +205,7 @@ export function TaskDetailsDrawer({
            { id: 'overview', label: 'GERAL', icon: AlignLeft },
            { id: 'script', label: 'ROTEIRO', icon: FileText },
            { id: 'refs', label: 'REFERÊNCIAS', icon: Globe },
+           { id: 'notas', label: `NOTAS${notas.length ? ` (${notas.length})` : ''}`, icon: StickyNote },
            ...(AI_OUTSIDE_AURORA_ENABLED ? [{ id: 'ai', label: 'ASSISTENTE IA', icon: Zap }] : []),
          ].map((tab) => {
            const isActive = activeTab === tab.id;
@@ -258,6 +268,28 @@ export function TaskDetailsDrawer({
                    <option value="Alta">🔴 Alta</option>
                    <option value="Média">🟡 Média</option>
                    <option value="Baixa">🟢 Baixa</option>
+                 </select>
+               </div>
+               <div className="space-y-1.5">
+                 <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Responsável</h4>
+                 <select
+                   value={selectedTask.responsavel || ''}
+                   onChange={(e) => { salvarExtras({ responsavel: e.target.value }); toast.success(e.target.value ? `Responsável: ${e.target.value}` : 'Responsável removido'); }}
+                   className="bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-3.5 py-2 text-xs text-white outline-none w-full cursor-pointer hover:border-white/20 transition-all font-bold"
+                 >
+                   <option value="">Sem responsável</option>
+                   {nomesEquipe.map((n) => <option key={n} value={n}>{n}</option>)}
+                 </select>
+               </div>
+               <div className="space-y-1.5">
+                 <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Formato</h4>
+                 <select
+                   value={selectedTask.formato || ''}
+                   onChange={(e) => salvarExtras({ formato: e.target.value })}
+                   className="bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-3.5 py-2 text-xs text-white outline-none w-full cursor-pointer hover:border-white/20 transition-all font-bold"
+                 >
+                   <option value="">Não definido</option>
+                   {FORMATOS_CONTEUDO.map((f) => <option key={f} value={f}>{f}</option>)}
                  </select>
                </div>
                <div className="space-y-1.5">
@@ -338,6 +370,40 @@ export function TaskDetailsDrawer({
                   </div>
                </div>
              </div>
+          </div>
+        )}
+
+        {activeTab === 'notas' && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <form
+              className="space-y-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const t = novaNota.trim();
+                if (!t) return;
+                salvarExtras({ notas: [...notas, { id: crypto.randomUUID(), autor: String(user?.name || user?.email || 'Você'), texto: t.slice(0, 2000), em: new Date().toISOString() }] });
+                setNovaNota('');
+              }}
+            >
+              <textarea rows={3} value={novaNota} onChange={(e) => setNovaNota(e.target.value)} maxLength={2000} placeholder="Registre uma decisão, um pedido de ajuste, um feedback…"
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-slate-200 outline-none focus:border-blue-500 resize-none" />
+              <div className="flex justify-end"><Button type="submit" disabled={!novaNota.trim()} className="h-8 px-4 text-[10px] uppercase font-bold cursor-pointer">Salvar nota</Button></div>
+            </form>
+            <ul className="space-y-2">
+              {[...notas].reverse().map((n) => (
+                <li key={n.id} className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500 mb-1">
+                    <span className="font-black text-slate-400 truncate">{n.autor || '—'}</span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      {n.em ? new Date(n.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                      <button type="button" aria-label="Excluir nota" onClick={() => salvarExtras({ notas: notas.filter((x) => x.id !== n.id) })} className="hover:text-rose-400 cursor-pointer bg-transparent border-none p-0"><XIcon className="w-3 h-3" /></button>
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-200 whitespace-pre-wrap break-words">{n.texto}</p>
+                </li>
+              ))}
+              {notas.length === 0 && <li className="text-[11px] text-slate-500">Nenhuma nota ainda.</li>}
+            </ul>
           </div>
         )}
 

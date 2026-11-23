@@ -1,6 +1,6 @@
 import { PageContainer } from "../../components/PageContainer";
 import { useMemo, useState } from "react";
-import { Plus, Calendar, CheckCircle2, X, FileText, Share2, CalendarCheck, Layers, Columns3 } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, X, FileText, Share2, CalendarCheck, Layers, Columns3, User } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
@@ -53,6 +53,7 @@ export default function MarketingConteudo() {
   const [busca, setBusca] = useState("");
   const [plataforma, setPlataforma] = useState("");
   const [etapa, setEtapa] = useState("");
+  const [responsavel, setResponsavel] = useState("");
   const [visao, setVisao] = useState<"quadro" | "calendario">("quadro");
 
   const plataformas = useMemo(() => Array.from(new Set(tasks.map(t => t.platform).filter(Boolean))).sort() as string[], [tasks]);
@@ -61,9 +62,11 @@ export default function MarketingConteudo() {
     return tasks.filter(t =>
       (!plataforma || t.platform === plataforma) &&
       (!etapa || t.colId === etapa) &&
+      (!responsavel || t.responsavel === responsavel) &&
       (!q || [t.title, t.desc, t.platform].some((v: string) => (v || "").toLowerCase().includes(q))),
     );
-  }, [tasks, busca, plataforma, etapa]);
+  }, [tasks, busca, plataforma, etapa, responsavel]);
+  const responsaveis = useMemo(() => Array.from(new Set(tasks.map((t: any) => t.responsavel).filter(Boolean))).sort() as string[], [tasks]);
   const colunasVisiveis = etapa ? initialColumns.filter(c => c.id === etapa) : initialColumns;
   const ultimaCol = initialColumns[initialColumns.length - 1];
 
@@ -115,13 +118,14 @@ export default function MarketingConteudo() {
           { label: ultimaCol ? ultimaCol.title : "Concluídas", value: ultimaCol ? tasksFiltradas.filter(t => t.colId === ultimaCol.id).length : 0, icon: CheckCircle2, tone: "success", hint: "Pautas na última etapa do fluxo" },
           { label: "Com data de publicação", value: tasksFiltradas.filter(t => t.publishDateISO).length, icon: CalendarCheck, tone: "accent" },
         ]}
-        activeCount={(busca.trim() ? 1 : 0) + (plataforma ? 1 : 0) + (etapa ? 1 : 0)}
-        onClear={() => { setBusca(""); setPlataforma(""); setEtapa(""); }}
+        activeCount={(busca.trim() ? 1 : 0) + (plataforma ? 1 : 0) + (etapa ? 1 : 0) + (responsavel ? 1 : 0)}
+        onClear={() => { setBusca(""); setPlataforma(""); setEtapa(""); setResponsavel(""); }}
       >
         <FilterBar>
           <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar pauta, descrição ou canal..." />
           <FilterSelect icon={Share2} value={plataforma} onChange={setPlataforma} options={plataformas} allLabel="Todos os canais" />
           <FilterSelect icon={Layers} value={etapa} onChange={setEtapa} options={initialColumns.map(c => ({ value: c.id, label: c.title }))} allLabel="Todas as etapas" />
+          <FilterSelect icon={User} value={responsavel} onChange={setResponsavel} options={responsaveis} allLabel="Todos os responsáveis" />
         </FilterBar>
       </KpiFilterCard>
 

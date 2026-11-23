@@ -5,13 +5,14 @@ import { supabase } from "../../lib/supabase";
 import { DropResult } from "@hello-pangea/dnd";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
-import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_CLASS } from "../../hooks/useKanbanConfig";
+import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_CLASS, KANBAN_COR_DOT } from "../../hooks/useKanbanConfig";
 
 function getMarketingColumns(appSettings: Record<string, any>) {
   return readKanbanConfig(appSettings, KANBAN_KEYS.marketing).map(c => ({
     id: c.id,
     title: c.nome,
     color: KANBAN_COR_CLASS[c.cor] ?? "bg-slate-500",
+    hex: KANBAN_COR_DOT[c.cor] ?? "#64748b",
   }));
 }
 
@@ -37,7 +38,10 @@ function mapRowToTask(row: any) {
     date,
     publishDateISO,
     priority: row.priority === "Alta" || row.priority === "Baixa" ? row.priority : "Média",
-    value: 0,
+    value: Number(row.extras?.value) || 0,
+    responsavel: typeof row.extras?.responsavel === "string" ? row.extras.responsavel : "",
+    formato: typeof row.extras?.formato === "string" ? row.extras.formato : "",
+    notas: Array.isArray(row.extras?.notas) ? row.extras.notas.filter((n: any) => n && typeof n.texto === "string") : [],
     checklist: Array.isArray(row.extras?.checklist) ? row.extras.checklist : undefined,
     script: row.extras?.script || "",
     hashtags: Array.isArray(row.extras?.hashtags) ? row.extras.hashtags : [],
@@ -62,7 +66,7 @@ function taskToRow(task: any, tenantId?: string) {
   };
   if (task.publishDateISO) row.publish_date = task.publishDateISO;
   if (gravaPrioridade && task.priority) row.priority = task.priority;
-  if (gravaExtras) row.extras = { checklist: task.checklist, script: task.script || "", hashtags: task.hashtags || [], refs: task.refs || [], anexos: task.anexos || [] };
+  if (gravaExtras) row.extras = { value: Math.max(0, Number(task.value) || 0), responsavel: task.responsavel || "", formato: task.formato || "", notas: Array.isArray(task.notas) ? task.notas.slice(-100) : [], checklist: task.checklist, script: task.script || "", hashtags: task.hashtags || [], refs: task.refs || [], anexos: task.anexos || [] };
   return row;
 }
 
@@ -80,7 +84,7 @@ export function useMarketingConteudo() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'script' | 'refs' | 'ai'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'script' | 'refs' | 'ai' | 'notas'>('overview');
 
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [draggedOverColId, setDraggedOverColId] = useState<string | null>(null);
