@@ -21,6 +21,8 @@ export interface SectionNavItem {
   matchPaths?: string[];
   /** Em vez de navegar, executa uma ação (ex.: abrir o menu completo). */
   onSelect?: () => void;
+  /** Só fica ativo na rota exata (para um item raiz cujas sub-rotas têm itens próprios no menu). */
+  exact?: boolean;
 }
 
 export interface SectionNavGroup {
@@ -58,7 +60,7 @@ export function SectionSidebar({ heading, subheading, groups, headerExtra, foote
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
-  const activeItem = groups.flatMap((g) => g.items).find((i) => !i.soon && (i.matchPaths ?? [i.path]).some(isActive));
+  const activeItem = groups.flatMap((g) => g.items).find((i) => !i.soon && (i.matchPaths ?? [i.path]).some((p) => (i.exact ? location.pathname === p : isActive(p))));
   const ActiveIcon = activeItem?.icon ?? LayoutList;
 
   // Trocou de página (ou girou o aparelho pra desktop): fecha a folha do menu.
@@ -180,11 +182,12 @@ function SectionGroup({
   onItemClick?: () => void;
 }) {
   const { t } = useLocalization();
+  const location = useLocation();
   const GroupIcon = group.icon;
   // Começa FECHADO — exceto o grupo que contém a página atual, senão a pessoa
   // entraria numa tela sem ver onde está no menu. Estado local por grupo (desktop
   // e o dropdown mobile remontam independentes).
-  const hasActive = group.items.some((item) => !item.soon && (item.matchPaths ?? [item.path]).some(isActive));
+  const hasActive = group.items.some((item) => !item.soon && (item.matchPaths ?? [item.path]).some((p) => (item.exact ? location.pathname === p : isActive(p))));
   const [isOpen, setIsOpen] = useState(hasActive);
   // Navegar (por link de fora do menu) pra uma página deste grupo abre ele.
   useEffect(() => { if (hasActive) setIsOpen(true); }, [hasActive]);
@@ -202,7 +205,7 @@ function SectionGroup({
       {isOpen && (
       <div className="space-y-0.5 flex flex-col">
         {group.items.map((item) => {
-          const active = (item.matchPaths ?? [item.path]).some(isActive);
+          const active = (item.matchPaths ?? [item.path]).some((p) => (item.exact ? location.pathname === p : isActive(p)));
           const ItemIcon = item.icon;
           if (item.soon) {
             return (
