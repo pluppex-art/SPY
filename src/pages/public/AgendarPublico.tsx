@@ -6,7 +6,7 @@ import { agruparBlocos, diaDaSemana, faixaDoDia, maxPessoas, somarDias, totalPad
 import { DIAS_SEMANA, dataBR, reaisBR } from "../../lib/agendamento/cliente";
 
 interface Pub {
-  ativo: boolean; nome: string | null; endereco: string | null; telefone: string | null; whatsapp: string | null; logoUrl: string | null; recursoSingular: string; recursoPlural: string;
+  cor?: string | null; ativo: boolean; nome: string | null; endereco: string | null; telefone: string | null; whatsapp: string | null; logoUrl: string | null; recursoSingular: string; recursoPlural: string;
   qtdRecursos: number; pessoasPorRecurso: number; precoDiaUtil: number; precoFimSemana: number; diasFimSemana: number[]; horarios: HorarioDia[]; datasBloqueadas: string[];
   tiposEvento: string[]; mesasAtivo: boolean; cadeirasMax: number; expiracaoMin: number; pagamentoOnline: boolean; hoje: string;
 }
@@ -35,6 +35,12 @@ export default function AgendarPublico() {
   const [feito, setFeito] = useState<{ total: number; tipo: "local" | "online" } | null>(null);
   const [pedido, setPedido] = useState<{ situacao: string; total: number } | null>(null);
 
+  // A cor da página vem da empresa; fica numa variável de CSS só enquanto esta página está aberta.
+  useEffect(() => {
+    if (!cfg?.cor || !/^#[0-9a-fA-F]{6}$/.test(cfg.cor)) return;
+    document.documentElement.style.setProperty("--acc", cfg.cor);
+    return () => { document.documentElement.style.removeProperty("--acc"); };
+  }, [cfg?.cor]);
   useEffect(() => { api(`/api/agendar/${encodeURIComponent(slug)}/config`).then((c: Pub) => { setCfg(c); setData(primeiroAberto(c)); setTipo(c.tiposEvento[0] ?? ""); }).catch((e) => setFalha(e.message)); }, [slug]);
   useEffect(() => {
     if (document.getElementById("agendar-fontes")) return;
@@ -94,7 +100,7 @@ export default function AgendarPublico() {
   const cabecalho = (
     <header className="text-center pt-2 pb-7">
       {cfg.logoUrl && <img src={cfg.logoUrl} alt="" className="h-16 mx-auto mb-3 object-contain" />}
-      <p className="text-[11px] font-bold tracking-[0.22em] uppercase text-[#D6303B]">Reserva online</p>
+      <p className="text-[11px] font-bold tracking-[0.22em] uppercase text-[color:var(--acc,#D6303B)]">Reserva online</p>
       <h1 style={{ fontFamily: DISPLAY }} className="text-[44px] leading-[0.95] font-extrabold uppercase text-[#14162B] mt-1">{cfg.nome ?? "Reserve seu horário"}</h1>
       {cfg.endereco && <p className="text-sm text-[#5B5E73] mt-3 inline-flex items-start gap-1.5 max-w-sm"><MapPin className="w-4 h-4 mt-0.5 shrink-0" />{cfg.endereco}</p>}
     </header>
@@ -103,11 +109,11 @@ export default function AgendarPublico() {
   if (grupoRetorno && tokenRetorno) {
     const aguardando = !pedido || pedido.situacao === "aguardando"; const pago = pedido?.situacao === "pago"; const estornado = pedido?.situacao === "estornado";
     return (<Tela>{cabecalho}<Cartao className="text-center py-9">
-      {aguardando ? <><Loader2 className="w-10 h-10 mx-auto animate-spin text-[#D6303B] mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-2xl font-extrabold uppercase">Confirmando seu pagamento</p><p className="text-sm text-[#5B5E73] mt-1">Leva alguns segundos. Não feche esta página.</p></>
+      {aguardando ? <><Loader2 className="w-10 h-10 mx-auto animate-spin text-[color:var(--acc,#D6303B)] mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-2xl font-extrabold uppercase">Confirmando seu pagamento</p><p className="text-sm text-[#5B5E73] mt-1">Leva alguns segundos. Não feche esta página.</p></>
         : pago ? <><CheckCircle2 className="w-12 h-12 mx-auto text-emerald-600 mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-3xl font-extrabold uppercase">Reserva confirmada</p><p className="text-sm text-[#5B5E73] mt-1">Recebemos {reaisBR(pedido!.total)}. Esperamos você!</p></>
         : estornado ? <><XCircle className="w-12 h-12 mx-auto text-amber-600 mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-3xl font-extrabold uppercase">Horário ocupado</p><p className="text-sm text-[#5B5E73] mt-1 px-4">Outra pessoa pegou o horário antes do pagamento. Devolvemos o valor automaticamente. Escolha outro horário.</p></>
-        : <><XCircle className="w-12 h-12 mx-auto text-[#D6303B] mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-3xl font-extrabold uppercase">Pedido não concluído</p><p className="text-sm text-[#5B5E73] mt-1 px-4">O prazo para pagar acabou e o horário foi liberado. Você pode reservar de novo.</p></>}
-      <a href={`/agendar/${slug}`} className="inline-block mt-6 text-sm font-bold text-[#D6303B] underline underline-offset-4">Fazer nova reserva</a></Cartao></Tela>);
+        : <><XCircle className="w-12 h-12 mx-auto text-[color:var(--acc,#D6303B)] mb-3" /><p style={{ fontFamily: DISPLAY }} className="text-3xl font-extrabold uppercase">Pedido não concluído</p><p className="text-sm text-[#5B5E73] mt-1 px-4">O prazo para pagar acabou e o horário foi liberado. Você pode reservar de novo.</p></>}
+      <a href={`/agendar/${slug}`} className="inline-block mt-6 text-sm font-bold text-[color:var(--acc,#D6303B)] underline underline-offset-4">Fazer nova reserva</a></Cartao></Tela>);
   }
 
   const linkZap = (texto: string) => `https://wa.me/${zapLocal.startsWith("55") ? zapLocal : "55" + zapLocal}?text=${encodeURIComponent(texto)}`;
@@ -141,7 +147,7 @@ export default function AgendarPublico() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {slots.map((sl) => { const on = horas.includes(sl.hora); const off = !sl.disponivel || sl.livres < recursos; const ocupadas = cfg.qtdRecursos - sl.livres; return (
                 <button key={sl.hora} type="button" disabled={off && !on} aria-pressed={on} onClick={() => setHoras((a) => (a.includes(sl.hora) ? a.filter((x) => x !== sl.hora) : [...a, sl.hora].sort()))}
-                  className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${on ? "bg-[#D6303B] border-[#D6303B] text-[#ffffff]" : off ? "bg-[#F3F2EE] border-[#E4E2DC] text-[#A9AABA]" : "bg-[#ffffff] border-[#E4E2DC] text-[#14162B] hover:border-[#14162B]"}`}>
+                  className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${on ? "bg-[color:var(--acc,#D6303B)] border-[color:var(--acc,#D6303B)] text-[#ffffff]" : off ? "bg-[#F3F2EE] border-[#E4E2DC] text-[#A9AABA]" : "bg-[#ffffff] border-[#E4E2DC] text-[#14162B] hover:border-[#14162B]"}`}>
                   <span style={{ fontFamily: DISPLAY }} className={`block text-[26px] leading-none font-extrabold ${off && !on ? "line-through" : ""}`}>{sl.rotulo}</span>
                   <span className="flex flex-wrap gap-[3px] mt-2" aria-hidden="true">{Array.from({ length: Math.min(cfg.qtdRecursos, 12) }, (_, i) => <i key={i} className={`w-2 h-2 rounded-full border ${i < Math.min(ocupadas, 12) ? (on ? "bg-[#ffffff]/90 border-[#ffffff]/90" : "bg-[#14162B] border-[#14162B]") : (on ? "border-[#ffffff]/70" : "border-[#14162B]/40")}`} />)}</span>
                   <span className="block text-[11px] font-semibold mt-1.5 opacity-80">{sl.disponivel ? `${sl.livres} ${sl.livres === 1 ? "pista livre" : "pistas livres"}` : "Esgotado"}</span>
@@ -154,7 +160,7 @@ export default function AgendarPublico() {
           <Contador rotulo={cfg.recursoPlural} valor={recursos} min={1} max={cfg.qtdRecursos} onChange={(v) => { setRecursos(v); setPessoas((p) => Math.min(p, maxPessoas(v, cfg.pessoasPorRecurso))); }} />
           <Contador rotulo="Pessoas" sub={`até ${limite} no total`} valor={pessoas} min={1} max={limite} onChange={setPessoas} />
           {cfg.tiposEvento.length > 1 && <div className="pt-1"><p className={ROTULO}>Ocasião</p><div className="flex flex-wrap gap-1.5 mt-1.5">{cfg.tiposEvento.map((t) => <button key={t} type="button" onClick={() => setTipo(t)} aria-pressed={tipo === t} className={`px-3.5 h-9 rounded-full text-sm font-semibold border ${tipo === t ? "bg-[#14162B] border-[#14162B] text-[#ffffff]" : "bg-[#ffffff] border-[#E4E2DC] text-[#14162B]"}`}>{t}</button>)}</div></div>}
-          {cfg.mesasAtivo && mesasLivres > 0 && <label className="flex items-center gap-2.5 text-sm text-[#14162B] pt-1"><input type="checkbox" checked={mesa} onChange={(e) => setMesa(e.target.checked)} className="w-5 h-5 accent-[#D6303B]" />Quero também uma mesa no restaurante</label>}
+          {cfg.mesasAtivo && mesasLivres > 0 && <label className="flex items-center gap-2.5 text-sm text-[#14162B] pt-1"><input type="checkbox" checked={mesa} onChange={(e) => setMesa(e.target.checked)} className="w-5 h-5 accent-[color:var(--acc,#D6303B)]" />Quero também uma mesa junto com a reserva</label>}
           {mesa && <Contador rotulo="Lugares na mesa" valor={cadeiras} min={1} max={cfg.cadeirasMax} onChange={setCadeiras} />}
         </Passo>
 
@@ -166,7 +172,7 @@ export default function AgendarPublico() {
         </Passo>
       </div>
 
-      <div className="fixed bottom-0 inset-x-0 z-30 bg-[#14162B] text-[#ffffff] border-t-4 border-[#D6303B]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <div className="fixed bottom-0 inset-x-0 z-30 bg-[#14162B] text-[#ffffff] border-t-4 border-[color:var(--acc,#D6303B)]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="max-w-xl mx-auto px-4 py-3">
           {erro && <p className="text-sm text-[#FFB4BA] mb-2" role="alert">{erro}</p>}
           <div className="flex items-center gap-4">
@@ -174,7 +180,7 @@ export default function AgendarPublico() {
               <p className="text-[11px] font-bold uppercase tracking-wider text-[#ffffff]/60 truncate">{horasHora ? `${dataBR(data)} · ${horasHora}h · ${recursos} ${rotuloUn(recursos)}` : "Escolha ao menos um horário"}</p>
               <p style={{ fontFamily: DISPLAY }} className="text-[34px] leading-none font-extrabold tabular-nums">{reaisBR(total)}</p>
             </div>
-            <button onClick={enviar} disabled={!pronto || enviando} className="ml-auto h-12 px-6 rounded-xl bg-[#D6303B] text-[#ffffff] font-extrabold uppercase tracking-wide text-sm disabled:opacity-40 flex items-center gap-2 shrink-0">
+            <button onClick={enviar} disabled={!pronto || enviando} className="ml-auto h-12 px-6 rounded-xl bg-[color:var(--acc,#D6303B)] text-[#ffffff] font-extrabold uppercase tracking-wide text-sm disabled:opacity-40 flex items-center gap-2 shrink-0">
               {enviando && <Loader2 className="w-4 h-4 animate-spin" />}{cfg.pagamentoOnline ? "Reservar e pagar" : "Reservar"}</button>
           </div>
           <p className="text-[11px] text-[#ffffff]/55 mt-1.5">{cfg.pagamentoOnline ? `Você tem ${cfg.expiracaoMin} minutos para pagar; depois o horário é liberado.` : "O pagamento é feito no local."}</p>
@@ -196,7 +202,7 @@ const INPUT = "w-full h-12 px-4 rounded-xl text-base border border-[#E4E2DC] bg-
 const Tela = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-dvh text-[#14162B]" style={{ background: "#FBFAF7", fontFamily: "'Barlow', system-ui, sans-serif", colorScheme: "light" }}>
     {/* as duas listras vermelhas do pino de boliche */}
-    <div aria-hidden="true" className="pt-2 space-y-[3px]"><div className="h-[5px] bg-[#D6303B]" /><div className="h-[5px] bg-[#D6303B]" /></div>
+    <div aria-hidden="true" className="pt-2 space-y-[3px]"><div className="h-[5px] bg-[color:var(--acc,#D6303B)]" /><div className="h-[5px] bg-[color:var(--acc,#D6303B)]" /></div>
     <div className="max-w-xl mx-auto px-4 pt-7">{children}</div>
   </div>
 );

@@ -16,19 +16,28 @@ import { campo, rotulo } from "./components/Estilos";
 
 const PERMISSOES: { id: keyof ConfigLinha["permissoes_equipe"]; titulo: string; ajuda: string }[] = [
   { id: "criar", titulo: "Criar reservas", ajuda: "Atendentes podem lançar novas reservas na agenda." },
-  { id: "editar", titulo: "Editar e marcar presença", ajuda: "Mudar pessoas, observações, escolher pistas e marcar chegada/falta." },
+  { id: "editar", titulo: "Editar e marcar presença", ajuda: "Mudar pessoas, observações, escolher a unidade usada e marcar chegada/falta." },
   { id: "receber", titulo: "Receber pagamentos", ajuda: "Registrar o pagamento no balcão (dinheiro, Pix, cartão, comanda)." },
   { id: "cancelar", titulo: "Cancelar reservas", ajuda: "Cancelar exige motivo e fica registrado no histórico." },
   { id: "sem_contato", titulo: "Reservar sem telefone/e-mail", ajuda: "Por padrão toda reserva precisa de um contato do cliente." },
 ];
 
-const ABAS = [{ id: "geral", nome: "Página e eventos" }, { id: "precos", nome: "Preços e horários" }, { id: "pagamento", nome: "Pagamento e mesas" }, { id: "equipe", nome: "Equipe" }] as const;
+const ABAS = [{ id: "geral", nome: "Página e eventos" }, { id: "precos", nome: "Preços e horários" }, { id: "pagamento", nome: "Pagamento e extras" }, { id: "equipe", nome: "Equipe" }] as const;
 type AbaId = (typeof ABAS)[number]["id"];
 const AbaCtx = createContext<AbaId>("geral");
 const Secao = ({ aba, titulo, ajuda, children }: { aba: AbaId; titulo: string; ajuda?: string; children: React.ReactNode }) => useContext(AbaCtx) !== aba ? null : (
   <Card className="p-5 space-y-4"><div className="flex items-center gap-1.5"><h3 className="text-sm font-black text-[var(--color-text-primary)]">{titulo}</h3>{ajuda && <HelpTip label={titulo}>{ajuda}</HelpTip>}</div>{children}</Card>
 );
 const Campo = ({ t, children, className }: { t: string; children: React.ReactNode; className?: string }) => (<div className={`space-y-1.5 ${className ?? ""}`}><label className={rotulo}>{t}</label>{children}</div>);
+
+/** Modelos de negócio: preenchem os nomes, a lotação e os tipos de evento de uma vez (depois é só ajustar e salvar). */
+const MODELOS: { id: string; nome: string; descricao: string; valores: Partial<ConfigLinha> }[] = [
+  { id: "boliche", nome: "Boliche e arenas de jogos", descricao: "Pistas, jogos e comemorações", valores: { recurso_singular: "Pista", recurso_plural: "Pistas", pessoas_por_recurso: 6, tipos_evento: ["Jogo normal", "Aniversário", "Empresa", "Família", "Outro"], mesas_ativo: true } },
+  { id: "quadra", nome: "Quadras esportivas", descricao: "Futebol, vôlei, tênis, beach tennis", valores: { recurso_singular: "Quadra", recurso_plural: "Quadras", pessoas_por_recurso: 12, tipos_evento: ["Jogo avulso", "Aula", "Torneio", "Aniversário", "Empresa", "Outro"], mesas_ativo: false } },
+  { id: "sala", nome: "Salas e estúdios", descricao: "Reunião, ensaio, gravação, coworking", valores: { recurso_singular: "Sala", recurso_plural: "Salas", pessoas_por_recurso: 8, tipos_evento: ["Reunião", "Aula", "Ensaio", "Gravação", "Evento", "Outro"], mesas_ativo: false } },
+  { id: "espaco", nome: "Espaço de eventos", descricao: "Salão de festas, chácara, buffet", valores: { recurso_singular: "Espaço", recurso_plural: "Espaços", pessoas_por_recurso: 50, tipos_evento: ["Aniversário", "Casamento", "Confraternização", "Corporativo", "Outro"], mesas_ativo: false } },
+  { id: "profissional", nome: "Atendimento com profissional", descricao: "Clínica, salão, consultório, estética", valores: { recurso_singular: "Profissional", recurso_plural: "Profissionais", pessoas_por_recurso: 1, tipos_evento: ["Consulta", "Retorno", "Procedimento", "Avaliação", "Outro"], mesas_ativo: false } },
+];
 
 /** Configuração do Agendamento: o que é reservado, preços, horários, pagamento online, mesas e permissões da equipe. */
 export default function AgendamentoConfig() {
@@ -81,6 +90,22 @@ export default function AgendamentoConfig() {
         {ABAS.map((x) => <button key={x.id} onClick={() => setAba(x.id)} className={`px-4 h-10 text-sm font-bold whitespace-nowrap border-b-2 -mb-px ${aba === x.id ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>{x.nome}</button>)}
       </div>
       <div className="space-y-4 max-w-4xl pb-20">
+        <Secao aba="geral" titulo="Modelo de negócio" ajuda="Escolha o que mais se parece com a sua operação: os nomes (pista, quadra, sala, profissional…), a lotação por unidade e os tipos de reserva são preenchidos para você. Nada vale até clicar em Salvar alterações, e dá para ajustar tudo depois.">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {MODELOS.map((m) => {
+              const ativo = c.recurso_singular === m.valores.recurso_singular && c.pessoas_por_recurso === m.valores.pessoas_por_recurso;
+              return (
+                <button key={m.id} type="button" onClick={() => setC((x) => (x ? { ...x, ...m.valores } as ConfigLinha : x))}
+                  className={`text-left rounded-xl border p-3 cursor-pointer transition-colors ${ativo ? "border-[var(--color-primary)] bg-[var(--color-primary)]/8" : "border-[var(--color-border-default)] hover:border-[var(--color-primary)]/50"}`}>
+                  <div className="text-sm font-bold text-[var(--color-text-primary)]">{m.nome}</div>
+                  <div className="text-[11px] text-[var(--color-text-muted)] mt-0.5">{m.descricao}</div>
+                  <div className="text-[10px] font-semibold text-[var(--color-text-faint)] mt-1.5">{m.valores.recurso_plural} · {m.valores.pessoas_por_recurso} por unidade</div>
+                </button>
+              );
+            })}
+          </div>
+        </Secao>
+
         <Secao aba="geral" titulo="Página pública" ajuda="É o endereço que você divulga para o cliente reservar sozinho, só com nome e WhatsApp. Se desligar, a página sai do ar mas a agenda interna continua funcionando.">
           <label className="flex items-center justify-between text-sm font-semibold">Aceitar reservas pela página pública<Switch checked={c.ativo} onCheckedChange={(v) => set("ativo", v)} /></label>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -95,7 +120,7 @@ export default function AgendamentoConfig() {
           {sujo && c.slug !== JSON.parse(orig).slug && <p className="text-xs text-amber-600">Ao mudar o endereço, o link antigo deixa de funcionar.</p>}
         </Secao>
 
-        <Secao aba="precos" titulo="O que é reservado e preços" ajuda="Pense em “Pista” como a unidade que o cliente reserva (pista, quadra, sala, mesa…). Os nomes aparecem para o cliente. O preço é por unidade, por hora.">
+        <Secao aba="precos" titulo="O que é reservado e preços" ajuda="A “unidade” é o que o cliente reserva: pista, quadra, sala, profissional, espaço… Escolha um modelo de negócio na aba Página e eventos para preencher tudo de uma vez, ou ajuste os nomes aqui. O preço é por unidade, por hora.">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Campo t="Nome (singular)"><Input value={c.recurso_singular} onChange={(e) => set("recurso_singular", e.target.value)} maxLength={30} /></Campo>
             <Campo t="Nome (plural)"><Input value={c.recurso_plural} onChange={(e) => set("recurso_plural", e.target.value)} maxLength={30} /></Campo>
@@ -139,7 +164,7 @@ export default function AgendamentoConfig() {
           <Campo t="Prazo para pagar (minutos)" className="max-w-xs"><input type="number" min={5} max={240} value={c.expiracao_pendente_min} onChange={(e) => set("expiracao_pendente_min", num(e.target.value, 5))} className={campo} /></Campo>
         </Secao>
 
-        <Secao aba="pagamento" titulo="Mesas do restaurante" ajuda="Permite que o cliente peça também uma mesa junto com a reserva, respeitando o limite por dia.">
+        <Secao aba="pagamento" titulo="Mesa junto com a reserva (opcional)" ajuda="Permite que o cliente peça também uma mesa junto com a reserva, respeitando o limite por dia.">
           <label className="flex items-center justify-between text-sm font-semibold">Oferecer reserva de mesa<Switch checked={c.mesas_ativo} onCheckedChange={(v) => set("mesas_ativo", v)} /></label>
           {c.mesas_ativo && <div className="grid grid-cols-2 gap-3 max-w-md"><Campo t="Mesas por dia"><input type="number" min={0} value={c.mesas_max_por_dia} onChange={(e) => set("mesas_max_por_dia", num(e.target.value))} className={campo} /></Campo><Campo t="Lugares por mesa (máx.)"><input type="number" min={1} max={36} value={c.cadeiras_max} onChange={(e) => set("cadeiras_max", Math.min(36, num(e.target.value, 1)))} className={campo} /></Campo></div>}
         </Secao>

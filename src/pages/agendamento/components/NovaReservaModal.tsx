@@ -112,7 +112,7 @@ export function NovaReservaModal({ isOpen, onClose, dataInicial, config, engine,
 
         {config.mesas_ativo && (
           <div className="rounded-xl border border-[var(--color-border-default)] p-3 space-y-3">
-            <label className="flex items-center justify-between text-sm font-semibold text-[var(--color-text-primary)]">Reservar mesa no restaurante<Switch checked={mesa} onCheckedChange={setMesa} /></label>
+            <label className="flex items-center justify-between text-sm font-semibold text-[var(--color-text-primary)]">Reservar mesa junto<Switch checked={mesa} onCheckedChange={setMesa} /></label>
             {mesa && <div className="grid grid-cols-2 gap-3"><div className="space-y-1.5"><label className={rotulo}>Lugares (até {config.cadeiras_max})</label><input type="number" min={1} max={config.cadeiras_max} value={cadeiras} onChange={(e) => setCadeiras(Number(e.target.value) || 1)} className={campo} /></div><div className="space-y-1.5"><label className={rotulo}>Aniversariante</label><Input value={aniversariante} onChange={(e) => setAniversariante(e.target.value)} maxLength={80} /></div></div>}
           </div>
         )}

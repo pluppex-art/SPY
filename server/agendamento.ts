@@ -13,6 +13,7 @@ import axios from "axios";
 import type { Express, Request, RequestHandler, Response } from "express";
 import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
 import { criarEstorno } from "./financeEstorno.js";
+import { getTenantBrand } from "./emailBrand.js";
 import {
   PERMISSOES_PADRAO, assinar, conferirAssinatura, configParaEngine, decidirAcaoFinanceira, linhaParaLite, aplicarPrecos, externoIdPreco, ORIGEM_PRECO, PRECOS_RESERVA, type CampoPreco, montarLancamento, montarPreferenciaMP,
   planejarPagamento, repartirMisto, slugDe, validarConfig, SLUG_REGEX,
@@ -499,7 +500,10 @@ export function registerAgendamentoRoutes(app: Express, deps: AgendamentoDeps) {
   app.get("/api/agendar/:slug/config", limiterPublico, async (req, res) => {
     const cfg = await empresaPublica(req.params.slug, res);
     if (!cfg) return;
+    // Cor da página pública: a cor da empresa (Empresa → Tema); sem cor, a página usa o padrão.
+    const marca = await getTenantBrand(db, cfg.tenant_id);
     res.json({
+      cor: marca?.color ?? null,
       ativo: cfg.ativo, nome: cfg.nome_estabelecimento, endereco: cfg.endereco, telefone: cfg.telefone, whatsapp: cfg.whatsapp, logoUrl: cfg.logo_url,
       recursoSingular: cfg.recurso_singular, recursoPlural: cfg.recurso_plural, qtdRecursos: cfg.qtd_recursos, pessoasPorRecurso: cfg.pessoas_por_recurso,
       precoDiaUtil: Number(cfg.preco_dia_util), precoFimSemana: Number(cfg.preco_fim_semana), diasFimSemana: cfg.dias_fim_semana, horarios: cfg.horarios,
