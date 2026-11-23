@@ -162,7 +162,7 @@ export default function CentralReceita() {
   };
 
   return (
-    <div className="max-w-[1700px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div className="max-w-[1700px] mx-auto pb-6 space-y-6">
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
