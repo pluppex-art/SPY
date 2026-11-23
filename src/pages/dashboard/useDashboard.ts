@@ -498,6 +498,8 @@ export function useDashboard() {
 
   return {
     leads,
+    /** Todos os leads da empresa, sem o recorte de período (para mostrar "X de Y no total"). */
+    totalLeadsEmpresa: (allLeads as any[]).length,
     // Sem filtro de período de propósito — StrategicalView usa isso no
     // Snapshot de Contratos (MRR Ativo/Contratos Ativos/Ticket Médio/
     // Inadimplência), que são saldos do momento atual ("ativo" = agora),

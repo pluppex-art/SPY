@@ -112,7 +112,7 @@ export default function MapaDaReceita({ dashboard }: { dashboard: DashboardData 
     }
     const totalLeads = leads.length || 1;
     return [
-      { key: "leads" as DrillKey, icon: Users, label: "Leads", value: String(leads.length), sub: `100% do funil` as string | null },
+      { key: "leads" as DrillKey, icon: Users, label: "Leads", value: String(leads.length), sub: (dashboard.totalLeadsEmpresa > leads.length ? `de ${dashboard.totalLeadsEmpresa.toLocaleString("pt-BR")} no total da empresa` : "100% do funil") as string | null },
       { key: "oportunidades" as DrillKey, icon: Target, label: "Oportunidades", value: String(oportunidades.length), sub: `${Math.round((oportunidades.length / totalLeads) * 1000) / 10}% dos leads` },
       { key: "vendas" as DrillKey, icon: ShoppingCart, label: "Vendas", value: String(vendas.length), sub: `${oportunidades.length > 0 ? Math.round((vendas.length / oportunidades.length) * 1000) / 10 : 0}% das oportunidades` },
       { key: "receita" as DrillKey, icon: DollarSign, label: "Receita", value: formatCurrency(receitaDoFluxo), sub: vendas.length > 0 ? `Ticket médio ${formatCurrency(receitaDoFluxo / vendas.length)}` : "Sem vendas ainda" },
