@@ -67,6 +67,7 @@ export default function Pipeline() {
     webhookUrl, setWebhookUrl,
     leads, updateLead, tasks,
     clientFilter, setClientFilter, clientsList,
+    productFilter, setProductFilter, productsList,
     dateFrom, setDateFrom, dateTo, setDateTo,
     currentPipeline, switchPipeline,
     selectedFunilId, setSelectedFunilId,
@@ -176,18 +177,17 @@ export default function Pipeline() {
   const activeFilterCount =
     (searchQuery.trim() ? 1 : 0) + (companyFilter !== "Todos" ? 1 : 0) + (cityFilter !== "Todos" ? 1 : 0) +
     (clientFilter !== "Todos" ? 1 : 0) + (sellerFilter !== "Todos" ? 1 : 0) + (dateFrom || dateTo ? 1 : 0) +
-    (stageFilter !== "Todas" ? 1 : 0) + (sourceFilter !== "Todas" ? 1 : 0);
+    (stageFilter !== "Todas" ? 1 : 0) + (sourceFilter !== "Todas" ? 1 : 0) + (productFilter !== "Todos" ? 1 : 0);
   const clearFilters = () => {
     setSearchQuery(""); setCompanyFilter("Todos"); setCityFilter("Todos"); setClientFilter("Todos");
-    setSellerFilter("Todos"); setDateFrom(null); setDateTo(null); setStageFilter("Todas"); setSourceFilter("Todas");
+    setSellerFilter("Todos"); setProductFilter("Todos"); setDateFrom(null); setDateTo(null); setStageFilter("Todas"); setSourceFilter("Todas");
   };
 
   const listaLeads = useMemo(() =>
     (filteredItemsList as any[])
-      .filter((l: any) => !searchQuery || ["name", "company", "email"].some((k: string) => normalizeText(l[k]).includes(normalizeText(searchQuery))))
       .filter((l: any) => temperatureFilter === "Todas" || l.temperature === temperatureFilter)
       .sort((a: any, b: any) => sortOrder === "desc" ? (tempOrder[b.temperature] || 0) - (tempOrder[a.temperature] || 0) : (tempOrder[a.temperature] || 0) - (tempOrder[b.temperature] || 0)),
-    [filteredItemsList, searchQuery, temperatureFilter, sortOrder]);
+    [filteredItemsList, temperatureFilter, sortOrder]);
 
   return (
     <PageContainer
@@ -233,6 +233,7 @@ export default function Pipeline() {
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             companyFilter={companyFilter} setCompanyFilter={setCompanyFilter}
             companiesList={companiesList}
+            productFilter={productFilter} setProductFilter={setProductFilter} productsList={productsList}
             cityFilter={cityFilter} setCityFilter={setCityFilter} citiesList={citiesList}
             clientFilter={clientFilter}
             setClientFilter={setClientFilter} clientsList={clientsList}

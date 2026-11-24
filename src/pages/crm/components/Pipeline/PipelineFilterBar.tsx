@@ -1,4 +1,4 @@
-import { Search, Filter, Briefcase, Zap, MapPin, Layers, Link2 } from "lucide-react";
+import { Search, Filter, Briefcase, Zap, MapPin, Layers, Link2, Package } from "lucide-react";
 import { DateRangeFilter } from "../../../../components/ui/DateRangeFilter";
 
 interface PipelineFilterBarProps {
@@ -13,6 +13,9 @@ interface PipelineFilterBarProps {
   companyFilter: string;
   setCompanyFilter: (c: string) => void;
   companiesList: string[];
+  productFilter: string;
+  setProductFilter: (p: string) => void;
+  productsList: { id: string; name: string }[];
   cityFilter: string;
   setCityFilter: (c: string) => void;
   citiesList: string[];
@@ -38,6 +41,7 @@ export function PipelineFilterBar({
   comercialFunis, sdrFunis, currentPipeline, setCurrentPipeline,
   selectedFunilId, setSelectedFunilId, searchQuery, setSearchQuery,
   companyFilter, setCompanyFilter, companiesList,
+  productFilter, setProductFilter, productsList,
   cityFilter, setCityFilter, citiesList,
   clientFilter, setClientFilter, clientsList,
   sellerFilter, setSellerFilter, sellers,
@@ -46,7 +50,7 @@ export function PipelineFilterBar({
   sourceFilter, setSourceFilter, sourcesList,
 }: PipelineFilterBarProps) {
   return (
-    <div className="grid grid-cols-2 sm:flex sm:flex-wrap lg:flex-nowrap items-center gap-2 shrink-0 max-[479px]:[&>*]:col-span-2">
+    <div className="grid grid-cols-2 sm:flex sm:flex-wrap lg:flex-nowrap items-center gap-2 shrink-0 max-[479px]:[&>*]:col-span-2 overflow-x-auto scrollbar-none pb-0.5">
       {(comercialFunis.length > 0 || sdrFunis.length > 0) && (
         <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 py-1.5 h-[42px] sm:h-[38px] overflow-x-auto scrollbar-none w-fit max-w-full justify-self-start lg:flex-none lg:max-w-[300px]">
           {comercialFunis.length === 1 ? (
@@ -104,6 +108,18 @@ export function PipelineFilterBar({
           onChange={(e) => setSearchQuery(e.target.value)}
           className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] pl-9 pr-3 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-blue)] w-full h-[42px] sm:h-[38px]"
         />
+      </div>
+
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">
+        <Package className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
+        <select
+          className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
+          value={productFilter}
+          onChange={(e) => setProductFilter(e.target.value)}
+        >
+          <option value="Todos" className="bg-[var(--color-surface-elevated)]">Todos os produtos</option>
+          {productsList.map(p => <option key={p.id} value={p.id} className="bg-[var(--color-surface-elevated)]">{p.name}</option>)}
+        </select>
       </div>
 
       <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">

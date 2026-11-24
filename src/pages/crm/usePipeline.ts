@@ -37,6 +37,7 @@ export function usePipeline() {
   const { formatCurrency } = useLocalization();
 
   const [clientFilter, setClientFilter] = useState("Todos");
+  const [productFilter, setProductFilter] = useState("Todos");
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
   // `clienteBase` (useData) já vem escopado ao tenant ativo — um fetch próprio
@@ -122,6 +123,7 @@ export function usePipeline() {
     setCompanyFilter("Todos");
     setCityFilter("Todos");
     setClientFilter("Todos");
+    setProductFilter("Todos");
     setStageFilter("Todas");
     setSourceFilter("Todas");
     setSearchQuery("");
@@ -152,22 +154,13 @@ export function usePipeline() {
     return buildStagesForFunil(activeFunil);
   }, [activeFunil, isAllFunisSelected, currentPipeline, sdrFunis, comercialFunis]);
 
-  // Anti-regressão: só restringe `filteredItemsList` por etapa quando existe
-  // MAIS de 1 funil do mesmo tipo (ou "Todos" foi trocado por um específico) —
-  // pra tenant com um funil só (a esmagadora maioria), nunca muda nada, mesmo
-  // que algum lead tenha um stageId legado que não bate exatamente com as
-  // etapas atuais do funil. Achado real: com múltiplos funis comerciais (ex.:
-  // migração do Kommo, 7 funis pro mesmo tenant), escolher um funil específico
-  // no seletor não filtrava NADA — Kanban por coluna funcionava (compara
-  // stageId por etapa), mas o card "Total" e a visão de Lista usavam
-  // `filteredItemsList` sem nenhum filtro de funil, sempre somando TODOS os
-  // funis juntos independente do que estava selecionado.
+  // Restringe `filteredItemsList` por etapa ao funil ativo selecionado.
+  // Quando um funil específico está selecionado, apenas seus leads e etapas devem aparecer,
+  // garantindo que a barra de pesquisa e outros filtros não puxem leads de outros funis.
   const activeFunilStageIds = useMemo(() => {
     if (isAllFunisSelected) return null;
-    const pool = currentPipeline === "sdr" ? sdrFunis : comercialFunis;
-    if (pool.length <= 1) return null;
-    return new Set(activePipelineStages.map((s: any) => s.id));
-  }, [currentPipeline, sdrFunis, comercialFunis, activePipelineStages, isAllFunisSelected]);
+    return new Set(activePipelineStages.map((s: any) => String(s.id)));
+  }, [activePipelineStages, isAllFunisSelected]);
 
   // ─── Leads do pipeline atual (usado para montar os dropdowns de filtro) ──────
   // Filtra apenas por pipeline — sem seller/company/client — para que os
@@ -219,15 +212,43 @@ export function usePipeline() {
     ...Array.from(new Set(pipelineLeads.map((l: any) => l.source).filter(Boolean))).sort() as string[],
   ], [pipelineLeads]);
 
+  // Lista de produtos para o filtro do pipeline
+  const productsList = useMemo(() => {
+    const list = (products as any[]) || [];
+    return list
+      .filter((p: any) => p && p.id && (p.name || p.nome))
+      .map((p: any) => ({ id: String(p.id), name: String(p.name || p.nome) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
   // ─── Filtered leads ───────────────────────────────────────────────────────────
   const filteredItemsList = useMemo(() => leads
     .filter((item: any) => {
       const matchesPipeline = currentPipeline === "sdr"
         ? item.pipelineId === "sdr"
         : !item.pipelineId || item.pipelineId === "comercial";
+
+      // Filtro de funil estrito: quando um funil específico está selecionado, não mistura leads de outros funis
+      const matchesFunil = (() => {
+        if (isAllFunisSelected) return true;
+        if (activeFunil) {
+          if (item.funilId && item.funilId !== activeFunil.id) return false;
+          if (item.funil_id && item.funil_id !== activeFunil.id) return false;
+        }
+        if (!activeFunilStageIds) return true;
+        return activeFunilStageIds.has(String(item.stageId)) ||
+          (activeFunil && (item.funilId === activeFunil.id || item.funil_id === activeFunil.id));
+      })();
+
       const matchesSeller  = sellerFilter  === "Todos" || sameSeller(item.seller, sellerFilter);
       const matchesCompany = companyFilter === "Todos" || item.company === companyFilter;
       const matchesCity    = cityFilter    === "Todos" || cityKey(leadCity(item)) === cityKey(cityFilter);
+
+      const matchesProduct = productFilter === "Todos"
+        || (Array.isArray(item.productIds) && item.productIds.map(String).includes(productFilter))
+        || (Array.isArray(item.customFields?.produtosInteresseIds) && item.customFields.produtosInteresseIds.map(String).includes(productFilter))
+        || String(item.productId || "") === productFilter;
+
       const clientId = clientNameToId[clientFilter];
       // Match by lead's own clientName/clientId OR via any linked product's client
       const matchesClient  = clientFilter  === "Todos"
@@ -237,8 +258,9 @@ export function usePipeline() {
             Array.isArray(item.productIds) && item.productIds.includes(p.id) &&
             (p.clientName === clientFilter || (clientId && p.clientId === clientId))
           );
+
       const q = normalizeText(searchQuery);
-      const matchesSearch  =
+      const matchesSearch  = !q || (
         normalizeText(item.name).includes(q) ||
         normalizeText(item.company).includes(q) ||
         normalizeText(item.title).includes(q) ||
@@ -246,7 +268,11 @@ export function usePipeline() {
         normalizeText(item.segmento).includes(q) ||
         normalizeText(item.vertical).includes(q) ||
         normalizeText(item.origem).includes(q) ||
-        normalizeText(item.email).includes(q);
+        normalizeText(item.email).includes(q) ||
+        normalizeText(item.phone || item.telefone || "").includes(q) ||
+        normalizeText(item.seller || "").includes(q)
+      );
+
       // Mesma data de cadastro do filtro do Dashboard (leadDateIso: `date` ISO ou o
       // created_at do banco) — `item.date` sozinho é texto livre ("Hoje", "") e fazia o
       // filtro de período não achar lead nenhum.
@@ -254,10 +280,23 @@ export function usePipeline() {
       const matchesDate =
         (!dateFrom || (iso && iso >= dateFrom)) &&
         (!dateTo || (iso && iso <= dateTo));
-      const matchesFunil = !activeFunilStageIds || activeFunilStageIds.has(item.stageId);
-      const matchesStage = stageFilter === "Todas" || item.stageId === stageFilter;
+
+      const matchesStage = stageFilter === "Todas" || String(item.stageId) === String(stageFilter);
       const matchesSource = sourceFilter === "Todas" || item.source === sourceFilter;
-      return matchesPipeline && matchesFunil && matchesStage && matchesSource && matchesSeller && matchesCompany && matchesCity && matchesClient && matchesSearch && matchesDate;
+
+      return (
+        matchesPipeline &&
+        matchesFunil &&
+        matchesStage &&
+        matchesSource &&
+        matchesSeller &&
+        matchesCompany &&
+        matchesCity &&
+        matchesClient &&
+        matchesProduct &&
+        matchesDate &&
+        matchesSearch
+      );
     })
     // Card sempre no topo de quem teve a atividade mais recente — tanto um lead recém-criado
     // quanto um já existente que só mudou de etapa/status/campo (updated_at é atualizado a cada
@@ -275,7 +314,7 @@ export function usePipeline() {
       if (!db) return 1;
       return db > da ? 1 : db < da ? -1 : 0;
     }),
-  [leads, currentPipeline, activeFunilStageIds, sellerFilter, searchQuery, companyFilter, cityFilter, clientFilter, clientNameToId, products, dateFrom, dateTo, stageFilter, sourceFilter]);
+  [leads, currentPipeline, activeFunil, activeFunilStageIds, isAllFunisSelected, sellerFilter, searchQuery, companyFilter, cityFilter, clientFilter, clientNameToId, products, productFilter, dateFrom, dateTo, stageFilter, sourceFilter]);
 
   // ─── Metrics ─────────────────────────────────────────────────────────────────
   const analyticsData = useMemo(() =>
@@ -519,6 +558,7 @@ export function usePipeline() {
     webhookUrl, setWebhookUrl,
     leads, updateLead, tasks, addTask,
     clientFilter, setClientFilter, clientsList,
+    productFilter, setProductFilter, productsList,
     dateFrom, setDateFrom, dateTo, setDateTo,
     currentPipeline, setCurrentPipeline, switchPipeline,
     selectedFunilId, setSelectedFunilId: escolherFunil,
