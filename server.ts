@@ -15,6 +15,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
+import { mensagemDeGrupo, encaminharMensagemDeGrupo } from "./server/gruposAgenteSecreto.js";
 import { radarWebhookDaEmpresa, provisionarRadarDaEmpresa, sincronizarRadarDasEmpresas } from "./server/radarWebhook.js";
 import { calcularDRELegado, diaCaixa, filtroPeriodoOr, calcularDreCompleto, cmvDosItens, filtrarPeriodo, quantidadeDoItem, separarLegado, type LancamentoDre, type RegimeDre } from "./src/lib/dre/dre.js";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
@@ -6295,6 +6296,12 @@ app.post("/api/whatsapp/webhook/:instanceId", async (req: any, res) => {
     res.status(200).json({ received: true });
 
     const body = req.body ?? {};
+    // Mensagem de GRUPO vai para o Agente Secreto interno (n8n) e não entra no chat 1:1 (antes virava um "contato" com o id do grupo).
+    if (mensagemDeGrupo(body)) {
+      const r = await encaminharMensagemDeGrupo(body, inst);
+      if (!r.ok) console.error("[whatsapp/webhook] grupo não encaminhado ao n8n:", r.motivo);
+      return;
+    }
     if (body.event !== "message") return; // session.status e outros eventos: só ack, sem processar.
 
     const payload = body.payload ?? {};
