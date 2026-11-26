@@ -925,13 +925,14 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
         iconBg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
         description:
           "Conexão com instâncias de WhatsApp para envio e recebimento de mensagens (WAHA quando configurado, ou simulador em ambiente de testes).",
-        connected: instances.length > 0,
-        statusText: instances.length > 0 ? "Instância Ativa" : "Aguardando",
-        statusVariant: (instances.length > 0 ? "success" : "warning") as any,
-        badgeText: instances.length > 0 ? `${instances.length} Instância(s)` : "Offline",
+        // Só conta como ativa a instância realmente conectada; o total aparece junto.
+        connected: instances.some((i: any) => i.status === "CONNECTED"),
+        statusText: instances.some((i: any) => i.status === "CONNECTED") ? "Conectado" : instances.length > 0 ? "Desconectado" : "Aguardando",
+        statusVariant: (instances.some((i: any) => i.status === "CONNECTED") ? "success" : "warning") as any,
+        badgeText: `${instances.filter((i: any) => i.status === "CONNECTED").length} de ${instances.length} conectada(s)`,
         highlightInfo: instances.length > 0
-          ? `Linha: ${instances[0]?.phone || "Conectada"}`
-          : "Nenhuma instância ativa",
+          ? `Linhas: ${instances.filter((i: any) => i.status === "CONNECTED").map((i: any) => (i.phone && i.phone !== "-" ? i.phone : i.name)).slice(0, 2).join(", ") || "nenhuma conectada"}`
+          : "Nenhuma instância criada",
         onConfigure: () => setSelectedConfigModal("whatsapp"),
         onToggle: () => setSelectedConfigModal("whatsapp"),
       },
