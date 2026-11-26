@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Pencil, Trash2, Users, Bell, MessageCircle, Mail, Info, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { Card } from "../../../../components/ui/card";
-import { Button } from "../../../../components/ui/button";
-import { Modal } from "../../../../components/ui/modal";
-import { EmptyState } from "../../../../components/ui/empty-state";
-import { confirmDialog } from "../../../../components/ui/confirm-dialog";
-import { useData } from "../../../../contexts/DataContext";
-import { apiFetch } from "../../../../lib/apiClient";
-import { inputCls, selectCls } from "../../../finance/components/ModalKit";
-import { cn } from "../../../../lib/utils";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Modal } from "../../components/ui/modal";
+import { EmptyState } from "../../components/ui/empty-state";
+import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { useData } from "../../contexts/DataContext";
+import { apiFetch } from "../../lib/apiClient";
+import { inputCls, selectCls } from "../finance/components/ModalKit";
+import { cn } from "../../lib/utils";
+import { PageContainer } from "../../components/PageContainer";
 
 interface Grupo {
   group_chat_id: string; group_name: string; departamento: string; ativo: boolean;
@@ -27,10 +28,10 @@ const rotulo = "text-[10px] font-black uppercase tracking-wider text-[var(--colo
 const normalizar = (g: any): Grupo => ({ ...VAZIO, ...g, responsavel_user_id: g?.responsavel_user_id ?? null, responsavel_nome: g?.responsavel_nome ?? "", responsavel_phone: g?.responsavel_phone ?? "", responsavel_email: g?.responsavel_email ?? "" });
 
 /**
- * Radar de Grupos: cadastro dos grupos de WhatsApp que o Agente Secreto interno acompanha (departamento e responsável de cada um).
+ * Grupos internos: cadastro dos grupos de WhatsApp que o Agente Secreto interno acompanha (departamento e responsável de cada um).
  * Só aparece para empresa que contratou o módulo; o servidor confere de novo a cada leitura e gravação.
  */
-export function RadarGrupos() {
+function Conteudo() {
   const { colaboradores } = useData();
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -46,7 +47,7 @@ export function RadarGrupos() {
     let vivo = true;
     (async () => {
       try {
-        const r = await apiFetch("/api/radar-grupos");
+        const r = await apiFetch("/api/agente-interno/grupos");
         const j = await r.json().catch(() => ({}));
         if (!vivo) return;
         if (!r.ok) { setErro(j?.error || "Não foi possível carregar os grupos."); return; }
@@ -62,7 +63,7 @@ export function RadarGrupos() {
   async function gravar(proximos: Grupo[], mensagem: string): Promise<boolean> {
     setSalvando(true);
     try {
-      const r = await apiFetch("/api/radar-grupos", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grupos: proximos }) });
+      const r = await apiFetch("/api/agente-interno/grupos", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grupos: proximos }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { toast.error(j?.error || "Não foi possível salvar."); return false; }
       setGrupos((j.grupos || proximos).map(normalizar));
@@ -88,7 +89,7 @@ export function RadarGrupos() {
 
   if (carregando) return <div className="grid place-items-center py-16"><Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-faint)]" /></div>;
   if (erro) return <Card className="p-5 text-sm text-rose-600">{erro}</Card>;
-  if (!contratado) return <EmptyState icon={Lock} title="Radar de Grupos não contratado" description="Este módulo é vendido à parte. Fale com o suporte para ativar na sua empresa." />;
+  if (!contratado) return <EmptyState icon={Lock} title="Agente Secreto Interno não contratado" description="Este módulo é vendido à parte. Fale com o suporte para ativar na sua empresa." />;
 
   const g = edicao?.g;
   const idRepetido = !!g && grupos.some((x, i) => x.group_chat_id === g.group_chat_id.trim() && i !== edicao!.indice);
@@ -181,5 +182,14 @@ export function RadarGrupos() {
         )}
       </Modal>
     </div>
+  );
+}
+
+/** Equipe & RH › Grupos internos: os grupos de WhatsApp da equipe que o Agente Secreto interno acompanha. */
+export default function GruposInternos() {
+  return (
+    <PageContainer breadcrumb={[{ label: "Equipe & RH", path: "/app/equipe" }, { label: "Grupos internos" }]} title="Grupos internos (WhatsApp)" subtitle="Os grupos da equipe que o Agente Secreto acompanha: cada um tem um departamento e um responsável que recebe o aviso.">
+      <Conteudo />
+    </PageContainer>
   );
 }

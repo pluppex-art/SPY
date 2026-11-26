@@ -51,7 +51,7 @@ export const MODULES: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "solar", label: "Energia Solar", icon: Sun },
   { id: "varejo", label: "Ponto de Venda", icon: ShoppingCart },
   { id: "dev", label: "Engenharia & Sprints", icon: Code2 },
-  { id: "radar_grupos", label: "Radar de Grupos (vendido à parte)", icon: Radar },
+  { id: "agente_interno", label: "Agente Secreto Interno (vendido à parte)", icon: Radar },
 ];
 
 const DEFAULT_MODULES_BY_NICHE: Record<string, string[]> = {

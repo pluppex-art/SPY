@@ -1,4 +1,4 @@
-import { Rocket, LayoutDashboard, Users, Calculator, Columns3, Radar as RadarIcon, CheckSquare, Settings, Mail, Zap, BarChart2, PieChart, Brain, Wallet, FolderOpen, GraduationCap, BookOpen, Award, FileText, Megaphone, Edit3, Globe, Stethoscope, Sun, Calendar, Video, FlaskConical, BarChart3, Code2, FolderCode, Kanban, Bug, GitBranch, MonitorCheck, Building2, Server, Handshake, CalendarDays, CalendarCheck, TrendingUp, SlidersHorizontal, ShoppingCart, Boxes, ClipboardList, Wrench, Truck, GitCompare } from "lucide-react";
+import { Rocket, LayoutDashboard, Users, Calculator, Columns3, Radar as RadarIcon, CheckSquare, Settings, Mail, Zap, BarChart2, PieChart, Brain, Wallet, FolderOpen, GraduationCap, BookOpen, Award, FileText, Megaphone, Edit3, Globe, Stethoscope, Sun, Calendar, Video, FlaskConical, BarChart3, Code2, FolderCode, Kanban, Bug, GitBranch, MonitorCheck, Building2, Server, Handshake, CalendarDays, CalendarCheck, TrendingUp, SlidersHorizontal, ShoppingCart, Boxes, ClipboardList, Wrench, Truck, GitCompare, MessageSquare } from "lucide-react";
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../lib/featureFlags";
 
 /**
@@ -188,6 +188,7 @@ export const navSections = [
     items: [
       { name: "Colaboradores & RH", path: "/app/equipe", icon: Users },
       { name: "Calculadora trabalhista", path: "/app/equipe/calculadora", icon: Calculator },
+      { name: "Grupos internos (WhatsApp)", path: "/app/equipe/grupos", icon: MessageSquare, reqModule: "agente_interno" },
     ],
   },
   {

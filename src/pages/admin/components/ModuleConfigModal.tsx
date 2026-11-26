@@ -34,7 +34,7 @@ const MODULES_LIST = [
   { id: "solar", title: "Energia Solar", desc: "Análise de fatura por IA e projetos", icon: Sun, color: "text-yellow-500" },
   { id: "varejo", title: "Ponto de Venda", desc: "Venda direta no caixa e catálogo público", icon: ShoppingCart, color: "text-lime-500" },
   { id: "dev", title: "Engenharia & Sprints", desc: "Backlog tech e controle de releases", icon: Code2, color: "text-slate-500" },
-  { id: "radar_grupos", title: "Radar de Grupos", desc: "Grupos de WhatsApp por departamento (vendido à parte)", icon: RadarIcon, color: "text-fuchsia-500" },
+  { id: "agente_interno", title: "Agente Secreto Interno", desc: "Grupos de WhatsApp da equipe por departamento (vendido à parte)", icon: RadarIcon, color: "text-fuchsia-500" },
 ];
 
 export function ModuleConfigModal({ selectedTenant, onClose, onSaved }: ModuleConfigModalProps) {

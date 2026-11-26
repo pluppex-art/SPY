@@ -46,7 +46,7 @@ import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { registerProspeccaoCnaeRoutes } from "./server/prospeccaoCnae.js";
 import { registerApisBrasilRoutes } from "./server/apisBrasil.js";
 import { registerEmissaoJaRoutes } from "./server/emissaoja.js";
-import { registerRadarGruposRoutes } from "./server/radarGrupos.js";
+import { registerAgenteInternoGruposRoutes } from "./server/agenteInternoGrupos.js";
 import { registerFaturaPdfRoutes } from "./server/faturaPdf.js";
 import { registerKommoRoutes } from "./server/kommoSync.js";
 import { registerKommoWebhookRoutes } from "./server/kommoWebhook.js";
@@ -556,7 +556,7 @@ registerProspeccaoCnaeRoutes(app, { requireUser, limiter: rateLimit({ windowMs: 
 registerApisBrasilRoutes(app, { requireUser, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 // Emissão de NFS-e (emissaoja.com.br): a chave de cada empresa fica no servidor (app_settings), nunca no navegador.
 registerEmissaoJaRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }) });
-registerRadarGruposRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
+registerAgenteInternoGruposRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 // Fatura/recibo em PDF de uma receita, gerado no próprio servidor (sem serviço externo).
 registerFaturaPdfRoutes(app, { segredo: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.CRON_SECRET || "", appUrl: (process.env.PUBLIC_APP_URL || "http://localhost:3002").replace(/\/+$/, ""), requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }) });
 // Pesquisa externa (web) da Aurora para itens não identificados — a busca roda no n8n; só gera sugestões p/ revisão.

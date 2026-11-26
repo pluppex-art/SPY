@@ -21,7 +21,7 @@ const DEFAULT_MODULES: Record<string, boolean> = {
   marketing: true,
   engajamento: true,
   chatbot: false, // vendido à parte: só liga para quem contratou
-  radar_grupos: false, // vendido à parte: Radar de Grupos (grupos de WhatsApp acompanhados pelo Agente Secreto)
+  agente_interno: false, // vendido à parte: Agente Secreto interno (grupos de WhatsApp por departamento, em Equipe & RH)
   rh: true,
   bi: true,
   clinica: true,
@@ -52,7 +52,7 @@ const MODULE_DEFINITIONS = [
   { id: "solar", title: "Energia Solar", desc: "Análise de fatura por IA, dimensionamento e funil fotovoltaico", icon: Sun, category: "Vertical", color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20" },
   { id: "varejo", title: "Ponto de Venda", desc: "Carrinho de compras, baixa de estoque e catálogo compartilhável", icon: ShoppingCart, category: "Vertical", color: "text-lime-500 bg-lime-500/10 border-lime-500/20" },
   { id: "dev", title: "Engenharia & Sprints", desc: "Quadro de sprints, releases e backlog de demandas tech", icon: Code2, category: "Engenharia", color: "text-slate-500 bg-slate-500/10 border-slate-500/20" },
-  { id: "radar_grupos", title: "Radar de Grupos", desc: "Vendido à parte: acompanha grupos de WhatsApp por departamento e cria tarefas, OS e pedidos a partir das mensagens (aba Grupos no Radar)", icon: RadarIcon, category: "Inteligência", color: "text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20" },
+  { id: "agente_interno", title: "Agente Secreto Interno", desc: "Vendido à parte: acompanha os grupos de WhatsApp da equipe por departamento e cria tarefas, OS e pedidos a partir das mensagens (tela Grupos internos, em Equipe & RH)", icon: RadarIcon, category: "Gestão", color: "text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20" },
 ];
 
 export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesTabProps) {

@@ -1,13 +1,13 @@
 /**
- * Radar de Grupos (módulo vendido à parte): cada empresa cadastra os grupos de WhatsApp que o Agente Secreto interno
+ * Grupos internos do Agente Secreto (módulo vendido à parte, fica em Equipe & RH): cada empresa cadastra os grupos de WhatsApp que o Agente Secreto interno
  * (n8n) acompanha, com departamento e responsável. O n8n lê o mesmo cadastro em app_settings, chave "agente_interno_grupos"
  * ({ grupos: [{ group_chat_id, group_name, departamento, responsavel_*, notificar_*, ativo }] }), então a tela só escreve ali.
- * Só funciona para empresa com o módulo "radar_grupos" ligado em Admin > Módulos.
+ * Só funciona para empresa com o módulo "agente_interno" ligado em Admin > Módulos.
  */
 import type express from "express";
 
 const CHAVE = "agente_interno_grupos";
-export const MODULO = "radar_grupos";
+export const MODULO = "agente_interno";
 export const DEPARTAMENTOS = [
   { id: "marketing", nome: "Marketing" }, { id: "financeiro", nome: "Financeiro" }, { id: "dev", nome: "Dev" },
   { id: "trafego", nome: "Tráfego" }, { id: "implementacao", nome: "Implementação" }, { id: "conteudo", nome: "Conteúdo" },
@@ -71,7 +71,7 @@ export function sanitizarGrupos(lista: unknown, gravados: unknown[] = []): { ok:
 
 type Deps = { requireUser: any; requireTenantAdmin: any; resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>; supabaseService: any; limiter: any };
 
-export function registerRadarGruposRoutes(app: express.Express, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter }: Deps) {
+export function registerAgenteInternoGruposRoutes(app: express.Express, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter }: Deps) {
   /** Empresa que contratou o módulo? */
   async function contratado(tenantId: string): Promise<boolean> {
     const { data } = await supabaseService.from("tenants").select("modules").eq("id", tenantId).maybeSingle();
@@ -81,11 +81,11 @@ export function registerRadarGruposRoutes(app: express.Express, { requireUser, r
     if (!supabaseService) { res.status(503).json({ error: "Servidor sem acesso ao banco." }); return null; }
     const tenantId = await resolveRequestedTenantId(req, res);
     if (!tenantId) return null;
-    if (!(await contratado(tenantId))) { res.status(403).json({ error: "O Radar de Grupos não está contratado para esta empresa.", contratado: false }); return null; }
+    if (!(await contratado(tenantId))) { res.status(403).json({ error: "Os grupos internos do Agente Secreto não estão contratados para esta empresa.", contratado: false }); return null; }
     return tenantId;
   }
 
-  app.get("/api/radar-grupos", requireUser, limiter, async (req: any, res) => {
+  app.get("/api/agente-interno/grupos", requireUser, limiter, async (req: any, res) => {
     try {
       if (!supabaseService) return res.status(503).json({ error: "Servidor sem acesso ao banco." });
       const tenantId = await resolveRequestedTenantId(req, res);
@@ -94,10 +94,10 @@ export function registerRadarGruposRoutes(app: express.Express, { requireUser, r
       if (!(await contratado(tenantId))) return res.json({ contratado: false, grupos: [], departamentos: DEPARTAMENTOS });
       const { data } = await supabaseService.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", CHAVE).maybeSingle();
       res.json({ contratado: true, grupos: Array.isArray(data?.value?.grupos) ? data.value.grupos : [], departamentos: DEPARTAMENTOS });
-    } catch (e: any) { console.error("[radar-grupos/get]", e?.message); res.status(500).json({ error: "Não foi possível carregar os grupos." }); }
+    } catch (e: any) { console.error("[agente-interno-grupos/get]", e?.message); res.status(500).json({ error: "Não foi possível carregar os grupos." }); }
   });
 
-  app.put("/api/radar-grupos", requireUser, requireTenantAdmin, limiter, async (req: any, res) => {
+  app.put("/api/agente-interno/grupos", requireUser, requireTenantAdmin, limiter, async (req: any, res) => {
     try {
       const tenantId = await contexto(req, res);
       if (!tenantId) return;
@@ -116,8 +116,8 @@ export function registerRadarGruposRoutes(app: express.Express, { requireUser, r
       const { error } = atual?.id
         ? await supabaseService.from("app_settings").update({ value: valor }).eq("id", atual.id)
         : await supabaseService.from("app_settings").insert({ tenant_id: tenantId, key: CHAVE, value: valor });
-      if (error) { console.error("[radar-grupos/put]", error.message); return res.status(500).json({ error: "Não foi possível salvar os grupos." }); }
+      if (error) { console.error("[agente-interno-grupos/put]", error.message); return res.status(500).json({ error: "Não foi possível salvar os grupos." }); }
       res.json({ ok: true, grupos: r.grupos });
-    } catch (e: any) { console.error("[radar-grupos/put]", e?.message); res.status(500).json({ error: "Não foi possível salvar os grupos." }); }
+    } catch (e: any) { console.error("[agente-interno-grupos/put]", e?.message); res.status(500).json({ error: "Não foi possível salvar os grupos." }); }
   });
 }

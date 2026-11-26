@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sanitizarGrupo, sanitizarGrupos, registerRadarGruposRoutes } from "../../server/radarGrupos.js";
+import { sanitizarGrupo, sanitizarGrupos, registerAgenteInternoGruposRoutes } from "../../server/agenteInternoGrupos.js";
 
 const base = { group_chat_id: "120363000000000000@g.us", group_name: "Marketing time", departamento: "Marketing", responsavel_phone: "(11) 91234-5678" };
 const U = "11111111-1111-4111-8111-111111111111";
@@ -64,24 +64,24 @@ const mw = (_q: any, _r: any, n: any) => n && n();
 test("empresa sem o módulo: GET devolve contratado:false e PUT é 403 (nada é gravado)", async () => {
   const db: any = fakeDb({ crm: true });
   const { a, rotas } = app();
-  registerRadarGruposRoutes(a, { requireUser: mw, requireTenantAdmin: mw, resolveRequestedTenantId: async () => "t1", supabaseService: db, limiter: mw });
-  const g = res(); await rotas["GET /api/radar-grupos"]({}, g);
+  registerAgenteInternoGruposRoutes(a, { requireUser: mw, requireTenantAdmin: mw, resolveRequestedTenantId: async () => "t1", supabaseService: db, limiter: mw });
+  const g = res(); await rotas["GET /api/agente-interno/grupos"]({}, g);
   assert.equal(g.body.contratado, false); assert.deepEqual(g.body.grupos, []);
-  const p = res(); await rotas["PUT /api/radar-grupos"]({ body: { grupos: [base] } }, p);
+  const p = res(); await rotas["PUT /api/agente-interno/grupos"]({ body: { grupos: [base] } }, p);
   assert.equal(p.code, 403); assert.equal(db.calls.length, 0);
 });
 
 test("empresa com o módulo: lê e grava no mesmo cadastro que o n8n usa", async () => {
-  const db: any = fakeDb({ radar_grupos: true }, { id: "s1", value: { grupos: [{ ...base, group_chat_id: "120363000000000000@g.us", dev_project_id: "p1" }] } });
+  const db: any = fakeDb({ agente_interno: true }, { id: "s1", value: { grupos: [{ ...base, group_chat_id: "120363000000000000@g.us", dev_project_id: "p1" }] } });
   const { a, rotas } = app();
-  registerRadarGruposRoutes(a, { requireUser: mw, requireTenantAdmin: mw, resolveRequestedTenantId: async () => "t1", supabaseService: db, limiter: mw });
-  const g = res(); await rotas["GET /api/radar-grupos"]({}, g);
+  registerAgenteInternoGruposRoutes(a, { requireUser: mw, requireTenantAdmin: mw, resolveRequestedTenantId: async () => "t1", supabaseService: db, limiter: mw });
+  const g = res(); await rotas["GET /api/agente-interno/grupos"]({}, g);
   assert.equal(g.body.contratado, true); assert.equal(g.body.grupos.length, 1);
-  const p = res(); await rotas["PUT /api/radar-grupos"]({ body: { grupos: [{ ...base, group_name: "Novo nome" }] } }, p);
+  const p = res(); await rotas["PUT /api/agente-interno/grupos"]({ body: { grupos: [{ ...base, group_name: "Novo nome" }] } }, p);
   assert.equal(p.code, 200);
   assert.equal(db.calls[0].op, "update");
   assert.equal(db.calls[0].v.value.grupos[0].group_name, "Novo nome");
   assert.equal(db.calls[0].v.value.grupos[0].dev_project_id, "p1");
-  const ruim = res(); await rotas["PUT /api/radar-grupos"]({ body: { grupos: [{ ...base, departamento: "x" }] } }, ruim);
+  const ruim = res(); await rotas["PUT /api/agente-interno/grupos"]({ body: { grupos: [{ ...base, departamento: "x" }] } }, ruim);
   assert.equal(ruim.code, 400);
 });
