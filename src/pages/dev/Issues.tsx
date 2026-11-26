@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { useState } from 'react';
 import { Plus, AlertCircle, CheckCircle2, Circle, Clock, Flame, MessageSquare } from 'lucide-react';
 import { Card } from "../../components/ui/card";
@@ -35,6 +35,7 @@ export default function Issues() {
   const [filterSeverity, setFilterSeverity] = useState<'todos' | Severity>('todos');
   const [filterProject, setFilterProject] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const periodo = usePeriodoIndicadores("data de abertura da issue");
 
   const handleSaveIssue = async (data: NovaIssuePayload) => {
     await addIssue(data);
@@ -49,10 +50,11 @@ export default function Issues() {
     return matchSearch && matchStatus && matchSeverity && matchProject;
   });
 
-  const open = filtered.filter(i => i.status === 'aberto').length;
-  const inProgress = filtered.filter(i => i.status === 'em andamento').length;
-  const critical = filtered.filter(i => i.severity === 'crítico').length;
-  const closed = filtered.filter(i => i.status === 'fechado').length;
+  const base = periodo.filtrar(filtered, i => i.createdAtIso);
+  const open = base.filter(i => i.status === 'aberto').length;
+  const inProgress = base.filter(i => i.status === 'em andamento').length;
+  const critical = base.filter(i => i.severity === 'crítico').length;
+  const closed = base.filter(i => i.status === 'fechado').length;
 
   return (
     <PageContainer
@@ -69,6 +71,7 @@ export default function Issues() {
 
         <KpiFilterCard
           id="devIssues"
+          periodo={periodo}
           kpis={[
             { label: "Abertos", value: open, icon: Circle, tone: "info" },
             { label: "Em Andamento", value: inProgress, icon: AlertCircle, tone: "warning" },

@@ -1,5 +1,5 @@
 import { useEducacaoConfig } from "../../lib/modules/educacaoConfig";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { GraduationCap, Users, BookOpen, CheckCircle2, Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -21,6 +21,7 @@ interface Turma {
   startDate: string;
   shift: "Manhã" | "Tarde" | "Noite";
   progress: number;
+  createdAt?: string;
 }
 
 export default function Turmas() {
@@ -33,6 +34,7 @@ export default function Turmas() {
   const [filterCurso, setFilterCurso] = useState("");
   const [selectedTurma, setSelectedTurma] = useState<Turma | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const periodo = usePeriodoIndicadores("data de cadastro");
 
   const turmas: Turma[] = rawTurmas.map(t => ({
     id: t.id,
@@ -47,6 +49,7 @@ export default function Turmas() {
     startDate: t.data_inicio || t.startDate || "",
     shift: t.shift || "Manhã",
     progress: t.progress || 0,
+    createdAt: t.created_at,
   }));
 
   if (selectedTurma) {
@@ -76,10 +79,11 @@ export default function Turmas() {
     (!filterTurno || t.shift === filterTurno) &&
     (!filterCurso || t.subject === filterCurso)
   );
-  const turmasAtivas = filteredTurmas.filter(t => t.status === "Ativa").length;
-  const totalAlunos = filteredTurmas.reduce((acc, t) => acc + (t.students || 0), 0);
-  const totalVagas = filteredTurmas.reduce((acc, t) => acc + (t.capacity || 0), 0);
-  const vagasDisponiveis = filteredTurmas.reduce((acc, t) => acc + Math.max(0, (t.capacity || 0) - (t.students || 0)), 0);
+  const baseIndicadores = periodo.filtrar(filteredTurmas, t => t.createdAt);
+  const turmasAtivas = baseIndicadores.filter(t => t.status === "Ativa").length;
+  const totalAlunos = baseIndicadores.reduce((acc, t) => acc + (t.students || 0), 0);
+  const totalVagas = baseIndicadores.reduce((acc, t) => acc + (t.capacity || 0), 0);
+  const vagasDisponiveis = baseIndicadores.reduce((acc, t) => acc + Math.max(0, (t.capacity || 0) - (t.students || 0)), 0);
   const ocupacao = totalVagas === 0 ? "—" : `${Math.round((totalAlunos / totalVagas) * 100)}%`;
 
   return (
@@ -100,6 +104,7 @@ export default function Turmas() {
       <div className="max-w-[1700px] mx-auto space-y-6 pb-12">
         <KpiFilterCard
           id="eduTurmas"
+          periodo={periodo}
           kpis={[
             { label: "Turmas Ativas", value: turmasAtivas, icon: GraduationCap, tone: "primary" },
             { label: "Alunos Matriculados", value: totalAlunos.toLocaleString("pt-BR"), icon: Users, tone: "success" },

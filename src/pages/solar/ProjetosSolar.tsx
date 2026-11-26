@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { cityKey, groupCities } from "../../lib/leadLocation";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
@@ -64,6 +64,7 @@ export default function ProjetosSolar() {
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
+  const periodo = usePeriodoIndicadores("data de cadastro do projeto");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterCidade, setFilterCidade] = useState("");
@@ -195,6 +196,7 @@ export default function ProjetosSolar() {
     const matchCidade = !filterCidade || cityKey(p.cidade) === cityKey(filterCidade);
     return matchSearch && matchStatus && matchCidade;
   });
+  const base = periodo.filtrar(filtered, (p) => p.data);
 
   return (
     <PageContainer
@@ -224,11 +226,12 @@ export default function ProjetosSolar() {
       <KpiFilterCard
         id="solarProjetos"
         className="mb-4"
+        periodo={periodo}
         kpis={[
-          { label: "Projetos", value: filtered.length, icon: Sun, tone: "primary" },
-          { label: "Capacidade Total", value: `${filtered.reduce((s, p) => s + p.potenciaKwp, 0).toFixed(1)} kWp`, icon: Zap, tone: "warning" },
-          { label: "Geração Mensal Est.", value: `${filtered.reduce((s, p) => s + p.geracaoMensalKwh, 0).toLocaleString("pt-BR")} kWh`, icon: Clock, tone: "info" },
-          { label: "VGV em Contratos", value: `R$ ${filtered.reduce((s, p) => s + p.valorContrato, 0).toLocaleString("pt-BR")}`, icon: DollarSign, tone: "success" },
+          { label: "Projetos", value: base.length, icon: Sun, tone: "primary" },
+          { label: "Capacidade Total", value: `${base.reduce((s, p) => s + p.potenciaKwp, 0).toFixed(1)} kWp`, icon: Zap, tone: "warning" },
+          { label: "Geração Mensal Est.", value: `${base.reduce((s, p) => s + p.geracaoMensalKwh, 0).toLocaleString("pt-BR")} kWh`, icon: Clock, tone: "info" },
+          { label: "VGV em Contratos", value: `R$ ${base.reduce((s, p) => s + p.valorContrato, 0).toLocaleString("pt-BR")}`, icon: DollarSign, tone: "success" },
         ]}
         activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterCidade ? 1 : 0)}
         onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterCidade(""); }}

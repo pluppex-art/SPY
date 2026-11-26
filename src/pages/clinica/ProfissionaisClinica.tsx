@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { Stethoscope, Plus, Calendar, Users, Award as AwardIcon, Award, Trash2, Download } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -19,6 +19,7 @@ interface ProfissionalItem {
   email: string;
   atendimentosMes: number;
   status: "Ativo" | "Férias / Licença" | "Inativo";
+  createdAt?: string;
 }
 
 function rowToProfissional(row: any): ProfissionalItem {
@@ -31,6 +32,7 @@ function rowToProfissional(row: any): ProfissionalItem {
     email: row.email || "",
     atendimentosMes: row.atendimentos_mes ?? 0,
     status: row.status,
+    createdAt: row.created_at,
   };
 }
 
@@ -174,6 +176,9 @@ export default function ProfissionaisClinica() {
     return matchSearch && matchStatus;
   });
 
+  const periodo = usePeriodoIndicadores("data de cadastro");
+  const baseIndicadores = periodo.filtrar(filtered, p => p.createdAt);
+
   return (
     <PageContainer
       title="Corpo Clínico & Profissionais"
@@ -195,11 +200,12 @@ export default function ProfissionaisClinica() {
     >
       <KpiFilterCard
         id="clinicaProfissionais"
+        periodo={periodo}
         className="mb-4"
         kpis={[
-          { label: "Especialistas", value: filtered.length, icon: Stethoscope, tone: "primary" },
-          { label: "Ativos", value: filtered.filter(p => p.status === "Ativo").length, icon: Users, tone: "success" },
-          { label: "Especialidades", value: new Set(filtered.map(p => p.especialidade).filter(Boolean)).size, icon: AwardIcon, tone: "accent" },
+          { label: "Especialistas", value: baseIndicadores.length, icon: Stethoscope, tone: "primary" },
+          { label: "Ativos", value: baseIndicadores.filter(p => p.status === "Ativo").length, icon: Users, tone: "success" },
+          { label: "Especialidades", value: new Set(baseIndicadores.map(p => p.especialidade).filter(Boolean)).size, icon: AwardIcon, tone: "accent" },
           { label: "Consultas este Mês", value: filtered.reduce((sum, p) => sum + p.atendimentosMes, 0), icon: Calendar, tone: "info" },
         ]}
         activeCount={activeFilters}

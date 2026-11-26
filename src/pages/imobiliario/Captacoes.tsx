@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { ClipboardList, Plus, MapPin, DollarSign, User, CheckCircle2, Clock, Trash2, Download } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -57,6 +57,7 @@ export default function Captacoes() {
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
+  const periodo = usePeriodoIndicadores("data da captação");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterTipo, setFilterTipo] = useState("");
@@ -149,10 +150,11 @@ export default function Captacoes() {
     const matchCorretor = !filterCorretor || c.corretor === filterCorretor;
     return matchSearch && matchStatus && matchTipo && matchCorretor;
   });
+  const base = periodo.filtrar(filtered, (c) => c.data);
 
   const tiposList = Array.from(new Set(captacoes.map(c => c.tipo).filter(Boolean))).sort();
   const corretoresList = Array.from(new Set(captacoes.map(c => c.corretor).filter(Boolean))).sort();
-  const totalVGV = filtered.reduce((acc, c) => acc + c.valorPretendido, 0);
+  const totalVGV = base.reduce((acc, c) => acc + c.valorPretendido, 0);
 
   const handleExportCSV = () => {
     if (filtered.length === 0) {
@@ -198,11 +200,12 @@ export default function Captacoes() {
     >
       <KpiFilterCard className="mb-4"
         id="imobCaptacoes"
+        periodo={periodo}
         kpis={[
-          { label: "Captações", value: filtered.length, icon: ClipboardList, tone: "primary" },
+          { label: "Captações", value: base.length, icon: ClipboardList, tone: "primary" },
           { label: "VGV Pretendido", value: `R$ ${(totalVGV / 1e6).toFixed(2)}M`, icon: DollarSign, tone: "warning" },
-          { label: "Em andamento", value: filtered.filter(c => c.status !== "Ativo no Catálogo" && c.status !== "Recusado").length, icon: Clock, tone: "info" },
-          { label: "Taxa de Conclusão", value: filtered.length > 0 ? `${Math.round((filtered.filter(c => c.status === "Ativo no Catálogo").length / filtered.length) * 100)}%` : "0%", icon: CheckCircle2, tone: "success" },
+          { label: "Em andamento", value: base.filter(c => c.status !== "Ativo no Catálogo" && c.status !== "Recusado").length, icon: Clock, tone: "info" },
+          { label: "Taxa de Conclusão", value: base.length > 0 ? `${Math.round((base.filter(c => c.status === "Ativo no Catálogo").length / base.length) * 100)}%` : "0%", icon: CheckCircle2, tone: "success" },
         ]}
         activeCount={(search.trim() ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterTipo ? 1 : 0) + (filterCorretor ? 1 : 0)}
         onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterTipo(""); setFilterCorretor(""); }}

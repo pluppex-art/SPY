@@ -10,8 +10,9 @@ import { useLocalization } from "../../contexts/LocalizationContext";
 import { NewLeadModal } from "../../components/ui/modals/crm/NewLeadModal";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import { isLeadOpen } from "../../lib/leadStatus";
+import { leadDateIso } from "../../lib/leadDate";
 import { normalizeText } from "../../lib/utils";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 
 import { HelpTip } from "../../components/ui/help-tip";
 const PAGE_SIZE = 50;
@@ -63,13 +64,16 @@ export default function Oportunidades() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
+  const periodo = usePeriodoIndicadores("data de cadastro do lead");
+  const base = useMemo(() => periodo.filtrar(filtered, leadDateIso), [filtered, periodo.filtrar]);
+
   const totalPipeline = useMemo(() => {
-    return filtered.reduce((acc, curr) => acc + curr.numericValue, 0);
-  }, [filtered]);
+    return base.reduce((acc, curr) => acc + curr.numericValue, 0);
+  }, [base]);
 
   const closedWon = useMemo(() => {
-    return filtered.filter(op => op.status === "Fechado");
-  }, [filtered]);
+    return base.filter(op => op.status === "Fechado");
+  }, [base]);
 
   const totalWon = useMemo(() => {
     return closedWon.reduce((acc, curr) => acc + curr.numericValue, 0);
@@ -95,13 +99,14 @@ export default function Oportunidades() {
     >
       <KpiFilterCard className="mb-4"
         id="crmOportunidades"
+        periodo={periodo}
         activeCount={activeCount}
         onClear={clearFilters}
         kpis={[
           { label: "Total na Central de Vendas", value: formatCurrency(totalPipeline), icon: DollarSign, tone: "primary" },
           { label: "Ganhos / Fechados", value: formatCurrency(totalWon), icon: TrendingUp, tone: "success" },
-          { label: "Oportunidades Abertas", value: filtered.filter(o => isLeadOpen(o.status)).length, icon: Clock, tone: "warning" },
-          { label: "Taxa de Sucesso", value: filtered.length > 0 ? `${Math.round((closedWon.length / filtered.length) * 100)}%` : "0%", icon: CheckCircle2, tone: "accent" },
+          { label: "Oportunidades Abertas", value: base.filter(o => isLeadOpen(o.status)).length, icon: Clock, tone: "warning" },
+          { label: "Taxa de Sucesso", value: base.length > 0 ? `${Math.round((closedWon.length / base.length) * 100)}%` : "0%", icon: CheckCircle2, tone: "accent" },
         ]}
       >
         <FilterBar>

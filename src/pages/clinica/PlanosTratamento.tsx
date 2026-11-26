@@ -3,7 +3,7 @@ import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { FileHeart, Plus, DollarSign, Stethoscope, CheckCircle2, Clock, Trash2, Download } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -212,6 +212,9 @@ export default function PlanosTratamento() {
     return matchSearch && matchStatus;
   });
 
+  const periodo = usePeriodoIndicadores("data do plano");
+  const baseIndicadores = periodo.filtrar(filtered, p => p.data);
+
   return (
     <PageContainer
       title="Planos de Tratamento & Orçamentos"
@@ -233,12 +236,13 @@ export default function PlanosTratamento() {
     >
       <KpiFilterCard
         id="clinicaPlanosTratamento"
+        periodo={periodo}
         className="mb-4"
         kpis={[
-          { label: "Planos", value: filtered.length, icon: FileHeart, tone: "primary" },
-          { label: "Em Andamento", value: filtered.filter(p => p.status === "Em Andamento").length, icon: Clock, tone: "warning" },
-          { label: "Valor Total", value: formatBRL(filtered.reduce((sum, p) => sum + p.valorTotal, 0)), icon: DollarSign, tone: "success" },
-          { label: "Concluídos", value: filtered.filter(p => p.status === "Concluído").length, icon: CheckCircle2, tone: "info" },
+          { label: "Planos", value: baseIndicadores.length, icon: FileHeart, tone: "primary" },
+          { label: "Em Andamento", value: baseIndicadores.filter(p => p.status === "Em Andamento").length, icon: Clock, tone: "warning" },
+          { label: "Valor Total", value: formatBRL(baseIndicadores.reduce((sum, p) => sum + p.valorTotal, 0)), icon: DollarSign, tone: "success" },
+          { label: "Concluídos", value: baseIndicadores.filter(p => p.status === "Concluído").length, icon: CheckCircle2, tone: "info" },
         ]}
         activeCount={activeFilters}
         onClear={clearFilters}

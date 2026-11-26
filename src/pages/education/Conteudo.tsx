@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_DOT } from "../../hooks/useKanbanConfig";
 import { Layers, FileSearch, Star, Download, Plus, List as ListIcon, LayoutGrid } from "lucide-react";
@@ -22,13 +22,14 @@ interface ContentItem {
   lastUpdate: string;
   accessCount: number;
   status: "Publicado" | "Rascunho" | "Em Revisão" | "Arquivado";
+  createdAt?: string;
 }
 
 function rowToContent(r: any): ContentItem {
   return {
     id: r.id, title: r.title, type: r.type, module: r.module || "", course: r.course || "",
     duration: r.duration || undefined, lastUpdate: r.last_update || "", accessCount: r.access_count || 0,
-    status: r.status,
+    status: r.status, createdAt: r.created_at,
   };
 }
 
@@ -81,6 +82,8 @@ export default function Conteudo() {
     if (selectedCategory === "Todos") return true;
     return c.type === typeMap[selectedCategory];
   });
+  const periodo = usePeriodoIndicadores("data de cadastro");
+  const baseIndicadores = periodo.filtrar(filteredContent, c => c.createdAt);
   const cursoOpcoes = Array.from(new Set(content.map(c => c.course).filter(Boolean))).sort();
 
   const columns = readKanbanConfig(appSettings, KANBAN_KEYS.educacao).map(c => ({
@@ -119,11 +122,12 @@ export default function Conteudo() {
       <div className="max-w-[1700px] mx-auto space-y-6 pb-10">
         <KpiFilterCard
           id="eduConteudo"
+          periodo={periodo}
           kpis={[
-            { label: "Ativos Totais", value: filteredContent.length, icon: Layers, tone: "primary" },
-            { label: "Em Revisão", value: filteredContent.filter(c => c.status === "Em Revisão").length, icon: FileSearch, tone: "info" },
-            { label: "Publicados", value: filteredContent.filter(c => c.status === "Publicado").length, icon: Star, tone: "success" },
-            { label: "Em Rascunho", value: filteredContent.filter(c => c.status === "Rascunho").length, icon: Download, tone: "warning" },
+            { label: "Ativos Totais", value: baseIndicadores.length, icon: Layers, tone: "primary" },
+            { label: "Em Revisão", value: baseIndicadores.filter(c => c.status === "Em Revisão").length, icon: FileSearch, tone: "info" },
+            { label: "Publicados", value: baseIndicadores.filter(c => c.status === "Publicado").length, icon: Star, tone: "success" },
+            { label: "Em Rascunho", value: baseIndicadores.filter(c => c.status === "Rascunho").length, icon: Download, tone: "warning" },
           ]}
           activeCount={(search ? 1 : 0) + (selectedCategory !== "Todos" ? 1 : 0) + (filterStatus ? 1 : 0) + (filterCurso ? 1 : 0)}
           onClear={() => { setSearch(""); setSelectedCategory("Todos"); setFilterStatus(""); setFilterCurso(""); }}

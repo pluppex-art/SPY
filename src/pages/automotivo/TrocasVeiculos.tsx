@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { lerValorPositivo } from "../../lib/dinheiro";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
@@ -81,6 +81,7 @@ export default function TrocasVeiculos() {
     });
   }, [activeTenantId]);
 
+  const periodo = usePeriodoIndicadores("data de registro da negociação");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterPagamento, setFilterPagamento] = useState("");
@@ -189,6 +190,7 @@ export default function TrocasVeiculos() {
     const matchExtra = !filterPagamento || t.formaPagamento === filterPagamento;
     return matchSearch && matchStatus && matchExtra;
   });
+  const base = periodo.filtrar(filtered, (t) => t.data);
 
   return (
     <PageContainer
@@ -203,11 +205,12 @@ export default function TrocasVeiculos() {
       <KpiFilterCard
         id="autoTrocas"
         className="mb-4"
+        periodo={periodo}
         kpis={[
-          { label: "Trocas", value: filtered.length, icon: ArrowRightLeft, tone: "primary" },
-          { label: "Diferença em Aberto", value: `R$ ${(filtered.reduce((s, t) => s + t.diferenca, 0) / 1000).toFixed(0)}k`, icon: DollarSign, tone: "success" },
-          { label: "Aprovadas", value: filtered.filter(t => t.status === "Aprovado").length, icon: CheckCircle2, tone: "info" },
-          { label: "Doc. Pendente", value: filtered.filter(t => t.status === "Documentação Pendente").length, icon: TrendingUp, tone: "warning" },
+          { label: "Trocas", value: base.length, icon: ArrowRightLeft, tone: "primary" },
+          { label: "Diferença em Aberto", value: `R$ ${(base.reduce((s, t) => s + t.diferenca, 0) / 1000).toFixed(0)}k`, icon: DollarSign, tone: "success" },
+          { label: "Aprovadas", value: base.filter(t => t.status === "Aprovado").length, icon: CheckCircle2, tone: "info" },
+          { label: "Doc. Pendente", value: base.filter(t => t.status === "Documentação Pendente").length, icon: TrendingUp, tone: "warning" },
         ]}
         activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterPagamento ? 1 : 0)}
         onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterPagamento(""); }}

@@ -7,8 +7,9 @@ import { Pagination } from "../../components/ui/Pagination";
 import { useData } from "../../contexts/DataContext";
 import { LeadDetailsModal } from "../../components/ui/LeadDetailsModal";
 import { isLeadOpen } from "../../lib/leadStatus";
+import { leadDateIso } from "../../lib/leadDate";
 import { normalizeText, whatsappDigits } from "../../lib/utils";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 
 const PAGE_SIZE = 50;
 
@@ -47,7 +48,9 @@ export default function FollowUps() {
     );
   }, [followUpList, search, sellerFilter, urgenciaFilter]);
 
-  const urgentCount = useMemo(() => filtered.filter(l => l.isUrgent).length, [filtered]);
+  const periodo = usePeriodoIndicadores("data de cadastro do lead");
+  const base = periodo.filtrar(filtered, leadDateIso);
+  const urgentCount = base.filter(l => l.isUrgent).length;
   const sellersList = useMemo(() => uniqueSellers(followUpList.map(l => l.seller)), [followUpList]);
   const activeCount = (search ? 1 : 0) + (sellerFilter ? 1 : 0) + (urgenciaFilter ? 1 : 0);
   const clearFilters = () => { setSearch(""); setSellerFilter(""); setUrgenciaFilter(""); };
@@ -66,13 +69,14 @@ export default function FollowUps() {
     >
       <KpiFilterCard className="mb-4"
         id="crmFollowUps"
+        periodo={periodo}
         activeCount={activeCount}
         onClear={clearFilters}
         kpis={[
-          { label: "Total em Retomada", value: filtered.length, icon: Clock, tone: "primary" },
+          { label: "Total em Retomada", value: base.length, icon: Clock, tone: "primary" },
           { label: "Atenção / Urgentes", value: urgentCount, icon: AlertCircle, tone: "danger" },
-          { label: "Parados > 3 Dias", value: filtered.filter(l => l.daysInactive >= 3).length, icon: Calendar, tone: "warning" },
-          { label: "Leads Quentes", value: filtered.filter(l => l.temperature === "quente").length, icon: CheckCircle2, tone: "success" },
+          { label: "Parados > 3 Dias", value: base.filter(l => l.daysInactive >= 3).length, icon: Calendar, tone: "warning" },
+          { label: "Leads Quentes", value: base.filter(l => l.temperature === "quente").length, icon: CheckCircle2, tone: "success" },
         ]}
       >
         <FilterBar>

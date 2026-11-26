@@ -5,7 +5,7 @@ import { PageContainer } from "../../components/PageContainer";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { ImplementationProgressBar } from "../../components/implementacao/ImplementationProgressBar";
 import { ImplementacoesKanban, type KanbanColumnDef } from "../../components/implementacao/ImplementacoesKanban";
 import { useData } from "../../contexts/DataContext";
@@ -110,15 +110,18 @@ export default function Implementacoes() {
     [linhas]
   );
 
+  // "Aguardando início" fica fora do período: ainda não existe implementação (nem data) para esses clientes.
+  const periodo = usePeriodoIndicadores("data de criação da implementação");
   const kpis = useMemo(() => {
-    const abertas = linhasBase.filter((l) => l.impl.status !== "Concluída");
+    const base = periodo.filtrar(linhasBase, (l) => l.impl.created_at);
+    const abertas = base.filter((l) => l.impl.status !== "Concluída");
     const media = abertas.length === 0 ? 0 : Math.round(abertas.reduce((s, l) => s + l.progresso.percent, 0) / abertas.length);
     return {
       abertas: abertas.length,
-      concluidas: linhasBase.length - abertas.length,
+      concluidas: base.length - abertas.length,
       media,
     };
-  }, [linhasBase]);
+  }, [linhasBase, periodo.filtrar]);
 
   const filtradas = useMemo(
     () => linhasBase.filter((l) => filtro === "Todas" || l.impl.status === filtro),
@@ -250,6 +253,7 @@ export default function Implementacoes() {
 
         <KpiFilterCard
           id="crmImplementacoes"
+          periodo={periodo}
           activeCount={activeCount}
           onClear={limparFiltros}
           kpis={[

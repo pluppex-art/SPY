@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FolderCode, Plus, Clock, MoreHorizontal, Star, Bug } from 'lucide-react';
@@ -40,6 +40,7 @@ export default function Projetos() {
   const [filterStatus, setFilterStatus] = useState('Todos');
   const [filterStack, setFilterStack] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const periodo = usePeriodoIndicadores("data de criação do projeto");
 
   const handleSaveProjeto = async (data: NovoProjetoPayload) => {
     await addProject(data);
@@ -55,7 +56,8 @@ export default function Projetos() {
     return matchSearch && matchStatus && matchStack;
   });
 
-  const avgProgress = filtered.length ? Math.round(filtered.reduce((a, p) => a + p.progress, 0) / filtered.length) : 0;
+  const base = periodo.filtrar(filtered, p => p.createdAt);
+  const avgProgress = base.length ? Math.round(base.reduce((a, p) => a + p.progress, 0) / base.length) : 0;
 
   return (
     <PageContainer
@@ -72,10 +74,11 @@ export default function Projetos() {
 
         <KpiFilterCard
           id="devProjetos"
+          periodo={periodo}
           kpis={[
-            { label: "Projetos", value: filtered.length, icon: FolderCode, tone: "primary" },
-            { label: "Em Produção", value: filtered.filter(p => p.status === 'Em Produção').length, icon: Star, tone: "success" },
-            { label: "Issues Abertas", value: filtered.reduce((a, p) => a + (p.openIssues || 0), 0), icon: Bug, tone: "warning" },
+            { label: "Projetos", value: base.length, icon: FolderCode, tone: "primary" },
+            { label: "Em Produção", value: base.filter(p => p.status === 'Em Produção').length, icon: Star, tone: "success" },
+            { label: "Issues Abertas", value: base.reduce((a, p) => a + (p.openIssues || 0), 0), icon: Bug, tone: "warning" },
             { label: "Progresso Médio", value: `${avgProgress}%`, icon: Clock, tone: "info" },
           ]}
           activeCount={(search ? 1 : 0) + (filterStatus !== 'Todos' ? 1 : 0) + (filterStack ? 1 : 0)}

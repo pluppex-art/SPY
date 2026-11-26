@@ -17,6 +17,8 @@ export interface TeamMember {
   cargos?: string[];
   /** Meta mensal de receita (R$) — alimenta "meta x realizado" em Central de Receita > Vendedores. */
   metaMensal?: number;
+  /** Data do cadastro (`created_at`), usada no período dos indicadores. */
+  createdAt?: string;
 }
 
 export interface Squad {
@@ -44,6 +46,7 @@ function rowToMember(row: any, idx: number): TeamMember {
     squad: row.squad || 'Sem squad',
     cargos: Array.isArray(row.cargos) ? row.cargos : [],
     metaMensal: Number(row.meta_mensal) || 0,
+    createdAt: row.created_at,
   };
 }
 

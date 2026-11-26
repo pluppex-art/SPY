@@ -302,7 +302,7 @@ function AppContent() {
           <Route path="ia" element={<ProtectedRoute requireModule="aurora"><SettingsLayout /></ProtectedRoute>}>
             <Route index element={<VisaoGeralIA />} />
           </Route>
-          <Route path="conhecimento" element={<SettingsLayout />}>
+          <Route path="conhecimento" element={<ProtectedRoute requireMaster><SettingsLayout /></ProtectedRoute>}>
             <Route index element={<ConhecimentoSurfSense />} />
           </Route>
 

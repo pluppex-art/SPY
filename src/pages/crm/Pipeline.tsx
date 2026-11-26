@@ -209,6 +209,7 @@ export default function Pipeline() {
             (components/ui/kpi-filter-card, o mesmo das demais páginas). */}
         <KpiFilterCard
           id="pipeline"
+          periodo={{ de: dateFrom, ate: dateTo, setDe: setDateFrom, setAte: setDateTo, campo: "data de cadastro do lead" }}
           search={<FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar negócios..." />}
           activeCount={activeFilterCount}
           onClear={clearFilters}

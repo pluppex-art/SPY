@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { Plus, Pencil, Trash2, CheckCircle2, XCircle, AlertTriangle, UserCheck, Users, UserX, Network, Briefcase } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../../../components/ui/kpi-filter-card";
 import { motion } from "motion/react";
 import { TeamMember } from "../../hooks/useEquipe";
 
@@ -121,6 +121,9 @@ export function EquipeMembros({
     return true;
   });
 
+  const periodo = usePeriodoIndicadores("data de cadastro");
+  const base = periodo.filtrar(displayedTeam, (m) => m.createdAt);
+
   const confirmDelete = () => {
     if (memberToDelete) {
       onDeleteMember(memberToDelete.id);
@@ -155,11 +158,12 @@ export function EquipeMembros({
 
       <KpiFilterCard
         id="opsEquipeMembros"
+        periodo={periodo}
         kpis={[
-          { label: "Colaboradores", value: displayedTeam.length, icon: Users, tone: "primary" },
-          { label: "Ativos", value: displayedTeam.filter((m) => m.status === "Ativo").length, icon: UserCheck, tone: "success" },
-          { label: "Inativos", value: displayedTeam.filter((m) => m.status !== "Ativo").length, icon: UserX, tone: "neutral" },
-          { label: "Squads", value: new Set(displayedTeam.map((m) => m.squad).filter(Boolean)).size, icon: Network, tone: "info" },
+          { label: "Colaboradores", value: base.length, icon: Users, tone: "primary" },
+          { label: "Ativos", value: base.filter((m) => m.status === "Ativo").length, icon: UserCheck, tone: "success" },
+          { label: "Inativos", value: base.filter((m) => m.status !== "Ativo").length, icon: UserX, tone: "neutral" },
+          { label: "Squads", value: new Set(base.map((m) => m.squad).filter(Boolean)).size, icon: Network, tone: "info" },
         ]}
         activeCount={(memberSearch.trim() ? 1 : 0) + (statusFilter !== "todos" ? 1 : 0) + (squadFilter ? 1 : 0)}
         onClear={() => { onMemberSearchChange(""); setStatusFilter("todos"); setSquadFilter(""); }}

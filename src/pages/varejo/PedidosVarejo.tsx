@@ -3,7 +3,7 @@ import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { ShoppingBag, DollarSign, CheckCircle2, Package, Plus, Trash2, Truck, CreditCard } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -32,6 +32,7 @@ export default function PedidosVarejo() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPagto, setFilterPagto] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const periodo = usePeriodoIndicadores("data do pedido");
 
   // Form state
   const [cliente, setCliente] = useState("");
@@ -195,11 +196,12 @@ export default function PedidosVarejo() {
     () => Array.from(new Set(pedidos.map(p => p.formaPagto).filter(Boolean))).sort(),
     [pedidos],
   );
-  const faturamentoTotal = filtered.filter(p => p.status !== "Cancelado").reduce((s, p) => s + (Number(p.total) || 0), 0);
-  const emAberto = filtered.filter(p => p.status === "Pago / Separando" || p.status === "Em Trânsito / Entrega").length;
-  const concluidos = filtered.filter(p => p.status === "Entregue / Concluído").length;
-  const ticketMedio = filtered.filter(p => p.status !== "Cancelado").length > 0
-    ? faturamentoTotal / filtered.filter(p => p.status !== "Cancelado").length
+  const base = periodo.filtrar(filtered, p => p.created_at);
+  const faturamentoTotal = base.filter(p => p.status !== "Cancelado").reduce((s, p) => s + (Number(p.total) || 0), 0);
+  const emAberto = base.filter(p => p.status === "Pago / Separando" || p.status === "Em Trânsito / Entrega").length;
+  const concluidos = base.filter(p => p.status === "Entregue / Concluído").length;
+  const ticketMedio = base.filter(p => p.status !== "Cancelado").length > 0
+    ? faturamentoTotal / base.filter(p => p.status !== "Cancelado").length
     : 0;
   const activeFilters = (search.trim() ? 1 : 0) + (filterStatus ? 1 : 0) + (filterPagto ? 1 : 0);
   const limparFiltros = () => { setSearch(""); setFilterStatus(""); setFilterPagto(""); };
@@ -224,11 +226,12 @@ export default function PedidosVarejo() {
     >
       <KpiFilterCard
         id="varejoPedidos"
+        periodo={periodo}
         className="mb-4"
         activeCount={activeFilters}
         onClear={limparFiltros}
         kpis={[
-          { label: "Pedidos", value: filtered.length, icon: ShoppingBag, tone: "primary" },
+          { label: "Pedidos", value: base.length, icon: ShoppingBag, tone: "primary" },
           { label: "Faturamento", value: formatBRL(faturamentoTotal), icon: DollarSign, tone: "success", hint: "Exclui cancelados" },
           { label: "Em separação / envio", value: emAberto, icon: Truck, tone: emAberto > 0 ? "warning" : "neutral" },
           { label: "Concluídos", value: concluidos, icon: CheckCircle2, tone: "info" },

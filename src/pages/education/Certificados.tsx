@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { Award, Plus, ShieldCheck, RefreshCw, Star, Search, CheckCircle2, XCircle, Download } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -17,10 +17,11 @@ interface Certificate {
   code: string;
   status: "Emitido" | "Processando" | "Revogado";
   grade: string;
+  createdAt?: string;
 }
 
 function rowToCert(r: any): Certificate {
-  return { id: r.id, student: r.student || "", course: r.course || "", issueDate: r.issue_date || "", code: r.code || "", status: r.status, grade: r.grade || "" };
+  return { id: r.id, student: r.student || "", course: r.course || "", issueDate: r.issue_date || "", code: r.code || "", status: r.status, grade: r.grade || "", createdAt: r.created_at };
 }
 
 export default function Certificados() {
@@ -95,7 +96,9 @@ export default function Certificados() {
     (!filterStatus || c.status === filterStatus) &&
     (!filterCurso || c.course === filterCurso)
   );
-  const notas = filteredCerts.map(c => parseFloat(String(c.grade).replace(",", "."))).filter(n => !Number.isNaN(n));
+  const periodo = usePeriodoIndicadores("data de cadastro");
+  const baseIndicadores = periodo.filtrar(filteredCerts, c => c.createdAt);
+  const notas = baseIndicadores.map(c => parseFloat(String(c.grade).replace(",", "."))).filter(n => !Number.isNaN(n));
   const mediaNotas = notas.length ? (notas.reduce((a, b) => a + b, 0) / notas.length).toFixed(1) : "—";
 
   return (
@@ -130,11 +133,12 @@ export default function Certificados() {
       <div className="max-w-[1700px] mx-auto space-y-8 pb-10">
         <KpiFilterCard
           id="eduCertificados"
+          periodo={periodo}
           kpis={[
-            { label: "Certificados", value: filteredCerts.length, icon: Award, tone: "primary" },
-            { label: "Emitidos", value: filteredCerts.filter(c => c.status === "Emitido").length, icon: CheckCircle2, tone: "success" },
-            { label: "Processando", value: filteredCerts.filter(c => c.status === "Processando").length, icon: RefreshCw, tone: "info" },
-            { label: "Revogados", value: filteredCerts.filter(c => c.status === "Revogado").length, icon: XCircle, tone: "danger" },
+            { label: "Certificados", value: baseIndicadores.length, icon: Award, tone: "primary" },
+            { label: "Emitidos", value: baseIndicadores.filter(c => c.status === "Emitido").length, icon: CheckCircle2, tone: "success" },
+            { label: "Processando", value: baseIndicadores.filter(c => c.status === "Processando").length, icon: RefreshCw, tone: "info" },
+            { label: "Revogados", value: baseIndicadores.filter(c => c.status === "Revogado").length, icon: XCircle, tone: "danger" },
             { label: "Média Acadêmica", value: mediaNotas, icon: Star, tone: "accent" },
           ]}
           activeCount={(search ? 1 : 0) + (filterStatus ? 1 : 0) + (filterCurso ? 1 : 0)}

@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { ClipboardList, FileDown, Pencil, Plus, Truck, DollarSign, CheckCircle2, Clock, Trash2, Boxes } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -179,6 +179,7 @@ export default function ComprasVarejo() {
   const [filterStatus, setFilterStatus] = useState("Emitida / Aguardando Fornecedor");
   const [filterFornecedor, setFilterFornecedor] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const periodo = usePeriodoIndicadores("data de emissão da ordem");
 
   // Form state para Nova Ordem
   const [fornecedor, setFornecedor] = useState("");
@@ -483,11 +484,12 @@ export default function ComprasVarejo() {
     () => Array.from(new Set(compras.map(c => c.fornecedor).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [compras],
   );
-  const ativas = filtered.filter(c => c.status !== "Cancelada");
+  const base = periodo.filtrar(filtered, (c) => c.data);
+  const ativas = base.filter(c => c.status !== "Cancelada");
   const totalReposicao = somar(ativas, (c) => c.valor);
-  const emTransito = filtered.filter(c => c.status === "Em Transporte").length;
-  const aguardando = filtered.filter(c => c.status === "Emitida / Aguardando Fornecedor" || c.status === "Faturada").length;
-  const recebidas = filtered.filter(c => c.status === "Recebido no Estoque").length;
+  const emTransito = base.filter(c => c.status === "Em Transporte").length;
+  const aguardando = base.filter(c => c.status === "Emitida / Aguardando Fornecedor" || c.status === "Faturada").length;
+  const recebidas = base.filter(c => c.status === "Recebido no Estoque").length;
   const activeFilters = (search.trim() ? 1 : 0) + (filterStatus ? 1 : 0) + (filterFornecedor ? 1 : 0);
   const limparFiltros = () => { setSearch(""); setFilterStatus(""); setFilterFornecedor(""); };
 
@@ -514,11 +516,12 @@ export default function ComprasVarejo() {
     >
       <KpiFilterCard
         id="varejoCompras"
+        periodo={periodo}
         className="mb-4"
         activeCount={activeFilters}
         onClear={limparFiltros}
         kpis={[
-          { label: "Ordens de compra", value: filtered.length, icon: ClipboardList, tone: "primary" },
+          { label: "Ordens de compra", value: base.length, icon: ClipboardList, tone: "primary" },
           { label: "Total em reposição", value: formatBRL(totalReposicao), icon: DollarSign, tone: "success", hint: "Exclui canceladas" },
           { label: "Aguardando fornecedor", value: aguardando, icon: Clock, tone: aguardando > 0 ? "warning" : "neutral" },
           { label: "Cargas em trânsito", value: emTransito, icon: Truck, tone: "info" },

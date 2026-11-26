@@ -11,7 +11,7 @@ import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../contexts/AuthContext";
 import { friendlyError } from "../../lib/friendlyError";
 import { normalizeText, whatsappDigits } from "../../lib/utils";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 
 import { HelpTip } from "../../components/ui/help-tip";
 type Contato = {
@@ -136,6 +136,9 @@ export default function Contatos() {
 
   const paged = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
+  const periodo = usePeriodoIndicadores("data de cadastro");
+  const base = periodo.filtrar(filtered, (c) => c.created_at);
+
   const handleSaveContato = async () => {
     if (!novoContato.nome.trim()) {
       toast.error("Nome do contato é obrigatório.");
@@ -203,13 +206,14 @@ export default function Contatos() {
     >
       <KpiFilterCard className="mb-4"
         id="crmContatos"
+        periodo={periodo}
         activeCount={activeCount}
         onClear={clearFilters}
         kpis={[
-          { label: "Contatos", value: filtered.length, icon: Users, tone: "primary" },
-          { label: "Decisores / C-Level", value: filtered.filter(c => c.isDecisor).length, icon: ShieldCheck, tone: "accent" },
-          { label: "Com WhatsApp", value: filtered.filter(c => !!c.telefone).length, icon: Phone, tone: "success" },
-          { label: "Com E-mail", value: filtered.filter(c => !!c.email).length, icon: Mail, tone: "info" },
+          { label: "Contatos", value: base.length, icon: Users, tone: "primary" },
+          { label: "Decisores / C-Level", value: base.filter(c => c.isDecisor).length, icon: ShieldCheck, tone: "accent" },
+          { label: "Com WhatsApp", value: base.filter(c => !!c.telefone).length, icon: Phone, tone: "success" },
+          { label: "Com E-mail", value: base.filter(c => !!c.email).length, icon: Mail, tone: "info" },
         ]}
       >
         <FilterBar>

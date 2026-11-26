@@ -6,7 +6,7 @@ import { Pagination } from "../../components/ui/Pagination";
 import { useData } from "../../contexts/DataContext";
 import { toast } from "sonner";
 import { normalizeText } from "../../lib/utils";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 
 const PAGE_SIZE = 50;
 
@@ -63,6 +63,9 @@ export default function Atividades() {
     });
   }, [activities, search, typeFilter, userFilter]);
 
+  const periodo = usePeriodoIndicadores("data da atividade");
+  const base = periodo.filtrar(filtered, a => a.date);
+
   const typeLabels: Record<string, string> = { whatsapp: "WhatsApp", ligacao: "Ligação", email: "E-mail", reuniao: "Reunião", anotacao: "Anotação", lead_criado: "Lead criado" };
   const typesList = useMemo(
     () => Array.from(new Set(activities.map(a => a.type))).sort().map(t => ({ value: t as string, label: typeLabels[t as string] || String(t) })),
@@ -101,13 +104,14 @@ export default function Atividades() {
     >
       <KpiFilterCard className="mb-4"
         id="crmAtividades"
+        periodo={periodo}
         activeCount={activeCount}
         onClear={clearFilters}
         kpis={[
-          { label: "Total de Interações", value: filtered.length, icon: Activity, tone: "primary" },
-          { label: "Mensagens WhatsApp", value: filtered.filter(a => a.type === "whatsapp").length, icon: MessageSquare, tone: "success" },
-          { label: "Reuniões Agendadas", value: filtered.filter(a => a.type === "reuniao").length, icon: Calendar, tone: "accent" },
-          { label: "Leads Interagidos", value: new Set(filtered.map(a => a.leadName)).size, icon: CheckCircle2, tone: "warning" },
+          { label: "Total de Interações", value: base.length, icon: Activity, tone: "primary" },
+          { label: "Mensagens WhatsApp", value: base.filter(a => a.type === "whatsapp").length, icon: MessageSquare, tone: "success" },
+          { label: "Reuniões Agendadas", value: base.filter(a => a.type === "reuniao").length, icon: Calendar, tone: "accent" },
+          { label: "Leads Interagidos", value: new Set(base.map(a => a.leadName)).size, icon: CheckCircle2, tone: "warning" },
         ]}
       >
         <FilterBar>

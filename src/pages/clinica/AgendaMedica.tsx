@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { AgendaSidebar } from "./components/AgendaMedica/AgendaSidebar";
 import { AgendaDetailPanel } from "./components/AgendaMedica/AgendaDetailPanel";
 import { BookingModal } from "./components/BookingModal";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useClinicaConfig, buildSlots } from "../../lib/modules/clinicaConfig";
 
@@ -67,12 +67,16 @@ export default function AgendaClinica() {
       (!q || `${apt.patient} ${apt.drName} ${apt.room}`.toLowerCase().includes(q))
     );
   }, [selectedDrs, appointments, search, statusFilter, typeFilter]);
-  const aptKpis = useMemo(() => ({
-    total: filteredAppointments.length,
-    confirmed: filteredAppointments.filter(a => a.status === 'Confirmado').length,
-    waiting: filteredAppointments.filter(a => a.status === 'Aguardando' || a.status === 'Atrasado').length,
-    done: filteredAppointments.filter(a => a.status === 'Finalizado').length,
-  }), [filteredAppointments]);
+  const periodo = usePeriodoIndicadores("data da consulta");
+  const aptKpis = useMemo(() => {
+    const base = periodo.filtrar(filteredAppointments, a => a.date);
+    return {
+      total: base.length,
+      confirmed: base.filter(a => a.status === 'Confirmado').length,
+      waiting: base.filter(a => a.status === 'Aguardando' || a.status === 'Atrasado').length,
+      done: base.filter(a => a.status === 'Finalizado').length,
+    };
+  }, [filteredAppointments, periodo.filtrar]);
   const selectedApt = appointments.find(a => a.id === selectedAptId);
 
   const handleSyncCalendar = async () => {
@@ -150,6 +154,7 @@ export default function AgendaClinica() {
     >
       <KpiFilterCard
         id="clinicaAgenda"
+        periodo={periodo}
         className="mb-4"
         kpis={[
           { label: "Agendamentos", value: aptKpis.total, icon: CalendarDays, tone: "primary" },

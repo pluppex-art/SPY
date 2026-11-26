@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { apiFetch } from "../../lib/apiClient";
 import { ShoppingCart, Plus, Minus, Trash2, Search, Package, Link2, Copy, History, ChevronDown, ChevronUp, TrendingUp, Receipt, QrCode, CreditCard, Banknote, ArrowDownRight, ArrowUpRight, Lock, CheckCircle2, Printer, Share2, RotateCcw, Sparkles, DollarSign, Wallet, Store, Barcode, PauseCircle, PlayCircle, UserCheck, HelpCircle, Volume2, VolumeX, Split, Calendar, Percent, LayoutGrid, List as ListIcon, Maximize2, Minimize2 } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
@@ -373,6 +373,7 @@ export default function VarejoVendas() {
   const [filtroHistorico, setFiltroHistorico] = useState("");
   const [filtroHistStatus, setFiltroHistStatus] = useState("");
   const [filtroHistPagto, setFiltroHistPagto] = useState("");
+  const periodo = usePeriodoIndicadores("data da venda, considerando só as 100 vendas mais recentes");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -1359,10 +1360,11 @@ export default function VarejoVendas() {
       (v.operador && v.operador.toLowerCase().includes(q))
     );
   });
-  const histPagas = historicoFiltrado.filter((v) => v.status === "paga");
+  const histBase = periodo.filtrar(historicoFiltrado, (v) => v.created_at);
+  const histPagas = histBase.filter((v) => v.status === "paga");
   const histFaturamento = somar(histPagas, (v) => v.valor_total);
   const histTicket = histPagas.length > 0 ? histFaturamento / histPagas.length : 0;
-  const histEstornadas = historicoFiltrado.filter((v) => v.status === "estornada").length;
+  const histEstornadas = histBase.filter((v) => v.status === "estornada").length;
   const histPagtoOpts = Array.from(new Set(historico.map((v) => v.forma_pagamento).filter(Boolean) as string[])).sort();
   const histStatusOpts = Array.from(new Set(historico.map((v) => v.status).filter(Boolean))).sort();
   const histActiveFilters = (filtroHistorico.trim() ? 1 : 0) + (filtroHistStatus ? 1 : 0) + (filtroHistPagto ? 1 : 0);
@@ -1995,10 +1997,11 @@ export default function VarejoVendas() {
         <div className="space-y-4">
           <KpiFilterCard
             id="varejoVendas"
+            periodo={periodo}
             activeCount={histActiveFilters}
             onClear={limparFiltrosHistorico}
             kpis={[
-              { label: "Vendas", value: historicoFiltrado.length, icon: Receipt, tone: "primary" },
+              { label: "Vendas", value: histBase.length, icon: Receipt, tone: "primary" },
               { label: "Faturamento", value: formatPrice(histFaturamento), icon: DollarSign, tone: "success", hint: "Somente vendas pagas" },
               { label: "Ticket médio", value: formatPrice(histTicket), icon: TrendingUp, tone: "info" },
               { label: "Estornadas", value: histEstornadas, icon: RotateCcw, tone: histEstornadas > 0 ? "danger" : "neutral" },

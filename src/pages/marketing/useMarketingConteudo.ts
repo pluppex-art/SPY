@@ -50,6 +50,7 @@ function mapRowToTask(row: any) {
     platform: row.platform || "Instagram",
     date,
     publishDateISO,
+    createdAt: row.created_at || "",
     priority: row.priority === "Alta" || row.priority === "Baixa" ? row.priority : "Média",
     value: Number(row.extras?.value) || 0,
     responsavel: typeof row.extras?.responsavel === "string" ? row.extras.responsavel : "",
@@ -299,6 +300,7 @@ export function useMarketingConteudo() {
       priority: newPriority,
       value: parseFloat(newValue) || 0,
       clienteId: newClienteId,
+      createdAt: new Date().toISOString(), // só para a tela; no banco quem carimba é o próprio banco
     };
     
     const updated = [...tasks, newTask];

@@ -8,7 +8,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { EmptyState } from "../../components/ui/empty-state";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -76,17 +76,20 @@ export default function NotasEntrada() {
     });
   }, [notas, filtro, busca, fornecedorFiltro]);
 
+  const periodo = usePeriodoIndicadores("data de emissão da nota, considerando no máximo 500 notas");
+
   const kpis = useMemo(() => {
     const list = filtradas;
+    const base = periodo.filtrar(list, (n) => n.data_emissao);
     const mes = new Date().toISOString().slice(0, 7);
     const doMes = list.filter((n) => n.status === "No estoque" && (n.created_at || "").startsWith(mes));
     return {
-      rascunhos: list.filter((n) => n.status === "Rascunho").length,
-      emFluxo: list.filter((n) => ["Pronta para envio", "Enviada", "Validada"].includes(n.status)).length,
+      rascunhos: base.filter((n) => n.status === "Rascunho").length,
+      emFluxo: base.filter((n) => ["Pronta para envio", "Enviada", "Validada"].includes(n.status)).length,
       noEstoqueMes: doMes.length,
       valorMes: somar(doMes, (n) => n.valor_total),
     };
-  }, [filtradas]);
+  }, [filtradas, periodo.filtrar]);
 
   const activeFilters = (filtro ? 1 : 0) + (fornecedorFiltro ? 1 : 0) + (busca.trim() ? 1 : 0);
   const limparFiltros = () => { setFiltro(""); setFornecedorFiltro(""); setBusca(""); };
@@ -229,6 +232,7 @@ export default function NotasEntrada() {
       <div className="space-y-5 max-w-[1700px] mx-auto pb-12">
         <KpiFilterCard
           id="varejoNotasEntrada"
+          periodo={periodo}
           activeCount={activeFilters}
           onClear={limparFiltros}
           kpis={[

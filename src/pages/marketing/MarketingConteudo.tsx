@@ -1,7 +1,7 @@
 import { PageContainer } from "../../components/PageContainer";
 import { useCallback, useMemo, useState } from "react";
 import { Plus, Calendar, CheckCircle2, X, FileText, Share2, CalendarCheck, Layers, Columns3, User, Users, Send, Clock, MessageSquareWarning } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
 import { ViewToggle, HEADER_ACTIONS, HEADER_BUTTON, HEADER_PRIMARY_BUTTON } from "../../components/ui/view-toggle";
 import { Modal } from "../../components/ui/modal";
@@ -100,6 +100,8 @@ export default function MarketingConteudo() {
     );
   }, [doCliente, busca, plataforma, etapa, responsavel, aprovacaoFiltro]);
   const responsaveis = useMemo(() => Array.from(new Set(tasks.map((t: any) => t.responsavel).filter(Boolean))).sort() as string[], [tasks]);
+  const periodo = usePeriodoIndicadores("data de criação da pauta");
+  const base = periodo.filtrar(tasksFiltradas, (t) => t.createdAt);
   const colunasVisiveis = etapa ? initialColumns.filter(c => c.id === etapa) : initialColumns;
   const ultimaCol = initialColumns[initialColumns.length - 1];
 
@@ -157,14 +159,15 @@ export default function MarketingConteudo() {
     >
       <KpiFilterCard
         id="marketingConteudo"
+        periodo={periodo}
         className="mb-4"
         kpis={[
-          { label: "Pautas", value: tasksFiltradas.length, icon: FileText, tone: "primary" },
-          { label: "Canais", value: new Set(tasksFiltradas.map(t => t.platform)).size, icon: Share2, tone: "info" },
-          { label: ultimaCol ? ultimaCol.title : "Concluídas", value: ultimaCol ? tasksFiltradas.filter(t => t.colId === ultimaCol.id).length : 0, icon: CheckCircle2, tone: "success", hint: "Pautas na última etapa do fluxo" },
-          { label: "Com data de publicação", value: tasksFiltradas.filter(t => t.publishDateISO).length, icon: CalendarCheck, tone: "accent" },
-          { label: "Aguardando cliente", value: tasksFiltradas.filter(t => situacaoDaPauta(t) === "aguardando").length, icon: Clock, tone: "warning" },
-          { label: "Ajustes pedidos", value: tasksFiltradas.filter(t => situacaoDaPauta(t) === "ajustes").length, icon: MessageSquareWarning, tone: "danger" },
+          { label: "Pautas", value: base.length, icon: FileText, tone: "primary" },
+          { label: "Canais", value: new Set(base.map(t => t.platform)).size, icon: Share2, tone: "info" },
+          { label: ultimaCol ? ultimaCol.title : "Concluídas", value: ultimaCol ? base.filter(t => t.colId === ultimaCol.id).length : 0, icon: CheckCircle2, tone: "success", hint: "Pautas na última etapa do fluxo" },
+          { label: "Com data de publicação", value: base.filter(t => t.publishDateISO).length, icon: CalendarCheck, tone: "accent" },
+          { label: "Aguardando cliente", value: base.filter(t => situacaoDaPauta(t) === "aguardando").length, icon: Clock, tone: "warning" },
+          { label: "Ajustes pedidos", value: base.filter(t => situacaoDaPauta(t) === "ajustes").length, icon: MessageSquareWarning, tone: "danger" },
         ]}
         activeCount={(busca.trim() ? 1 : 0) + (plataforma ? 1 : 0) + (etapa ? 1 : 0) + (responsavel ? 1 : 0) + (aprovacaoFiltro ? 1 : 0) + (clienteEscolhido && !clienteDoMenu ? 1 : 0)}
         onClear={() => { setBusca(""); setPlataforma(""); setEtapa(""); setResponsavel(""); setAprovacaoFiltro(""); setClienteEscolhido(""); }}

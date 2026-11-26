@@ -142,6 +142,21 @@ export function useMensalidadesList() {
     return { mensalidades: all, studentsById: map };
   };
 
+  // Base dos indicadores quando há período escolhido: o resumo do servidor soma tudo
+  // e não aceita datas, então buscamos só os campos dos cartões, sem os filtros da tela.
+  const fetchBaseResumo = async (): Promise<Pick<Mensalidade, "status" | "valor" | "vencimento">[]> => {
+    if (!supabase || !tenantId) return [];
+    const all: Pick<Mensalidade, "status" | "valor" | "vencimento">[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from("mensalidades").select("status, valor, vencimento").eq("tenant_id", tenantId)
+        .order("id").range(from, from + 999);
+      if (error) throw error;
+      all.push(...((data || []) as typeof all));
+      if (!data || data.length < 1000) return all;
+    }
+  };
+
   return {
     mensalidades: rows,
     studentsById,
@@ -157,5 +172,6 @@ export function useMensalidadesList() {
     loading,
     refetch: fetchPage,
     exportAll,
+    fetchBaseResumo,
   };
 }

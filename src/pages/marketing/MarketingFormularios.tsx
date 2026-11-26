@@ -2,7 +2,7 @@ import { CAMPOS_PADRAO } from "../../lib/formularioCampos";
 import { useState, useMemo, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { FileText, ChevronRight, Plus, Trash2, Sparkles, CheckCircle2, PauseCircle, Globe } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -33,8 +33,8 @@ export default function MarketingFormularios() {
   const [statusFiltro, setStatusFiltro] = useState("");
   const [origem, setOrigem] = useState("");
 
-  const forms: FormDefinition[] = useMemo(() => {
-    const list: FormDefinition[] = (marketingForms || []).map((f: any) => ({
+  const forms: (FormDefinition & { createdAt?: string })[] = useMemo(() => {
+    const list: (FormDefinition & { createdAt?: string })[] = (marketingForms || []).map((f: any) => ({
       id: f.id,
       name: f.name,
       description: f.description || "",
@@ -45,6 +45,7 @@ export default function MarketingFormularios() {
       campos: Array.isArray(f.campos) ? f.campos : [],
       mensagemSucesso: f.mensagem_sucesso || "",
       passoAPasso: f.layout_mode !== "scroll",
+      createdAt: f.created_at,
     }));
 
     const hasEmpreenda = list.some(
@@ -73,6 +74,9 @@ export default function MarketingFormularios() {
       (!q || [f.name, f.description, f.previewUrl].some(v => (v || "").toLowerCase().includes(q))),
     );
   }, [forms, busca, statusFiltro, origem]);
+
+  const periodo = usePeriodoIndicadores("data de cadastro");
+  const base = periodo.filtrar(formsFiltrados, (f) => f.createdAt);
 
   const handleCreate = async (data: { name: string; description: string; previewUrl: string; source: string; hospedar?: boolean; layoutMode?: "scroll" | "passo_a_passo" }) => {
     if (data.hospedar) {
@@ -147,12 +151,13 @@ export default function MarketingFormularios() {
             {forms.length > 0 && (
               <KpiFilterCard
                 id="marketingFormularios"
+                periodo={periodo}
                 className="mb-4"
                 kpis={[
-                  { label: "Formulários", value: formsFiltrados.length, icon: FileText, tone: "primary" },
-                  { label: "Ativos", value: formsFiltrados.filter(f => f.active).length, icon: CheckCircle2, tone: "success" },
-                  { label: "Inativos", value: formsFiltrados.filter(f => !f.active).length, icon: PauseCircle, tone: "neutral" },
-                  { label: "Origens", value: new Set(formsFiltrados.map(f => f.source).filter(Boolean)).size, icon: Globe, tone: "info" },
+                  { label: "Formulários", value: base.length, icon: FileText, tone: "primary" },
+                  { label: "Ativos", value: base.filter(f => f.active).length, icon: CheckCircle2, tone: "success" },
+                  { label: "Inativos", value: base.filter(f => !f.active).length, icon: PauseCircle, tone: "neutral" },
+                  { label: "Origens", value: new Set(base.map(f => f.source).filter(Boolean)).size, icon: Globe, tone: "info" },
                 ]}
                 activeCount={(busca.trim() ? 1 : 0) + (statusFiltro ? 1 : 0) + (origem ? 1 : 0)}
                 onClear={() => { setBusca(""); setStatusFiltro(""); setOrigem(""); }}

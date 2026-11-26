@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -55,6 +55,7 @@ export default function ManutencoesSolar() {
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
+  const periodo = usePeriodoIndicadores("data prevista da manutenção");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [modalOpen, setModalOpen] = useState(false);
@@ -161,6 +162,7 @@ export default function ManutencoesSolar() {
     const matchStatus = filterStatus === "Todos" || c.status === filterStatus;
     return matchSearch && matchStatus;
   });
+  const base = periodo.filtrar(filtered, (c) => c.data);
 
   return (
     <PageContainer
@@ -184,11 +186,12 @@ export default function ManutencoesSolar() {
       <KpiFilterCard
         id="solarManutencoes"
         className="mb-4"
+        periodo={periodo}
         kpis={[
-          { label: "Chamados", value: filtered.length, icon: Wrench, tone: "primary" },
-          { label: "Concluídas", value: filtered.filter(c => c.status === "Concluída").length, icon: CheckCircle2, tone: "success" },
-          { label: "Agendadas", value: filtered.filter(c => c.status === "Agendada").length, icon: Calendar, tone: "warning" },
-          { label: "Em Atendimento", value: filtered.filter(c => c.status === "Em Atendimento").length, icon: Clock, tone: "info" },
+          { label: "Chamados", value: base.length, icon: Wrench, tone: "primary" },
+          { label: "Concluídas", value: base.filter(c => c.status === "Concluída").length, icon: CheckCircle2, tone: "success" },
+          { label: "Agendadas", value: base.filter(c => c.status === "Agendada").length, icon: Calendar, tone: "warning" },
+          { label: "Em Atendimento", value: base.filter(c => c.status === "Em Atendimento").length, icon: Clock, tone: "info" },
         ]}
         activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0)}
         onClear={() => { setSearch(""); setFilterStatus("Todos"); }}

@@ -4,7 +4,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { EmptyState } from "../../components/ui/empty-state";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { PageContainer } from "../../components/PageContainer";
 import { BotaoImportar } from "../../components/ImportadorPlanilha";
 import { pacientesSpec } from "../../lib/importSpecs";
@@ -188,13 +188,15 @@ export default function Pacientes() {
     p.cpf.includes(searchTerm))
   );
 
-  const totalPatients = filteredPatients.length;
+  const periodo = usePeriodoIndicadores("data de cadastro");
+  const baseIndicadores = periodo.filtrar(filteredPatients, p => p.created_at);
+  const totalPatients = baseIndicadores.length;
   const currentMonth = new Date().toISOString().substring(0, 7);
   const newThisMonth = filteredPatients.filter(p => p.created_at && p.created_at.startsWith(currentMonth)).length;
   const today = new Date().toISOString().split('T')[0];
   const consultsToday = appointments.filter(a => a.date === today).length;
   const comConvenio = totalPatients > 0
-    ? Math.round((filteredPatients.filter(p => p.convenio && p.convenio !== 'Particular').length / totalPatients) * 100)
+    ? Math.round((baseIndicadores.filter(p => p.convenio && p.convenio !== 'Particular').length / totalPatients) * 100)
     : 0;
 
   const handleSave = async (form: any) => {
@@ -261,6 +263,7 @@ export default function Pacientes() {
 
         <KpiFilterCard
           id="clinicaPacientes"
+          periodo={periodo}
           kpis={[
             { label: 'Total de Pacientes', value: totalPatients, icon: Users, tone: 'primary' },
             { label: 'Novos neste Mês', value: `+${newThisMonth}`, icon: UserPlus, tone: 'success' },

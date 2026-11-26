@@ -38,10 +38,10 @@ function isThisMonth(iso?: string): boolean {
  *
  * Os KPIs (`kpis`) usam uma projeção estreita (só valor/status/created_at,
  * não a proposta inteira) sobre TODO o conjunto que bate com o filtro de
- * data — não a página atual — pra "Propostas Ativas"/"Taxa de Conversão"
- * ficarem corretos independente de paginação. "Convertidas (Mês)" usa uma
- * segunda busca sem filtro de data nenhum (mesmo comportamento de antes,
- * onde o indicador é fixo por mês corrente, não pelo filtro da tela).
+ * data — não a página atual — pra "Propostas Ativas" ficar correto
+ * independente de paginação. Os indicadores mensais ("Convertidas (Mês)",
+ * "Taxa de Conversão" etc.) usam uma segunda busca sem filtro de data nenhum
+ * (são fixos por mês corrente, não pelo filtro da tela).
  */
 export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null; dateTo: string | null }) {
   const { activeTenantId: tenantId } = useAuth();
@@ -123,8 +123,11 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
     }
   };
 
+  const kpiRequestIdRef = useRef(0);
+
   const fetchKpis = async () => {
     if (!supabase || !tenantId) return;
+    const requestId = ++kpiRequestIdRef.current;
     const projection = "id,valor,status,created_at,cliente,titulo,vendedor,first_viewed_at";
     try {
       const [filteredRows, allRows] = await Promise.all([
@@ -136,6 +139,7 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
         }),
         fetchAllRows(() => supabase!.from("proposals").select(projection).eq("tenant_id", tenantId).order("id", { ascending: true })),
       ]);
+      if (requestId !== kpiRequestIdRef.current) return; // período já mudou: resposta antiga não vale
       setKpiFilteredRows(filteredRows);
       setKpiAllRows(allRows);
     } catch (err) {
@@ -186,7 +190,8 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
     const mesAtual = monthlyBuckets[monthlyBuckets.length - 1];
     const mesAnterior = monthlyBuckets[monthlyBuckets.length - 2];
     const pctDelta = (atual: number, anterior: number): number | null => (anterior > 0 ? Math.round(((atual - anterior) / anterior) * 1000) / 10 : null);
-    const ativasRows = kpiAllRows.filter((p) => p.status !== "Aceita" && p.status !== "Recusada");
+    // Único cartão sem janela fixa: respeita o período escolhido (sem período, é o conjunto inteiro).
+    const ativasRows = kpiFilteredRows.filter((p) => p.status !== "Aceita" && p.status !== "Recusada");
     return {
       valorEmPropostas: mesAtual.valorTotal,
       valorEmPropostasDelta: pctDelta(mesAtual.valorTotal, mesAnterior.valorTotal),
@@ -198,13 +203,13 @@ export function usePropostasList({ dateFrom, dateTo }: { dateFrom: string | null
       taxaConversaoDeltaPP: mesAnterior.count > 0 ? Math.round((mesAtual.taxaConversao - mesAnterior.taxaConversao) * 10) / 10 : null,
       propostasAtivas: ativasRows.length,
       propostasAtivasRows: ativasRows,
-      propostasTotal: kpiAllRows.length,
+      propostasTotal: kpiFilteredRows.length,
       volumeSparkline: monthlyBuckets.map((b) => b.count),
       valorSparkline: monthlyBuckets.map((b) => b.valorTotal),
       convertidasSparkline: monthlyBuckets.map((b) => b.valorConvertido),
       taxaConversaoSparkline: monthlyBuckets.map((b) => b.taxaConversao),
       // Mantido pro filtro da lista (aba Propostas Comerciais usa o
-      // dateFrom/dateTo aplicado na tela, diferente dos cards acima).
+      // dateFrom/dateTo aplicado na tela).
       aguardandoAceite: somar(kpiFilteredRows.filter((p) => p.status === "Enviada"), (p) => p.valor),
     };
   }, [monthlyBuckets, kpiAllRows, kpiFilteredRows]);

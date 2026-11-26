@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Plus, Calendar, Columns3, Megaphone, DollarSign, Rocket, CalendarCheck, Share2, Layers, Loader2, Database, User } from "lucide-react";
 import { DragDropContext } from "@hello-pangea/dnd";
 import { PageContainer } from "../../components/PageContainer";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
 import { ViewToggle, HEADER_ACTIONS, HEADER_PRIMARY_BUTTON } from "../../components/ui/view-toggle";
 import { Card } from "../../components/ui/card";
@@ -39,7 +39,9 @@ export default function MarketingTrafego() {
   }, [campanhas, busca, plataforma, etapa, responsavel]);
   const colunasVisiveis = etapa ? colunas.filter((c) => c.id === etapa) : colunas;
   const noAr = colunas.find((c) => c.id === "no_ar");
-  const orcamentoTotal = filtradas.reduce((s, c) => s + (c.value || 0), 0);
+  const periodo = usePeriodoIndicadores("data de criação da campanha");
+  const base = periodo.filtrar(filtradas, (c) => c.createdAt);
+  const orcamentoTotal = base.reduce((s, c) => s + (c.value || 0), 0);
 
   const salvar = async (dados: Omit<Campanha, "id" | "date">, id?: string) => (id ? atualizar(id, dados) : criar(dados));
 
@@ -66,12 +68,13 @@ export default function MarketingTrafego() {
         <>
           <KpiFilterCard
             id="marketingTrafego"
+            periodo={periodo}
             className="mb-4"
             kpis={[
-              { label: "Campanhas", value: filtradas.length, icon: Megaphone, tone: "primary" },
+              { label: "Campanhas", value: base.length, icon: Megaphone, tone: "primary" },
               { label: "Orçamento total", value: formatCurrency(orcamentoTotal), icon: DollarSign, tone: "info", hint: "Soma do orçamento de todas as campanhas listadas." },
-              { label: noAr?.title ?? "No Ar", value: filtradas.filter((c) => c.colId === "no_ar").length, icon: Rocket, tone: "success", hint: "Campanhas que estão rodando agora." },
-              { label: "Com data de início", value: filtradas.filter((c) => c.publishDateISO).length, icon: CalendarCheck, tone: "accent" },
+              { label: noAr?.title ?? "No Ar", value: base.filter((c) => c.colId === "no_ar").length, icon: Rocket, tone: "success", hint: "Campanhas que estão rodando agora." },
+              { label: "Com data de início", value: base.filter((c) => c.publishDateISO).length, icon: CalendarCheck, tone: "accent" },
             ]}
             activeCount={(busca.trim() ? 1 : 0) + (plataforma ? 1 : 0) + (etapa ? 1 : 0) + (responsavel ? 1 : 0)}
             onClear={() => { setBusca(""); setPlataforma(""); setEtapa(""); setResponsavel(""); }}

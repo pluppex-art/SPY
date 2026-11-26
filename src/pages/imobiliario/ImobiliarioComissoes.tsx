@@ -3,7 +3,7 @@ import { formatBRL } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { DollarSign, CheckCircle2, Clock, Users, Plus, Trash2 } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -65,6 +65,7 @@ export default function ImobiliarioComissoes() {
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
+  const periodo = usePeriodoIndicadores("data de registro da comissão");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
   const [corretorFilter, setCorretorFilter] = useState("");
@@ -177,19 +178,20 @@ export default function ImobiliarioComissoes() {
       return matchSearch && matchStatus && matchCorretor;
     });
   }, [comissoes, search, statusFilter, corretorFilter]);
+  const base = periodo.filtrar(filtered, (c) => c.created_at);
 
   const corretoresList = Array.from(new Set(comissoes.map(c => c.corretor).filter(Boolean))).sort();
   const brl = (n: number) => formatBRL(n);
 
-  const totalAReceber = filtered
+  const totalAReceber = base
     .filter(c => c.status !== "Liquidada")
     .reduce((s, c) => s + c.comissaoTotal, 0);
 
-  const totalRepasses = filtered
+  const totalRepasses = base
     .filter(c => c.status !== "Liquidada")
     .reduce((s, c) => s + c.comissaoCorretor, 0);
 
-  const totalLiquidado = filtered
+  const totalLiquidado = base
     .filter(c => c.status === "Liquidada")
     .reduce((s, c) => s + c.comissaoTotal, 0);
 
@@ -216,11 +218,12 @@ export default function ImobiliarioComissoes() {
     >
       <KpiFilterCard
         id="imobComissoes"
+        periodo={periodo}
         kpis={[
           { label: "Comissões a Receber", value: brl(totalAReceber), icon: DollarSign, tone: "success", hint: "Aguardando compensação ou escritura" },
           { label: "Repasses a Corretores", value: brl(totalRepasses), icon: Users, tone: "warning", hint: "Split automático de honorários" },
           { label: "Honorários Liquidados", value: brl(totalLiquidado), icon: CheckCircle2, tone: "primary", hint: "Totalmente recebidos e distribuídos" },
-          { label: "Registros", value: filtered.length, icon: Clock, tone: "info" },
+          { label: "Registros", value: base.length, icon: Clock, tone: "info" },
         ]}
         activeCount={(search.trim() ? 1 : 0) + (statusFilter !== "Todos" ? 1 : 0) + (corretorFilter ? 1 : 0)}
         onClear={() => { setSearch(""); setStatusFilter("Todos"); setCorretorFilter(""); }}

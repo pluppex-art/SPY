@@ -34,6 +34,8 @@ export interface FornecedorItem {
   dadosBancarios: string;
   observacoes: string;
   ativo: boolean;
+  /** Data do cadastro (`created_at`), só leitura. */
+  criadoEm?: string;
 }
 
 export function rowToFornecedor(row: any): FornecedorItem {
@@ -65,6 +67,7 @@ export function rowToFornecedor(row: any): FornecedorItem {
     dadosBancarios: row.dados_bancarios || "",
     observacoes: row.observacoes || "",
     ativo: row.ativo !== false,
+    criadoEm: row.created_at,
   };
 }
 

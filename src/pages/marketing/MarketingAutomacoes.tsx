@@ -198,6 +198,7 @@ export default function MarketingAutomacoes() {
           <div className="space-y-6">
             <KpiFilterCard
               id="marketingAutomacoes"
+              periodo={{ de: dateFrom, ate: dateTo, setDe: setDateFrom, setAte: setDateTo, campo: "data de criação do gatilho" }}
               kpis={[
                 { label: "Aguardando aprovação", value: stats.aguardando, icon: Sparkles, tone: "warning",
                   hint: stats.aguardandoDeltaSemana !== 0 ? `${stats.aguardandoDeltaSemana > 0 ? "+" : ""}${stats.aguardandoDeltaSemana} vs semana passada` : undefined },

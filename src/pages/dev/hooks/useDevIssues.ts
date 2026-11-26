@@ -18,6 +18,8 @@ export interface DevIssue {
   assignee: string;
   reporter: string;
   createdAt: string;
+  /** `created_at` do banco, sem formatação (`createdAt` é o texto exibido). */
+  createdAtIso?: string;
   comments: number;
   labels: string[];
 }
@@ -34,6 +36,7 @@ function rowToIssue(row: any): DevIssue {
     assignee: row.assignee || '-',
     reporter: row.reporter || '',
     createdAt: new Date(row.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
+    createdAtIso: row.created_at,
     comments: row.comments || 0,
     labels: row.labels || [],
   };
@@ -69,7 +72,7 @@ export function useDevIssues() {
         title: payload.title, description: payload.description,
         severity: payload.severity, status: 'aberto',
         project: payload.project, assignee: payload.assignee || '-',
-        reporter: '', createdAt: 'agora', comments: 0, labels: payload.labels,
+        reporter: '', createdAt: 'agora', createdAtIso: new Date().toISOString(), comments: 0, labels: payload.labels,
       }, ...prev]);
       toast.success('Issue registrado!');
       return;

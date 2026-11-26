@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from '../../components/ui/kpi-filter-card';
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from '../../components/ui/kpi-filter-card';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Zap, Layers, Clock, CheckCircle2, FolderCode, Flame, User, Bot, Paperclip, CheckSquare } from 'lucide-react';
@@ -85,6 +85,11 @@ export default function Sprints() {
 
   const totalPoints = tasksFiltered.filter(t => t.column === 'done').reduce((s, t) => s + t.points, 0);
   const totalSprintPoints = tasksFiltered.reduce((s, t) => s + t.points, 0);
+  // O período vale só para a janela "Indicadores"; cabeçalho e quadro seguem com todas as tarefas filtradas.
+  const periodo = usePeriodoIndicadores('data de criação da tarefa');
+  const base = periodo.filtrar(tasksFiltered, t => t.createdAt);
+  const basePontosFeitos = base.filter(t => t.column === 'done').reduce((s, t) => s + t.points, 0);
+  const basePontos = base.reduce((s, t) => s + t.points, 0);
 
   const capacidade = Number(sprintCfg.capacidadePontos) || 0;
   const pontosPlanejados = tasks.reduce((s, t) => s + t.points, 0);
@@ -160,11 +165,12 @@ export default function Sprints() {
       <div className="pb-10 space-y-4">
         <KpiFilterCard
           id="devSprints"
+          periodo={periodo}
           kpis={[
-            { label: 'Tarefas', value: tasksFiltered.length, icon: Layers, tone: 'primary' },
-            { label: 'Em Andamento', value: tasksFiltered.filter(t => t.column === 'inprogress').length, icon: Clock, tone: 'warning' },
-            { label: 'Concluídas', value: tasksFiltered.filter(t => t.column === 'done').length, icon: CheckCircle2, tone: 'success' },
-            { label: 'Pontos Concluídos', value: `${totalPoints}/${totalSprintPoints}`, icon: Zap, tone: 'info' },
+            { label: 'Tarefas', value: base.length, icon: Layers, tone: 'primary' },
+            { label: 'Em Andamento', value: base.filter(t => t.column === 'inprogress').length, icon: Clock, tone: 'warning' },
+            { label: 'Concluídas', value: base.filter(t => t.column === 'done').length, icon: CheckCircle2, tone: 'success' },
+            { label: 'Pontos Concluídos', value: `${basePontosFeitos}/${basePontos}`, icon: Zap, tone: 'info' },
           ]}
           activeCount={(activeProjectId ? 1 : 0) + (etapasOcultas > 0 ? 1 : 0) + (search ? 1 : 0) + (filterAssignee ? 1 : 0) + (filterPriority ? 1 : 0)}
           onClear={clearFilters}

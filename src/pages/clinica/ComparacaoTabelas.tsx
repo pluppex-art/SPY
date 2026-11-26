@@ -7,7 +7,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { EmptyState } from "../../components/ui/empty-state";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/apiClient";
@@ -87,15 +87,16 @@ export default function ComparacaoTabelas() {
       (!q || (c.parceiro || "").toLowerCase().includes(q) || (c.arquivo_nome || "").toLowerCase().includes(q)));
   }, [lista, busca, statusFiltro, parceiroFiltro]);
 
+  const periodo = usePeriodoIndicadores("data da comparação");
   const kpis = useMemo(() => {
-    const l = filtrada;
+    const l = periodo.filtrar(filtrada, (c) => c.created_at);
     return {
       total: l.length,
       pendentes: l.filter((c) => c.status === "aguardando_revisao").length,
       itens: l.reduce((s, c) => s + (c.total || 0), 0),
       revisao: l.reduce((s, c) => s + (c.qtd_revisao || 0) + (c.qtd_nao_identificado || 0), 0),
     };
-  }, [filtrada]);
+  }, [filtrada, periodo.filtrar]);
 
   const statusOpcoes = useMemo(() => Array.from(new Set((lista || []).map((c) => c.status).filter(Boolean))).map((st) => ({ value: st as string, label: COMPARISON_STATUS_LABEL[st as string] || (st as string) })), [lista]);
   const parceiroOpcoes = useMemo(() => Array.from(new Set((lista || []).map((c) => c.parceiro).filter(Boolean))).sort() as string[], [lista]);
@@ -164,6 +165,7 @@ export default function ComparacaoTabelas() {
         )}
         <KpiFilterCard
           id="clinicaComparacaoTabelas"
+          periodo={periodo}
           kpis={[
             { label: "Comparações", value: kpis.total, icon: GitCompare, tone: "primary" },
             { label: "Aguardando revisão", value: kpis.pendentes, icon: Clock, tone: kpis.pendentes > 0 ? "warning" : "neutral" },

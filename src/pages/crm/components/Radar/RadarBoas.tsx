@@ -11,9 +11,10 @@ import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { HelpTip } from "../../../../components/ui/help-tip";
 import { Sparkline } from "../../../../components/ui/sparkline";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../../../components/ui/kpi-filter-card";
 import { downloadCsv } from "../../../../lib/csvExport";
 import { whatsappDigits } from "../../../../lib/utils";
+import { leadDateIso } from "../../../../lib/leadDate";
 import {
   NIVEIS_BONS, SCORE_CHAMAS, SCORE_QUENTE, JANELA_FECHADOS_DIAS, type NivelBom, type RadarBoas as DadosBoas, type LeadBom,
 } from "../../../../lib/radarBoas";
@@ -83,6 +84,19 @@ export function RadarBoasPainel({ boas, stageNames, funilNomeByTipo, formatCurre
     [boas],
   );
   const total = base.length;
+
+  // Cartões da janela "Indicadores", com período próprio. Gráficos, "por etapa" e tabela seguem a base inteira.
+  const periodo = usePeriodoIndicadores("data de cadastro do lead");
+  const indicadores = useMemo(() => {
+    const noPeriodo = periodo.filtrar(base, (r) => leadDateIso(r.l));
+    return {
+      chamas: noPeriodo.filter((r) => r.nivel === "chamas").length,
+      quente: noPeriodo.filter((r) => r.nivel === "quente").length,
+      esquentando: noPeriodo.filter((r) => r.nivel === "esquentando").length,
+      total: noPeriodo.length,
+      valor: noPeriodo.reduce((s, r) => s + r.value, 0),
+    };
+  }, [base, periodo.filtrar]);
 
   // Retratos anteriores à criação das colunas do lado bom vêm zerados: começa o histórico no primeiro dia com dado.
   const hist = useMemo(() => {
@@ -175,6 +189,7 @@ export function RadarBoasPainel({ boas, stageNames, funilNomeByTipo, formatCurre
   return (
     <>
       <KpiFilterCard className="mb-4" id="crmRadarBoas" activeCount={filtrosAtivos} onClear={limparFiltros}
+        periodo={periodo}
         indicators={<>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {NIVEIS_BONS.map((n) => (
@@ -186,7 +201,7 @@ export function RadarBoasPainel({ boas, stageNames, funilNomeByTipo, formatCurre
                 </div>
                 <div className="flex items-end justify-between gap-2">
                   <div>
-                    <div className="text-2xl font-black">{contagem[n]}</div>
+                    <div className="text-2xl font-black">{indicadores[n]}</div>
                     {textoDelta(deltas?.[n])}
                   </div>
                   <div style={{ color: NIVEL_META[n].color }}>
@@ -203,12 +218,12 @@ export function RadarBoasPainel({ boas, stageNames, funilNomeByTipo, formatCurre
               </div>
               <div className="flex items-end justify-between gap-2">
                 <div>
-                  <div className="text-2xl font-black">{total}</div>
+                  <div className="text-2xl font-black">{indicadores.total}</div>
                   {textoDelta(deltas?.total)}
                 </div>
                 <Sparkline data={hist.map((h) => Number(h.total_boas_count) || 0)} className="w-16 h-7 shrink-0 text-[var(--color-primary-blue)]" />
               </div>
-              <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{formatCurrency(boas.valorOportunidades)} em jogo</p>
+              <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{formatCurrency(indicadores.valor)} em jogo</p>
             </Card>
           </div>
         </>}

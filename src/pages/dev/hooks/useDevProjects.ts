@@ -19,6 +19,7 @@ export interface DevProject {
   openIssues: number;
   sprints: number;
   stars: number;
+  createdAt?: string;
 }
 
 function rowToProject(row: any): DevProject {
@@ -34,6 +35,7 @@ function rowToProject(row: any): DevProject {
     openIssues: row.open_issues || 0,
     sprints: row.sprints || 0,
     stars: row.stars || 0,
+    createdAt: row.created_at,
   };
 }
 
@@ -72,6 +74,7 @@ export function useDevProjects() {
         openIssues: 0,
         sprints: 0,
         stars: 0,
+        createdAt: new Date().toISOString(),
       },
       ...prev,
     ]);

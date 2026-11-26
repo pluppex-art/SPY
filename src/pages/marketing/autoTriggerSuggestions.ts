@@ -139,8 +139,8 @@ export function computeTriggerStats(triggers: MessageTrigger[], dateFrom: string
     return t.status === "executado" && d >= doisMesesAtras && d < umMesAtras;
   }).reduce((s, t) => s + t.leadsEncontrados.length, 0);
 
-  const finalizados = triggers.filter((t) => t.status === "executado" || t.status === "rejeitado");
-  const taxaAprovacao = finalizados.length > 0 ? Math.round((triggers.filter((t) => t.status === "executado").length / finalizados.length) * 1000) / 10 : null;
+  const finalizados = periodo.filter((t) => t.status === "executado" || t.status === "rejeitado");
+  const taxaAprovacao = finalizados.length > 0 ? Math.round((enviados.length / finalizados.length) * 1000) / 10 : null;
 
   // Gráfico: últimos 14 dias dentro do período filtrado (ou os 14 mais recentes, sem filtro).
   const dias: { name: string; iso: string; contatos: number; enviados: number }[] = [];
@@ -162,7 +162,7 @@ export function computeTriggerStats(triggers: MessageTrigger[], dateFrom: string
   const pct = (atual: number, anterior: number): number | null => (anterior > 0 ? Math.round(((atual - anterior) / anterior) * 1000) / 10 : null);
 
   return {
-    aguardando: aguardandoTodos.length,
+    aguardando: periodo.filter((t) => t.status === "aguardando_confirmacao").length,
     aguardandoDeltaSemana: aguardandoEstaSemana - aguardandoSemanaAnterior,
     enviados: enviados.length,
     enviadosDeltaPct: pct(enviadosEsteMes, enviadosMesAnterior),

@@ -14,7 +14,7 @@ import { friendlyError } from "../../lib/friendlyError";
 import { useIbgeLocalidades } from "../../lib/ibgeLocalidades";
 import { useData } from "../../contexts/DataContext";
 import { normalizeText, whatsappDigits } from "../../lib/utils";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 
 export default function Empresas() {
   const { activeTenantId } = useAuth();
@@ -87,6 +87,9 @@ export default function Empresas() {
     );
   }, [empresas, search, statusFilter, segmentoFilter, cidadeFilter]);
 
+  const periodo = usePeriodoIndicadores("data de cadastro");
+  const base = periodo.filtrar(filtered, (e) => e.created_at);
+
   const statusList = useMemo(() => Array.from(new Set(empresas.map(e => e.status || "Ativo"))).sort() as string[], [empresas]);
   const segmentosList = useMemo(() => Array.from(new Set(empresas.map(e => e.industry).filter(Boolean))).sort() as string[], [empresas]);
   const cidadesList = useMemo(() => groupCities(empresas.map(e => e.city)).map((g) => g.label), [empresas]);
@@ -151,13 +154,14 @@ export default function Empresas() {
     >
       <KpiFilterCard className="mb-4"
         id="crmEmpresas"
+        periodo={periodo}
         activeCount={activeCount}
         onClear={clearFilters}
         kpis={[
-          { label: "Empresas", value: filtered.length, icon: Building2, tone: "primary" },
-          { label: "Empresas Ativas", value: filtered.filter(e => (e.status || "Ativo") === "Ativo").length, icon: Users, tone: "success" },
-          { label: "Cidades Atendidas", value: new Set(filtered.map(e => cityKey(e.city)).filter(Boolean)).size, icon: MapPin, tone: "warning" },
-          { label: "Segmentos", value: new Set(filtered.map(e => e.industry).filter(Boolean)).size, icon: TrendingUp, tone: "accent" },
+          { label: "Empresas", value: base.length, icon: Building2, tone: "primary" },
+          { label: "Empresas Ativas", value: base.filter(e => (e.status || "Ativo") === "Ativo").length, icon: Users, tone: "success" },
+          { label: "Cidades Atendidas", value: new Set(base.map(e => cityKey(e.city)).filter(Boolean)).size, icon: MapPin, tone: "warning" },
+          { label: "Segmentos", value: new Set(base.map(e => e.industry).filter(Boolean)).size, icon: TrendingUp, tone: "accent" },
         ]}
       >
         <FilterBar>

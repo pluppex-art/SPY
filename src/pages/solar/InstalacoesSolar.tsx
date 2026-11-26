@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -55,6 +55,7 @@ export default function InstalacoesSolar() {
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
+  const periodo = usePeriodoIndicadores("data de início da obra");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterEquipe, setFilterEquipe] = useState("");
@@ -177,7 +178,8 @@ export default function InstalacoesSolar() {
     (!filterStatus || i.status === filterStatus) &&
     (!filterEquipe || i.equipe === filterEquipe)
   ));
-  const progressoMedio = filtered.length ? Math.round(filtered.reduce((a, i) => a + i.progresso, 0) / filtered.length) : 0;
+  const base = periodo.filtrar(filtered, (i) => i.inicio);
+  const progressoMedio = base.length ? Math.round(base.reduce((a, i) => a + i.progresso, 0) / base.length) : 0;
 
   return (
     <PageContainer
@@ -201,10 +203,11 @@ export default function InstalacoesSolar() {
       <KpiFilterCard
         id="solarInstalacoes"
         className="mb-4"
+        periodo={periodo}
         kpis={[
-          { label: "Obras", value: filtered.length, icon: Wrench, tone: "primary" },
-          { label: "Em Execução", value: filtered.filter(i => i.status !== "Obra Concluída").length, icon: Clock, tone: "warning" },
-          { label: "Concluídas", value: filtered.filter(i => i.status === "Obra Concluída").length, icon: CheckCircle2, tone: "success" },
+          { label: "Obras", value: base.length, icon: Wrench, tone: "primary" },
+          { label: "Em Execução", value: base.filter(i => i.status !== "Obra Concluída").length, icon: Clock, tone: "warning" },
+          { label: "Concluídas", value: base.filter(i => i.status === "Obra Concluída").length, icon: CheckCircle2, tone: "success" },
           { label: "Progresso Médio", value: `${progressoMedio}%`, icon: CheckSquare, tone: "info" },
         ]}
         activeCount={(search ? 1 : 0) + (filterStatus ? 1 : 0) + (filterEquipe ? 1 : 0)}

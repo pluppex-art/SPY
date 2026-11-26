@@ -8,7 +8,7 @@ import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { EmptyState } from "../../components/ui/empty-state";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
@@ -68,15 +68,16 @@ export default function BaseExames() {
   const filtrosAtivos = (busca ? 1 : 0) + (categoriaFiltro ? 1 : 0) + (situacaoFiltro ? 1 : 0);
   const limparFiltros = () => { setBusca(""); setCategoriaFiltro(""); setSituacaoFiltro(""); };
 
+  const periodo = usePeriodoIndicadores("data de cadastro");
   const kpis = useMemo(() => {
-    const list = filtrados;
+    const list = periodo.filtrar(filtrados, (e) => e.criado_em);
     return {
       total: list.length,
       ativos: list.filter((e) => e.ativo).length,
       comAlias: list.filter((e) => (e.nomes_alternativos || []).length > 0).length,
       semPreco: list.filter((e) => e.ativo && e.valor == null && e.custo == null).length,
     };
-  }, [filtrados]);
+  }, [filtrados, periodo.filtrar]);
 
   const salvar = async () => {
     if (!supabase || !activeTenantId || !form) return;
@@ -192,6 +193,7 @@ export default function BaseExames() {
       <div className="space-y-5 max-w-[1700px] mx-auto pb-12">
         <KpiFilterCard
           id="clinicaBaseExames"
+          periodo={periodo}
           kpis={[
             { label: "Exames na base", value: kpis.total, icon: FlaskConical, tone: "primary" },
             { label: "Ativos", value: kpis.ativos, icon: CheckCircle2, tone: "success" },

@@ -552,6 +552,7 @@ export default function Visitas() {
 
       <KpiFilterCard
         id="imobVisitas"
+        periodo={{ de: dateFrom, ate: dateTo, setDe: setDateFrom, setAte: setDateTo, campo: "data da visita" }}
         kpis={[
           { label: "Agendadas", value: agendadas, icon: AlertCircle, tone: "warning" },
           { label: "Confirmadas", value: confirmadas, icon: Clock, tone: "info" },

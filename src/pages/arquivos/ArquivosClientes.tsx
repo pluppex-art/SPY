@@ -10,7 +10,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { AbasPagina } from "../../components/ui/abas-pagina";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { ModalTitle, inputCls, selectCls } from "../finance/components/ModalKit";
 import { useData } from "../../contexts/DataContext";
@@ -182,6 +182,8 @@ export default function ArquivosClientes() {
   }, [arquivos, aba, busca]);
 
   const mesAtual = new Date().toISOString().slice(0, 7);
+  const periodo = usePeriodoIndicadores("data de envio do arquivo");
+  const base = periodo.filtrar(arquivos, (a) => a.criadoEm);
 
   if (!clientes.length) {
     return (
@@ -215,11 +217,12 @@ export default function ArquivosClientes() {
         <>
           <KpiFilterCard
             id="arquivosClientes"
+            periodo={periodo}
             kpis={[
-              { label: "Arquivos", value: arquivos.length, icon: FileText, tone: "primary" },
-              { label: "Espaço usado", value: tamanhoLegivel(arquivos.reduce((s, a) => s + a.tamanho, 0)), icon: HardDrive, tone: "info" },
+              { label: "Arquivos", value: base.length, icon: FileText, tone: "primary" },
+              { label: "Espaço usado", value: tamanhoLegivel(base.reduce((s, a) => s + a.tamanho, 0)), icon: HardDrive, tone: "info" },
               { label: "Enviados neste mês", value: arquivos.filter((a) => a.criadoEm.startsWith(mesAtual)).length, icon: CalendarDays, tone: "success" },
-              { label: "Categorias em uso", value: new Set(arquivos.map((a) => a.categoria)).size, icon: Layers, tone: "accent" },
+              { label: "Categorias em uso", value: new Set(base.map((a) => a.categoria)).size, icon: Layers, tone: "accent" },
             ]}
             activeCount={busca.trim() ? 1 : 0}
             onClear={() => setBusca("")}

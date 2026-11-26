@@ -21,7 +21,7 @@ import { useProdutoForm } from "./produtos/useProdutoForm";
 import { ProdutoModal } from "./produtos/ProdutoModal";
 import { ProdutosGrid } from "./produtos/ProdutosGrid";
 import { ProdutosTable } from "./produtos/ProdutosTable";
-import { KpiFilterCard } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { ProdutosFilters } from "./components/Produtos/ProdutosFilters";
 import { ProdutosAICombo } from "./components/Produtos/ProdutosAICombo";
 import { CriarPropostaModal } from "../../components/ui/modals/crm/CriarPropostaModal";
@@ -171,14 +171,17 @@ function Catalog() {
   const [verProduto, setVerProduto] = useState<any | null>(null);
   const somenteConsulta = () => { toast.info("Produto vindo da Max Data: somente consulta."); };
 
-  const totalSkuCount = viewTotal;
-  const activeSkuCount = mx.ativo ? pageProducts.filter((p: any) => p.active).length : filteredProducts.filter(p => p.active).length;
+  // Período só dos indicadores do catálogo próprio; os da Max Data são somados no servidor.
+  const periodo = usePeriodoIndicadores("data de cadastro do produto");
+  const base = useMemo(() => periodo.filtrar(filteredProducts, p => (p as Product & { created_at?: string }).created_at), [filteredProducts, periodo.filtrar]);
+  const totalSkuCount = base.length;
+  const activeSkuCount = base.filter(p => p.active).length;
   const averageMarginVal = useMemo(() => {
-    const list = filteredProducts.filter(p => p.active);
+    const list = base.filter(p => p.active);
     if (list.length === 0) return 0;
     return Math.round((list.reduce((acc, curr) => acc + curr.margin, 0) / list.length) * 10) / 10;
-  }, [filteredProducts]);
-  const bestSellerCount = filteredProducts.filter(p => p.isBestSeller).length;
+  }, [base]);
+  const bestSellerCount = base.filter(p => p.isBestSeller).length;
   const activeFilterCount =
     (f.searchTerm.trim() ? 1 : 0) + (f.selectedCategories.length > 0 ? 1 : 0) + (f.selectedTypes.length > 0 ? 1 : 0) + (f.selectedStatus !== "Todos" ? 1 : 0);
   const clearFilters = () => { f.setSearchTerm(""); f.setSelectedCategories([]); f.setSelectedTypes([]); f.setSelectedStatus("Todos"); };
@@ -227,6 +230,7 @@ function Catalog() {
         )}
         <KpiFilterCard
           id="opsProdutos"
+          periodo={mx.ativo ? undefined : periodo}
           kpis={mx.ativo ? [
             { label: "Total de SKUs", value: (mxStats.stats?.total ?? 0).toLocaleString("pt-BR"), icon: Package, tone: "primary" },
             { label: "SKUs em Operação", value: (mxStats.stats?.ativos ?? 0).toLocaleString("pt-BR"), icon: Activity, tone: "success" },

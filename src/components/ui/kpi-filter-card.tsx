@@ -1,11 +1,13 @@
 import { colunasBalanceadas } from "../../lib/gridCols";
-import { Children, createContext, isValidElement, useContext, useEffect, useState, type ReactNode } from "react";
+import { Children, createContext, isValidElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { BarChart3, Search, SlidersHorizontal, X, type LucideIcon } from "lucide-react";
 import { Card } from "./card";
 import { Button } from "./button";
 import { Modal } from "./modal";
 import { HeaderSlotContext } from "./header-slot";
+import { DateRangeFilter } from "./DateRangeFilter";
+import { filtrarPorPeriodo } from "../../lib/periodoIndicadores";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
 
@@ -25,6 +27,11 @@ import { cn } from "../../lib/utils";
  *   </KpiFilterCard>
  *
  * Indicadores com desenho próprio (cartões clicáveis, gráficos) vão em `indicators`.
+ *
+ * Filtro de período dentro da janela (vale só para os indicadores):
+ *   const periodo = usePeriodoIndicadores("data de cadastro");
+ *   const base = periodo.filtrar(clientes, (c) => c.created_at);   // os cartões contam a partir de `base`
+ *   <KpiFilterCard periodo={periodo} ... />
  */
 
 export type KpiTone = "primary" | "warning" | "success" | "info" | "accent" | "danger" | "neutral";
@@ -97,7 +104,26 @@ export function findFilterSearch(children: ReactNode): ReactNode {
   return null;
 }
 
+/** Período mostrado na janela "Indicadores". `campo` completa a frase "Período pela ...". */
+export interface PeriodoDosIndicadores {
+  de: string | null;
+  ate: string | null;
+  setDe: (v: string | null) => void;
+  setAte: (v: string | null) => void;
+  campo: string;
+}
+
+/** Período próprio dos indicadores (começa em "Tudo"). */
+export function usePeriodoIndicadores(campo: string) {
+  const [de, setDe] = useState<string | null>(null);
+  const [ate, setAte] = useState<string | null>(null);
+  const filtrar = useCallback(<T,>(lista: T[], data: (item: T) => unknown): T[] => filtrarPorPeriodo(lista, data, de, ate), [de, ate]);
+  return { de, ate, setDe, setAte, campo, filtrar };
+}
+
 interface KpiFilterCardProps {
+  /** Mostra o filtro de período na janela de indicadores. */
+  periodo?: PeriodoDosIndicadores;
   /** Identificador da página; no celular vira a chave de preferência `<id>FiltersOpenMobile`. */
   id: string;
   kpis?: KpiItem[];
@@ -113,7 +139,7 @@ interface KpiFilterCardProps {
   search?: ReactNode;
 }
 
-export function KpiFilterCard({ id, kpis = [], indicators, children, activeCount = 0, onClear, className, search }: KpiFilterCardProps) {
+export function KpiFilterCard({ id, kpis = [], indicators, periodo, children, activeCount = 0, onClear, className, search }: KpiFilterCardProps) {
   const { user, updatePreferences } = useAuth();
   const headerSlot = useContext(HeaderSlotContext);
   const [showIndicators, setShowIndicators] = useState(false);
@@ -150,6 +176,14 @@ export function KpiFilterCard({ id, kpis = [], indicators, children, activeCount
       {headerSlot ? createPortal(indicatorsButton, headerSlot) : <div className="flex justify-end">{indicatorsButton}</div>}
       <Modal isOpen={showIndicators} onClose={() => setShowIndicators(false)} title="Indicadores" maxWidth="max-w-6xl">
         <div className="flex flex-col gap-4">
+          {periodo && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <DateRangeFilter dateFrom={periodo.de} setDateFrom={periodo.setDe} dateTo={periodo.ate} setDateTo={periodo.setAte} />
+              <p className="text-[11px] font-medium text-[var(--color-text-muted)]">
+                Período pela {periodo.campo}.{periodo.de || periodo.ate ? " Registros sem essa data ficam de fora." : ""}
+              </p>
+            </div>
+          )}
           <KpiTiles items={kpis} />
           {indicators}
         </div>

@@ -12,12 +12,13 @@ import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { Sparkline } from "../../components/ui/sparkline";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { isLeadOpen } from "../../lib/leadStatus";
+import { leadDateIso } from "../../lib/leadDate";
 import { parseCurrencyBR, whatsappDigits } from "../../lib/utils";
 import { downloadCsv } from "../../lib/csvExport";
 import { buildStagesForFunil } from "../../lib/funilStages";
@@ -117,6 +118,19 @@ export default function Radar() {
   }), [allStalled]);
   const valorEmRisco = useMemo(() => allStalled.reduce((s, r) => s + r.value, 0), [allStalled]);
   const totalEmRisco = allStalled.length;
+
+  // Cartões da janela "Indicadores", com período próprio. Gráficos, tabela e o retrato diário usam a base inteira.
+  const periodo = usePeriodoIndicadores("data de cadastro do lead");
+  const indicadores = useMemo(() => {
+    const base = periodo.filtrar(allStalled, (r) => leadDateIso(r.l));
+    return {
+      critico: base.filter((r) => r.risk === "critico").length,
+      alto: base.filter((r) => r.risk === "alto").length,
+      atencao: base.filter((r) => r.risk === "atencao").length,
+      total: base.length,
+      valor: base.reduce((s, r) => s + r.value, 0),
+    };
+  }, [allStalled, periodo.filtrar]);
 
   // "Parados por etapa" — substitui "principais causas" do mockup (que não
   // corresponde a nenhum campo real do lead) pela etapa atual do funil, que é
@@ -318,6 +332,7 @@ export default function Radar() {
       ) : (
       <>
       <KpiFilterCard className="mb-4" id="crmRadar" activeCount={activeCount} onClear={limparFiltros}
+        periodo={periodo}
         indicators={<>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {(["critico", "alto", "atencao"] as Risk[]).map((k) => (
@@ -330,7 +345,7 @@ export default function Radar() {
               </div>
               <div className="flex items-end justify-between gap-2">
                 <div>
-                  <div className="text-2xl font-black">{counts[k]}</div>
+                  <div className="text-2xl font-black">{indicadores[k]}</div>
                   {deltas?.[k] !== null && deltas?.[k] !== undefined ? (
                     <span className={`text-[11px] font-bold ${deltas[k]! > 0 ? "text-danger" : deltas[k]! < 0 ? "text-success" : "text-[var(--color-text-muted)]"}`}>
                       {deltas[k]! > 0 ? "+" : ""}{deltas[k]}% vs {janela}d atrás
@@ -349,7 +364,7 @@ export default function Radar() {
             <div className="flex items-center gap-2 mb-2"><Users className="w-5 h-5 text-[var(--color-primary-blue)]" /><span className="text-xs font-bold text-[var(--color-text-muted)]">Total em risco</span></div>
             <div className="flex items-end justify-between gap-2">
               <div>
-                <div className="text-2xl font-black">{totalEmRisco}</div>
+                <div className="text-2xl font-black">{indicadores.total}</div>
                 {deltas?.total !== null && deltas?.total !== undefined ? (
                   <span className={`text-[11px] font-bold ${deltas.total! > 0 ? "text-danger" : deltas.total! < 0 ? "text-success" : "text-[var(--color-text-muted)]"}`}>
                     {deltas.total! > 0 ? "+" : ""}{deltas.total}% vs {janela}d atrás
@@ -360,7 +375,7 @@ export default function Radar() {
               </div>
               <Sparkline data={historico.map((h) => Number(h.total_count) || 0)} className="w-16 h-7 shrink-0 text-[var(--color-primary-blue)]" />
             </div>
-            <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{formatCurrency(valorEmRisco)} em jogo</p>
+            <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{formatCurrency(indicadores.valor)} em jogo</p>
           </Card>
         </div>
         </>}

@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../lib/featureFlags";
 import { useState, useMemo, useEffect } from "react";
 import { Users, BookOpen, Target, Star, Download, UserPlus } from "lucide-react";
@@ -56,6 +56,11 @@ export default function Alunos() {
     (!filterStatus || a.status === filterStatus) &&
     (!filterCurso || a.course === filterCurso)
   ), [students, searchTerm, filterStatus, filterCurso]);
+
+  // Data de cadastro fica fora do objeto `Student` para não entrar na exportação.
+  const periodo = usePeriodoIndicadores("data de cadastro");
+  const cadastroPorId = useMemo(() => new Map(rawStudents.map((s: any) => [s.id, s.created_at])), [rawStudents]);
+  const baseIndicadores = periodo.filtrar(filteredAlunos, a => cadastroPorId.get(a.id));
 
   const handleDelete = async (id: string) => {
     const student = students.find(s => s.id === id);
@@ -128,11 +133,12 @@ export default function Alunos() {
       <div className="space-y-6 max-w-[1700px] mx-auto pb-12">
         <KpiFilterCard
           id="eduAlunos"
+          periodo={periodo}
           kpis={[
-            { label: "Estudantes", value: filteredAlunos.length, icon: Users, tone: "primary" },
-            { label: "Alunos Ativos", value: filteredAlunos.filter(s => s.status === "Ativo").length, icon: BookOpen, tone: "success" },
-            { label: "Média de Progresso", value: `${filteredAlunos.length > 0 ? Math.round(filteredAlunos.reduce((a, b) => a + b.progress, 0) / filteredAlunos.length) : 0}%`, icon: Target, tone: "accent" },
-            { label: "Cursos", value: new Set(filteredAlunos.map(s => s.course).filter(Boolean)).size, icon: Star, tone: "warning" },
+            { label: "Estudantes", value: baseIndicadores.length, icon: Users, tone: "primary" },
+            { label: "Alunos Ativos", value: baseIndicadores.filter(s => s.status === "Ativo").length, icon: BookOpen, tone: "success" },
+            { label: "Média de Progresso", value: `${baseIndicadores.length > 0 ? Math.round(baseIndicadores.reduce((a, b) => a + b.progress, 0) / baseIndicadores.length) : 0}%`, icon: Target, tone: "accent" },
+            { label: "Cursos", value: new Set(baseIndicadores.map(s => s.course).filter(Boolean)).size, icon: Star, tone: "warning" },
           ]}
           activeCount={(searchTerm ? 1 : 0) + (filterStatus ? 1 : 0) + (filterCurso ? 1 : 0)}
           onClear={() => { setSearchTerm(""); setFilterStatus(""); setFilterCurso(""); }}

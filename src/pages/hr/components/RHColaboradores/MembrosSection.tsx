@@ -2,7 +2,7 @@ import { isVendedorColab } from "../../../../lib/sellers";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useRef, useState, useMemo } from "react";
 import { Users, UserPlus, Mail, Calendar, MoreVertical, TrendingUp, UserX, Coffee, Plane, Pencil, Phone, Building2 } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../../../components/ui/kpi-filter-card";
 import { Button } from "../../../../components/ui/button";
 import { Card } from "../../../../components/ui/card";
 import { Badge } from "../../../../components/ui/badge";
@@ -77,17 +77,20 @@ export function MembrosSection({
     () => filteredBySearch.filter(c => (!depto || c.departamento === depto) && (!statusFiltro || c.status === statusFiltro)),
     [filteredBySearch, depto, statusFiltro],
   );
-  const desempenhos = filtered.map(c => Number(c.desempenho)).filter(n => Number.isFinite(n));
+  const periodo = usePeriodoIndicadores("data de cadastro");
+  const base = periodo.filtrar(filtered, c => c.created_at);
+  const desempenhos = base.map(c => Number(c.desempenho)).filter(n => Number.isFinite(n));
   const mediaDesempenho = desempenhos.length > 0 ? Math.round(desempenhos.reduce((a, b) => a + b, 0) / desempenhos.length) : 0;
 
   return (
     <div className="space-y-6">
       <KpiFilterCard
         id="rhColaboradores"
+        periodo={periodo}
         kpis={[
-          { label: "Colaboradores", value: filtered.length, icon: Users, tone: "primary" },
-          { label: "Ativos", value: filtered.filter(f => f.status === "Ativo").length, icon: UserPlus, tone: "success" },
-          { label: "Férias / Afastados", value: filtered.filter(f => f.status !== "Ativo").length, icon: Coffee, tone: "warning" },
+          { label: "Colaboradores", value: base.length, icon: Users, tone: "primary" },
+          { label: "Ativos", value: base.filter(f => f.status === "Ativo").length, icon: UserPlus, tone: "success" },
+          { label: "Férias / Afastados", value: base.filter(f => f.status !== "Ativo").length, icon: Coffee, tone: "warning" },
           { label: "Média de Desempenho", value: `${mediaDesempenho}%`, icon: TrendingUp, tone: "accent" },
         ]}
         activeCount={(search.trim() ? 1 : 0) + (depto ? 1 : 0) + (statusFiltro ? 1 : 0)}

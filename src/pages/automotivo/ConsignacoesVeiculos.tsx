@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { lerValorPositivo } from "../../lib/dinheiro";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
@@ -87,6 +87,7 @@ export default function ConsignacoesVeiculos() {
     refetch();
   };
 
+  const periodo = usePeriodoIndicadores("data de cadastro do veículo");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [modalOpen, setModalOpen] = useState(false);
@@ -210,6 +211,7 @@ export default function ConsignacoesVeiculos() {
     const matchStatus = filterStatus === "Todos" || c.status === filterStatus;
     return matchSearch && matchStatus;
   });
+  const base = periodo.filtrar(filtered, (c) => c.data);
 
   const totalEstoque = consignacoes.reduce((s, c) => s + c.valorPedido, 0);
 
@@ -258,11 +260,12 @@ export default function ConsignacoesVeiculos() {
       <KpiFilterCard
         id="autoConsignacoes"
         className="mb-4"
+        periodo={periodo}
         kpis={[
-          { label: "Veículos Consignados", value: filtered.length, icon: Handshake, tone: "primary" },
-          { label: "Valor em Pátio", value: `R$ ${(filtered.reduce((s, c) => s + c.valorPedido, 0) / 1e6).toFixed(2)}M`, icon: DollarSign, tone: "accent" },
-          { label: "Em Negociação", value: filtered.filter(c => c.status === "Em Negociação").length, icon: Clock, tone: "info" },
-          { label: "Repasses Pendentes", value: filtered.filter(c => c.status === "Vendido / Repasse Pendente").length, icon: Clock, tone: "warning" },
+          { label: "Veículos Consignados", value: base.length, icon: Handshake, tone: "primary" },
+          { label: "Valor em Pátio", value: `R$ ${(base.reduce((s, c) => s + c.valorPedido, 0) / 1e6).toFixed(2)}M`, icon: DollarSign, tone: "accent" },
+          { label: "Em Negociação", value: base.filter(c => c.status === "Em Negociação").length, icon: Clock, tone: "info" },
+          { label: "Repasses Pendentes", value: base.filter(c => c.status === "Vendido / Repasse Pendente").length, icon: Clock, tone: "warning" },
         ]}
         activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0)}
         onClear={() => { setSearch(""); setFilterStatus("Todos"); }}

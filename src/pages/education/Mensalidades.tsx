@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { Wallet, CheckCircle2, AlertTriangle, Clock, DollarSign, RefreshCw, Inbox, Download, Send } from "lucide-react";
 import { Card } from "../../components/ui/card";
@@ -33,7 +33,7 @@ export default function Mensalidades() {
   const { activeTenantId } = useAuth();
   const {
     mensalidades, studentsById, total, page, setPage, totalPages, pageSize,
-    searchQuery, setSearchQuery, statusFilter, setStatusFilter, loading, refetch, exportAll,
+    searchQuery, setSearchQuery, statusFilter, setStatusFilter, loading, refetch, exportAll, fetchBaseResumo,
   } = useMensalidadesList();
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -51,6 +51,22 @@ export default function Mensalidades() {
   };
   useEffect(() => { setServerSummary(null); fetchSummary(); }, [activeTenantId]);
 
+  // Com período escolhido na janela "Indicadores", os totais saem das mensalidades
+  // com vencimento no intervalo; sem período, continuam vindo do resumo do servidor.
+  const periodo = usePeriodoIndicadores("data de vencimento");
+  const comPeriodo = !!(periodo.de || periodo.ate);
+  const [baseResumo, setBaseResumo] = useState<Awaited<ReturnType<typeof fetchBaseResumo>> | null>(null);
+  const [versaoResumo, setVersaoResumo] = useState(0);
+  useEffect(() => {
+    setBaseResumo(null);
+    if (!comPeriodo) return;
+    let cancelado = false;
+    fetchBaseResumo()
+      .then((linhas) => { if (!cancelado) setBaseResumo(linhas); })
+      .catch((error) => { if (!cancelado) toast.error(`Erro ao calcular os indicadores: ${friendlyError(error)}`); });
+    return () => { cancelado = true; };
+  }, [activeTenantId, comPeriodo, versaoResumo]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleAtualizarInadimplencia = async () => {
     if (!supabase) return;
     setRefreshing(true);
@@ -60,6 +76,7 @@ export default function Mensalidades() {
     toast.success(data > 0 ? `${data} mensalidade(s) marcada(s) como atrasada(s).` : "Nenhuma mensalidade nova em atraso.");
     refetch();
     fetchSummary();
+    setVersaoResumo((v) => v + 1);
   };
 
   const handleMarcarPago = async (m: Mensalidade) => {
@@ -69,6 +86,7 @@ export default function Mensalidades() {
     if (error) { toast.error(`Erro ao registrar pagamento: ${friendlyError(error)}`); return; }
     refetch();
     fetchSummary();
+    setVersaoResumo((v) => v + 1);
     toast.success("Mensalidade marcada como paga.");
   };
 
@@ -76,10 +94,15 @@ export default function Mensalidades() {
   // tela nunca passou pelo DataContext) — enquanto o resumo não chega,
   // mostra "—" em vez de 0, pra não sugerir "zero pendências" por engano.
   const kpiValue = (n: number | undefined, format: (v: number) => string) => (n === undefined ? "—" : format(n));
-  const totalPendente = kpiValue(serverSummary?.totalPendente, formatCurrency);
-  const totalAtrasado = kpiValue(serverSummary?.totalAtrasado, formatCurrency);
+  const noPeriodo = comPeriodo && baseResumo ? periodo.filtrar(baseResumo, (m) => m.vencimento) : null;
+  const doStatus = (status: Mensalidade["status"]) => noPeriodo?.filter((m) => m.status === status);
+  const soma = (linhas?: { valor: number }[]) => linhas?.reduce((s, m) => s + (Number(m.valor) || 0), 0);
+  const totalPendente = kpiValue(comPeriodo ? soma(doStatus("Pendente")) : serverSummary?.totalPendente, formatCurrency);
+  const totalAtrasado = kpiValue(comPeriodo ? soma(doStatus("Atrasado")) : serverSummary?.totalAtrasado, formatCurrency);
   const totalRecebidoMes = kpiValue(serverSummary?.totalRecebidoMes, formatCurrency);
   const countAtrasado = serverSummary?.countAtrasado ?? 0;
+  const atrasadosNoCartao = comPeriodo ? doStatus("Atrasado")?.length ?? "—" : countAtrasado;
+  const dicaResumo = comPeriodo ? "Vencimentos no período (não depende dos filtros)" : "Total do tenant (não depende dos filtros)";
 
   const handleExportCSV = async () => {
     setExporting(true);
@@ -143,11 +166,12 @@ export default function Mensalidades() {
 
         <KpiFilterCard
           id="eduMensalidades"
+          periodo={periodo}
           kpis={[
-            { label: "A Receber (Pendente)", value: totalPendente, icon: Clock, tone: "warning", hint: "Total do tenant (não depende dos filtros)" },
-            { label: "Em Atraso", value: totalAtrasado, icon: AlertTriangle, tone: "danger", hint: "Total do tenant (não depende dos filtros)" },
+            { label: "A Receber (Pendente)", value: totalPendente, icon: Clock, tone: "warning", hint: dicaResumo },
+            { label: "Em Atraso", value: totalAtrasado, icon: AlertTriangle, tone: "danger", hint: dicaResumo },
             { label: "Recebido neste Mês", value: totalRecebidoMes, icon: DollarSign, tone: "success", hint: "Total do tenant (não depende dos filtros)" },
-            { label: "Alunos Inadimplentes", value: countAtrasado, icon: Wallet, tone: "primary", hint: "Total do tenant (não depende dos filtros)" },
+            { label: "Alunos Inadimplentes", value: atrasadosNoCartao, icon: Wallet, tone: "primary", hint: dicaResumo },
           ]}
           activeCount={(searchQuery ? 1 : 0) + (statusFilter !== "Todos" ? 1 : 0)}
           onClear={() => { setSearchQuery(""); setStatusFilter("Todos"); }}

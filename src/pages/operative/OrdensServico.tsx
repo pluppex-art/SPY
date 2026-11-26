@@ -9,7 +9,7 @@ import { ViewToggle, HEADER_ACTIONS, HEADER_BUTTON, HEADER_PRIMARY_BUTTON } from
 import { EmptyState } from "../../components/ui/empty-state";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../../components/ui/dropdown-menu";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
@@ -66,17 +66,20 @@ export default function OrdensServico() {
       return next;
     });
 
+  const periodo = usePeriodoIndicadores("data de abertura da OS, considerando no máximo 1.000 ordens");
+
   const kpis = useMemo(() => {
     const mes = new Date().toISOString().slice(0, 7);
     const hoje = new Date().toISOString().slice(0, 10);
-    const abertas = os.ordens.filter(o => o.status === "Aberta" || o.status === "Em execução");
+    const base = periodo.filtrar(os.ordens, o => o.createdAt);
+    const abertas = base.filter(o => o.status === "Aberta" || o.status === "Em execução");
     return {
       abertas: abertas.length,
       atrasadas: abertas.filter(o => o.prazo && o.prazo < hoje).length,
-      aFaturar: os.ordens.filter(o => o.status === "Concluída").reduce((s, o) => s + o.valorTotal, 0),
+      aFaturar: base.filter(o => o.status === "Concluída").reduce((s, o) => s + o.valorTotal, 0),
       faturadoMes: os.ordens.filter(o => o.status === "Faturada" && o.createdAt.startsWith(mes)).reduce((s, o) => s + o.valorTotal, 0),
     };
-  }, [os.ordens]);
+  }, [os.ordens, periodo.filtrar]);
 
   const contagem = useMemo(() => {
     const m = new Map<string, number>();
@@ -214,6 +217,7 @@ export default function OrdensServico() {
         {/* Nível 2 — filtros (os indicadores abrem pelo botão do cabeçalho) */}
         <KpiFilterCard
           id="opsOrdensServico"
+          periodo={periodo}
           kpis={[
             { label: "Em andamento", value: kpis.abertas, icon: Hammer, tone: "primary", hint: "Abertas ou em execução" },
             { label: "Atrasadas", value: kpis.atrasadas, icon: Clock, tone: kpis.atrasadas > 0 ? "danger" : "neutral", hint: "Passaram da data prevista" },

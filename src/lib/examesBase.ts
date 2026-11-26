@@ -10,6 +10,8 @@ export type Exame = {
   id: string; nome: string; codigo_interno: string | null; codigo_externo: string | null; nomes_alternativos: string[];
   categoria: string | null; tipo: string | null; material: string | null; unidade: string | null;
   custo: number | null; valor: number | null; parceiro: string | null; observacoes: string | null; ativo: boolean;
+  /** created_at da linha de products (data de cadastro) */
+  criado_em?: string | null;
   /** type_attributes original da linha de products (preserva chaves que a tela não edita) */
   ta: Record<string, any>;
 };
@@ -25,7 +27,7 @@ export function exameDeProduto(p: any): Exame {
     nomes_alternativos: Array.isArray(ta.nomes_alternativos) ? ta.nomes_alternativos.filter((x: unknown) => typeof x === "string") : [],
     categoria: txt(p.category), tipo: txt(ta.tipo_exame), material: txt(p.material), unidade: txt(ta.unidade),
     custo: positivo(p.cost), valor: positivo(p.price), parceiro: txt(ta.parceiro), observacoes: txt(ta.observacoes),
-    ativo: p.active !== false, ta: ta,
+    ativo: p.active !== false, criado_em: p.created_at ?? null, ta: ta,
   };
 }
 

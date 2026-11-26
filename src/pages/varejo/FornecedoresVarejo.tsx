@@ -5,7 +5,7 @@ import { BotaoImportar } from "../../components/ImportadorPlanilha";
 import { fornecedoresSpec } from "../../lib/importSpecs";
 import { Button } from "../../components/ui/button";
 import { Truck, Plus, Phone, Mail, Package, Trash2, Pencil, FileDown, ShoppingCart, BookOpen } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
@@ -52,6 +52,7 @@ export default function FornecedoresVarejo() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<FornecedorItem | null>(null);
   const [catalogoDe, setCatalogoDe] = useState<FornecedorItem | null>(null);
+  const periodo = usePeriodoIndicadores("data de cadastro do fornecedor");
 
   const abrirNovo = () => { setEditando(null); setModalOpen(true); };
   const abrirEdicao = (f: FornecedorItem) => { setEditando(f); setModalOpen(true); };
@@ -95,9 +96,10 @@ export default function FornecedoresVarejo() {
       && (statusFiltro === "" || (statusFiltro === "Ativos" ? f.ativo : !f.ativo));
   });
 
-  const comTelefone = filtered.filter(f => f.telefone).length;
-  const comEmail = filtered.filter(f => f.email).length;
-  const linhasDistintas = new Set(filtered.flatMap(f => splitCats(f.categorias))).size;
+  const base = periodo.filtrar(filtered, f => f.criadoEm);
+  const comTelefone = base.filter(f => f.telefone).length;
+  const comEmail = base.filter(f => f.email).length;
+  const linhasDistintas = new Set(base.flatMap(f => splitCats(f.categorias))).size;
   const activeFilters = (search.trim() ? 1 : 0) + (categoriaFiltro ? 1 : 0) + (cidadeFiltro ? 1 : 0) + (statusFiltro !== "Ativos" ? 1 : 0);
   const limparFiltros = () => { setSearch(""); setCategoriaFiltro(""); setCidadeFiltro(""); setStatusFiltro("Ativos"); };
   const resumoDe = (f: FornecedorItem): Resumo => resumo[f.razaoSocial.trim().toLowerCase()] || { ordens: 0, total: 0 };
@@ -147,11 +149,12 @@ export default function FornecedoresVarejo() {
     >
       <KpiFilterCard
         id="varejoFornecedores"
+        periodo={periodo}
         className="mb-4"
         activeCount={activeFilters}
         onClear={limparFiltros}
         kpis={[
-          { label: "Fornecedores", value: filtered.length, icon: Truck, tone: "primary" },
+          { label: "Fornecedores", value: base.length, icon: Truck, tone: "primary" },
           { label: "Com telefone", value: comTelefone, icon: Phone, tone: "success" },
           { label: "Com e-mail", value: comEmail, icon: Mail, tone: "info" },
           { label: "Linhas / categorias", value: linhasDistintas, icon: Package, tone: "accent" },

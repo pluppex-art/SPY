@@ -5,7 +5,7 @@ import { proprietariosSpec } from "../../lib/importSpecs";
 
 import { Button } from "../../components/ui/button";
 import { Users, Plus, Phone, Mail, Home, Building2, Trash2 } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -21,6 +21,7 @@ interface ProprietarioItem {
   imoveisCount: number;
   tipo: "Pessoa Física" | "Pessoa Jurídica";
   status: "Ativo" | "Inativo";
+  createdAt?: string;
 }
 
 function rowToProprietario(row: any): ProprietarioItem {
@@ -32,6 +33,7 @@ function rowToProprietario(row: any): ProprietarioItem {
     imoveisCount: row.imoveis_count ?? 0,
     tipo: row.tipo,
     status: row.status,
+    createdAt: row.created_at,
   };
 }
 
@@ -57,6 +59,7 @@ export default function Proprietarios() {
     return () => { cancelled = true; };
   }, [activeTenantId, reloadKey]);
 
+  const periodo = usePeriodoIndicadores("data de cadastro");
   const [search, setSearch] = useState("");
   const [tipoFilter, setTipoFilter] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -127,6 +130,7 @@ export default function Proprietarios() {
     p.telefone.includes(search)) &&
     (!tipoFilter || p.tipo === tipoFilter)
   );
+  const base = periodo.filtrar(filtered, (p) => p.createdAt);
 
   return (
     <PageContainer
@@ -143,11 +147,12 @@ export default function Proprietarios() {
     >
       <KpiFilterCard
         id="imobProprietarios"
+        periodo={periodo}
         kpis={[
-          { label: "Proprietários", value: filtered.length, icon: Users, tone: "primary" },
-          { label: "Imóveis Vinculados", value: filtered.reduce((s, p) => s + p.imoveisCount, 0), icon: Home, tone: "success" },
-          { label: "Pessoas Jurídicas", value: filtered.filter(p => p.tipo === "Pessoa Jurídica").length, icon: Building2, tone: "accent" },
-          { label: "Com Telefone", value: filtered.filter(p => p.telefone.trim()).length, icon: Phone, tone: "warning" },
+          { label: "Proprietários", value: base.length, icon: Users, tone: "primary" },
+          { label: "Imóveis Vinculados", value: base.reduce((s, p) => s + p.imoveisCount, 0), icon: Home, tone: "success" },
+          { label: "Pessoas Jurídicas", value: base.filter(p => p.tipo === "Pessoa Jurídica").length, icon: Building2, tone: "accent" },
+          { label: "Com Telefone", value: base.filter(p => p.telefone.trim()).length, icon: Phone, tone: "warning" },
         ]}
         activeCount={(search.trim() ? 1 : 0) + (tipoFilter ? 1 : 0)}
         onClear={() => { setSearch(""); setTipoFilter(""); }}

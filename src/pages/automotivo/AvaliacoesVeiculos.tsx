@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { lerValorPositivo } from "../../lib/dinheiro";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
@@ -65,6 +65,7 @@ export default function AvaliacoesVeiculos() {
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
+  const periodo = usePeriodoIndicadores("data da avaliação");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterAvaliador, setFilterAvaliador] = useState("");
@@ -172,6 +173,7 @@ export default function AvaliacoesVeiculos() {
     const matchExtra = !filterAvaliador || a.avaliador === filterAvaliador;
     return matchSearch && matchStatus && matchExtra;
   });
+  const base = periodo.filtrar(filtered, (a) => a.data);
 
   const handleExportCSV = () => {
     if (filtered.length === 0) {
@@ -219,11 +221,12 @@ export default function AvaliacoesVeiculos() {
       <KpiFilterCard
         id="autoAvaliacoes"
         className="mb-4"
+        periodo={periodo}
         kpis={[
-          { label: "Avaliações", value: filtered.length, icon: CheckSquare, tone: "primary" },
-          { label: "FIPE Acumulada", value: `R$ ${(filtered.reduce((s, a) => s + a.fipe, 0) / 1000).toFixed(0)}k`, icon: DollarSign, tone: "info" },
-          { label: "Aprovadas", value: filtered.filter(a => a.status === "Aprovado").length, icon: CheckCircle2, tone: "success" },
-          { label: "Conversão de Compra", value: filtered.length > 0 ? `${Math.round((filtered.filter(a => a.status === "Aprovado").length / filtered.length) * 100)}%` : "0%", icon: Gauge, tone: "accent" },
+          { label: "Avaliações", value: base.length, icon: CheckSquare, tone: "primary" },
+          { label: "FIPE Acumulada", value: `R$ ${(base.reduce((s, a) => s + a.fipe, 0) / 1000).toFixed(0)}k`, icon: DollarSign, tone: "info" },
+          { label: "Aprovadas", value: base.filter(a => a.status === "Aprovado").length, icon: CheckCircle2, tone: "success" },
+          { label: "Conversão de Compra", value: base.length > 0 ? `${Math.round((base.filter(a => a.status === "Aprovado").length / base.length) * 100)}%` : "0%", icon: Gauge, tone: "accent" },
         ]}
         activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterAvaliador ? 1 : 0)}
         onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterAvaliador(""); }}

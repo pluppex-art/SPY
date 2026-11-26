@@ -3,7 +3,7 @@ import { cityKey, groupCities } from "../../lib/leadLocation";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { Building2, Plus, MapPin, DollarSign, TrendingUp, CheckCircle2, ArrowRight, Trash2, Download } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
@@ -22,6 +22,7 @@ interface EmpreendimentoItem {
   vgvTotal: number;
   status: "Lançamento" | "Em Obras" | "Pronto para Morar" | "100% Vendido";
   entrega: string;
+  createdAt?: string;
 }
 
 function rowToEmpreendimento(row: any): EmpreendimentoItem {
@@ -35,6 +36,7 @@ function rowToEmpreendimento(row: any): EmpreendimentoItem {
     vgvTotal: Number(row.vgv_total) || 0,
     status: row.status,
     entrega: row.entrega || "",
+    createdAt: row.created_at,
   };
 }
 
@@ -59,6 +61,7 @@ export default function Empreendimentos() {
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
+  const periodo = usePeriodoIndicadores("data de cadastro");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterCidade, setFilterCidade] = useState("");
@@ -152,11 +155,12 @@ export default function Empreendimentos() {
     const matchConstrutora = !filterConstrutora || e.construtora === filterConstrutora;
     return matchSearch && matchStatus && matchCidade && matchConstrutora;
   });
+  const base = periodo.filtrar(filtered, (e) => e.createdAt);
 
   const cidadesList = groupCities(empreendimentos.map(e => e.cidade)).map((g) => g.label);
   const construtorasList = Array.from(new Set(empreendimentos.map(e => e.construtora).filter(Boolean))).sort();
-  const vgvTotalGeral = filtered.reduce((s, e) => s + e.vgvTotal, 0);
-  const unidadesTotalDisp = filtered.reduce((s, e) => s + e.unidadesDisponiveis, 0);
+  const vgvTotalGeral = base.reduce((s, e) => s + e.vgvTotal, 0);
+  const unidadesTotalDisp = base.reduce((s, e) => s + e.unidadesDisponiveis, 0);
 
   const handleExportCSV = () => {
     if (filtered.length === 0) {
@@ -202,11 +206,12 @@ export default function Empreendimentos() {
     >
       <KpiFilterCard
         id="imobEmpreendimentos"
+        periodo={periodo}
         kpis={[
-          { label: "Empreendimentos", value: filtered.length, icon: Building2, tone: "primary" },
+          { label: "Empreendimentos", value: base.length, icon: Building2, tone: "primary" },
           { label: "VGV Total", value: `R$ ${(vgvTotalGeral / 1e6).toFixed(1)}M`, icon: DollarSign, tone: "warning" },
           { label: "Unidades Disponíveis", value: unidadesTotalDisp, icon: CheckCircle2, tone: "success" },
-          { label: "Em Obras", value: filtered.filter(e => e.status === "Em Obras").length, icon: TrendingUp, tone: "info" },
+          { label: "Em Obras", value: base.filter(e => e.status === "Em Obras").length, icon: TrendingUp, tone: "info" },
         ]}
         activeCount={(search.trim() ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterCidade ? 1 : 0) + (filterConstrutora ? 1 : 0)}
         onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterCidade(""); setFilterConstrutora(""); }}

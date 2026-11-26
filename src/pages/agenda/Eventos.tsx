@@ -2,10 +2,13 @@ import { useState, useMemo } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
 import { Calendar, Video, MapPin, Plus, CheckCircle2, ArrowRight, Flag } from "lucide-react";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { Link } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";
 import { NovaReuniaoModal } from "../../components/ui/modals/reunioes/NovaReuniaoModal";
+
+// Há empresas com milhares de compromissos: desenhar todos de uma vez trava a tela.
+const LIMITE_LISTA = 200;
 
 export default function Eventos() {
   const { reunioes } = useData();
@@ -15,17 +18,21 @@ export default function Eventos() {
   const [showModal, setShowModal] = useState(false);
 
   const eventos = useMemo(() => {
-    return (reunioes as any[]).map(r => ({
-      id: r.id,
-      titulo: r.titulo,
-      data: r.data_agendada,
-      duracao: r.duracao_minutos || 45,
-      formato: r.formato || (r.local_endereco ? "presencial" : "virtual"),
-      local: r.local_endereco,
-      lead: r.leads?.nome || r.leads?.name || "Cliente Agendado",
-      closer: r.closer_nome || "Responsável",
-      status: r.status,
-    }));
+    return (reunioes as any[]).map(r => {
+      // O formulário grava o encontro presencial em `meetLink` como "Presencial: endereço".
+      const presencial = String(r.meetLink || "").startsWith("Presencial");
+      const lead = r.leadName || r.companyName || "Sem cliente informado";
+      return {
+        id: r.id,
+        titulo: `${r.tipo && r.tipo !== "Outros" ? r.tipo : "Compromisso"} · ${lead}`,
+        data: r.scheduledAt,
+        formato: presencial ? "presencial" : "virtual",
+        local: presencial ? String(r.meetLink).replace(/^Presencial:?\s*/, "") : "",
+        lead,
+        closer: r.closerName || "Não informado",
+        status: r.status,
+      };
+    }).sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
   }, [reunioes]);
 
   const statusOptions = useMemo(() => Array.from(new Set(eventos.map(e => e.status).filter(Boolean))).sort() as string[], [eventos]);
@@ -45,6 +52,9 @@ export default function Eventos() {
       return matchSearch && matchTipo && matchStatus;
     });
   }, [eventos, search, tipoFilter, statusFilter]);
+
+  const periodo = usePeriodoIndicadores("data do compromisso");
+  const baseIndicadores = periodo.filtrar(filtered, e => e.data);
 
   const activeCount = (search.trim() ? 1 : 0) + (tipoFilter !== "Todos" ? 1 : 0) + (statusFilter ? 1 : 0);
 
@@ -68,12 +78,13 @@ export default function Eventos() {
     >
       <KpiFilterCard
         id="agendaEventos"
+        periodo={periodo}
         className="mb-6"
         kpis={[
-          { label: "Compromissos", value: filtered.length, icon: Calendar, tone: "primary" },
-          { label: "Reuniões Virtuais", value: filtered.filter(e => e.formato !== "presencial").length, icon: Video, tone: "accent" },
-          { label: "Visitas Presenciais", value: filtered.filter(e => e.formato === "presencial").length, icon: MapPin, tone: "warning" },
-          { label: "Realizados", value: filtered.filter(e => e.status === "realizada").length, icon: CheckCircle2, tone: "success" },
+          { label: "Compromissos", value: baseIndicadores.length, icon: Calendar, tone: "primary" },
+          { label: "Reuniões Virtuais", value: baseIndicadores.filter(e => e.formato !== "presencial").length, icon: Video, tone: "accent" },
+          { label: "Visitas Presenciais", value: baseIndicadores.filter(e => e.formato === "presencial").length, icon: MapPin, tone: "warning" },
+          { label: "Realizados", value: baseIndicadores.filter(e => e.status === "Concluída").length, icon: CheckCircle2, tone: "success" },
         ]}
         activeCount={activeCount}
         onClear={() => { setSearch(""); setTipoFilter("Todos"); setStatusFilter(""); }}
@@ -87,7 +98,7 @@ export default function Eventos() {
 
       {/* Events List */}
       <div className="space-y-3">
-        {filtered.map(ev => (
+        {filtered.slice(0, LIMITE_LISTA).map(ev => (
           <div
             key={ev.id}
             className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)]/50 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
@@ -128,6 +139,12 @@ export default function Eventos() {
             </div>
           </div>
         ))}
+
+        {filtered.length > LIMITE_LISTA && (
+          <p className="py-2 text-center text-xs text-[var(--color-text-muted)]">
+            Mostrando os {LIMITE_LISTA} mais recentes de {filtered.length}. Use a busca ou os filtros para achar os demais.
+          </p>
+        )}
 
         {filtered.length === 0 && (
           <div className="py-16 text-center text-[var(--color-text-muted)]">

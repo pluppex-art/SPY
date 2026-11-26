@@ -1,4 +1,4 @@
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -57,6 +57,7 @@ export default function VistoriasSolar() {
     return () => { cancelled = true; };
   }, [activeTenantId]);
 
+  const periodo = usePeriodoIndicadores("data agendada da vistoria");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterResp, setFilterResp] = useState("");
@@ -172,6 +173,7 @@ export default function VistoriasSolar() {
     const matchResp = !filterResp || v.responsavel === filterResp;
     return matchSearch && matchStatus && matchResp;
   });
+  const base = periodo.filtrar(filtered, (v) => v.dataAgendada);
 
   return (
     <PageContainer
@@ -195,11 +197,12 @@ export default function VistoriasSolar() {
       <KpiFilterCard
         id="solarVistorias"
         className="mb-4"
+        periodo={periodo}
         kpis={[
-          { label: "Vistorias", value: filtered.length, icon: ClipboardCheck, tone: "primary" },
-          { label: "Aprovadas", value: filtered.filter(v => v.status === "Concluída / Aprovada").length, icon: CheckCircle2, tone: "success" },
-          { label: "Agendadas", value: filtered.filter(v => v.status === "Agendada").length, icon: Calendar, tone: "warning" },
-          { label: "Reprovadas", value: filtered.filter(v => v.status === "Reprovada / Ajuste Necessário").length, icon: AlertTriangle, tone: "danger" },
+          { label: "Vistorias", value: base.length, icon: ClipboardCheck, tone: "primary" },
+          { label: "Aprovadas", value: base.filter(v => v.status === "Concluída / Aprovada").length, icon: CheckCircle2, tone: "success" },
+          { label: "Agendadas", value: base.filter(v => v.status === "Agendada").length, icon: Calendar, tone: "warning" },
+          { label: "Reprovadas", value: base.filter(v => v.status === "Reprovada / Ajuste Necessário").length, icon: AlertTriangle, tone: "danger" },
         ]}
         activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterResp ? 1 : 0)}
         onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterResp(""); }}

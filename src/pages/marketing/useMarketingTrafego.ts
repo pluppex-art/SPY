@@ -22,6 +22,8 @@ export interface Campanha {
   value: number;
   priority: "Alta" | "Média" | "Baixa";
   date: string;
+  /** Quando a campanha foi cadastrada (preenchida pelo banco; nunca é gravada pela tela). */
+  createdAt?: string;
   /** Nome do colaborador responsável (vazio = sem responsável). */
   responsavel: string;
   objetivo: string;
@@ -62,6 +64,7 @@ function linhaParaCampanha(r: any): Campanha {
     value: Number(r.budget) || 0,
     priority: r.priority === "Alta" || r.priority === "Baixa" ? r.priority : "Média",
     date: inicio ? rotuloData(inicio) : "Sem data",
+    createdAt: r.created_at || "",
     responsavel: typeof r.extras?.responsavel === "string" ? r.extras.responsavel : "",
     objetivo: typeof r.extras?.objetivo === "string" ? r.extras.objetivo : "",
     publico: typeof r.extras?.publico === "string" ? r.extras.publico : "",

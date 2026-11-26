@@ -150,23 +150,23 @@ export default function Propostas() {
     return true;
   };
 
-  const filteredContracts = useMemo(() => {
-    if (!dateFrom && !dateTo) return contracts;
-    return (contracts as any[]).filter((c) => inRange(toIsoBR(c.date), dateFrom, dateTo));
-  }, [contracts, dateFrom, dateTo]);
-
   // "Responsável" na tabela usa o colaborador gravado direto no contrato
   // (campo real, editável) — cai pro vendedor da proposta de origem só como
   // fallback pra contratos antigos sem responsável definido ainda.
-  const contractsEnriquecidos = useMemo(() => {
-    return (filteredContracts as any[]).map((c: any) => {
+  const contractsComResponsavel = useMemo(() => {
+    return (contracts as any[]).map((c: any) => {
       const colaborador = (colaboradores as any[]).find((col: any) => col.id === c.responsavelId);
       return {
         ...c,
         responsavel: colaborador?.nome || (propostas as any[]).find((p: any) => p.id === c.proposalId)?.vendedor || null,
       };
     });
-  }, [filteredContracts, colaboradores, propostas]);
+  }, [contracts, colaboradores, propostas]);
+
+  const contractsEnriquecidos = useMemo(() => {
+    if (!dateFrom && !dateTo) return contractsComResponsavel;
+    return contractsComResponsavel.filter((c: any) => inRange(toIsoBR(c.date), dateFrom, dateTo));
+  }, [contractsComResponsavel, dateFrom, dateTo]);
 
   const [contractStatusFilter, setContractStatusFilter] = useState("Todos");
   const [contractPlanFilter, setContractPlanFilter] = useState("Todos");
@@ -174,16 +174,21 @@ export default function Propostas() {
 
   const contractPlanosDisponiveis = useMemo(() => Array.from(new Set(contractsEnriquecidos.map((c: any) => c.plan).filter(Boolean))).sort() as string[], [contractsEnriquecidos]);
   const contractVendedoresDisponiveis = useMemo(() => Array.from(new Set(contractsEnriquecidos.map((c: any) => c.responsavel).filter(Boolean))).sort() as string[], [contractsEnriquecidos]);
-  const contractsFiltrados = useMemo(() => {
+  // Todos os filtros menos o período: base dos comparativos mensais dos indicadores (retenção, novos no mês).
+  const contratosSemPeriodo = useMemo(() => {
     const q = normalizeText(contractSearch);
-    return contractsEnriquecidos.filter((c: any) => {
+    return contractsComResponsavel.filter((c: any) => {
       if (contractStatusFilter !== "Todos" && c.status !== contractStatusFilter) return false;
       if (contractPlanFilter !== "Todos" && c.plan !== contractPlanFilter) return false;
       if (contractVendedorFilter !== "Todos" && c.responsavel !== contractVendedorFilter) return false;
       if (!q) return true;
       return normalizeText(c.client).includes(q) || normalizeText(c.plan).includes(q) || normalizeText(c.responsavel).includes(q);
     });
-  }, [contractsEnriquecidos, contractSearch, contractStatusFilter, contractPlanFilter, contractVendedorFilter]);
+  }, [contractsComResponsavel, contractSearch, contractStatusFilter, contractPlanFilter, contractVendedorFilter]);
+  const contractsFiltrados = useMemo(() => {
+    if (!dateFrom && !dateTo) return contratosSemPeriodo;
+    return contratosSemPeriodo.filter((c: any) => inRange(toIsoBR(c.date), dateFrom, dateTo));
+  }, [contratosSemPeriodo, dateFrom, dateTo]);
   const contractActiveCount = (contractSearch ? 1 : 0) + (contractStatusFilter !== "Todos" ? 1 : 0) + (contractPlanFilter !== "Todos" ? 1 : 0) + (contractVendedorFilter !== "Todos" ? 1 : 0) + (dateFrom || dateTo ? 1 : 0);
   const limparFiltrosContratos = () => {
     setContractSearch(""); setContractStatusFilter("Todos"); setContractPlanFilter("Todos"); setContractVendedorFilter("Todos"); setDateFrom(null); setDateTo(null);
@@ -285,6 +290,7 @@ export default function Propostas() {
         <div className="space-y-6">
           <KpiFilterCard
             id="crmPropostas"
+            periodo={{ de: dateFrom, ate: dateTo, setDe: setDateFrom, setAte: setDateTo, campo: "data de criação da proposta" }}
             activeCount={(propostasSearch ? 1 : 0) + (statusFiltro !== "todos" ? 1 : 0) + (vendedorFiltro !== "todos" ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
             onClear={limparFiltros}
         indicators={<>
@@ -336,6 +342,7 @@ export default function Propostas() {
       ) : activeTab === "contratos" ? (
         <div className="space-y-6">
           <KpiFilterCard id="crmContratos" activeCount={contractActiveCount} onClear={limparFiltrosContratos}
+        periodo={{ de: dateFrom, ate: dateTo, setDe: setDateFrom, setAte: setDateTo, campo: "data de assinatura do contrato" }}
         indicators={<>
               <ContractsKPIs
                 valorAtivos={valorContratosAtivos}
@@ -344,7 +351,7 @@ export default function Propostas() {
                 mrrRows={contractsFiltrados.filter(isContractAtivo)}
                 ativosRows={contractsFiltrados.filter((c: any) => c.status === "Ativo")}
                 inadimplentesRows={contractsFiltrados.filter((c: any) => c.status === "Inadimplente")}
-                contracts={contractsFiltrados as any[]}
+                contracts={contratosSemPeriodo as any[]}
               />
         </>}
       >

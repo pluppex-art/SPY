@@ -222,7 +222,8 @@ export function usePipeline() {
   }, [products]);
 
   // ─── Filtered leads ───────────────────────────────────────────────────────────
-  const filteredItemsList = useMemo(() => leads
+  // Todos os filtros menos o período: base de "Novos (7 dias)", que tem janela fixa.
+  const leadsSemPeriodo = useMemo(() => leads
     .filter((item: any) => {
       const matchesPipeline = currentPipeline === "sdr"
         ? item.pipelineId === "sdr"
@@ -273,14 +274,6 @@ export function usePipeline() {
         normalizeText(item.seller || "").includes(q)
       );
 
-      // Mesma data de cadastro do filtro do Dashboard (leadDateIso: `date` ISO ou o
-      // created_at do banco) — `item.date` sozinho é texto livre ("Hoje", "") e fazia o
-      // filtro de período não achar lead nenhum.
-      const iso = leadDateIso(item).slice(0, 10);
-      const matchesDate =
-        (!dateFrom || (iso && iso >= dateFrom)) &&
-        (!dateTo || (iso && iso <= dateTo));
-
       const matchesStage = stageFilter === "Todas" || String(item.stageId) === String(stageFilter);
       const matchesSource = sourceFilter === "Todas" || item.source === sourceFilter;
 
@@ -294,7 +287,6 @@ export function usePipeline() {
         matchesCity &&
         matchesClient &&
         matchesProduct &&
-        matchesDate &&
         matchesSearch
       );
     })
@@ -314,7 +306,17 @@ export function usePipeline() {
       if (!db) return 1;
       return db > da ? 1 : db < da ? -1 : 0;
     }),
-  [leads, currentPipeline, activeFunil, activeFunilStageIds, isAllFunisSelected, sellerFilter, searchQuery, companyFilter, cityFilter, clientFilter, clientNameToId, products, productFilter, dateFrom, dateTo, stageFilter, sourceFilter]);
+  [leads, currentPipeline, activeFunil, activeFunilStageIds, isAllFunisSelected, sellerFilter, searchQuery, companyFilter, cityFilter, clientFilter, clientNameToId, products, productFilter, stageFilter, sourceFilter]);
+
+  // Mesma data de cadastro do filtro do Dashboard (leadDateIso: `date` ISO ou o created_at do banco) —
+  // `item.date` sozinho é texto livre ("Hoje", "") e fazia o filtro de período não achar lead nenhum.
+  const filteredItemsList = useMemo(() => {
+    if (!dateFrom && !dateTo) return leadsSemPeriodo;
+    return leadsSemPeriodo.filter((item: any) => {
+      const iso = leadDateIso(item).slice(0, 10);
+      return (!dateFrom || (!!iso && iso >= dateFrom)) && (!dateTo || (!!iso && iso <= dateTo));
+    });
+  }, [leadsSemPeriodo, dateFrom, dateTo]);
 
   // ─── Metrics ─────────────────────────────────────────────────────────────────
   const analyticsData = useMemo(() =>
@@ -358,14 +360,15 @@ export function usePipeline() {
 
   const totalLeadsCount = filteredItemsList.length;
 
-  // Indicadores extras do topo do Pipeline (sempre sobre os negócios que passam pelos filtros da tela).
+  // Indicadores extras do topo do Pipeline (sobre os negócios que passam pelos filtros da tela; "Novos (7 dias)"
+  // ignora o período, porque já tem a própria janela).
   const perdidosCount = filteredItemsList.filter((l: any) => l.status === "Perdido").length;
   const ticketMedioGanhos = somaGanhos.total > 0 && filteredItemsList.some((l: any) => l.status === "Fechado")
     ? somaGanhos.total / filteredItemsList.filter((l: any) => l.status === "Fechado").length
     : 0;
   const novos7dCount = (() => {
     const corte = Date.now() - 7 * 86400000;
-    return filteredItemsList.filter((l: any) => {
+    return leadsSemPeriodo.filter((l: any) => {
       const t = Date.parse(l.created_at ?? l.createdAt ?? "");
       return !Number.isNaN(t) && t >= corte;
     }).length;

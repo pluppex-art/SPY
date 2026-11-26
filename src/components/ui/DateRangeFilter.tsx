@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "
 import { createPortal } from "react-dom";
 import { CalendarRange, ChevronDown, X, Check } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { diaLocal } from "../../lib/periodoIndicadores";
 
 interface DateRangeFilterProps {
   dateFrom: string | null;
@@ -16,8 +17,9 @@ interface DateRangeFilterProps {
   emptyLabel?: string;
 }
 
+// Dia no fuso de quem usa: com toISOString, à noite no Brasil o "Hoje" virava o dia seguinte.
 function toISO(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return diaLocal(d)!;
 }
 
 function fmtBR(iso: string): string {

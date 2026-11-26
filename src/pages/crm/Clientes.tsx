@@ -20,7 +20,7 @@ import { useData } from "../../contexts/DataContext";
 import { ClientesKPIs } from "./components/Clientes/ClientesKPIs";
 import { ClientesList } from "./components/Clientes/ClientesList";
 import { ClientesResumo } from "./components/Clientes/ClientesResumo";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { normalizeText } from "../../lib/utils";
 import { Pagination } from "../../components/ui/Pagination";
 import { useMaxdataPage, useMaxdataStats, useMaxdataDisponivel, MAXDATA_TODAS, origensVisiveis } from "../../lib/useMaxdataPage";
@@ -184,22 +184,25 @@ export default function Clientes() {
   const activeCount = (searchQuery ? 1 : 0) + (statusFilter !== NEUTRO_SITUACAO ? 1 : 0) + (sectorFilter !== NEUTRO_SETOR ? 1 : 0) + (contratoStatusFilter !== NEUTRO_CONTRATO ? 1 : 0) + (nivelFilter !== "Todos os níveis" ? 1 : 0);
   const clearFilters = () => { setSearchQuery(""); setStatusFilter(NEUTRO_SITUACAO); setSectorFilter(NEUTRO_SETOR); setContratoStatusFilter(NEUTRO_CONTRATO); setNivelFilter("Todos os níveis"); };
 
-  // KPIs refletem a lista já filtrada (mesmo comportamento do Pipeline).
+  // KPIs refletem a lista já filtrada (mesmo comportamento do Pipeline). O período da janela de indicadores só
+  // vale para a base de Vendas: os totais da Max Data vêm somados do servidor, sem como recortar por data aqui.
+  const periodo = usePeriodoIndicadores("data de cadastro");
   const kpis = useMemo(() => {
-    const ativosRows = clientesFiltrados.filter((c: any) => c.status === "Ativo");
-    const implantacaoRows = clientesFiltrados.filter((c: any) => c.status === "Em Implantação");
-    const inativosRows = clientesFiltrados.filter((c: any) => c.status === "Inativo");
+    const base = origem === "" ? periodo.filtrar(clientesFiltrados, (c: any) => c.created_at) : clientesFiltrados;
+    const ativosRows = base.filter((c: any) => c.status === "Ativo");
+    const implantacaoRows = base.filter((c: any) => c.status === "Em Implantação");
+    const inativosRows = base.filter((c: any) => c.status === "Inativo");
     return {
-      total: clientesFiltrados.length,
+      total: base.length,
       ativos: ativosRows.length,
       implantacao: implantacaoRows.length,
       inativos: inativosRows.length,
-      todosRows: clientesFiltrados,
+      todosRows: base,
       ativosRows,
       implantacaoRows,
       inativosRows,
     };
-  }, [clientesFiltrados]);
+  }, [clientesFiltrados, origem, periodo.filtrar]);
 
   // Grava direto na Max Data (cadastro novo ou alteração) e recarrega a lista dela.
   const salvarNaMax = async (data: any, externoId?: string) => {
@@ -326,6 +329,7 @@ export default function Clientes() {
       {/* Filtros + botão "Indicadores" (componente compartilhado). Os KPIs de Clientes mantêm drill-down e
           sparkline (ClientesKPIs) dentro da janela de indicadores, calculados sobre a lista filtrada. */}
       <KpiFilterCard className="mb-4" id="crmClientes" activeCount={activeCount} onClear={clearFilters}
+        periodo={origem === "" ? periodo : undefined}
         indicators={<>
           {origem === "" && <ClientesKPIs {...kpis} clientes={clientesFiltrados} />}
           {origem !== "" && (

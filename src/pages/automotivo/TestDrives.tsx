@@ -1,5 +1,5 @@
 import { uniqueSellers, sameSeller } from "../../lib/sellerNames";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState, useEffect } from "react";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -74,6 +74,7 @@ export default function TestDrives() {
     });
   }, [activeTenantId]);
 
+  const periodo = usePeriodoIndicadores("data do test-drive");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterVendedor, setFilterVendedor] = useState("");
@@ -181,6 +182,7 @@ export default function TestDrives() {
     const matchExtra = !filterVendedor || sameSeller(t.vendedor, filterVendedor);
     return matchSearch && matchStatus && matchExtra;
   });
+  const base = periodo.filtrar(filtered, (t) => t.data);
 
   return (
     <PageContainer
@@ -203,11 +205,12 @@ export default function TestDrives() {
       <KpiFilterCard
         id="autoTestDrives"
         className="mb-4"
+        periodo={periodo}
         kpis={[
-          { label: "Test-Drives", value: filtered.length, icon: Calendar, tone: "primary" },
-          { label: "Agendados / Confirmados", value: filtered.filter(t => t.status === "Confirmada" || t.status === "Agendada").length, icon: Clock, tone: "info" },
-          { label: "Realizados", value: filtered.filter(t => t.status === "Realizada").length, icon: CheckCircle2, tone: "success" },
-          { label: "Cancelados", value: filtered.filter(t => t.status === "Cancelada").length, icon: User, tone: "danger" },
+          { label: "Test-Drives", value: base.length, icon: Calendar, tone: "primary" },
+          { label: "Agendados / Confirmados", value: base.filter(t => t.status === "Confirmada" || t.status === "Agendada").length, icon: Clock, tone: "info" },
+          { label: "Realizados", value: base.filter(t => t.status === "Realizada").length, icon: CheckCircle2, tone: "success" },
+          { label: "Cancelados", value: base.filter(t => t.status === "Cancelada").length, icon: User, tone: "danger" },
         ]}
         activeCount={(search ? 1 : 0) + (filterStatus !== "Todos" ? 1 : 0) + (filterVendedor ? 1 : 0)}
         onClear={() => { setSearch(""); setFilterStatus("Todos"); setFilterVendedor(""); }}

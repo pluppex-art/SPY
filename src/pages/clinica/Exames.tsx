@@ -4,7 +4,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { PageContainer } from "../../components/PageContainer";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, usePeriodoIndicadores } from "../../components/ui/kpi-filter-card";
 import { Modal } from "../../components/ui/modal";
 import { useExames } from './hooks/useExames';
 import { toast } from 'sonner';
@@ -39,6 +39,9 @@ export default function Exames() {
     e.exam.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.lab.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const periodo = usePeriodoIndicadores("data do pedido");
+  const baseIndicadores = periodo.filtrar(filteredExames, e => e.date);
 
   const handleCreateExame = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,11 +105,12 @@ export default function Exames() {
         
         <KpiFilterCard
           id="clinicaExames"
+          periodo={periodo}
           kpis={[
-            { label: "Pedidos", value: filteredExames.length, icon: FlaskConical, tone: "primary" },
-            { label: "Resultados Prontos", value: filteredExames.filter(e => e.status === 'Finalizado').length, icon: CheckCircle2, tone: "success" },
-            { label: "Em Análise", value: filteredExames.filter(e => e.status === 'Em Análise').length, icon: Clock, tone: "warning" },
-            { label: "Aguardando Coleta", value: filteredExames.filter(e => e.status === 'Aguardando Coleta').length, icon: AlertCircle, tone: "accent" },
+            { label: "Pedidos", value: baseIndicadores.length, icon: FlaskConical, tone: "primary" },
+            { label: "Resultados Prontos", value: baseIndicadores.filter(e => e.status === 'Finalizado').length, icon: CheckCircle2, tone: "success" },
+            { label: "Em Análise", value: baseIndicadores.filter(e => e.status === 'Em Análise').length, icon: Clock, tone: "warning" },
+            { label: "Aguardando Coleta", value: baseIndicadores.filter(e => e.status === 'Aguardando Coleta').length, icon: AlertCircle, tone: "accent" },
           ]}
           activeCount={activeFilters}
           onClear={clearFilters}

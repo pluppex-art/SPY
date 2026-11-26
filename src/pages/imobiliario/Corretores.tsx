@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { somar } from "../../lib/dinheiro";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
-import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
+import { KpiFilterCard, usePeriodoIndicadores, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { Plus, Star, TrendingUp, Copy, ExternalLink, X, Phone, Mail, Edit2, Trash2, Target, Award, Users, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
@@ -30,6 +30,7 @@ type Corretor = {
   slug: string;
   status: "Ativo" | "Inativo";
   comissaoPct: number;
+  createdAt?: string;
 };
 
 
@@ -326,6 +327,7 @@ export default function Corretores() {
   const { formatCurrency } = useLocalization();
   const { activeTenantId } = useAuth();
   const [corretores, setCorretores] = useState<Corretor[]>([]);
+  const periodo = usePeriodoIndicadores("data de cadastro do corretor");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterEsp, setFilterEsp] = useState("");
@@ -360,6 +362,7 @@ export default function Corretores() {
           vendasMes: vendidosMes.length, totalVendas: vendidos.length, vgvMes: vgvMesReais / 1_000_000,
           meta: r.meta ?? 5, avaliacao: Number(r.avaliacao ?? 5), bio: r.bio ?? "",
           slug: r.slug ?? "", status: r.status, comissaoPct: Number(r.comissao_pct ?? 5),
+          createdAt: r.created_at,
         };
       }));
     });
@@ -378,13 +381,14 @@ export default function Corretores() {
       if (sortBy === "avaliacao") return b.avaliacao - a.avaliacao;
       return b.vgvMes - a.vgvMes;
     });
+  const base = periodo.filtrar(filtered, (c) => c.createdAt);
 
   const makeSlug = (nome: string) =>
     nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "-");
 
   const handleSave = async (form: any) => {
     const slug = makeSlug(form.nome);
-    const novo: Corretor = { ...form, id: Date.now().toString(), slug, imovisAtivos: 0, vendasMes: 0, totalVendas: 0, vgvMes: 0, avaliacao: 5.0, status: "Ativo" };
+    const novo: Corretor = { ...form, id: Date.now().toString(), slug, imovisAtivos: 0, vendasMes: 0, totalVendas: 0, vgvMes: 0, avaliacao: 5.0, status: "Ativo", createdAt: new Date().toISOString() };
     setCorretores(prev => [novo, ...prev]);
     if (supabase && activeTenantId) {
       const { error } = await supabase.from("imobiliario_corretores").insert({ nome: form.nome, creci: form.creci, telefone: form.telefone, email: form.email, especialidade: form.especialidade, bio: form.bio, slug, meta: form.meta, comissao_pct: form.comissaoPct, id: novo.id, tenant_id: activeTenantId });
@@ -440,8 +444,8 @@ export default function Corretores() {
 
   const totalVendas = filtered.reduce((s, c) => s + c.vendasMes, 0);
   const totalVGV = filtered.reduce((s, c) => s + c.vgvMes, 0);
-  const mediaAvaliacao = filtered.length
-    ? (filtered.reduce((s, c) => s + c.avaliacao, 0) / filtered.length).toFixed(1)
+  const mediaAvaliacao = base.length
+    ? (base.reduce((s, c) => s + c.avaliacao, 0) / base.length).toFixed(1)
     : "0";
 
   return (
@@ -468,8 +472,9 @@ export default function Corretores() {
 
       <KpiFilterCard
         id="imobCorretores"
+        periodo={periodo}
         kpis={[
-          { label: "Corretores", value: filtered.length, icon: Users, tone: "primary" },
+          { label: "Corretores", value: base.length, icon: Users, tone: "primary" },
           { label: "Vendas Mês", value: totalVendas, icon: TrendingUp, tone: "success" },
           { label: "VGV Mês", value: `R$ ${totalVGV.toFixed(1)}M`, icon: Target, tone: "info" },
           { label: "Média Avaliação", value: mediaAvaliacao, icon: Star, tone: "warning" },
