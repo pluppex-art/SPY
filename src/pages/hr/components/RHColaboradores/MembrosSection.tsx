@@ -29,8 +29,6 @@ interface MembrosSectionProps {
   onConectarColaborador?: (colab: any) => void;
   /** Status do Agente Secreto por colaborador (só quem tem sessão aparece). */
   agenteStatus?: Record<string, string>;
-  /** Status do Agente Secreto Interno por colaborador (sessão que lê os grupos da equipe). */
-  agenteInternoStatus?: Record<string, string>;
   /** Abre os dois Agentes Secretos (Interno e Vendas) da pessoa. */
   onAbrirAgentes?: (colab: any) => void;
 }
@@ -57,7 +55,7 @@ function AgenteSecretoBadge({ colab, status, rotulo = "Agente Secreto" }: { cola
 export function MembrosSection({
   filtered: filteredBySearch, search, onSearchChange,
   menuOpenId, setMenuOpenId, onVerPerfil, onEditColab,
-  onChangeStatus, onDesligar, canManageSessions, podeGerenciar = true, onCriarSessao, currentUserId, onConectarAgente, onConectarColaborador, agenteStatus, agenteInternoStatus, onAbrirAgentes,
+  onChangeStatus, onDesligar, canManageSessions, podeGerenciar = true, onCriarSessao, currentUserId, onConectarAgente, onConectarColaborador, agenteStatus, onAbrirAgentes,
 }: MembrosSectionProps) {
   // Cada Agente Secreto é um produto com a sua chave em Admin > Módulos: Interno (agente_interno) e Vendas (agente_secreto, só vendedor/closer).
   const { isModuleEnabled } = useAuth();
@@ -125,7 +123,7 @@ export function MembrosSection({
                     </Badge>
                   </div>
                   <div className="space-y-0.5">
-                    {temInterno && <div><AgenteSecretoBadge colab={colab} status={agenteInternoStatus?.[colab.id]} rotulo="Agente Interno" /></div>}
+                    {temInterno && <div><AgenteSecretoBadge colab={colab} status={agenteStatus?.[colab.id]} rotulo="Agente Interno" /></div>}
                     {usaVendas(colab) && <div><AgenteSecretoBadge colab={colab} status={agenteStatus?.[colab.id]} rotulo="Agente de Vendas" /></div>}
                   </div>
                   <h3 className="text-sm font-bold text-[var(--color-text-primary)] truncate">{colab.nome}</h3>

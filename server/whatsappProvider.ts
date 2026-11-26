@@ -72,6 +72,8 @@ export interface WhatsAppProvider {
   /** Config (webhooks etc.) de uma sessão existente e criação de outra com ela — usado para clonar o padrão de uma empresa. */
   getSessionConfig?(providerInstanceId: string): Promise<Record<string, any> | null>;
   createSessionWithConfig?(sessionName: string, config: Record<string, any>): Promise<void>;
+  /** Troca a config (webhooks, ignore…) de uma sessão existente; o login do WhatsApp é mantido. */
+  updateSessionConfig?(sessionName: string, config: Record<string, any>): Promise<void>;
   /** Estado de todas as sessões numa chamada só (nome → status). Usado para mostrar quem está conectado na lista da equipe. */
   listSessionStates?(): Promise<Record<string, ProviderConnectResult["status"]>>;
   sendTextMessage(providerInstanceId: string, phone: string, text: string): Promise<{ id: string }>;
@@ -238,6 +240,10 @@ export class WAHAProvider implements WhatsAppProvider {
 
   async createSessionWithConfig(sessionName: string, config: Record<string, any>): Promise<void> {
     await axios.post(`${WAHA_API_URL}/api/sessions`, { name: sessionName, start: true, config }, { headers: this.headers(), timeout: 20000 });
+  }
+
+  async updateSessionConfig(sessionName: string, config: Record<string, any>): Promise<void> {
+    await axios.put(`${WAHA_API_URL}/api/sessions/${encodeURIComponent(sessionName)}`, { name: sessionName, config }, { headers: this.headers(), timeout: 20000 });
   }
 
   async restartSession(providerInstanceId: string): Promise<void> {

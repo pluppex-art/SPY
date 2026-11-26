@@ -15,7 +15,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
-import { mensagemDeGrupo, rotearMensagemDeGrupo } from "./server/gruposAgenteSecreto.js";
+import { mensagemDeGrupo, rotearMensagemDeGrupo, idDoGrupo } from "./server/gruposAgenteSecreto.js";
 import { registerRadarGruposRoutes } from "./server/radarGruposMonitorados.js";
 import { radarWebhookDaEmpresa, provisionarRadarDaEmpresa, sincronizarRadarDasEmpresas } from "./server/radarWebhook.js";
 import { calcularDRELegado, diaCaixa, filtroPeriodoOr, calcularDreCompleto, cmvDosItens, filtrarPeriodo, quantidadeDoItem, separarLegado, type LancamentoDre, type RegimeDre } from "./src/lib/dre/dre.js";
@@ -47,6 +47,8 @@ import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { registerProspeccaoCnaeRoutes } from "./server/prospeccaoCnae.js";
 import { registerApisBrasilRoutes } from "./server/apisBrasil.js";
 import { registerEmissaoJaRoutes } from "./server/emissaoja.js";
+import { urlWebhookInterno, temWebhookInterno, comWebhookInterno, grupoCadastradoNaEmpresa } from "./server/sessaoAgentes.js";
+import { isVendedorColab } from "./src/lib/sellers.js";
 import { registerAgenteInternoGruposRoutes } from "./server/agenteInternoGrupos.js";
 import { registerFaturaPdfRoutes } from "./server/faturaPdf.js";
 import { registerKommoRoutes } from "./server/kommoSync.js";
@@ -5862,6 +5864,10 @@ app.post("/api/whatsapp/instances/for-user", requireUser, async (req: any, res) 
 // nunca vem do cliente: sai do colaborador ligado ao login, então ninguém consegue pedir o QR de outra pessoa.
 // Alimenta o aviso "Agente Secreto desconectado" + o botão Reconectar (QR) para o vendedor se reconectar sozinho.
 // Cada colaborador tem até duas sessões de WhatsApp: "vendas" (Agente Secreto, padrão) e "interno" (Agente Secreto Interno, lê os grupos da equipe).
+// A sessão já entrega mensagens ao webhook do Agente Interno? (consulta a config no WAHA; falha = não sabe, trata como "não")
+const internoAtivoNaSessao = async (sessionName: string, instanceId: string): Promise<boolean> => {
+  try { return temWebhookInterno(await getWhatsAppProvider().getSessionConfig?.(sessionName), instanceId); } catch { return false; }
+};
 const finalidadeDe = (v: unknown): "vendas" | "interno" => (v === "interno" ? "interno" : "vendas");
 async function agenteSecretoSessionOf(req: any, finalidade: "vendas" | "interno" = "vendas"): Promise<{ nome: string; session: string; ativo: boolean; instanceId: string } | null> {
   if (!isWahaConfigured()) return null;
@@ -5899,7 +5905,7 @@ app.get("/api/agente-secreto/minha-sessao", requireUser, whatsappLimiter, async 
     try {
       const state = await getWhatsAppProvider().getConnectionState(mine.session);
       await syncInstanceStatus(mine.instanceId, state.status, state.phone);
-      return res.json({ session: mine.session, nome: mine.nome, status: state.status, phone: state.phone || null, ativo: mine.ativo });
+      return res.json({ session: mine.session, nome: mine.nome, status: state.status, phone: state.phone || null, ativo: mine.ativo, internoAtivo: await internoAtivoNaSessao(mine.session, mine.instanceId) });
     } catch (err: any) {
       console.error("[agente-secreto/minha-sessao] status", err?.message);
       return res.json({ session: mine.session, nome: mine.nome, status: "UNKNOWN", ativo: mine.ativo });
@@ -5938,7 +5944,7 @@ app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: 
     if (!isWahaConfigured()) return res.json({ items: {} });
     const { data: rows } = await req.supabase
       .from("whatsapp_instances").select("id, name, colaborador_id, status, finalidade").not("colaborador_id", "is", null).limit(1000);
-    if (!rows?.length) return res.json({ items: {}, internos: {} });
+    if (!rows?.length) return res.json({ items: {} });
     const provider = getWhatsAppProvider();
     let states: Record<string, string> = {};
     try { states = (await provider.listSessionStates?.()) || {}; }
@@ -5946,12 +5952,12 @@ app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: 
       console.error("[agente-secreto/equipe]", err?.message);
       return res.json({ items: {}, indisponivel: true }); // WAHA fora do ar: melhor não mostrar nada do que pintar todos de vermelho
     }
-    const items: Record<string, string> = {}, internos: Record<string, string> = {};
+    const items: Record<string, string> = {};
     const estadoDe = new Map<string, string>();
     for (const r of rows) {
       const st = states[r.name] || "DISCONNECTED"; // sessão sumiu do WAHA = desconectada
       estadoDe.set(r.id, st);
-      (r.finalidade === "interno" ? internos : items)[r.colaborador_id] = st;
+      items[r.colaborador_id] = st;
     }
     // O n8n só trata mensagens de sessões com status CONNECTED em whatsapp_instances. Quem conecta pelo WAHA direto
     // (ou reconecta depois de uma queda) não passa pela rota antiga que atualizava essa coluna, então o status daqui
@@ -5962,7 +5968,7 @@ app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: 
         supabaseService!.from("whatsapp_instances").update({ status: estadoDe.get(r.id), updated_at: new Date().toISOString() }).eq("id", r.id)
       ));
     }
-    res.json({ items, internos });
+    res.json({ items });
   } catch (err: any) {
     console.error("[agente-secreto/equipe]", err?.message);
     res.status(500).json({ error: "Erro ao consultar o Agente Secreto da equipe." });
@@ -5974,66 +5980,51 @@ const isTenantAdminReq = async (req: any): Promise<boolean> => {
   return !!(data?.is_master || data?.is_tenant_admin);
 };
 
-// Cria a sessão do Agente Secreto de um colaborador no MESMO padrão das outras sessões pessoais da empresa:
-// copia o webhook (n8n, com o segredo) de uma sessão-modelo do tenant, só com o evento message.any.
-// Sem sessão-modelo na empresa não inventa webhook: pede para configurar a primeira.
+// Cria a sessão de WhatsApp de uma pessoa, UMA só, que serve aos dois Agentes Secretos (cada um é um produto, com a sua chave de módulo):
+//  - Vendas (módulo agente_secreto, só vendedor/closer): copia o webhook do n8n de uma sessão-modelo da empresa, só com o evento message.any.
+//  - Interno (módulo agente_interno): acrescenta o webhook do próprio SPY, que repassa só as mensagens de GRUPO ao n8n, e libera os grupos.
+// Sem sessão-modelo (e com Vendas ligado para um vendedor) não inventa webhook: pede para configurar a primeira.
 const criandoSessaoAgente = new Set<string>(); // evita duas sessões do mesmo colaborador por clique duplo/requisições simultâneas
 app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req: any, res) => {
   const colaboradorId = String(req.body?.colaboradorId || "");
-  const finalidade = finalidadeDe(req.body?.finalidade);
   if (!/^[\w-]{1,64}$/.test(colaboradorId)) return res.status(400).json({ error: "colaboradorId inválido." });
-  if (criandoSessaoAgente.has(`${colaboradorId}:${finalidade}`)) return res.status(409).json({ error: "A sessão deste colaborador já está sendo criada. Aguarde alguns segundos." });
-  criandoSessaoAgente.add(`${colaboradorId}:${finalidade}`);
+  if (criandoSessaoAgente.has(colaboradorId)) return res.status(409).json({ error: "A sessão deste colaborador já está sendo criada. Aguarde alguns segundos." });
+  criandoSessaoAgente.add(colaboradorId);
   try {
     if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores podem criar sessões do Agente Secreto." });
     const provider = getWhatsAppProvider();
     if (!isWahaConfigured() || !provider.getSessionConfig || !provider.createSessionWithConfig) {
       return res.status(503).json({ error: "WhatsApp (WAHA) não está configurado neste ambiente." });
     }
-    const { data: colab } = await req.supabase.from("colaboradores").select("id, nome, tenant_id").eq("id", colaboradorId).maybeSingle();
+    const { data: colab } = await req.supabase.from("colaboradores").select("id, nome, tenant_id, departamento, cargo, cargos, status").eq("id", colaboradorId).maybeSingle();
     if (!colab) return res.status(404).json({ error: "Colaborador não encontrado." });
 
-    const { data: existing } = await req.supabase.from("whatsapp_instances").select("id, name").eq("colaborador_id", colab.id).eq("finalidade", finalidade).limit(1);
+    const { data: existing } = await req.supabase.from("whatsapp_instances").select("id, name").eq("colaborador_id", colab.id).eq("finalidade", "vendas").limit(1);
     if (existing?.[0]) return res.json({ created: false, name: existing[0].name });
 
-    // Sessão INTERNA: lê os grupos da equipe e entrega ao SPY (que repassa só as mensagens de grupo ao n8n); nunca as conversas privadas.
-    if (finalidade === "interno") {
-      const { data: row, error: e1 } = await req.supabase.from("whatsapp_instances")
-        .insert({ tenant_id: colab.tenant_id, name: `agente-interno-${String(colab.id).replace(/[^A-Za-z0-9]/g, "").slice(0, 12)}`, status: "DISCONNECTED", provider: provider.name, colaborador_id: colab.id, finalidade: "interno" })
-        .select("id, name, webhook_secret").maybeSingle();
-      if (e1 || !row) { console.error("[agente-secreto/sessoes] insert interno", e1?.message); return res.status(500).json({ error: "Não foi possível registrar a sessão interna." }); }
-      const url = `${PUBLIC_APP_URL}/api/whatsapp/webhook/${row.id}?secret=${row.webhook_secret}`;
-      try {
-        await provider.createSessionWithConfig(row.name, {
-          webhooks: [{ url, events: ["message.any"] }],
-          ignore: { status: true, channels: true, broadcast: true }, // grupos NÃO são ignorados: é para isso que a sessão existe
-          gows: { storage: { messages: true, groups: true, chats: true, labels: true, contacts: true } },
-        });
-      } catch (err: any) {
-        await req.supabase.from("whatsapp_instances").delete().eq("id", row.id);
-        throw err;
-      }
-      await req.supabase.from("whatsapp_instances").update({ webhook_url: url }).eq("id", row.id);
-      return res.status(201).json({ created: true, name: row.name });
-    }
+    const { data: tenant } = await req.supabase.from("tenants").select("modules").eq("id", colab.tenant_id).maybeSingle();
+    const quer = {
+      vendas: tenant?.modules?.agente_secreto === true && isVendedorColab(colab),
+      interno: tenant?.modules?.agente_interno === true,
+    };
+    if (!quer.vendas && !quer.interno) return res.status(409).json({ error: "Nenhum Agente Secreto contratado para esta pessoa (o de Vendas vale só para vendedor/closer). Veja Admin > Módulos." });
 
-    // Modelo do webhook: sessão pessoal de outro colaborador; empresa nova (sem nenhuma) usa a sessão do Agente Secreto da empresa.
-    const { data: sessoesDaEmpresa } = await req.supabase.from("whatsapp_instances")
-      .select("name, webhook_url, colaborador_id").eq("tenant_id", colab.tenant_id).eq("finalidade", "vendas").limit(60);
-    const modelos = sessoesModelo(sessoesDaEmpresa || []);
-    let webhooks: any[] | null = null;
+    // Webhook de Vendas: sessão pessoal de outro colaborador; empresa nova (sem nenhuma) usa a sessão do Agente Secreto da empresa.
+    let webhooks: any[] = [];
     let webhookUrl: string | null = null;
-    for (const m of modelos || []) {
-      try {
-        const cfg = await provider.getSessionConfig(m.name);
-        if (Array.isArray(cfg?.webhooks) && cfg!.webhooks.length) {
-          webhooks = cfg!.webhooks.map((w: any) => ({ ...w, events: ["message.any"] }));
-          webhookUrl = m.webhook_url || null;
-          break;
-        }
-      } catch { /* tenta o próximo modelo */ }
+    if (quer.vendas) {
+      const { data: sessoesDaEmpresa } = await req.supabase.from("whatsapp_instances")
+        .select("name, webhook_url, colaborador_id").eq("tenant_id", colab.tenant_id).eq("finalidade", "vendas").limit(60);
+      for (const m of sessoesModelo(sessoesDaEmpresa || []) || []) {
+        try {
+          const cfg = await provider.getSessionConfig(m.name);
+          // Do modelo só vale o webhook do n8n; o do SPY (Interno) é refeito para esta sessão.
+          const doN8n = Array.isArray(cfg?.webhooks) ? cfg!.webhooks.filter((w: any) => !String(w?.url || "").includes("/api/whatsapp/webhook/")) : [];
+          if (doN8n.length) { webhooks = doN8n.map((w: any) => ({ ...w, events: ["message.any"] })); webhookUrl = m.webhook_url || null; break; }
+        } catch { /* tenta o próximo modelo */ }
+      }
+      if (!webhooks.length) return res.status(409).json({ error: "Não encontrei uma sessão do Agente Secreto com webhook configurado nesta empresa para copiar. Confira se o agente de implementação já terminou de criar os agentes dela." });
     }
-    if (!webhooks) return res.status(409).json({ error: "Não encontrei uma sessão do Agente Secreto com webhook configurado nesta empresa para copiar. Confira se o agente de implementação já terminou de criar os agentes dela." });
 
     const primeiroNome = String(colab.nome || "Colaborador").trim().split(/\s+/)[0]
       .normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]/g, "") || "Colaborador";
@@ -6044,24 +6035,55 @@ app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req
       name = `agente-secreto-${primeiroNome}-${i}`;
     }
 
-    await provider.createSessionWithConfig(name, {
-      webhooks,
-      ignore: { status: true, groups: true, channels: true, broadcast: true },
-      gows: { storage: { messages: true, groups: true, chats: true, labels: true, contacts: true } },
-    });
-    const { error: insErr } = await req.supabase.from("whatsapp_instances").insert({
-      tenant_id: colab.tenant_id, name, status: "DISCONNECTED", provider: provider.name, webhook_url: webhookUrl, colaborador_id: colab.id,
-    });
-    if (insErr) {
-      console.error("[agente-secreto/sessoes] insert", insErr.message);
-      return res.status(500).json({ error: "Sessão criada no WAHA, mas não foi possível registrá-la no SPY." });
+    // A linha nasce antes da sessão: o webhook do Interno precisa do id e do segredo dela.
+    const { data: row, error: insErr } = await req.supabase.from("whatsapp_instances").insert({
+      tenant_id: colab.tenant_id, name, status: "DISCONNECTED", provider: provider.name, webhook_url: webhookUrl, colaborador_id: colab.id, finalidade: "vendas",
+    }).select("id, webhook_secret").maybeSingle();
+    if (insErr || !row) {
+      console.error("[agente-secreto/sessoes] insert", insErr?.message);
+      return res.status(500).json({ error: "Não foi possível registrar a sessão no SPY." });
     }
-    res.status(201).json({ created: true, name });
+    const config = quer.interno
+      ? comWebhookInterno({ webhooks, ignore: { status: true, groups: true, channels: true, broadcast: true } }, urlWebhookInterno(PUBLIC_APP_URL, row.id, row.webhook_secret), row.id)
+      : { webhooks, ignore: { status: true, groups: true, channels: true, broadcast: true } };
+    try {
+      await provider.createSessionWithConfig(name, { ...config, gows: { storage: { messages: true, groups: true, chats: true, labels: true, contacts: true } } });
+    } catch (err: any) {
+      await req.supabase.from("whatsapp_instances").delete().eq("id", row.id);
+      throw err;
+    }
+    res.status(201).json({ created: true, name, vendas: quer.vendas, interno: quer.interno });
   } catch (err: any) {
     console.error("[agente-secreto/sessoes]", err?.message);
     res.status(502).json({ error: "Não foi possível criar a sessão agora." });
   } finally {
-    criandoSessaoAgente.delete(`${colaboradorId}:${finalidade}`);
+    criandoSessaoAgente.delete(colaboradorId);
+  }
+});
+
+// Liga o Agente Interno numa sessão que já existe (criada antes do módulo): acrescenta o webhook do SPY e libera os grupos.
+// O login do WhatsApp é mantido; o WAHA reinicia a sessão ao trocar a config, o que pode levar alguns segundos.
+app.post("/api/agente-secreto/sessoes/:colaboradorId/ativar-interno", requireUser, whatsappLimiter, async (req: any, res) => {
+  const colaboradorId = String(req.params.colaboradorId || "");
+  if (!/^[\w-]{1,64}$/.test(colaboradorId)) return res.status(400).json({ error: "colaboradorId inválido." });
+  try {
+    if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores." });
+    const provider = getWhatsAppProvider();
+    if (!isWahaConfigured() || !provider.getSessionConfig || !provider.updateSessionConfig) return res.status(503).json({ error: "WhatsApp (WAHA) não está configurado neste ambiente." });
+    const { data: colab } = await req.supabase.from("colaboradores").select("id, tenant_id").eq("id", colaboradorId).maybeSingle();
+    if (!colab) return res.status(404).json({ error: "Colaborador não encontrado." });
+    const { data: tenant } = await req.supabase.from("tenants").select("modules").eq("id", colab.tenant_id).maybeSingle();
+    if (tenant?.modules?.agente_interno !== true) return res.status(403).json({ error: "O Agente Secreto Interno não está contratado para esta empresa." });
+    const { data: inst } = await req.supabase.from("whatsapp_instances").select("id, name, webhook_secret").eq("colaborador_id", colab.id).eq("finalidade", "vendas").limit(1);
+    const row = inst?.[0];
+    if (!row) return res.status(404).json({ error: "Esta pessoa ainda não tem sessão de WhatsApp. Crie a sessão primeiro." });
+    const atual = await provider.getSessionConfig(row.name);
+    if (temWebhookInterno(atual, row.id)) return res.json({ applied: false, ja: true });
+    await provider.updateSessionConfig(row.name, comWebhookInterno(atual, urlWebhookInterno(PUBLIC_APP_URL, row.id, row.webhook_secret), row.id));
+    res.json({ applied: true });
+  } catch (err: any) {
+    console.error("[agente-secreto/ativar-interno]", err?.response?.status, err?.message);
+    res.status(502).json({ error: "Não foi possível ligar o Agente Interno nesta sessão agora." });
   }
 });
 
@@ -6085,7 +6107,7 @@ app.get("/api/agente-secreto/sessoes/:colaboradorId/status", requireUser, whatsa
     if (!sess) return res.json({ session: null });
     const state = await getWhatsAppProvider().getConnectionState(sess.session);
     await syncInstanceStatus(sess.instanceId, state.status, state.phone);
-    res.json({ session: sess.session, nome: sess.nome, status: state.status, phone: state.phone || null });
+    res.json({ session: sess.session, nome: sess.nome, status: state.status, phone: state.phone || null, internoAtivo: await internoAtivoNaSessao(sess.session, sess.instanceId) });
   } catch (err: any) {
     console.error("[agente-secreto/sessoes/status]", err?.message);
     res.status(502).json({ error: "Não foi possível consultar a sessão agora." });
@@ -6316,7 +6338,7 @@ app.post("/api/whatsapp/webhook/:instanceId", async (req: any, res) => {
   try {
     const { data: inst } = await supabaseService
       .from("whatsapp_instances")
-      .select("id, tenant_id, webhook_secret, finalidade")
+      .select("id, tenant_id, webhook_secret, colaborador_id")
       .eq("id", instanceId)
       .maybeSingle();
     if (!inst || !secret || !safeEqual(secret, inst.webhook_secret)) {
@@ -6331,11 +6353,13 @@ app.post("/api/whatsapp/webhook/:instanceId", async (req: any, res) => {
     const body = req.body ?? {};
     // Mensagem de GRUPO vai para o Agente Secreto interno (n8n) e não entra no chat 1:1 (antes virava um "contato" com o id do grupo).
     if (mensagemDeGrupo(body)) {
+      // Sessão pessoal: grupo que a empresa não cadastrou (ex.: grupo de família) não sai daqui.
+      if (inst.colaborador_id && !(await grupoCadastradoNaEmpresa(supabaseService, inst.tenant_id, idDoGrupo(body)))) return;
       const r = await rotearMensagemDeGrupo(supabaseService, body, inst);
       if (!r.ok) console.error(`[whatsapp/webhook] grupo não encaminhado ao n8n (${r.destino}):`, r.motivo);
       return;
     }
-    if (inst.finalidade === "interno") return; // sessão do Agente Interno: conversas privadas nunca entram no SPY
+    if (inst.colaborador_id) return; // sessão pessoal (Agente Interno): conversas privadas nunca entram no SPY; só grupos são repassados acima
     if (body.event !== "message") return; // session.status e outros eventos: só ack, sem processar.
 
     const payload = body.payload ?? {};
