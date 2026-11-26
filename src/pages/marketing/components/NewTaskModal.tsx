@@ -17,6 +17,10 @@ interface NewTaskModalProps {
   newDesc: string;
   setNewDesc: (v: string) => void;
   handleCreateTask: () => void;
+  /** Clientes atendidos (agência/BPO). Sem nenhum, o campo não aparece. */
+  clientes: { id: string; nome: string }[];
+  newClienteId: string;
+  setNewClienteId: (v: string) => void;
 }
 
 export function NewTaskModal({
@@ -35,6 +39,9 @@ export function NewTaskModal({
   newDesc,
   setNewDesc,
   handleCreateTask,
+  clientes,
+  newClienteId,
+  setNewClienteId,
 }: NewTaskModalProps) {
   if (!isOpen) return null;
 
@@ -62,6 +69,19 @@ export function NewTaskModal({
                  className="w-full bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none" 
                />
             </div>
+            {clientes.length > 0 && (
+              <div className="space-y-1.5">
+                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cliente</label>
+                 <select
+                   value={newClienteId}
+                   onChange={(e) => setNewClienteId(e.target.value)}
+                   className="w-full bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-4 py-3 text-sm text-white outline-none cursor-pointer"
+                 >
+                   <option value="">Sem cliente (conteúdo da própria empresa)</option>
+                   {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                 </select>
+              </div>
+            )}
             <div className="space-y-1.5">
                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Investimento Necessário (R$)</label>
                <input
@@ -88,7 +108,7 @@ export function NewTaskModal({
                   </select>
                </div>
                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Data Limite</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Data de publicação</label>
                   <input 
                     type="date" 
                     value={newDate}

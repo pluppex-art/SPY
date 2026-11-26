@@ -4,6 +4,7 @@ import { Calendar, CheckSquare, Paperclip, Search, X, Shapes } from 'lucide-reac
 import { useLocalization } from '../../../contexts/LocalizationContext';
 import { cn } from '../../../lib/utils';
 import { iniciais, COR_PRIORIDADE } from './TrafegoColumn';
+import { SeloAprovacao } from './Aprovacao';
 
 interface KanbanColumnProps {
   col: any;
@@ -11,10 +12,12 @@ interface KanbanColumnProps {
   columnSearches: { [key: string]: string };
   setColumnSearches: React.Dispatch<React.SetStateAction<{ [key: string]: string }>>;
   openTask: (task: any) => void;
+  /** Nome do cliente da pauta (vazio quando não há ou quando a tela já está filtrada por um). */
+  nomeCliente: (task: any) => string;
 }
 
 /** Coluna do quadro de Conteúdo (mesmo desenho da Central de Vendas): faixa na cor da etapa, valor da etapa, filtro e cartões das pautas. */
-export function KanbanColumn({ col, tasks, columnSearches, setColumnSearches, openTask }: KanbanColumnProps) {
+export function KanbanColumn({ col, tasks, columnSearches, setColumnSearches, openTask, nomeCliente }: KanbanColumnProps) {
   const { formatCurrency } = useLocalization();
   const busca = columnSearches[col.id] || '';
   const daColuna = tasks.filter((t) => t.colId === col.id);
@@ -98,7 +101,9 @@ export function KanbanColumn({ col, tasks, columnSearches, setColumnSearches, op
                           <span className={cn('text-[9px] font-black uppercase px-1.5 py-0.5 rounded border shrink-0', COR_PRIORIDADE[task.priority])}>{task.priority}</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">
+                          {nomeCliente(task) && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-[var(--color-border-default)] text-[var(--color-text-primary)] truncate max-w-full">{nomeCliente(task)}</span>}
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)]">{task.platform}</span>
+                          <SeloAprovacao task={task} />
                           {task.formato && <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]"><Shapes className="w-3 h-3" />{task.formato}</span>}
                         </div>
                         {task.desc && <p className="text-[11px] text-[var(--color-text-muted)] line-clamp-2">{task.desc}</p>}

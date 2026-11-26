@@ -11,6 +11,9 @@ import { apiFetch } from '../../../lib/apiClient';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useData } from '../../../contexts/DataContext';
+import { BlocoAprovacao } from './Aprovacao';
+import { dataCurta } from '../useMarketingConteudo';
+import { confirmDialog } from '../../../components/ui/confirm-dialog';
 
 const FORMATOS_CONTEUDO = ['Post', 'Carrossel', 'Reels / Vídeo curto', 'Stories', 'Vídeo longo', 'Artigo / Blog', 'E-mail', 'Live', 'Outro'];
 
@@ -26,6 +29,10 @@ interface TaskDetailsDrawerProps {
   activeTab: 'overview' | 'script' | 'refs' | 'ai' | 'notas';
   setActiveTab: (t: 'overview' | 'script' | 'refs' | 'ai' | 'notas') => void;
   updateTaskInDatabase: (task: any) => void;
+  /** Clientes atendidos (agência/BPO). Sem nenhum, o campo não aparece. */
+  clientes: { id: string; nome: string }[];
+  onPedirAprovacao: () => void;
+  onCancelarAprovacao: () => void;
 }
 
 export function TaskDetailsDrawer({
@@ -36,7 +43,10 @@ export function TaskDetailsDrawer({
   initialColumns,
   activeTab,
   setActiveTab,
-  updateTaskInDatabase
+  updateTaskInDatabase,
+  clientes,
+  onPedirAprovacao,
+  onCancelarAprovacao,
 }: TaskDetailsDrawerProps) {
   const { activeTenantId, user } = useAuth() as any;
   const { colaboradores } = useData();
@@ -70,6 +80,26 @@ export function TaskDetailsDrawer({
     const novo = fn(checklist);
     setChecklistLocal(novo);
     salvarExtras({ checklist: novo });
+  };
+  // Trocar de cliente tira a pauta do link do cliente anterior.
+  const trocarCliente = async (clienteId: string) => {
+    if (selectedTask.aprovacao) {
+      const ok = await confirmDialog({
+        title: 'Trocar o cliente?',
+        description: 'O pedido de aprovação desta pauta é cancelado e ela sai do link do cliente atual.',
+        confirmLabel: 'Trocar cliente',
+      });
+      if (!ok) return;
+    }
+    salvarExtras({ clienteId, aprovacao: undefined });
+  };
+  const mudarData = (iso: string) => {
+    const atualizada = { ...selectedTask, publishDateISO: iso, date: iso ? dataCurta(iso) : 'Sem data' };
+    setSelectedTask(atualizada);
+    // Enquanto o ano é digitado o campo passa por datas como 0002-12-01: só grava a data completa.
+    if (iso && iso < '2000-01-01') return;
+    setTasks(prev => prev.map(t => t.id === selectedTask.id ? atualizada : t));
+    updateTaskInDatabase(atualizada);
   };
   const refs: { id: string; url: string }[] = Array.isArray(selectedTask?.refs) ? selectedTask.refs : [];
   const anexos: { url: string; nome: string; tamanho: number }[] = Array.isArray(selectedTask?.anexos) ? selectedTask.anexos : [];
@@ -230,7 +260,30 @@ export function TaskDetailsDrawer({
       <div className="flex-1">
         {activeTab === 'overview' && (
           <div className="space-y-6 animate-in fade-in duration-200">
+             <BlocoAprovacao task={selectedTask} onEnviar={onPedirAprovacao} onCancelar={onCancelarAprovacao} />
              <div className="grid grid-cols-2 gap-4">
+               {clientes.length > 0 && (
+                 <div className="space-y-1.5">
+                   <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Cliente</h4>
+                   <select
+                     value={clientes.some((c) => c.id === selectedTask.clienteId) ? selectedTask.clienteId : ''}
+                     onChange={(e) => void trocarCliente(e.target.value)}
+                     className="bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-3.5 py-2 text-xs text-white outline-none w-full cursor-pointer hover:border-white/20 transition-all"
+                   >
+                     <option value="">Sem cliente</option>
+                     {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                   </select>
+                 </div>
+               )}
+               <div className="space-y-1.5">
+                 <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Data de publicação</h4>
+                 <input
+                   type="date"
+                   value={selectedTask.publishDateISO || ''}
+                   onChange={(e) => mudarData(e.target.value)}
+                   className="bg-[var(--color-surface-elevated)] border border-white/5 rounded-xl px-3.5 py-2 text-xs text-white outline-none w-full cursor-pointer hover:border-white/20 transition-all"
+                 />
+               </div>
                <div className="space-y-1.5">
                  <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Valor da Oportunidade</h4>
                  <div className="relative">

@@ -1,6 +1,6 @@
 import { PageContainer } from "../../components/PageContainer";
-import { useMemo, useState } from "react";
-import { Plus, Calendar, CheckCircle2, X, FileText, Share2, CalendarCheck, Layers, Columns3, User } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Plus, Calendar, CheckCircle2, X, FileText, Share2, CalendarCheck, Layers, Columns3, User, Users, Send, Clock, MessageSquareWarning } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
@@ -8,12 +8,15 @@ import { toast } from "sonner";
 import { DragDropContext } from "@hello-pangea/dnd";
 import { supabase } from "../../lib/supabase";
 import { useData } from "../../contexts/DataContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 import { useMarketingConteudo } from "./useMarketingConteudo";
 import { KanbanColumn } from "./components/KanbanColumn";
 import { ConteudoCalendario } from "./components/ConteudoCalendario";
 import { NewTaskModal } from "./components/NewTaskModal";
 import { TaskDetailsDrawer } from "./components/TaskDetailsDrawer";
+import { EnviarAprovacaoModal, SeloAprovacao, situacaoDaPauta } from "./components/Aprovacao";
+import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { friendlyError } from "../../lib/friendlyError";
 
 export default function MarketingConteudo() {
@@ -47,8 +50,32 @@ export default function MarketingConteudo() {
     openTask,
     closeModal,
     updateTaskInDatabase,
+    newClienteId,
+    setNewClienteId,
+    pedirAprovacao,
+    cancelarAprovacao,
   } = useMarketingConteudo();
-  const { deleteMarketingContent } = useData();
+  const { deleteMarketingContent, empresaFiliais } = useData() as any;
+  const { activeFilialId } = useAuth();
+
+  // Clientes atendidos (agência, contabilidade, BPO). Com um cliente escolhido no menu lateral, a tela fica nele.
+  const clientes = useMemo(
+    () => (empresaFiliais as any[]).filter((f) => f.status === "Cliente").map((f) => ({ id: String(f.id), nome: String(f.nome) })).sort((a, b) => a.nome.localeCompare(b.nome)),
+    [empresaFiliais],
+  );
+  const clienteDoMenu = clientes.some((c) => c.id === activeFilialId) ? (activeFilialId as string) : "";
+  const [clienteEscolhido, setClienteEscolhido] = useState("");
+  const clienteAtivo = clienteDoMenu || (clientes.some((c) => c.id === clienteEscolhido) || clienteEscolhido === "sem" ? clienteEscolhido : "");
+  const clienteDe = useCallback((t: any) => (clientes.some((c) => c.id === t.clienteId) ? (t.clienteId as string) : ""), [clientes]);
+  const nomeCliente = useCallback((t: any) => (clienteAtivo ? "" : clientes.find((c) => c.id === t.clienteId)?.nome ?? ""), [clientes, clienteAtivo]);
+  const [aprovacaoFiltro, setAprovacaoFiltro] = useState("");
+  const [envio, setEnvio] = useState<{ pauta: string | null } | null>(null);
+
+  const novaPauta = (dataISO: string) => {
+    setNewDate(dataISO);
+    setNewClienteId(clienteAtivo && clienteAtivo !== "sem" ? clienteAtivo : "");
+    setIsNewTaskModalOpen(true);
+  };
 
   const [busca, setBusca] = useState("");
   const [plataforma, setPlataforma] = useState("");
@@ -56,16 +83,21 @@ export default function MarketingConteudo() {
   const [responsavel, setResponsavel] = useState("");
   const [visao, setVisao] = useState<"quadro" | "calendario">("quadro");
 
-  const plataformas = useMemo(() => Array.from(new Set(tasks.map(t => t.platform).filter(Boolean))).sort() as string[], [tasks]);
+  const doCliente = useMemo(
+    () => (clienteAtivo ? tasks.filter((t) => clienteDe(t) === (clienteAtivo === "sem" ? "" : clienteAtivo)) : tasks),
+    [tasks, clienteAtivo, clienteDe],
+  );
+  const plataformas = useMemo(() => Array.from(new Set(doCliente.map(t => t.platform).filter(Boolean))).sort() as string[], [doCliente]);
   const tasksFiltradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return tasks.filter(t =>
+    return doCliente.filter(t =>
+      (!aprovacaoFiltro || situacaoDaPauta(t) === aprovacaoFiltro) &&
       (!plataforma || t.platform === plataforma) &&
       (!etapa || t.colId === etapa) &&
       (!responsavel || t.responsavel === responsavel) &&
       (!q || [t.title, t.desc, t.platform].some((v: string) => (v || "").toLowerCase().includes(q))),
     );
-  }, [tasks, busca, plataforma, etapa, responsavel]);
+  }, [doCliente, busca, plataforma, etapa, responsavel, aprovacaoFiltro]);
   const responsaveis = useMemo(() => Array.from(new Set(tasks.map((t: any) => t.responsavel).filter(Boolean))).sort() as string[], [tasks]);
   const colunasVisiveis = etapa ? initialColumns.filter(c => c.id === etapa) : initialColumns;
   const ultimaCol = initialColumns[initialColumns.length - 1];
@@ -107,7 +139,9 @@ export default function MarketingConteudo() {
   return (
     <PageContainer
       title="Gestão de Conteúdo (Kanban)"
-      subtitle="Organize postagens, vídeos e criativos em um quadro visual por etapa."
+      subtitle={clienteAtivo && clienteAtivo !== "sem"
+        ? `Pautas e calendário de ${clientes.find((c) => c.id === clienteAtivo)?.nome}.`
+        : "Organize postagens, vídeos e criativos em um quadro visual por etapa."}
     >
       <KpiFilterCard
         id="marketingConteudo"
@@ -117,12 +151,21 @@ export default function MarketingConteudo() {
           { label: "Canais", value: new Set(tasksFiltradas.map(t => t.platform)).size, icon: Share2, tone: "info" },
           { label: ultimaCol ? ultimaCol.title : "Concluídas", value: ultimaCol ? tasksFiltradas.filter(t => t.colId === ultimaCol.id).length : 0, icon: CheckCircle2, tone: "success", hint: "Pautas na última etapa do fluxo" },
           { label: "Com data de publicação", value: tasksFiltradas.filter(t => t.publishDateISO).length, icon: CalendarCheck, tone: "accent" },
+          { label: "Aguardando cliente", value: tasksFiltradas.filter(t => situacaoDaPauta(t) === "aguardando").length, icon: Clock, tone: "warning" },
+          { label: "Ajustes pedidos", value: tasksFiltradas.filter(t => situacaoDaPauta(t) === "ajustes").length, icon: MessageSquareWarning, tone: "danger" },
         ]}
-        activeCount={(busca.trim() ? 1 : 0) + (plataforma ? 1 : 0) + (etapa ? 1 : 0) + (responsavel ? 1 : 0)}
-        onClear={() => { setBusca(""); setPlataforma(""); setEtapa(""); setResponsavel(""); }}
+        activeCount={(busca.trim() ? 1 : 0) + (plataforma ? 1 : 0) + (etapa ? 1 : 0) + (responsavel ? 1 : 0) + (aprovacaoFiltro ? 1 : 0) + (clienteEscolhido && !clienteDoMenu ? 1 : 0)}
+        onClear={() => { setBusca(""); setPlataforma(""); setEtapa(""); setResponsavel(""); setAprovacaoFiltro(""); setClienteEscolhido(""); }}
       >
         <FilterBar>
           <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar pauta, descrição ou canal..." />
+          {clientes.length > 0 && !clienteDoMenu && (
+            <FilterSelect icon={Users} value={clienteEscolhido} onChange={setClienteEscolhido} options={[...clientes.map(c => ({ value: c.id, label: c.nome })), { value: "sem", label: "Sem cliente" }]} allLabel="Todos os clientes" />
+          )}
+          <FilterSelect icon={CheckCircle2} value={aprovacaoFiltro} onChange={setAprovacaoFiltro} options={[
+            { value: "nao_enviado", label: "Não enviadas" }, { value: "aguardando", label: "Aguardando cliente" }, { value: "aprovado", label: "Aprovadas" },
+            { value: "ajustes", label: "Ajustes pedidos" }, { value: "alterada", label: "Alteradas depois da resposta" }, { value: "vencido", label: "Link vencido" },
+          ]} allLabel="Qualquer aprovação" />
           <FilterSelect icon={Share2} value={plataforma} onChange={setPlataforma} options={plataformas} allLabel="Todos os canais" />
           <FilterSelect icon={Layers} value={etapa} onChange={setEtapa} options={initialColumns.map(c => ({ value: c.id, label: c.title }))} allLabel="Todas as etapas" />
           <FilterSelect icon={User} value={responsavel} onChange={setResponsavel} options={responsaveis} allLabel="Todos os responsáveis" />
@@ -132,10 +175,13 @@ export default function MarketingConteudo() {
       <div className="flex justify-between items-center mb-6">
         <div className="flex gap-4 items-center overflow-x-auto pb-2 scrollbar-none">
           <Button 
-            onClick={() => { setNewDate(""); setIsNewTaskModalOpen(true); }}
+            onClick={() => novaPauta("")}
             className="bg-[#2563EB] hover:bg-blue-600 shadow-lg text-xs font-bold gap-2"
           >
              <Plus className="w-4 h-4" /> Nova Pauta
+          </Button>
+          <Button variant="outline" onClick={() => setEnvio({ pauta: null })} className="text-xs font-bold gap-2 shrink-0">
+             <Send className="w-4 h-4" /> Enviar para aprovação
           </Button>
           <div className="flex items-center bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] h-10 shrink-0">
             {([
@@ -163,7 +209,9 @@ export default function MarketingConteudo() {
           tasks={tasksFiltradas}
           colunas={initialColumns}
           onOpenTask={openTask}
-          onNovaPauta={(dataISO) => { setNewDate(dataISO); setIsNewTaskModalOpen(true); }}
+          onNovaPauta={novaPauta}
+          etiqueta={nomeCliente}
+          marcador={(t) => <SeloAprovacao task={t} soIcone />}
         />
       ) : (
       <div id="app-marketing-conteudo-kanban-board" className="w-full flex-1 flex flex-col min-h-0">
@@ -177,6 +225,7 @@ export default function MarketingConteudo() {
                   columnSearches={columnSearches}
                   setColumnSearches={setColumnSearches}
                   openTask={openTask}
+                  nomeCliente={nomeCliente}
                 />
               </div>
             ))}
@@ -202,6 +251,22 @@ export default function MarketingConteudo() {
         newDesc={newDesc}
         setNewDesc={setNewDesc}
         handleCreateTask={handleCreateTask}
+        clientes={clientes}
+        newClienteId={newClienteId}
+        setNewClienteId={setNewClienteId}
+      />
+
+      <EnviarAprovacaoModal
+        isOpen={!!envio}
+        onClose={() => setEnvio(null)}
+        tasks={tasks}
+        clientes={clientes}
+        clienteDe={clienteDe}
+        clienteInicial={clienteAtivo === "sem" ? "" : clienteAtivo}
+        pautaInicial={envio?.pauta}
+        ultimaEtapa={ultimaCol?.id}
+        pedirAprovacao={pedirAprovacao}
+        cancelarAprovacao={cancelarAprovacao}
       />
 
       {/* Modal: Detalhes da Pauta */}
@@ -254,6 +319,16 @@ export default function MarketingConteudo() {
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             updateTaskInDatabase={updateTaskInDatabase}
+            clientes={clientes}
+            onPedirAprovacao={() => { setEnvio({ pauta: selectedTask.id }); closeModal(); }}
+            onCancelarAprovacao={async () => {
+              const ok = await confirmDialog({
+                title: "Cancelar o pedido de aprovação?",
+                description: "A pauta sai do link do cliente e as respostas registradas nela são apagadas.",
+                confirmLabel: "Cancelar pedido",
+              });
+              if (ok && await cancelarAprovacao([selectedTask.id])) toast.success("Pedido de aprovação cancelado.");
+            }}
           />
         )}
       </Modal>

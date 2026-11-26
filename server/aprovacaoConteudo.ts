@@ -20,7 +20,7 @@ const dia = (v: unknown) => {
 
 /** Versão do conteúdo de uma linha do banco (mesma conta feita na tela do Marketing). */
 export const versaoDaLinha = (row: any) => versaoDoConteudo({
-  titulo: row.title, descricao: row.description, canal: row.platform, data: dia(row.publish_date),
+  titulo: row.title, descricao: row.description, canal: row.platform || "Instagram", data: dia(row.publish_date),
   formato: row.extras?.formato, roteiro: row.extras?.script, hashtags: row.extras?.hashtags,
   links: row.extras?.refs, anexos: row.extras?.anexos,
 });

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { cn } from "../../../lib/utils";
@@ -14,6 +14,10 @@ interface Props {
   onNovaPauta: (dataISO: string) => void;
   /** Como chamar cada item (padrão: pauta). Ex.: "campanha". */
   rotulo?: { singular: string; plural: string };
+  /** Segunda linha do item (ex.: nome do cliente). */
+  etiqueta?: (task: any) => string;
+  /** Selo ao fim do item (ex.: situação da aprovação). */
+  marcador?: (task: any) => ReactNode;
 }
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -24,7 +28,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const iso = (ano: number, mes: number, dia: number) => `${ano}-${pad(mes + 1)}-${pad(dia)}`;
 
 /** Calendário mensal das pautas de conteúdo: cada pauta aparece no dia da publicação. */
-export function ConteudoCalendario({ tasks, colunas, onOpenTask, onNovaPauta, rotulo = { singular: "pauta", plural: "pautas" } }: Props) {
+export function ConteudoCalendario({ tasks, colunas, onOpenTask, onNovaPauta, rotulo = { singular: "pauta", plural: "pautas" }, etiqueta, marcador }: Props) {
   const hoje = new Date();
   const [ref, setRef] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   const [diaAberto, setDiaAberto] = useState<string | null>(null);
@@ -62,16 +66,21 @@ export function ConteudoCalendario({ tasks, colunas, onOpenTask, onNovaPauta, ro
 
   const chip = (t: any) => {
     const col = corDaEtapa.get(t.colId);
+    const sub = etiqueta?.(t) || "";
     return (
       <button
         key={t.id}
         type="button"
         onClick={(e) => { e.stopPropagation(); onOpenTask(t); }}
-        title={`${t.title}${t.platform ? ` · ${t.platform}` : ""}${col ? ` · ${col.title}` : ""}`}
+        title={`${t.title}${sub ? ` · ${sub}` : ""}${t.platform ? ` · ${t.platform}` : ""}${col ? ` · ${col.title}` : ""}`}
         className="w-full flex items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[10px] font-bold bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] hover:border-[var(--color-primary-blue)] hover:text-[var(--color-primary-blue)] text-[var(--color-text-primary)] transition-colors cursor-pointer"
       >
         <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", col?.color ?? "bg-slate-500")} />
-        <span className="truncate">{t.title}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate">{t.title}</span>
+          {sub && <span className="block truncate text-[9px] font-semibold text-[var(--color-text-muted)]">{sub}</span>}
+        </span>
+        {marcador?.(t)}
       </button>
     );
   };

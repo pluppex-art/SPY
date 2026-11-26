@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { friendlyError } from "../../lib/friendlyError";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
@@ -6,6 +6,20 @@ import { DropResult } from "@hello-pangea/dnd";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_CLASS, KANBAN_COR_DOT } from "../../hooks/useKanbanConfig";
+import { enviarParaAprovacao, lerAprovacao, linkVencido, novoToken, versaoDoConteudo } from "../../lib/aprovacaoConteudo";
+
+const MESES_CURTOS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+/** "2026-12-01" vira "1 Dez" sem passar por fuso (new Date de uma data pura mostraria o dia anterior no Brasil). */
+export const dataCurta = (iso: string) => {
+  const [, mes, dia] = iso.split("-").map(Number);
+  return mes && dia ? `${dia} ${MESES_CURTOS[mes - 1]}` : "Sem data";
+};
+
+/** Versão do conteúdo da pauta — a mesma conta que o servidor faz para a página do cliente. */
+export const versaoDaPauta = (t: any) => versaoDoConteudo({
+  titulo: t.title, descricao: t.desc, canal: t.platform, data: t.publishDateISO, formato: t.formato,
+  roteiro: t.script, hashtags: t.hashtags, links: t.refs, anexos: t.anexos,
+});
 
 function getMarketingColumns(appSettings: Record<string, any>) {
   return readKanbanConfig(appSettings, KANBAN_KEYS.marketing).map(c => ({
@@ -24,9 +38,8 @@ function mapRowToTask(row: any) {
   if (row.publish_date) {
     const d = new Date(row.publish_date);
     if (!isNaN(d.getTime())) {
-      const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-      date = `${d.getDate()} ${months[d.getMonth()]}`;
       publishDateISO = d.toISOString().slice(0, 10);
+      date = dataCurta(publishDateISO);
     }
   }
   return {
@@ -47,6 +60,8 @@ function mapRowToTask(row: any) {
     hashtags: Array.isArray(row.extras?.hashtags) ? row.extras.hashtags : [],
     refs: Array.isArray(row.extras?.refs) ? row.extras.refs : [],
     anexos: Array.isArray(row.extras?.anexos) ? row.extras.anexos : [],
+    clienteId: typeof row.extras?.clienteId === "string" ? row.extras.clienteId : "",
+    aprovacao: lerAprovacao(row.extras?.aprovacao),
   };
 }
 
@@ -55,7 +70,11 @@ let gravaPrioridade = true;
 // Checklist, roteiro, links e anexos vão na coluna `extras` (migração 20261124); sem ela, grava só o resto.
 let gravaExtras = true;
 
-function taskToRow(task: any, tenantId?: string) {
+/**
+ * `extrasNoBanco` é o que está gravado agora: a resposta do cliente chega por lá, então salvar a pauta nunca a
+ * sobrescreve com a cópia (possivelmente antiga) da tela. Trocar a pauta de cliente cancela o pedido de aprovação.
+ */
+function taskToRow(task: any, tenantId?: string, extrasNoBanco: Record<string, any> = {}) {
   const row: any = {
     id: task.id,
     title: task.title,
@@ -64,9 +83,10 @@ function taskToRow(task: any, tenantId?: string) {
     status: task.colId,
     ...(tenantId ? { tenant_id: tenantId } : {}),
   };
-  if (task.publishDateISO) row.publish_date = task.publishDateISO;
+  row.publish_date = task.publishDateISO || null;
   if (gravaPrioridade && task.priority) row.priority = task.priority;
-  if (gravaExtras) row.extras = { value: Math.max(0, Number(task.value) || 0), responsavel: task.responsavel || "", formato: task.formato || "", notas: Array.isArray(task.notas) ? task.notas.slice(-100) : [], checklist: task.checklist, script: task.script || "", hashtags: task.hashtags || [], refs: task.refs || [], anexos: task.anexos || [] };
+  if (gravaExtras) row.extras = { ...extrasNoBanco, clienteId: task.clienteId || "", value: Math.max(0, Number(task.value) || 0), responsavel: task.responsavel || "", formato: task.formato || "", notas: Array.isArray(task.notas) ? task.notas.slice(-100) : [], checklist: task.checklist, script: task.script || "", hashtags: task.hashtags || [], refs: task.refs || [], anexos: task.anexos || [] };
+  if (row.extras && (extrasNoBanco.clienteId || "") !== row.extras.clienteId) delete row.extras.aprovacao;
   return row;
 }
 
@@ -96,21 +116,116 @@ export function useMarketingConteudo() {
   const [newDate, setNewDate] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newPriority, setNewPriority] = useState("Média");
+  const [newClienteId, setNewClienteId] = useState("");
 
-  // Tasks are loaded via DataContext
+  // Gravações em fila: a leitura do que está no banco e a escrita não se atropelam.
+  const fila = useRef<Promise<unknown>>(Promise.resolve());
+  const naFila = useCallback(<T,>(fn: () => Promise<T>): Promise<T> => {
+    const proxima = fila.current.then(fn, fn);
+    fila.current = proxima.catch(() => {});
+    return proxima;
+  }, []);
 
-  const updateTaskInDatabase = async (task: any) => {
+  const lerLinhas = useCallback(async (): Promise<any[] | null> => {
+    if (!supabase || !activeTenantId) return null;
+    const linhas: any[] = [];
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await supabase.from("marketing_content").select("*")
+        .eq("tenant_id", activeTenantId).is("deleted_at", null).order("created_at").order("id").range(de, de + 999);
+      if (error) { console.error("Falha ao atualizar pautas:", error.message); return null; }
+      linhas.push(...(data ?? []));
+      if ((data?.length ?? 0) < 1000) return linhas;
+    }
+  }, [activeTenantId]);
+
+  /** Busca direto no banco: é assim que as respostas dos clientes aparecem sem recarregar o sistema. */
+  const recarregar = useCallback(() => naFila(async () => {
+    const linhas = await lerLinhas();
+    if (!linhas) return;
+    const novas = linhas.map(mapRowToTask);
+    setTasks(novas);
+    setSelectedTask((atual: any) => (atual ? { ...atual, aprovacao: novas.find((t) => t.id === atual.id)?.aprovacao } : atual));
+  }), [naFila, lerLinhas]);
+
+  useEffect(() => {
+    void recarregar();
+    const aoVoltar = () => { void recarregar(); };
+    window.addEventListener("focus", aoVoltar);
+    return () => window.removeEventListener("focus", aoVoltar);
+  }, [recarregar]);
+
+  const gravarExtras = async (id: string, extras: Record<string, any>) => {
+    const { error } = await supabase!.from("marketing_content")
+      .update({ extras, updated_at: new Date().toISOString() }).eq("id", id).eq("tenant_id", activeTenantId!);
+    if (error) throw error;
+  };
+
+  /** Marca as pautas como "aguardando o cliente" e devolve o token do link (o mesmo link vale para o cliente todo). */
+  const pedirAprovacao = async (ids: string[], clienteId: string): Promise<string | null> => {
+    try {
+      const token = await naFila(async () => {
+        const linhas = await lerLinhas();
+        if (!linhas) throw new Error("sem conexão com o banco");
+        const alvo = linhas.filter((r) => ids.includes(r.id) && (r.extras?.clienteId || "") === clienteId);
+        if (!alvo.length) throw new Error("nenhuma pauta encontrada");
+        const valido = (r: any) => { const a = lerAprovacao(r.extras?.aprovacao); return a && !linkVencido(a) ? a.token : ""; };
+        const atual = linhas.filter((r) => (r.extras?.clienteId || "") === clienteId).map(valido).find(Boolean);
+        const token = atual || novoToken();
+        for (const r of alvo) {
+          await gravarExtras(r.id, { ...r.extras, aprovacao: enviarParaAprovacao(token, lerAprovacao(r.extras?.aprovacao)) });
+        }
+        return token;
+      });
+      await recarregar();
+      return token;
+    } catch (e: any) {
+      toast.error("Não foi possível gerar o link: " + friendlyError(e));
+      await recarregar();
+      return null;
+    }
+  };
+
+  /** Tira as pautas do link: o cliente deixa de vê-las. */
+  const cancelarAprovacao = async (ids: string[]): Promise<boolean> => {
+    try {
+      await naFila(async () => {
+        const linhas = await lerLinhas();
+        if (!linhas) throw new Error("sem conexão com o banco");
+        for (const r of linhas.filter((l) => ids.includes(l.id) && l.extras?.aprovacao)) {
+          const { aprovacao: _removida, ...resto } = r.extras;
+          await gravarExtras(r.id, resto);
+        }
+      });
+      await recarregar();
+      return true;
+    } catch (e: any) {
+      toast.error("Não foi possível cancelar: " + friendlyError(e));
+      await recarregar();
+      return false;
+    }
+  };
+
+  const updateTaskInDatabase = (task: any) => naFila(async () => {
     if (supabase) {
       try {
+        let noBanco: Record<string, any> = {};
+        if (gravaExtras) {
+          const { data, error: erroLeitura } = await supabase.from("marketing_content").select("extras").eq("id", task.id).maybeSingle();
+          if (erroLeitura) {
+            if (/extras/i.test(erroLeitura.message)) gravaExtras = false;
+            else { toast.error("Não foi possível salvar a pauta: " + friendlyError(erroLeitura)); return; }
+          }
+          noBanco = (data?.extras as Record<string, any>) || {};
+        }
         let { error } = await supabase
           .from("marketing_content")
-          .upsert(taskToRow(task, activeTenantId));
+          .upsert(taskToRow(task, activeTenantId, noBanco));
         // Colunas novas ainda não criadas no banco: tira o campo que falta e tenta de novo (no máximo duas vezes).
         for (let t = 0; t < 2 && error; t++) {
           if (gravaExtras && /extras/i.test(error.message)) gravaExtras = false;
           else if (gravaPrioridade && /priority/i.test(error.message)) gravaPrioridade = false;
           else break;
-          ({ error } = await supabase.from("marketing_content").upsert(taskToRow(task, activeTenantId)));
+          ({ error } = await supabase.from("marketing_content").upsert(taskToRow(task, activeTenantId, noBanco)));
         }
         if (error) {
           console.error("Supabase upsert failure:", error.message);
@@ -121,7 +236,7 @@ export function useMarketingConteudo() {
         toast.error("Erro de comunicação ao salvar a pauta.");
       }
     }
-  };
+  });
 
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -173,27 +288,17 @@ export function useMarketingConteudo() {
       return;
     }
     
-    let displayDate = "Sem data";
-    if (newDate) {
-      const parts = newDate.split("-");
-      if (parts.length === 3) {
-        const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-        const day = parts[2];
-        const monthIndex = parseInt(parts[1], 10) - 1;
-        displayDate = `${day} ${months[monthIndex] || ""}`;
-      }
-    }
-
     const newTask = {
       id: crypto.randomUUID(),
       colId: "ideia",
       title: newTitle,
       desc: newDesc || "Sem descrição.",
       platform: newPlatform,
-      date: displayDate,
+      date: newDate ? dataCurta(newDate) : "Sem data",
       publishDateISO: newDate || "",
       priority: newPriority,
-      value: parseFloat(newValue) || 0
+      value: parseFloat(newValue) || 0,
+      clienteId: newClienteId,
     };
     
     const updated = [...tasks, newTask];
@@ -239,6 +344,8 @@ export function useMarketingConteudo() {
     newDate, setNewDate,
     newDesc, setNewDesc,
     newPriority, setNewPriority,
+    newClienteId, setNewClienteId,
+    pedirAprovacao, cancelarAprovacao, recarregar,
     initialColumns: getMarketingColumns(appSettings),
     onDragEnd,
     handleCreateTask,
