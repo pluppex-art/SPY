@@ -8,18 +8,23 @@ alter table public.dev_sprint_tasks
   add column if not exists source       jsonb;                                -- { "origem": "agente-secreto", "solicitante": "...", "grupo": "...", "mensagem": "...", "recebido_em": "ISO" }
 
 -- Bucket privado dos anexos: o caminho começa pelo id da empresa; só quem tem acesso a ela lê e grava.
+-- O CASE só converte para uuid o que tem formato de uuid: o Postgres não garante a ordem do "and", e uma
+-- pasta de outro bucket não pode causar erro de conversão.
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('dev-anexos', 'dev-anexos', false, 15728640)
 on conflict (id) do nothing;
 
 drop policy if exists dev_anexos_read on storage.objects;
 create policy dev_anexos_read on storage.objects for select to authenticated
-  using (bucket_id = 'dev-anexos' and public.has_tenant_access(((storage.foldername(name))[1])::uuid));
+  using (bucket_id = 'dev-anexos' and public.has_tenant_access(case when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                                                      then ((storage.foldername(name))[1])::uuid end));
 
 drop policy if exists dev_anexos_write on storage.objects;
 create policy dev_anexos_write on storage.objects for insert to authenticated
-  with check (bucket_id = 'dev-anexos' and public.has_tenant_access(((storage.foldername(name))[1])::uuid));
+  with check (bucket_id = 'dev-anexos' and public.has_tenant_access(case when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                                                      then ((storage.foldername(name))[1])::uuid end));
 
 drop policy if exists dev_anexos_delete on storage.objects;
 create policy dev_anexos_delete on storage.objects for delete to authenticated
-  using (bucket_id = 'dev-anexos' and public.has_tenant_access(((storage.foldername(name))[1])::uuid));
+  using (bucket_id = 'dev-anexos' and public.has_tenant_access(case when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                                                      then ((storage.foldername(name))[1])::uuid end));
