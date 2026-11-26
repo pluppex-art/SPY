@@ -1,5 +1,6 @@
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from '../../components/ui/kpi-filter-card';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Zap, Layers, Clock, CheckCircle2, FolderCode, Flame, User } from 'lucide-react';
 import { NovaTarefaSprintModal, type TarefaSprintPayload } from './modals/NovaTarefaSprintModal';
 import { TarefaSprintPainel, TIPOS_SPRINT, COR_PRIORIDADE_SPRINT, iniciaisSprint } from './modals/TarefaSprintPainel';
@@ -30,7 +31,17 @@ export default function Sprints() {
 
   const projects = useDevProjectsForFilter() as DevProject[];
 
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  // O projeto filtrado fica na URL (?projeto=<id>): é assim que a tela Projetos abre o quadro já filtrado,
+  // e o filtro continua depois de recarregar ou ao compartilhar o link.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeProjectId = searchParams.get('projeto');
+  const setActiveProjectId = (id: string | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (id) next.set('projeto', id); else next.delete('projeto');
+      return next;
+    }, { replace: true });
+  };
 
   const [filterColumns, setFilterColumns] = useState<Record<Column, boolean>>({
     backlog: true,

@@ -1,5 +1,6 @@
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../components/ui/kpi-filter-card";
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FolderCode, Plus, Clock, MoreHorizontal, Star, Bug } from 'lucide-react';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -33,6 +34,7 @@ const STACK_COLORS: Record<string, string> = {
 };
 
 export default function Projetos() {
+  const navigate = useNavigate();
   const { projects, addProject } = useDevProjects();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('Todos');
@@ -92,7 +94,7 @@ export default function Projetos() {
             <Card
               key={String(project.id)}
               className="p-6 bg-[var(--color-surface-elevated)]/80 border-white/5 hover:border-blue-500/20 transition-all duration-200 group flex flex-col cursor-pointer"
-              onClick={() => window.location.assign(`/app/dev/projetos/${project.id}`)}
+              onClick={() => navigate(`/app/dev/sprints?projeto=${encodeURIComponent(String(project.id))}`)}
             >
 
               <div className="flex items-start justify-between gap-4 mb-4">
@@ -102,7 +104,14 @@ export default function Projetos() {
                   </div>
                   <h3 className="font-black text-white text-sm truncate">{project.name}</h3>
                 </div>
-                <button className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 shrink-0 transition-colors">
+                {/* O cartão abre o sprint filtrado; os detalhes (editar/apagar o projeto) ficam neste botão. */}
+                <button
+                  type="button"
+                  title="Detalhes do projeto"
+                  aria-label={`Detalhes do projeto ${project.name}`}
+                  onClick={(e) => { e.stopPropagation(); navigate(`/app/dev/projetos/${project.id}`); }}
+                  className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 shrink-0 transition-colors cursor-pointer"
+                >
                   <MoreHorizontal className="w-4 h-4" />
                 </button>
               </div>
