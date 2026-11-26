@@ -10,7 +10,7 @@ import { createTenantAdmin } from "../../../lib/supabase";
 import { saasApi, brl, type Plan } from "../../../lib/saasApi";
 import { BRAND_COLORS } from "../../../lib/theme";
 import { toast } from "sonner";
-import { Copy, CalendarCheck } from "lucide-react";
+import { Copy, CalendarCheck, Radar } from "lucide-react";
 
 interface NovoTenantModalProps {
   isOpen: boolean;
@@ -51,6 +51,7 @@ export const MODULES: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "solar", label: "Energia Solar", icon: Sun },
   { id: "varejo", label: "Ponto de Venda", icon: ShoppingCart },
   { id: "dev", label: "Engenharia & Sprints", icon: Code2 },
+  { id: "radar_grupos", label: "Radar de Grupos (vendido à parte)", icon: Radar },
 ];
 
 const DEFAULT_MODULES_BY_NICHE: Record<string, string[]> = {

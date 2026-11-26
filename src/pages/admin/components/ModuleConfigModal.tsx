@@ -3,7 +3,7 @@ import {
   Cpu, X, Check, Sparkles, Target, Clock, DollarSign,
   Package, Megaphone, MessageSquare, Award, Activity,
   Users, Columns3, Home, Car, Sun, ShoppingCart, Code2, Bot,
-  ShieldCheck, CalendarCheck
+  ShieldCheck, CalendarCheck, Radar as RadarIcon
 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -34,6 +34,7 @@ const MODULES_LIST = [
   { id: "solar", title: "Energia Solar", desc: "Análise de fatura por IA e projetos", icon: Sun, color: "text-yellow-500" },
   { id: "varejo", title: "Ponto de Venda", desc: "Venda direta no caixa e catálogo público", icon: ShoppingCart, color: "text-lime-500" },
   { id: "dev", title: "Engenharia & Sprints", desc: "Backlog tech e controle de releases", icon: Code2, color: "text-slate-500" },
+  { id: "radar_grupos", title: "Radar de Grupos", desc: "Grupos de WhatsApp por departamento (vendido à parte)", icon: RadarIcon, color: "text-fuchsia-500" },
 ];
 
 export function ModuleConfigModal({ selectedTenant, onClose, onSaved }: ModuleConfigModalProps) {
