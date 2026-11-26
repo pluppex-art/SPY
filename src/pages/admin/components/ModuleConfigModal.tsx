@@ -34,6 +34,7 @@ const MODULES_LIST = [
   { id: "solar", title: "Energia Solar", desc: "Análise de fatura por IA e projetos", icon: Sun, color: "text-yellow-500" },
   { id: "varejo", title: "Ponto de Venda", desc: "Venda direta no caixa e catálogo público", icon: ShoppingCart, color: "text-lime-500" },
   { id: "dev", title: "Engenharia & Sprints", desc: "Backlog tech e controle de releases", icon: Code2, color: "text-slate-500" },
+  { id: "agente_secreto", title: "Agente Secreto de Vendas", desc: "Acompanha o WhatsApp dos vendedores e alimenta o funil (produto à parte)", icon: RadarIcon, color: "text-cyan-500" },
   { id: "agente_interno", title: "Agente Secreto Interno", desc: "Grupos de WhatsApp da equipe por departamento (vendido à parte)", icon: RadarIcon, color: "text-fuchsia-500" },
 ];
 

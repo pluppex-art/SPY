@@ -6,6 +6,7 @@ import { AgenteSecretoQrModal } from "./AgenteSecretoQrModal";
 import { apiFetch } from "../lib/apiClient";
 import { isVendedorColab } from "../lib/sellers";
 import { AGENTE_SECRETO_STATUS_EVENT } from "./AgenteSecretoConexao";
+import { useAuth } from "../contexts/AuthContext";
 
 type Finalidade = "interno" | "vendas";
 interface Sessao { session: string | null; status?: string; phone?: string | null; ativo?: boolean }
@@ -23,7 +24,10 @@ interface Props {
  * e o de Vendas (só vendedor/closer: acompanha as conversas de venda). Cada um tem a sua sessão de WhatsApp.
  */
 export function AgentesSecretosPainel({ colaborador, propria, podeGerenciar }: Props) {
-  const ehVendedor = isVendedorColab(colaborador);
+  // Dois produtos, duas chaves (Admin > Módulos): Interno = agente_interno; Vendas = agente_secreto, só para vendedor/closer.
+  const { isModuleEnabled } = useAuth();
+  const temInterno = isModuleEnabled("agente_interno");
+  const ehVendedor = isVendedorColab(colaborador) && isModuleEnabled("agente_secreto");
   const [estado, setEstado] = useState<Record<Finalidade, Sessao | null | "erro">>({ interno: null, vendas: null });
   const [carregando, setCarregando] = useState(true);
   const [criando, setCriando] = useState<Finalidade | null>(null);
@@ -41,10 +45,10 @@ export function AgentesSecretosPainel({ colaborador, propria, podeGerenciar }: P
         return (await r.json().catch(() => ({ session: null }))) as Sessao;
       } catch { return "erro"; }
     };
-    const [interno, vendas] = await Promise.all([consultar("interno"), ehVendedor ? consultar("vendas") : Promise.resolve(null)]);
+    const [interno, vendas] = await Promise.all([temInterno ? consultar("interno") : Promise.resolve(null), ehVendedor ? consultar("vendas") : Promise.resolve(null)]);
     setEstado({ interno, vendas });
     setCarregando(false);
-  }, [url, ehVendedor]);
+  }, [url, ehVendedor, temInterno]);
 
   useEffect(() => {
     setCarregando(true);
@@ -67,10 +71,11 @@ export function AgentesSecretosPainel({ colaborador, propria, podeGerenciar }: P
   }
 
   const secoes: { f: Finalidade; titulo: string; descricao: string; icon: typeof Users }[] = [
-    { f: "interno", titulo: "Agente Secreto Interno", icon: Users, descricao: "Acompanha os grupos de WhatsApp da equipe e avisa o responsável de cada departamento. Usa um WhatsApp só para isso; as conversas privadas nunca entram no SPY." },
+    ...(temInterno ? [{ f: "interno" as Finalidade, titulo: "Agente Secreto Interno", icon: Users, descricao: "Acompanha os grupos de WhatsApp da equipe e avisa o responsável de cada departamento. Usa um WhatsApp só para isso; as conversas privadas nunca entram no SPY." }] : []),
     ...(ehVendedor ? [{ f: "vendas" as Finalidade, titulo: "Agente Secreto de Vendas", icon: ShoppingBag, descricao: "Acompanha as conversas de venda do vendedor/closer com os clientes e alimenta o funil." }] : []),
   ];
 
+  if (!secoes.length) return <p className="text-xs text-[var(--color-text-faint)] py-4">Nenhum Agente Secreto contratado para esta pessoa. O Interno e o de Vendas são módulos à parte (Admin &gt; Módulos).</p>;
   if (carregando) return <div className="grid place-items-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-faint)]" /></div>;
 
   return (
@@ -110,7 +115,7 @@ export function AgentesSecretosPainel({ colaborador, propria, podeGerenciar }: P
         );
       })}
 
-      {!ehVendedor && (
+      {!ehVendedor && isModuleEnabled("agente_secreto") && (
         <p className="text-[11px] text-[var(--color-text-faint)]">O Agente Secreto de Vendas só existe para quem tem cargo ou departamento de vendas (vendedor, closer, SDR, comercial).</p>
       )}
 

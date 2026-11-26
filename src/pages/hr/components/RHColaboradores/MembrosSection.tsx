@@ -1,4 +1,5 @@
 import { isVendedorColab } from "../../../../lib/sellers";
+import { useAuth } from "../../../../contexts/AuthContext";
 import { useRef, useState, useMemo } from "react";
 import { Users, UserPlus, Mail, Calendar, MoreVertical, TrendingUp, UserX, Coffee, Plane, Pencil, Phone, Building2 } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../../../components/ui/kpi-filter-card";
@@ -58,6 +59,11 @@ export function MembrosSection({
   menuOpenId, setMenuOpenId, onVerPerfil, onEditColab,
   onChangeStatus, onDesligar, canManageSessions, podeGerenciar = true, onCriarSessao, currentUserId, onConectarAgente, onConectarColaborador, agenteStatus, agenteInternoStatus, onAbrirAgentes,
 }: MembrosSectionProps) {
+  // Cada Agente Secreto é um produto com a sua chave em Admin > Módulos: Interno (agente_interno) e Vendas (agente_secreto, só vendedor/closer).
+  const { isModuleEnabled } = useAuth();
+  const temInterno = isModuleEnabled("agente_interno");
+  const temVendas = isModuleEnabled("agente_secreto");
+  const usaVendas = (c: any) => temVendas && (isVendedorColab(c) || agenteStatus?.[c.id] !== undefined);
   const menuRef = useRef<HTMLDivElement>(null);
   const [depto, setDepto] = useState("");
   const [statusFiltro, setStatusFiltro] = useState("");
@@ -119,8 +125,8 @@ export function MembrosSection({
                     </Badge>
                   </div>
                   <div className="space-y-0.5">
-                    <div><AgenteSecretoBadge colab={colab} status={agenteInternoStatus?.[colab.id]} rotulo="Agente Interno" /></div>
-                    {(isVendedorColab(colab) || agenteStatus?.[colab.id] !== undefined) && <div><AgenteSecretoBadge colab={colab} status={agenteStatus?.[colab.id]} rotulo="Agente de Vendas" /></div>}
+                    {temInterno && <div><AgenteSecretoBadge colab={colab} status={agenteInternoStatus?.[colab.id]} rotulo="Agente Interno" /></div>}
+                    {usaVendas(colab) && <div><AgenteSecretoBadge colab={colab} status={agenteStatus?.[colab.id]} rotulo="Agente de Vendas" /></div>}
                   </div>
                   <h3 className="text-sm font-bold text-[var(--color-text-primary)] truncate">{colab.nome}</h3>
                   <p className="text-[11px] text-[var(--color-text-muted)] font-medium truncate">{colab.cargo}</p>
@@ -196,31 +202,9 @@ export function MembrosSection({
                         <Users className="w-3.5 h-3.5 text-emerald-500" /> Marcar como Ativo
                       </button>
                       </>)}
-                      {onAbrirAgentes && (podeGerenciar || (currentUserId && colab.user_id === currentUserId)) && (
+                      {onAbrirAgentes && (temInterno || usaVendas(colab)) && (podeGerenciar || (currentUserId && colab.user_id === currentUserId)) && (
                         <button onClick={() => { setMenuOpenId(null); onAbrirAgentes(colab); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
-                          <Logo variant="icon" color={AGENTE_COR.ativo} size={14} className="inline-flex shrink-0" /> Agentes Secretos (Interno{isVendedorColab(colab) ? " e Vendas" : ""})
-                        </button>
-                      )}
-                      {onConectarAgente && currentUserId && colab.user_id === currentUserId && (isVendedorColab(colab) || agenteStatus?.[colab.id] !== undefined) && (
-                        <button onClick={() => { setMenuOpenId(null); onConectarAgente(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
-                          {agenteStatus?.[colab.id] === "CONNECTED"
-                          ? <><Logo variant="icon" color={AGENTE_COR.ativo} size={14} className="inline-flex shrink-0" /> Agente Secreto conectado</>
-                          : <><Phone className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Conectar meu WhatsApp</>}
-                        </button>
-                      )}
-                      {canManageSessions && onConectarColaborador && agenteStatus?.[colab.id] !== undefined && agenteStatus[colab.id] !== "CONNECTED" && !(currentUserId && colab.user_id === currentUserId) && (
-                        <button onClick={() => { setMenuOpenId(null); onConectarColaborador(colab); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
-                          <Phone className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" /> Conectar WhatsApp do colaborador
-                        </button>
-                      )}
-                      {canManageSessions && onCriarSessao && agenteStatus?.[colab.id] !== undefined && (
-                        <div aria-disabled="true" title="Este colaborador já tem uma sessão do Agente Secreto." className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-faint)] rounded-lg text-left cursor-default select-none">
-                          <Phone className="w-3.5 h-3.5 text-emerald-500/60" /> Sessão do Agente Secreto já criada
-                        </div>
-                      )}
-                      {canManageSessions && onCriarSessao && agenteStatus?.[colab.id] === undefined && isVendedorColab(colab) && (
-                        <button onClick={() => onCriarSessao(colab)} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
-                          <Phone className="w-3.5 h-3.5 text-emerald-500" /> Criar sessão do Agente Secreto
+                          <Logo variant="icon" color={AGENTE_COR.ativo} size={14} className="inline-flex shrink-0" /> Agentes Secretos ({[temInterno && "Interno", usaVendas(colab) && "Vendas"].filter(Boolean).join(" e ")})
                         </button>
                       )}
                       {podeGerenciar && (<>

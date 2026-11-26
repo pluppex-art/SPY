@@ -52,6 +52,7 @@ const MODULE_DEFINITIONS = [
   { id: "solar", title: "Energia Solar", desc: "Análise de fatura por IA, dimensionamento e funil fotovoltaico", icon: Sun, category: "Vertical", color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20" },
   { id: "varejo", title: "Ponto de Venda", desc: "Carrinho de compras, baixa de estoque e catálogo compartilhável", icon: ShoppingCart, category: "Vertical", color: "text-lime-500 bg-lime-500/10 border-lime-500/20" },
   { id: "dev", title: "Engenharia & Sprints", desc: "Quadro de sprints, releases e backlog de demandas tech", icon: Code2, category: "Engenharia", color: "text-slate-500 bg-slate-500/10 border-slate-500/20" },
+  { id: "agente_secreto", title: "Agente Secreto de Vendas", desc: "Produto à parte: acompanha o WhatsApp de cada vendedor/closer e alimenta o funil de vendas (quem é da equipe nunca vira lead)", icon: RadarIcon, category: "Inteligência", color: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20" },
   { id: "agente_interno", title: "Agente Secreto Interno", desc: "Vendido à parte: acompanha os grupos de WhatsApp da equipe por departamento e cria tarefas, OS e pedidos a partir das mensagens (tela Grupos internos, em Equipe & RH)", icon: RadarIcon, category: "Gestão", color: "text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20" },
 ];
 
