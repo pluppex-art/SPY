@@ -19,6 +19,7 @@ export const conditionCheckers: Record<NavReqCondition, (user: any) => boolean> 
 export const navSections = [
   {
     title: "Visão Geral",
+    semTitulo: true, // só o botão, sem o nome da seção no menu
     items: [
       { name: "Painel Geral", path: "/app/dashboard", icon: LayoutDashboard },
     ],

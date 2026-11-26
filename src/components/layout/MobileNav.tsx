@@ -155,7 +155,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
                 .filter(Boolean)
                 .map((section: any, idx) => (
                 <div key={idx} className="space-y-2.5 border-t border-[var(--color-border-subtle)] pt-4 first:border-none first:pt-0">
-                  <div className="text-[10px] font-black text-[var(--color-text-faint)] uppercase tracking-widest">{section.title}</div>
+                  {!section.semTitulo && <div className="text-[10px] font-black text-[var(--color-text-faint)] uppercase tracking-widest">{section.title}</div>}
                   <div className="grid grid-cols-2 gap-2">
                     {section.items.map((item: any) => {
                       const isActive = item.path ? location.pathname.startsWith(item.path) : false;

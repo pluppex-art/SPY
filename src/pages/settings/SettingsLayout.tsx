@@ -89,6 +89,7 @@ export default function SettingsLayout() {
         { title: "LGPD", path: "/app/configuracoes/empresa/lgpd" },
         ...(user?.isMaster ? [{ title: "Módulos & SaaS (Admin)", path: "/app/admin?tab=modules", matchPaths: ["/app/admin"] }] : []),
         ...(user?.isMaster || user?.partnerId ? [{ title: "Portal de Parceiros", path: "/app/parceiros" }] : []),
+        ...(user?.isMaster ? [{ title: "Base de Conhecimento", path: "/app/conhecimento" }] : []),
       ],
     },
     {

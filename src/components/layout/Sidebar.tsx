@@ -56,7 +56,7 @@ export function Sidebar({
   // atual; navegações seguintes só adicionam a nova seção ativa, nunca fecham
   // uma que o usuário abriu manualmente.
   const sectionForPath = (pathname: string) =>
-    navSections.find((section) => section.items.some((item) => pathname.startsWith(item.path)))?.title;
+    navSections.find((section) => !section.semTitulo && section.items.some((item) => pathname.startsWith(item.path)))?.title;
 
   // Uma seção aberta por vez: abrir outra fecha a que estava aberta. A lista
   // guarda a ordem de abertura; o limite é MAX_OPEN_SECTIONS.
@@ -212,11 +212,11 @@ export function Sidebar({
             })
             .filter(Boolean);
           const renderSection = (section: any, idx: number) => {
-              const isOpen = isSidebarCollapsed || !!openSections[section.title];
+              const isOpen = isSidebarCollapsed || section.semTitulo || !!openSections[section.title];
 
               return (
               <div key={idx} className="space-y-1">
-                {!isSidebarCollapsed ? (
+                {section.semTitulo ? null : !isSidebarCollapsed ? (
                   <button
                     type="button"
                     onClick={() => toggleSection(section.title)}

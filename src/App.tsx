@@ -302,7 +302,9 @@ function AppContent() {
           <Route path="ia" element={<ProtectedRoute requireModule="aurora"><SettingsLayout /></ProtectedRoute>}>
             <Route index element={<VisaoGeralIA />} />
           </Route>
-          <Route path="conhecimento" element={<ConhecimentoSurfSense />} />
+          <Route path="conhecimento" element={<SettingsLayout />}>
+            <Route index element={<ConhecimentoSurfSense />} />
+          </Route>
 
           {/* Módulo Vendas (Núcleo Central do S.P.Y.) */}
           <Route path="crm">
